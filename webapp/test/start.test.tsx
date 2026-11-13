@@ -4,7 +4,7 @@ import { Route, Routes } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
 import { Start, StartOfPlace } from '@/screens/start/Start';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import {
   ago,
   cardOf,
@@ -284,8 +284,31 @@ describe('Start of one place with a camera and a grow', () => {
     // On and off are one line, and a person's: it carries no mark of a device.
     expect(lines[0].textContent?.replace(/\u00a0/g, ' ')).toBe(`${hhmm(ago(22))}Maintenance · 2 min`);
     await waitFor(() => expect(lines[1]).toHaveTextContent(`${hhmm(ago(120))}Watered: You watered`));
-    expect(lines[2]).toHaveTextContent('yesterdayNote: Looks good · 2 pictures');
+    expect(lines[2]).toHaveTextContent(/^yesterdayNote: Looks good/);
     expect(within(latest).getByRole('link', { name: 'Whole diary ›' })).toHaveAttribute('href', '/grow');
+
+    // The count is the way to a line's pictures, beside the words that correct it.
+    fireEvent.click(within(lines[2]).getByRole('button', { name: '2 pictures, open the picture' }));
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('Picture 1 of 2');
+  });
+
+  it('names the plants a line of Latest is about, from the place´s own answer', async () => {
+    onePlace(
+      overviewOf({
+        grows: [growOf()],
+        plants: [
+          { id: 'plant-a', growId: 'grow-1', label: 'A1' },
+          { id: 'plant-b', growId: 'grow-1', label: 'B2' },
+        ],
+        entries: [entry('entry-3', { kind: 'water', text: null, growId: 'grow-1', plantIds: ['plant-b'], values: { kind: 'water' } as never })],
+      }),
+      true,
+    );
+    draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(within(latest).getByRole('listitem')).toHaveTextContent(/You watered.*B2/));
+    expect(within(latest).getByRole('listitem')).not.toHaveTextContent(/A1/);
   });
 
   it('keeps amber for what needs a person: an alarm raised, not a restart or an alarm that is over', async () => {
@@ -814,7 +837,7 @@ describe('the states of Start', () => {
 
     const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
     expect(picture).toHaveAttribute('data-age', 'offline');
-    await waitFor(() => expect(picture).toHaveTextContent(`last picture ${hhmm(ago(43))}`));
+    await waitFor(() => expect(picture).toHaveTextContent(`last picture from ${hhmm(ago(43))}`));
     expect(picture).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
   });
 
@@ -841,6 +864,91 @@ describe('the states of Start', () => {
     expect(await screen.findByText(/^Control off: the device holds no targets/)).toBeInTheDocument();
     expect(screen.getByText('Control off')).toBeInTheDocument();
     expect(screen.queryByText(/holds no targets right now/)).not.toBeInTheDocument();
+  });
+
+  /** A device that went quiet with its control off does not go on holding the last targets, and the card says what it was left on. */
+  it('says of a silent device whose control was off that it was off, and keeps "Control off" on the targets', async () => {
+    server.devices = [
+      fridge({
+        control: { running: false, drying: false, mode: 'standard', energySaving: false } as never,
+        state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never,
+      }),
+    ];
+    onePlace(overviewOf({ values: values(42), setpoints: [], targets: null }));
+    draw();
+
+    const box = (await screen.findByRole('heading', { name: /^The device has not reported since/ })).closest('section')!;
+    expect(box).toHaveTextContent('Control was off when it last reported.');
+    expect(box).not.toHaveTextContent('keeps holding the last targets');
+    expect(screen.getByRole('link', { name: /^Change targets and light/ })).toHaveTextContent('Control off');
+  });
+
+  /** Regulation off is never hidden behind maintenance: it is what the place is while the window runs, and after it. */
+  it('says control is off before maintenance', async () => {
+    server.devices = [
+      fridge({
+        control: { running: false, drying: false, mode: 'standard', energySaving: false } as never,
+        state: { lastSeenAt: ago(0), hardware: {}, maintenanceUntil: ago(-10) } as never,
+      }),
+    ];
+    onePlace(overviewOf({ setpoints: [], targets: null }));
+    draw();
+
+    const sentence = (await screen.findByText(/^Control off: the device holds no targets/)).closest('[data-tone]')!;
+    expect(sentence).toHaveAttribute('data-tone', 'warn');
+    expect(sentence).not.toHaveTextContent('Maintenance');
+  });
+
+  /** "Alles im Ziel" in green over a tent left drying under a grow in flower denied what the tent was doing. */
+  it('says a work mode the grow´s phase contradicts in the status, once, leading to Control', async () => {
+    server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } as never })];
+    onePlace(overviewOf({ grows: [growOf()] }), true);
+    draw();
+
+    const sentence = await screen.findByRole('link', { name: 'The device is drying, the grow is in the Flower phase' });
+    expect(sentence).toHaveAttribute('href', '/control?space=space-1');
+    expect(sentence).toHaveAttribute('data-tone', 'warn');
+    expect(screen.queryByText('All on target.')).not.toBeInTheDocument();
+    // Said in the status, the mode is not said again under it.
+    expect(screen.queryByText('Drying')).not.toBeInTheDocument();
+  });
+
+  /** After a status that is not an alert's own sentence, what is open is said in words - never a lone "+3" - and in red where one is critical. */
+  it('says during maintenance how many alerts stand open, in words and in the alarm´s colour, and leaves the warning´s ground to the control', async () => {
+    server.devices = [fridge({ state: { lastSeenAt: ago(0), hardware: {}, maintenanceUntil: ago(-10) } as never })];
+    const alert = { kind: 'threshold', startedAt: ago(20), value: 31, metric: 'temperature', name: 'Too warm' };
+    onePlace(
+      overviewOf({
+        openAlerts: [
+          { alertId: 'alert-1', severity: 'warning', ...alert },
+          { alertId: 'alert-2', severity: 'critical', ...alert, name: 'Too hot' },
+          { alertId: 'alert-3', severity: 'warning', ...alert, name: 'Mould watch' },
+        ] as never,
+      }),
+    );
+    draw();
+
+    const said = await screen.findByText(reading('3 alerts open'));
+    expect(said).toHaveAttribute('data-tone', 'alarm');
+    const sentence = said.closest('[data-tone="quiet"]')!;
+    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · control and alarms paused · 3 alerts open/);
+    expect(sentence).not.toHaveTextContent('+3');
+    // What stands open is what the sentence leads to; the window is ended at its own control.
+    expect(sentence).toHaveAttribute('href', '/alerts');
+    // While maintenance pauses the alarms, that none would reach anybody is not a second warning beside it.
+    expect(screen.queryByText('Alarms do not reach you')).not.toBeInTheDocument();
+  });
+
+  /** Silence is the box's and the pill's to say: the sentence beside them says what else stands open, and nothing more. */
+  it('says of a silent place only what alerts stand open beside the box that says it is silent', async () => {
+    server.devices = [fridge({ state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never })];
+    const alert = { kind: 'threshold', severity: 'warning', startedAt: ago(50), value: 31, metric: 'temperature', name: 'Too warm' };
+    onePlace(overviewOf({ values: values(42), openAlerts: [{ alertId: 'alert-1', ...alert }] as never }));
+    draw();
+
+    const sentence = await screen.findByRole('link', { name: '1 alert open' });
+    expect(sentence).toHaveAttribute('href', '/alerts');
+    expect(sentence).toHaveAttribute('data-tone', 'warn');
   });
 
   it('says a device heard long ago, whose values have left the live read, is offline since it was last heard', async () => {

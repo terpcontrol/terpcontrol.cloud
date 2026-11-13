@@ -13,6 +13,7 @@ import { OwnPhoto } from './Picture';
 import { Today } from './Today';
 import styles from './Start.module.css';
 import ui from '@/ui/ui.module.css';
+import { useGrowPlants } from '@/api/grows';
 
 /**
  * Start of an account whose one grow stands in no place: a diary kept by
@@ -25,6 +26,7 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
   const { user } = useSession();
   const me = useAccountMe();
   const grow = card.grow!;
+  const plants = useGrowPlants(grow.growId);
 
   return (
     <section className={`${ui.stack3} ${styles.page}`} data-single>
@@ -42,6 +44,7 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
         people={answer.people}
         on={{ label: grow.name, spaceId: null, ownerId: user?.id ?? null }}
         diary
+        plants={plants.data?.items ?? []}
         now={now}
       />
       {me.data && me.data.preferences.deviceOfferDeclined !== true ? <DeviceOffer /> : null}

@@ -35,7 +35,7 @@ export function Start() {
   }, [userId, answeredAt]);
 
   if (home.isPending) return <StartWaiting />;
-  if (!home.data) return <StartFailed retry={() => void home.refetch()} error={home.error} retrying={home.isFetching} />;
+  if (!home.data) return <StartFailed read={home} />;
 
   const answer = home.data;
   const places = answer.spaces.filter(isPlace);

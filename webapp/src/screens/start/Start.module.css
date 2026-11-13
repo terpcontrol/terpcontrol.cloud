@@ -226,6 +226,11 @@ a.status {
   color: var(--alarm);
 }
 
+/* What stands open behind a status that does not name it, in the alarm's colour where one of it is critical. */
+.open[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
 .mode {
   display: flex;
   flex-wrap: wrap;
@@ -240,19 +245,6 @@ a.status {
   align-items: center;
   min-height: var(--control-height);
   color: var(--brand);
-  font-weight: var(--weight-medium);
-}
-
-/* --- a box that says something is wrong: the amber box of a device gone quiet (`ui/OfflineHelp`), with a button --- */
-
-.boxAction {
-  align-self: flex-start;
-  min-height: 48px;
-  padding: 0 18px;
-  border: var(--rule-width) solid var(--selected-edge);
-  border-radius: var(--radius);
-  background: var(--selected);
-  color: var(--on-selected);
   font-weight: var(--weight-medium);
 }
 
@@ -306,14 +298,17 @@ a.status {
 
 /* What the picture shows, left, and when it was taken, right: the hour is never cut, the name gives way to it.
    Neither is pressed - a tap on them goes to the picture underneath. */
+/* Where the grow's name and the picture's age do not fit one row, the age takes a row of its own under it in its
+   corner, and the name has the whole of the first: cut at 390 px with room left beside it, it read as a stray word. */
 .chips {
   position: absolute;
   top: 10px;
   right: 10px;
   left: 10px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: 6px var(--space-2);
   pointer-events: none;
 }
 
@@ -387,7 +382,6 @@ a.status {
 }
 
 .pictureValue {
-  font-family: var(--font-figure);
   font-size: var(--text-name);
   font-weight: var(--weight-medium);
   line-height: var(--line-tight);
@@ -483,7 +477,6 @@ a.tileLabel::after {
 }
 
 .tileFigure {
-  font-family: var(--font-figure);
   font-size: var(--text-figure);
   font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-title);
@@ -514,7 +507,6 @@ a.tileLabel::after {
 }
 
 .extras {
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
 }
@@ -551,21 +543,6 @@ a.tileLabel::after {
 
 .phaseWords > * {
   white-space: nowrap;
-}
-
-.phaseBar {
-  display: block;
-  height: 6px;
-  overflow: hidden;
-  border-radius: var(--radius-pill);
-  background: var(--rule);
-}
-
-.phaseFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--green);
 }
 
 .growCard {
@@ -672,7 +649,6 @@ a.tileLabel::after {
 
 .rowNote {
   display: block;
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
   font-weight: var(--weight-regular);
   color: var(--muted);
@@ -691,7 +667,6 @@ a.tileLabel::after {
 }
 
 .door .rowNote {
-  font-family: var(--font-text);
   font-size: var(--text-sm);
 }
 
@@ -856,7 +831,6 @@ a.tileLabel::after {
 }
 
 .placeFigures {
-  font-family: var(--font-figure);
   font-weight: var(--weight-medium);
 }
 
@@ -918,7 +892,6 @@ a.tileLabel::after {
 }
 
 .curveLabel small {
-  font-family: var(--font-figure);
   font-size: var(--text-2xs);
   font-weight: var(--weight-regular);
   color: var(--muted);

@@ -24,10 +24,11 @@ const remindersKey = ['reminders'];
  * run past one page would simply not be shown the rest of its own
  * arrangements, and nothing on the screen would say so.
  */
-export const useReminders = () =>
+export const useReminders = (enabled = true) =>
   useRead({
     queryKey: remindersKey,
     queryFn: ({ signal }) => readEvery<Reminder>('/reminders', signal),
+    enabled,
   });
 
 /**

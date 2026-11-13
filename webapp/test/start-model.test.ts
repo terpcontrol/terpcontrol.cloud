@@ -5,7 +5,7 @@ import { firstChoice, type PlaceCard } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
 import { livenessOf, livenessThrough, sortedByAttention } from '@/screens/start/attention';
 import { worstFirst } from '@/screens/alerts/inbox';
-import { holdVerdictOf, judgedPanel, placeAlerts, statusOf, statusText } from '@/screens/start/place';
+import { contradictedModeOf, holdVerdictOf, judgedPanel, placeAlerts, statusOf, statusText, toneOf } from '@/screens/start/place';
 import { groupedByRoom, startOrder } from '@/screens/start/rooms';
 import { ago, cardOf, growOf, setpoints, values } from './place-wire';
 import { spaceWhere } from './session';
@@ -76,10 +76,17 @@ describe('the sentence a place says', () => {
     // The silence of the device the place is judged by is the place's own, said by the pill and the box, and is not counted.
     expect(statusOf({ ...silent, leadId: 'device-2' }, now)).toMatchObject({ kind: 'offline', more: 3 });
     // The catalogue's sentences are not this suite's business: a key stands for its sentence, the count for itself.
-    const t = ((key: string, said?: { count?: number }) => (key === 'start.status.more' ? `+${said?.count}` : key)) as never;
+    // After an alert's own sentence the rest is "+3"; after any other status it is said in words, never a lone "+4".
+    const t = ((key: string, said?: { count?: number }) => (said?.count === undefined ? key : `${key}:${said.count}`)) as never;
+    expect(statusText(t, status, now, 'UTC')).toMatch(/ · start\.status\.more:3$/);
     const off = statusOf({ ...place, controlOff: true, openAlerts: placeAlerts(listed, inbox as never, here, now) }, now);
-    expect(statusText(t, off, now, 'UTC')).toBe('start.status.controlOff · +4');
+    expect(off).toMatchObject({ kind: 'controlOff', more: 4, critical: true });
+    expect(statusText(t, off, now, 'UTC')).toBe('start.status.controlOff · start.status.open:4');
+    expect(statusText(t, off, now, 'UTC', false)).toBe('start.status.controlOff');
     expect(statusText(t, statusOf({ ...place, controlOff: true }, now), now, 'UTC')).toBe('start.status.controlOff');
+    // Whether one of what is open is critical: the warning about mould alone is not.
+    const mild = placeAlerts([listed[0]], inbox as never, here, now);
+    expect(statusOf({ ...place, controlOff: true, openAlerts: mild }, now)).toMatchObject({ more: 1, critical: false });
 
     // Without the account's list - the demo - no device is known: the place's own silence is the pill's to say, and no other is named.
     expect(statusOf({ ...place, openAlerts: placeAlerts(listed, undefined, here, now) }, now)).toMatchObject({
@@ -103,10 +110,37 @@ describe('the sentence a place says', () => {
     expect(statusOf({ ...place, values: hot, verdict }, now)).toMatchObject({ kind: 'off', metric: 'temperature', since });
   });
 
-  it('says control is switched off before any alarm or reading it explains, and after a silence or a maintenance window', () => {
+  /** Regulation off is never hidden: not by maintenance, nor by the ten minutes the alarms rest after it. */
+  it('says control is switched off before any alarm, reading or maintenance window, and after a silence', () => {
     expect(statusOf({ ...place, values: hot, openAlerts: [alert], controlOff: true }, now).kind).toBe('controlOff');
-    expect(statusOf({ ...place, quiet, controlOff: true }, now).kind).toBe('maintenance');
+    expect(statusOf({ ...place, quiet, controlOff: true }, now).kind).toBe('controlOff');
+    expect(statusOf({ ...place, quiet: { ...quiet, parked: false }, controlOff: true }, now).kind).toBe('controlOff');
     expect(statusOf({ ...place, values: values(30), controlOff: true }, now).kind).toBe('offline');
+  });
+
+  /** "Alles im Ziel" in green over a tent left drying under a grow in flower denied what the tent was doing. */
+  it('says a work mode the grow´s phase contradicts where it would say all is on target, and in the warning´s tone', () => {
+    const control = (drying: boolean, mode: string) => ({ id: 'device-1', control: { running: true, drying, mode } }) as unknown as Device;
+    const drying = contradictedModeOf(control(true, 'standard'), 'flowering');
+    expect(drying).toEqual({ mode: 'drying', stage: 'flowering' });
+    expect(contradictedModeOf(control(false, 'germination'), 'seedling')).toEqual({ mode: 'germination', stage: 'seedling' });
+    // Nothing to contradict: the grow is in that phase, has none, or the device runs its day.
+    expect(contradictedModeOf(control(true, 'standard'), 'drying')).toBeNull();
+    expect(contradictedModeOf(control(true, 'standard'), null)).toBeNull();
+    expect(contradictedModeOf(control(false, 'standard'), 'flowering')).toBeNull();
+    expect(
+      contradictedModeOf({ ...control(true, 'standard'), control: { running: false, drying: true, mode: 'standard' } } as never, 'flowering'),
+    ).toBeNull();
+
+    const status = statusOf({ ...place, mode: drying }, now);
+    expect(status).toEqual({ kind: 'mode', mode: 'drying', stage: 'flowering' });
+    expect(toneOf(status)).toBe('warn');
+    // A reading off its target or an alarm is still said first; the mode is said where "all on target" would be.
+    expect(statusOf({ ...place, values: hot, mode: drying }, now).kind).toBe('off');
+  });
+
+  it('draws maintenance quietly: the control that runs it is the one warning on the page', () => {
+    expect(toneOf(statusOf({ ...place, quiet }, now))).toBe('quiet');
   });
 
   it('counts a reading that is written as on the edge as in target, so the sentence does not flip on rounding', () => {

@@ -7,6 +7,7 @@ import type {
   Device,
   DeviceLive,
   Entry,
+  GrowthStage,
   Metric,
   OpenAlert,
   OverviewCamera,
@@ -15,7 +16,7 @@ import type {
   TimelineTarget,
 } from '@fg2/shared-types/v1';
 import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { switchPointName, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { switchPointName, workModeOf, type PlugSwitching } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { roundTheClock, utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { ruleTitle } from '@/i18n/alarm-line';
@@ -295,9 +296,14 @@ export const controlOffOf = (devices: Device[]): boolean => devices.some(device 
 /* ------------------------------------------------------------ the status */
 
 /**
- * The one sentence a place opens with, worst first: gone quiet, being worked
- * on, its control switched off, an alarm, a reading off its target, readings
- * arriving late, nothing to judge against, or all in band.
+ * The one sentence a place opens with, worst first: gone quiet, its control
+ * switched off, being worked on, an alarm, a reading off its target, readings
+ * arriving late, nothing to judge against, a work mode its grow's phase
+ * contradicts, or all in band.
+ *
+ * Regulation switched off comes before maintenance and before the ten minutes
+ * the alarms rest after it: a device that holds no targets is what the place
+ * is, whatever else is going on there.
  *
  * A reading off target says since when only where the day's verdict has an
  * open run outside the band, which the server names once it has lasted ten
@@ -308,19 +314,45 @@ export const controlOffOf = (devices: Device[]): boolean => devices.some(device 
  * page that says "since 18:02" about the same tent.
  */
 export type Status =
-  /** `more` on a status that outranks the alert sentence: how many alerts of the place stand open behind it, unnamed. */
-  | { kind: 'offline'; since: string | null; more: number }
+  | ({ kind: 'offline'; since: string | null } & Unnamed)
   | { kind: 'none' }
-  | { kind: 'waiting'; more: number }
-  | { kind: 'maintenance'; quiet: Quiet; more: number }
-  | { kind: 'controlOff'; more: number }
+  | ({ kind: 'waiting' } & Unnamed)
+  | ({ kind: 'maintenance'; quiet: Quiet } & Unnamed)
+  | ({ kind: 'controlOff' } & Unnamed)
   /** The alert Meldungen leads with for this place, and how many more of the place's are open behind it. */
-  | { kind: 'alert'; alert: PlaceAlert; more: number }
+  | ({ kind: 'alert'; alert: PlaceAlert } & Unnamed)
   /** `since` is null for a run too short to count yet, and undefined where no verdict was at hand to say. */
   | { kind: 'off'; metric: Steered; high: boolean; delta: number; since?: string | null }
   | { kind: 'stale'; at: string | null }
   | { kind: 'noTargets' }
+  /** The device dries or germinates while the grow standing here is in another phase: "Alles im Ziel" would deny it. */
+  | ({ kind: 'mode' } & ContradictedMode)
   | { kind: 'good' };
+
+/** What stands open behind a status that does not name it: how many alerts, and whether one of them is critical. */
+interface Unnamed {
+  more: number;
+  critical: boolean;
+}
+
+/** A work mode of the device's own - drying, germinating in the dark - and the phase of the grow it contradicts. */
+export interface ContradictedMode {
+  mode: 'drying' | 'germination';
+  stage: GrowthStage;
+}
+
+/**
+ * Whether the device that holds a place's climate runs a work mode of its own
+ * that the phase of the grow standing there says it should not: a tent left
+ * drying under a grow in flower, a fridge still germinating under seedlings. A
+ * grow without a phase contradicts nothing, and nor does a device that is off.
+ */
+export const contradictedModeOf = (device: Device | null, stage: GrowthStage | null | undefined): ContradictedMode | null => {
+  const control = device?.control;
+  if (!control?.running || !stage) return null;
+  const mode = workModeOf(control);
+  return (mode === 'drying' || mode === 'germination') && mode !== stage ? { mode, stage } : null;
+};
 
 /** A place's open alert as its card lists it, about a device where the account's own list of alerts names one. */
 export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device };
@@ -358,23 +390,26 @@ interface StatusInput {
   humidifierHold?: HumidifierHold | null;
   /** Since when a device here has been silent, where it has been for so long that no value of it is left to date it by. */
   silentSince?: string | null;
+  /** A work mode of the device's own that the grow's phase contradicts (`contradictedModeOf`). */
+  mode?: ContradictedMode | null;
 }
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
   // The first in Meldungen's order (`worstFirst`), so Start names what the inbox leads with.
   const open = worstFirst(place.openAlerts.filter(one => !isSilence(one) || (one.device !== undefined && one.deviceId !== place.leadId)));
-  const alerted: Status | null = open.length > 0 ? { kind: 'alert', alert: open[0], more: open.length - 1 } : null;
-  const more = open.length;
+  const unnamed = (behind: PlaceAlert[]): Unnamed => ({ more: behind.length, critical: behind.some(one => one.severity === 'critical') });
+  const alerted: Status | null = open.length > 0 ? { kind: 'alert', alert: open[0], ...unnamed(open.slice(1)) } : null;
+  const all = unnamed(open);
   // A place with no sensor can still have something open: a camera that stopped delivering is its one way to go wrong.
   if (liveness === 'none') return alerted ?? { kind: 'none' };
   if (liveness === 'offline') {
-    if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values), more };
+    if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values), ...all };
     // No value at all: a device that has yet to send its first one, unless it is known to have been heard and gone quiet.
-    return place.silentSince ? { kind: 'offline', since: place.silentSince, more } : { kind: 'waiting', more };
+    return place.silentSince ? { kind: 'offline', since: place.silentSince, ...all } : { kind: 'waiting', ...all };
   }
-  if (place.quiet) return { kind: 'maintenance', quiet: place.quiet, more };
-  if (place.controlOff) return { kind: 'controlOff', more };
+  if (place.controlOff) return { kind: 'controlOff', ...all };
+  if (place.quiet) return { kind: 'maintenance', quiet: place.quiet, ...all };
 
   if (alerted) return alerted;
 
@@ -399,6 +434,7 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
 
   if (liveness === 'stale') return { kind: 'stale', at: measuredAtOf(place.values) };
   if (!place.setpoints.some(setpoint => setpoint.value !== null)) return { kind: 'noTargets' };
+  if (place.mode) return { kind: 'mode', ...place.mode };
 
   return { kind: 'good' };
 };
@@ -414,21 +450,43 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
       return 'alarm';
     case 'off':
     case 'stale':
-    case 'maintenance':
     case 'controlOff':
+    case 'mode':
       return 'warn';
+    // Maintenance is somebody's choice, and the control that runs it stands on the warning's ground: said once.
     default:
       return 'quiet';
   }
 };
 
-/** The status in words, the same on a place's Start and on its card. */
-export const statusText = (t: Translate, status: Status, now: DateTime, zone: string | null): string => {
-  // Behind whatever is said: how many open alerts of the place it leaves unnamed.
-  const more = 'more' in status && status.more > 0 ? ` · ${t('start.status.more', { count: status.more })}` : '';
+/**
+ * What stands open behind a status that is not an alert's own sentence, in
+ * words: "3 Meldungen offen". After an alert's sentence "+2" says the rest,
+ * which reads as more of the same; after "Wartung bis 18:31" a lone "+3" was a
+ * riddle. Null where nothing stands open behind it.
+ */
+export const openWords = (t: Translate, status: Status): string | null => {
+  if (!('more' in status) || status.more === 0) return null;
+  return status.kind === 'alert' ? t('start.status.more', { count: status.more }) : t('start.status.open', { count: status.more });
+};
+
+/**
+ * The status in words, the same on a place's Start and on its card, with what
+ * stands open behind it (`openWords`) unless `open` is false - where the page
+ * draws that part apart, in the alarm's colour when one of them is critical.
+ * Offline, the status is the box's and the pill's to say, so the words are
+ * what is open and nothing else.
+ */
+export const statusText = (t: Translate, status: Status, now: DateTime, zone: string | null, open = true): string => {
+  const behind = open ? openWords(t, status) : null;
+  const words = statusWords(t, status, now, zone);
+  return [words, behind].filter(Boolean).join(' · ');
+};
+
+const statusWords = (t: Translate, status: Status, now: DateTime, zone: string | null): string | null => {
   switch (status.kind) {
     case 'offline':
-      return offlineLabel(status.since, now, zone, true) + more;
+      return offlineLabel(status.since, now, zone, true);
     case 'none':
       return t('home.invite.noSensor');
     case 'off': {
@@ -444,18 +502,18 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
       // A device of the place gone silent beside one that reports is named, as Meldungen names it.
       const what = alert.device ? t('alerts.title.offline', { what: deviceName(alert.device, t) }) : alertLabel(t, alert, now, zone);
       const since = t('start.status.since', { time: sinceLabel(alert.device ? silentSince(alert) : alert.startedAt, now, zone) });
-      return `${what} · ${since}${more}`;
+      return `${what} · ${since}`;
     }
     case 'maintenance':
-      return (
-        (status.quiet.parked
-          ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })
-          : t('start.status.settling', { until: clock(status.quiet.alarmsUntil, zone) })) + more
-      );
+      return status.quiet.parked
+        ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })
+        : t('start.status.settling', { until: clock(status.quiet.alarmsUntil, zone) });
     case 'stale':
       return t('start.status.stale', { time: status.at ? sinceLabel(status.at, now, zone) : '' });
+    case 'mode':
+      return t(`start.status.mode.${status.mode}`, { stage: t(`home.stage.${status.stage}`) });
     default:
-      return t(`start.status.${status.kind}`) + more;
+      return t(`start.status.${status.kind}`);
   }
 };
 

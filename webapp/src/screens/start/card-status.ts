@@ -7,7 +7,7 @@ import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { silenceOf } from './attention';
-import { climateDeviceOf, controlOffOf, statusOf, statusText } from './place';
+import { climateDeviceOf, contradictedModeOf, controlOffOf, statusOf, statusText } from './place';
 import { useHumidifierHold, usePlaceAlerts } from './reads';
 
 /**
@@ -32,7 +32,18 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const openAlerts = usePlaceAlerts(card.openAlerts, here, now);
   const status = statusOf(
-    { ...card, values, setpoints, openAlerts, leadId: device?.id, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince },
+    {
+      ...card,
+      values,
+      setpoints,
+      openAlerts,
+      leadId: device?.id,
+      quiet,
+      controlOff: controlOffOf(here),
+      humidifierHold,
+      silentSince,
+      mode: contradictedModeOf(device, card.grow?.stage),
+    },
     now,
   );
   const said = (status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);

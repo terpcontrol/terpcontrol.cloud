@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Me, NotificationCategory } from '@fg2/shared-types/v1';
 import { useMe, useUpdateMe } from '@/api/account';
+import { useReminders } from '@/api/reminders';
 import { instantOf } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -42,11 +43,16 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
   const mayManage = useMayManage();
   const me = useMe(false, mayManage);
   const putOff = useUpdateMe();
-  const rows = useCallingRows();
+  const calling = useCallingRows();
+  // Over the readings, a diary's reminders call on nobody until there is one: a new account was told on its first
+  // day that due tasks would not reach it. Where somebody came to set this up, the row stays.
+  const asked = later && calling.includes('tasks');
+  const reminders = useReminders(asked);
+  const rows = asked && reminders.data?.items.length === 0 ? calling.filter(row => row !== 'tasks') : calling;
   const [done, setDone] = useState(false);
   const titleId = useId();
 
-  if (!mayManage || !me.data || rows.length === 0) return null;
+  if (!mayManage || !me.data || rows.length === 0 || (asked && reminders.isPending)) return null;
   // What the tap did is said while it holds: mail switched off again brings the notice back.
   if (callsReach(me.data, rows)) return done ? <Done me={me.data} /> : null;
   if (later && (putOff.isPending || putOff.isSuccess || putAway(me.data, now))) return null;
@@ -141,7 +147,7 @@ export function EmailAlarmsOffer({
         {/* The address and the way to the other channels as two facts, so no line ends on the dot between them. */}
         <Facts
           facts={[
-            <span key="to" className={`mono ${styles.to}`}>
+            <span key="to" className={styles.to}>
               {t('notify.to', { email: mailAddressOf(me) })}
             </span>,
             others ? (

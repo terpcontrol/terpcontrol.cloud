@@ -42,7 +42,19 @@ import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
 import { GrowHead, PhaseLine } from './Phase';
 import { OwnPhoto, Picture } from './Picture';
-import { climateDeviceOf, controlOffOf, ownPhotoOf, shownStill, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
+import {
+  climateDeviceOf,
+  contradictedModeOf,
+  controlOffOf,
+  openWords,
+  ownPhotoOf,
+  shownStill,
+  statusOf,
+  statusText,
+  toneOf,
+  type HumidifierHold,
+  type Status,
+} from './place';
 import { Menu, MenuLink } from '@/ui/Menu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
@@ -69,11 +81,7 @@ export function PlaceStart({ spaceId, back = false }: { spaceId: string; back?: 
 
   if (read.isPending) return <StartWaiting />;
   if (!current) {
-    return noLongerThere(read.error) ? (
-      <NoLongerHere what="space" />
-    ) : (
-      <StartFailed retry={() => void read.refetch()} error={read.error} retrying={read.isFetching} />
-    );
+    return noLongerThere(read.error) ? <NoLongerHere what="space" /> : <StartFailed read={read} />;
   }
 
   return <Place overview={current} back={back} failedAt={failedAt} />;
@@ -129,6 +137,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const offline = liveness === 'offline' && !waiting;
   const humidifierHold = useHumidifierHold(device);
   const openAlerts = usePlaceAlerts(overview.openAlerts, here, judged);
+  const controlOff = controlOffOf(here);
+  const quiet = quietOf(here, now);
   const status = statusOf(
     {
       values,
@@ -137,10 +147,11 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       openAlerts,
       leadId: device?.id,
       verdict: climate?.verdict ?? overview.verdict,
-      quiet: quietOf(here, now),
-      controlOff: controlOffOf(here),
+      quiet,
+      controlOff,
       humidifierHold,
       silentSince,
+      mode: contradictedModeOf(device, grow?.stage),
     },
     judged,
   );
@@ -203,7 +214,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           title={t('start.offline.title', { time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })}
           deviceLink={overview.deviceIds !== null && device ? devicePath(device.id) : null}
         >
-          {t('start.offline.text')}
+          {/* A device that held no targets when it went quiet does not go on holding them. */}
+          {t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
         </OfflineBox>
       ) : null}
 
@@ -228,7 +240,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {/* What only some places measure stands directly under what carries the four readings: the picture, or the tiles. */}
           {camera ? further : null}
           {wide ? null : sentence}
-          <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />
+          {/* A work mode the status already says is not said again under it. */}
+          {status.kind === 'mode' ? null : <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />}
           {/* "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day. */}
           {held && lit ? (
             <p className={styles.mode}>
@@ -253,7 +266,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
 
         <div className={`${ui.stack3} ${styles.column}`}>
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
-          {visiting ? null : <NotifyNotice later />}
+          {/* While maintenance pauses the alarms, the control that runs it is the one warning here: that none would reach
+              anybody waits until they can fire again. */}
+          {visiting || quiet?.parked ? null : <NotifyNotice later />}
           {/* What is due is the reader's own list, and support reading a customer's place is not shown its own work there. */}
           {visiting ? null : <Today spaceId={spaceId} now={now} />}
           <Latest
@@ -264,6 +279,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             on={{ label: overview.name, spaceId }}
             diary={grow !== null}
             byline={!demo}
+            plants={overview.plants}
             now={now}
           />
           {hasDevice ? (
@@ -399,13 +415,15 @@ function StatusSentence({
   const now = useNow();
   const zone = useZone();
   const called = useCameraCalled();
-  let text: string;
-  let tone: ReturnType<typeof toneOf> = toneOf(status);
-  let to: string | null;
-
   // Silence is the box's to say, and that a device has yet to send its first value the pill's beside the name -
-  // unless other alerts of the place stand open behind it, which the sentence then counts.
-  if ((status.kind === 'offline' || status.kind === 'waiting') && status.more === 0) return null;
+  // unless other alerts of the place stand open behind it, which the sentence then counts and says nothing else.
+  const silent = status.kind === 'offline' || status.kind === 'waiting';
+  if (silent && status.more === 0) return null;
+  const behind = openWords(t, status);
+  let text: string;
+  // A silent place's sentence is what stands open there, in the colour of the worst of it: the red of silence is the box's.
+  let tone: ReturnType<typeof toneOf> = silent ? (status.critical ? 'alarm' : 'warn') : toneOf(status);
+  let to: string | null;
   if (status.kind === 'none') {
     if (!camera) return null;
     const last = camera.lastStillAt;
@@ -421,7 +439,9 @@ function StatusSentence({
     text =
       status.kind === 'good'
         ? t('start.allGood')
-        : ((status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone));
+        : silent
+          ? ''
+          : ((status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone, false));
     to =
       status.kind === 'alert'
         ? status.alert.kind === 'camera_stale' && camera && status.more === 0
@@ -431,14 +451,29 @@ function StatusSentence({
           ? '/alerts'
           : status.kind === 'off'
             ? timelinePath(overview.spaceId, status.metric)
-            : (status.kind === 'noTargets' || status.kind === 'controlOff') && mayManage
+            : (status.kind === 'noTargets' || status.kind === 'controlOff' || status.kind === 'mode') && mayManage
               ? controlPath(overview.spaceId)
               : null;
   }
 
-  const said = <Facts facts={factsOf(text).map(unbroken)} />;
-  // A window of maintenance is ended and extended where it was started, further down this page.
-  const control = status.kind === 'maintenance' && status.quiet.parked && parks;
+  // What stands open behind a status that is not an alert's own is said in words, in the alarm's colour where one of
+  // it is critical; behind an alert's sentence "+2" goes in that sentence's colour.
+  const critical = 'critical' in status && status.critical && status.kind !== 'alert';
+  const said = (
+    <Facts
+      facts={[
+        ...(text ? factsOf(text).map(unbroken) : []),
+        behind ? (
+          <span key="open" className={styles.open} data-tone={critical ? 'alarm' : undefined}>
+            {unbroken(behind)}
+          </span>
+        ) : null,
+      ]}
+    />
+  );
+  // A window of maintenance is ended and extended where it was started, further down this page - unless alerts stand
+  // open behind it, which the sentence then leads to.
+  const control = status.kind === 'maintenance' && status.quiet.parked && parks && status.more === 0;
   const toControl = () => {
     const target = document.getElementById(MAINTENANCE);
     target?.scrollIntoView({ block: 'center' });

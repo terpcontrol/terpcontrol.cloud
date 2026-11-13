@@ -63,6 +63,8 @@ const server = {
   hold: null as Promise<void> | null,
   /** The account's cameras, which decide whether the weekly film has a row at all. */
   cameras: [] as { id: string; ownerId: string; removedAt: string | null; isDemo: boolean }[],
+  /** The diary's reminders, which decide whether due tasks can call on the account at all; null answers none. */
+  reminders: null as { id: string }[] | null,
 };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -92,6 +94,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json(server.me);
   }
   if (url.endsWith('/v1/cameras') && method === 'GET') return json({ items: server.cameras, nextCursor: null });
+  if (url.includes('/v1/reminders') && method === 'GET' && server.reminders) return json({ items: server.reminders, nextCursor: null });
   if (url.endsWith('/v1/me/telegram-link') && method === 'POST') {
     server.posted.push(url);
     return json({ url: 'https://t.me/terpbot?start=abc', validUntil: DateTime.now().plus({ minutes: 15 }).toISO() }, 201);
@@ -133,6 +136,7 @@ beforeEach(() => {
   localStorage.clear();
   server.hold = null;
   server.cameras = [];
+  server.reminders = null;
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -505,6 +509,22 @@ describe('the notice that alarms reach nobody', () => {
     expect(screen.getByText('Alarms do not reach you')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Later' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Other ways ›' })).not.toBeInTheDocument();
+  });
+
+  /** A brand-new diary was told on its first day that due tasks would not reach it, with no reminder that could fall due. */
+  it('over the readings, says due tasks reach nobody only once there is a reminder that could fall due', async () => {
+    localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: true, places: 1, steering: false, managed: true, cameras: 0 }));
+    server.reminders = [];
+    const { unmount } = later();
+    await screen.findByText('read');
+    await waitFor(() => expect(fetchStub.mock.calls.some(([input]) => String(input).includes('/v1/reminders'))).toBe(true));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(screen.queryByText(/do not reach you$/)).not.toBeInTheDocument();
+    unmount();
+
+    server.reminders = [{ id: 'reminder-1' }];
+    later();
+    expect(await screen.findByText(/do not reach you$/)).toBeInTheDocument();
   });
 
   it('is not drawn for the demo, which has no account to change', async () => {

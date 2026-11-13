@@ -1,11 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Person, Space } from '@fg2/shared-types/v1';
-import { ApiError } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { sinceLabel } from '@/ui/age';
 import { useLeave } from '@/ui/leave';
-import amber from '@/ui/OfflineHelp.module.css';
+import { LoadFailed } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone, zoned } from '@/ui/zone';
@@ -44,34 +43,18 @@ export function StartWaiting() {
 }
 
 /**
- * Start that could not be read at all: what that means for the tent - nothing,
- * the devices regulate on - the way to try again, and when this browser last
- * had an answer. A server that answered with a fault is told apart from no
- * answer at all, because only one of them is the reader's own connection; and
- * while it is asking again the button says so, so a second tap is not a
- * question whether the first one took.
+ * Start that could not be read at all: the one state every page says it in
+ * (`LoadFailed`), and under it when this browser last had an answer.
  */
-export function StartFailed({ retry, error = null, retrying = false }: { retry: () => void; error?: unknown; retrying?: boolean }) {
+export function StartFailed({ read }: { read: Parameters<typeof LoadFailed>[0]['read'] }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
   const loaded = lastLoaded(user?.id ?? null);
-  // An answer that is a problem came from the server; anything else never got that far.
-  const answered = error instanceof ApiError;
 
   return (
-    <section className={`${ui.stack3} ${styles.page}`} data-single>
-      <div className={styles.head}>
-        <h1>{t('shell.tabs.home')}</h1>
-      </div>
-      <section className={amber.box} role="alert">
-        <h2>{t(answered ? 'start.failed.serverTitle' : 'start.failed.title')}</h2>
-        <p>{t(answered ? 'start.failed.serverText' : 'start.failed.text')}</p>
-        <button type="button" className={styles.boxAction} disabled={retrying} aria-busy={retrying || undefined} onClick={retry}>
-          {t(retrying ? 'start.failed.retrying' : 'start.failed.retry')}
-        </button>
-      </section>
+    <LoadFailed title={t('shell.tabs.home')} read={read}>
       {loaded ? (
         <p className={styles.loadedAt}>
           {t(zoned(loaded, zone).hasSame(nowThere(now, zone), 'day') ? 'start.failed.loadedToday' : 'start.failed.loadedOn', {
@@ -79,7 +62,7 @@ export function StartFailed({ retry, error = null, retrying = false }: { retry: 
           })}
         </p>
       ) : null}
-    </section>
+    </LoadFailed>
   );
 }
 

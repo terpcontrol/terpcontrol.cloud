@@ -135,8 +135,8 @@ export function Targets({
         <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-targets">
           {title}
         </h2>
-        <span className="mono">{line}</span>
-        {light ? <Facts className={`mono ${styles.cardText}`} facts={factsOf(light)} /> : null}
+        <span>{line}</span>
+        {light ? <Facts className={styles.cardText} facts={factsOf(light)} /> : null}
         {guest ? <span className={styles.cardText}>{t('start.targets.whoChanges', { name })}</span> : null}
       </section>
     );
@@ -145,8 +145,10 @@ export function Targets({
   return (
     <Link to={controlPath(spaceId)} className={ui.rowCard}>
       {offline ? (
+        // What the device was left on is still said - "Regelung aus" above all, which the offline note does not undo.
         <span className={styles.rowText} data-tone="brand">
           {t('start.targets.changeOffline')}
+          <span className={styles.rowNote}>{line}</span>
           <span className={styles.rowNote}>{t('start.targets.offlineNote')}</span>
         </span>
       ) : (
