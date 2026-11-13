@@ -4,8 +4,8 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 
 /**
- * How many stills the charts page steps through per camera, whatever the
- * window: twice the Timeline's, because the cursor there moves across a whole
+ * How many stills a series read answers per camera, whatever the window:
+ * twice the Timeline's, because it was made for a cursor moving across a whole
  * screen's width of curve rather than a strip.
  */
 export const CHART_FRAME_SLOTS = 240;
@@ -14,14 +14,14 @@ export const CHART_FRAME_SLOTS = 240;
  * The frames a cursor steps through: at most one per slot, per camera, and all
  * of them in one aggregation. The slot a picture falls in is grouped in the
  * database, because the alternative is reading a day of stills out to keep a
- * hundred of them. The Timeline and the charts page both draw the picture at
- * their cursor from this.
+ * hundred of them. The Timeline draws the picture at its cursor from this, and
+ * a series read answers the same frames.
  *
  * The one a slot answers with is its newest, which is the picture the app
- * promises: the rail draws the newest still taken by the cursor, and the cursor
+ * promises: the Timeline draws the newest still taken by the cursor, and the cursor
  * at rest sits at the end of the window. Taking the oldest of each slot instead
  * left the last one - the slot the camera is still filling - answering with a
- * picture up to a whole slot old, so the tent's rail and the same tent's
+ * picture up to a whole slot old, so the tent's Timeline and the same tent's
  * overview strip named two different newest pictures, twelve minutes apart over
  * a day and eighty-four over a week. Every frame still carries the instant of
  * the picture it actually is, so nothing is dated by its slot.

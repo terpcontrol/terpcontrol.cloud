@@ -22,8 +22,8 @@ import { PANEL_METRICS } from './timeline-series';
  * hardware went quiet.
  *
  * It lives beside the arithmetic rather than inside either service because the
- * Timeline of a tent and the Charts view of the grow standing in it are two
- * screens about one silence, and a grower moving between them must not be given
+ * Timeline of a tent and the series of the grow standing in it are two
+ * reads about one silence, and a grower moving between them must not be given
  * two different accounts of when the tent last spoke.
  */
 export const lastReadingOf = async (data: DataService, devices: readonly StoredDevice[]): Promise<string | null> => {

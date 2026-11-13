@@ -30,11 +30,11 @@ import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
- * The Timeline tab, as one answer.
+ * The Timeline, as one answer.
  *
  * Every part of it is a view of the same window - the frame above the panels,
  * the curves, the band that applied, the night, the alarms, the lanes and the
- * rail - so it is answered together. A screen that asked for them separately
+ * lines of the diary - so it is answered together. A screen that asked for them separately
  * would draw six windows that disagree at their edges and would have to scrub
  * them into agreement afterwards.
  *
@@ -42,7 +42,7 @@ import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretches
  * Mongo - the space, the devices standing in it, the grows that have stood in
  * it, the alerts overlapping the window, the metrics their rules watch, the
  * diary over the window and the machines' own lines over it, the cameras, one
- * aggregation for the frames, the people the rail names, and two or three of
+ * aggregation for the frames, the people the lines name, and two or three of
  * the steering device's target record - and two time-series reads per device
  * in the space, the curve and the switchings behind it. The frames and the
  * people are skipped where there is nothing to look up, the third read of the
@@ -59,7 +59,7 @@ import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretches
  * hundred rows over a season and the only thing a coarse window cannot say.
  *
  * Nothing here writes, and nothing it answers is a handle to write with: the
- * rail carries lines to open, never a task to tick off, so the answer a
+ * answer carries lines to open, never a task to tick off, so the answer a
  * read-only link is served is the answer its owner is served, clamped to the
  * link's window.
  */
@@ -81,7 +81,7 @@ const MAX_EVENTS = 500;
  * Both nets cut the far end of a newest-first read, so a single net over both
  * groups would let one failing capture every thirty seconds spend the whole of
  * it and push the grower's own notes off the far end of a wide window - the
- * lines the rail exists for would be the first to go. Read apart, a chatty
+ * lines the page is read for would be the first to go. Read apart, a chatty
  * device can only ever crowd out other chatter. It is the smaller number
  * because a machine's log is a stream to scrub past rather than a record read
  * line by line, and because lines this close together share one mark anyway.
@@ -109,7 +109,7 @@ export class TimelineService {
     const [space, stood] = await Promise.all([
       this.places.require(spaceId),
       // Every grow that has ever stood here, newest first: the one the bands are
-      // of and the ones the rail is of are both in this one read.
+      // of and the ones the lines are of are both in this one read.
       this.grows
         .find({ placements: { $elemMatch: { spaceId } } })
         .sort({ startedAt: -1, id: -1 })
@@ -235,26 +235,26 @@ export class TimelineService {
 
   /**
    * Everything the space recorded inside the window, oldest first, which is the
-   * order the rail is read in.
+   * order the lines are read in.
    *
    * The whole record, not the diary half of it: a capture that keeps failing and
    * a plan that stepped are precisely what somebody scrubs a tent's timeline to
-   * find, and the tent's own Latest list already shows them, so a rail that left
+   * find, and the tent's own Latest list already shows them, so a Timeline that left
    * them out said "nothing was written here" over lines the screen before it had
    * just listed. The two groups are read under nets of their own so that neither
    * can spend the other's - see `MAX_MACHINE_EVENTS`.
    *
-   * A redacted reader is the exception and keeps the diary-only rail. A share
+   * A redacted reader is the exception and keeps the diary's lines alone. A share
    * link and a public page are given what happened to the grow, and a device's
    * line carries its own diagnostics verbatim - a failing capture's byte counts,
    * a socket's role, an address - which is the inside of somebody's flat rather
-   * than the story of their grow. Widening the rail must not widen what a link
+   * than the story of their grow. Widening the lines must not widen what a link
    * hands out, so the kinds a stranger never sees stay the kinds a stranger
    * never sees.
    *
    * How many machine lines the window held is answered beside them, because the
    * net is silent otherwise: a four-month grow in a chatty tent holds thousands
-   * and the rail drew two hundred of them with nothing on the screen to say that
+   * and the page drew two hundred of them with nothing on the screen to say that
    * the first months carried more than nothing.
    */
   private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<SpaceEvents> {
@@ -285,7 +285,7 @@ export class TimelineService {
    * The grow the bands and the day counter are of. A named one has to have stood
    * in this space, or the tent would draw a band from a grow in somebody else's
    * room; without a name it is the grow standing here at `asOf` - now, or the
-   * end of a window that closed - newest first as the tent page lists them,
+   * end of a window that closed - newest first as Start lists them,
    * which the two rolling ranges manage without and the two stretches of a grow
    * cannot.
    */
@@ -298,7 +298,7 @@ export class TimelineService {
       }
 
       // Standing here then, not merely having stood here once: a grow that moved
-      // out in spring is what the rail still carries and not what the bands are of.
+      // out in spring is what the lines still carry and not what the bands are of.
       return (
         stood.find(grow =>
           grow.placements.some(one => one.spaceId === spaceId && one.startedAt <= asOf && (one.endedAt === null || one.endedAt > asOf)),
@@ -325,7 +325,7 @@ export class TimelineService {
   }
 }
 
-/** The rail's lines, and how many of the machines' own the window held behind the two hundred it was given. */
+/** The lines of the window, and how many of the machines' own the window held behind the two hundred it was given. */
 interface SpaceEvents {
   entries: EntryDocument[];
   machine: { shown: number; total: number };

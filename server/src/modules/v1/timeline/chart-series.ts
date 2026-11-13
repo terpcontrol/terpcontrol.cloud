@@ -21,9 +21,9 @@ interface ChartSources {
 }
 
 /**
- * The body a place's charts page and a grow's Charts view share: the curves
+ * The body the series read of a place and that of a grow share: the curves
  * that were ticked, banded by what the steering device aimed at, with the
- * lanes, the night and the camera frames around them. Each screen picks its own
+ * lanes, the night and the camera frames around them. Each read picks its own
  * window, devices and cameras, and adds what is its own. A device is read over
  * the part of the window it stood there.
  *

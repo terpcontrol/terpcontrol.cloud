@@ -80,7 +80,7 @@ const growListQuery = pageQuery.extend({
 });
 
 /**
- * What the Charts view asks for. Which lines it wants it names, one parameter
+ * What a grow's series is asked for. Which lines are wanted it names, one parameter
  * per kind, because a client draws what was ticked and a series asked for and
  * thrown away is a read of the store nobody looks at. The step is the range's
  * to decide unless somebody chose one, and one too fine for the range is
@@ -181,7 +181,7 @@ export class GrowsController {
   }
 
   /**
-   * Every line the Charts view draws, over one range. It takes a session if
+   * Every line of a grow's series, over one range. It takes a session if
    * there is one and nobody if there is not, like the grow's other reads: a
    * link reaches it clamped to its own window, and a public diary answers it
    * for as long as the grow ran.

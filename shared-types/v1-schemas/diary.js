@@ -51,11 +51,11 @@ exports.readingName = (0, common_js_1.named)('ReadingName', zod_1.z.object({
  * several grows.
  *
  * A reading names its measurement by key alone, and the definition lives on the
- * grow - so a tent's latest lines and a tent's rail, which both carry the diary
+ * grow - so a tent's latest lines and a tent's Timeline, which both carry the diary
  * of every grow that has stood there, would need a read per grow to put a name
  * and a unit on a figure. They ride on the same answer instead, keyed by the
  * grow each line belongs to, so one reading reads the same on the day card it
- * was written on and on the rail it shows up on.
+ * was written on and on the Timeline it shows up on.
  */
 exports.growReadingNames = (0, common_js_1.named)('GrowReadingNames', zod_1.z.object({
     growId: (0, common_js_1.id)(),
@@ -965,7 +965,7 @@ exports.growDayEvent = (0, common_js_1.named)('GrowDayEvent', zod_1.z.discrimina
     deviceChange,
 ]));
 /**
- * One space, with everything the home screen shows about it - or, where the
+ * One space, with everything Start shows about it - or, where the
  * ids are null, one open grow that stands in no space at all. A grow is
  * first-class without a place, so "no fixed place" is a card rather than a
  * hole in the home, and the app opens it at the grow because there is no space
@@ -1151,7 +1151,7 @@ exports.overviewClimate = (0, common_js_1.named)('OverviewClimate', zod_1.z.obje
     verdict: exports.climateVerdict,
 }));
 /**
- * `GET /spaces/{id}/overview`, the tent page's landing tab: what is true here
+ * `GET /spaces/{id}/overview`, Start of one place: what is true here
  * now, what needs a human, what grows here, what the cameras saw today, how the
  * last 24 hours went and what was last written.
  *
@@ -1247,7 +1247,7 @@ exports.co2Report = (0, common_js_1.named)('Co2Report', zod_1.z.object({
     restGrams: zod_1.z.number().nullable().describe('What the cylinder in use has left by that rate; null without a rate or a cylinder.'),
 }));
 /**
- * What the Timeline tab is asked for. `24h`, `7d` and `30d` are windows ending
+ * What the Timeline is asked for. `24h`, `7d` and `30d` are windows ending
  * at the instant the request names; `phase` and `grow` are stretches of one grow
  * and so cannot be answered without being told which.
  */
@@ -1362,20 +1362,20 @@ exports.timelineAlarm = (0, common_js_1.named)('TimelineAlarm', zod_1.z.object({
     extremeValue: zod_1.z.number().nullable(),
 }));
 /**
- * How many of the machines' own lines the rail was given, and how many the
+ * How many of the machines' own lines the Timeline was given, and how many the
  * window actually held.
  *
  * They differ where the net over a device's own log and the plan's bookkeeping
  * cut a long window - a grow of four months in a chatty tent holds thousands of
- * them - and the two numbers exist so that the rail can say so. A screen that
+ * them - and the two numbers exist so that the page can say so. A screen that
  * only got the first would draw four months with no machine mark on them and
  * nothing to say why.
  */
 exports.timelineMachineEvents = (0, common_js_1.named)('TimelineMachineEvents', zod_1.z.object({
-    shown: zod_1.z.number().int().describe("How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."),
+    shown: zod_1.z.number().int().describe("How many are in `events`. Zero on a shared or public read, whose lines are the grow's diary and never a device's diagnostics."),
     total: zod_1.z.number().int().describe('How many the window held. Equal to `shown` wherever the net did not bite, which is every short window.'),
 }));
-/** One grow that has stood in this space, so a rail can be pointed at one that has since ended. */
+/** One grow that has stood in this space, so the Timeline can be pointed at one that has since ended. */
 exports.timelineGrow = (0, common_js_1.named)('TimelineGrow', zod_1.z.object({
     growId: (0, common_js_1.id)(),
     name: zod_1.z.string(),
@@ -1389,18 +1389,18 @@ exports.timelineCamera = (0, common_js_1.named)('TimelineCamera', zod_1.z.object
     frames: zod_1.z.array(exports.cameraStill).describe('Oldest first, at most one per step, so the still above the panels is a lookup rather than a request per position.'),
 }));
 /**
- * `GET /spaces/{id}/timeline`, the whole Timeline tab in one answer: the frames
+ * `GET /spaces/{id}/timeline`, the whole Timeline in one answer: the frames
  * the slider steps through, a panel per metric with the bands that applied, the
  * night worked out from the light rather than from a clock, the alarms, the
- * output lanes and the event rail.
+ * output lanes and the lines of the diary.
  *
  * It is one answer per range rather than six requests stitched together,
  * because every part of it is a view of the same window and a screen that
  * assembled them would draw parts of six different ones.
  *
- * A space with no controller answers the frames and the rail and nothing else:
+ * A space with no controller answers the frames and the lines and nothing else:
  * `panels` is then empty, the way a diary day of a grow with no controller
- * carries no climate. Nothing here is written to - the rail carries lines to
+ * carries no climate. Nothing here is written to - the answer carries lines to
  * open and never a task to tick off - so a read-only link is served the same
  * answer as its owner, clamped to its window.
  */
@@ -1435,19 +1435,19 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
         .describe('When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.'),
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),
-    events: zod_1.z.array(exports.entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    events: zod_1.z.array(exports.entry).describe('The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
     deviceChanges: zod_1.z
         .array(deviceChange)
         .describe('When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.'),
     machineEvents: exports.timelineMachineEvents,
     grows: zod_1.z
         .array(exports.timelineGrow)
-        .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),
+        .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),
     readingNames: zod_1.z
         .array(exports.growReadingNames)
         .describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.'),
     cameras: zod_1.z.array(exports.timelineCamera),
-    people: zod_1.z.array(common_js_1.person).describe('Everyone the rail names, so a mark can say who wrote it without another read.'),
+    people: zod_1.z.array(common_js_1.person).describe('Everyone the lines name, so a mark can say who wrote it without another read.'),
 }));
 /**
  * One metric aggregated over a stretch of a grow, which is one time-series query
@@ -1670,19 +1670,19 @@ exports.growMeasurementSeries = (0, common_js_1.named)('GrowMeasurementSeries', 
     points: zod_1.z.array(exports.growSeriesPoint),
 }));
 /**
- * What the Charts view is asked for as a range: the four chips the Timeline tab
+ * What a grow's series is asked for as a range: the four chips the Timeline
  * already has, and `custom` for two instants somebody picked, which is the one
  * range no chip can name.
  */
 exports.growSeriesRange = (0, common_js_1.named)('GrowSeriesRange', zod_1.z.enum(['24h', '7d', 'phase', 'grow', 'custom']));
 /**
- * `GET /grows/{id}/series`: every line the Charts view draws over one range, in
+ * `GET /grows/{id}/series`: every line of a grow over one range, in
  * one answer, because a screen that asked for them separately would draw
  * windows that disagree at their edges.
  *
  * Three kinds of line, and they are apart here because they are not the same
  * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
- * the range decides, and are the same panels and lanes the Timeline tab draws -
+ * the range decides, and are the same panels and lanes the Timeline draws -
  * with the same band, so a client draws one the same way in both places.
  * `measurements` are events somebody wrote down and are answered as they were
  * taken, at no step at all.
@@ -1723,7 +1723,7 @@ exports.growSeries = (0, common_js_1.named)('GrowSeries', zod_1.z.object({
         .describe('The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.'),
 }));
 /**
- * `GET /spaces/{id}/series`: the Charts view of a place, which is how a place
+ * `GET /spaces/{id}/series`: the series of a place, which is how a place
  * without a grow - and a window no chip of a grow's can name - is charted.
  *
  * The same panels, lanes and nights as a grow's answer, read from whatever
@@ -1826,7 +1826,7 @@ exports.publicUserPage = (0, common_js_1.named)('PublicUserPage', zod_1.z.object
 /** A link onto a grow answers the same page the grow's own public address does. */
 exports.sharedGrow = (0, common_js_1.named)('SharedGrow', zod_1.z.object({ type: zod_1.z.literal('grow'), grow: exports.publicGrowPage }));
 /**
- * A link onto a space answers its tent page, already clamped to the link's range
+ * A link onto a space answers its page, already clamped to the link's range
  * and stripped for a reader who is neither the owner nor a member - which is
  * what leaves the tasks and the alerts of such a page empty.
  */

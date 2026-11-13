@@ -40,7 +40,7 @@ const OWN_READINGS: Readonly<Record<string, string>> = { co2FillingInitial: 'g',
 export const ownReading = (t: (key: string) => string, key: string): ReadingName | undefined =>
   key in OWN_READINGS ? { key, name: t(`ownReading.${key}`), unit: OWN_READINGS[key] } : undefined;
 
-/** One mark per kind of line, so a diary row and a mark on the timeline's rail draw the same thing the same way. */
+/** One mark per kind of line, so a diary row and a mark on the Timeline draw the same thing the same way. */
 export const KIND_ICON: Record<EntryKind, LucideIcon> = {
   water: Droplet,
   feed: Leaf,

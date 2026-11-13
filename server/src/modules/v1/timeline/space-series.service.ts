@@ -27,7 +27,7 @@ export interface SpaceSeriesQuery {
 }
 
 /**
- * The charts page of a place: whatever stands in it, over any two instants and
+ * The series of a place: whatever stands in it, over any two instants and
  * at any step somebody chose.
  *
  * It reads through the Timeline's own arithmetic - the same pooled panels, the

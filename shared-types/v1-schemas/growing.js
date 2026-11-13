@@ -223,7 +223,7 @@ exports.plant = (0, common_js_1.named)('Plant', zod_1.z.object({
 /**
  * One person following one grow. `PUT /follows/{growId}` and its `DELETE` carry
  * no body - the grow is in the path and a follow has nothing else to say - and
- * the `PUT` answers this. What the home screen draws for a followed grow is a
+ * the `PUT` answers this. What the list of followed grows draws for one is a
  * read model of the diary half rather than a fatter follow, because a follower
  * sees a public grow and only what its public page shows.
  */

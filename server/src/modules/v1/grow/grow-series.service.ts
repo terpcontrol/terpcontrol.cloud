@@ -26,7 +26,7 @@ import { stoodIn } from '@common/v1/device-placements';
 import { GrowsService } from './grows.service';
 
 /**
- * The Charts view, as one answer.
+ * A grow's series, as one answer.
  *
  * A grow is not a device and not a tent: where it stood is what its placements
  * say, so the climate of a range is whatever the controllers of those places
@@ -37,7 +37,7 @@ import { GrowsService } from './grows.service';
  * must not find them disagreeing about what was being aimed at.
  *
  * What is new here is that the client chooses the lines. The timeline stacks
- * the panels it decides on; the Charts view draws what was ticked - VPD among
+ * the panels it decides on; this read answers what was ticked - VPD among
  * them, which the timeline leaves out on purpose - beside the outputs and the
  * grow's own measurements, which come from the diary rather than from the
  * measurement store.

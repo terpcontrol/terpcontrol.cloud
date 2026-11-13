@@ -8,7 +8,7 @@ import { TimelineController } from './timeline.controller';
 import { TimelineService } from './timeline.service';
 
 /**
- * The tent page's second tab, a module of its own for the reason the first one
+ * The Timeline of a place, a module of its own for the reason its overview
  * is: a space knows what stands in it, not what was measured there, what was
  * written there or what the cameras saw.
  */

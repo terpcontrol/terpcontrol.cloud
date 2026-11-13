@@ -58,7 +58,7 @@ const timelineQuery = inOrder(
 );
 
 /**
- * What the charts page of a place asks for: two instants, the lines it wants,
+ * What the series read of a place is asked for: two instants, the lines wanted,
  * and the step where somebody chose one.
  */
 const seriesQuery = inOrder(
@@ -92,7 +92,7 @@ export class TimelineController {
   ) {}
 
   /**
-   * Every line the charts page draws of a place, over two instants. It reaches
+   * Every line of a place's series, over two instants. It reaches
    * whoever may see the place, a share link clamped to its own window included.
    */
   @Get(':id/series')
@@ -112,7 +112,7 @@ export class TimelineController {
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'space')
   @ApiOperation({
-    summary: 'Everything the Timeline tab draws over one range: frames, panels, night, alarms, lanes and the rail',
+    summary: 'Everything the Timeline draws over one range: frames, panels, night, alarms, lanes and the lines of the diary',
     ...SHARED_READ_OPERATION,
   })
   @V1Answer(spaceTimeline)

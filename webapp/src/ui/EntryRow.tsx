@@ -73,7 +73,7 @@ interface EntryRowProps {
   measurements?: readonly ReadingName[];
   /**
    * The moment the list is read at, for rows that sit under no heading naming
-   * the week they are of. A tent's latest lines and a mark opened on the rail
+   * the week they are of. A shared place's latest lines and a device's own
    * reach as far back as the tent has been quiet, so there the stamp follows how
    * old each line is instead - see `stampOf`.
    */

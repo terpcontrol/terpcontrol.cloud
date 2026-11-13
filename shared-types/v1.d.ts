@@ -4163,7 +4163,7 @@ export interface TimelineAlarm {
 
 export interface TimelineMachineEvents {
   /**
-   * How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics.
+   * How many are in `events`. Zero on a shared or public read, whose lines are the grow's diary and never a device's diagnostics.
    */
   shown: number;
   /**
@@ -4236,7 +4236,7 @@ export interface SpaceTimeline {
   alarms: TimelineAlarm[];
   outputs: TimelineOutputLane[];
   /**
-   * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
+   * The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
    */
   events: Entry[];
   /**
@@ -4259,7 +4259,7 @@ export interface SpaceTimeline {
   }[];
   machineEvents: TimelineMachineEvents;
   /**
-   * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.
+   * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.
    */
   grows: TimelineGrow[];
   /**
@@ -4268,7 +4268,7 @@ export interface SpaceTimeline {
   readingNames: GrowReadingNames[];
   cameras: TimelineCamera[];
   /**
-   * Everyone the rail names, so a mark can say who wrote it without another read.
+   * Everyone the lines name, so a mark can say who wrote it without another read.
    */
   people: Person[];
 }

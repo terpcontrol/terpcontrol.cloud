@@ -121,7 +121,7 @@ const cut = (
   });
 };
 
-/** Only what this panel is about: an alarm the health loop raised without a metric belongs on the rail, not over a curve. */
+/** Only what this panel is about: an alarm the health loop raised without a metric belongs among the lines of the diary, not over a curve. */
 export const alarmsOf = (alarms: TimelineAlarm[], metric: Metric): TimelineAlarm[] => alarms.filter(alarm => alarm.metric === metric);
 
 /** The least a picture may stand from the cursor and still be the picture of that moment. */

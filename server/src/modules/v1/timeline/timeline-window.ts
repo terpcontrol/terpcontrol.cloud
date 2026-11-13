@@ -148,7 +148,7 @@ const rollingOf = (range: TimelineRange, at: Date): { startsAt: Date; endsAt: Da
 /**
  * Nothing later than the instant asked about, and nothing after the grow ended.
  * The phase is the spine phase standing at that instant - a phase scoped to some
- * of the plants is a split, told in the event rail rather than by giving the
+ * of the plants is a split, told among the diary's lines rather than by giving the
  * tent a second timeline - so it runs up to the instant itself.
  */
 const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { startsAt: Date; endsAt: Date } => {
@@ -188,7 +188,7 @@ export const camerasOfDevice = <T extends { deviceId?: string | null }>(cameras:
 
 /**
  * The device a place's band is the targets of: its first climate, which is the
- * one the cockpit judges the place's readings against where it draws one.
+ * one Start judges the place's readings against where it draws one.
  */
 export const steeringOf = (devices: readonly StoredDevice[]): StoredDevice | null =>
   climatesOf(devices.filter(device => targetsOf(device.configuration) !== null))[0] ?? null;
@@ -230,10 +230,10 @@ export const actingOn = (devices: readonly StoredDevice[], ownId: string | null)
  * The record is what the device really aimed at, so wherever it reaches it is
  * what a band is drawn from - over a phase's snapshot as well. A snapshot is
  * what ran when the phase was written; somebody who puts the tent on another
- * preset, or nudges the humidity, a week into the phase has the cockpit judge
+ * preset, or nudges the humidity, a week into the phase has Start judge
  * the tent against the new figures from that moment, and a Timeline still
  * banding the rest of the phase by the old ones said the opposite of the
- * cockpit about the same reading.
+ * Start about the same reading.
  *
  * Where the record does not reach - a window older than the record itself - the
  * phase's snapshot is the best there is. A phase that has none borrows what is
