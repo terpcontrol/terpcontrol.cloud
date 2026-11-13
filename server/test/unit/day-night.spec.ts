@@ -541,7 +541,8 @@ describe('the nights a chart is shaded by', () => {
 
     expect(nightsOf([reported], window, cycles)).toEqual([
       { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-24T22:00:00.000Z' },
-      { startsAt: '2026-10-25T03:05:00.000Z', endsAt: '2026-10-25T06:00:00.000Z' },
+      // Back at 03:00: its first point of five minutes closes at 03:05 and stands for the five before it.
+      { startsAt: '2026-10-25T03:00:00.000Z', endsAt: '2026-10-25T06:00:00.000Z' },
       { startsAt: '2026-10-25T18:00:00.000Z', endsAt: '2026-10-25T21:00:00.000Z' },
     ]);
     // Nobody heard at all: nothing to shade.

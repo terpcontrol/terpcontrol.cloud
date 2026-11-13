@@ -490,14 +490,15 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
  * sample; one that only turned up later is drawn from where it turned up, and
  * the same rule closes the far end.
  *
- * A stretch of one point is a stretch of the window it stands for rather than
- * of no width at all. The store stamps an aggregation window at its stop
- * instant, so a point at t is what was heard over `(t - step, t]`; a burst that
- * lands in a single window after a long silence would otherwise be a stretch
- * from an instant to the same instant, which nothing can overlap, and every
- * output state inside it is lost. It is widened backwards and never forwards,
- * because forwards is past the last thing the device said - and past the end of
- * the window, where the window closes on a grow that has ended.
+ * A stretch begins with the window its first point stands for. The store
+ * stamps an aggregation window at its stop instant, so a point at t is what
+ * was heard over the step before t: a device back at 16:00 after a silence has
+ * its first point of three minutes at 16:03, and a lamp lit since it came back
+ * was lit from 16:00. A burst that lands in a single window would otherwise be
+ * a stretch from an instant to the same instant, which nothing can overlap. It
+ * is widened backwards and never forwards, because forwards is past the last
+ * thing the device said - and past the end of the window, where the window
+ * closes on a grow that has ended.
  *
  * The same stamping is why the far end is cut to the newest sample the device
  * really wrote. The last point of a series stands for a window that ends up to
@@ -520,9 +521,8 @@ const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, st
   }
 
   for (const [index, stretch] of stretches.entries()) {
-    if (stretch.from !== stretch.to) continue;
     const after = index === 0 ? window.startsAt.getTime() : stretches[index - 1].to + 1;
-    stretch.from = Math.max(stretch.to - stepSeconds * 1000, after, window.startsAt.getTime());
+    stretch.from = Math.max(stretch.from - stepSeconds * 1000, after, window.startsAt.getTime());
   }
 
   const opens = stretches[0];

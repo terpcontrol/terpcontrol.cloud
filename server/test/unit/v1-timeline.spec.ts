@@ -964,10 +964,11 @@ describe('the night, the lanes and the alarms', () => {
     const lastHeard = new Date(quietFrom.getTime() - DAY_STEP_SECONDS * 1000).toISOString();
     const page = await readAs(session(OWNER));
 
-    // Nobody said anything about the lamp for four hours, and the lamp was on
-    // again by the time anybody did: the night ends where it was last heard.
-    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
-    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }]);
+    // Nobody said anything about the lamp for four hours: the night ends where it was last heard. It is picked
+    // up with the window the first point after the silence stands for, the step before the lamp is found lit.
+    const back = { startsAt: new Date(quietUntil.getTime() - DAY_STEP_SECONDS * 1000).toISOString(), endsAt: quietUntil.toISOString() };
+    expect(page.nights).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }, back]);
+    expect(page.outputs.find(lane => lane.output === 'heater')?.spans).toEqual([{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: lastHeard }, back]);
   });
 
   it('says how far anything is known about each lane, so a silence is not drawn as a switched-off machine', async () => {
@@ -992,10 +993,10 @@ describe('the night, the lanes and the alarms', () => {
     expect(await lightOf()).toEqual(lit);
 
     // Nothing for the first half hour: the lamp is only known to have been on
-    // from where the device turned up, and that is where the run starts.
+    // from where the device turned up - the window its first point stands for - and that is where the run starts.
     quietFrom = new Date(opens);
     quietUntil = new Date('2026-06-09T12:30:00.000Z');
-    expect(await lightOf()).toEqual({ ...lit, startsAt: quietUntil.toISOString() });
+    expect(await lightOf()).toEqual({ ...lit, startsAt: new Date(quietUntil.getTime() - DAY_STEP_SECONDS * 1000).toISOString() });
   });
 
   it('keeps a lane whole across the gaps a device that reports slowly leaves between its samples', async () => {
