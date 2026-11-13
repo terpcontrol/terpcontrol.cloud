@@ -85,8 +85,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     The third walk (2026-11-13) checked VPD against the raw samples of a 120-day tent: no line outside its
     envelope on any range, the same climate reads the same from July to November, and the whole read costs what
     it did (about 0.9 s for 120 days). It left one major and eleven minors; what the redesign session decided
-    about them - not Chris's word - is built (2026-11-13), the server's part seen in tests only until the
-    stack is rebuilt:
+    about them - not Chris's word - is built (2026-11-13) and was checked on the session's stack by a fourth
+    walk, against the samples:
       - No `at` in the address means the card rests on "jetzt"; a cursor is what the address says and nothing
         else remembers it. (Tapping "Verlauf" in the bar with a cursor set blanked a live tent's card.)
       - Beyond three days every step is a whole number of five minutes, so a point holds whole grains; no finer
@@ -104,6 +104,19 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     390, the English head at 390 and "last logged", and an unknown `space=` corrected in the address. The two
     older series routes (`/spaces/{id}/series`, a grow's) still bound a device by its stay without the
     hand-over cut Verlauf makes (`fromHandover`): they are assembled apart and nothing of the web app asks them.
+    The fourth walk (2026-11-13) found those rules holding and the cost unchanged, and two majors and four
+    minors in what no walk had computed before - the card at rest and the outputs' figures; decided by the
+    redesign session, not built yet, and not Chris's word:
+      - At rest the card says the last thing that was heard: the answer's last reading, as "jetzt" while the
+        server calls it fresh and as "letzter Wert · …" once it is stale, on every range; in a past window the
+        window's last drawn point. (A reading five to ten minutes old gave a blank card labelled "jetzt" at
+        24 Std, with outputs that contradicted the reading.)
+      - An output's figure is counted from its samples: per drawn point its mean level and the share of
+        samples in which it was on. The card, the table, "x % der Zeit an" and the lane come from these, not
+        from runs rounded out to the step (a valve open 3 % of the time read as 75 %); a point where nothing
+        was heard says "—", never "aus".
+      - A five-minute grain in which the lamp switched is computed as its lit and its dark part; within three
+        days the lamp's switch times are the samples', to the minute.
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.
