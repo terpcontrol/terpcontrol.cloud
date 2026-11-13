@@ -148,8 +148,12 @@ string exists in English and German, with no English left in the German catalogu
   facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the
   line under a field, a chapter of the report, the count of a line's pictures.
 - Not localised: CSV cells, ids, ISO instants, the `yyyy-MM-dd` of a date field, firmware versions.
-- Unit preferences (°F, oz, gal) are stored with the account but not applied yet; the help beside "Einheiten"
-  under Ich › Darstellung says so.
+- Unit preferences (°F, oz, gal) are stored with the account but not applied yet; a line under "Einheiten" on
+  Ich › Darstellung says so.
+- **"Erledigt" is the tasks' word** - the tick of a task and the group of ticked ones. An alert that is over is
+  "Vorbei" (English "Resolved"), never "Erledigt"; the way to the notification settings is "Benachrichtigungen
+  einstellen" wherever it is offered; English "Log" is the verb for "Eintragen" (the redesign session of
+  2026-11-13, after its critic's walk).
 
 ## German slips to check for
 From the redesign review (2026-08-24), the ones a native reader notices first: wrong plurals ("1 Einträge" - use the

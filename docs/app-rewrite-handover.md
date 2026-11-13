@@ -137,22 +137,31 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     stays under "Offen" until somebody ticks it, as the prototype draws it - it needs a stored field -, and
     whether the rows Premium and Über keep the summary line they had (the prototype shows none; none is drawn).
     The critic's walk (2026-11-13) found no blocker, four majors and some twenty minors, and every function that
-    belongs under Ich, Meldungen and Verwaltung reachable; decided by the redesign session, not built yet, and
-    not Chris's word:
-      - "Erledigt" stands in the order of its label - what ended last, first (it was sorted by when an alert
-        began, so a night's long event sat behind "Früher"); a row says where and when, and flapping folds as
-        Start's "Zuletzt" folds it.
+    belongs under Ich, Meldungen and Verwaltung reachable. What the redesign session decided about them - not
+    Chris's word - is built (2026-11-13, rules in [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page));
+    not yet walked a second time:
+      - "Vorbei" (the resolved alerts, so that "Erledigt" is the tasks' word) stands in the order of its label -
+        what ended last, first; a row says where and when, and flapping folds as Start's "Zuletzt" folds it. The
+        order holds over what has been read: the server sorts and pages `GET /v1/alerts` by when an alert began,
+        also for the resolved ones.
       - A wrong current password says so at the field.
-      - A card says about delivery only what is true: what will happen, with the account's quiet hours and mute,
-        by the function `/control/alarms` uses; what did happen only from what the server recorded - never
-        today's grid read backwards.
+      - A card says about delivery only what is true: what the alarm will do, with the account's grid, quiet
+        hours and mute, by the one function `/control/alarms` uses too. Nothing is said about the past: an alert
+        records no delivery (the notification log holds a row per message sent, for 30 days, behind no route),
+        and a message held back by a mute or quiet hours is dropped, not sent later.
       - The units' choice stays stored and says in a line of its own that the views show °C, grams and litres
-        for now. Left for Chris: whether the views should follow or the choice should go.
-      - One silence per place on the page (the account's in the head, a rule's behind a card's ⋯); every write
-        answers - quiet hours, the two ways to switch e-mail on (which become one), language, a changed
-        reminder, a deleted account; the bell and the inbox count the tasks `/tasks` shows as mine, in every
-        tab.
+        for now.
+      - One silence of each kind on the page (the account's in the head, a rule's behind a card's ⋯); every write
+        answers - quiet hours, e-mail (switched on one way), language, a reminder, a deleted account; the bell
+        and the inbox count the tasks `/tasks` shows as mine, in every tab.
+      - Not built: a minimum length for a password on the server. The forms ask for nothing but a non-empty
+        one, which is what the contract's `password()` enforces, so form and server already hold one rule.
       Stays: maintenance is started from Start and a device's card, not from an alert's card.
+      Left for Chris, beside the two questions above: whether the views should follow the units or the choice
+      should go; whether the server should order and page resolved alerts by when they ended; whether an alert
+      should record what was delivered; whether a password should have a minimum length at all; and whether the
+      e-mail switch should route what can call on the account to mail also where critical alarms already arrive
+      another way.
   - Round 6 (place and room), state of 2026-11-12 (the redesign session; the data-model part is the amendment to
     [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood), **awaiting Chris's
     confirmation with the pull request**). Built: devices keep where they stood and the reads about the past use
