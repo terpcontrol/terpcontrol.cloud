@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -148,6 +148,11 @@ Each is built unless it says otherwise, and each can be refused by itself.
 - A diary line is drawn one way; the row of the app before the redesign is gone from the shared place and the
   device diagnosis. A share link's reader reaches a line's photos by the count on the line, one tap away,
   instead of thumbnails in the row (`screens/public/SharedSpace.tsx`, `ui/EntryWords.tsx`).
+- **Decided after the consolidation pass, not yet built.** On a share link a line with pictures draws them as
+  thumbnails again, as an option of the one diary line and nowhere else: the diary is what a share link shows
+  off, and the pass's brief had named the strip as what must not be lost. A line from an earlier year says its
+  year again. Steuerung takes a device's count of alarm rules from the server instead of from the first page of
+  the list.
 - Start's status carries "+n" for open alerts it does not name also while the place is offline, waiting, in
   maintenance or switched off, and then leads to Meldungen (`screens/start/place.ts`).
 - The split sheet's and the plan editor's climate chips read the climates' own names, as the phase correction
@@ -466,7 +471,7 @@ Each with what stands until he answers, and the session's recommendation where i
     editor, as the phase correction always had it, so a chosen "Blüte" stands under a chosen "Blüte". Say if
     "Nur die Phase" should come back for all three.
 55. **Steuerung says "Alarme · 100 Regeln"** of a device with 110: the list is read one page deep.
-    Recommendation: take the count from the server.
+    Decided by the session after the pass: the count comes from the server, with the final fix round.
 
 ### What the walks could not see
 
