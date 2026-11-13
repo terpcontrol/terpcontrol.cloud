@@ -340,7 +340,8 @@
 }
 
 .cursorStamp,
-.cursorOutputs {
+.cursorOutputs,
+.panelRange {
   font-size: var(--text-sm);
   color: var(--muted);
 }
@@ -349,6 +350,22 @@
   font-family: var(--font-figure);
   font-size: 16px;
   font-weight: var(--weight-bold);
+}
+
+/* What a row of the card or a head's figure says at rest lies unseen under it (`data-rest`) and holds its room:
+   crossing into a silence, or onto a value with its own time, moves no plot under a finger. */
+.screen [data-rest] {
+  display: inline-grid;
+}
+
+.screen [data-rest]::before {
+  visibility: hidden;
+  content: attr(data-rest);
+}
+
+.screen [data-rest] > *,
+.screen [data-rest]::before {
+  grid-area: 1 / 1;
 }
 
 .otherCamera {
@@ -390,11 +407,6 @@
   inset: -14px;
 }
 
-.panelRange {
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-
 .panelValue {
   font-family: var(--font-figure);
   font-size: 16px;
@@ -417,30 +429,6 @@
   color: var(--ink);
   font-family: var(--font-figure);
   font-weight: var(--weight-bold);
-}
-
-.screen [data-colour='temperature'] {
-  color: var(--temperature);
-}
-
-.screen [data-colour='humidity'] {
-  color: var(--humidity);
-}
-
-.screen [data-colour='brand'] {
-  color: var(--brand);
-}
-
-.screen [data-colour='co2'] {
-  color: var(--co2);
-}
-
-.screen [data-colour='green'] {
-  color: var(--green);
-}
-
-.screen [data-colour='warning'] {
-  color: var(--warning);
 }
 
 .plot {
@@ -506,11 +494,6 @@
   border: 2px solid var(--card);
   border-radius: var(--radius-pill);
   pointer-events: none;
-}
-
-.dot:not([data-colour]),
-.dot[data-colour='ink'] {
-  color: var(--ink);
 }
 
 .selection {
@@ -640,12 +623,6 @@
 
 /* ---------------------------------------------------------------- sheets */
 
-.adjust {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .ticks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -672,7 +649,8 @@
   overflow-wrap: anywhere;
 }
 
-.adjust input[type='checkbox'] {
+.ticks input,
+.oneRow input {
   flex: none;
   width: 20px;
   height: 20px;
@@ -825,10 +803,11 @@
 /* Two columns once both fit: the panels, and beside them the cursor's card and the diary on a third of a page
    that is wider here than a page of text - a diary line of four to six rows stood beside room nobody used. */
 @media (min-width: 1200px) {
-  /* Wider than a page of text, and never wider than the room beside the margin the shell centres a page by: that
-     margin is a text page's, and 200 px more on top of it ran up to 48 px out of the window. */
-  .screen {
-    max-width: min(calc(var(--page-width) + 200px), calc(100% - max(0px, (100% - var(--page-width)) / 2)));
+  /* Wider than a page of text, and centred as one: under the shell's margin, a text page's, it stood up to 200 px
+     off the middle. Named twice to stand over the shell's `.main > *`, whichever sheet comes last. */
+  .screen.screen {
+    max-width: calc(var(--page-width) + 200px);
+    margin-inline: max(0px, calc((100% - var(--page-width) - 200px) / 2)) auto;
   }
 
   .stage {

@@ -97,7 +97,8 @@ export const viewOf = (params: URLSearchParams): View => {
     at: momentOf(params.get('at')),
     growId: params.get('grow'),
     deviceId: params.get('device'),
-    show: params.has('show') ? (params.get('show') ?? '').split(',').filter(Boolean) : null,
+    // Naming no curve is naming none: the curves a place starts with.
+    show: params.get('show') ? (params.get('show') as string).split(',').filter(Boolean) : null,
     one: params.get('one') === '1',
     stepSeconds: Number.isInteger(step) && step >= 5 ? step : null,
     vpdHalf: VPD_HALVES.find(half => half === params.get('vpd')) ?? 'all',
@@ -116,7 +117,7 @@ export const viewParams = (over: Partial<View>): Record<string, string | null> =
   ...('at' in over ? { at: over.at == null ? null : instant(over.at) } : {}),
   ...('growId' in over ? { grow: over.growId ?? null } : {}),
   ...('deviceId' in over ? { device: over.deviceId ?? null } : {}),
-  ...('show' in over ? { show: over.show ? over.show.join(',') : null } : {}),
+  ...('show' in over ? { show: over.show?.join(',') || null } : {}),
   ...('one' in over ? { one: over.one ? '1' : null } : {}),
   ...('stepSeconds' in over ? { step: over.stepSeconds ? String(over.stepSeconds) : null } : {}),
   ...('vpdHalf' in over ? { vpd: over.vpdHalf && over.vpdHalf !== 'all' ? over.vpdHalf : null } : {}),

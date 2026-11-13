@@ -14,8 +14,8 @@ import {
   panelsOf,
   readAt,
   restOf,
-  sampleAt,
-  shareOf,
+  overTime,
+  singleAt,
   shownOf,
   stripsOf,
   type Shown,
@@ -139,6 +139,8 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
 });
 
 const t = i18next.t.bind(i18next);
+/** The share of the time an output ran, of the time it was heard, over the fixture's day at an hour a point. */
+const shareOf = (strip: Parameters<typeof blocksOf>[0]) => overTime(blocksOf(strip, FROM, FROM + 24 * HOUR, HOUR), block => block.share);
 const drawn = (data: SpaceTimeline, keys: string[] | null = null, over: Partial<Parameters<typeof panelsOf>[3]> = {}) => {
   const shown = shownOf(keys, offeredOf(data, []), null);
   const strips = stripsOf(t, data);
@@ -428,6 +430,38 @@ describe('the strips', () => {
     expect(shareOf({ points: [] })).toBeNull();
   });
 
+  it('weighs the share by time, not by samples: a 12/12 lamp reads half whatever its device`s rhythm was', () => {
+    // Four days of history, a sample to the point, then a day of live samples, fifty to the point - lit every other
+    // twelve hours throughout. Counted by samples the live day decided the figure.
+    const lit = (hour: number) => Math.floor(hour / 12) % 2 === 0;
+    const points = Array.from({ length: 120 }, (_, index) => index + 1).map(hour => {
+      const heard = hour > 96 ? 50 : 1;
+      return [FROM + hour * HOUR, heard, lit(hour - 1) ? heard : 0, lit(hour - 1) ? 65 : 0] as const;
+    });
+    const blocks = blocksOf({ points }, FROM, FROM + 120 * HOUR, HOUR);
+    expect(overTime(blocks, block => block.share)).toBeCloseTo(0.5, 6);
+    // The live day lit throughout: 72 hours of 120 by time, where its samples made 96 % of it.
+    const uneven = points.map(([end, heard, on, level], index) =>
+      index >= 108 ? ([end, heard, heard, 65] as const) : ([end, heard, on, level] as const),
+    );
+    expect(overTime(blocksOf({ points: uneven }, FROM, FROM + 120 * HOUR, HOUR), block => block.share)).toBeCloseTo(72 / 120, 6);
+  });
+
+  it('draws a device slower than the step as one strip, and breaks it only where it fell silent by its own rhythm', () => {
+    // A sample every 25 minutes, drawn at ten: one point in two or three windows, each of one sample.
+    const step = 600_000;
+    const stamps = Array.from({ length: 40 }, (_, index) => FROM + Math.ceil(((index + 1) * 1500_000) / step) * step);
+    const strip = { points: stamps.map(end => [end, 1, 1, 65] as const) };
+    expect(blocksOf(strip, FROM, stamps.at(-1)!, step)).toHaveLength(1);
+    // The same history, then live samples that fill every window: the history is still whole.
+    const live = Array.from({ length: 60 }, (_, index) => [stamps.at(-1)! + (index + 1) * step, 20, 20, 65] as const);
+    expect(blocksOf({ points: [...strip.points, ...live] }, FROM, live.at(-1)![0], step)).toHaveLength(1);
+    // Three hours without a word are a silence of that device, and one missed report is not.
+    const gone = strip.points.filter(([end]) => end < FROM + 6 * HOUR || end > FROM + 9 * HOUR);
+    expect(blocksOf({ points: gone }, FROM, stamps.at(-1)!, step)).toHaveLength(2);
+    expect(blocksOf({ points: strip.points.filter((_, index) => index !== 20) }, FROM, stamps.at(-1)!, step)).toHaveLength(1);
+  });
+
   it('counts two devices that drive the same output together', () => {
     const lane = (heard: number, on: number, level: number) => ({
       output: 'heater' as const,
@@ -535,13 +569,13 @@ describe('the cursor', () => {
     });
   });
 
-  it('stamps a point of one sample with where that sample was written, and a mean as a mean', () => {
+  it('knows a point of one sample from a mean', () => {
     // A device every thirty seconds, drawn at ten: one sample to the point.
     const single = { points: [[FROM + 40_000, 1, 1, 75] as const, [FROM + 70_000, 1, 1, 75] as const] };
-    expect(sampleAt([single], FROM + 35_000, 10_000)).toBe(FROM + 30_000);
+    expect(singleAt([single], FROM + 35_000, 10_000)).toBe(true);
     // Several samples to the point, of any output: a mean. And nothing where no point stands.
-    expect(sampleAt([single, { points: [[FROM + 40_000, 2, 0, null] as const] }], FROM + 35_000, 10_000)).toBeNull();
-    expect(sampleAt([single], FROM + 55_000, 10_000)).toBeNull();
+    expect(singleAt([single, { points: [[FROM + 40_000, 2, 0, null] as const] }], FROM + 35_000, 10_000)).toBe(false);
+    expect(singleAt([single], FROM + 55_000, 10_000)).toBe(false);
   });
 
   it('stands a window cut short at a whole second', () => {
@@ -560,6 +594,24 @@ describe('the cursor', () => {
     });
     // Thirty-seven seconds of a window of three minutes: its middle is 18.5 s in, written as 19.
     expect(drawn(cut, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + HOUR + 19_000);
+
+    // With a silence before it nothing says where in the window the device came back: the point stands at its
+    // close - a whole second, and not half a step before the first sample it holds.
+    const back = answer({
+      stepSeconds: 5400,
+      panels: [
+        {
+          metric: 'temperature',
+          points: [
+            { measuredAt: at(1.5), value: 24 },
+            { measuredAt: new Date(FROM + 1.5 * HOUR + 1).toISOString(), value: null },
+            { measuredAt: new Date(FROM + 22 * HOUR + 53_423).toISOString(), value: 24.2 },
+          ],
+          targets: [],
+        },
+      ],
+    });
+    expect(drawn(back, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + 22 * HOUR + 53_000);
   });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
@@ -739,6 +791,12 @@ describe('how the page says when', () => {
     expect(meanStamp(t, Date.parse('2026-11-12T03:10:30Z'), window, 180, 'UTC')).toBe('mean 03:09–03:12');
     // Finer than a minute, the stretch is told to the second.
     expect(meanStamp(t, Date.parse('2026-11-12T03:10:22.500Z'), window, 45, 'UTC')).toBe('mean 03:10:00–03:10:45');
+    // A point of one sample is no mean: the stretch alone, since nothing says when in it the sample was taken.
+    expect(meanStamp(t, Date.parse('2026-11-12T03:10:30Z'), window, 180, 'UTC', false)).toBe('03:09–03:12');
+    // The last window is what the read's end left of its step: a stamp never runs past the window.
+    const cut = { from: window.from, to: Date.parse('2026-11-12T09:12:29Z') };
+    expect(meanStamp(t, Date.parse('2026-11-12T09:12:15Z'), cut, 45, 'UTC')).toBe('mean 09:12:00–09:12:29');
+    expect(meanStamp(t, cut.to, cut, 45, 'UTC')).toBe('mean 09:12:00–09:12:29');
   });
 
   it('says a step in seconds below two minutes and in whole minutes from there', () => {

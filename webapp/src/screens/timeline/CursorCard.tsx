@@ -19,6 +19,8 @@ interface CursorCardProps {
   /** One figure per curve drawn, and under them what each output did. */
   readings: string[];
   outputs: string[];
+  /** What both rows say at rest: each stays that high, so a silence or a value with its own time moves nothing under a finger. */
+  held: { readings: string[]; outputs: string[] };
   /** The cameras with pictures in the window; none leaves the card its words. */
   cameras: SpaceTimeline['cameras'];
   cursor: number;
@@ -35,7 +37,8 @@ interface CursorCardProps {
  * What was true at the cursor, in a place that stays put - a tooltip under a thumb cannot be read: the camera's
  * picture of that moment, the instant, a figure per curve and what the outputs did.
  */
-export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting, onCursor, picture = mediaUrl, linked, zoom }: CursorCardProps) {
+export function CursorCard(props: CursorCardProps) {
+  const { stamp, readings, outputs, held, cameras, cursor, resting, onCursor, picture = mediaUrl, linked, zoom } = props;
   const { t } = useTranslation();
   const called = useCameraCalled();
   const [chosen, setChosen] = useState(0);
@@ -74,8 +77,13 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting,
             </button>
           ) : null}
         </span>
-        {readings.length > 0 ? <strong className={styles.cursorValues}>{<Facts facts={readings} />}</strong> : null}
-        {outputs.length > 0 ? <Facts className={styles.cursorOutputs} facts={outputs} /> : null}
+        {[held.readings, held.outputs].map((rest, row) =>
+          rest.length + readings.length + outputs.length > 0 ? (
+            <span key={row} className={row === 0 ? styles.cursorValues : styles.cursorOutputs} data-rest={rest.map(whole).join('\u00a0· ')}>
+              <Facts facts={row === 0 ? readings : outputs} />
+            </span>
+          ) : null,
+        )}
       </div>
       <div className={styles.zoom} role="group" aria-label={t('timeline.zoomLabel')}>
         {zoom}
@@ -83,6 +91,9 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting,
     </section>
   );
 }
+
+/** A fact as one word, for the unseen line that holds a row's height: it breaks between two facts only, as `Facts` does. */
+const whole = (fact: string): string => fact.replace(/ /g, '\u00a0').replace(/-/g, '\u2011');
 
 /**
  * Play walks the pictures from the cursor the address carries and stops at the last one. Rest is no such cursor -

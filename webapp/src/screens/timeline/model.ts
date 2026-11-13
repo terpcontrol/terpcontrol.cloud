@@ -15,6 +15,7 @@ import type { ChartToken } from '@/charts/tokens';
 import type { Translate } from '@/i18n/i18n';
 import { outputWord } from '@/ui/climate-hardware';
 import { decimalFigure, looseFigure } from '@/ui/figures';
+import { quietLimits } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { figure, targetFigure, UNIT } from '@/ui/units';
 import { CLOCK, zonedAt } from '@/ui/zone';
@@ -109,6 +110,8 @@ export interface Strip {
   output: OutputMetric;
   name: string;
   points: StripPoint[];
+  /** The stretches it ran for, by the second where the read knew it. */
+  runs: PlotSpan[];
   /** What stands beside its name, fact by fact: the lamp's stretches by the clock, the share of the time it ran, how hard; null where nothing was heard. */
   said: string[] | null;
 }
@@ -133,83 +136,86 @@ export const stripsOf = (t: Translate, data: SpaceTimeline, said: Said = { zone:
     const points = new Map<number, [heard: number, on: number, level: number | null]>();
     for (const { measuredAt, heard, on, level } of lanes.flatMap(lane => lane.points ?? [])) {
       const [known, ran, mean] = points.get(at(measuredAt)) ?? [0, 0, level];
-      points.set(at(measuredAt), [
-        known + heard,
-        ran + on,
-        mean === null || level === null ? null : (mean * known + level * heard) / (known + heard),
-      ]);
+      const mixed = mean === null || level === null ? null : (mean * known + level * heard) / (known + heard);
+      points.set(at(measuredAt), [known + heard, ran + on, mixed]);
     }
 
     const strip = {
       output,
       name: outputTitle(t, output, lanes),
       points: [...points].sort(([one], [other]) => one - other).map(([end, [heard, on, level]]) => [end, heard, on, level] as const),
+      // The spans say only when, for the lamp's stretches by the clock and a silence's ends: no figure is taken from a run.
+      runs: lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))),
     };
-    const share = shareOf(strip);
+    const blocks = blocksOf(strip, at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000);
+    const share = overTime(blocks, block => block.share);
     if (share === null) return { ...strip, said: null };
-    const ran = t('timeline.lightShare', { share: Math.round(share * 100) });
-    // The spans say only when, for the lamp's stretches by the clock: no figure is taken from a run.
-    const runs = lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })));
-    if (output === 'light') return { ...strip, said: lightWords(t, { ...strip, runs }, data, ran, said) };
-    // One driven at a level adds how hard it ran: its mean level over every sample heard, off counting as none.
-    const [heard, level] = strip.points.reduce(([count, sum], point) => [count + point[1], sum + (point[3] ?? 0) * point[1]], [0, 0]);
-    const levelled = strip.points.some(point => point[3] !== null) && share > 0;
-    return { ...strip, said: [ran, ...(levelled ? [t('timeline.meanLevel', { level: Math.round(level / heard) })] : [])] };
+    if (output === 'light') return { ...strip, said: lightWords(t, strip, data, share, said) };
+    // One driven at a level adds how hard it ran: its mean level over the time it was heard, off counting as none.
+    const level = strip.points.some(point => point[3] !== null) && share > 0 ? overTime(blocks, block => block.level ?? 0) : null;
+    const mean = level === null ? [] : [t('timeline.meanLevel', { level: Math.round(level) })];
+    return { ...strip, said: [t('timeline.lightShare', { share: Math.round(share * 100) }), ...mean] };
   });
 
-/** How far apart two points of a strip may stand and still be one stretch: a step, and four of its own gaps for a device slower than that. */
-const bridgeOf = (points: readonly StripPoint[], stepMs: number): number => {
-  const gaps = points.slice(1).map((point, index) => point[0] - points[index][0]);
-  const usual = [...gaps].sort((one, other) => one - other)[Math.floor(gaps.length * 0.75)] ?? stepMs;
-  return usual > stepMs ? 4 * usual : stepMs;
+/**
+ * Where the stretch each point of a strip stands for begins: the step it closes, or - of a device slower than it is
+ * drawn - the point before it, unless the device fell silent between the two by the server's own rule (`quietLimits`).
+ */
+const startsOf = (points: readonly StripPoint[], from: number, stepMs: number): number[] => {
+  const [ends, counts] = [points.map(point => point[0]), points.map(point => point[1])];
+  const limits = quietLimits(ends, stepMs, counts);
+  return points.map(([end], index) => {
+    const before = points[index - 1]?.[0] ?? from;
+    return Math.max(from, end - before <= limits[index] ? before : end - stepMs);
+  });
 };
 
 /**
  * The lamp over the window, fact by fact and in one order at every range: its lit stretches by the clock where they
- * are few and the window is read by the clock, the share of its samples it was on in, how bright it ran - once,
- * where every stretch ran alike. A stretch is named by the ends it has: lit through the whole window it is
- * "durchgehend an" ("an seit" names a switch); cut by the window it did not come on at its first minute ("bis
- * 12:00"); ended by a silence it ended at the device's last reading ("06:00 bis letzter Wert 07:53") where nothing
- * was heard since or the reading is stale, and in a gap where the silence is over ("07:03 bis 10:59 · Lücke bis 16:00").
+ * are few, the share of the time it was on, how bright - with its stretch, or once where every stretch ran alike.
+ * A stretch is named by the ends it has, a switch only where one is, and each fact once (app-ux.md §7).
  */
-const lightWords = (t: Translate, light: Pick<Strip, 'points'> & { runs: PlotSpan[] }, data: SpaceTimeline, ran: string, said: Said): string[] => {
+const lightWords = (t: Translate, light: Pick<Strip, 'points' | 'runs'>, data: SpaceTimeline, share: number, said: Said): string[] => {
   const { zone, live, quietAt } = said;
   const [from, to, stepMs] = [at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000];
   const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
+  const percent = (level: number | null) => (level === null ? null : `${level}\u00a0%`);
+  const gapTo = (time: number) => t('timeline.lightGap', { to: clock(time) });
   // How bright a stretch ran while it was lit: the middle of its points' levels, which a ramp at either end does not move.
-  const levelOf = (run: PlotSpan): string | null => {
+  const levelOf = (run: PlotSpan): number | null => {
     const lit = light.points.filter(([end, , on]) => end > run.from && end <= run.to + stepMs && on > 0);
     const levels = lit.map(([, heard, on, level]) => Math.round(((level ?? 0) * heard) / on)).sort((one, other) => one - other);
-    return levels.length > 0 ? `${levels[levels.length >> 1]}\u00a0%` : null;
+    return levels[levels.length >> 1] ?? null;
   };
+  const ran = t('timeline.lightShare', { share: Math.round(share * 100) });
   const lit = light.runs.filter(one => one.to > from && one.from < to).sort((one, other) => one.from - other.from);
   if (lit.length === 0 || lit.length > 3 || to - from > BY_CLOCK)
-    return [ran, lit.length > 0 ? levelOf({ from, to }) : null].flatMap(one => one ?? []);
+    return [ran, lit.length > 0 ? percent(levelOf({ from, to })) : null].flatMap(one => one ?? []);
 
-  const bridge = bridgeOf(light.points, stepMs);
+  const starts = startsOf(light.points, from, stepMs);
+  const heard = (time: number) => light.points.some(([end], index) => starts[index] <= time && time < end);
   const levels = lit.map(levelOf);
   const alike = levels.every(level => level === levels[0]);
-  const stretches = lit.map((one, index) => {
+  // Nothing was heard a step before it began: the device came back with the lamp lit, and nothing switched.
+  const resumed = lit.map(one => one.from > from && !heard(Math.max(from, one.from - stepMs)));
+  const stretches = lit.flatMap((one, index) => {
     const [began, stale] = [one.from > from, quietAt !== null && one.to >= quietAt - stepMs];
     const ended = one.to < to || stale;
     // Heard a step after the stretch ended: the lamp was switched off, by its device or by one that took the place over.
-    const after = Math.min(one.to + stepMs, to - 1);
-    const quiet = stale || (ended && !light.points.some(([end]) => end - bridge <= after && after < end));
+    const quiet = stale || (ended && !heard(Math.min(one.to + stepMs, to - 1)));
     // Heard again later: the silence is over, and the stretch ends in a gap rather than on the device's last word.
     const back = stale ? undefined : light.points.find(([end]) => end - stepMs > one.to);
     const mark = quiet && !back ? 'Quiet' : '';
     const until = clock(stale ? (quietAt as number) : one.to);
-    const when = !ended
-      ? began
-        ? t(live ? 'timeline.lightSince' : 'timeline.lightFrom', { from: clock(one.from) })
-        : t('timeline.lightThroughout')
-      : began
-        ? t(`timeline.lightSpan${mark}`, { from: clock(one.from), to: until })
-        : t(`timeline.lightUntil${mark}`, { to: until });
-    const gap = quiet && back ? t('timeline.lightGap', { to: clock(lit[index + 1]?.from ?? back[0] - stepMs) }) : null;
-    return [when, gap, alike ? null : levels[index]].flatMap(one => one ?? []);
+    const [open, shut] = [began ? (live ? 'lightSince' : 'lightFrom') : 'lightThroughout', `${began ? 'lightSpan' : 'lightUntil'}${mark}`];
+    const key = resumed[index] ? `lightOn${ended ? `Until${mark}` : ''}` : ended ? shut : open;
+    // The gap after it is said here unless the next stretch begins where it ends, and says it.
+    const gap = quiet && back && !(resumed[index + 1] && lit[index + 1].from <= back[0]);
+    const facts = [resumed[index] ? gapTo(one.from) : null, t(`timeline.${key}`, { from: clock(one.from), to: until })];
+    return [...facts, alike ? null : percent(levels[index]), gap ? gapTo(back[0] - stepMs) : null];
   });
-  return [...stretches.flat(), ran, ...(alike && levels[0] ? [levels[0]] : [])];
+  const always = Math.round(share * 100) === 100;
+  return [...stretches, always ? null : ran, alike && !(always && (levels[0] ?? 100) >= 100) ? percent(levels[0]) : null].flatMap(one => one ?? []);
 };
 
 /** The drawn point an instant falls into: a point closes its window, and stands for the step before it. */
@@ -222,20 +228,23 @@ export const figureAt = (strip: Pick<Strip, 'points'>, time: number, stepMs: num
   return point ? { share: point[2] / point[1], level: point[3] } : null;
 };
 
-/** Where that point began, if it is a single sample of every output: it is then no mean, and stands at its own time. */
-export const sampleAt = (strips: readonly Pick<Strip, 'points'>[], time: number, stepMs: number): number | null => {
+/** Whether that point is one sample of every output: it is then no mean, and its stamp does not call it one. */
+export const singleAt = (strips: readonly Pick<Strip, 'points'>[], time: number, stepMs: number): boolean => {
   const found = strips.flatMap(strip => [pointAt(strip, time, stepMs)].filter(point => point !== undefined));
-  return found.length > 0 && found.every(point => point[1] === 1) ? found[0][0] - stepMs : null;
+  return found.length > 0 && found.every(point => point[1] === 1);
 };
 
-/** The share of its samples an output ran in over the window - of the samples heard, not of the window - or null where none was. */
-export const shareOf = (strip: Pick<Strip, 'points'>): number | null => {
-  const heard = strip.points.reduce((sum, point) => sum + point[1], 0);
-  return heard > 0 ? strip.points.reduce((sum, point) => sum + point[2], 0) / heard : null;
+/**
+ * What an output's drawn stretches come to over the time its device was heard - not over the window, and not by
+ * samples: a day of live samples outweighed a week of history, and a 12/12 lamp read 61 %. Null where none was heard.
+ */
+export const overTime = (blocks: readonly StripBlock[], of: (block: StripBlock) => number): number | null => {
+  const heard = blocks.reduce((sum, block) => sum + block.to - block.from, 0);
+  return heard > 0 ? blocks.reduce((sum, block) => sum + of(block) * (block.to - block.from), 0) / heard : null;
 };
 
 /** One stretch of a strip that is drawn alike, its ends as fractions of the window. */
-type StripBlock = { from: number; to: number } & OutputFigure;
+export type StripBlock = { from: number; to: number } & OutputFigure;
 
 /**
  * A strip as it is drawn: each point over the step it stands for, neighbours that say the same as one block.
@@ -245,13 +254,9 @@ export const blocksOf = (strip: Pick<Strip, 'points'>, from: number, to: number,
   const width = to - from;
   if (width <= 0) return [];
 
-  // A device that reports more slowly than it is drawn leaves points apart: each stands for the stretch since the
-  // one before it, as its curve is a line across the same gaps. A last point cut short begins where that one closed.
-  const bridge = bridgeOf(strip.points, stepMs);
+  const starts = startsOf(strip.points, from, stepMs);
   return strip.points.reduce<StripBlock[]>((kept, [end, heard, on, level], index) => {
-    const before = strip.points[index - 1]?.[0] ?? from;
-    const starts = Math.max(from, bridge > stepMs && end - before <= bridge ? before : end - stepMs, before);
-    const block = { from: (starts - from) / width, to: (Math.min(to, end) - from) / width, share: on / heard, level };
+    const block = { from: (starts[index] - from) / width, to: (Math.min(to, end) - from) / width, share: on / heard, level };
     const last = kept.at(-1);
     if (block.to <= block.from) return kept;
     if (last && last.to === block.from && last.share === block.share && last.level === block.level) last.to = block.to;
@@ -303,16 +308,21 @@ export const drawnBefore = (stepSeconds: number): number => (stepSeconds <= SAMP
 export const SAMPLE_SECONDS = 5;
 
 /**
- * Each point where it belongs: a mean at the middle of the window it was taken over - of what is left of it, where
- * a stretch ends between two steps and its last window is cut short -, a single sample at its own time, to the second.
+ * Each point where it belongs: a mean at the middle of its window, a single sample at its own time. The last window
+ * is cut short where the read ends: its point stands in the middle of what is left - or at its close where a silence
+ * lies before it, since nothing says where in it the device came back -, at a whole second.
  */
-const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number): PlotPoint[] =>
-  points.map((point, index) => {
-    const [stamp, before] = [at(point.measuredAt), points[index - 1]];
-    const cut = before && before.value !== null && point.value !== null && stamp - at(before.measuredAt) < stepSeconds * 1000;
-    const time = cut && stepSeconds > SAMPLE_SECONDS ? Math.round((stamp + at(before.measuredAt)) / 2000) * 1000 : stamp - drawnBefore(stepSeconds);
+const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number): PlotPoint[] => {
+  // The grid is read off the first point, which closes a whole window or the window's first.
+  const grid = at(points.find(point => point.value !== null)?.measuredAt ?? points[0]?.measuredAt ?? '');
+  return points.map((point, index) => {
+    const stamp = at(point.measuredAt);
+    const left = point.value === null || stepSeconds <= SAMPLE_SECONDS ? 0 : (stamp - grid) % (stepSeconds * 1000);
+    const cut = points[index - 1]?.value != null ? Math.round((stamp - left / 2) / 1000) * 1000 : Math.floor(stamp / 1000) * 1000;
+    const time = left > 0 ? cut : stamp - drawnBefore(stepSeconds);
     return point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
   });
+};
 
 /** The stretches a curve was heard over: from the window its first point after a silence stands for to its last point's stamp, or to `until`. */
 const heardOf = (points: SpaceTimeline['panels'][number]['points'], stepMs: number, until: number | null): PlotSpan[] => {
@@ -606,6 +616,24 @@ export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: 
       return { curve, point, value: said?.value ?? point?.[1] ?? null, saidAt: old ? saidAt : null };
     }),
   };
+};
+
+/**
+ * The silence a cursor stands in, to the drawn windows either side of it - and to the minute where a lane's stretch
+ * ends or begins in one of them, as the lamp's line names it. Null where there is none on that side.
+ */
+export const silenceAt = (curves: readonly Curve[], strips: readonly Strip[], cursor: number, stepMs: number): (number | null)[] => {
+  const before = drawnBefore(stepMs / 1000);
+  const closes = [
+    ...curves.flatMap(curve => (curve.line.shape === 'line' ? curve.points.flatMap(point => (point[1] === null ? [] : [point[0] + before])) : [])),
+    ...strips.flatMap(strip => strip.points.map(point => point[0])),
+  ];
+  const [last, next] = [Math.max(...closes.filter(close => close <= cursor)), Math.min(...closes.filter(close => close - stepMs > cursor)) - stepMs];
+  const runs = strips.flatMap(strip => strip.runs);
+  const ended = runs.map(run => run.to).filter(end => end > last - stepMs && end <= last);
+  const began = runs.map(run => run.from).filter(start => start >= next && start < next + stepMs);
+  const known = (exact: number[], grid: number, pick: typeof Math.max) => (exact.length > 0 ? pick(...exact) : Number.isFinite(grid) ? grid : null);
+  return [known(ended, last, Math.max), known(began, next, Math.min)];
 };
 
 /**

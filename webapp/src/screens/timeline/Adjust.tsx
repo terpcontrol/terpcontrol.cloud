@@ -58,7 +58,8 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
   const [one, setOne] = useState(view.one);
   const tick = (key: string) => {
     const next = keys.includes(key) ? keys.filter(other => other !== key) : [...keys, key];
-    setKeys(next);
+    // Nothing ticked is what a place starts with, in the sheet as in the address.
+    setKeys(next.length > 0 ? next : DEFAULT_SHOW);
     change({ show: next });
   };
   const ticks = [
@@ -109,7 +110,7 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
         </button>
       }
     >
-      <div className={styles.adjust}>
+      <div className={ui.stack3}>
         <fieldset className={styles.ticks}>
           <legend>{t('timeline.adjust.curves')}</legend>
           {ticks.map(each => (
@@ -234,7 +235,7 @@ function Views({ saved, definition, onApply }: { saved: ChartView[]; definition:
     });
 
   return (
-    <div className={styles.adjust}>
+    <div className={ui.stack3}>
       {saved.length > 0 ? (
         <ul className={styles.views}>
           {saved.map(one => (

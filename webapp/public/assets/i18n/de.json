@@ -2146,7 +2146,16 @@
     "lightUntilQuiet": "bis letzter Wert {{to}}",
     "lightThroughout": "durchgehend an",
     "lightGap": "Lücke bis {{to}}",
-    "meanLevel": "im Mittel {{level}} %"
+    "meanLevel": "im Mittel {{level}} %",
+    "lightOnUntil": "an bis {{to}}",
+    "lightOnUntilQuiet": "an bis letzter Wert {{to}}",
+    "silence": {
+      "between": "{{from}} bis {{to}}",
+      "since": "seit {{from}}",
+      "until": "bis {{to}}",
+      "none": "keine Messung"
+    },
+    "lightOn": "an"
   },
   "camera": {
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",

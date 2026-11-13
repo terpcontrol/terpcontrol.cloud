@@ -60,16 +60,21 @@ export const cursorStamp = (time: number, window: Span, stepSeconds: number, zon
   return zonedAt(time, zone).toFormat(format);
 };
 
-/** "Mittel 03:09–03:12": a point that is the mean of a window says so, and over which stretch. */
-export const meanStamp = (t: Translate, middle: number, window: Span, stepSeconds: number, zone: string | null): string => {
-  const [from, to] = [middle - stepSeconds * 500, middle + stepSeconds * 500];
+/**
+ * "Mittel 03:09–03:12": a point that is the mean of a window says so, and over which stretch; one of a single sample
+ * says the stretch alone. The last stretch is what the read's end left of its step, and never runs past the window.
+ */
+export const meanStamp = (t: Translate, middle: number, window: Span, stepSeconds: number, zone: string | null, mean = true): string => {
+  const [step, to] = [stepSeconds * 1000, Math.min(window.to, middle + stepSeconds * 500)];
+  const from = to === window.to && to % step !== 0 ? to - (to % step) : middle - step / 2;
   const sameDay = zonedAt(from, zone).hasSame(zonedAt(to, zone), 'day');
   // Seconds on both ends or on neither: where the stretch is whole minutes, its ends are.
-  const fine = stepSeconds % 60 === 0 ? 60 : 1;
-  return t('timeline.meanOver', {
-    from: cursorStamp(from, window, fine, zone),
-    to: sameDay ? zonedAt(to, zone).toFormat(fine === 1 ? `${CLOCK}:ss` : CLOCK) : cursorStamp(to, window, fine, zone),
-  });
+  const fine = stepSeconds % 60 === 0 && to % 60_000 === 0 ? 60 : 1;
+  const stretch = [
+    cursorStamp(from, window, fine, zone),
+    sameDay ? zonedAt(to, zone).toFormat(fine === 1 ? `${CLOCK}:ss` : CLOCK) : cursorStamp(to, window, fine, zone),
+  ];
+  return mean ? t('timeline.meanOver', { from: stretch[0], to: stretch[1] }) : stretch.join('–');
 };
 
 /** Both ends of the window as the axis writes them; one that ends now says so. */

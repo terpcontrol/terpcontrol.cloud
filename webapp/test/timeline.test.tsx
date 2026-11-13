@@ -328,7 +328,7 @@ describe('Verlauf as it opens', () => {
     expect(lane('heater', panel('Temperature'))).toHaveTextContent('Heater · on 0 % of the time');
     expect(lane('dehumidifier', panel('Humidity'))).toHaveTextContent('Dehumidifier · on 2 % of the time');
     // Lit through the whole window: "on since" would name the window's first minute as a switch.
-    expect(lane('light', panel('VPD'))).toHaveTextContent('Light · on throughout · on 100 % of the time · 65 %');
+    expect(lane('light', panel('VPD'))).toHaveTextContent('Light · on throughout · 65 %');
   });
 
   it('gives the lamp a card of its own on a phone, with when it burned and how bright', async () => {
@@ -337,7 +337,7 @@ describe('Verlauf as it opens', () => {
     await settled();
 
     const card = screen.getByRole('heading', { name: 'Light' }).closest('section')!;
-    expect(lane('light', card)).toHaveTextContent('Light · on throughout · on 100 % of the time · 65 %');
+    expect(lane('light', card)).toHaveTextContent('Light · on throughout · 65 %');
     expect(lane('light', panel('VPD'))).toBeNull();
   });
 
@@ -628,7 +628,8 @@ describe('what the place reads now', () => {
 
     const card = screen.getByRole('region', { name: 'Cursor' });
     await waitFor(() => expect(card).toHaveTextContent(/25\.2 °C · VPD — · CO₂ 801 ppm · \d\d:\d\d/));
-    expect(within(panel('CO₂')).getByText('801 ppm')).toBeInTheDocument();
+    // The panel's head marks the older value as the card does.
+    expect(within(panel('CO₂')).getByText(/^801 ppm · \d\d:\d\d$/)).toBeInTheDocument();
   });
 
   it('names a lamp`s stretch by the switch that began it, a silence that ended since as a gap, and a level alike in every stretch once', async () => {
@@ -652,7 +653,8 @@ describe('what the place reads now', () => {
     expect(lane('light')).toHaveTextContent(/^Light · on since \d\d:\d\d · on 83 % of the time · 65 %$/);
     first.unmount();
 
-    // Lit, silent from the tenth hour to the sixteenth, lit again to the twentieth: the first stretch ends in a gap.
+    // Lit, silent from the tenth hour to the sixteenth, lit again to the twentieth: the first stretch ends in a gap,
+    // and the second begins where the gap ends - with no switch, so it is "on", not a time it came on at.
     const heard = hours.filter(index => index <= 10 || index > 16);
     server.over = {
       outputs: [
@@ -669,9 +671,57 @@ describe('what the place reads now', () => {
     draw();
     await settled();
     expect(lane('light')).toHaveTextContent(
-      /^Light · \d\d:\d\d to \d\d:\d\d · gap until \d\d:\d\d · \d\d:\d\d to \d\d:\d\d · on \d+ % of the time · 65 %$/,
+      /^Light · \d\d:\d\d to \d\d:\d\d · gap until \d\d:\d\d · on until \d\d:\d\d · on \d+ % of the time · 65 %$/,
     );
     expect(lane('light')).not.toHaveTextContent('last reading');
+  });
+
+  it('says a switch only where one is: a stretch that begins where a silence ends is a gap and "on"', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    const hour = (index: number) => iso(NOW - (24 - index) * HOUR);
+    const lamp = (spans: [number, number][], heard: number[], level = 65) => ({
+      output: 'light' as const,
+      deviceId: 'device-1',
+      spans: spans.map(([from, to]) => ({ startsAt: hour(from), endsAt: hour(to) })),
+      heardUntil: hour(24),
+      points: heard.map(index => ({ measuredAt: hour(index), heard: 12, on: 12, level })),
+    });
+    const later = Array.from({ length: 24 }, (_, index) => index + 1).filter(index => index > 18);
+
+    // Silent until the eighteenth hour, lit ever since: no switch lies in the window, and none is named.
+    server.over = { outputs: [lamp([[18, 24]], later)] };
+    const first = draw();
+    await settled();
+    expect(lane('light')).toHaveTextContent(/^Light · gap until \d\d:\d\d · on · 65 %$/);
+    first.unmount();
+
+    // The same, switched off at the twenty-second hour: "on until", not a stretch from the end of a silence.
+    server.over = {
+      outputs: [
+        {
+          ...lamp([[18, 22]], later),
+          points: later.map(index => ({ measuredAt: hour(index), heard: 12, on: index <= 22 ? 12 : 0, level: index <= 22 ? 65 : 0 })),
+        },
+      ],
+    };
+    const second = draw();
+    await settled();
+    expect(lane('light')).toHaveTextContent(/^Light · gap until \d\d:\d\d · on until \d\d:\d\d · on 67 % of the time · 65 %$/);
+    second.unmount();
+
+    // Lit through the whole window at full level: one fact, said once.
+    server.over = {
+      outputs: [
+        lamp(
+          [[0, 24]],
+          Array.from({ length: 24 }, (_, index) => index + 1),
+          100,
+        ),
+      ],
+    };
+    draw();
+    await settled();
+    expect(lane('light')).toHaveTextContent(/^Light · on throughout$/);
   });
 
   it('adds to the share of an output driven at a level how hard it ran on average', async () => {
@@ -705,7 +755,8 @@ describe('what the place reads now', () => {
     server.reading = read(6, [value('temperature', 20.5, 6)], [{ output: 'light', on: true, level: 65 }]);
     draw();
     await settled();
-    await waitFor(() => expect(lane('light')).toHaveTextContent(/Light · until last reading \d\d:\d\d · on 100 % of the time · 65 %/));
+    // On in all that was heard: the stretch says so, and the share would say it again.
+    await waitFor(() => expect(lane('light')).toHaveTextContent(/^Light · until last reading \d\d:\d\d · 65 %$/));
     expect(lane('light')).not.toHaveTextContent(/on since|throughout/);
   });
 
@@ -715,8 +766,8 @@ describe('what the place reads now', () => {
     await settled();
 
     const card = screen.getByRole('region', { name: 'Cursor' });
-    // The last point is the mean of the window's last hour, and says so.
-    await waitFor(() => expect(card).toHaveTextContent(/Cursor · mean \d\d:\d\d–\d\d:\d\d/));
+    // The last point is the mean of what the window's end left of its hour, and says so: it never runs past that end.
+    await waitFor(() => expect(card).toHaveTextContent(/Cursor · mean \d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)?/));
     expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
     // What the outputs did over that point, counted from its samples.
     expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
@@ -773,6 +824,63 @@ describe('the cursor', () => {
     await settled();
     expect(await screen.findByRole('button', { name: 'The stretch before' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /min earlier/ })).not.toBeInTheDocument();
+  });
+
+  it('says a silence once, with its ends, in rows that stay as high as they are at rest', async () => {
+    // Nothing measured and nothing heard between the tenth hour and the sixteenth.
+    const quiet = (index: number) => index >= 10 && index < 16;
+    const whole = answerTo(new URLSearchParams());
+    server.over = {
+      panels: whole.panels.map(one => ({
+        ...one,
+        points: one.points.flatMap((point, index) => (quiet(index) ? (index === 10 ? [{ ...point, value: null }] : []) : [point])),
+      })),
+      outputs: whole.outputs.map(one => ({ ...one, points: one.points!.filter((_, index) => !quiet(index)) })),
+    };
+    draw(`/timeline?at=${iso(NOW - 11.5 * HOUR)}`);
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    // One row says it, the other between which two readings: the card's two rows, and no third.
+    await waitFor(() => expect(within(card).getByText('no reading')).toBeInTheDocument());
+    expect(within(card).getByText(/^\d\d:\d\d to \d\d:\d\d$/)).toBeInTheDocument();
+    // No wall of named dashes, and no output said as unknown five times.
+    expect(card).not.toHaveTextContent('—');
+    // What the rows say at rest lies unseen under them and holds their height.
+    const rows = [...card.querySelectorAll('[data-rest]')].map(row => row.getAttribute('data-rest')!.replace(/\u00a0/g, ' '));
+    expect(rows).toEqual(['25.2 °C · 58.0 % · 1.40 kPa', 'Light 65 % · Heater off · Dehumidifier off']);
+    // So does a head's figure: a dash is narrower than a reading, and the head must not wrap another way for it.
+    expect(within(panel('Temperature')).getByText('—').parentElement).toHaveAttribute('data-rest', '25.2\u00a0°C');
+  });
+
+  it('does not call a point of one sample a mean: it says the stretch the sample lies in', async () => {
+    const whole = answerTo(new URLSearchParams());
+    // A device that reports once an hour, drawn at an hour a point.
+    server.over = {
+      outputs: whole.outputs.map(one => ({ ...one, points: one.points!.map(point => ({ ...point, heard: 1, on: Math.min(point.on, 1) })) })),
+    };
+    draw(`/timeline?at=${iso(NOW - 10.5 * HOUR)}`);
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent(/Cursor · \d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)?25\.2/));
+    expect(card).not.toHaveTextContent('mean');
+  });
+
+  it('drops a cursor the address sets outside the window it names: the card would read another instant', async () => {
+    draw(`/timeline?from=${iso(NOW - 30 * HOUR)}&to=${iso(NOW - 6 * HOUR)}&at=${iso(NOW - 2 * HOUR)}`);
+    await settled();
+
+    await waitFor(() => expect(address().searchParams.has('at')).toBe(false));
+    expect(address().searchParams.has('from')).toBe(true);
+  });
+
+  it('draws the curves a place starts with for an address that names an empty set of them', async () => {
+    draw('/timeline?show=');
+    await settled();
+
+    expect(screen.getByRole('region', { name: 'Humidity' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
   });
 
   it('drops a cursor the address sets in the future, and rests where it would without one', async () => {

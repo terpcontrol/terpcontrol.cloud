@@ -2136,7 +2136,16 @@
     "lightUntilQuiet": "until last reading {{to}}",
     "lightThroughout": "on throughout",
     "lightGap": "gap until {{to}}",
-    "meanLevel": "{{level}} % on average"
+    "meanLevel": "{{level}} % on average",
+    "lightOnUntil": "on until {{to}}",
+    "lightOnUntilQuiet": "on until last reading {{to}}",
+    "silence": {
+      "between": "{{from}} to {{to}}",
+      "since": "since {{from}}",
+      "until": "until {{to}}",
+      "none": "no reading"
+    },
+    "lightOn": "on"
   },
   "camera": {
     "lastError": "Last try failed: {{reason}}",

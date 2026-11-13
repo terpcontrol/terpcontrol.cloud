@@ -48,7 +48,8 @@ import {
   reachOf,
   readAt,
   restOf,
-  sampleAt,
+  silenceAt,
+  singleAt,
   SAMPLE_SECONDS,
   shownOf,
   stripsOf,
@@ -220,13 +221,13 @@ export function SharedTimeline({ spaceId, shared, title }: { spaceId: string; sh
   return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} />;
 }
 
-/** The view the address names, the answer to it, and the one way the view is changed. */
 /** What an address names and the place does not have. */
 interface Vain {
   what: 'device' | 'grow';
   id: string;
 }
 
+/** The view the address names, the answer to it, and the one way the view is changed. */
 const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' | null = null) => {
   const [params, setParams] = useSearchParams();
   const now = useNow();
@@ -271,7 +272,10 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
   const failed = refusal?.asking === asking && fresh === null;
 
   // A cursor the address sets after now stands in no window: it is dropped, and the page rests where it would.
-  const ahead = view.at !== null && view.at > now.toMillis() + LIVE_BEAT_MS;
+  // Nor does one outside the window that is drawn: the card would read another instant than the address names.
+  const ahead =
+    view.at !== null &&
+    (view.at > now.toMillis() + LIVE_BEAT_MS || (fresh !== null && (view.at < at(fresh.startsAt) || view.at > at(fresh.endsAt) + LIVE_BEAT_MS)));
   useEffect(() => {
     if (ahead) change({ at: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per such address
@@ -306,14 +310,8 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
   };
 };
 
-function Screen({
-  page,
-  spaceId,
-  title,
-  place,
-  own,
-  picture,
-}: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture }) {
+function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: Own | null; picture?: Picture }) {
+  const { page, spaceId, title, place, own, picture } = props;
   const { t } = useTranslation();
   const zone = useZone();
   const wide = useWideWindow();
@@ -548,47 +546,65 @@ function Screen({
     return (
       <div className={styles.screen}>
         {head}
-        {failed ? (
-          // Nothing was ever drawn here: one sentence - whether the server answered or there is no connection - and the way to ask again.
-          notice(refusalText(refusal))
-        ) : (
-          <>
-            <Waiting lines={2} />
-            <Waiting lines={4} />
-            <Waiting lines={4} />
-          </>
-        )}
+        {failed
+          ? // Nothing was ever drawn here: one sentence - whether the server answered or there is no connection - and the way to ask again.
+            notice(refusalText(refusal))
+          : [2, 4, 4].map((lines, index) => <Waiting key={index} lines={lines} />)}
       </div>
     );
   }
 
   const { shown, panels, rest: loose, strips } = model;
-  // One point under the cursor, for the card and for every head: its figures, its outputs, its stamp (`readAt`).
   const heardAs = reading && lastHeard !== null ? { at: lastHeard, values: reading.values } : null;
-  const { at: stood, onReading, points: read } = readAt(curves, cursor, curve => reachOf(data, curve), heardAs);
   const resting = scrubbed === null && view.at === null;
-  // A point of one sample - a device slower than the step - is no mean: it is stamped where its sample was written.
-  const sample = stood === null || onReading ? null : sampleAt(strips, stood, stepMs);
-  // The reading is said as what it is, with its own time; so is whatever else a live window rests on. A point of a
-  // wider step is the mean of its window, and says over which.
-  const stamp = onReading
-    ? t(fresh ? 'timeline.nowAt' : 'timeline.lastValue', { time: cursorStamp(lastHeard ?? cursor, window, 60, zone) })
-    : resting && live
-      ? t('timeline.lastValue', { time: cursorStamp(cursor, window, 60, zone) })
-      : stood !== null && data.stepSeconds > SAMPLE_SECONDS && sample === null
-        ? meanStamp(t, stood, window, data.stepSeconds, zone)
-        : cursorStamp(sample ?? stood ?? cursor, window, data.stepSeconds, zone);
-  // The room beside every plot is as wide as the longest figure of any scale: the plots share one time axis.
-  const gutter =
-    Math.max(4, ...curves.flatMap(curve => [curve.corner(curve.line.scale.low).length, curve.corner(curve.line.scale.high).length])) * 6.5 + 12;
   // Two figures in one unit - the air's and the leaf's degrees - are told apart by name.
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
   const said = new Map((reading?.outputs ?? []).map(one => [one.output, { share: one.on ? 1 : 0, level: one.level }]));
   const ticked = strips.filter(strip => (strip.output === 'light' ? shown.light : shown.outputs));
-  // On the reading each output is what the reading says, a dash where it says nothing; else what that same point's samples came to.
-  const outputsAt = ticked.map(strip =>
-    outputWords(t, strip, onReading ? (said.get(strip.output) ?? null) : figureAt(strip, stood ?? cursor, stepMs)),
-  );
+  const timed = (time: number) => cursorStamp(time, window, 60, zone);
+  // One point under a cursor, for the card and every head (`readAt`): a value from an older instant says when, and
+  // on the reading each output is what the reading says - else what that point's samples came to.
+  const cardAt = (time: number) => {
+    const { at: stood, onReading, points } = readAt(curves, time, curve => reachOf(data, curve), heardAs);
+    const read = points.map(one => {
+      const figure = one.value === null ? '—' : `${one.curve.written(one.value)}\u00a0${one.curve.unit}`.trim();
+      return { ...one, written: one.saidAt === null ? figure : `${figure} · ${timed(one.saidAt)}` };
+    });
+    const figures = ticked.map(strip => (onReading ? (said.get(strip.output) ?? null) : figureAt(strip, stood ?? time, stepMs)));
+    return {
+      stood,
+      onReading,
+      read,
+      // A dash is never without its name; nor is a value with its own time.
+      readings: read.map(one =>
+        shared.has(one.curve.unit) || one.value === null || one.saidAt !== null ? `${one.curve.name} ${one.written}` : one.written,
+      ),
+      outputs: ticked.map((strip, index) => outputWords(t, strip, figures[index])),
+      silent: !onReading && read.every(one => one.value === null) && figures.every(figure => figure === null),
+    };
+  };
+  const under = cardAt(cursor);
+  const { stood, onReading } = under;
+  // What the card and the heads say at rest holds their room, whatever the cursor reads.
+  const calm = resting ? under : cardAt(rest);
+  const read = under.read.map((one, index) => ({ ...one, rest: calm.read[index].written }));
+  // A silence is said once, with its ends, and not as a row of dashes: in the card's two rows, or in its one.
+  const [since, until] = under.silent ? silenceAt(curves, strips, cursor, stepMs).map(time => time && timed(time)) : [];
+  const quiet = since || until ? [t(`timeline.silence.${since ? (until ? 'between' : 'since') : 'until'}`, { from: since, to: until })] : [];
+  const two = calm.outputs.length > 0;
+  const rows = under.silent ? { readings: [t('timeline.silence.none'), ...(two ? [] : quiet)], outputs: two ? quiet : [] } : under;
+  // The reading is said as what it is, with its own time; so is whatever else a live window rests on. A point of a
+  // wider step is the mean of its window, and says over which - without the word where it holds one sample.
+  const stamp = onReading
+    ? t(fresh ? 'timeline.nowAt' : 'timeline.lastValue', { time: timed(lastHeard ?? cursor) })
+    : resting && live
+      ? t('timeline.lastValue', { time: timed(cursor) })
+      : stood !== null && data.stepSeconds > SAMPLE_SECONDS
+        ? meanStamp(t, stood, window, data.stepSeconds, zone, !singleAt(strips, stood, stepMs))
+        : cursorStamp(stood ?? cursor, window, data.stepSeconds, zone);
+  // The room beside every plot is as wide as the longest figure of any scale: the plots share one time axis.
+  const gutter =
+    Math.max(4, ...curves.flatMap(curve => [curve.corner(curve.line.scale.low).length, curve.corner(curve.line.scale.high).length])) * 6.5 + 12;
 
   const ends = axisEnds(t, window, live, zone);
   const nothing = data.panels.length === 0 && data.outputs.length === 0;
@@ -604,18 +620,10 @@ function Screen({
   const cursorCard = (
     <CursorCard
       stamp={stamp}
-      // A dash is never without its name, and a value the reading says from an older instant says when.
-      readings={read.map(({ curve, value, saidAt }) =>
-        [
-          shared.has(curve.unit) || value === null || saidAt !== null ? curve.name : null,
-          value === null ? '—' : `${curve.written(value)}\u00a0${curve.unit}`.trim(),
-          saidAt === null ? null : `· ${cursorStamp(saidAt, window, 60, zone)}`,
-        ]
-          .filter(Boolean)
-          .join(' '),
-      )}
+      readings={rows.readings}
+      outputs={rows.outputs}
+      held={calm}
       zoom={zoomButtons}
-      outputs={outputsAt}
       cameras={data.cameras.filter(camera => camera.frames.length > 0)}
       cursor={cursor}
       resting={view.at === null}
@@ -737,8 +745,7 @@ function Screen({
             own?.keeps
               ? {
                   definition: definitionOf(view, {
-                    metrics: shown.metrics,
-                    measurements: shown.measurements,
+                    ...shown,
                     outputs: ticked.map(strip => strip.output),
                     deviceIds: data.deviceIds ?? [],
                     growId: data.growId,
@@ -754,14 +761,7 @@ function Screen({
             jump: day =>
               go({ range: '24h', growId: null, fixed: dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone), last: null, at: null }),
           }}
-          onShare={
-            own?.sharing
-              ? () => {
-                  setAdjusting(false);
-                  setSharing(true);
-                }
-              : null
-          }
+          onShare={own?.sharing ? () => (setAdjusting(false), setSharing(true)) : null}
           onCsv={curves.length + strips.length > 0 ? saveCsv : null}
           onClose={() => setAdjusting(false)}
         />
@@ -773,10 +773,7 @@ function Screen({
           // A window that stands still is a stretch somebody went looking for, and is what the link offers to show.
           window={view.fixed ? { startsAt: data.startsAt, endsAt: data.endsAt, label: windowLabel(t, window, false, now, zone) } : null}
           onClose={() => setSharing(false)}
-          onCreated={made => {
-            setSharing(false);
-            setLink(made);
-          }}
+          onCreated={made => (setSharing(false), setLink(made))}
         />
       ) : null}
       {link ? (

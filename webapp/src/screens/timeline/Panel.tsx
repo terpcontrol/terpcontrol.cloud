@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import type { Selection } from '@/charts/scrub';
@@ -21,7 +21,7 @@ interface PanelProps {
   panel: PanelModel;
   cursor: number;
   /** What the cursor reads of each curve: the page reads it once, for the card and for every head. */
-  read: { curve: PanelModel['curves'][number]; point: PlotPoint | null; value: number | null }[];
+  read: { curve: PanelModel['curves'][number]; point: PlotPoint | null; written: string; rest: string }[];
   /** Both ends of the window as the axis writes them. */
   ends: readonly [string, string];
   /** What the cursor is called to a screen reader: its instant. */
@@ -48,22 +48,8 @@ interface PanelProps {
  * at, the night, and under it the outputs that act on it. Its head states the numbers - the low and the high of the
  * window, and the reading at the cursor - because a plot without one is a shape.
  */
-export function Panel({
-  panel,
-  cursor,
-  read,
-  ends,
-  stamp,
-  scrub,
-  selection,
-  onNudge,
-  onWheelZoom,
-  focus,
-  stepMs,
-  resting,
-  explain = false,
-  comparedAt,
-}: PanelProps) {
+export function Panel(props: PanelProps) {
+  const { panel, cursor, read, ends, stamp, scrub, selection, onNudge, onWheelZoom, focus, stepMs, resting, explain = false, comparedAt } = props;
   const { t } = useTranslation();
   const { from, to } = panel.plot;
   const option = useMemo(() => (palette: ChartPalette) => plotOption(palette, panel.plot), [panel.plot]);
@@ -101,7 +87,7 @@ export function Panel({
       <header className={styles.panelHead}>
         {alone ? (
           <>
-            <h2 data-colour={first.colour}>
+            <h2 style={inked(first)}>
               {first.name}
               {first.key === 'vpd' ? <Help topic="vpd" /> : explain ? <Help topic="nightBand" /> : null}
             </h2>
@@ -117,15 +103,18 @@ export function Panel({
                 ]}
               />
             </span>
-            <strong className={styles.panelValue}>
-              {read[0].value === null ? '—' : `${first.written(read[0].value)}\u00a0${first.unit}`.trim()}
+            <strong className={styles.panelValue} data-rest={read[0].rest}>
+              <span>{read[0].written}</span>
             </strong>
           </>
         ) : (
           <h2 className={styles.panelMany}>
-            {read.map(({ curve, value }) => (
-              <span key={curve.key} data-colour={curve.colour}>
-                {curve.name} <strong>{value === null ? '—' : `${curve.written(value)}\u00a0${curve.unit}`.trim()}</strong>
+            {read.map(({ curve, written, rest }) => (
+              <span key={curve.key} style={inked(curve)}>
+                {curve.name}{' '}
+                <strong data-rest={rest}>
+                  <span>{written}</span>
+                </strong>
               </span>
             ))}
           </h2>
@@ -149,7 +138,7 @@ export function Panel({
         {(['high', 'low'] as const).map(end => (
           <span key={end} className={end === 'high' ? styles.scaleHigh : styles.scaleLow} aria-hidden>
             {panel.curves.map(curve => (
-              <span key={curve.key} data-colour={alone ? undefined : curve.colour}>
+              <span key={curve.key} style={alone ? undefined : inked(curve)}>
                 {curve.corner(curve.line.scale[end])}
               </span>
             ))}
@@ -184,8 +173,11 @@ export function Panel({
               <span
                 key={curve.key}
                 className={styles.dot}
-                data-colour={curve.colour}
-                style={{ left: `${fractionOf(point[0], from, to) * 100}%`, top: `${(1 - ((point[1] as number) - low) / (high - low)) * 100}%` }}
+                style={{
+                  ...inked(curve),
+                  left: `${fractionOf(point[0], from, to) * 100}%`,
+                  top: `${(1 - ((point[1] as number) - low) / (high - low)) * 100}%`,
+                }}
               />
             );
           })}
@@ -236,13 +228,14 @@ export function Axis({ from, to, ends }: { from: number; to: number; ends: reado
     <p ref={axis} className={styles.axis} aria-hidden>
       <span data-end>{ends[0]}</span>
       {ticks.map(tick => (
-        <Fragment key={tick.at}>
-          <span data-tick style={{ left: `${fractionOf(tick.at, from, to) * 100}%` }}>
-            {tick.label}
-          </span>
-        </Fragment>
+        <span key={tick.at} data-tick style={{ left: `${fractionOf(tick.at, from, to) * 100}%` }}>
+          {tick.label}
+        </span>
       ))}
       <span data-end>{ends[1]}</span>
     </p>
   );
 }
+
+/** A curve's own colour, by the token it is drawn in. */
+const inked = (curve: Pick<PanelModel['curves'][number], 'colour'>) => ({ color: `var(--${curve.colour})` });
