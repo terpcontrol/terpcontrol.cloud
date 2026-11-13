@@ -129,9 +129,31 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   memberships, invites and share links on it: a room exists only while a place stands in it. It is called wherever
   that can become true - a place leaves a room, ends or is archived - and a new path that takes a place out of a
   room calls it too.
+- **Ending a place ends every way into it** (the redesign session of 2026-11-13, awaiting Chris's confirmation
+  with the ADR's amendment). `SpacesService.remove` refuses for a device, a camera and a running grow (409
+  `space_in_use`: `device_here`, `camera_here`, `grow_here`) and no longer for members - `member_here` is gone. It
+  then deletes the place's memberships, invites and share links through `closeWaysInto`, the function
+  `endRoomIfEmpty` ends a room with. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) are another act and
+  were left alone: they need only `manage`, refuse nothing that stands in the place, keep people, invites and
+  links, and can be undone; the web app calls neither.
+- **An ended room takes nothing.** `SpacesService.requireOpen` answers 409 `room_ended` to `PATCH /spaces/{id}` on
+  an ended room, to a `roomId` naming one in `POST`/`PATCH /spaces`, to `POST /spaces/{id}/invites` and to
+  `POST /spaces/{id}/members`. Redeeming a code cut for one stays the 404 `invite_not_found` every dead code
+  gets, because that route is reachable by anybody with an account.
+- **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
+  which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in
+  `PATCH /spaces/{id}` - and takes a device out of every place (`DELETE /spaces/{id}/devices/{deviceId}`,
+  `PATCH /devices/{id}` with `spaceId: null`). A member who may manage gets 403 `insufficient_access`, a stranger
+  404. The checks are `access.require(…, 'own')` in `SpacesService.update`, `SpacesController.removeDevice` and
+  `DevicesController.update`; a manager still renames a place, changes its kind and moves the owner's devices
+  between the owner's places.
+- **A claim may say what the device joins.** `joinSpaceId` in `POST /devices/claims` is read as `spaceId` for a
+  type outside `OWN_CLIMATE_TYPES` (fan, plug, light) and ignored for a controller or a fridge module, which gets
+  its own place; both fields together are 422 `two_places`.
 - **A device stands only in a place of its owner** (the redesign session of 2026-11-12, awaiting Chris's
   confirmation with the ADR's amendment): `DevicesService.requireAPlaceOf` refuses a claim or a move into a place of
-  another account (409 `place_of_another_account`) and into a room (409 `room_by_itself`), for every caller - a
+  another account (409 `place_of_another_account`), into a room (409 `room_by_itself`) and into a place that has
+  ended (409 `space_archived`), for every caller - a
   member who may manage the place and an administrator included. Every write of where a device stands goes through
   it, because they all go through `DevicesService.update` or `claim`.
 - **A second name is refused with a sentence:** 409 `name_taken`, whose `detail` names the place or room that has it

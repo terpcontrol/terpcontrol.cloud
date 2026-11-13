@@ -309,7 +309,9 @@ rule that names an output and a threshold nothing would read cannot be written d
   one end alone means "at least" or "under". A derived target such as "runoff EC below input + 20 %" is
   deliberately not expressible and lives in the template's description. Migration 016 spread a stored figure over
   both ends.
-- **A space with members is not deleted.** `DELETE /v1/spaces/{id}` refuses while a membership names it, beside
+- **A space with members is not deleted.** (Superseded 2026-11-13, awaiting confirmation, by the amendment
+  "Places, rooms and where a device stood", point 4: a place ends with every way into it.) `DELETE
+  /v1/spaces/{id}` refused while a membership named it, beside
   the device, camera, grow and room it already refuses for, and the refusal says how many people are in it and
   that they are removed first. Letting somebody go is a thing their host does deliberately, one person at a
   time; a delete button that did it in passing would tell them by taking the tent away. The members counted are
@@ -365,7 +367,20 @@ like a place.
      `place_of_another_account` and a sentence, whatever the caller may manage there; the refused claim does not
      spend its code. It narrows the access rule for these three writes only: `manage` on a place still steers what
      stands in it. No migration step moves anything: the old cloud had no memberships, so a database from it holds
-     no such device, and the one test stack looked at held none either.
+     no such device, and the one test stack looked at held none either. A place that has ended takes no device
+     either (409 `space_archived`), by all three writes alike. **Out of every place** a device is on nobody's
+     screen but its owner's, so taking it out - `DELETE /spaces/{id}/devices/{deviceId}`, `spaceId: null` in
+     `PATCH /devices/{id}` - is the owner's alone (403 for a member who may manage; after the second walk,
+     2026-11-13).
+   - **A claim may say what the device joins** (the redesign session of 2026-11-13: the app had claimed, moved
+     the fan and ended the place the claim made - three writes, of which the second and third failed silently and
+     left a stray place). `DeviceClaimCreate` gains `joinSpaceId`: the place a device hangs in if it holds no
+     climate of its own - an AIR fan, a Plantalytix Socket, a LIGHT (`OWN_CLIMATE_TYPES` are the others). A client
+     cannot know the type before the code is read, so it names the place and the server decides: such a device
+     joins it and no place is made; a controller or a fridge module is given its own place as before. It is
+     checked like `spaceId` - the caller manages the place, and it is a place of the claimer's that has not ended -
+     before the device is taken, so a refused claim does not spend its code; both fields together are 422
+     `two_places`.
    - **A stay of less than five minutes is a mistake put right, not a stay**: a move away from a place the device
      came to less than five minutes ago drops that placement, and where the device goes back to the place it had
      left, the placement there is opened again as if nothing had happened. The move sheet's "undo" is that case; five
@@ -423,6 +438,24 @@ like a place.
      it that has not ended is ended the way a deleted place is - a tombstone with `archivedAt` - and every way into
      it goes with it: its members' rows, its invites and its share links. The app says so before the write that
      does it and names the people; the write itself is not refused, and cannot be taken back.
+   - **A place ends with every way into it, as a room does** (changed after the second walk, 2026-11-13, by the
+     redesign session; it replaces "A space with members is not deleted" above). `DELETE /v1/spaces/{id}` is no
+     longer refused for the people in the place: the write that ends it deletes the place's own memberships, its
+     invites and its share links - one function for a place and a room (`SpacesService.closeWaysInto`). What the
+     old rule was for - nobody should learn they were let go by a tent disappearing - is answered in the app:
+     "Ort entfernen" names every guest who loses sight, and the room and its members where the place is the
+     room's last, in the one question it asks. Letting each person go first was a second errand that said nothing
+     the question does not say, and it left a room's members ended without a word while a direct guest blocked. A
+     device, a camera and a running grow still refuse the removal (409 `space_in_use`), because each needs a
+     destination; a person needs none. A membership held on the room is the room's: it stays while another place
+     stands in the room. Nothing of it can be taken back. No migration step is touched: under the old rule an
+     ended place could hold no member.
+   - **An ended room takes nothing**: `PATCH /spaces/{id}` on one, a `roomId` that names one, an invite and a
+     member by handle for one answer 409 `room_ended` with the rule in a sentence; a code cut for one is the 404
+     every dead code gets. **Which room a place stands in is its owner's to say** - `roomName`, or a `roomId`
+     other than the one it has, `null` included - because it decides who is let in and can end a room with its
+     members; a member who may manage still changes the name and the kind (403 otherwise; both after the second
+     walk, 2026-11-13).
    - Renaming a place or putting it into another room writes no line and no move into any grow; a grow moves only
      when its plants do.
 5. **Start says whose a shared place is.** `home.people` also names the owner of every place on it that is not the

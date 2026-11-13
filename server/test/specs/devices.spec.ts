@@ -96,6 +96,58 @@ describe('claiming a device', () => {
     await owner.client.patch(`/v1/devices/${fan.deviceId}`).send({ name: 'My fan' }).expect(200);
   });
 
+  /**
+   * The app asks where a device hangs before the code says what it is, so the claim carries the answer and the
+   * server decides by the type: no place is made for a fan only to be removed a step later.
+   */
+  it('puts a device without a climate of its own into the place the claim says it joins, and gives a controller its own', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent to join' }).expect(201)).body;
+    const places = async () => (await owner.client.get('/v1/spaces?limit=200').expect(200)).body.items.length;
+    const before = await places();
+
+    const fan = await registerDevice('fan');
+    const code = await claimCodeOf(fan.deviceId);
+    const both = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent.id, joinSpaceId: tent.id }).expect(422);
+    expect(both.body).toMatchObject({ code: 'two_places', detail: 'Name the place by `spaceId` or by `joinSpaceId`, not both.' });
+
+    const joined = (await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: tent.id }).expect(201)).body;
+    expect(joined).toMatchObject({ spaceCreated: false, device: { id: fan.deviceId, spaceId: tent.id } });
+    expect(await places()).toBe(before);
+
+    const controller = await registerDevice('controller');
+    const own = (
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(controller.deviceId), joinSpaceId: tent.id })
+        .expect(201)
+    ).body;
+    expect(own.spaceCreated).toBe(true);
+    expect(own.device.spaceId).not.toBe(tent.id);
+    expect(await places()).toBe(before + 1);
+  });
+
+  it('refuses a place to join that is another account´s or has ended, and the code still claims afterwards', async () => {
+    const host = await createAccount('devices-join-host');
+    const theirs = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'A tent to manage' }).expect(201)).body;
+    const invite = (await host.client.post(`/v1/spaces/${theirs.id}/invites`).send({ role: 'can_manage' }).expect(201)).body;
+    await owner.client.post(`/v1/invites/${invite.code}/acceptances`).expect(201);
+    const ended = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'A tent that ended' }).expect(201)).body;
+    await owner.client.delete(`/v1/spaces/${ended.id}`).expect(204);
+
+    const plug = await registerDevice('plug');
+    const code = await claimCodeOf(plug.deviceId);
+    expect((await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: theirs.id }).expect(409)).body.code).toBe(
+      'place_of_another_account',
+    );
+    // An ended place takes nothing, whichever of the two fields names it - as a move into one is refused.
+    expect((await owner.client.post('/v1/devices/claims').send({ code, joinSpaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+    expect((await owner.client.post('/v1/devices/claims').send({ code, spaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+
+    const claimed = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body;
+    expect(claimed.spaceCreated).toBe(true);
+    expect((await owner.client.patch(`/v1/devices/${plug.deviceId}`).send({ spaceId: ended.id }).expect(409)).body.code).toBe('space_archived');
+  });
+
   it('tells the owner of a device that they already added it', async () => {
     const device = await provisionDevice(owner);
 

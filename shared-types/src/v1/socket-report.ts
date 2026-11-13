@@ -58,6 +58,13 @@ export const TIMED_SOCKET_ROLES: readonly string[] = ['pump', 'custom_timer'];
  */
 export const SOCKET_HOST_TYPES: readonly string[] = ['controller', 'fridge'];
 
+/**
+ * The device types that hold a climate by targets of their own. A fan, a smart
+ * socket and a lamp hang in the climate of one of these, which is why a claim
+ * may name the place such a device joins (`DeviceClaimCreate.joinSpaceId`).
+ */
+export const OWN_CLIMATE_TYPES: readonly string[] = ['controller', 'fridge'];
+
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 export const SOCKETS_PER_REPORT_CHUNK = 3;
 

@@ -3,12 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { startedNow } from '@common/v1/firmware-instruction';
 import { movedTo } from '@common/v1/device-placements';
-import { conflict, notFound } from '@common/v1/problem';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { freeNameFor } from '@common/v1/space-names';
 import { withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
@@ -138,16 +139,16 @@ export class DevicesService {
   }
 
   /**
-   * Where a device may be put: in a place of the account it belongs to, and
-   * never in a room. A member who may manage a host's place manages what stands
-   * in it; hardware of their own standing there would be read, moved and ended
-   * with a place that is not theirs - the host's "Ort entfernen" would decide
-   * about a device the host does not own, and the member's device would vanish
-   * from every list of their own places. A room is a field of its places and
-   * holds nothing itself.
+   * Where a device may be put: in a place of the account it belongs to that
+   * has not ended, and never in a room. A member who may manage a host's place
+   * manages what stands in it; hardware of their own standing there would be
+   * read, moved and ended with a place that is not theirs - the host's "Ort
+   * entfernen" would decide about a device the host does not own, and the
+   * member's device would vanish from every list of their own places. A room
+   * is a field of its places and holds nothing itself.
    */
   private async requireAPlaceOf(ownerId: string | null, spaceId: string): Promise<void> {
-    const space = await this.spaces.findOne({ id: spaceId }, { kind: 1, ownerId: 1 }).lean<Pick<SpaceDocument, 'kind' | 'ownerId'> | null>();
+    const space = await this.spaces.findOne({ id: spaceId }, { kind: 1, ownerId: 1, archivedAt: 1 }).lean<SpaceDocument | null>();
     if (space?.kind === 'room') {
       throw conflict('room_by_itself', 'A room is a field of the places standing in it.', [
         { field: 'spaceId', code: 'not_allowed', detail: 'A device stands in a place, and the place in a room.' },
@@ -162,6 +163,7 @@ export class DevicesService {
         },
       ]);
     }
+    if (space && space.archivedAt !== null) throw conflict('space_archived', 'That space has ended. Bring it back before putting anything in it.');
   }
 
   /**
@@ -196,10 +198,16 @@ export class DevicesService {
    * The code the display shows is the whole proof, and it names the device, so
    * nothing else identifies one. A device that belongs to no space has no card
    * to appear on, so a claim always ends in one: naming a space puts it there,
-   * and naming none makes one.
+   * and naming none makes one. `joinSpaceId` names one only for a device that
+   * holds no climate of its own: the client cannot know the type before the claim.
    */
   public async claim(ctx: AccessContext, body: DeviceClaimCreate): Promise<DeviceClaimResult> {
     const ownerId = accountOf(ctx, 'A device belongs to somebody, and this session is nobody.');
+    if (body.spaceId && body.joinSpaceId) {
+      throw unprocessable('two_places', 'Name the place by `spaceId` or by `joinSpaceId`, not both.', [
+        { field: 'joinSpaceId', code: 'exclusive', detail: 'Leave `spaceId` out where `joinSpaceId` is given.' },
+      ]);
+    }
 
     const claimCode = await this.claimCodes.findOne({ code: body.code.trim().toUpperCase() }).lean<StoredClaimCode>();
     if (!claimCode) throw notFound('claim_code_unknown', 'No device is showing that code. Read it off the display again.');
@@ -214,10 +222,11 @@ export class DevicesService {
 
     const given = body.name ?? device.name ?? null;
     const name = given ?? device.type;
+    const named = body.spaceId ?? (OWN_CLIMATE_TYPES.includes(device.type) ? undefined : body.joinSpaceId);
     // Putting a device into a space that exists is managing that space.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (named) await this.access.require(ctx, subjectRef('space', named), 'manage');
     // The claimer is about to own the device, and a device stands only in a place of its owner.
-    if (body.spaceId) await this.requireAPlaceOf(ownerId, body.spaceId);
+    if (named) await this.requireAPlaceOf(ownerId, named);
 
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim
@@ -230,10 +239,8 @@ export class DevicesService {
     // The code is spent; the display shows a fresh one when the device is asked.
     await this.claimCodes.deleteOne({ id: claimCode.id });
 
-    // A device that belongs to no space has no card to appear on, so a claim
-    // always ends in one: naming none makes one.
-    const made = body.spaceId ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, given));
-    const spaceId = body.spaceId ?? made?.id ?? null;
+    const made = named ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, given));
+    const spaceId = named ?? made?.id ?? null;
 
     const { placements } = await this.place(device.id, spaceId);
     // A report that arrived between the two writes above made the camera row
@@ -250,7 +257,7 @@ export class DevicesService {
     await this.cameraOf({ ...claimed, spaceId, placements });
     // A space made for the claim has nothing standing in it yet; one that was
     // named may be a tent in the middle of a grow.
-    if (body.spaceId) await this.stoodIn(device.id, body.spaceId);
+    if (named) await this.stoodIn(device.id, named);
 
     return { device: this.serialise({ ...claimed, spaceId, placements }, ctx.isDemo), spaceCreated: made !== null };
   }

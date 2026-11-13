@@ -974,14 +974,13 @@ describe('the people in a space', () => {
       await host.client.delete(`/v1/invites/${key.code}`).expect(204);
     });
 
-    it('is ended by the host, and the space cannot be ended while it stands', async () => {
-      const refused = await host.client.delete(`/v1/spaces/${theirTent}`).expect(409);
-      expect(refused.body.code).toBe('space_in_use');
-      expect(refused.body.errors.map((one: { code: string }) => one.code)).toContain('member_here');
-
+    it('is ended by the host one person at a time, or for everybody at once with the place', async () => {
       await host.client.delete(`/v1/spaces/${theirTent}/members/${logger.userId}`).expect(204);
-      await host.client.delete(`/v1/spaces/${theirTent}/members/${manager.userId}`).expect(204);
+      await manager.client.get(`/v1/spaces/${theirTent}`).expect(200);
+
       await host.client.delete(`/v1/spaces/${theirTent}`).expect(204);
+      await manager.client.get(`/v1/spaces/${theirTent}`).expect(404);
+      expect((await host.client.get(`/v1/spaces/${theirTent}/members`).expect(200)).body.items).toEqual([]);
     });
   });
 

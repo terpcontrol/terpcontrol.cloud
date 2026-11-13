@@ -653,6 +653,7 @@ export declare const deviceClaimCreate: z.ZodObject<{
     code: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     spaceId: z.ZodOptional<z.ZodString>;
+    joinSpaceId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
  * What a claim answers. The device carries the space it now sits in, so the one

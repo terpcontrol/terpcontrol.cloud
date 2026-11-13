@@ -22,7 +22,7 @@
  * `npm install` behind it, and reads the compiled form of this file directly.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.socketChunkCount = exports.socketListChunk = exports.socketListKey = exports.SOCKETS_PER_REPORT_CHUNK = exports.SOCKET_HOST_TYPES = exports.TIMED_SOCKET_ROLES = exports.SOCKET_HOLD_MAX_SECONDS = exports.SOCKET_CREDENTIAL_MAX_LEN = exports.SOCKET_ADDRESS_MAX_LEN = exports.MAX_SOCKETS = void 0;
+exports.socketChunkCount = exports.socketListChunk = exports.socketListKey = exports.SOCKETS_PER_REPORT_CHUNK = exports.OWN_CLIMATE_TYPES = exports.SOCKET_HOST_TYPES = exports.TIMED_SOCKET_ROLES = exports.SOCKET_HOLD_MAX_SECONDS = exports.SOCKET_CREDENTIAL_MAX_LEN = exports.SOCKET_ADDRESS_MAX_LEN = exports.MAX_SOCKETS = void 0;
 /** A device drives at most this many sockets, spread over the roles as it likes (`wifi.h`). */
 exports.MAX_SOCKETS = 32;
 /**
@@ -54,6 +54,12 @@ exports.TIMED_SOCKET_ROLES = ['pump', 'custom_timer'];
  * what they have not announced is not something a newer build would bring.
  */
 exports.SOCKET_HOST_TYPES = ['controller', 'fridge'];
+/**
+ * The device types that hold a climate by targets of their own. A fan, a smart
+ * socket and a lamp hang in the climate of one of these, which is why a claim
+ * may name the place such a device joins (`DeviceClaimCreate.joinSpaceId`).
+ */
+exports.OWN_CLIMATE_TYPES = ['controller', 'fridge'];
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 exports.SOCKETS_PER_REPORT_CHUNK = 3;
 const socketListKey = (chunk) => `socket_list${chunk}`;

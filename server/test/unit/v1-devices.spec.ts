@@ -136,3 +136,88 @@ describe('the devices a caller is shown', () => {
     expect(second.items.map(device => device.id)).toEqual([ON_THE_BALCONY]);
   });
 });
+
+/**
+ * A claim that says where the device hangs. The client asks before it knows
+ * what the code names, so it sends the answer as `joinSpaceId` and the server
+ * decides by the type: a device without a climate of its own joins that place
+ * in the one write, and no place is made to be removed again.
+ */
+describe('claiming a device with a place to join', () => {
+  const NEW = 'device-new';
+  const THEIR_TENT = 'space-theirs';
+  const CODE = 'JOIN2345';
+
+  const unclaimed = async (type: string) => {
+    await db.devices.create({ id: NEW, type, ownerId: null, spaceId: null, placements: [] });
+    await db.claimCodes.create({ id: 'claim-new', code: CODE, deviceId: NEW });
+  };
+
+  const refusal = (action: () => Promise<unknown>) =>
+    action().then(
+      () => Promise.reject(new Error('It was allowed.')),
+      error => error.problem,
+    );
+
+  it.each(['fan', 'plug', 'light'])('puts a %s into the place named, and makes none', async type => {
+    await unclaimed(type);
+    const claimed = await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT });
+
+    expect(claimed).toMatchObject({ spaceCreated: false, device: { id: NEW, ownerId: OWNER, spaceId: TENT } });
+    expect(await db.spaces.countDocuments({})).toBe(3);
+    expect((await db.devices.findOne({ id: NEW }).lean())?.placements).toMatchObject([{ spaceId: TENT, endedAt: null }]);
+  });
+
+  it.each(['controller', 'fridge'])('gives a %s its own place all the same', async type => {
+    await unclaimed(type);
+    const claimed = await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT });
+
+    expect(claimed.spaceCreated).toBe(true);
+    expect(claimed.device.spaceId).not.toBe(TENT);
+    expect(await db.spaces.findOne({ id: claimed.device.spaceId }).lean()).toMatchObject({ ownerId: OWNER, roomId: null });
+  });
+
+  it('refuses a place of another account, a room and an ended place, and the code still claims afterwards', async () => {
+    await unclaimed('fan');
+    await db.spaces.create({ id: THEIR_TENT, ownerId: STRANGER, kind: 'tent', name: 'Theirs', roomId: null });
+    await db.memberships.create({ id: 'membership-guest', spaceId: THEIR_TENT, userId: OWNER, role: 'can_manage' });
+    await db.spaces.create({ id: 'space-ended', ownerId: OWNER, kind: 'tent', name: 'Ended', roomId: null, archivedAt: new Date() });
+
+    expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, joinSpaceId: THEIR_TENT }))).toMatchObject({
+      status: 409,
+      code: 'place_of_another_account',
+    });
+    expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, joinSpaceId: ROOM }))).toMatchObject({
+      status: 409,
+      code: 'room_by_itself',
+    });
+    // An ended place takes nothing, whichever field names it.
+    expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, joinSpaceId: 'space-ended' }))).toMatchObject({ code: 'space_archived' });
+    expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, spaceId: 'space-ended' }))).toMatchObject({
+      status: 409,
+      code: 'space_archived',
+    });
+    // A place the caller has nothing to do with is not there, as for `spaceId`.
+    expect(await refusal(() => devices.claim(session(MEMBER), { code: CODE, joinSpaceId: BALCONY }))).toMatchObject({ status: 404 });
+    expect(await db.devices.findOne({ id: NEW }).lean()).toMatchObject({ ownerId: null, spaceId: null });
+
+    expect((await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT })).device.spaceId).toBe(TENT);
+  });
+
+  it('refuses both fields together: two statements about one place', async () => {
+    await unclaimed('fan');
+
+    expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, spaceId: TENT, joinSpaceId: BALCONY }))).toMatchObject({
+      status: 422,
+      code: 'two_places',
+    });
+    expect(await db.claimCodes.countDocuments({ code: CODE })).toBe(1);
+  });
+
+  it('refuses a move into an ended place as a claim into one', async () => {
+    await db.spaces.updateOne({ id: BALCONY }, { $set: { archivedAt: new Date() } });
+
+    expect(await refusal(() => devices.update(IN_THE_TENT, { spaceId: BALCONY }))).toMatchObject({ status: 409, code: 'space_archived' });
+    expect((await db.devices.findOne({ id: IN_THE_TENT }).lean())?.spaceId).toBe(TENT);
+  });
+});

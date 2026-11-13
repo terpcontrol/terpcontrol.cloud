@@ -1246,6 +1246,10 @@ export interface DeviceClaimCreate {
    */
   name?: string;
   spaceId?: string;
+  /**
+   * Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.
+   */
+  joinSpaceId?: string;
 }
 
 export interface DeviceClaimResult {

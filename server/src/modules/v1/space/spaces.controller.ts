@@ -40,8 +40,9 @@ import { SpacesService } from './spaces.service';
  *
  * Every route but the list and the creation is about one space and says what it
  * needs of the caller: a member reads a space, a manager changes it, and only
- * the owner ends one. Ending is a route of its own in both flavours - archiving
- * a place that is not in use, and deleting one - so that neither is something a
+ * the owner ends one, says which room it stands in or takes a device out of
+ * every place. Ending is a route of its own in both flavours - archiving a
+ * place that is not in use, and deleting one - so that neither is something a
  * settings form does in passing.
  */
 
@@ -187,7 +188,7 @@ export class SpacesController {
   @ApiOperation({ summary: 'Take a device out of this space' })
   @ApiNoContentResponse({ description: 'The device stands nowhere until it is put somewhere else.' })
   public async removeDevice(@Caller() ctx: AccessContext, @Param('id') id: string, @Param('deviceId') deviceId: string): Promise<void> {
-    await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
+    await this.access.require(ctx, subjectRef('device', deviceId), 'own');
 
     return this.spaces.removeDevice(id, deviceId);
   }

@@ -126,7 +126,7 @@ export class MembersService {
    * act.
    */
   public async add(ctx: AccessContext, spaceId: string, body: MembershipCreate): Promise<Membership> {
-    const space = await this.spacesService.require(spaceId);
+    const space = await this.spacesService.requireOpen(spaceId);
     const person = await this.knownTo(ctx, body.handle);
 
     if (person.id === space.ownerId) throw conflict('owner_here', 'This account owns the space, which is more than any membership gives.');

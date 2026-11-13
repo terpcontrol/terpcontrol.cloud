@@ -73,6 +73,14 @@ export class SpacesService {
     return space;
   }
 
+  /** An ended room takes nothing - no name, no place, no person: it was a field of places that are gone, and is on no screen. */
+  public async requireOpen(id: string): Promise<SpaceDocument> {
+    const space = await this.require(id);
+    if (space.kind !== 'room' || space.archivedAt === null) return space;
+
+    throw conflict('room_ended', 'A room exists only while a place stands in it, and this one ended with its last place.');
+  }
+
   /**
    * Oldest first: a list of spaces is a list of places and not a feed, so it
    * reads in the order they were set up - a room before the tents somebody put
@@ -143,10 +151,14 @@ export class SpacesService {
   }
 
   public async update(ctx: AccessContext, id: string, body: SpaceUpdate): Promise<Space> {
-    const space = await this.require(id);
+    const space = await this.requireOpen(id);
     const kind = body.kind ?? space.kind;
     if ((kind === 'room') !== (space.kind === 'room')) throw roomByItself('A place does not become a room, nor a room a place.');
     this.refuseTwoRooms(body);
+    // Which room a place stands in decides who is let into it and can end a room with its members: the owner's, not a manager's.
+    if (body.roomName !== undefined || (body.roomId !== undefined && body.roomId !== space.roomId)) {
+      await this.access.require(ctx, subjectRef('space', id), 'own');
+    }
     // The grouping is one level deep in both directions: a room holds spaces, a room never hangs in one.
     if (kind === 'room' && (body.roomName !== undefined || (body.roomId ?? null) !== null)) {
       throw unprocessable('room_in_room', 'A room groups spaces; it does not stand in one.', [
@@ -220,10 +232,9 @@ export class SpacesService {
    * Ends a room no place stands in any more. A room exists only while a place
    * stands in it: it is a field of its places, and one that outlived them would
    * be a list of people let into nothing. So it goes with its last place the
-   * way a deleted place goes - a tombstone history can still name - and takes
-   * every way into it along: its members' rows, its invites, its share links.
-   * A room that itself holds a device, a camera or a grow is somebody's place
-   * and stays.
+   * way a deleted place goes - a tombstone history can still name, and no way
+   * into it left. A room that itself holds a device, a camera or a grow is
+   * somebody's place and stays.
    */
   public async endRoomIfEmpty(roomId: string | null): Promise<void> {
     if (roomId === null) return;
@@ -240,9 +251,17 @@ export class SpacesService {
     await this.spaces.updateOne({ id: roomId }, { $set: { archivedAt: new Date() } });
     // The ended places still naming it stand in no room: brought back, they must not hang in one that is gone.
     await this.spaces.updateMany({ roomId }, { $set: { roomId: null } });
-    await this.memberships.deleteMany({ spaceId: roomId });
-    await this.invites.deleteMany({ spaceId: roomId });
-    await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': roomId });
+    await this.closeWaysInto(roomId);
+  }
+
+  /**
+   * Every way into a place or a room goes with it: each is a key to somebody's history that nothing would turn
+   * again. The app names the people before the write that ends it; the write itself is not refused for them.
+   */
+  private async closeWaysInto(spaceId: string): Promise<void> {
+    await this.memberships.deleteMany({ spaceId });
+    await this.invites.deleteMany({ spaceId });
+    await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': spaceId });
   }
 
   /**
@@ -257,7 +276,7 @@ export class SpacesService {
     }
 
     await this.access.require(ctx, subjectRef('space', roomId), 'manage');
-    const room = await this.require(roomId);
+    const room = await this.requireOpen(roomId);
     if (room.kind !== 'room') {
       throw unprocessable('not_a_room', 'Spaces are grouped by a space of kind `room`.', [
         { field: 'roomId', code: 'not_a_room', detail: `That space is a ${room.kind}.` },
@@ -274,7 +293,7 @@ export class SpacesService {
    */
   public async archive(ctx: AccessContext, id: string, archived: boolean): Promise<Space> {
     const space = await this.require(id);
-    if (space.kind === 'room') throw roomByItself('A room ends with its last place and its last member, and is not put away or brought back.');
+    if (space.kind === 'room') throw roomByItself('A room ends with the last place standing in it, and is not put away or brought back.');
     if (archived === (space.archivedAt !== null)) return this.serialise(space, await this.mayIn1(ctx, space));
     // A place that comes back is one of the owner's places again, and may not take a name another carries by now.
     if (!archived) await refuseTakenName(this.spaces, space.ownerId, space.kind, space.name, id);
@@ -291,35 +310,24 @@ export class SpacesService {
   /**
    * Deleting ends the space for clients without removing the row: an entry, a
    * picture and a grow that once stood here still name it, and a list with a
-   * dangling name in it is worse than a place nobody can reach any more. What
-   * does go is the rest of the way in - an invite and a share link on a space
-   * that has ended are each a key to somebody's history that nothing would ever
-   * turn again.
-   *
-   * The people are not among them. A space with members is refused until they
-   * have been let go one at a time, so that ending a place is never how somebody
-   * finds out they were thrown out of it.
+   * dangling name in it is worse than a place nobody can reach any more. Its
+   * guests' access ends with it, as a room's does; a membership held on the
+   * room above is the room's and stays while another place stands in it.
    */
   public async remove(id: string): Promise<void> {
     const space = await this.require(id);
-    if (space.kind === 'room') throw roomByItself('A room ends by itself once its last place and its last member have left.');
+    if (space.kind === 'room') throw roomByItself('A room ends with the last place standing in it.');
     await this.refuseWhileOccupied(space);
 
     await this.spaces.updateOne({ id }, { $set: { archivedAt: space.archivedAt ?? new Date() } });
-    await this.invites.deleteMany({ spaceId: id });
-    await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': id });
+    await this.closeWaysInto(id);
     await this.endRoomIfEmpty(space.roomId);
   }
 
   /**
-   * A space is only ended once nothing stands in it and nobody else is in it,
-   * and the refusal says which: a place that is deleted out from under a running
-   * grow takes the grow's own history with it, and one deleted out from under
-   * the people sharing it takes theirs.
-   *
-   * The members counted are this space's own rows. A membership held on the room
-   * above reaches in here as well, but it is the room's, and the room stays for
-   * as long as anybody is a member of it.
+   * A space is only ended once nothing stands in it, and the refusal says what
+   * does: a place that is deleted out from under a running grow takes the
+   * grow's own history with it. People are not in the way - see `remove`.
    */
   private async refuseWhileOccupied(space: SpaceDocument): Promise<void> {
     const errors: ProblemError[] = [];
@@ -335,17 +343,6 @@ export class SpacesService {
     if (await this.grows.exists({ endedAt: null, placements: { $elemMatch: { spaceId: space.id, endedAt: null } } })) {
       errors.push({ field: 'id', code: 'grow_here', detail: 'A grow stands in this space. Move it or end it first.' });
     }
-    const members = await this.memberships.countDocuments({ spaceId: space.id });
-    if (members > 0) {
-      errors.push({
-        field: 'id',
-        code: 'member_here',
-        detail:
-          members === 1
-            ? 'Somebody else is a member of this space. Remove them from it first.'
-            : `${members} other people are members of this space. Remove them from it first.`,
-      });
-    }
 
     // One refusal listing everything, rather than the first thing in the way:
     // emptying a tent is a round of errands, and being sent back for the next
@@ -359,9 +356,6 @@ export class SpacesService {
    * along with it.
    */
   public async placeDevice(spaceId: string, deviceId: string, redacted: boolean): Promise<Device> {
-    const space = await this.require(spaceId);
-    if (space.archivedAt !== null) throw conflict('space_archived', 'That space has ended. Bring it back before putting anything in it.');
-
     return this.devices.serialise(await this.devices.update(deviceId, { spaceId }), redacted);
   }
 

@@ -325,6 +325,9 @@ exports.claimCode = (0, common_js_1.named)('ClaimCode', zod_1.z.object({ id: (0,
 exports.deviceClaimCreate = (0, common_js_1.named)('DeviceClaimCreate', exports.claimCode.pick({ code: true }).extend({
     name: zod_1.z.string().optional().describe('Absent names the device after its type.'),
     spaceId: (0, common_js_1.id)().optional(),
+    joinSpaceId: (0, common_js_1.id)()
+        .optional()
+        .describe('Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.'),
 }));
 /**
  * What a claim answers. The device carries the space it now sits in, so the one

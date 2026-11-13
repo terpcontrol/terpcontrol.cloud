@@ -158,6 +158,8 @@ export class DevicesController {
     // Moving a device is managing two places, and the guard above has only
     // decided about the one it is standing in.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    // Out of every place it is on nobody's screen but its owner's, so that is the owner's alone.
+    if (body.spaceId === null) await this.access.require(ctx, subjectRef('device', id), 'own');
     // A grower picks whether the device updates itself and from which channel,
     // and on the manual channel which version it installs - from what the
     // device's list of builds offers anybody but an administrator. Any other

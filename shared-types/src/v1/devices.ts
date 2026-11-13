@@ -454,6 +454,11 @@ export const deviceClaimCreate = named(
   claimCode.pick({ code: true }).extend({
     name: z.string().optional().describe('Absent names the device after its type.'),
     spaceId: id().optional(),
+    joinSpaceId: id()
+      .optional()
+      .describe(
+        'Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.',
+      ),
   }),
 );
 

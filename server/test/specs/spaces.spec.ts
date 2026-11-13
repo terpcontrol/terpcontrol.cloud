@@ -1,7 +1,7 @@
-import { createAccount, Session } from '../support/api';
+import { anonymous, createAccount, Session } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
-import { joinSpace } from '../support/fixtures';
+import { joinSpace, seedRow } from '../support/fixtures';
 import { vapourPressureDeficit } from '@fg2/shared-types/v1-schemas/vpd.js';
 
 /**
@@ -153,24 +153,115 @@ describe('what stands in a space', () => {
   });
 
   /**
-   * A person is not something a delete button removes in passing. The refusal
-   * has to stand on its own at the wire, because the sentence a client shows is
-   * the one the server wrote: a bare `member_here` would have the app make one
-   * up.
+   * Guests do not block the removal: the app names them before it asks, and
+   * the write that ends the place ends every way into it, as a room's end does.
    */
-  it('refuses to end a space while somebody else is a member of it', async () => {
-    const id = await makeSpace(owner, { kind: 'tent', name: 'The shared tent' });
-    await joinSpace(owner, id, stranger);
+  it('ends a place with its guests´ memberships, its invites and its share links, and its room with it where it was the last', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'The shared tent', roomName: 'The shared room' }).expect(201))
+      .body;
+    const inTheRoom = await createAccount('spaces-room-guest');
+    await joinSpace(owner, tent.id, stranger);
+    await joinSpace(owner, tent.roomId, inTheRoom, 'can_manage');
+    const invite = (await owner.client.post(`/v1/spaces/${tent.id}/invites`).send({ role: 'can_log' }).expect(201)).body;
+    const link = (
+      await owner.client
+        .post('/v1/share-links')
+        .send({ kind: 'view', subject: { type: 'space', id: tent.id } })
+        .expect(201)
+    ).body;
 
-    const refused = await owner.client.delete(`/v1/spaces/${id}`).expect(409);
+    await owner.client.delete(`/v1/spaces/${tent.id}`).expect(204);
 
-    expect(refused.body).toMatchObject({ status: 409, code: 'space_in_use' });
-    expect(refused.body.errors).toEqual([
-      { field: 'id', code: 'member_here', detail: 'Somebody else is a member of this space. Remove them from it first.' },
-    ]);
-    // Refused and unchanged: the space is still in the list and still open.
-    expect(await listed(owner)).toContain(id);
-    expect((await owner.client.get(`/v1/spaces/${id}`).expect(200)).body.archivedAt).toBeNull();
+    await stranger.client.get(`/v1/spaces/${tent.id}`).expect(404);
+    expect((await owner.client.get(`/v1/spaces/${tent.id}/members`).expect(200)).body.items).toEqual([]);
+    expect((await owner.client.get(`/v1/spaces/${tent.id}/invites`).expect(200)).body.items).toEqual([]);
+    expect((await anonymous().get(`/v1/invites/${invite.code}`).expect(200)).body.isValid).toBe(false);
+    await anonymous().get(`/v1/shared/${link.token}`).expect(404);
+    // It was the room's last place: the room has ended, and whoever was let into the room is let into nothing.
+    expect((await owner.client.get(`/v1/spaces/${tent.roomId}`).expect(200)).body.archivedAt).toEqual(expect.any(String));
+    await inTheRoom.client.get(`/v1/spaces/${tent.roomId}`).expect(404);
+    await inTheRoom.client.get(`/v1/spaces/${tent.id}`).expect(404);
+  });
+
+  /**
+   * A room exists only while a place stands in it. Once it has ended it is a
+   * tombstone: its owner is refused a new name for it, a place in it and
+   * anybody let into it, each with the rule in a sentence.
+   */
+  it('refuses an ended room a name, a place, an invite and a member', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent of a short room', roomName: 'A short room' }).expect(201))
+      .body;
+    const room = tent.roomId;
+    await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomId: null }).expect(200);
+    const ended = {
+      status: 409,
+      code: 'room_ended',
+      detail: 'A room exists only while a place stands in it, and this one ended with its last place.',
+    };
+
+    expect((await owner.client.patch(`/v1/spaces/${room}`).send({ name: 'A long room' }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomId: room }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Late tent', roomId: room }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.post(`/v1/spaces/${room}/invites`).send({ role: 'can_log' }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.post(`/v1/spaces/${room}/members`).send({ handle: stranger.handle, role: 'can_log' }).expect(409)).body).toMatchObject(
+      ended,
+    );
+
+    // A code cut for it before answers as every dead code does: the route is anybody's, and says no more than that.
+    const code = `ZZ${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    await seedRow('invites', {
+      id: `invite-${code}`,
+      createdAt: new Date(),
+      code,
+      spaceId: room,
+      role: 'can_log',
+      createdBy: owner.userId,
+      expiresAt: null,
+      revokedAt: null,
+      state: { useCount: 0, lastUsedAt: null },
+    });
+    expect((await stranger.client.post(`/v1/invites/${code}/acceptances`).expect(404)).body.code).toBe('invite_not_found');
+    await stranger.client.get(`/v1/spaces/${room}`).expect(404);
+
+    // The name is free again: naming it on a place makes a room anew.
+    const again = (await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomName: 'A short room' }).expect(200)).body;
+    expect(again.roomId).not.toBe(room);
+  });
+
+  /**
+   * What is the owner's stays the owner's: a guest who may manage a place
+   * steers what stands in it and renames it, but does not take a device out of
+   * every place - it would be on no screen but its owner's - and does not say
+   * which room the place stands in, which is who is let into it.
+   */
+  it('leaves taking a device out and the room of a place to the owner, whoever may manage the place', async () => {
+    const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'The managed tent', roomName: 'The managed room' }).expect(201))
+      .body;
+    const device = await provisionDevice(owner);
+    await owner.client.put(`/v1/spaces/${tent.id}/devices/${device.deviceId}`).expect(200);
+    const manager = await createAccount('spaces-manager');
+    await joinSpace(owner, tent.id, manager, 'can_manage');
+
+    const refusedOut = await manager.client.delete(`/v1/spaces/${tent.id}/devices/${device.deviceId}`).expect(403);
+    expect(refusedOut.body.code).toBe('insufficient_access');
+    expect((await manager.client.patch(`/v1/devices/${device.deviceId}`).send({ spaceId: null }).expect(403)).body.code).toBe('insufficient_access');
+    for (const body of [{ roomId: null }, { roomName: 'Another room' }]) {
+      expect((await manager.client.patch(`/v1/spaces/${tent.id}`).send(body).expect(403)).body.code).toBe('insufficient_access');
+    }
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId).toBe(tent.id);
+    expect((await owner.client.get(`/v1/spaces/${tent.id}`).expect(200)).body.roomId).toBe(tent.roomId);
+    // Its name and kind are still the manager's to change.
+    await manager.client.patch(`/v1/spaces/${tent.id}`).send({ name: 'The well managed tent', kind: 'fridge' }).expect(200);
+
+    // A stranger is told of neither, as before.
+    await stranger.client.delete(`/v1/spaces/${tent.id}/devices/${device.deviceId}`).expect(404);
+    await stranger.client.patch(`/v1/devices/${device.deviceId}`).send({ spaceId: null }).expect(404);
+    await stranger.client.patch(`/v1/spaces/${tent.id}`).send({ roomId: null }).expect(404);
+
+    await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomName: 'Another room' }).expect(200);
+    await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomId: null }).expect(200);
+    await owner.client.delete(`/v1/spaces/${tent.id}/devices/${device.deviceId}`).expect(204);
+    expect((await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId).toBeNull();
   });
 
   it('keeps an ended space readable, because history still names it', async () => {
