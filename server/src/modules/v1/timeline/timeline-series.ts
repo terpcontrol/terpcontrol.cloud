@@ -16,6 +16,7 @@ import type {
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { DAY_ONLY, METRIC_DECIMALS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { quietLimits, SILENT_AFTER } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import type { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -76,14 +77,18 @@ export interface TargetStretch {
  * reader asked for (`ownOf`). Two devices in one place are two thermometers
  * and often two climates - a tent's controller and a fridge module - and a
  * mean of them is a figure neither read, which no other screen states.
+ *
+ * `samples` is how many samples the device wrote in each drawn window, where
+ * the read counted them: what a silence in its curve is measured by.
  */
 export const panelsOf = (
   series: DeviceSeries | null,
   stretches: readonly TargetStretch[],
   metrics: readonly Metric[] = PANEL_METRICS,
+  samples?: DeviceHistory['samples'],
 ): TimelinePanel[] =>
   metrics.flatMap(metric => {
-    const points = series ? heardOf(series, metric) : [];
+    const points = series ? heardOf(series, metric, samples) : [];
 
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
   });
@@ -370,16 +375,18 @@ const stayOf = (history: DeviceHistory, window: SeriesWindow): SeriesWindow => (
   endsAt: new Date(Math.min(window.endsAt.getTime(), millis(history.series.endsAt))),
 });
 
-/** What a read says of when a device's samples were written: its newest inside the window, and each drawn window's first and last. */
+/** What a read says of a device's samples: its newest inside the window, the first and last of a window beside a silence, how many each window held. */
 interface Sampled {
   newest: number | null;
   edges?: DeviceHistory['edges'];
+  samples?: DeviceHistory['samples'];
 }
 
 /** When the device last wrote anything inside this window, as an instant the arithmetic can use, or nothing where the read could not say. */
 const heardAt = (history: DeviceHistory): Sampled => ({
   newest: history.lastSampleAt === null ? null : millis(history.lastSampleAt),
   edges: history.edges,
+  samples: history.samples,
 });
 
 /** What one device said about one output, or nothing where it was not asked about it or never reported it. */
@@ -404,51 +411,17 @@ const readOf = (series: DeviceSeries, window: SeriesWindow): SeriesWindow => ({
   endsAt: new Date(Math.min(window.endsAt.getTime(), millis(series.endsAt))),
 });
 
-/** How many of a device's usual gaps in a row count as it having stopped, rather than as its having been slow once. */
-const SILENT_AFTER = 4;
-
 /**
- * How long a device may say nothing before a run stops being carried across it.
- *
- * Not one number. Firmware reports every five seconds, a backfilled history
- * every hour, and a whole grow is read in windows wider than either, so what
- * counts as a silence is measured against the rhythm this device actually kept
- * over this window. A device that fills every window it is read in has left a
- * silence wherever one stands empty - at three minutes to the point as at an
- * hour and a half: four of a month's windows were six hours, and a month drew
- * its line straight through a morning nobody reported, which a week broke at.
- * One that reports more slowly than it is read - an hourly history in windows
- * of three minutes - is silent after four of its own gaps. Never less than the
- * two minutes after which the rest of the app calls a reading stale, so a
- * sample that falls a second late into the next window of a minute breaks
- * nothing. Read finer than a minute - somebody zoomed in - a restart is the
- * very thing looked for, and the line breaks after three windows without a
- * sample, half a minute at least.
+ * How long the device may say nothing at each place in a row of heard windows before a run stops being carried
+ * across it: by the interval it was keeping there (`quietLimits`), which its samples per window say where the read
+ * counted them.
  */
-const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
-  const usual = usualGapOf(points, stepSeconds);
-  if (stepSeconds < FINE_STEP_SECONDS) return Math.max(FINE_SILENCE_MS, 3 * stepSeconds * 1000, SILENT_AFTER * usual);
-
-  return Math.max(VALUE_AGE.liveSeconds * 1000, usual > stepSeconds * 1000 ? SILENT_AFTER * usual : stepSeconds * 1000);
-};
-
-/** Below this step a window is somebody looking closely. */
-const FINE_STEP_SECONDS = 60;
-
-/** The least silence that breaks a line read that closely: longer than a slow sample, shorter than a restart. */
-const FINE_SILENCE_MS = 30_000;
-
-/** The gap between two readings this device usually leaves in this window. */
-const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
-  const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
-  const gaps = heard
-    .slice(1)
-    .map((instant, index) => instant - heard[index])
-    .sort((one, other) => one - other);
-  // Three quarters of the way up rather than the middle: a device that is slow
-  // every fourth sample is keeping that rhythm too.
-  return gaps.length === 0 ? stepSeconds * 1000 : gaps[Math.floor(gaps.length * 0.75)];
-};
+const limitsOf = (heard: readonly number[], stepSeconds: number, samples: DeviceHistory['samples']): number[] =>
+  quietLimits(
+    heard,
+    stepSeconds * 1000,
+    heard.map(stamp => samples?.get(stamp)),
+  );
 
 /**
  * The stretches of the window one output held a state for.
@@ -529,18 +502,19 @@ const heardStretches = (
   points: readonly SeriesPoint[],
   window: SeriesWindow,
   stepSeconds: number,
-  { newest: sampled, edges }: Sampled,
+  { newest: sampled, edges, samples }: Sampled,
 ): Stretch[] => {
   const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
   if (heard.length === 0) return [];
 
-  const silence = silenceOf(points, stepSeconds);
+  const limits = limitsOf(heard, stepSeconds, samples);
   const stretches: Stretch[] = [{ from: heard[0], to: heard[0] }];
-  for (const at of heard.slice(1)) {
+  heard.slice(1).forEach((at, index) => {
     const last = stretches[stretches.length - 1];
-    if (at - last.to > silence) stretches.push({ from: at, to: at });
+    if (at - last.to > limits[index + 1]) stretches.push({ from: at, to: at });
     else last.to = at;
-  }
+  });
+  const silence = limits[heard.length];
 
   for (const [index, stretch] of stretches.entries()) {
     const after = index === 0 ? window.startsAt.getTime() : stretches[index - 1].to + 1;
@@ -554,7 +528,7 @@ const heardStretches = (
   const opens = stretches[0];
   const closes = stretches[stretches.length - 1];
   if (sampled !== null) closes.to = Math.max(closes.from, Math.min(closes.to, sampled));
-  if (opens.from - window.startsAt.getTime() <= silence) opens.from = window.startsAt.getTime();
+  if (opens.from - window.startsAt.getTime() <= limits[0]) opens.from = window.startsAt.getTime();
   // A device whose newest sample is known is still reporting by the rule the rest of the app goes by, not by
   // the rhythm of a window as wide as a month's: a lamp is not "on" for the hours after its device went quiet.
   if (window.endsAt.getTime() - closes.to <= (sampled === null ? silence : Math.min(silence, VALUE_AGE.staleSeconds * 1000))) {
@@ -591,7 +565,7 @@ const millis = (instant: string): number => new Date(instant).getTime();
  * What the curve has to break at is the silence, which is the same thing the
  * lanes under it break at.
  */
-const heardOf = (series: DeviceSeries, metric: Metric): SeriesPoint[] => {
+const heardOf = (series: DeviceSeries, metric: Metric, samples?: DeviceHistory['samples']): SeriesPoint[] => {
   const heard = (series.metrics.find(row => row.metric === metric)?.points ?? []).flatMap(point =>
     point.value === null
       ? []
@@ -604,15 +578,21 @@ const heardOf = (series: DeviceSeries, metric: Metric): SeriesPoint[] => {
         ],
   );
 
-  const silence = silenceOf(heard, series.stepSeconds);
-  return closed(broken(heard, silence), millis(series.endsAt), Math.max(VALUE_AGE.staleSeconds * 1000, usualGapOf(heard, series.stepSeconds)));
+  const limits = limitsOf(
+    heard.map(point => millis(point.measuredAt)),
+    series.stepSeconds,
+    samples,
+  );
+  // The end is held to one of the device's intervals there, and to a step: see `closed`.
+  const atEnd = Math.max(VALUE_AGE.staleSeconds * 1000, series.stepSeconds * 1000, limits[heard.length] / SILENT_AFTER);
+  return closed(broken(heard, limits), millis(series.endsAt), atEnd);
 };
 
 /** The readings with a null between the two the space went quiet between, which is where the line stops and starts again. */
-const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] =>
+const broken = (points: readonly SeriesPoint[], limits: readonly number[]): SeriesPoint[] =>
   points.flatMap((point, index) => {
     const before = points[index - 1];
-    if (!before || millis(point.measuredAt) - millis(before.measuredAt) <= silence) return [point];
+    if (!before || millis(point.measuredAt) - millis(before.measuredAt) <= limits[index]) return [point];
 
     // The break belongs at the instant after the last thing anybody said, not
     // halfway across the silence, which would claim a reading was due there.

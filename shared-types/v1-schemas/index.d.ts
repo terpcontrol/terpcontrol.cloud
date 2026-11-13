@@ -26,6 +26,7 @@ export * from './capture.js';
 export * from './plan-clock.js';
 export * from './place-names.js';
 export * from './value-age.js';
+export * from './cadence.js';
 export * from './steering.js';
 export * from './pages.js';
 export * from './entitlement.js';

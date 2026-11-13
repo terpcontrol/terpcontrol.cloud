@@ -2015,3 +2015,125 @@ describe('a place whose devices changed', () => {
     expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['over-in-its-stay', 'open-and-here']);
   });
 });
+
+describe('a silence by the interval the device was keeping', () => {
+  const OPENS = new Date('2026-03-01T00:00:00.000Z');
+  const CLOSES = new Date('2026-03-04T00:00:00.000Z');
+  const WINDOW = { startsAt: OPENS, endsAt: CLOSES };
+  /** Twelve hours on from six, every day. */
+  const lit = (at: number): boolean => new Date(at).getUTCHours() >= 6 && new Date(at).getUTCHours() < 18;
+
+  /**
+   * A device read the way the route reads it, from its samples: one every `everyAt(time)` seconds, none where
+   * `quiet` says so, into windows of `stepSeconds` cut on the epoch and stamped at their close.
+   */
+  const read = (everyAt: (at: number) => number, stepSeconds: number, quiet: (at: number) => boolean = () => false): DeviceHistory => {
+    const step = stepSeconds * 1000;
+    const samples: number[] = [];
+    for (let at = OPENS.getTime() + 7000; at < CLOSES.getTime(); at += everyAt(at) * 1000) if (!quiet(at)) samples.push(at);
+    const windows = new Map<number, number[]>();
+    for (const at of samples) {
+      const stamp = Math.min((Math.floor(at / step) + 1) * step, CLOSES.getTime());
+      windows.set(stamp, [...(windows.get(stamp) ?? []), at]);
+    }
+    const points = (value: (inside: number[]) => number) =>
+      [...windows].map(([stamp, inside]) => ({ measuredAt: new Date(stamp).toISOString(), value: value(inside) }));
+    const light = points(inside => inside.filter(lit).length / inside.length);
+
+    return {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: OPENS.toISOString(),
+        endsAt: CLOSES.toISOString(),
+        stepSeconds,
+        metrics: [{ metric: 'temperature', points: points(inside => (lit(inside[0]) ? 25 : 20)) }],
+        outputs: [{ output: 'light', points: light }],
+      },
+      outputs: [
+        {
+          output: 'light',
+          switchings: samples.flatMap((at, index) =>
+            index === 0 || lit(at) !== lit(samples[index - 1]) ? [{ at: new Date(at).toISOString(), on: lit(at) }] : [],
+          ),
+          figures: light.map(point => {
+            const inside = windows.get(Date.parse(point.measuredAt)) ?? [];
+            return { measuredAt: point.measuredAt, heard: inside.length, on: inside.filter(lit).length, mean: point.value };
+          }),
+        },
+      ],
+      lastSampleAt: new Date(samples.at(-1)!).toISOString(),
+      samples: new Map([...windows].map(([stamp, inside]) => [stamp, inside.length])),
+    };
+  };
+  const drawn = (history: DeviceHistory) => ({
+    stretches: lanesOf([history], WINDOW)[0].spans.length,
+    nights: nightsOf([history], WINDOW).length,
+    breaks: panelsOf(history.series, [], ['temperature'], history.samples)[0]
+      .points.slice(0, -1)
+      .filter(point => point.value === null).length,
+  });
+
+  it.each([
+    [60, 50],
+    [60, 70],
+    [300, 270],
+    [300, 330],
+    [600, 540],
+    [600, 660],
+    [900, 810],
+    [900, 990],
+  ])('draws a device that reports every %i s whole at a step of %i s: three days, four nights, one line', (every, step) => {
+    // Just under and just over its interval, where every other window - or every tenth - stands empty and none is a silence.
+    expect(drawn(read(() => every, step))).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+  });
+
+  it('cannot tell without the counts: a read that counted nothing takes a device that leaves few windows empty for a fast one', () => {
+    const uncounted = { ...read(() => 300, 270), samples: undefined };
+    expect(drawn(uncounted).stretches).toBeGreaterThan(3);
+  });
+
+  it('measures the interval beside each gap: a history of quarter hours is whole though live samples outnumber it', () => {
+    // Two days every fifteen minutes, then a day every thirty seconds, read at nine minutes: counted once for the
+    // window, the live day set the rhythm and every second point of the history was a silence.
+    const live = CLOSES.getTime() - 24 * 3600_000;
+    expect(drawn(read(at => (at < live ? 900 : 30), 540))).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+  });
+
+  it('still breaks where a slow device missed clearly more than its interval, and not where it was slow once', () => {
+    const noon = Date.parse('2026-03-02T12:00:00.000Z');
+    // One report missed: half an hour between two samples of a device that reports every quarter.
+    expect(
+      drawn(
+        read(
+          () => 900,
+          540,
+          at => at >= noon && at < noon + 900_000,
+        ),
+      ),
+    ).toEqual({ stretches: 3, nights: 4, breaks: 0 });
+    // Two hours gone: the lamp's day is two stretches, and the line breaks once.
+    expect(
+      drawn(
+        read(
+          () => 900,
+          540,
+          at => at >= noon && at < noon + 2 * 3600_000,
+        ),
+      ),
+    ).toEqual({ stretches: 4, nights: 4, breaks: 1 });
+  });
+
+  it('still calls one empty window a silence of a device that fills every other with its samples', () => {
+    const noon = Date.parse('2026-03-02T12:00:00.000Z');
+    // Five seconds a sample, nine minutes a window: twenty minutes gone leave one window empty at the least.
+    expect(
+      drawn(
+        read(
+          () => 5,
+          540,
+          at => at >= noon && at < noon + 1200_000,
+        ),
+      ),
+    ).toEqual({ stretches: 4, nights: 4, breaks: 1 });
+  });
+});

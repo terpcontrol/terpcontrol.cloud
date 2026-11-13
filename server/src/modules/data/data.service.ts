@@ -5,6 +5,7 @@ import { ConfigType } from '@nestjs/config';
 import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client';
 import { DeviceLive, DeviceSeries, DeviceSettings, Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { METRIC_DECIMALS } from '@fg2/shared-types/v1-schemas';
+import { quietLimits } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { finiteOrNull } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { isDayAt, plugScheduleOf, utcSecondsOf, type Cycle } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { logger } from '@utils/logger';
@@ -219,6 +220,11 @@ export interface DeviceHistory {
    * stamped with: where a stretch of what was heard begins and ends. Only where the read counted the outputs' samples.
    */
   edges?: ReadonlyMap<number, SampleEdges>;
+  /**
+   * How many samples the device wrote in each drawn window, by the instant the window is stamped with: the most
+   * any of its outputs counted there. What a silence is measured by (`quietLimits`); only where the read counted.
+   */
+  samples?: ReadonlyMap<number, number>;
   /**
    * When an AIR fan said it ran its day and when its night, as the switchings
    * of the `day` it reports beside its readings. Only a read that asked about the
@@ -517,16 +523,24 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
     const switchings = new Map([...coarse, ...sampled]);
-    // A device is heard in a window any of its fields has a point in. Where those windows leave a silence, the
-    // samples either side of it say when it began and ended (`edgesAround`); a device without one is asked nothing.
+    // A device is heard in a window any of its fields has a point in. Where those windows leave a silence - by the
+    // interval the device was keeping there, which its samples per window say (`quietLimits`) - the samples either
+    // side of it say when it began and ended (`edgesAround`); a device without one is asked nothing.
     const window = { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds };
     const heard = new Set(
       [...series.metrics, ...series.outputs].flatMap(row => row.points.flatMap(point => (point.value === null ? [] : [point.measuredAt]))),
     );
+    const samples = counts ? samplesOf(counts) : null;
+    const stamps = [...heard].map(instant => Date.parse(instant)).sort((one, other) => one - other);
     const asked = figures
       ? edgesAround(
-          [...heard].map(instant => Date.parse(instant)).sort((one, other) => one - other),
+          stamps,
           window,
+          quietLimits(
+            stamps,
+            stepSeconds * 1000,
+            stamps.map(stamp => samples?.get(stamp)),
+          ),
         )
       : [];
     const edges = asked.length === 0 || asked.length > MAX_EDGES ? null : edgesOf(await this.read(edgesQuery(this.bucket, deviceId, asked)), asked);
@@ -549,6 +563,7 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       })),
       lastSampleAt,
       ...(edges ? { edges } : {}),
+      ...(samples ? { samples } : {}),
       ...(days.length > 0 ? { days } : {}),
     };
   }
@@ -878,6 +893,15 @@ const saidOf = (value: number | null): boolean | null => (value === null ? null 
  * seconds, were read in 232 ms - after the grains' own 200 ms, since they say which those are.
  */
 const STRETCHES_A_SCRIPT = 60;
+
+/** How many samples the device wrote in each drawn window: the most any one of its fields counted there. */
+const samplesOf = (counts: ReadonlyMap<string, ReadonlyMap<string, OutputCount>>): Map<number, number> => {
+  const samples = new Map<number, number>();
+  for (const windows of counts.values()) {
+    for (const [instant, { heard }] of windows) samples.set(Date.parse(instant), Math.max(heard, samples.get(Date.parse(instant)) ?? 0));
+  }
+  return samples;
+};
 
 /** As many edges of silences as one script asks about; a device slower than its step, silent between any two points, is asked none. */
 const MAX_EDGES = 120;
