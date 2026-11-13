@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-13
-source: the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: Chris's confirmation of the amendment on places, rooms and where a device stood (2026-11-13); the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, confirmed by him on 2026-11-13; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, confirmed by him the same day; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -18,7 +18,7 @@ paths:
   measurement bands, the migration's names and corrections), 2026-10-01 to 10-04 (the work mode, the target
   record, light hours, the plan routes), 2026-10-07 (a device's settings in its `fetch`), 2026-10-08 (a still's
   colour), 2026-10-14 (deleting an alert) and 2026-11-12 (a grow's diary by the day; places, rooms and where a device stood -
-  **awaiting Chris's confirmation**, see that section). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
+  confirmed by Chris on 2026-11-13, see that section). Each change is marked "Amended <date>" where it stands and says what it replaced. Built and merged with
   #104 on 2026-10-04; every question left open at acceptance is answered, and two have been opened since (see the
   end). Decided on their own since: [ADR 0005](0005-device-times-on-the-wall-clock.md) (device times on the wall
   clock), [ADR 0006](0006-day-and-night-by-the-device-clock.md) (day and night by the device's clock),
@@ -231,7 +231,7 @@ sends only the preference it changes: an object written back whole once raced an
 
 | Collection | Fields |
 | --- | --- |
-| `devices` | `type`, `classId`, `serialNumber`, `ownerId`, `spaceId`, `name`, `mqtt { username, passwordHash }`, `firmware { channel, targetId }`, `configuration` (an object, or `null` before the device reported one; its schema belongs to the firmware of that type), `settings { vpdLeafOffsetDay, vpdLeafOffsetNight, ppfdLuxFactor }`, `isDemo`, `state { lastSeenAt, claimedAt, firmwareId, updateStartedAt, updateEndedAt, updateFailedAt, maintenanceUntil, hardware (the raw `hardware-info` report), socketStateChangedAt (slot → instant), socketsReportedAt }`; server-side only (amended 2026-10-01 to 10-03): `scheduleClock { zone, offset }` (ADR 0005), `baseWorkmode`, `standardWorkmode`, `beforeDrying`, `beforeGermination`, `germinationChoices`, `restedHumidityBand` (the work mode, below, and ADR 0007; the answer's `control` is read from them), `cameraSecret`, `climateSweptAt`, `placements[] { spaceId, startedAt, endedAt }` (amended 2026-11-12, awaiting confirmation: "Places, rooms and where a device stood") |
+| `devices` | `type`, `classId`, `serialNumber`, `ownerId`, `spaceId`, `name`, `mqtt { username, passwordHash }`, `firmware { channel, targetId }`, `configuration` (an object, or `null` before the device reported one; its schema belongs to the firmware of that type), `settings { vpdLeafOffsetDay, vpdLeafOffsetNight, ppfdLuxFactor }`, `isDemo`, `state { lastSeenAt, claimedAt, firmwareId, updateStartedAt, updateEndedAt, updateFailedAt, maintenanceUntil, hardware (the raw `hardware-info` report), socketStateChangedAt (slot → instant), socketsReportedAt }`; server-side only (amended 2026-10-01 to 10-03): `scheduleClock { zone, offset }` (ADR 0005), `baseWorkmode`, `standardWorkmode`, `beforeDrying`, `beforeGermination`, `germinationChoices`, `restedHumidityBand` (the work mode, below, and ADR 0007; the answer's `control` is read from them), `cameraSecret`, `climateSweptAt`, `placements[] { spaceId, startedAt, endedAt }` (amended 2026-11-12, confirmed by Chris 2026-11-13: "Places, rooms and where a device stood") |
 | `deviceClasses` | `name`, `description`, `concurrentUpdates`, `maxFailures`, `firmwareIds { stable, beta, alpha }`, `rollout { paused, percent }` |
 | `firmwares`, `firmwareBinaries` | `classId`, `name`, `version`, `wasStable` / `firmwareId`, `name`, `data` |
 | `claimCodes` | `code` (unique), `deviceId` (unique) |
@@ -309,7 +309,7 @@ rule that names an output and a threshold nothing would read cannot be written d
   one end alone means "at least" or "under". A derived target such as "runoff EC below input + 20 %" is
   deliberately not expressible and lives in the template's description. Migration 016 spread a stored figure over
   both ends.
-- **A space with members is not deleted.** (Superseded 2026-11-13, awaiting confirmation, by the amendment
+- **A space with members is not deleted.** (Superseded 2026-11-13, confirmed by Chris the same day, by the amendment
   "Places, rooms and where a device stood", point 4: a place ends with every way into it.) `DELETE
   /v1/spaces/{id}` refused while a membership named it, beside
   the device, camera, grow and room it already refuses for, and the refusal says how many people are in it and
@@ -318,7 +318,7 @@ rule that names an output and a threshold nothing would read cannot be written d
   the space's own rows - a membership held on the room above reaches in as well, but it is the room's, and a
   room is already refused while any space is grouped under it, so a shared room is emptied and then meets its
   own members rather than making every tent inside it undeletable. *Amended 2026-11-12
-  (awaiting confirmation):* a client no longer deletes a room at all - the server ends it with its last place, see
+  (confirmed by Chris 2026-11-13):* a client no longer deletes a room at all - the server ends it with its last place, see
   "Places, rooms and where a device stood".
 - **Deleting an account is the other act, and stays possible.** A person cannot be held in an account because
   somebody else is a member of their tent, so `DELETE /me` removes the memberships on the spaces it owns as part
@@ -337,8 +337,7 @@ rule that names an output and a threshold nothing would read cannot be written d
 
 *Amended 2026-11-12 - decided by the redesign session of 2026-11-12 within Chris's brief for the navigation redesign
 ("a place is one air space with one climate; a room is a field of the place; the server keeps a placement history of
-devices and unique names"), and **awaiting his confirmation with the redesign's pull request**. Each numbered point
-can be refused by itself; until he has said yes, none of it is his word.* It answers risk 11 and replaces three
+devices and unique names"), and **confirmed by Chris on 2026-11-13** as written, point by point.* It answers risk 11 and replaces three
 things: a device that knows only where it stands now, names that may repeat, and a room that is made and deleted
 like a place.
 
@@ -488,8 +487,7 @@ like a place.
    - No route is added for removing a place with what stands in it: the app sends each device, camera and grow to the
      destination chosen for it by the routes that exist, and ends the place last.
 
-**Added while clearing up** (the redesign session of 2026-11-13, awaiting Chris's confirmation with the rest; each
-can be refused by itself):
+**Added while clearing up** (the redesign session of 2026-11-13, confirmed by Chris with the rest on 2026-11-13):
 - **An ended place takes nothing, as an ended room does.** An invitation, a member by handle and a share link for
   a place that has ended answer 409 `space_archived`, the code a device put there already got; one helper says
   both kinds (`refuseEnded`). Until then its owner could still let somebody into a place that is on no screen.
@@ -1048,7 +1046,7 @@ and merged as #104; the table of slices that planned it is done and was removed.
 10. **Two new outward-facing surfaces**, Web Push and the Telegram webhook, both off until configured.
 11. **Devices have no placement history** (found 2026-09-22). A device row knows only where it stands now, so
    grow series, the diary and exports miss a device that has since left the tent for the days it stood there.
-   Fixing that needs placement history on devices, as grows have. *Amended 2026-11-12 (awaiting confirmation):*
+   Fixing that needs placement history on devices, as grows have. *Amended 2026-11-12 (confirmed by Chris 2026-11-13):*
    `devices.placements[]` is that history; see "Places, rooms and where a device stood".
 
 ## Alternatives considered
