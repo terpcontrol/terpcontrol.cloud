@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-13
-source: round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -137,6 +137,11 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - Settled on 2026-11-12 (round 6): a claim no longer offers "ein neuer Ort" first to every device. A device asks
     once where it hangs, the place that exists first for a fan, a socket or a lamp
     ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
+  - A round for type and colour, asked for by Chris on 2026-11-13: the app's typography and colours are to look
+    more modern while staying with the brand ([ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)).
+    It comes after the navigation rounds and before the last fix pass. Chris is shown visual proposals first and
+    chooses; nothing of the look is changed before that, and ADR 0002's section on the look is amended with what
+    he chose, in the same commits as `src/theme/tokens.css`.
   - Where rounds 6 and 7 meet, state of 2026-11-13 (the redesign session). Both rounds' fix passes were walked
     together on the session's stack: both lists are built and the server's rules for place and room hold under
     direct attack, with one gap (an ended room still took a share link). No blocker, three majors and ten
