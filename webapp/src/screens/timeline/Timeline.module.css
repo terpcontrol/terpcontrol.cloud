@@ -825,8 +825,10 @@
 /* Two columns once both fit: the panels, and beside them the cursor's card and the diary on a third of a page
    that is wider here than a page of text - a diary line of four to six rows stood beside room nobody used. */
 @media (min-width: 1200px) {
+  /* Wider than a page of text, and never wider than the room beside the margin the shell centres a page by: that
+     margin is a text page's, and 200 px more on top of it ran up to 48 px out of the window. */
   .screen {
-    max-width: calc(var(--page-width) + 200px);
+    max-width: min(calc(var(--page-width) + 200px), calc(100% - max(0px, (100% - var(--page-width)) / 2)));
   }
 
   .stage {
