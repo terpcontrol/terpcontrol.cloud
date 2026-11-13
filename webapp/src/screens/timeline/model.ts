@@ -110,8 +110,8 @@ export interface Strip {
   output: OutputMetric;
   name: string;
   points: StripPoint[];
-  /** What stands beside its name: the share of the time it ran, and for the lamp its stretches by the clock; null where nothing was heard. */
-  said: string | null;
+  /** What stands beside its name, fact by fact: the lamp's stretches by the clock, the share of the time it ran, how hard; null where nothing was heard. */
+  said: string[] | null;
 }
 
 /** What an output did over one drawn point or at one reading: the share of the samples it ran in, and its level in per cent where it has one. */
@@ -147,10 +147,15 @@ export const stripsOf = (t: Translate, data: SpaceTimeline, said: Said = { zone:
       points: [...points].sort(([one], [other]) => one - other).map(([end, [heard, on, level]]) => [end, heard, on, level] as const),
     };
     const share = shareOf(strip);
-    const ran = share === null ? null : t('timeline.lightShare', { share: Math.round(share * 100) });
+    if (share === null) return { ...strip, said: null };
+    const ran = t('timeline.lightShare', { share: Math.round(share * 100) });
     // The spans say only when, for the lamp's stretches by the clock: no figure is taken from a run.
     const runs = lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })));
-    return { ...strip, said: output === 'light' && ran !== null ? lightWords(t, { ...strip, runs }, data, ran, said) : ran };
+    if (output === 'light') return { ...strip, said: lightWords(t, { ...strip, runs }, data, ran, said) };
+    // One driven at a level adds how hard it ran: its mean level over every sample heard, off counting as none.
+    const [heard, level] = strip.points.reduce(([count, sum], point) => [count + point[1], sum + (point[3] ?? 0) * point[1]], [0, 0]);
+    const levelled = strip.points.some(point => point[3] !== null) && share > 0;
+    return { ...strip, said: [ran, ...(levelled ? [t('timeline.meanLevel', { level: Math.round(level / heard) })] : [])] };
   });
 
 /** How far apart two points of a strip may stand and still be one stretch: a step, and four of its own gaps for a device slower than that. */
@@ -161,19 +166,15 @@ const bridgeOf = (points: readonly StripPoint[], stepMs: number): number => {
 };
 
 /**
- * The lamp over the window in a few words: its lit stretches by the clock where the window is read by the clock
- * and they are few, how bright it ran, and the share of its samples it was on in. A stretch is named by the end it
- * has: one the window cuts did not come on at its first minute ("bis 12:00"), and one that ended because the
- * device fell silent - nothing was heard after it, or the reading it runs up to is stale - ended at its last
- * reading, at any second ("06:00 bis letzter Wert 07:53"); "an seit 06:00" is said only of a lamp heard now.
+ * The lamp over the window, fact by fact and in one order at every range: its lit stretches by the clock where they
+ * are few and the window is read by the clock, the share of its samples it was on in, how bright it ran - once,
+ * where every stretch ran alike. A stretch is named by the ends it has: lit through the whole window it is
+ * "durchgehend an" ("an seit" names a switch); cut by the window it did not come on at its first minute ("bis
+ * 12:00"); ended by a silence it ended at the device's last reading ("06:00 bis letzter Wert 07:53") where nothing
+ * was heard since or the reading is stale, and in a gap where the silence is over ("07:03 bis 10:59 · Lücke bis 16:00").
  */
-const lightWords = (
-  t: Translate,
-  light: Pick<Strip, 'points'> & { runs: PlotSpan[] },
-  data: SpaceTimeline,
-  ran: string,
-  { zone, live, quietAt }: Said,
-): string => {
+const lightWords = (t: Translate, light: Pick<Strip, 'points'> & { runs: PlotSpan[] }, data: SpaceTimeline, ran: string, said: Said): string[] => {
+  const { zone, live, quietAt } = said;
   const [from, to, stepMs] = [at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000];
   const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
   // How bright a stretch ran while it was lit: the middle of its points' levels, which a ramp at either end does not move.
@@ -184,33 +185,48 @@ const lightWords = (
   };
   const lit = light.runs.filter(one => one.to > from && one.from < to).sort((one, other) => one.from - other.from);
   if (lit.length === 0 || lit.length > 3 || to - from > BY_CLOCK)
-    return [ran, lit.length > 0 ? levelOf({ from, to }) : null].filter(Boolean).join(' · ');
+    return [ran, lit.length > 0 ? levelOf({ from, to }) : null].flatMap(one => one ?? []);
 
   const bridge = bridgeOf(light.points, stepMs);
-  const stretches = lit.map(one => {
+  const levels = lit.map(levelOf);
+  const alike = levels.every(level => level === levels[0]);
+  const stretches = lit.map((one, index) => {
     const [began, stale] = [one.from > from, quietAt !== null && one.to >= quietAt - stepMs];
     const ended = one.to < to || stale;
     // Heard a step after the stretch ended: the lamp was switched off, by its device or by one that took the place over.
     const after = Math.min(one.to + stepMs, to - 1);
-    const quiet = stale || (ended && !light.points.some(([end]) => end - bridge <= after && after < end)) ? 'Quiet' : '';
+    const quiet = stale || (ended && !light.points.some(([end]) => end - bridge <= after && after < end));
+    // Heard again later: the silence is over, and the stretch ends in a gap rather than on the device's last word.
+    const back = stale ? undefined : light.points.find(([end]) => end - stepMs > one.to);
+    const mark = quiet && !back ? 'Quiet' : '';
     const until = clock(stale ? (quietAt as number) : one.to);
     const when = !ended
-      ? t(live ? 'timeline.lightSince' : 'timeline.lightFrom', { from: clock(began ? one.from : from) })
+      ? began
+        ? t(live ? 'timeline.lightSince' : 'timeline.lightFrom', { from: clock(one.from) })
+        : t('timeline.lightThroughout')
       : began
-        ? t(`timeline.lightSpan${quiet}`, { from: clock(one.from), to: until })
-        : t(`timeline.lightUntil${quiet}`, { to: until });
-    return [when, levelOf(one)].filter(Boolean).join(' · ');
+        ? t(`timeline.lightSpan${mark}`, { from: clock(one.from), to: until })
+        : t(`timeline.lightUntil${mark}`, { to: until });
+    const gap = quiet && back ? t('timeline.lightGap', { to: clock(lit[index + 1]?.from ?? back[0] - stepMs) }) : null;
+    return [when, gap, alike ? null : levels[index]].flatMap(one => one ?? []);
   });
-  return [stretches.join(', '), ran].join(' · ');
+  return [...stretches.flat(), ran, ...(alike && levels[0] ? [levels[0]] : [])];
 };
 
-/**
- * What an output did over the drawn point an instant falls into - a point closes its window, and stands for the
- * step before it - and null where nothing was heard of it there, which is not "off".
- */
+/** The drawn point an instant falls into: a point closes its window, and stands for the step before it. */
+const pointAt = (strip: Pick<Strip, 'points'>, time: number, stepMs: number): StripPoint | undefined =>
+  strip.points.find(([end]) => end - stepMs <= time && time < end) ?? strip.points.findLast(([end]) => end === time);
+
+/** What an output did over that point, and null where nothing was heard of it there, which is not "off". */
 export const figureAt = (strip: Pick<Strip, 'points'>, time: number, stepMs: number): OutputFigure | null => {
-  const point = strip.points.find(([end]) => end - stepMs <= time && time < end) ?? strip.points.findLast(([end]) => end === time);
+  const point = pointAt(strip, time, stepMs);
   return point ? { share: point[2] / point[1], level: point[3] } : null;
+};
+
+/** Where that point began, if it is a single sample of every output: it is then no mean, and stands at its own time. */
+export const sampleAt = (strips: readonly Pick<Strip, 'points'>[], time: number, stepMs: number): number | null => {
+  const found = strips.flatMap(strip => [pointAt(strip, time, stepMs)].filter(point => point !== undefined));
+  return found.length > 0 && found.every(point => point[1] === 1) ? found[0][0] - stepMs : null;
 };
 
 /** The share of its samples an output ran in over the window - of the samples heard, not of the window - or null where none was. */
@@ -295,7 +311,7 @@ const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds
   points.map((point, index) => {
     const [stamp, before] = [at(point.measuredAt), points[index - 1]];
     const cut = before && before.value !== null && point.value !== null && stamp - at(before.measuredAt) < stepSeconds * 1000;
-    const time = cut && stepSeconds > SAMPLE_SECONDS ? (stamp + at(before.measuredAt)) / 2 : stamp - drawnBefore(stepSeconds);
+    const time = cut && stepSeconds > SAMPLE_SECONDS ? Math.round((stamp + at(before.measuredAt)) / 2000) * 1000 : stamp - drawnBefore(stepSeconds);
     return point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
   });
 
@@ -562,31 +578,35 @@ export const restOf = (curves: readonly Curve[], strips: readonly Strip[], to: n
   return readingAt ?? (drawn.length > 0 ? Math.max(...drawn) : heard.length > 0 ? Math.max(...heard) : to);
 };
 
+/** The device's last reading as the cursor reads it: its instant, and what it carries. */
+type Heard = { at: number; values: readonly CardValue[] };
+
 /**
  * What the cursor reads: one point - `at`, null where none stands near - which every figure and every output under
- * one stamp is of: the nearest on any line drawn. A curve without a figure there has null, which the card names
- * with a dash - not, as before, with the figure of another point. On the device's last reading each curve reads
- * its closing point, unless the reading says that value from an older instant. A grow's own measurements are
- * single readings, and are read by their own reach.
+ * one stamp is of: the nearest on any line drawn. A curve with no figure there has none, which the card names with
+ * a dash. On the device's last reading every curve reads what the reading carries of it; a value the reading says
+ * from an instant older than a reading stays fresh says when (`saidAt`). A grow's measurements keep their own reach.
  */
-export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: Curve) => number, readingAt: number | null) => {
+export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: Curve) => number, reading: Heard | null) => {
   const lines = curves.filter(curve => curve.line.shape === 'line');
   const near = lines.flatMap(curve => nearestPoint(curve.points, cursor, reach(curve))?.[0] ?? []);
-  const stood = cursor === readingAt ? readingAt : (near.sort((one, other) => Math.abs(one - cursor) - Math.abs(other - cursor))[0] ?? null);
-  const onReading = stood !== null && (stood === readingAt || lines.some(curve => curve.lastAt === stood));
-  const closing = (curve: Curve) =>
-    onReading && curve.lastAt !== null && Math.abs(curve.lastAt - (stood as number)) < VALUE_AGE.liveSeconds * 1000 ? curve.lastAt : stood;
+  const stood = cursor === reading?.at ? cursor : (near.sort((one, other) => Math.abs(one - cursor) - Math.abs(other - cursor))[0] ?? null);
+  const onReading = stood !== null && (stood === reading?.at || lines.some(curve => curve.lastAt === stood));
 
   return {
     at: stood,
     onReading,
-    points: curves.map(curve => ({
-      curve,
-      point:
-        curve.line.shape === 'line'
-          ? (curve.points.findLast(point => point[0] === closing(curve) && point[1] !== null) ?? null)
-          : nearestPoint(curve.points, cursor, reach(curve)),
-    })),
+    points: curves.map(curve => {
+      const line = curve.line.shape === 'line';
+      const said = onReading && line ? reading?.values.find(value => value.metric === curve.key && value.value !== null) : undefined;
+      const saidAt = said?.measuredAt ? at(said.measuredAt) : null;
+      const where = onReading && curve.lastAt !== null ? curve.lastAt : stood;
+      const point = line
+        ? (curve.points.findLast(one => one[0] === where && one[1] !== null) ?? null)
+        : nearestPoint(curve.points, cursor, reach(curve));
+      const old = saidAt !== null && reading !== null && reading.at - saidAt > VALUE_AGE.liveSeconds * 1000;
+      return { curve, point, value: said?.value ?? point?.[1] ?? null, saidAt: old ? saidAt : null };
+    }),
   };
 };
 

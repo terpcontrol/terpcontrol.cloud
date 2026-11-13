@@ -21,7 +21,7 @@ interface PanelProps {
   panel: PanelModel;
   cursor: number;
   /** What the cursor reads of each curve: the page reads it once, for the card and for every head. */
-  read: { curve: PanelModel['curves'][number]; point: PlotPoint | null }[];
+  read: { curve: PanelModel['curves'][number]; point: PlotPoint | null; value: number | null }[];
   /** Both ends of the window as the axis writes them. */
   ends: readonly [string, string];
   /** What the cursor is called to a screen reader: its instant. */
@@ -120,14 +120,14 @@ export function Panel({
               />
             </span>
             <strong className={styles.panelValue}>
-              {read[0].point ? `${first.written(read[0].point[1] as number)}\u00a0${first.unit}`.trim() : '—'}
+              {read[0].value === null ? '—' : `${first.written(read[0].value)}\u00a0${first.unit}`.trim()}
             </strong>
           </>
         ) : (
           <h2 className={styles.panelMany}>
-            {read.map(({ curve, point }) => (
+            {read.map(({ curve, value }) => (
               <span key={curve.key} data-colour={curve.colour}>
-                {curve.name} <strong>{point ? `${curve.written(point[1] as number)}\u00a0${curve.unit}`.trim() : '—'}</strong>
+                {curve.name} <strong>{value === null ? '—' : `${curve.written(value)}\u00a0${curve.unit}`.trim()}</strong>
               </span>
             ))}
           </h2>

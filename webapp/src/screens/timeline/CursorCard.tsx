@@ -75,7 +75,7 @@ export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting,
             </button>
           ) : null}
         </span>
-        <strong className={styles.cursorValues}>{readings.length > 0 ? <Facts facts={readings} /> : '—'}</strong>
+        {readings.length > 0 ? <strong className={styles.cursorValues}>{<Facts facts={readings} />}</strong> : null}
         {outputs.length > 0 ? <Facts className={styles.cursorOutputs} facts={outputs} /> : null}
       </div>
       <div className={styles.zoom} role="group" aria-label={t('timeline.zoomLabel')}>

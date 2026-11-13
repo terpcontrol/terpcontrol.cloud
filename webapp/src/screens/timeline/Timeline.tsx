@@ -48,6 +48,7 @@ import {
   reachOf,
   readAt,
   restOf,
+  sampleAt,
   SAMPLE_SECONDS,
   shownOf,
   stripsOf,
@@ -408,8 +409,17 @@ function Screen({
   const stepMs = Math.max(data?.stepSeconds ?? 0, 1) * 1000;
   const curves = model?.panels.flatMap(panel => panel.curves) ?? [];
   const rest = model && window ? restOf(curves, model.strips, window.to, stepMs, lastHeard) : (window?.to ?? clock);
-  const cursor = window ? Math.min(window.to, Math.max(window.from, scrubbed ?? view.at ?? rest)) : rest;
+  // Rest is the reading's instant, which in a window that reaches now is up to a beat past its end: only a cursor
+  // somebody set is held inside the window - clamped there, a zoom's card read a point's mean as "letzter Wert".
+  const set = scrubbed ?? view.at;
+  const cursor = window && set !== null ? Math.min(window.to, Math.max(window.from, set)) : rest;
   const toTime = (fraction: number) => (window ? window.from + fraction * (window.to - window.from) : clock);
+
+  // Another window or another cursor in the address: what was scrubbed gives way to it.
+  const go = (over: Partial<View> | null) => {
+    setScrubbed(null);
+    if (over) change(over);
+  };
 
   const gestures = useScrub({
     onCursor: fraction => setScrubbed(toTime(fraction)),
@@ -419,10 +429,7 @@ function Screen({
       change({ at: toTime(fraction) });
     },
     onLeave: () => setScrubbed(null),
-    onZoom: (selection: Selection) => {
-      setScrubbed(null);
-      if (window) change(selected(window, selection, view.at, clock));
-    },
+    onZoom: (selection: Selection) => go(window ? selected(window, selection, view.at, clock) : null),
   });
 
   // The window the address names, which a second tap steps on from before the first one's answer is back; a grow's
@@ -430,15 +437,8 @@ function Screen({
   const named = asked ?? (window ? { ...window, live } : null);
   // Today up to now is stepped as the day it is: back to the whole of yesterday.
   const whole = named && view.fixed && named.live ? { ...view.fixed, live: true } : named;
-  const zoom = (direction: -1 | 1, around: number | null = view.at) => {
-    const next = named ? zoomed(named, view.at, direction, clock, around) : null;
-    setScrubbed(null);
-    if (next) change(next);
-  };
-  const step = (direction: -1 | 1) => {
-    setScrubbed(null);
-    if (whole) change(stepped(whole, direction, clock));
-  };
+  const zoom = (direction: -1 | 1, around: number | null = view.at) => go(named ? zoomed(named, view.at, direction, clock, around) : null);
+  const step = (direction: -1 | 1) => go(whole ? stepped(whole, direction, clock) : null);
   const width = named ? named.to - named.from : 0;
   const growId = view.growId ?? data?.growId ?? null;
   const chip = chipOf(view, asked);
@@ -496,10 +496,7 @@ function Screen({
             type="button"
             className={styles.range}
             aria-pressed={range === chip}
-            onClick={() => {
-              setScrubbed(null);
-              change({ range, fixed: null, last: null, at: null, growId: rangeNeedsGrow(range) ? growId : null });
-            }}
+            onClick={() => go({ range, fixed: null, last: null, at: null, growId: rangeNeedsGrow(range) ? growId : null })}
           >
             {t(`timeline.range.${range}`)}
           </button>
@@ -531,14 +528,7 @@ function Screen({
         </button>
         {/* The marked way back, wherever the arrows and the zoom led. */}
         {named && !named.live ? (
-          <button
-            type="button"
-            className={styles.toNow}
-            onClick={() => {
-              setScrubbed(null);
-              change(toNow(named, clock));
-            }}
-          >
+          <button type="button" className={styles.toNow} onClick={() => go(toNow(named, clock))}>
             {t('timeline.toNow')}
           </button>
         ) : null}
@@ -547,18 +537,22 @@ function Screen({
     </header>
   );
 
+  const notice = (said: string) => (
+    <div className={styles.failed} role="alert">
+      <p className={ui.problem}>{said}</p>
+      <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
+        {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
+      </button>
+    </div>
+  );
+
   if (!data || !model || !window) {
     return (
       <div className={styles.screen}>
         {head}
         {failed ? (
           // Nothing was ever drawn here: one sentence - whether the server answered or there is no connection - and the way to ask again.
-          <div className={styles.failed} role="alert">
-            <p className={ui.problem}>{refusalText(refusal)}</p>
-            <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
-              {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
-            </button>
-          </div>
+          notice(refusalText(refusal))
         ) : (
           <>
             <Waiting lines={2} />
@@ -572,17 +566,20 @@ function Screen({
 
   const { shown, panels, rest: loose, strips } = model;
   // One point under the cursor, for the card and for every head: its figures, its outputs, its stamp (`readAt`).
-  const { at: stood, onReading, points: read } = readAt(curves, cursor, curve => reachOf(data, curve), lastHeard);
+  const heardAs = reading && lastHeard !== null ? { at: lastHeard, values: reading.values } : null;
+  const { at: stood, onReading, points: read } = readAt(curves, cursor, curve => reachOf(data, curve), heardAs);
   const resting = scrubbed === null && view.at === null;
+  // A point of one sample - a device slower than the step - is no mean: it is stamped where its sample was written.
+  const sample = stood === null || onReading ? null : sampleAt(strips, stood, stepMs);
   // The reading is said as what it is, with its own time; so is whatever else a live window rests on. A point of a
   // wider step is the mean of its window, and says over which.
   const stamp = onReading
     ? t(fresh ? 'timeline.nowAt' : 'timeline.lastValue', { time: cursorStamp(lastHeard ?? cursor, window, 60, zone) })
     : resting && live
       ? t('timeline.lastValue', { time: cursorStamp(cursor, window, 60, zone) })
-      : stood !== null && data.stepSeconds > SAMPLE_SECONDS
+      : stood !== null && data.stepSeconds > SAMPLE_SECONDS && sample === null
         ? meanStamp(t, stood, window, data.stepSeconds, zone)
-        : cursorStamp(stood ?? cursor, window, data.stepSeconds, zone);
+        : cursorStamp(sample ?? stood ?? cursor, window, data.stepSeconds, zone);
   // The room beside every plot is as wide as the longest figure of any scale: the plots share one time axis.
   const gutter =
     Math.max(4, ...curves.flatMap(curve => [curve.corner(curve.line.scale.low).length, curve.corner(curve.line.scale.high).length])) * 6.5 + 12;
@@ -598,16 +595,24 @@ function Screen({
   const ends = axisEnds(t, window, live, zone);
   const nothing = data.panels.length === 0 && data.outputs.length === 0;
   const light = loose.find(strip => strip.output === 'light') ?? null;
-  const setCursor = (time: number) => {
-    setScrubbed(null);
-    change({ at: Math.min(window.to, Math.max(window.from, time)) });
+  const setCursor = (time: number) => go({ at: Math.min(window.to, Math.max(window.from, time)) });
+  const firstDay = zonedAt(window.from, zone).toFormat('yyyy-MM-dd');
+  const saveCsv = () => {
+    const closing = curves.find(curve => curve.lastAt !== null)?.lastAt ?? null;
+    const text = csvFor(t, panels, ticked, stepMs, closing, said, zone, decimalMark() === ',');
+    saveFile(new Blob([text], { type: 'text/csv;charset=utf-8' }), `${slug(data.name) || 'verlauf'}-${firstDay}.csv`);
   };
 
   const cursorCard = (
     <CursorCard
       stamp={stamp}
-      readings={read.map(({ curve, point }) =>
-        [shared.has(curve.unit) ? curve.name : null, point ? `${curve.written(point[1] as number)}\u00a0${curve.unit}`.trim() : '—']
+      // A dash is never without its name, and a value the reading says from an older instant says when.
+      readings={read.map(({ curve, value, saidAt }) =>
+        [
+          shared.has(curve.unit) || value === null || saidAt !== null ? curve.name : null,
+          value === null ? '—' : `${curve.written(value)}\u00a0${curve.unit}`.trim(),
+          saidAt === null ? null : `· ${cursorStamp(saidAt, window, 60, zone)}`,
+        ]
           .filter(Boolean)
           .join(' '),
       )}
@@ -646,14 +651,7 @@ function Screen({
       {head}
       {failed ? (
         // The picture is the window before: this one would not load, for the reason said, and can be asked for again.
-        <div className={styles.failed} role="alert">
-          <p className={ui.problem}>
-            {t('timeline.windowFailed')} {refusalText(refusal)}
-          </p>
-          <button type="button" className={ui.button} disabled={timeline.isFetching} onClick={() => void timeline.refetch()}>
-            {t(timeline.isFetching ? 'timeline.retrying' : 'home.retry')}
-          </button>
-        </div>
+        notice(`${t('timeline.windowFailed')} ${refusalText(refusal)}`)
       ) : (
         <RefreshFailed failedAt={timeline.isError ? timeline.dataUpdatedAt : null} now={now} />
       )}
@@ -752,19 +750,11 @@ function Screen({
               : null
           }
           day={{
-            shown: zonedAt(window.from, zone).toFormat('yyyy-MM-dd'),
+            shown: firstDay,
             last: zonedAt(clock, zone).toFormat('yyyy-MM-dd'),
-            jump: day => {
-              // That day of the calendar; today's is shown up to now.
-              setScrubbed(null);
-              change({
-                range: '24h',
-                growId: null,
-                fixed: dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone),
-                last: null,
-                at: null,
-              });
-            },
+            // That day of the calendar; today's is shown up to now.
+            jump: day =>
+              go({ range: '24h', growId: null, fixed: dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone), last: null, at: null }),
           }}
           onShare={
             own?.sharing
@@ -774,29 +764,7 @@ function Screen({
                 }
               : null
           }
-          onCsv={
-            curves.length + strips.length > 0
-              ? () =>
-                  saveFile(
-                    new Blob(
-                      [
-                        csvFor(
-                          t,
-                          panels,
-                          ticked,
-                          stepMs,
-                          curves.find(curve => curve.lastAt !== null)?.lastAt ?? null,
-                          said,
-                          zone,
-                          decimalMark() === ',',
-                        ),
-                      ],
-                      { type: 'text/csv;charset=utf-8' },
-                    ),
-                    `${slug(data.name) || 'verlauf'}-${zonedAt(window.from, zone).toFormat('yyyy-MM-dd')}.csv`,
-                  )
-              : null
-          }
+          onCsv={curves.length + strips.length > 0 ? saveCsv : null}
           onClose={() => setAdjusting(false)}
         />
       ) : null}

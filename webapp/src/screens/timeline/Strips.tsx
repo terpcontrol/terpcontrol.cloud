@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Facts } from '@/ui/Facts';
 import { blocksOf, type Strip } from './model';
 import { fractionOf } from './window';
 import styles from './Timeline.module.css';
@@ -35,7 +36,7 @@ export function Strips({ strips, from, to, stepMs, cursor, focus = null }: Strip
           data-levelled={strip.points.some(point => point[3] !== null) || undefined}
           data-focus={strip.output === focus || undefined}
         >
-          <span className={styles.stripName}>{[strip.name, strip.said ?? t('timeline.stripUnheard')].join(' · ')}</span>
+          <Facts className={styles.stripName} facts={[strip.name, ...(strip.said ?? [t('timeline.stripUnheard')])]} />
           <span className={styles.stripTrack}>
             <svg viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden>
               {blocksOf(strip, from, to, stepMs).map(block => {

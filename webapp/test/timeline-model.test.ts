@@ -14,6 +14,7 @@ import {
   panelsOf,
   readAt,
   restOf,
+  sampleAt,
   shareOf,
   shownOf,
   stripsOf,
@@ -514,7 +515,7 @@ describe('the cursor', () => {
     const curves = drawn(sparse, ['temperature', 'leafTemperature']).panels.flatMap(panel => panel.curves);
     const reach = () => 1.5 * HOUR;
     const figures = (cursor: number, readingAt: number | null = null) => {
-      const read = readAt(curves, cursor, reach, readingAt);
+      const read = readAt(curves, cursor, reach, readingAt === null ? null : { at: readingAt, values: [] });
       return [read.at === null ? null : (read.at - FROM) / HOUR, ...read.points.map(one => one.point?.[1] ?? null)];
     };
 
@@ -527,7 +528,38 @@ describe('the cursor', () => {
     // Nothing near: nothing is read.
     expect(readAt(curves.slice(0, 1), FROM + 14.5 * HOUR, reach, null)).toMatchObject({ at: null, onReading: false });
     // At rest on a reading no curve is ticked for, the reading is still what is read.
-    expect(readAt([], FROM + 23.9 * HOUR, reach, FROM + 23.9 * HOUR)).toEqual({ at: FROM + 23.9 * HOUR, onReading: true, points: [] });
+    expect(readAt([], FROM + 23.9 * HOUR, reach, { at: FROM + 23.9 * HOUR, values: [] })).toEqual({
+      at: FROM + 23.9 * HOUR,
+      onReading: true,
+      points: [],
+    });
+  });
+
+  it('stamps a point of one sample with where that sample was written, and a mean as a mean', () => {
+    // A device every thirty seconds, drawn at ten: one sample to the point.
+    const single = { points: [[FROM + 40_000, 1, 1, 75] as const, [FROM + 70_000, 1, 1, 75] as const] };
+    expect(sampleAt([single], FROM + 35_000, 10_000)).toBe(FROM + 30_000);
+    // Several samples to the point, of any output: a mean. And nothing where no point stands.
+    expect(sampleAt([single, { points: [[FROM + 40_000, 2, 0, null] as const] }], FROM + 35_000, 10_000)).toBeNull();
+    expect(sampleAt([single], FROM + 55_000, 10_000)).toBeNull();
+  });
+
+  it('stands a window cut short at a whole second', () => {
+    const cut = answer({
+      stepSeconds: 180,
+      panels: [
+        {
+          metric: 'temperature',
+          points: [
+            { measuredAt: at(1), value: 24 },
+            { measuredAt: new Date(FROM + HOUR + 37_000).toISOString(), value: 24.2 },
+          ],
+          targets: [],
+        },
+      ],
+    });
+    // Thirty-seven seconds of a window of three minutes: its middle is 18.5 s in, written as 19.
+    expect(drawn(cut, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + HOUR + 19_000);
   });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
