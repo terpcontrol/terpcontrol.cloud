@@ -120,8 +120,7 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     copy, [data-operations.md](knowledge/data-operations.md#migrations-in-operation)); "Ort bearbeiten" and "Ort
     entfernen" as pages, the question where a device hangs, the claim outside the bar, "von @…" for a guest.
     The critic's walk (2026-11-12) found one blocker and seven majors. What the redesign session decided about
-    them - not Chris's word - is built (2026-11-13), the server's part seen in tests, the pages on the session's
-    stack; a second walk has not looked yet:
+    them - not Chris's word - is built (2026-11-13) and was walked a second time on the session's stack:
       - A device stands only in a place of its owner: the server refuses a move or a claim into anybody else's
         place (409 `place_of_another_account`), and the app offers a move, and "+ Gerät hierher holen", only to
         the device's and the place's owner. (A guest who may manage could take the owner's fan into a place of
@@ -144,8 +143,21 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
         `/timeline?device=<id>` is about that device and the chosen place follows.
       - At 320 px nothing leaves its card, and what a finger is offered is 44 px high, on the pages the walk
         named.
-      Not built: the trifle "120×120 everywhere" - nothing in the app, its catalogues or the demo data writes a
-      size; the only "120x120" is in a place name the walk typed.
+      The second walk (2026-11-13) found no blocker, one major and a dozen minors; decided by the redesign
+      session, not built yet, and not Chris's word:
+      - "Ort entfernen" names everybody who loses sight - a guest of the place, and the room with its members
+        where the place is its room's last - in the one confirmation, and the removal ends their access. Guests
+        no longer block a removal; today a direct guest does and a room's member is ended without a word.
+      - A joining device is claimed in one write that carries its place (today: claim, move, remove the place
+        the claim made - a failure of the second or third is silent and leaves a stray place). The step count
+        is said only once the place question is answered.
+      - The server refuses an ended room as a place's room and as an invitation's target, and keeps to the
+        owner what the app already keeps to the owner: taking a device out of a place, and a place's room. (A
+        guest who may manage can do both through the API today.)
+      - Every write answers: undoing a device move, and "Zurückziehen" of an invitation link.
+      - No sentence glues a preposition to a place's name ("Was wächst in Zelt?"), no scrap of an id stands
+        beside a kind, a camera is called by its own name, and a place's ⋯ on Start offers "Gerät hinzufügen".
+      - After a refusal half-way the remove page reads its data again before it says what is still here.
     Left for Chris, each with what is built meanwhile:
       1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
          that a stay under five minutes leaves no trace, and that a device's first placement is read back past its
