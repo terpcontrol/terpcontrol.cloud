@@ -256,6 +256,16 @@ describe('where the bubble stands', () => {
     expect(at.side).toBe('below');
     expect(at.room).toBeLessThan(tall.height);
   });
+
+  it('cuts a bubble that scrolls between two lines of its text, and leaves one that fits as it is', () => {
+    const anchor = { top: 515, bottom: 535, left: 100, right: 120 };
+    const lines = { top: 43, height: 21 };
+    // 499 px above the button: the text begins 43 px down, so twenty-one whole lines are 484.
+    const cut = placeBubble(anchor, { width: 288, height: 640 }, { width: 320, height: 760 }, lines);
+    expect(cut).toMatchObject({ side: 'above', room: 484, top: 515 - 8 - 484 });
+    expect((cut.room - lines.top) % lines.height).toBe(0);
+    expect(placeBubble(anchor, { width: 288, height: 300 }, { width: 320, height: 760 }, lines).room).toBe(499);
+  });
 });
 
 /** Every `advanced.<name>` topic the source opens, which is how an Erweitert item names its own explanations. */

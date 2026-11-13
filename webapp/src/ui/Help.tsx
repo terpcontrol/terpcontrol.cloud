@@ -106,7 +106,10 @@ function useExplanation(topic: HelpTopic) {
       if (button.bottom < 0 || button.top > window.innerHeight) return false;
       const anchor = anchorOf(button, trigger.current?.parentElement?.getBoundingClientRect() ?? null);
       const height = box.offsetHeight - content.clientHeight + content.scrollHeight;
-      const at = placeBubble(anchor, { width: box.offsetWidth, height }, { width: window.innerWidth, height: window.innerHeight });
+      // Where the text begins under the bubble's top, and how high one of its lines is.
+      const top = (content.lastElementChild?.getBoundingClientRect().top ?? 0) - box.getBoundingClientRect().top + content.scrollTop;
+      const lines = { top, height: parseFloat(getComputedStyle(content).lineHeight) };
+      const at = placeBubble(anchor, { width: box.offsetWidth, height }, { width: window.innerWidth, height: window.innerHeight }, lines);
       box.style.top = `${at.top}px`;
       box.style.left = `${at.left}px`;
       box.style.setProperty('--room', `${at.room}px`);

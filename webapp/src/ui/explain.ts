@@ -176,6 +176,8 @@ const ARROW_INSET = 14;
 
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), Math.max(low, high));
 
+type Size = { width: number; height: number };
+
 /**
  * Where an explanation stands: above the line it explains when there is room,
  * below it when there is not, and on whichever side has more room when
@@ -183,12 +185,15 @@ const clamp = (value: number, low: number, high: number) => Math.min(Math.max(va
  * under its label would hide the control it is about. It never overlaps the
  * line it was opened from and is kept inside the window's gutters, its arrow
  * still pointing at the trigger when the bubble has had to slide.
+ * One too tall for its side scrolls inside itself, cut between two lines of its text and not through one
+ * (`lines`: where the text begins under the bubble's top, and a line's height).
  */
-export function placeBubble(anchor: Box, size: { width: number; height: number }, view: { width: number; height: number }): Placement {
+export function placeBubble(anchor: Box, size: Size, view: Size, lines: { top: number; height: number } | null = null): Placement {
   const above = anchor.top - GAP - EDGE_Y;
   const below = view.height - anchor.bottom - GAP - EDGE_Y;
   const side = size.height <= above ? 'above' : size.height <= below ? 'below' : above > below ? 'above' : 'below';
-  const room = Math.max(0, side === 'above' ? above : below);
+  const most = Math.max(0, side === 'above' ? above : below);
+  const room = size.height > most && lines && lines.height > 0 && most > lines.top ? most - ((most - lines.top) % lines.height) : most;
   const height = Math.min(size.height, room);
   const centre = (anchor.left + anchor.right) / 2;
   const left = clamp(centre - size.width / 2, EDGE_X, view.width - EDGE_X - size.width);
