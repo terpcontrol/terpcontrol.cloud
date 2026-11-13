@@ -153,8 +153,13 @@ Pitfalls, each met at least once:
   fifteen minutes - so five it is. A lamp switches inside two such grains a day. The switchings are no longer
   read for the deficit at all. A day kept as its mean has that mean to go by. PPFD is one reading times a
   factor, so its extremes are the reading's.
-- **A reading's VPD uses a leaf temperature only if that reading carries one** - a sample's own, a grain's own
-  mean - and `live()` takes the leaf only where it was written with the newest temperature: a leaf sensor that
+- **Beyond three days every step is a whole number of grains** (`stepFor`, `timeline-window.ts`; the redesign
+  session of 2026-11-13 after the third walk): a point of 541 s held one grain or two and was off by up to
+  0.09 kPa from the mean of what it drew. An automatic step is rounded up to the grain and one asked finer is
+  widened to it, so the deficit is one computation on every such window.
+- **A reading's VPD uses a leaf temperature only if that reading carries one** - a sample's own, and a grain's
+  mean only where the grain held at least half as many leaf readings as air readings (`coveredGrains`; the
+  count is a second yield of `grainsQuery` and costs 4 ms on a month and 26 ms on 120 days, 149 to 175 ms) - and `live()` takes the leaf only where it was written with the newest temperature: a leaf sensor that
   was taken out is still the newest of its field for a month and bent "now".
 - **Building Flux:** queries are strings, so only values passing `SAFE_NAME`/`FIELD_NAME` and instants from a `Date` are
   interpolated, never request input (Chris, 2026-08-25; [server.md](server.md#security-decisions)).

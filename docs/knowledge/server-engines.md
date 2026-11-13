@@ -150,7 +150,12 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   null to a reader from outside). The lanes are that device's and those of whatever else in the place is no
   climate of its own - a socket, a lamp, a fan (`actingOn`): another climate's compressor does not act on this
   one's air. A window without curves is dated by the last reading of the device its curves are of
-  (`lastReadingAt`), not of whichever device of the place spoke last. Every panel carries a line and its lowest
+  (`lastReadingAt`), not of whichever device of the place spoke last. The answer carries that device's last
+  reading whole (`reading`: its values, their instant, each output on or off with its level in per cent) while
+  it stands in the place, so "now" is the same figures for the owner, a member and a link's reader and no
+  screen asks `/live` beside it. The lamp's nights are read from each device over its own stay
+  (`lampNightsOf`), as the curves are, and a lane says for how long its device was heard (`heardSeconds`),
+  which is what "on x % of the time" is a share of (the redesign session of 2026-11-13). Every panel carries a line and its lowest
   and highest at every range; of VPD beyond three
   days they are those of means over five minutes ([data.md](data.md#influxdb)), which the help says once.
 - **The state a window is found in holds from the window's start.** The switchings read stamps its opening

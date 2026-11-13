@@ -136,9 +136,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `labels.ts` says when; `window.ts` holds the bands by day and night and the picture of a moment. One read
   answers the page, `GET /v1/spaces/{id}/timeline` (`useTimeline`, `src/api/timeline.ts`), asked for every panel a
   place can have so the sheet offers a tick only for what is there; a second one of the same route is what is
-  laid over, and a grow's own measurements come from `useMeasurementSeries`. What the place reads now comes from
-  `useSpaceLive`, the read Start lays over its readings, under the same key: `panelsOf` closes each curve of a window that ends
-  now with that reading, which is what "jetzt" is and why it agrees with Start. A read that fails for a new
+  laid over, and a grow's own measurements come from `useMeasurementSeries`. What the place reads now comes with
+  the answer (`reading`), so the page asks no `/live`: `panelsOf` closes each curve of a window that holds that
+  reading with it, which is what "jetzt" is, for a share link's reader as for the owner. The cursor is the
+  address's `at` and nothing else: only while it is dragged, and from being set down until the address has
+  followed, is it held in state, which every change of `at` clears. A read that fails for a new
   window leaves `data` empty in TanStack Query - `keepPreviousData` holds only while pending - and, asked
   again, goes back to "pending" with no error; so `usePage` keeps the last answer and which window was refused
   with what itself, and hands them on as `failed` and `refusal` until a read succeeds. What an address names

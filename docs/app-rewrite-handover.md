@@ -84,17 +84,26 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     part, because one rhythm is taken for the whole window (`silenceOf`, `timeline-series.ts`).
     The third walk (2026-11-13) checked VPD against the raw samples of a 120-day tent: no line outside its
     envelope on any range, the same climate reads the same from July to November, and the whole read costs what
-    it did (about 0.9 s for 120 days). It left one major and eleven minors; decided by the redesign session, not
-    built yet, and not Chris's word:
+    it did (about 0.9 s for 120 days). It left one major and eleven minors; what the redesign session decided
+    about them - not Chris's word - is built (2026-11-13), the server's part seen in tests only until the
+    stack is rebuilt:
       - No `at` in the address means the card rests on "jetzt"; a cursor is what the address says and nothing
         else remembers it. (Tapping "Verlauf" in the bar with a cursor set blanked a live tent's card.)
       - Beyond three days every step is a whole number of five minutes, so a point holds whole grains; no finer
-        step is offered there, and VPD's head says its "Tief · Hoch" are of five-minute means. Temperature and
+        step is offered there, and VPD's head says its "Tief · Hoch" are "aus 5-Min-Mitteln". Temperature and
         humidity keep the samples' extremes on every range.
-      - A grain uses a leaf temperature only where leaf readings cover it as the air readings do.
+      - A grain uses a leaf temperature only where leaf readings cover it as the air readings do; the count
+        costs 26 ms on the 120-day read (149 to 175 ms for the grains).
       - A night belongs to the device that stood there: the lamp is read from each device over its own stay.
       - The table is one row per drawn point with each output's mean level; "x % der Zeit an" is of the time
-        the device reported; at rest every reader, a share link's too, sees the last reading's figures.
+        the device reported; the answer carries the drawn device's last reading (`reading`), so at rest every
+        reader, a share link's too, sees the same figures and output levels, and the page asks no `/live`.
+      - The arrows are named as a person says it; two rules of one title are told apart whatever group each
+        is in; an unknown grow is asked once; the device-change line of a grow's diary leads to Verlauf.
+    Not built of that walk: a curve of few points as a line with its points, the help on the band at 320 and
+    390, the English head at 390 and "last logged", and an unknown `space=` corrected in the address. The two
+    older series routes (`/spaces/{id}/series`, a grow's) still bound a device by its stay without the
+    hand-over cut Verlauf makes (`fromHandover`): they are assembled apart and nothing of the web app asks them.
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.

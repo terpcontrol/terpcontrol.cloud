@@ -940,6 +940,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
   takes a second; no row scrolls. No chip is lit for a range the page is not showing.
 - **The cursor keeps its instant through a zoom**, and its place on the screen. Resting at the end of a window
   that follows now, a zoom stays at now; in a window that stands still with no cursor set, it keeps the middle.
+  **The cursor is what the address says and nothing else remembers it** (after the third walk): with no `at`
+  the card rests on "jetzt" - "Verlauf" in the bar leaves no cursor behind - or, on a tent gone quiet, on its
+  last reading, also in a window a pinch left standing over it.
   A drag with the mouse marks the stretch to zoom into, two fingers pinch to it, and Ctrl with the wheel - a
   trackpad's pinch - zooms around the pointer; the wheel alone is the page's. There is no free panning - the
   old Ctrl-drag, a two-finger pan: steps by the window, drag-select and pinch stand in (kept after the walk; a
@@ -969,7 +972,8 @@ page the same day ("after the walk" below) - none of those is Chris's.
   cursor's card, "Tief" and "Hoch", the table - as the picture has it and the sensor delivers it ("Hoch 75"
   stood over a highest sample of 74,6), while Start's tile rounds the same reading to whole per cent. The first
   fix pass had made it whole and asked Chris; the session's word stands until he says otherwise. "Jetzt" is the
-  device's last reading, the one Start and Steuerung show (`useSpaceLive`), drawn as the curve's last point on
+  device's last reading, which the answer carries for every reader alike (`reading`; a share link's reader sees
+  the same figures and output levels), drawn as the curve's last point on
   every range - not the mean of a month's last hour and a half - and only while the device reports: silent by
   the offline rule, the head and the card read "letzter Wert · 16:17", the band, the night and the lamp's strip
   end there, on 30 Tage as on 24 Std. The mean of the window that reading fell into gives way to it, whichever
@@ -979,7 +983,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   of single samples up to three days and of means over five minutes beyond, which the help on VPD and on the
   band says in one sentence; every range has a line, an envelope and "Tief · Hoch", and a point is the mean of
   what it was worked out from, so the line does not leave its envelope (after the second walk, which found a
-  bow-tie over a grow and a "Mittel … bis …" where the first fix had stopped at three days).
+  bow-tie over a grow and a "Mittel … bis …" where the first fix had stopped at three days). Beyond three days
+  the head says beside VPD's figures what they are of ("aus 5-Min-Mitteln"), every step is a whole number of
+  five minutes and "Abstand der Punkte" offers none finer; temperature and humidity keep the samples' extremes
+  on every range, where the door open for 40 s shows (after the third walk).
 - **A place with several climates draws one**: its own, the device Steuerung leads with, and the head names it
   in a choice that leads to another; no curve is a mean of two devices, and the strips under it are its own
   outputs and those of what is no climate itself (after the walk).
@@ -1014,8 +1021,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   on its page **Messwerte**, with or without a place (after the walk): one small curve per measurement switched
   on, over the grow, from the read that page already has, drawn by Verlauf's plot (`measurementCurve`,
   `plotOption`); the words there no longer promise "Graphen", and neither does any other screen.
-- **The table holds every curve drawn** with the lowest and highest of each window beside its mean, and every
-  output as the state it held - one with a level in per cent ("Licht (%)") -, at the step on screen: with
+- **The table is one row per drawn point**: every curve with the lowest and highest of its window beside its
+  mean, and every output as how hard it ran over that window in per cent ("Licht (%)"; one that only switches
+  as the share of the window it was on) - a switching adds no row, and nothing after the last reading says 0
+  for an output nobody measured (after the third walk) -, at the step on screen: with
   semicolons and decimal commas where the reader's figures have commas, a byte-order mark, one number of
   decimals to a column, no row in which nothing is said, and a deficit's column named as worked out.
 - **The diary of the window is told as the diary tells it** (`DiaryLine`): oldest first, as the curves run, a run
