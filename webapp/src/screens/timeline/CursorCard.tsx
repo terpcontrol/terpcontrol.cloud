@@ -32,9 +32,8 @@ interface CursorCardProps {
 }
 
 /**
- * What was true at the cursor, in a place that stays put - a tooltip under a
- * thumb cannot be read: the camera's picture of that moment, the instant, a
- * figure per curve and what the outputs did.
+ * What was true at the cursor, in a place that stays put - a tooltip under a thumb cannot be read: the camera's
+ * picture of that moment, the instant, a figure per curve and what the outputs did.
  */
 export function CursorCard({ stamp, readings, outputs, cameras, cursor, resting, onCursor, picture = mediaUrl, linked, zoom }: CursorCardProps) {
   const { t } = useTranslation();

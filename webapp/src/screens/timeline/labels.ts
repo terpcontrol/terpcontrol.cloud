@@ -7,9 +7,8 @@ import { BY_CLOCK, dayLabel } from '@/charts/ticks';
 import type { Span } from './view';
 
 /**
- * How Verlauf says when: the window between the arrows, the instant of the
- * cursor, a line's stamp and the two ends of the axis - each as short as the
- * width of the window lets it be and still say which moment it is.
+ * How Verlauf says when: the window between the arrows, the instant of the cursor, a line's stamp and the two ends of
+ * the axis - each as short as the width of the window lets it be and still say which moment it is.
  */
 
 const BY_WEEKDAY = 10 * DAY_MS;

@@ -44,11 +44,9 @@ interface PanelProps {
 }
 
 /**
- * One panel: the curve with the stretch between its windows' lowest and
- * highest behind it, the band that was aimed at, the night, and under it the
- * outputs that act on it. Its head states the numbers - the low and the high
- * of the window, and the reading at the cursor - because a plot without one is
- * a shape.
+ * One panel: the curve with the stretch between its windows' lowest and highest behind it, the band that was aimed
+ * at, the night, and under it the outputs that act on it. Its head states the numbers - the low and the high of the
+ * window, and the reading at the cursor - because a plot without one is a shape.
  */
 export function Panel({
   panel,

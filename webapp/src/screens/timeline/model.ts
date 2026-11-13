@@ -22,10 +22,9 @@ import { GRAINED_FROM_MS, grainMinutes, type VpdHalf } from './view';
 import { alarmsOf, at, spans, stretchesOf } from './window';
 
 /**
- * What one answer comes to on the page: which curves the place has, which of
- * them are ticked, and each panel as the plot, the figures and the strips it
- * is drawn from. All of it is arithmetic on the answer, so the screen holds
- * only the view and hands the rest here.
+ * What one answer comes to on the page: which curves the place has, which of them are ticked, and each panel as the
+ * plot, the figures and the strips it is drawn from. All of it is arithmetic on the answer, so the screen holds only
+ * the view and hands the rest here.
  */
 
 /** The curves a page opens on where nobody chose: what a grower reads first. */
@@ -477,9 +476,8 @@ interface PanelsInput {
 }
 
 /**
- * The panels in the order they stack, each with the strips of the outputs that
- * act on it. `rest` is what acts on none of the curves drawn: the light, the
- * fans, a socket's relay.
+ * The panels in the order they stack, each with the strips of the outputs that act on it. `rest` is what acts on none
+ * of the curves drawn: the light, the fans, a socket's relay.
  */
 export const panelsOf = (
   t: Translate,
@@ -611,9 +609,8 @@ export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: 
 };
 
 /**
- * What is on the screen, as a table: every curve ticked with the lowest and
- * highest of each window beside its mean, and every output drawn as the state
- * it held.
+ * What is on the screen, as a table: every curve ticked with the lowest and highest of each window beside its mean,
+ * and every output drawn as the state it held.
  */
 export const csvFor = (
   t: Translate,

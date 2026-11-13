@@ -113,9 +113,8 @@ interface TimelineProps {
 }
 
 /**
- * Verlauf of one place: one page for every stretch of time - the last day or
- * twenty minutes of one night three months ago - with one cursor through all
- * of it. Its whole view is in the address (`view.ts`).
+ * Verlauf of one place: one page for every stretch of time - the last day or twenty minutes of one night three months
+ * ago - with one cursor through all of it. Its whole view is in the address (`view.ts`).
  */
 export function Timeline({ spaceId, title, place = null }: TimelineProps) {
   return <OwnTimeline key={spaceId} spaceId={spaceId} title={title} place={place} />;
@@ -213,9 +212,8 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
 }
 
 /**
- * The same page for somebody reading a place through a link: the last day,
- * week or month through the link's own window, with nothing of the account
- * behind it - no grow to name, no line to correct, no view to keep.
+ * The same page for somebody reading a place through a link: the last day, week or month through the link's own
+ * window, with nothing of the account behind it - no grow to name, no line to correct, no view to keep.
  */
 export function SharedTimeline({ spaceId, shared, title }: { spaceId: string; shared: { token: string; picture: Picture }; title: React.ReactNode }) {
   const page = usePage(spaceId, shared.token);
@@ -798,10 +796,9 @@ function Screen({
 }
 
 /**
- * A window with no curve and no strip, said as what it is: a place that
- * measures and was not heard in this window - dated, with the way to its last
- * reading -, one whose device has sent nothing yet, or one where nothing
- * measures. Only the answer's `lastReadingAt` and devices tell them apart.
+ * A window with no curve and no strip, said as what it is: a place that measures and was not heard in this window -
+ * dated, with the way to its last reading -, one whose device has sent nothing yet, or one where nothing measures.
+ * Only the answer's `lastReadingAt` and devices tell them apart.
  */
 function Nothing({ data, now, toLast }: { data: SpaceTimeline; now: ReturnType<typeof useNow>; toLast: (time: number) => void }) {
   const { t } = useTranslation();

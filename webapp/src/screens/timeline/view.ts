@@ -6,11 +6,9 @@ import { zonedAt } from '@/ui/zone';
 import { momentOf } from './window';
 
 /**
- * Verlauf's whole view, as its address carries it: which stretch of time, where
- * the cursor stands, what is drawn. A reload, a bookmark and a link sent to
- * somebody open on the same picture, and every link into Verlauf - a diary
- * line, an alert, a day of the camera - is written and read here and nowhere
- * else.
+ * Verlauf's whole view, as its address carries it: which stretch of time, where the cursor stands, what is drawn. A
+ * reload, a bookmark and a link sent to somebody open on the same picture, and every link into Verlauf - a diary
+ * line, an alert, a day of the camera - is written and read here and nowhere else.
  */
 
 export const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
@@ -19,9 +17,8 @@ export const RANGES: TimelineRange[] = ['24h', '7d', '30d', 'phase', 'grow'];
 const ROLLING: Partial<Record<TimelineRange, number>> = { '24h': DAY_MS, '7d': 7 * DAY_MS, '30d': 30 * DAY_MS };
 
 /**
- * The widths a zoom steps through, each a few times the one before: from the
- * three years the old charts reached down to five minutes of single samples,
- * by way of the hour a grower thinks in.
+ * The widths a zoom steps through, each a few times the one before: from the three years the old charts reached down
+ * to five minutes of single samples, by way of the hour a grower thinks in.
  */
 export const WIDTHS = [
   5 * MINUTE_MS,
@@ -220,9 +217,8 @@ export const nextWidth = (width: number, direction: -1 | 1): number | null =>
 export const toNow = (window: Span, now: number): Partial<View> => held({ from: now - (window.to - window.from), to: now }, now, null);
 
 /**
- * Zoomed in or out by one width of the ladder. The cursor keeps its instant
- * and its place on the screen; without one a window that follows now keeps
- * following it, and one that stands still keeps its middle.
+ * Zoomed in or out by one width of the ladder. The cursor keeps its instant and its place on the screen; without one
+ * a window that follows now keeps following it, and one that stands still keeps its middle.
  */
 export const zoomed = (
   window: Window,

@@ -23,9 +23,8 @@ export const fractionOf = (time: number, from: number, to: number): number =>
 export const spans = (list: TimelineSpan[], time: number): boolean => list.some(span => at(span.startsAt) <= time && time <= at(span.endsAt));
 
 /**
- * One stretch of the window over which the same target held: a phase's targets
- * cut by the night. Day and night are aimed at differently, so a window drawn
- * against one of them would show half of it as a long fall out of band.
+ * One stretch of the window over which the same target held: a phase's targets cut by the night. Day and night are
+ * aimed at differently, so a window drawn against one of them would show half of it as a long fall out of band.
  */
 interface Stretch {
   from: number;
@@ -34,16 +33,14 @@ interface Stretch {
   /** In a night, whose target it is. */
   dark: boolean;
   /**
-   * In the hour after a switch between day and night (and a fridge's ramp
-   * before it), or after somebody changed the targets: the band reaches over
-   * both, which is what the reading is judged by then - a fridge cooling into
-   * its night is on its way, not out of band.
+   * In the hour after a switch between day and night (and a fridge's ramp before it), or after somebody changed the
+   * targets: the band reaches over both, which is what the reading is judged by then - a fridge cooling into its
+   * night is on its way, not out of band.
    */
   changing: boolean;
   /**
-   * One climate held round the clock - a drying room, a germination, 24 or 0
-   * hours of light - which has no day and night to tell its band by: what it
-   * held instead, which names the band. Null for a day and a night.
+   * One climate held round the clock - a drying room, a germination, 24 or 0 hours of light - which has no day and
+   * night to tell its band by: what it held instead, which names the band. Null for a day and a night.
    */
   held: ConstantHold | null;
 }
@@ -97,11 +94,9 @@ const piecesOf = (panel: TimelinePanel, nights: TimelineSpan[], from: number, to
   });
 
 /**
- * The window split where the night began and ended, where one phase handed
- * over to the next, and where a change between day and night began and was
- * over. Each edge has to cut it: a band that only moved with the night would
- * carry the old phase's target through the half of the cycle the grow was
- * moved on in.
+ * The window split where the night began and ended, where one phase handed over to the next, and where a change
+ * between day and night began and was over. Each edge has to cut it: a band that only moved with the night would
+ * carry the old phase's target through the half of the cycle the grow was moved on in.
  */
 const cut = (
   from: number,
@@ -128,12 +123,10 @@ export const alarmsOf = (alarms: TimelineAlarm[], metric: Metric): TimelineAlarm
 const FRAME_REACH_MIN = 10 * MINUTE_MS;
 
 /**
- * The picture of the moment the cursor is on, or null where the camera took
- * none near it - before it was paired, or in a stretch it could not be read.
- * The nearest picture was shown however far away it was: a cursor on yesterday
- * at 09:52, light off, stood under a lit picture from today at 00:46. Near is
- * twice the camera's usual spacing in the window, so a camera that fires once
- * an hour is not called absent between two of its pictures.
+ * The picture of the moment the cursor is on, or null where the camera took none near it - before it was paired, or
+ * in a stretch it could not be read. The nearest picture was shown however far away it was: a cursor on yesterday at
+ * 09:52, light off, stood under a lit picture from today at 00:46. Near is twice the camera's usual spacing in the
+ * window, so a camera that fires once an hour is not called absent between two of its pictures.
  */
 export const frameNear = (camera: SpaceTimeline['cameras'][number] | undefined, time: number) => {
   const frame = frameAt(camera?.frames ?? [], time);

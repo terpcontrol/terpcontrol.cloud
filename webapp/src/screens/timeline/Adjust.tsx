@@ -40,9 +40,8 @@ interface AdjustProps {
 }
 
 /**
- * "Anpassen": what is drawn and how, and what can be done with the picture -
- * everything the page itself has no room for, in one sheet. Each tick is in
- * the address at once, so the curves behind the sheet follow it.
+ * "Anpassen": what is drawn and how, and what can be done with the picture - everything the page itself has no room
+ * for, in one sheet. Each tick is in the address at once, so the curves behind the sheet follow it.
  */
 export function Adjust({ view, offered, shown, change, stepDrawn, grained, comparable, views, day, onShare, onCsv, onClose }: AdjustProps) {
   const { t } = useTranslation();

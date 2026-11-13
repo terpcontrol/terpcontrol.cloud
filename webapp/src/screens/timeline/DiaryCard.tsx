@@ -29,11 +29,9 @@ interface DiaryCardProps {
 }
 
 /**
- * What was written in the window, as the diary tells it - a run of the same
- * device line folded, an alarm by its rule, the moment another device took
- * over the measuring - oldest first, the way the curves
- * above run. A line's stamp sets the cursor on its moment; its words open its
- * correction, as everywhere a line is read.
+ * What was written in the window, as the diary tells it - a run of the same device line folded, an alarm by its rule,
+ * the moment another device took over the measuring - oldest first, the way the curves above run. A line's stamp sets
+ * the cursor on its moment; its words open its correction, as everywhere a line is read.
  */
 export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }: DiaryCardProps) {
   const { t, i18n } = useTranslation();
