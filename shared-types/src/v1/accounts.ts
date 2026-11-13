@@ -32,7 +32,7 @@ export const layoutSeen = named(
   'LayoutSeen',
   z.object({
     diary: z.boolean().describe('Whether the diary was there: the Log button in the navigation and the grow block on a place.'),
-    places: z.boolean().describe('Whether Start listed several places rather than being the cockpit of the only one.'),
+    places: z.boolean().describe('Whether Start listed several places rather than being the page of the only one.'),
   }),
 );
 

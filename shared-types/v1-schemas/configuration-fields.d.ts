@@ -124,7 +124,6 @@ export declare const MOST_TIMER_WINDOWS = 8;
  * over its target. The firmware keeps them as 0 to 3.
  */
 export declare const FAN_MODES: readonly ["fixed", "temperature", "humidity", "both"];
-export type FanMode = (typeof FAN_MODES)[number];
 export declare const CONFIGURATION_FIELDS: Readonly<Record<string, ConfigurationFields>>;
 /** The fields a type of device offers; none for a type this table does not know. */
 export declare const configurationFieldsOf: (type: string) => ConfigurationFields;

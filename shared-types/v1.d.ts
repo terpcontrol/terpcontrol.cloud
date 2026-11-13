@@ -427,7 +427,7 @@ export interface LayoutSeen {
    */
   diary: boolean;
   /**
-   * Whether Start listed several places rather than being the cockpit of the only one.
+   * Whether Start listed several places rather than being the page of the only one.
    */
   places: boolean;
 }

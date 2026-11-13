@@ -249,8 +249,6 @@ const PLUG: ConfigurationFields = {
  */
 export const FAN_MODES = ['fixed', 'temperature', 'humidity', 'both'] as const;
 
-export type FanMode = (typeof FAN_MODES)[number];
-
 const SPEED = { kind: 'number', min: 0, max: 100, step: 1 } as const;
 
 const FAN: ConfigurationFields = {
