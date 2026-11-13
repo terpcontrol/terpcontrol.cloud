@@ -248,8 +248,8 @@ Each with what stands until he answers, and the session's recommendation where i
 8. **The names of the four stage alarm rules** are written in the server and in the web app, with no shared
    constant. A rule made by one tap before the redesign is stored under its translated name; no migration
    renames it.
-9. **The timeline's server code and the contract's descriptions** still say "rail" and "the charts page". Left,
-   because Verlauf's pass is not closed.
+9. **The timeline's server code and the contract's descriptions** still say "rail", "the charts page" and
+   "cockpit" in comments. Not a question: the redesign's last fix round rewords them.
 
 **Place and room**
 10. **The kinds of a place.** The model has tent, fridge, balcony and other; the prototype's select reads Zelt,
