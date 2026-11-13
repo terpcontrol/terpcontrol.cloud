@@ -871,40 +871,30 @@
 }
 
 /* The head in one row where it fits, from where the page has two columns: the title, the ranges, the window between
-   its buttons, and "Anpassen" last. Nothing in it shrinks out of sight - with several places and a device to choose,
+   its buttons, and "Anpassen" last - in that order in the markup too, so the keyboard reaches them as they stand.
+   The title is every page's size. Nothing in it shrinks out of sight - with several places and a device to choose,
    or on the narrowest such window, it takes a second row. */
 @media (min-width: 1200px) {
   .title {
     flex: 0 1 auto;
   }
 
-  .title h1 {
-    font-size: 28px;
-  }
-
   .device {
     flex: none;
-    order: 1;
   }
 
   .ranges {
     flex: 0 0 auto;
-    order: 2;
     margin-left: auto;
   }
 
   .nav {
     flex: 0 0 auto;
-    order: 3;
   }
 
   .window {
     flex: 0 0 auto;
     min-width: 150px;
     padding: 0 var(--space-2);
-  }
-
-  .adjustButton {
-    order: 4;
   }
 }

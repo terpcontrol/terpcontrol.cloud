@@ -567,6 +567,41 @@ describe('the nights a chart is shaded by', () => {
     expect(nightsOf([lamp as never], window, cycles)).toEqual([]);
   });
 
+  it('are none of no length: a lamp dark for three seconds, or a sliver of the schedule´s night between two silences', () => {
+    const points = [];
+    for (let time = window.startsAt.getTime() + 300_000; time <= window.endsAt.getTime(); time += 300_000) {
+      points.push({ measuredAt: new Date(time).toISOString(), value: 1 });
+    }
+    const blinked = {
+      series: {
+        ...lamp.series,
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        outputs: [{ output: 'light' as const, points }],
+      },
+      outputs: [
+        {
+          output: 'light' as const,
+          switchings: [
+            { at: '2026-10-24T12:00:00.000Z', on: true },
+            { at: '2026-10-24T14:00:00.000Z', on: false },
+            { at: '2026-10-24T14:00:03.000Z', on: true },
+            { at: '2026-10-24T20:00:00.000Z', on: false },
+            { at: '2026-10-25T08:00:00.000Z', on: true },
+          ],
+        },
+      ],
+      lastSampleAt: window.endsAt.toISOString(),
+    };
+
+    expect(nightsOf([blinked], window)).toEqual([{ startsAt: '2026-10-24T20:00:00.000Z', endsAt: '2026-10-25T08:00:00.000Z' }]);
+
+    // Heard for twenty seconds inside the first night and silent around them: the schedule's night has no length there.
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], window);
+    const sliver = heard(window.startsAt, at('2026-10-24T22:00:20Z'), [at('2026-10-24T19:00:00Z'), at('2026-10-24T22:00:00Z')]);
+    expect(nightsOf([sliver], window, cycles).every(night => Date.parse(night.endsAt) - Date.parse(night.startsAt) >= 60_000)).toBe(true);
+  });
+
   it('carry the hour after each switch the climate is given to follow', () => {
     const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], { startsAt: at('2026-10-24T00:00:00Z'), endsAt: at('2026-10-25T00:00:00Z') });
 

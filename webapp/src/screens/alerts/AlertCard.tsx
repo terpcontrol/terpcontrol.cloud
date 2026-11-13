@@ -36,7 +36,7 @@ interface AlertProps {
   /** The account behind the routing and the clock times; undefined until it has answered. */
   me: Me | undefined;
   mayManage: boolean;
-  /** Whether the place it names is one in use: a place that has ended has no Verlauf to open. */
+  /** Whether the place it names has a Verlauf to open: one in use, or one of the reader's own that has ended, read only. */
   placed: boolean;
   now: DateTime;
 }

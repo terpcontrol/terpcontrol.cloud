@@ -284,6 +284,8 @@ export interface Curve {
   of?: string;
   /** Where the device's last reading stands as the curve's last point, in a window that ends now; null elsewhere. */
   lastAt: number | null;
+  /** The stretch a point stands for where that is not its whole window - what was heard of one a silence or the read's end cuts. */
+  over?: ReadonlyMap<number, PlotSpan>;
   line: PlotLine;
 }
 
@@ -307,21 +309,53 @@ export const drawnBefore = (stepSeconds: number): number => (stepSeconds <= SAMP
 /** The step at which a window holds one sample, which is then a point at its own time and no mean. */
 export const SAMPLE_SECONDS = 5;
 
+/** A drawn point with the window it is the mean of, and the stretch it stands for where that is not the whole window. */
+interface Placed {
+  point: PlotPoint;
+  opens: number;
+  stamp: number;
+  over: PlotSpan | null;
+}
+
+/** What was heard of a window: the window less every silence, a silence's own ends being samples that were heard. */
+const heardParts = (opens: number, stamp: number, silences: readonly (readonly [number, number])[]): PlotSpan[] => {
+  const parts: PlotSpan[] = [];
+  let from = opens;
+  for (const [since, until] of silences) {
+    if (until <= from || since >= stamp) continue;
+    if (since >= from) parts.push({ from, to: since });
+    from = Math.max(from, until);
+  }
+  if (from <= stamp) parts.push({ from, to: stamp });
+  return parts;
+};
+
 /**
  * Each point where it belongs: a mean at the middle of its window, a single sample at its own time. Where the read's
  * end cuts a window short, or a silence ends or begins in it, its point stands in the middle of what was heard of it,
- * at a whole second - never inside the silence beside it. The grid is read off the first point, which closes a window.
+ * at a whole second - never inside the silence beside it: a window whose one sample is the last before a silence
+ * stands on that sample. The grid is read off the first point, which closes a window.
  */
-const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number, silences: readonly TimelineSpan[]): PlotPoint[] => {
+const placedOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number, silences: readonly TimelineSpan[]): Placed[] => {
   const [grid, step] = [at(points.find(point => point.value !== null)?.measuredAt ?? points[0]?.measuredAt ?? ''), stepSeconds * 1000];
-  const [ends, begins] = [silences.map(span => at(span.endsAt)), silences.map(span => at(span.startsAt))];
+  const quiet = silences.map(span => [at(span.startsAt), at(span.endsAt)] as const).sort(([one], [other]) => one - other);
   return points.map(point => {
     const stamp = at(point.measuredAt);
     const opens = stamp - ((stamp - grid) % step || step);
-    const [from, to] = [Math.max(opens, ...ends.filter(end => end < stamp)), Math.min(stamp, ...begins.filter(begin => begin > opens))];
-    const whole = point.value === null || stepSeconds <= SAMPLE_SECONDS || to <= from || to - from === step;
-    const time = whole ? stamp - drawnBefore(stepSeconds) : Math.round((from + to) / 2000) * 1000;
-    return point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
+    // The longest stretch that was heard; the first of two alike.
+    const part = heardParts(opens, stamp, quiet).reduce<PlotSpan | null>(
+      (best, one) => (best && best.to - best.from >= one.to - one.from ? best : one),
+      null,
+    );
+    const whole = point.value === null || stepSeconds <= SAMPLE_SECONDS || part === null || part.to - part.from === step;
+    const time = whole
+      ? stamp - drawnBefore(stepSeconds)
+      : part.to === part.from
+        ? Math.floor(part.from / 1000) * 1000
+        : Math.round((part.from + part.to) / 2000) * 1000;
+    const drawn =
+      point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
+    return { point: drawn, opens, stamp, over: whole ? null : part };
   });
 };
 
@@ -361,15 +395,20 @@ const metricCurve = (
   if (!panel) return null;
 
   const from = at(data.startsAt);
-  const means = pointsOf(panel.points, data.stepSeconds, data.silences);
+  const placed = placedOf(panel.points, data.stepSeconds, data.silences);
+  const means = placed.map(one => one.point);
   // The device's last reading closes the curve: "jetzt" is that reading, not the mean of a month's last hour and a half.
   const lastAt = last?.value != null && last.measuredAt ? at(last.measuredAt) : null;
-  // The mean of the window that reading fell into gives way to it: a device that stopped at 16:17 ends on that reading.
+  // The mean of the window that reading fell into gives way to it: a device that stopped at 16:17 ends on that
+  // reading, and the table carries the last sample once.
   const own = drawnBefore(data.stepSeconds);
-  const before =
+  const kept =
     lastAt === null || lastAt > at(data.endsAt) + LATE_MS || lastAt < from
       ? null
-      : means.filter(point => point[1] === null || point[0] < lastAt || point[0] - lastAt > own);
+      : placed.filter(
+          ({ point, opens, stamp }) => point[1] === null || (!(opens <= lastAt && lastAt <= stamp) && (point[0] < lastAt || point[0] - lastAt > own)),
+        );
+  const before = kept?.map(one => one.point) ?? null;
   // A curve with means newer than the reading is ahead of it, and ends on its own.
   const closes = before !== null && !before.some(point => point[1] !== null && point[0] > (lastAt as number));
   const halved = (list: PlotPoint[]) => halfOf(list, data.nights, metric === 'vpd' ? half : 'all');
@@ -413,6 +452,7 @@ const metricCurve = (
       low,
       high,
       lastAt: closes ? lastAt : null,
+      over: new Map((closes ? (kept ?? placed) : placed).flatMap(one => (one.over ? [[one.point[0], one.over] as const] : []))),
       line: { key: metric, colour, shape: 'line', points, scale },
     },
   };

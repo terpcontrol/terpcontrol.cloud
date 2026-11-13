@@ -148,7 +148,6 @@ const card = (over: Partial<HomeSpaceCard> = {}): HomeSpaceCard =>
     entries: [],
     events: [],
     latestStill: null,
-    dueTasks: [],
     openAlerts: [],
     ...over,
   }) as HomeSpaceCard;
@@ -314,7 +313,7 @@ describe('the inbox', () => {
     draw();
 
     // The account keeps no diary, so nothing here points to tasks it has not got.
-    expect(await screen.findByText('Alerts land here once a device measures or a cam films.')).toBeInTheDocument();
+    expect(await screen.findByText('Alerts land here once a device measures or a camera films.')).toBeInTheDocument();
     expect(screen.queryByText(/Tasks/)).not.toBeInTheDocument();
     expect(screen.queryByText('Nothing is open right now.')).not.toBeInTheDocument();
     // Nothing here can raise an alarm, so there is nothing to mute.
@@ -793,7 +792,7 @@ describe('the inbox', () => {
     expect(await screen.findByLabelText('warning · Flower room B offline')).toBeInTheDocument();
     expect(screen.getByText(reading(`${since} · 68`))).toBeInTheDocument();
     expect(screen.queryByText(/device-1|space-1/)).not.toBeInTheDocument();
-    expect(screen.getByText('Could not read the names · devices and cams are shown without one')).toBeInTheDocument();
+    expect(screen.getByText('Could not read the names · devices and cameras are shown without one')).toBeInTheDocument();
   });
 
   it('reads what is open once for the bell and the list together', async () => {
@@ -935,7 +934,7 @@ describe('the inbox', () => {
 
     expect(await screen.findByText('Cam 2 without a picture')).toBeInTheDocument();
     expect(screen.getByText(reading(`since ${clock(raised)}`))).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Check cam' })).toHaveAttribute('href', '/cameras/cam-2');
+    expect(screen.getByRole('link', { name: 'Check camera' })).toHaveAttribute('href', '/cameras/cam-2');
     // No rule to silence or to edit, and nothing else to do now and then: no ⋯.
     expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
   });
@@ -1061,14 +1060,14 @@ describe('the inbox', () => {
       server.rules = [rule()];
     });
 
-    it('is named by the place it happened in and deleted by its owner, and offers no curves of a place that has none', async () => {
+    it('is named by the place it happened in, opens that place´s curves, read only, and is deleted by its owner', async () => {
       server.ended = [{ id: 'space-gone', name: 'Old tent' }];
       draw();
 
       await waitFor(() => expect(overRows()).toEqual([['Humidity too high for 1 h', `Old tent · ${stamp(NOW.minus({ hours: 1 }))}`]]));
       const sheet = await openRow(/^Humidity too high for 1 h/);
       expect(within(sheet).getByText(reading(/ · Old tent · worst 71 % · above 60 % · back on target since then$/))).toBeInTheDocument();
-      expect(within(sheet).queryByRole('link', { name: 'Open Timeline' })).not.toBeInTheDocument();
+      expect((await within(sheet).findByRole('link', { name: 'Open Timeline' })).getAttribute('href')).toMatch(/^\/timeline\?space=space-gone&/);
       fireEvent.click(await within(sheet).findByRole('button', { name: 'Delete' }));
       fireEvent.click(within(sheet).getAllByRole('button', { name: 'Delete' })[1]);
 
@@ -1082,6 +1081,8 @@ describe('the inbox', () => {
       await waitFor(() => expect(sentTo('GET', '/v1/spaces?archived=true')).toHaveLength(1));
       expect(within(sheet).getByText(reading(/ · Old tent · /))).toBeInTheDocument();
       expect(within(sheet).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+      // Nor curves: the place was somebody else's, and its record is not the reader's to read.
+      expect(within(sheet).queryByRole('link', { name: 'Open Timeline' })).not.toBeInTheDocument();
     });
   });
 

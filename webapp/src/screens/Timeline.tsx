@@ -6,7 +6,7 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { PlaceEnded, Visited, VisitingTitle } from './place/PlaceTitle';
+import { Visited, VisitingTitle } from './place/PlaceTitle';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
 import { withParams } from './timeline/view';
 import styles from './timeline/Timeline.module.css';
@@ -18,7 +18,8 @@ import styles from './timeline/Timeline.module.css';
  * second place on. A link that names a device (`?device=`) is about that
  * device: its curves, in the place it stands in - whichever place the address
  * or the header named before. A link that names a place of the account's own
- * that has ended is told so, rather than shown another place's curves.
+ * that has ended draws that place's curves, read only, rather than another
+ * place's.
  */
 export function Timeline() {
   const { t } = useTranslation();
@@ -48,13 +49,8 @@ export function Timeline() {
     );
   }
 
-  if (ended) {
-    return (
-      <section className={styles.screen}>
-        <PlaceEnded title={t('shell.tabs.timeline')} name={ended.name} />
-      </section>
-    );
-  }
+  // The owner's own place that has ended keeps its curves, read only.
+  if (ended) return <TimelineScreen spaceId={ended.id} ended title={<h1>{t('shell.tabs.timeline')}</h1>} place={ended.name} />;
 
   // Verlauf is a place's measurements over a window, so the cards that stand
   // for a grow and no place have nothing to draw here and are not offered.

@@ -62,14 +62,26 @@ export const cursorStamp = (time: number, window: Span, stepSeconds: number, zon
 
 /**
  * "Mittel 03:09–03:12": a point that is the mean of a window says so, and over which stretch; one of a single sample
- * says the stretch alone. The last stretch is what the read's end left of its step, and never runs past the window.
+ * says the stretch alone. The last stretch is what the read's end left of its step, and never runs past the window;
+ * a point that stands for what was heard of its window (`over`) - beside a silence - names that, and one that stands
+ * on a single sample its instant.
  */
-export const meanStamp = (t: Translate, middle: number, window: Span, stepSeconds: number, zone: string | null, mean = true): string => {
-  const [step, to] = [stepSeconds * 1000, Math.min(window.to, middle + stepSeconds * 500)];
-  const from = to === window.to && to % step !== 0 ? to - (to % step) : middle - step / 2;
+export const meanStamp = (
+  t: Translate,
+  middle: number,
+  window: Span,
+  stepSeconds: number,
+  zone: string | null,
+  mean = true,
+  over: Span | null = null,
+): string => {
+  if (over && over.to - over.from < 1000) return cursorStamp(over.from, window, 1, zone);
+  const step = stepSeconds * 1000;
+  const to = over ? over.to : Math.min(window.to, middle + stepSeconds * 500);
+  const from = over ? over.from : to === window.to && to % step !== 0 ? to - (to % step) : middle - step / 2;
   const sameDay = zonedAt(from, zone).hasSame(zonedAt(to, zone), 'day');
   // Seconds on both ends or on neither: where the stretch is whole minutes, its ends are.
-  const fine = stepSeconds % 60 === 0 && to % 60_000 === 0 ? 60 : 1;
+  const fine = stepSeconds % 60 === 0 && to % 60_000 === 0 && from % 60_000 === 0 ? 60 : 1;
   const stretch = [
     cursorStamp(from, window, fine, zone),
     sameDay ? zonedAt(to, zone).toFormat(fine === 1 ? `${CLOCK}:ss` : CLOCK) : cursorStamp(to, window, fine, zone),

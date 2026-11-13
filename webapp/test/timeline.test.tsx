@@ -359,6 +359,27 @@ describe('Verlauf as it opens', () => {
     expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
   });
 
+  it('is reached by the keyboard in the order it stands: in one column the card before the plots and "Adjust" by the title, in two the ranges before "Adjust"', async () => {
+    const before = (one: Element, other: Element) => Boolean(one.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const view = draw();
+    await settled();
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    expect(before(card, within(panel('Temperature')).getByRole('slider'))).toBe(true);
+    expect(before(screen.getByRole('button', { name: 'Adjust' }), screen.getByRole('group', { name: /range/i }))).toBe(true);
+    view.unmount();
+
+    // Two columns from 1200 px: the head is one row with "Adjust" at its end, and the card heads the column beside the plots.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(min-width: 1200px)',
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    draw();
+    await settled();
+    expect(before(screen.getByRole('group', { name: /range/i }), screen.getByRole('button', { name: 'Adjust' }))).toBe(true);
+    expect(before(within(panel('Temperature')).getByRole('slider'), screen.getByRole('region', { name: 'Cursor' }))).toBe(true);
+  });
+
   it('names a lamp`s stretch that ended in a silence by its last reading, and one that was switched off by when', async () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
     const hour = (index: number) => iso(NOW - (24 - index) * HOUR);

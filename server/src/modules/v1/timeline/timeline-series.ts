@@ -173,24 +173,36 @@ const rowsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTa
  * night is shaded only through hours a device reported in.
  */
 export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow, cycles: readonly CycleStretch[] = []): TimelineSpan[] => {
-  if (!cycles.some(stretch => stretch.cycle)) return lampNightsOf(histories, window);
+  if (!cycles.some(stretch => stretch.cycle)) return lasting(lampNightsOf(histories, window));
 
   const lamp = cycles.some(stretch => !stretch.cycle) ? lampNightsOf(histories, window).map(spanOf) : [];
   // A schedule knows nothing of a silence: its nights are shaded only where somebody reported through them, as
   // the lamp's are - not across a morning the device was gone for, nor on to the window's end after its last word.
   const heard = histories.flatMap(one => heardStretches(heardIn(one.series), readOf(one.series, window), one.series.stepSeconds, heardAt(one)));
-  return asTimelineSpans(
-    cycles.flatMap(stretch =>
-      stretch.cycle
-        ? overlapping(nightsIn(stretch.cycle, stretch), heard)
-        : lamp.flatMap(span => {
-            const from = Math.max(span.from, stretch.from);
-            const to = Math.min(span.to, stretch.to);
-            return to > from ? [{ from, to }] : [];
-          }),
+  return lasting(
+    asTimelineSpans(
+      cycles.flatMap(stretch =>
+        stretch.cycle
+          ? overlapping(nightsIn(stretch.cycle, stretch), heard)
+          : lamp.flatMap(span => {
+              const from = Math.max(span.from, stretch.from);
+              const to = Math.min(span.to, stretch.to);
+              return to > from ? [{ from, to }] : [];
+            }),
+      ),
     ),
   );
 };
+
+/**
+ * No night lasts less than a minute: a schedule is set in minutes, and a lamp
+ * dark for seconds - or a sliver of heard time between two silences, where a
+ * backfill ends and live samples begin - is no night to shade.
+ */
+const SHORTEST_NIGHT_MS = 60_000;
+
+const lasting = (nights: readonly TimelineSpan[]): TimelineSpan[] =>
+  nights.filter(night => millis(night.endsAt) - millis(night.startsAt) >= SHORTEST_NIGHT_MS);
 
 /**
  * When the steering device was changing between its halves and the climate was

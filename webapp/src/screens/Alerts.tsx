@@ -150,7 +150,9 @@ export function Alerts() {
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
   const more = open.hasNextPage || resolved.hasNextPage;
   const fetching = open.isFetchingNextPage || resolved.isFetchingNextPage;
-  const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), placed: !!placeOf(alert), now });
+  // A place of the reader's own that has ended still has its curves to open, read only.
+  const placed = (alert: Alert) => !!placeOf(alert) || !!gone?.some(place => place.id === alert.spaceId);
+  const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), placed: placed(alert), now });
 
   return (
     <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>

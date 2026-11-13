@@ -669,12 +669,55 @@ describe('the cursor', () => {
     // The window the silence begins in likewise: its point stands in what was heard of it, the hour and a quarter
     // up to the last sample - not a quarter of an hour inside a silence the card says nothing was measured in.
     expect(drawn(back, ['temperature']).panels[0].curves[0].points[0][0]).toBe(FROM + 0.625 * HOUR);
-    // So it stands before the reading that closes the curve, and the table has a row for it as for every point.
+    // The reading that closes the curve fell into that window, and takes its place: the last sample is one point and
+    // one row of the table, not the window's mean beside it.
     const reading: CardValue = { metric: 'temperature', value: 24.3, measuredAt: new Date(FROM + 22 * HOUR + 52_000).toISOString(), state: 'live' };
     const closed = drawn({ ...back, endsAt: new Date(FROM + 22 * HOUR + 53_423).toISOString() }, ['temperature'], {
       now: { values: [reading], silentSince: null },
     });
-    expect(closed.panels[0].curves[0].points.slice(-2).map(point => point[0])).toEqual([FROM + 22 * HOUR + 43_000, FROM + 22 * HOUR + 52_000]);
+    expect(closed.panels[0].curves[0].points.map(point => point[0])).toEqual([
+      FROM + 0.625 * HOUR,
+      FROM + 1.5 * HOUR + 1 - 2_700_000,
+      FROM + 22 * HOUR + 52_000,
+    ]);
+  });
+
+  it('stands the last sample before a silence on that sample, when it opens its window, and says what it stands for', () => {
+    // A sample every quarter of an hour, drawn at three minutes: the one at 10:45 opens its window, and nothing is
+    // heard after it until 12:15. Its point is that sample, not the window's middle a minute and a half inside the silence.
+    const opens = Date.parse('2026-11-12T10:45:00Z');
+    const quarter = answer({
+      startsAt: '2026-11-12T10:00:00.000Z',
+      endsAt: '2026-11-12T13:00:00.000Z',
+      stepSeconds: 180,
+      silences: [{ startsAt: '2026-11-12T10:45:00.000Z', endsAt: '2026-11-12T12:15:00.000Z' }],
+      panels: [
+        {
+          metric: 'temperature',
+          points: [
+            { measuredAt: '2026-11-12T10:33:00.000Z', value: 24 },
+            { measuredAt: '2026-11-12T10:48:00.000Z', value: 24.1 },
+            { measuredAt: '2026-11-12T10:51:00.000Z', value: null },
+            { measuredAt: '2026-11-12T12:18:00.000Z', value: 24.4 },
+          ],
+          targets: [],
+        },
+      ],
+    });
+    const [curve] = drawn(quarter, ['temperature']).panels[0].curves;
+    expect(curve.points.map(point => point[0])).toEqual([
+      Date.parse('2026-11-12T10:31:30Z'),
+      opens,
+      Date.parse('2026-11-12T10:49:30Z'),
+      Date.parse('2026-11-12T12:16:30Z'),
+    ]);
+    // The card names the instant of that one sample, and the stretch of a window a silence ends in.
+    const window = { from: Date.parse('2026-11-12T10:00:00Z'), to: Date.parse('2026-11-12T13:00:00Z') };
+    expect(curve.over?.get(opens)).toEqual({ from: opens, to: opens });
+    expect(meanStamp(t, opens, window, 180, 'UTC', true, curve.over?.get(opens) ?? null)).toBe('10:45:00');
+    expect(meanStamp(t, 1000, window, 180, 'UTC', true, { from: Date.parse('2026-11-12T12:15:20Z'), to: Date.parse('2026-11-12T12:18:00Z') })).toBe(
+      'mean 12:15:20–12:18:00',
+    );
   });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
@@ -787,8 +830,10 @@ describe('the table', () => {
 
     // The last row is the reading's own instant, and its outputs are the reading's.
     expect(rows.at(-1)).toBe('2026-11-12T14:24:00.000Z,20.3,20.3,20.3,0,59,0,100');
-    // The row before it is a mean, and its outputs are what the samples of its hour came to.
-    expect(rows.at(-2)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,100');
+    // The mean of the hour the reading fell into gives way to it, so the last sample is one row; the row before it is
+    // the hour before, a mean whose outputs are what the samples of that hour came to.
+    expect(rows.at(-2)).toBe('2026-11-12T13:00:00.000Z,24.8,24.8,24.8,,0,0,100');
+    expect(rows).toHaveLength(answer().panels[0].points.length);
   });
 
   it('writes no row after the last reading: an output nobody measured is not "0" there', () => {

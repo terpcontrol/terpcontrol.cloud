@@ -54,6 +54,7 @@ import {
   shownOf,
   stripsOf,
   type Compared,
+  type Curve,
   type OutputFigure,
   type Strip,
 } from './model';
@@ -77,6 +78,7 @@ import {
   windowOf,
   withParams,
   zoomed,
+  type Span,
   type View,
 } from './view';
 import { at } from './window';
@@ -100,6 +102,8 @@ interface Own {
   sharing: { grows: GrowListItem[]; spaces: Space[] } | null;
   /** What the address named and the place does not have - a device gone, a grow that never stood here - in a sentence. */
   missing: React.ReactNode;
+  /** That the place has ended and its curves are read only, in a sentence; null for a place in use. */
+  ended: string | null;
   correct: (entry: Entry) => (() => void) | undefined;
   /** Opens a note dated to an instant; null where the session may not write here. */
   note: ((time: number) => void) | null;
@@ -111,17 +115,19 @@ interface TimelineProps {
   /** The page's name, and beside it on a desktop the place it is about where the account has several. */
   title: React.ReactNode;
   place?: string | null;
+  /** A place of the reader's own that has ended: its curves are read, and nothing is written - no line, no link, no view. */
+  ended?: boolean;
 }
 
 /**
  * Verlauf of one place: one page for every stretch of time - the last day or twenty minutes of one night three months
  * ago - with one cursor through all of it. Its whole view is in the address (`view.ts`).
  */
-export function Timeline({ spaceId, title, place = null }: TimelineProps) {
-  return <OwnTimeline key={spaceId} spaceId={spaceId} title={title} place={place} />;
+export function Timeline({ spaceId, title, place = null, ended = false }: TimelineProps) {
+  return <OwnTimeline key={spaceId} spaceId={spaceId} title={title} place={place} ended={ended} />;
 }
 
-function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
+function OwnTimeline({ spaceId, title, place: placeName, ended = false }: TimelineProps) {
   const { t } = useTranslation();
   const { user } = useSession();
   const devices = useDevices();
@@ -188,7 +194,7 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
         .map(one => ({ kind: 'space' as const, id: one.spaceId, name: one.name })),
     ],
     known: home.data !== undefined && data !== undefined,
-    keeps: user !== null && user.isDemo !== true && !visiting,
+    keeps: user !== null && user.isDemo !== true && !visiting && !ended,
     missing:
       page.dropped === null ? null : lost && standsIn(lost) === null ? (
         // A grow without a place has no climate to draw; what was measured by hand has its curves on its own page.
@@ -202,9 +208,10 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
       ) : (
         t(`timeline.missing.${page.dropped.what}`)
       ),
-    sharing: mayManage && (spaceRow || grow.data) ? { grows: grow.data ? [grow.data] : [], spaces: spaceRow ? [spaceRow] : [] } : null,
-    correct: entry => correcting(entry, { label: data?.name ?? '', spaceId }),
-    note: mayLog && target ? time => openDetails('note', target, null, new Date(time)) : null,
+    ended: ended ? t('timeline.ended', { name: placeName ?? data?.name ?? '' }) : null,
+    sharing: mayManage && !ended && (spaceRow || grow.data) ? { grows: grow.data ? [grow.data] : [], spaces: spaceRow ? [spaceRow] : [] } : null,
+    correct: entry => (ended ? undefined : correcting(entry, { label: data?.name ?? '', spaceId })),
+    note: mayLog && target && !ended ? time => openDetails('note', target, null, new Date(time)) : null,
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
   };
@@ -315,6 +322,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   const { t } = useTranslation();
   const zone = useZone();
   const wide = useWideWindow();
+  const columns = useTwoColumns();
   const { view, asked, timeline, data, failed, refusal, change, now, clock } = page;
   // The cursor is what the address says. Only while a mouse or a thumb moves it, and from being set down until the
   // address has followed, is it held here; a change of the address's own cursor clears it: the bar leaves none behind.
@@ -463,15 +471,20 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   // The zoom stays with the cursor's card, which stays in sight; only a window with no cursor to read keeps it in the head.
   const cursorShown = data !== undefined && (data.panels.length > 0 || data.outputs.length > 0);
 
+  const adjustButton = (
+    <button type="button" className={styles.adjustButton} disabled={!model} onClick={() => setAdjusting(true)}>
+      {t('timeline.adjust.title')}
+    </button>
+  );
+  // What is read first is reached first: "Anpassen" beside the title where the head is three rows, and last where it
+  // is one - after the ranges and the window, as it stands at that row's end.
   const head = (
     <header className={styles.head}>
       <div className={styles.title}>
         {title}
         {place ? <span className={styles.place}>{place}</span> : null}
       </div>
-      <button type="button" className={styles.adjustButton} disabled={!model} onClick={() => setAdjusting(true)}>
-        {t('timeline.adjust.title')}
-      </button>
+      {columns ? null : adjustButton}
       {/* A place with several climates draws one of them - its own, unless another is chosen here. */}
       {own && own.devices.length > 1 ? (
         <label className={styles.device}>
@@ -530,6 +543,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         ) : null}
         {cursorShown || !data ? null : zoomButtons}
       </div>
+      {columns ? adjustButton : null}
     </header>
   );
 
@@ -603,7 +617,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
     : resting && live
       ? t('timeline.lastValue', { time: timed(cursor) })
       : stood !== null && data.stepSeconds > SAMPLE_SECONDS
-        ? meanStamp(t, stood, window, data.stepSeconds, zone, !singleAt(strips, stood, stepMs))
+        ? meanStamp(t, stood, window, data.stepSeconds, zone, !singleAt(strips, stood, stepMs), overOf(curves, stood))
         : cursorStamp(stood ?? cursor, window, data.stepSeconds, zone);
   // The room beside every plot is as wide as the longest figure of any scale: the plots share one time axis.
   const gutter =
@@ -664,6 +678,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       ) : (
         <RefreshFailed failedAt={timeline.isError ? timeline.dataUpdatedAt : null} now={now} />
       )}
+      {own?.ended ? <p className={`${ui.cardDashed} ${ui.note}`}>{own.ended}</p> : null}
       {own?.missing ? <p className={`${ui.cardDashed} ${ui.note}`}>{own.missing}</p> : null}
       {view.compare !== null && own?.known && comparedTo === null ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('timeline.missing.compare')}</p>
@@ -679,6 +694,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       ) : null}
 
       <div className={styles.stage} data-busy={timeline.isPlaceholderData || failed || undefined}>
+        {/* In one column the cursor's card stands over the panels, and is reached before them; beside them it is the
+            second column's head. */}
+        {nothing || columns ? null : cursorCard}
         <div className={styles.curves}>
           {nothing ? (
             <Nothing
@@ -727,7 +745,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
           ) : null}
         </div>
         <aside className={styles.beside}>
-          {nothing ? null : cursorCard}
+          {nothing || !columns ? null : cursorCard}
           {diary}
           {wide && panels.length > 0 ? <p className={styles.hint}>{t('timeline.mouseHint')}</p> : null}
         </aside>
@@ -837,6 +855,26 @@ const outputWords = (t: Translate, strip: Strip, said: OutputFigure | null): str
   const part = said.share > 0 && said.share < 1;
   return `${strip.name} ${part ? t('timeline.partlyOn', { share: Math.max(1, Math.round(said.share * 100)) }) : t(said.share > 0 ? 'timeline.on' : 'timeline.off')}`;
 };
+
+/** Whether the page stands in two columns, as `Timeline.module.css` lays it out from 1200 px: a browser without `matchMedia` - a test's - is one. */
+const TWO_COLUMNS = '(min-width: 1200px)';
+
+const useTwoColumns = (): boolean => {
+  const [two, setTwo] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(TWO_COLUMNS).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(TWO_COLUMNS);
+    const onChange = () => setTwo(query.matches);
+    query.addEventListener('change', onChange);
+    onChange();
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  return two;
+};
+
+/** The stretch the point at an instant stands for, where a silence or the read's end left less than its window. */
+const overOf = (curves: readonly Curve[], time: number): Span | null =>
+  curves.map(curve => curve.over?.get(time)).find(one => one !== undefined) ?? null;
 
 /** A file name a grower finds again: the place's name without what a file system trips on. */
 const slug = (name: string): string =>
