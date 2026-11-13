@@ -2,6 +2,7 @@ import sharp from 'sharp';
 import { Injectable } from '@nestjs/common';
 import { GrowthStage, LinkCard } from '@fg2/shared-types/v1';
 import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
+import { BRAND_MARK, brandMarkPng } from './brand-mark';
 
 /**
  * What a shared address looks like everywhere but in the app: the picture a
@@ -10,7 +11,8 @@ import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/ti
  * Both are made from the same `LinkCard`, so the tags and the picture cannot say
  * different things - which is the whole reason the shape exists. The picture is
  * drawn the way a film's overlays are: one SVG layer composited by sharp, which
- * needs no font files in the container and no second dependency.
+ * needs no font files in the container and no second dependency, with the
+ * brand's small logo in its top corner, so a card says whose app it came from.
  */
 
 /** What every scraper expects of an Open Graph image, and what they all crop to. */
@@ -38,6 +40,14 @@ export const SHELL_CACHE_SECONDS = 120;
 
 const MARGIN = 72;
 const CONTENT_WIDTH = CARD_WIDTH - MARGIN * 2;
+
+/** Where the logo stands: in the top corner opposite the meta line, its middle on that line's. */
+export const LOGO_BOX = {
+  left: CARD_WIDTH - MARGIN - BRAND_MARK.width,
+  top: MARGIN + 20 - Math.round(BRAND_MARK.height / 2),
+  width: BRAND_MARK.width,
+  height: BRAND_MARK.height,
+};
 
 const TITLE_SIZE = 64;
 const META_SIZE = 30;
@@ -141,8 +151,9 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
   const meta = metaLineOf(card);
 
   // A cover keeps its picture and gets a scrim dark enough to read white type
-  // over; a grow with no cover yet gets the app's own panel colour instead of a
-  // blank rectangle.
+  // over - at the foot under the title, and at the top under the meta line and
+  // the logo; a grow with no cover yet gets the app's own panel colour instead
+  // of a blank rectangle.
   const backdrop = hasCover
     ? `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#scrim)"/>`
     : `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="${PANEL}"/>`;
@@ -169,7 +180,8 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
     <defs>
       <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${PANEL}" stop-opacity="0.15"/>
+        <stop offset="0%" stop-color="${PANEL}" stop-opacity="0.6"/>
+        <stop offset="28%" stop-color="${PANEL}" stop-opacity="0.2"/>
         <stop offset="55%" stop-color="${PANEL}" stop-opacity="0.72"/>
         <stop offset="100%" stop-color="${PANEL}" stop-opacity="0.95"/>
       </linearGradient>
@@ -196,7 +208,11 @@ export const renderCard = async (card: LinkCard, cover: Buffer | null): Promise<
     : null;
 
   return sharp({ create: { width: CARD_WIDTH, height: CARD_HEIGHT, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([...(tile ? [{ input: tile, left: 0, top: 0 }] : []), { input: Buffer.from(textLayer(card, tile !== null)), left: 0, top: 0 }])
+    .composite([
+      ...(tile ? [{ input: tile, left: 0, top: 0 }] : []),
+      { input: Buffer.from(textLayer(card, tile !== null)), left: 0, top: 0 },
+      { input: brandMarkPng(), left: LOGO_BOX.left, top: LOGO_BOX.top },
+    ])
     .png()
     .toBuffer();
 };

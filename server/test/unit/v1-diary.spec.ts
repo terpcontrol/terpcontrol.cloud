@@ -449,7 +449,7 @@ describe('who may read a timeline', () => {
     expect(own.items.find(line => line.id === 'entry-cam')?.cameraId).toBe(CAMERA);
   });
 
-  it('strips the weights and the plant scope from a reader the owner hides them from', async () => {
+  it('strips the weights from a reader the owner hides them from, and names the plants all the same', async () => {
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });
     await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
     await db.entries.create(
@@ -466,26 +466,18 @@ describe('who may read a timeline', () => {
     const seen = (await entries.list(anonymous, { growId: GROW })).items.find(line => line.id === 'entry-harvest');
     const own = (await entries.list(session(OWNER), { growId: GROW })).items.find(line => line.id === 'entry-harvest');
 
-    expect(seen).toMatchObject({ plantIds: [], values: { kind: 'harvest', wetWeightG: null, dryWeightG: null } });
+    // The counts switch hides how many plants there are, not which one a line is about.
+    expect(seen).toMatchObject({ plantIds: [PLANT], values: { kind: 'harvest', wetWeightG: null, dryWeightG: null } });
     expect(own).toMatchObject({ plantIds: [PLANT], values: { kind: 'harvest', wetWeightG: 480, dryWeightG: 96 } });
   });
 
-  /**
-   * A count hidden on the card and named inside a reading is a count that can
-   * be collected: the distinct plant ids across a diary are how many plants
-   * there are, one measurement at a time.
-   */
-  it('names no plant inside a reading either, where the owner hides the counts', async () => {
+  it('names the plant a reading is of where the owner hides the counts, as the line names its plants', async () => {
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: false, hideCounts: true } } });
     await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
 
     const seen = (await entries.list(anonymous, { growId: GROW })).items.find(line => line.id === 'entry-measured');
-    const own = (await entries.list(session(OWNER), { growId: GROW })).items.find(line => line.id === 'entry-measured');
 
-    expect(seen).toMatchObject({ plantIds: [], values: { kind: 'measurement', readings: [{ key: 'height', value: 52, plantId: null }] } });
-    expect(JSON.stringify(seen)).not.toContain(PLANT);
-    // The reading itself is the diary and stays; only whose plant it was goes.
-    expect(own?.values).toMatchObject({ readings: [{ key: 'height', value: 52, plantId: PLANT }] });
+    expect(seen).toMatchObject({ plantIds: [PLANT], values: { kind: 'measurement', readings: [{ key: 'height', value: 52, plantId: PLANT }] } });
   });
 
   it('does not spell out to a reader from outside which places a move went between', async () => {

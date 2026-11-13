@@ -771,8 +771,13 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         <NewLinkSheet
           grows={own.sharing.grows}
           spaces={own.sharing.spaces}
-          // A window that stands still is a stretch somebody went looking for, and is what the link offers to show.
-          window={view.fixed ? { startsAt: data.startsAt, endsAt: data.endsAt, label: windowLabel(t, window, false, now, zone) } : null}
+          // The window on screen is named and offered; one that stands still is a stretch somebody went looking for, and is what the link shows unless they take the whole.
+          window={
+            window
+              ? { startsAt: data.startsAt, endsAt: data.endsAt, label: windowLabel(t, window, false, now, zone), fixed: view.fixed !== null }
+              : null
+          }
+          first="space"
           onClose={() => setSharing(false)}
           onCreated={made => (setSharing(false), setLink(made))}
         />

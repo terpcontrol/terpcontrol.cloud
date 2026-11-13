@@ -14846,6 +14846,26 @@
       "grows"
     ]
   },
+  "SharedCurves": {
+    "type": "object",
+    "properties": {
+      "spaceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "range": {
+        "$ref": "#/components/schemas/TimeRange"
+      }
+    },
+    "required": [
+      "spaceId",
+      "name",
+      "range"
+    ]
+  },
   "SharedGrow": {
     "type": "object",
     "properties": {
@@ -14855,11 +14875,19 @@
       },
       "grow": {
         "$ref": "#/components/schemas/PublicGrowPage"
+      },
+      "curves": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SharedCurves"
+        },
+        "description": "Where the grow stood inside a window that ends, oldest first; none for a link onto a running grow, which is its diary."
       }
     },
     "required": [
       "type",
-      "grow"
+      "grow",
+      "curves"
     ]
   },
   "SharedSpace": {

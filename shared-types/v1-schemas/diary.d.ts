@@ -7095,7 +7095,24 @@ export declare const publicUserPage: z.ZodObject<{
         updatedAt: z.ZodISODateTime;
     }, z.core.$strip>>;
 }, z.core.$strip>;
-/** A link onto a grow answers the same page the grow's own public address does. */
+/**
+ * A place whose curves a link onto a grow shows, over the stretch the grow stood
+ * there inside the link's window. The same place's Verlauf read through the
+ * link is clamped to that stretch.
+ */
+export declare const sharedCurves: z.ZodObject<{
+    spaceId: z.ZodString;
+    name: z.ZodString;
+    range: z.ZodObject<{
+        startsAt: z.ZodNullable<z.ZodISODateTime>;
+        endsAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>;
+}, z.core.$strip>;
+/**
+ * A link onto a grow answers the same page the grow's own public address does,
+ * and - where its window ends, a stretch of days somebody chose - the curves of
+ * the places the grow stood in during it, as a link onto a place shows its own.
+ */
 export declare const sharedGrow: z.ZodObject<{
     type: z.ZodLiteral<"grow">;
     grow: z.ZodObject<{
@@ -7353,6 +7370,14 @@ export declare const sharedGrow: z.ZodObject<{
             photoCount: z.ZodNumber;
         }, z.core.$strip>;
     }, z.core.$strip>;
+    curves: z.ZodArray<z.ZodObject<{
+        spaceId: z.ZodString;
+        name: z.ZodString;
+        range: z.ZodObject<{
+            startsAt: z.ZodNullable<z.ZodISODateTime>;
+            endsAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * A link onto a space answers its page, already clamped to the link's range
@@ -8261,6 +8286,14 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             photoCount: z.ZodNumber;
         }, z.core.$strip>;
     }, z.core.$strip>;
+    curves: z.ZodArray<z.ZodObject<{
+        spaceId: z.ZodString;
+        name: z.ZodString;
+        range: z.ZodObject<{
+            startsAt: z.ZodNullable<z.ZodISODateTime>;
+            endsAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>;
+    }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"space">;
     space: z.ZodObject<{
@@ -9180,6 +9213,14 @@ export declare const sharedResolution: z.ZodObject<{
                 photoCount: z.ZodNumber;
             }, z.core.$strip>;
         }, z.core.$strip>;
+        curves: z.ZodArray<z.ZodObject<{
+            spaceId: z.ZodString;
+            name: z.ZodString;
+            range: z.ZodObject<{
+                startsAt: z.ZodNullable<z.ZodISODateTime>;
+                endsAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>;
+        }, z.core.$strip>>;
     }, z.core.$strip>, z.ZodObject<{
         type: z.ZodLiteral<"space">;
         space: z.ZodObject<{

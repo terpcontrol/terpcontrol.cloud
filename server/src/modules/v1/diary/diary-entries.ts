@@ -38,11 +38,9 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, grant
     // happened rather than which corner of somebody's flat it happened in.
     spaceId: hide.authors ? null : told.spaceId,
     deviceId: hide.authors ? null : told.deviceId,
-    // A list of plants is a count stated the long way round, and an empty one
-    // already means "about whatever this is attached to" rather than about
-    // single plants - which is what the grow serialiser answers a hidden scope
-    // with too.
-    plantIds: hide.counts ? [] : told.plantIds,
+    // The plants a line is about are named whatever the counts switch says: it
+    // hides how many there are, and a line about B2 says B2.
+    plantIds: told.plantIds,
     // A link that was not made to carry pictures is not told which camera a line
     // was about; the pictures themselves are refused per picture, by the same
     // decision, where they are fetched.
@@ -52,22 +50,14 @@ export const serialiseDiaryEntry = (entry: EntryDocument, hide: Redaction, grant
 };
 
 /**
- * What is left of an entry's own values.
- *
- * The weights are the setting they are; the plant a reading is of is the count
- * stated one measurement at a time. A page that answers `plantCount: null` and
- * an empty `plantIds` and then names a real plant inside a reading hands the
- * count back to anybody willing to collect the distinct ids across a diary - so
- * a reading whose scope is hidden is a reading of whatever the line is about,
- * which is what a null `plantId` already means.
+ * What is left of an entry's own values: the weights are the setting they are,
+ * and the plant a reading is of is named as the line's plants are.
  */
 const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => {
   // A line whose place is hidden does not spell the place out either.
   if (hide.authors && values.kind === 'move') return { kind: values.kind, placementId: values.placementId, spaceId: values.spaceId };
 
-  const weighed = hide.weights && values.kind === 'harvest' ? { ...values, wetWeightG: null, dryWeightG: null } : values;
-
-  return hide.counts && 'readings' in weighed ? { ...weighed, readings: weighed.readings.map(reading => ({ ...reading, plantId: null })) } : weighed;
+  return hide.weights && values.kind === 'harvest' ? { ...values, wetWeightG: null, dryWeightG: null } : values;
 };
 
 /**

@@ -129,11 +129,11 @@ export function SharedSpace({
         </ul>
       ) : null}
 
-      <section className={ui.stack3} aria-label={t('start.latest.title')}>
-        <span className="label">{t('start.latest.title')}</span>
-        {space.entries.length === 0 ? (
-          <p className={styles.quiet}>{t('grow.diary.empty')}</p>
-        ) : (
+      {/* Nothing written yet is said once, by the diary card of the curves above: a second "nothing" under it read
+          as two empty diaries. */}
+      {space.entries.length === 0 && space.events.length === 0 ? null : (
+        <section className={ui.stack3} aria-label={t('start.latest.title')}>
+          <span className="label">{t('start.latest.title')}</span>
           <Lines>
             {/* The lines as Start says them, in the browser's zone: a share link answers what the lines and the
                 pictures are, and not where the grower who wrote them keeps their clock. A line that carries
@@ -158,8 +158,8 @@ export function SharedSpace({
               );
             })}
           </Lines>
-        )}
-      </section>
+        </section>
+      )}
       {viewing ? <PictureViewer pictures={viewing.pictures} from={viewing.from} onClose={() => setViewing(null)} /> : null}
     </article>
   );

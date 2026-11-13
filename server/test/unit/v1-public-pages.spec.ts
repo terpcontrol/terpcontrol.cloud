@@ -1,8 +1,20 @@
+import sharp from 'sharp';
 import { LinkCard } from '@fg2/shared-types/v1';
+import { stayInside } from '@common/v1/access.service';
 import { Grant } from '@common/v1/access.types';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { CardCache, baseUrlOf, cardWords, growSentence, shellHtml } from '@modules/v1/sharing/link-card';
+import {
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  CardCache,
+  LOGO_BOX,
+  baseUrlOf,
+  cardWords,
+  growSentence,
+  renderCard,
+  shellHtml,
+} from '@modules/v1/sharing/link-card';
 import { belongsToGrow } from '@modules/v1/sharing/public-pages.service';
 
 /**
@@ -252,5 +264,66 @@ describe('the cards kept in memory', () => {
     // failure the first one got.
     expect(await cache.of('grow:1', () => Promise.resolve(png('second try')))).toEqual(png('second try'));
     expect(await cache.of('grow:2', () => Promise.resolve(png('another')))).toEqual(png('another'));
+  });
+});
+
+describe('the card a chat window draws', () => {
+  const card: LinkCard = {
+    title: 'Spring run',
+    description: 'Ein Grow-Tagebuch von @mia',
+    pageUrl: 'https://example.invalid/g/spring-run',
+    imageUrl: 'https://example.invalid/v1/public/grows/spring-run/card.png',
+    handle: 'mia',
+    dayNumber: 34,
+    stage: 'flowering',
+    language: 'de',
+  };
+
+  /** The brand's leaf green, as the reverse logo carries it: green well above red and blue. */
+  const greenIn = async (png: Buffer): Promise<number> => {
+    const { data, info } = await sharp(png).extract(LOGO_BOX).raw().toBuffer({ resolveWithObject: true });
+    let green = 0;
+    for (let at = 0; at < data.length; at += info.channels) {
+      if (data[at + 1] > 120 && data[at + 1] > data[at] + 40 && data[at + 1] > data[at + 2] + 40) green += 1;
+    }
+    return green;
+  };
+
+  it('carries the brand´s small logo in its corner, over the panel and over a cover', async () => {
+    const bare = await renderCard(card, null);
+    expect(await sharp(bare).metadata()).toMatchObject({ width: CARD_WIDTH, height: CARD_HEIGHT });
+    expect(await greenIn(bare)).toBeGreaterThan(100);
+
+    const cover = await sharp({ create: { width: 800, height: 600, channels: 3, background: { r: 240, g: 236, b: 226 } } })
+      .jpeg()
+      .toBuffer();
+    expect(await greenIn(await renderCard(card, cover))).toBeGreaterThan(100);
+  });
+});
+
+describe('where a link onto a grow reaches the places it stood in', () => {
+  const stays = [
+    { spaceId: TENT, startedAt: MAY, endedAt: JUNE },
+    { spaceId: FRIDGE, startedAt: JUNE, endedAt: null },
+  ];
+  const day = (iso: string) => new Date(iso);
+
+  it('over the stretch the grow stood there inside a window that ends', () => {
+    expect(stayInside(stays, TENT, { startsAt: day('2026-05-20T00:00:00.000Z'), endsAt: day('2026-06-10T00:00:00.000Z') })).toEqual({
+      startsAt: day('2026-05-20T00:00:00.000Z'),
+      endsAt: JUNE,
+    });
+    expect(stayInside(stays, FRIDGE, { startsAt: day('2026-05-20T00:00:00.000Z'), endsAt: day('2026-06-10T00:00:00.000Z') })).toEqual({
+      startsAt: JUNE,
+      endsAt: day('2026-06-10T00:00:00.000Z'),
+    });
+    // A window from the grow's first day: the stay's own start.
+    expect(stayInside(stays, TENT, { startsAt: null, endsAt: JULY })).toEqual({ startsAt: MAY, endsAt: JUNE });
+  });
+
+  it('nowhere for a running link, a place the grow was not in then, or one it never stood in', () => {
+    expect(stayInside(stays, FRIDGE, { startsAt: MAY, endsAt: null })).toBeNull();
+    expect(stayInside(stays, TENT, { startsAt: day('2026-06-10T00:00:00.000Z'), endsAt: JULY })).toBeNull();
+    expect(stayInside(stays, 'space-balcony', { startsAt: MAY, endsAt: JULY })).toBeNull();
   });
 });

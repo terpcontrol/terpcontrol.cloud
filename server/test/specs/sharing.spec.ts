@@ -307,6 +307,45 @@ describe('a link that is already out of the house', () => {
     expect((await owner.client.get(`/v1/spaces/${room}/timeline?range=7d`).expect(200)).body.growId).toBe(now.id);
   });
 
+  it('on a grow for a stretch of days, shows the curves of where the grow stood then, each over its stay, and of nowhere else', async () => {
+    const daysAgo = (days: number): string => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+    const place = async (name: string) => (await owner.client.post('/v1/spaces').send({ kind: 'tent', name }).expect(201)).body.id as string;
+    const [first, second, never] = [await place('Curves first'), await place('Curves second'), await place('Curves never')];
+
+    const run = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Curves run', type: 'photoperiod', startedAt: daysAgo(20), plants: [], spaceId: first })
+        .expect(201)
+    ).body;
+    await owner.client
+      .post(`/v1/grows/${run.id}/placements`)
+      .send({ spaceId: second, startedAt: daysAgo(10) })
+      .expect(201);
+
+    const stretch = await aLink({ subject: { type: 'grow', id: run.id }, range: { startsAt: daysAgo(15), endsAt: daysAgo(5) } });
+    const resolved = (await anonymous().get(`/v1/shared/${stretch.token}`).expect(200)).body;
+    expect(resolved.subject.curves.map((one: { spaceId: string; name: string }) => [one.spaceId, one.name])).toEqual([
+      [first, 'Curves first'],
+      [second, 'Curves second'],
+    ]);
+    const [inFirst] = resolved.subject.curves;
+    expect(Date.parse(inFirst.range.startsAt)).toBeCloseTo(Date.parse(daysAgo(15)), -4);
+    expect(Date.parse(inFirst.range.endsAt)).toBeCloseTo(Date.parse(daysAgo(10)), -4);
+
+    // The first place is read over the grow's stay there and no further, whichever chip is asked for.
+    const timeline = (await anonymous().get(`/v1/spaces/${first}/timeline?range=30d&share=${stretch.token}`).expect(200)).body;
+    expect(Date.parse(timeline.startsAt)).toBeGreaterThanOrEqual(Date.parse(daysAgo(15)) - 60_000);
+    expect(Date.parse(timeline.endsAt)).toBeLessThanOrEqual(Date.parse(daysAgo(10)) + 60_000);
+    await anonymous().get(`/v1/spaces/${second}/timeline?range=7d&share=${stretch.token}`).expect(200);
+    await anonymous().get(`/v1/spaces/${never}/timeline?range=7d&share=${stretch.token}`).expect(404);
+
+    // A link onto the running grow is its diary, and reaches no place.
+    const running = await aLink({ subject: { type: 'grow', id: run.id } });
+    expect((await anonymous().get(`/v1/shared/${running.token}`).expect(200)).body.subject.curves).toEqual([]);
+    await anonymous().get(`/v1/spaces/${second}/timeline?range=7d&share=${running.token}`).expect(404);
+  });
+
   /**
    * The two kinds are not the same promise. A read-only view is a window
    * somebody was given and stands until it expires; a public-page link is the

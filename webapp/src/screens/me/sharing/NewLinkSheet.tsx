@@ -18,10 +18,13 @@ import styles from './sharing.module.css';
  * kind, the cams, the expiry - and nothing else.
  *
  * A range is asked for only where the screen it was opened from was showing
- * one - the charts, stepped back or zoomed - and is then what the link shows
- * unless the grower takes it as a whole. Otherwise what a reader sees through
- * the link is clamped by the server to what the grant allows - a grow's own
- * life, a tent as it stands - and the range is left out rather than invented.
+ * one - Verlauf, which names its window and offers the place first, since its
+ * curves are the place's - and is then what the link shows unless the grower
+ * takes it as a whole; a link onto a grow for a stretch of days shows that
+ * stretch's curves too. Otherwise what a reader sees through the link is clamped
+ * by the server to what the grant allows - a grow's own life, a tent as it
+ * stands - and the range is left out rather than invented. Rooms are not
+ * offered: what is shared is a grow or a place.
  *
  * A public page is permanent until the grow is made private, which is a
  * sentence and not a date, so the expiry row gives way to it. It is offered
@@ -38,12 +41,15 @@ interface ShareWindow {
   startsAt: string;
   endsAt: string;
   label: string;
+  /** A stretch somebody went looking for, which the link is held to unless they take the whole; a window that ends now is not. */
+  fixed: boolean;
 }
 
 export function NewLinkSheet({
   grows,
   spaces,
   window = null,
+  first = 'grow',
   onClose,
   onCreated,
 }: {
@@ -51,6 +57,8 @@ export function NewLinkSheet({
   spaces: Space[];
   /** The stretch a screen was showing, offered as what the link shows; none shares the subject as it stands. */
   window?: ShareWindow | null;
+  /** Which of the two is offered first and chosen: the place from its curves, a grow elsewhere. */
+  first?: GrowOrSpaceRef['type'];
   onClose: () => void;
   /** Where the link just made is handed, for a screen that shows it at once rather than in the list of links. */
   onCreated?: (link: ShareLink) => void;
@@ -58,10 +66,12 @@ export function NewLinkSheet({
   const { t } = useTranslation();
   const create = useCreateShareLink();
   const cameras = useCameras();
-  const [limited, setLimited] = useState(window !== null);
-  const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() =>
-    grows[0] ? { type: 'grow', id: grows[0].id } : spaces[0] ? { type: 'space', id: spaces[0].id } : null,
-  );
+  const places = spaces.filter(space => space.kind !== 'room');
+  const [limited, setLimited] = useState(window?.fixed === true);
+  const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() => {
+    const [grow, place] = [grows[0] && ({ type: 'grow', id: grows[0].id } as const), places[0] && ({ type: 'space', id: places[0].id } as const)];
+    return (first === 'space' ? (place ?? grow) : (grow ?? place)) ?? null;
+  });
   const [kind, setKind] = useState<ShareKind>('view');
   const [cams, setCams] = useState(false);
   const [days, setDays] = useState<number | null>(7);
@@ -72,6 +82,12 @@ export function NewLinkSheet({
   const growIsPublic = grow?.visibility === 'public';
   const blocked = kind === 'public_page' && !growIsPublic;
   const ready = subject !== null && !blocked && !create.isPending;
+
+  const placeChoices = places.map(row => (
+    <Choice key={row.id} chosen={subject?.type === 'space' && subject.id === row.id} onChoose={() => choose({ type: 'space', id: row.id })}>
+      {row.name}
+    </Choice>
+  ));
 
   const choose = (ref: GrowOrSpaceRef) => {
     setSubject(ref);
@@ -110,27 +126,20 @@ export function NewLinkSheet({
     >
       <div className={styles.sheetBody}>
         <Block label={t('me.shareLinks.sheet.subject')} help="spaceLink">
-          {grows.length + spaces.length === 0 ? (
+          {grows.length + places.length === 0 ? (
             /* The screen no longer offers the card at all where there is
                nothing to hand out, so this is only what a list emptied under
                an open sheet falls back to - and it says the same thing. */
             <p className={ui.note}>{t('me.shareLinks.noSubjects')}</p>
           ) : (
             <Choices label={t('me.shareLinks.sheet.subject')}>
+              {first === 'space' ? placeChoices : null}
               {grows.map(row => (
                 <Choice key={row.id} chosen={subject?.type === 'grow' && subject.id === row.id} onChoose={() => choose({ type: 'grow', id: row.id })}>
                   {row.name}
                 </Choice>
               ))}
-              {spaces.map(row => (
-                <Choice
-                  key={row.id}
-                  chosen={subject?.type === 'space' && subject.id === row.id}
-                  onChoose={() => choose({ type: 'space', id: row.id })}
-                >
-                  {row.name}
-                </Choice>
-              ))}
+              {first === 'space' ? null : placeChoices}
             </Choices>
           )}
         </Block>
@@ -165,7 +174,15 @@ export function NewLinkSheet({
                 {t('me.shareLinks.sheet.wholeWindow')}
               </Choice>
             </Choices>
-            <p className={`${ui.note} ${styles.sentence}`}>{t(limited ? 'me.shareLinks.sheet.windowNote' : 'me.shareLinks.sheet.wholeWindowNote')}</p>
+            <p className={`${ui.note} ${styles.sentence}`}>
+              {t(
+                limited
+                  ? 'me.shareLinks.sheet.windowNote'
+                  : subject?.type === 'grow'
+                    ? 'me.shareLinks.sheet.wholeGrowNote'
+                    : 'me.shareLinks.sheet.wholeWindowNote',
+              )}
+            </p>
           </Block>
         ) : null}
 

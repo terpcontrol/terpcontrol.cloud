@@ -25,6 +25,8 @@ interface DiaryProps {
   banner?: ReactNode;
   /** Put beside the author, which is where a reader's one decision about the diary belongs. */
   aside?: ReactNode;
+  /** The curves a link for a stretch of days carries, drawn under the diary's head and above its days. */
+  curves?: ReactNode;
   /**
    * The weeks from before the ones the page carried, and the way to ask for
    * more of them. A diary longer than a page is otherwise a diary whose first
@@ -44,11 +46,13 @@ interface DiaryProps {
  * second route for - which is what lets the same component serve a diary's own
  * address and a link onto it.
  */
-export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps) {
+export function Diary({ page, picture, now, banner, aside, curves, earlier }: DiaryProps) {
   const { t } = useTranslation();
-  const cover = page.coverMediaId ? picture(page.coverMediaId, PUBLIC_WIDTH.cover) : null;
   const weeks = [...page.weeks, ...(earlier?.weeks ?? [])];
   const pictures = weeks.flatMap(week => week.days).flatMap(picturesOfDay);
+  // The grow's cover, else its newest picture the reader may see; a diary with neither opens on its name, not on an empty frame.
+  const newest = pictures[0]?.mediaId ?? null;
+  const coverId = page.coverMediaId ?? newest;
   const [viewing, setViewing] = useState<number | null>(null);
   // A reader from outside is handed the days and their pictures, and no way into the account behind them.
   const reader: DiaryReader = {
@@ -57,7 +61,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
     picture,
     cameras: false,
     byline: false,
-    // By name, where the grower shows how many there are: a line about some of them says which.
+    // By name whatever the counts switch says: a line about some of them says which.
     plants: page.plants,
     thumbnails: true,
     correct: () => undefined,
@@ -70,12 +74,21 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
       {banner}
 
       <header className={ui.stack3}>
-        <Photo
-          src={cover}
-          alt={t('publicPage.coverAlt', { name: page.name })}
-          className={styles.cover}
-          fallback={<Leaf size={36} strokeWidth={1.25} aria-hidden />}
-        />
+        {coverId ? (
+          <Photo
+            src={picture(coverId, PUBLIC_WIDTH.cover)}
+            alt={t('publicPage.coverAlt', { name: page.name })}
+            className={styles.cover}
+            fallback={
+              // A cover the reader's window does not reach gives way to the newest picture that it does.
+              newest && newest !== coverId ? (
+                <img className={ui.cover} src={picture(newest, PUBLIC_WIDTH.cover)} alt={t('publicPage.coverAlt', { name: page.name })} />
+              ) : (
+                <Leaf size={36} strokeWidth={1.25} aria-hidden />
+              )
+            }
+          />
+        ) : null}
 
         <div className={ui.rowTop}>
           <div className={styles.titles}>
@@ -100,6 +113,8 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
         {page.description ? <p className={styles.description}>{page.description}</p> : null}
         <Facts page={page} />
       </header>
+
+      {curves}
 
       {page.filmMediaId ? (
         <figure className={styles.film}>

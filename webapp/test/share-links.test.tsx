@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, Me, ShareLink, ShareLinkCreate, Space } from '@fg2/shared-types/v1';
+import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { translate } from './translations';
@@ -48,6 +49,8 @@ const grows = [
 
 const spaces = [
   { id: 'space-1', ownerId: 'user-1', name: 'Tent 1', kind: 'tent' },
+  // A room groups places and is no subject of a link.
+  { id: 'room-1', ownerId: 'user-1', name: 'Workshop', kind: 'room' },
   { id: 'space-9', ownerId: 'user-mia', name: "Mia's tent", kind: 'tent' },
 ] as Space[];
 
@@ -246,11 +249,13 @@ describe('the active list', () => {
     expect(screen.getByText('Active').nextElementSibling).toHaveTextContent('2');
 
     const page = card('Spring run #3 · public page');
-    expect(page).toHaveTextContent('the grow’s permanent link · cams on · weights hidden · 41 opens · last 2 h ago');
+    expect(page).toHaveTextContent('the grow’s permanent link · camera pictures on · weights hidden · 41 opens · last 2 h ago');
     expect(page).not.toHaveAttribute('data-dead');
 
     const week = card('Tent 1 · Timeline · for 7 days');
-    expect(week).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · cams on · weights hidden · 6 opens · last 5 min ago`);
+    expect(week).toHaveTextContent(
+      `read-only view · expires ${dayOf(weekView.expiresAt!)} · camera pictures on · weights hidden · 6 opens · last 5 min ago`,
+    );
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
   });
 
@@ -264,7 +269,7 @@ describe('the active list', () => {
     server.links = [link({ includeCameras: false })];
     await drawLoaded();
 
-    expect(card('Tent 1 · Timeline')).toHaveTextContent('read-only view · permanent · cams off · weights hidden · not opened yet');
+    expect(card('Tent 1 · Timeline')).toHaveTextContent('read-only view · permanent · camera pictures off · weights hidden · not opened yet');
   });
 
   it('warns on a public-page link whose grow has gone private, because the server still answers it', async () => {
@@ -279,7 +284,7 @@ describe('the active list', () => {
 
     expect(
       screen.getByText(
-        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.',
+        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the camera pictures or not. Followers see the public page; a link never grants writing.',
       ),
     ).toBeInTheDocument();
   });
@@ -402,11 +407,11 @@ describe('an account with nothing of its own', () => {
 describe('the new-link sheet', () => {
   const open = async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or place · cams · expiry' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or place · camera pictures · expiry' }));
     return screen.getByRole('dialog', { name: 'New link' });
   };
 
-  it('offers only what this account owns, and starts on a read-only view for a week', async () => {
+  it('offers only what this account owns, grows and places and no room, and starts on a read-only view for a week', async () => {
     const sheet = await open();
 
     const subjects = within(sheet).getByRole('group', { name: 'Grow or place' });
@@ -471,6 +476,55 @@ describe('the new-link sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
     expect(within(sheet).getByRole('button', { name: 'Public page' })).toBeDisabled();
     expect(within(sheet).getByRole('button', { name: 'Read-only view' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+/** Opened from Verlauf: the window on screen is named, and the place - whose curves they are - is offered first. */
+describe('the new-link sheet from Verlauf', () => {
+  const window = { startsAt: daysFromNow(-1), endsAt: NOW.toUTC().toISO()!, label: 'Yesterday 12:00 to today 12:00' };
+  const openFrom = (fixed: boolean) =>
+    drawAt(
+      <NewLinkSheet
+        grows={[grows[0]]}
+        spaces={spaces.filter(space => space.ownerId === 'user-1')}
+        window={{ ...window, fixed }}
+        first="space"
+        onClose={() => undefined}
+      />,
+    );
+
+  it('chooses the place, names the window and holds the link to it once somebody chose that window', async () => {
+    openFrom(true);
+    const sheet = screen.getByRole('dialog', { name: 'New link' });
+
+    expect(
+      within(within(sheet).getByRole('group', { name: 'Grow or place' }))
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['Tent 1', 'Spring run #3']);
+    expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: window.label })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByText('The link shows this time span only: its curves and its entries.')).toBeInTheDocument();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    await waitFor(() => expect(server.created).toHaveLength(1));
+    expect(server.created[0]).toMatchObject({
+      subject: { type: 'space', id: 'space-1' },
+      range: { startsAt: window.startsAt, endsAt: window.endsAt },
+    });
+  });
+
+  it('names a window that ends now as well, and leaves the link unbounded until it is chosen', () => {
+    openFrom(false);
+    const sheet = screen.getByRole('dialog', { name: 'New link' });
+
+    expect(within(sheet).getByRole('button', { name: window.label })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('button', { name: 'No limit' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByText('The link shows the place as it is now, and everything before.')).toBeInTheDocument();
+
+    // A grow without a limit is its diary as it goes on.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Spring run #3' }));
+    expect(within(sheet).getByText('The link shows the grow’s diary as it goes on.')).toBeInTheDocument();
   });
 });
 

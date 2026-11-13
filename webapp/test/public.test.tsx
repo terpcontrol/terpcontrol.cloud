@@ -175,7 +175,18 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       range: page.range,
       includeCameras: true,
       expiresAt: null,
-      subject: { type: 'grow', grow: page },
+      subject: { type: 'grow', grow: page, curves: [] },
+    });
+  }
+  // A link made from Verlauf for a stretch of two days: the grow stood in one place through it.
+  if (path === '/shared/stretch-token') {
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    return json({
+      kind: 'view',
+      range,
+      includeCameras: true,
+      expiresAt: null,
+      subject: { type: 'grow', grow: { ...page, range }, curves: [{ spaceId: 'space-1', name: 'Tent 1', range }] },
     });
   }
   if (path === '/follows') return json({ items: [], nextCursor: null });
@@ -236,6 +247,21 @@ describe('a public diary', () => {
     expect(screen.getAllByText('9')).toHaveLength(2);
     // And the diary by the day, as the grower's own page draws it: how each day was.
     expect(screen.getByRole('article', { name: 'Today · Day 35' })).toHaveTextContent('Ø 23.6 °C · 60 %');
+  });
+
+  it('opens on the newest picture where the grow has no cover, and on no picture box where it has no picture', () => {
+    const { unmount } = drawAt(<Diary page={{ ...page, coverMediaId: null }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByRole('img', { name: 'Spring run, cover picture' })).toHaveAttribute(
+      'src',
+      expect.stringContaining('/v1/public/grows/spring-run/media/media-1'),
+    );
+    unmount();
+
+    const bare = { ...week, days: week.days.map(one => ({ ...one, still: null })) };
+    const { container } = drawAt(<Diary page={{ ...page, coverMediaId: null, weeks: [bare] }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.queryByRole('img', { name: 'Spring run, cover picture' })).not.toBeInTheDocument();
+    // Not an empty frame with a leaf either: the avatar is the only frame the page draws.
+    expect(container.querySelectorAll('[data-empty="true"]')).toHaveLength(0);
   });
 
   it('addresses every picture by the diary’s own public route, which carries no token of any kind', () => {
@@ -522,7 +548,7 @@ describe('a tent behind a link', () => {
     expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('one', 1200));
   });
 
-  /** A line about one plant of several said nothing of which; where the grower shows the count, the link names it as the diary does. */
+  /** A line about one plant of several said nothing of which; the link names it as the diary does, by the names the answer carries. */
   it('names the plants a line is about where the answer names the grow´s plants, and none where it does not', () => {
     const plants = [
       { id: 'p1', growId: 'grow-1', label: 'A1' },
@@ -547,6 +573,13 @@ describe('a tent behind a link', () => {
       />,
     );
     expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/B2/);
+  });
+
+  it('says an empty diary once: the curves´ own diary card says it, and no empty "Latest" follows', () => {
+    drawAt(<SharedSpace space={sharedSpace(at(0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    expect(screen.queryByRole('region', { name: 'Latest' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Nothing in the diary yet')).not.toBeInTheDocument();
   });
 
   it('still says nothing has been reported of a tent whose window is open', () => {
@@ -606,6 +639,34 @@ describe('following a diary', () => {
 
     restore.mockRestore();
     state.session = SIGNED_OUT;
+  });
+
+  it('draws the curves of where the grow stood on a link for a stretch of days, opened on that stretch and read through the link', async () => {
+    reads.length = 0;
+    drawRoute('/shared/stretch-token', '/shared/:token', <SharedRoute />);
+
+    expect(await screen.findByRole('heading', { name: 'Timeline · Tent 1' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    await waitFor(() => expect(reads).toContainEqual({ path: '/spaces/space-1/timeline', share: 'stretch-token' }));
+    const asked = new URL(
+      String(
+        vi
+          .mocked(fetchStub)
+          .mock.calls.map(call => call[0])
+          .find(url => String(url).includes('/timeline')),
+      ),
+      'http://localhost',
+    );
+    expect([asked.searchParams.get('from'), asked.searchParams.get('to')]).toEqual([at(3, 0), at(1, 0)].map(one => new Date(one).toISOString()));
+  });
+
+  it('draws no curves on a link onto a running grow, which is its diary', async () => {
+    reads.length = 0;
+    drawRoute('/shared/a-token', '/shared/:token', <SharedRoute />);
+
+    expect(await screen.findByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /^Timeline/ })).not.toBeInTheDocument();
+    expect(reads.some(read => read.path.endsWith('/timeline'))).toBe(false);
   });
 
   it('is on no diary a link leads to, even a public one: a window onto somebody´s grow is not a subscription', async () => {

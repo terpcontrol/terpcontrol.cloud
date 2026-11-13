@@ -2310,8 +2310,35 @@ export const publicUserPage = named(
   }),
 );
 
-/** A link onto a grow answers the same page the grow's own public address does. */
-export const sharedGrow = named('SharedGrow', z.object({ type: z.literal('grow'), grow: publicGrowPage }));
+/**
+ * A place whose curves a link onto a grow shows, over the stretch the grow stood
+ * there inside the link's window. The same place's Verlauf read through the
+ * link is clamped to that stretch.
+ */
+export const sharedCurves = named(
+  'SharedCurves',
+  z.object({
+    spaceId: id(),
+    name: z.string(),
+    range: timeRange,
+  }),
+);
+
+/**
+ * A link onto a grow answers the same page the grow's own public address does,
+ * and - where its window ends, a stretch of days somebody chose - the curves of
+ * the places the grow stood in during it, as a link onto a place shows its own.
+ */
+export const sharedGrow = named(
+  'SharedGrow',
+  z.object({
+    type: z.literal('grow'),
+    grow: publicGrowPage,
+    curves: z
+      .array(sharedCurves)
+      .describe('Where the grow stood inside a window that ends, oldest first; none for a link onto a running grow, which is its diary.'),
+  }),
+);
 
 /**
  * A link onto a space answers its page, already clamped to the link's range

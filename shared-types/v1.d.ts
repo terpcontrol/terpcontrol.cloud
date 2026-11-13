@@ -4613,9 +4613,19 @@ export interface PublicUserPage {
   grows: FollowedGrowCard[];
 }
 
+export interface SharedCurves {
+  spaceId: string;
+  name: string;
+  range: TimeRange;
+}
+
 export interface SharedGrow {
   type: 'grow';
   grow: PublicGrowPage;
+  /**
+   * Where the grow stood inside a window that ends, oldest first; none for a link onto a running grow, which is its diary.
+   */
+  curves: SharedCurves[];
 }
 
 export interface SharedSpace {

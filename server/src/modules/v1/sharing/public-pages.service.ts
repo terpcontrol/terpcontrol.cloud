@@ -2,8 +2,17 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { FollowedGrowCard, GrowDiaryWeek, LinkCard, PublicAuthor, PublicGrowPage, PublicUserPage, SharedResolution } from '@fg2/shared-types/v1';
-import { AccessService, subjectRef } from '@common/v1/access.service';
+import type {
+  FollowedGrowCard,
+  GrowDiaryWeek,
+  LinkCard,
+  PublicAuthor,
+  PublicGrowPage,
+  PublicUserPage,
+  SharedCurves,
+  SharedResolution,
+} from '@fg2/shared-types/v1';
+import { AccessService, stayInside, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { CursorPage } from '@common/v1/pages';
 import { clampRange, isoRange, pictureOutsideRange, storyEndsAt } from '@common/v1/range';
@@ -17,6 +26,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaService } from '../camera/media.service';
 import { diaryMovedAt, readingNamesOf } from '../diary/diary-entries';
@@ -57,6 +67,7 @@ export class PublicPagesService {
     @InjectModel(MODEL_V1.plant) private readonly plants: Model<PlantDocument>,
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     private readonly grows: GrowsService,
     private readonly files: MediaService,
     private readonly diary: GrowDiaryService,
@@ -137,7 +148,8 @@ export class PublicPagesService {
       range: isoRange(range),
       includeCameras: grant.includeCameras,
       readingNames: readingNamesOf([grow])[0].readings,
-      plants: hide.counts ? [] : plants.map(labelOf),
+      // By name whatever the counts switch says: it hides how many there are, and a line about some of them says which.
+      plants: plants.map(labelOf),
       weeks: page.items,
       weeksCursor: page.nextCursor,
       harvest: harvestOf(plants, hide, range),
@@ -289,7 +301,33 @@ export class PublicPagesService {
     if (link.subject.type === 'space') return { type: 'space', space: await this.overview.read(grant, link.subject.id, now) };
 
     const grow = await this.grows.require(link.subject.id);
-    return { type: 'grow', grow: await this.growPage(grow, grant, now) };
+    const [page, curves] = await Promise.all([this.growPage(grow, grant, now), link.kind === 'view' ? this.curvesOf(grow, link) : []]);
+    return { type: 'grow', grow: page, curves };
+  }
+
+  /**
+   * The places a link onto a grow shows the curves of - where the grow stood
+   * inside a window that ends - each over its stay, which is also what that
+   * place's Verlauf is clamped to when it is read through the link.
+   */
+  private async curvesOf(grow: GrowDocument, link: ShareLinkDocument): Promise<SharedCurves[]> {
+    const window = { startsAt: link.range.startsAt, endsAt: link.range.endsAt };
+    const stood = [...new Set(grow.placements.flatMap(stay => (stay.spaceId === null ? [] : [stay.spaceId])))].flatMap(spaceId => {
+      const range = stayInside(grow.placements, spaceId, window);
+      return range ? [{ spaceId, range }] : [];
+    });
+    if (stood.length === 0) return [];
+
+    const names = new Map(
+      (await this.spaces.find({ id: { $in: stood.map(one => one.spaceId) } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>()).map(
+        space => [space.id, space.name],
+      ),
+    );
+
+    return stood
+      .filter(one => names.has(one.spaceId))
+      .sort((one, other) => one.range.startsAt!.getTime() - other.range.startsAt!.getTime())
+      .map(one => ({ spaceId: one.spaceId, name: names.get(one.spaceId)!, range: isoRange(one.range) }));
   }
 
   // -------------------------------------------------------------------------

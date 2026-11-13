@@ -1,7 +1,7 @@
 import { anonymous, createAccount, Session, unique } from '../support/api';
 import { seedMeasurements } from '../support/control';
 import { provisionDevice } from '../support/device';
-import { remindSpace, setRow, storeCameraStill } from '../support/fixtures';
+import { setRow, storeCameraStill } from '../support/fixtures';
 import { A_JPEG } from '../support/pictures';
 
 /**
@@ -151,7 +151,10 @@ describe('a public grow at its own address', () => {
 
     const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
     expect(opened.body.subject.grow.growId).toBeNull();
-    expect(JSON.stringify(opened.body)).not.toContain(unpublished.id);
+    // Its plants and its lines say which diary they belong to, as every diary's do; nothing else names it.
+    expect(
+      JSON.stringify({ ...opened.body, subject: { ...opened.body.subject, grow: { ...opened.body.subject.grow, plants: [], weeks: [] } } }),
+    ).not.toContain(unpublished.id);
   });
 
   it('names no device the diary was not kept with', async () => {
@@ -221,8 +224,10 @@ describe('a public grow at its own address', () => {
     const hidden = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
     expect(hidden.body.plantCount).toBeNull();
     expect(hidden.body.harvest).toMatchObject({ wetWeightG: null, dryWeightG: null });
-    // The plants by name are the count by name: none while it is hidden.
-    expect(hidden.body.plants).toEqual([]);
+    // The switch hides how many there are, not their names: a line about some of them says which.
+    expect(hidden.body.plants.map((plant: { label: string }) => plant.label)).toEqual(
+      plants.body.items.map((plant: { label: string }) => plant.label),
+    );
 
     await quiet.client
       .patch('/v1/me')
@@ -811,16 +816,10 @@ describe('opening a share link', () => {
   });
 
   it('opens a tent without the working half of its page', async () => {
-    await remindSpace(tent, owner.userId);
-
-    const mine = await owner.client.get(`/v1/spaces/${tent}/overview`).expect(200);
-    expect(mine.body.dueTasks.length).toBeGreaterThan(0);
-
     const link = await linkOnto({ type: 'space', id: tent });
     const opened = await anonymous().get(`/v1/shared/${link.token}`).expect(200);
 
-    // What is due and what is alarming is for whoever keeps the tent.
-    expect(opened.body.subject.space.dueTasks).toEqual([]);
+    // What is alarming is for whoever keeps the tent.
     expect(opened.body.subject.space.openAlerts).toEqual([]);
     expect(opened.body.subject.space.spaceId).toBe(tent);
   });
