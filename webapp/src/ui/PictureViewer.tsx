@@ -25,16 +25,14 @@ interface PictureViewerProps {
 /**
  * Every picture of one diary line, one at a time.
  *
- * A row has space for four thumbnails and no more - one migrated phase line
- * carries seventeen - so the strip says how many more there are and this is
- * where they are. It is a dialog rather than a screen of its own because the
- * pictures hang on the line: a reader is in the middle of a day's card, and a
- * route would cost them their place in it.
+ * A line says how many pictures it carries - one migrated phase line carries
+ * seventeen - and is the way to them; this is where they are. It is a dialog
+ * rather than a screen of its own because the pictures hang on the line: a
+ * reader is in the middle of a day's card, and a route would cost them their
+ * place in it.
  *
- * What it steps through is what the surface handed over, which on a share link
- * narrowed to a few days is fewer pictures than the line carries. Stepping
- * over a refused picture is the same decision the strip makes by leaving its
- * frame out, rather than a blank frame and a number that skips.
+ * What it steps through is what the surface handed over, which on a share
+ * link narrowed to a few days is fewer pictures than the line carries.
  */
 export function PictureViewer({ pictures, captions, from, actions, onClose }: PictureViewerProps) {
   const { t } = useTranslation();

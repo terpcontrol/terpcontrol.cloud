@@ -9,7 +9,7 @@ import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { timelinePath } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
-import { EntryWords } from '@/ui/EntryRow';
+import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { MINUTE_MS } from '@/ui/days';
 import { useKept, useKeptScroll } from '@/ui/kept';
@@ -239,7 +239,6 @@ export function Days({
             <Lines>
               {earlier.map(entry => (
                 <Line key={entry.id} stamp={zoned(entry.occurredAt, reader.zone).toFormat(DATED_CLOCK)} onOpen={reader.correct(entry, null)}>
-                  <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
                   <EntryWords
                     entry={entry}
                     people={people}

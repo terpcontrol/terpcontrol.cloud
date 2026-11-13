@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Person, ReadingName } from '@fg2/shared-types/v1';
 import { sinceLabel } from '@/ui/age';
 import { warningOf } from '@/ui/entries';
-import { EntryWords } from '@/ui/EntryRow';
+import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { Line } from '@/ui/Lines';
 import ui from '@/ui/ui.module.css';
@@ -84,7 +84,6 @@ export function DiaryLine({
   const { entry } = what;
   return (
     <Line stamp={stamp} mark={mark} severity={warningOf(entry)} onOpen={onOpen} opens={opens} onStamp={onStamp} stampDoes={stampDoes}>
-      <span className={ui.visuallyHidden}>{`${t(`home.entryKind.${entry.kind}`)}: `}</span>
       <EntryWords
         entry={entry}
         people={people}

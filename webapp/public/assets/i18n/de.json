@@ -565,7 +565,6 @@
     },
     "entryPhotos": {
       "alt": "Bild {{n}} von {{count}}",
-      "more": "+{{count}}",
       "previous": "Vorheriges Bild",
       "next": "Nächstes Bild"
     },

@@ -209,6 +209,8 @@ const server = {
   fleet: FLEET,
   stats: (() => json(STATS)) as () => Response,
   cameras: [[]] as Camera[][],
+  // What the device said lately.
+  lines: [] as unknown[],
 };
 
 const BROKEN = { status: 500, code: 'internal', title: 'Something went wrong', detail: '', errors: [] };
@@ -239,7 +241,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/devices/tc-7f3a') {
     return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800 }, workmode: 'small' } });
   }
-  if (path.startsWith('/entries')) return json({ items: [], nextCursor: null });
+  if (path.startsWith('/entries')) return json({ items: server.lines, nextCursor: null });
   if (path === '/spaces/space-1/overview') return json({ spaceId: 'space-1', name: 'Blue Dream tent' });
 
   return json(NOT_FOUND, 404);
@@ -259,6 +261,7 @@ beforeEach(() => {
   server.stats = () => json(STATS);
   server.devices = DEVICES;
   server.cameras = [[]];
+  server.lines = [];
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -600,6 +603,46 @@ describe('support for a customer', () => {
     expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);
+  });
+
+  /**
+   * What the device said is read as the diary's own line - the words every list says - stamped with its hour
+   * on another day too, since support reads when a restart fell, and without the mark of a line among a
+   * grower's: every line here is the device's.
+   */
+  it('lists what the device said as lines of the diary, each with the hour it fell on', async () => {
+    const at = NOW.minus({ days: 2 }).set({ hour: 3, minute: 12 });
+    server.lines = [
+      {
+        id: 'line-1',
+        kind: 'system',
+        source: 'device',
+        occurredAt: at.toISO(),
+        authorId: null,
+        severity: null,
+        text: null,
+        message: { key: 'message-co2-low', params: [] },
+        values: { kind: 'system' },
+        mediaIds: [],
+      },
+    ];
+    drawAt(
+      <Routes>
+        <Route
+          path="/admin/devices/:deviceId"
+          element={
+            <AdminOnly>
+              <DeviceDiagnosis />
+            </AdminOnly>
+          }
+        />
+      </Routes>,
+      { at: '/admin/devices/tc-7f3a' },
+    );
+
+    const line = (await screen.findByText(/Low CO₂/)).closest('li')!;
+    expect(line).toHaveTextContent(new RegExp(`^${at.toFormat('d LLL HH:mm')}System: Low CO₂`));
+    expect(line).not.toHaveTextContent('automatic');
   });
 
   it('flattens a document into the paths a support reader can search with the eye', () => {

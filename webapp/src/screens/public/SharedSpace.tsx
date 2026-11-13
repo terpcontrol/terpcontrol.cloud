@@ -1,10 +1,9 @@
 import { DateTime } from 'luxon';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
-import { EntryRow } from '@/ui/EntryRow';
+import { ageAttribute, ageLabel, dayStamp, valueAge } from '@/ui/age';
 import { Term } from '@/ui/Help';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
@@ -12,7 +11,11 @@ import { growDay } from '@/screens/grow/progress';
 import { livenessOf, measuredAtOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
 import { figure, targetFigure, UNIT } from '@/ui/units';
+import { Lines } from '@/ui/Lines';
 import { Photo } from '@/ui/Photo';
+import { PictureViewer } from '@/ui/PictureViewer';
+import { dayLines } from '@/screens/grow/diary/days';
+import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { SharedTimeline } from '../timeline/Timeline';
 import styles from './Public.module.css';
 import { windowIsCurrent } from './window';
@@ -44,7 +47,8 @@ export function SharedSpace({
   now: DateTime;
   banner?: ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [viewing, setViewing] = useState<string[] | null>(null);
   // A place with two climates is about one of them on every page: the tiles, the pill and the curves under them
   // are the place's own device's, which the server names first.
   const values = space.climates[0]?.values ?? space.values;
@@ -130,25 +134,31 @@ export function SharedSpace({
         {space.entries.length === 0 ? (
           <p className={styles.quiet}>{t('grow.diary.empty')}</p>
         ) : (
-          <ul className={styles.entries}>
-            {space.entries.map(entry => (
-              // The browser's zone, said out loud: a share link answers what
-              // the pictures and the lines are, and not where the grower who
-              // wrote them keeps their clock.
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                people={[]}
-                measurements={readingNamesOf(space.readingNames, entry.growId)}
-                now={now}
-                byline={false}
-                picture={picture}
-                zone={null}
-              />
-            ))}
-          </ul>
+          <Lines>
+            {/* The lines as Start says them, in the browser's zone: a share link answers what the lines and the
+                pictures are, and not where the grower who wrote them keeps their clock. A line that carries
+                pictures counts them and is the way to them. */}
+            {dayLines(t, i18n, { entries: space.entries, events: space.events, endsAt: now.toISO() ?? '' }, null).map(line => {
+              const entry = line.what.kind === 'entry' ? line.what.entry : null;
+              return (
+                <DiaryLine
+                  key={line.key}
+                  line={line}
+                  stamp={dayStamp(line.at, now, null)}
+                  zone={null}
+                  now={now}
+                  people={[]}
+                  measurements={entry ? readingNamesOf(space.readingNames, entry.growId) : []}
+                  byline={false}
+                  onOpen={entry?.mediaIds.length ? () => setViewing(entry.mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.cover))) : null}
+                  opens={t('grow.diary.openPicture')}
+                />
+              );
+            })}
+          </Lines>
         )}
       </section>
+      {viewing ? <PictureViewer pictures={viewing} from={0} onClose={() => setViewing(null)} /> : null}
     </article>
   );
 }

@@ -6,7 +6,7 @@ import { api } from '@/api/client';
 import type { Told } from '@/log/log-context';
 import { daysLeftOf, items as co2Items } from '@/screens/devices/advanced/Co2Report.advanced';
 import { itemsFor } from '@/ui/advanced/registry';
-import { EntryRow } from '@/ui/EntryRow';
+import { EntryWords } from '@/ui/EntryWords';
 import { drawAt } from './harness';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -326,13 +326,7 @@ describe('the CO2 cylinder, under the device that doses from it', () => {
       mediaIds: [],
       undoUntil: null,
     } as unknown as Entry;
-    // The row reads the account for the zone its time is drawn in.
-    vi.mocked(api.get).mockResolvedValue({ id: 'user-1', handle: 'you' } as never);
-    drawAt(
-      <ul>
-        <EntryRow entry={entry} people={[]} now={DateTime.now()} />
-      </ul>,
-    );
+    drawAt(<EntryWords entry={entry} people={[]} zone={null} />);
 
     expect(screen.getByText(/New CO₂ cylinder 425 g/)).toBeInTheDocument();
   });

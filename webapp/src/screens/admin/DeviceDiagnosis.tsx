@@ -10,13 +10,15 @@ import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
-import { ageLabel, deviceLiveness } from '@/ui/age';
-import { EntryRow } from '@/ui/EntryRow';
-import { foldRepeats } from '@/ui/entries';
+import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
+import { EntryWords } from '@/ui/EntryWords';
+import { foldRepeats, warningOf } from '@/ui/entries';
+import { Line, Lines } from '@/ui/Lines';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
+import { useZone } from '@/ui/zone';
 import { serverNow } from '@/api/clock';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { flatten } from './fleet-rows';
@@ -37,6 +39,7 @@ export function DeviceDiagnosis() {
   const { t } = useTranslation();
   const { deviceId = '' } = useParams();
   const now = useNow();
+  const zone = useZone();
   const device = useRead(deviceQuery(deviceId));
   const lines = useDeviceEntries(deviceId);
   const people = useAdminUsers();
@@ -109,11 +112,16 @@ export function DeviceDiagnosis() {
           ) : lines.data.items.length === 0 ? (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noLines')}</p>
           ) : (
-            <ul className={styles.lines}>
-              {foldRepeats(lines.data.items).map(({ entry, count, since }) => (
-                <EntryRow key={entry.id} entry={entry} people={[]} now={now} byline={false} brief repeats={count > 1 ? { count, since } : null} />
-              ))}
-            </ul>
+            <div className={styles.cardNote}>
+              <Lines>
+                {/* Each line as the diary says it, stamped with its hour: support reads when, not only on which day. */}
+                {foldRepeats(lines.data.items).map(({ entry, count, since }) => (
+                  <Line key={entry.id} stamp={sinceLabel(entry.occurredAt, now, zone)} severity={warningOf(entry)}>
+                    <EntryWords entry={entry} people={[]} now={now} zone={zone} byline={false} brief repeats={count > 1 ? { count, since } : null} />
+                  </Line>
+                ))}
+              </Lines>
+            </div>
           )}
         </section>
       </div>

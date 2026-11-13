@@ -1,0 +1,30 @@
+.author {
+  font-weight: var(--weight-semibold);
+}
+
+/* What a grower typed keeps the lines they typed it in; runs of spaces are still collapsed, as anywhere else. */
+.headline {
+  font-weight: var(--weight-medium);
+  white-space: pre-line;
+}
+
+.readings {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+/*
+ * What a device, the plan or an alarm actually said, on a line of its own under
+ * the headline. Quieter than the headline, because the headline is what the row
+ * is scanned by and this is what it is read for; the breaks are kept because a
+ * saved configuration arrives as one setting per line.
+ */
+.detail {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

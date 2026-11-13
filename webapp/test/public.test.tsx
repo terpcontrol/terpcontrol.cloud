@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { Route, Routes } from 'react-router';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -490,6 +490,32 @@ describe('a tent behind a link', () => {
     drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
     expect(screen.getByRole('button', { name: '93 % in band' })).toHaveAccessibleDescription(/^The share of the last 24 hours/);
+  });
+
+  /**
+   * "Zuletzt" is the diary's own line, as Start draws it: no name on it, the day it was written, and its
+   * pictures counted in the line, which is the way to them at the link's own addresses.
+   */
+  it('says its latest lines as the diary does, and opens a line´s pictures through the link', () => {
+    const space: SpaceOverview = {
+      ...sharedSpace(at(0)),
+      entries: [entry({ id: 'e-photo', kind: 'photo', values: { kind: 'photo' }, text: 'The canopy from above', mediaIds: ['one', 'two'] })],
+    };
+
+    drawAt(<SharedSpace space={space} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    const latest = within(screen.getByRole('region', { name: 'Latest' }));
+    const line = latest.getByRole('listitem');
+    expect(line).toHaveTextContent(/^yesterdayPhoto: The canopy from above · 2\s?pictures, open the picture$/);
+    expect(line.textContent).not.toMatch(/anna/);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    fireEvent.click(latest.getByRole('button', { name: /The canopy from above/ }));
+    const viewer = screen.getByRole('dialog');
+    expect(viewer).toHaveAccessibleName('Picture 1 of 2');
+    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('one', 1200));
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Next picture' }));
+    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('two', 1200));
   });
 
   it('still says nothing has been reported of a tent whose window is open', () => {

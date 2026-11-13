@@ -292,14 +292,6 @@
 
 /* --------------------------------------------------------------------- days */
 
-/* The lines of a shared place. */
-.entries {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: var(--rule-solid);
-}
-
 /* ------------------------------------------------------------------ profile */
 
 .profile {
