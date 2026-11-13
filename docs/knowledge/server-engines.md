@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
-updated: 2026-11-13
-source: regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+updated: 2026-11-14
+source: no night shorter than a minute, alarm limits that contradict each other refused (the redesign session's final fix round, second part, 2026-11-13); regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -34,6 +34,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   restart.
 - A device's rules are listed a page at a time with `counts` over all of them - total, on, raised - so a screen
   that counts them does not count a page (`AlarmRuleService.counts`; Steuerung said "100 Regeln" of 110).
+- A rule rings above `upper` and below `lower`, so one whose lower limit is not below its upper one would ring at
+  every value: it is refused on create and on an update that brings a `watch`, 422 `limits_contradict`
+  (`refuseContradiction`, `alarm-rule.service.ts`; the redesign session of 2026-11-13, after "über 70, unter 80"
+  fired at once).
 - The health loop (`alarm-health.service.ts`, every 60 s) raises what no reading reports: the `offline` rule every
   device carries (critical, repeating every 30 min) and a camera's stale warning (on unless the camera turns it off).
   Silence counts from `heardAt`, the later of `state.lastSeenAt` and the newest stored sample
@@ -84,7 +88,13 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 ## Device settings and plans
 - The settings document is the device's own: the server keeps a copy and decides only the work mode, the per-type
   rules and per-field limits (`work-modes.ts`, `class-rules.ts`, `configuration-fields.ts`, `document-figures.ts` in
-  `modules/device-protocol/`). A save answers what was stored, not what the device runs. It keeps the figures the
+  `modules/device-protocol/`). **A figure a person writes is held to the range Steuerung offers** -
+  `TARGET_RANGES` in `shared-types/src/v1/configuration-fields.ts` for the temperatures, humidities, the CO2 target
+  and the light limit, not the firmware's wider ranges - and refused outside it, 400 `validation_failed` with
+  `too_big` / `too_small` per field, on the targets and the plan's step alike (`asSetByHand`,
+  `document-figures.ts`; the redesign session of 2026-11-13): nothing clamps a hand's figure; a figure the device
+  already holds and what the server writes itself (presets, drying) are not held to it again. A save answers what
+  was stored, not what the device runs. It keeps the figures the
   current work mode does not use (`idle-figures.ts`); drying and germination remember what to return to
   (`drying-return.ts`, `germination-memory.ts`). Which modes end germination and get the night from before it back is
   `SCHEDULED_MODES` in `day-night.ts`, the modes with a day and a night: a mode added there changes how germination
@@ -185,7 +195,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   contract; nothing reads them. The read behind it: [data.md](data.md#influxdb).
 - **Within three days a lamp's stretch is its samples'** (`history()`, the same session): its switchings, and
   an AIR's own day, are read at five seconds, so "07:02 bis 19:02" is the same on every zoom and the night
-  begins where the stretch ends; beyond three days both are to five minutes.
+  begins where the stretch ends; beyond three days both are to five minutes. **No night shorter than a minute is
+  answered** (`nightsOf`, `SHORTEST_NIGHT_MS`, `timeline/timeline-series.ts`; the redesign session of
+  2026-11-13): where a backfill met live samples, a sliver of heard time between two silences had made a night of
+  three seconds - on the schedule's path and the lamp's alike.
 - **What was heard begins and ends with its samples** (`heardStretches`, `edgesQuery`; the redesign session of
   2026-11-13 after the fifth walk). A window says that something was heard in it, not when: a lamp lit
   across a silence ended "17:00" at an hour to the point for a last sample at 16:18, and a device's first
@@ -194,8 +207,7 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   begins with the first of its first window and ends with the last of its last, the same at every step. **A
   device is heard when any of its fields reports** (after the sixth walk): the edges are the device's, of
   whichever field - asked of one field, a heater that began to report later than its controller moved the
-  lamp's edges. A read without them
-  (`/spaces/{id}/series` counts no samples) keeps the window its first point stands for and its last stamp.
+  lamp's edges. A read without them keeps the window its first point stands for and its last stamp.
 - **A reading is of one instant** (`readingOf`, the same session): the answer's `reading` carries an output
   only if it was heard within the two minutes a reading stays fresh before the reading's own instant - a
   valve that stopped being reported is not "aus" now - and a place of outputs alone has one too, of the one

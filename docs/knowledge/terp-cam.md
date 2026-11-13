@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-11-13
-source: the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
+updated: 2026-11-14
+source: a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -40,7 +40,10 @@ way and what the code has to respect. Internal notes on the camera exist.
 ## Kinds of camera (`cameras.kind`)
 - `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan) or Smart Socket
   (plug) - the LIGHT has no entry (PR #128). One per device; the server treats every type alike.
-- `rtsp`: any URL ffmpeg reads (RTSP or an HTTP snapshot URL), pulled directly or, with `tunnel: true`, through the
+- `rtsp`: an `rtsp://` or `rtsps://` address with a host - anything else is refused on create and on a changed
+  address, 422 `not_a_stream_address` (`isStreamAddress`, `stream-url.ts`; the redesign session of 2026-11-13,
+  after "quatsch" made a camera that could never show a picture), and the web app checks the field the same way
+  before anything is sent (`isStreamAddress`, `webapp/src/screens/camera/stream.ts`) - pulled directly or, with `tunnel: true`, through the
   MQTT tunnel of any Terp Control device in the place - the tunnel is in the firmware all types share. Through the
   device is the default (Chris, 2026-10-08): the app's switch starts on, and a create that names a device and leaves
   `tunnel` out gets it (not over UDP); a direct pull is for a camera the cloud can reach on the internet.
@@ -153,6 +156,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   link, a busy device or a server restart look like firmware without the relay.
 
 ## Camera records (`cameras.schema.ts`, `hardware-report.service.ts`)
+- A camera a device pairs from 2026-11-13 on is named "Terp Cam" by the server (`PAIRED_CAMERA_NAME`; Chris), so
+  an unnamed one never reads by a fragment of its id; a row that comes back keeps its name, and nothing already
+  named was renamed.
 - The device is the source of truth for a Terp Cam, and a report reaches only rows of the reporting device's owner:
   the row live on this device, or one this owner buried for this `did`. Rows are never taken across accounts, so
   after an owner change the new owner gets a fresh row (own twelve months) and the old one keeps its stills.
@@ -233,6 +239,13 @@ way and what the code has to respect. Internal notes on the camera exist.
 - Tunnel, carrier and transport are written by the settings sheet's Save in one `PATCH /v1/cameras/{id}`, with
   whatever else was changed. UDP does not pass through a tunnel, so turning the tunnel on for a stream read over
   UDP sends `transport: null` (`webapp/src/screens/camera/CameraSettings.tsx`).
+- Adding a stream camera (`webapp/src/screens/camera/add/RtspCamera.tsx`; the redesign session of 2026-11-13):
+  "Test" never adds - no route tests an address without a camera, so it makes a silent camera for the test alone
+  (`logErrors` and `staleWarning` off), takes one picture and removes it again in a `finally`, which leaves a
+  tombstone row per test; "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and
+  opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
+  with the form for one, instead of the pairing guide (`AddCamera.tsx`); pairing is offered only at devices in
+  places the reader manages.
 
 ## Configuration
 - `TERPCAM_RELAY_URL`: `docker-compose.yaml` defaults it to `${API_URL_EXTERNAL}/terpcam/relay` - defaults belong

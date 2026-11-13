@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-11-13
-source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-14
+source: step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -69,7 +69,12 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   session of 2026-11-13; run in unit tests, not yet on a restored copy): `029-reminders-of-ended-places` deletes
   the reminders about a place or room that has ended - ending a place left them behind until then, so any
   database that ran the rewrite can hold some (the session's test stack held four) - and
-  `030-open-alerts-where-the-device-stands` gives every open alert the place its device stands in now. Its reads are empty over "the last 24 hours" for a
+  `030-open-alerts-where-the-device-stands` gives every open alert the place its device stands in now (both since
+  verified on a copy of production data, see the handover). `031-hand-set-phases` (Chris, 2026-11-13; unit tests
+  only) gives every phase stored as `preset` to a person - its `setBy` where one was stored, else the grow's owner -
+  with its diary line, since the data cannot tell a phase set on the grow page from a preset applied under
+  Steuerung and only a plan writes `plan`; counted as `phases.givenToTheirPerson` and `entries.givenToTheirPerson`.
+  Its reads are empty over "the last 24 hours" for a
   reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
   there with `?at=` on that day, and a grow's diary on its older pages.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of

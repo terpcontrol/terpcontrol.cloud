@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
-updated: 2026-11-13
-source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+updated: 2026-11-14
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -181,13 +181,15 @@ are open to him.
 **Face.** One family, OFL, self-hosted: **Albert Sans Variable** (`@fontsource-variable/albert-sans`, the weight
 axis). It has no tabular figures - its "1" is half as wide as its "0" - so a column of readings would not line up
 and a live figure would push its unit about as it changes. `webapp/scripts/tabular-digits.py` therefore cuts
-digits of one width out of it: 0-9 only, each centred on the width of its weight's "0", as three static faces of
-about 1.3 KB (`src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`) - static, because recentring moves an
+digits of one width out of it: 0-9 only, each centred on the width of its weight's "0" - except the "1", which
+has an advance of its own, seven tenths of a zero's (Chris, 2026-11-13: centred on a whole zero it left a hole on
+either side, "1 1,1", in a column and a stepper; at seven tenths a column stays within a few pixels of flush) -,
+as three static faces of about 1.3 KB (`src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`) - static, because recentring moves an
 outline differently at every weight. `--font-figure` names that face ahead of Albert Sans: digits are a digit
 wide, everything else keeps its own width. **It is for figures that stand under one another or change in place**
 - a table's column, an axis, a list's time column, a stepper's value, a countdown, Verlauf's cursor line - and for
 nothing else (the redesign session of 2026-11-13, after the whole-app walk): the cut "1", centred on a zero's
-width, leaves a hole on either side, which in a large light figure read "60, 1 %" and in a date "1 3.1 1.2026". A
+width, left a hole on either side, which in a large light figure read "60, 1 %" and in a date "1 3.1 1.2026". A
 sentence, a date, a chip, a title and a figure that stands alone - a tile's, the picture's, a panel's head - are
 set in the face's own digits; app-ux.md §9 lists the uses. The server draws its overlays in the same family:
 `server/scripts/install-fonts.mjs` unpacks `@fontsource/albert-sans` at 400 and 500 into the image for librsvg.
@@ -229,7 +231,7 @@ hairline rule.
 - **The lamp has its own light**, a straw (`--lamp`), on a timeline lane and behind a lit day: until this look
   it borrowed the warning's colour, and a lamp that is on is not a warning. It is lighter and yellower than the
   warning in both modes - oklch(0.72 0.12 88) in light, 2.4:1 on a card where the first value was 1.8:1 and the
-  faintest mark on Verlauf; oklch(0.86 0.10 95) in dark, where the first value had been the warning's very own
+  faintest mark on Verlauf (kept at that by Chris, 2026-11-13: darker drifts toward the warning's ochre); oklch(0.86 0.10 95) in dark, where the first value had been the warning's very own
   (the redesign session of 2026-11-13, after the whole-app walk).
 
 Every text colour clears WCAG AA on the page, the card and the inset surface of its own mode, computed for each
@@ -256,6 +258,7 @@ pair: the lowest are the three curve colours read as text on the inset surface, 
 | `--green-ink` | `#34582c` | `#acd9a2` | green text |
 | `--green-wash` | `#e3f2e0` | `#243221` | behind a green word: live, a stage, the current step |
 | `--green-fill` / `--on-green` | `#3e8024` / `#ffffff` | the same | the primary action's fill and its words |
+| `--alarm-fill` / `--on-alarm` | `#a03f40` / `#ffffff` | the same | the yes to a step that cannot be taken back: its fill and its words |
 | `--temperature` | `#a25834` | `#e8a587` | terracotta |
 | `--humidity` | `#33738b` | `#8ac1d7` | sea blue |
 | `--co2` | `#865d8f` | `#cda8d6` | mauve |
@@ -278,7 +281,12 @@ deep navy in light mode and a raised surface in dark. The page has no glow. The 
 `--spotlight` - the navy at its deepest with the brand green's light in one corner - in both modes.
 
 **The logo** is the brand's own, `public/assets/brand/logo.png`, in the rail, the phone's top bar, the sign-in
-and sign-up cards, the public pages' bar and the error page, in place of a typeset name. On a dark surface it is
+and sign-up cards, the public pages' bar and the error page, in place of a typeset name. The phone's top bar shows
+the logo's shield on every page, the rail the whole logo (the redesign session of 2026-11-13: the bar showed the
+shield beside the place chip and the wordmark, with a tagline about 4 px high, elsewhere). A share link's card
+carries the reverse logo in its top corner (Chris, 2026-11-13; `server/src/modules/v1/sharing/brand-mark.ts`,
+embedded because the image ships only `dist`), and its scrim is dark at the top too, so the logo reads over a
+bright photo. On a dark surface it is
 `logo-reverse.png`, which is derived from the colour logo by `webapp/scripts/derive-logo.mjs` rather than
 retouched: per pixel, how much of the logo's blue it holds becomes white, how much of its green keeps its own
 colour, and the logo's white drops out so the dark ground shows through the knockouts. A `Logo` component draws
@@ -304,13 +312,20 @@ badge are pills. 1 px rules; under a card in light mode a low, wide shadow in th
 a card has no shadow and a raised thing a deep one. A field is 44 px tall, a card's repeated action 36, a chip 30.
 The one primary action on a screen is filled green; the quieter actions a card repeats (Photo, Note, Alarms off)
 are a filled tint with no outline; everything else is a ghost button - the card's surface, its words in the navy,
-a hairline edge.
+a hairline edge. **One danger style** (the redesign session of 2026-11-13, after the third critic found four): the
+yes to a step that cannot be taken back - removing a member or a place, switching regulation off, deleting an
+alarm, a scheme, a build or the account - is filled with `--alarm-fill` under white `--on-alarm` (6.4:1) in both
+modes, never the brand green, and is armed in one step; it is the yes of the shared `Asking` with `danger`
+(`.dangerFilled`, `ui/ui.module.css`). The control that opens such a question is outlined in the alarm red; a yes
+that waits for something typed (the handle before deleting the account) looks like a primary that cannot be
+pressed.
 
 **Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.
 
-**Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the rail replaces both and each
-screen is centred in the space it leaves. The rail is a card's surface with a rule down its right edge, its items
+**Layout.** Phone first, with a frosted top bar and tab bar; from 900 px the rail replaces both and every
+screen, a reading page as much as a wide one, is centred in the space it leaves (Chris, 2026-11-13; reading pages
+had stood at the frame's left edge so titles would not jump between pages). The rail is a card's surface with a rule down its right edge, its items
 in ink and the current one in the navy on its wash - the same marks the phone's bar uses. Three widths: 560 px for
 a form or sheet, 760 px for a reading column (settings, lists, Me, Tasks, Alerts), and 1180 px for a page that
 uses the screen - Home (two columns of cards from 1200 px, the two of a row stretched to one height with their

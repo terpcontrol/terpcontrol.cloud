@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
-updated: 2026-11-13
-source: migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+updated: 2026-11-14
+source: the whole-app walk's third report and Chris's answers built by the final fix round's second part (the redesign session of 2026-11-13); migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -102,7 +102,10 @@ second list below is that session's decision, not Chris's word, until he confirm
   one chip row for places and one for a stage's climates (+1, and −9 in the plan editor), the firmware sheet on
   the shared name sheet (−10), "Erweitert" as one fold (−24), the CSS declared twice and the empty states
   (−395), what the merges left without a reader (−6). `webapp/test` grew from 33,865 to 40,375, since every
-  rule a walk decided got a test. What stays apart, each with its reason, is in the list of open points below
+  rule a walk decided got a test. The final fix round after the whole-app walk took it to 71,844 and its second
+  part to 72,820 (`webapp/test` 42,748): most of the second part is refusals - the plan editor's per step and pair
+  (+224), the steppers and value sheets that no longer clamp, the alarm sheet's limits -, the window link's curves
+  and the guard for unsaved cells; the unit choice and the climate half of a grow's series gave lines back. What stays apart, each with its reason, is in the list of open points below
   ("Left by the clearing-up round"); what exists once is listed in
   [webapp.md](knowledge/webapp.md).
 - **The look "Nebel" is chosen and built** (Chris, 2026-11-13: the type was bold
@@ -163,35 +166,38 @@ line's pictures and plants, the failed state and the toast's tab order (`ui`, +2
 - "Jetzt ein Bild" is held on a device that is not live; one caption form; the film's overlay in the owner's
   number format and the share card in the owner's language (§2, ADR 0002, [terp-cam.md](knowledge/terp-cam.md)).
 - Steuerung counts a device's alarm rules from the server ([server-engines.md](knowledge/server-engines.md)).
-- **Open to Chris from this round**: a share link names a line's plants only where the owner shows the counts
-  (`hideCounts`, on by default - so by default it names none); putting back what a phase replaced from the
-  settings' history was not built (no route reads that history; "Trocknung beenden" brings back the targets from
-  before drying).
-- **Not built**: Meldungen centred at 1920 px - every reading-width page stands on the frame's left edge on
-  purpose, so titles do not jump between pages; the critic's "Verlauf:" trifles, Verlauf's tab order and its title
-  (Verlauf's own builder); what the third critic (setting up, steering, sharing, admin) finds.
+- What this round left open Chris answered on 2026-11-13 (below), and the second part built: a share link names a
+  line's plants whatever the counts switch says; a phase taken back offers no "put back"; every page is centred,
+  Meldungen at 1920 px too; the cut "1" is narrower, so "11,1" closes up on Verlauf's cursor line. The critic's
+  "Verlauf:" trifles, the page's keyboard order and its title were built by the second part as well (app-ux §7).
 - Known and left: the 120-day read is 852-939 ms once the server has settled and up to 1.3 s right after it
   comes up; a slow network is a waterfall of three to four round trips; a silence about a step long depends on
-  how it falls into the windows; Verlauf's cursor line keeps the digits of one width by the rule, so "11,1"
-  reads a little apart there.
+  how it falls into the windows.
 
-**After the whole-app walk - the third critic's list, decided, not yet built**
+**After the whole-app walk - the third critic's list, built by the final fix round's second part**
 
-The third critic walked setting up, steering, sharing and administering on the same image; the session decided:
-- A target or limit out of its range is refused in words that name the range, never clamped - nothing but what
-  was typed is written to a device.
-- Saving a target that pauses a running plan says so from the first keystroke, Speichern is live while typing,
-  and the toast names the pause.
-- An alarm rule whose limits contradict each other is refused; a stream camera's address must be `rtsp://` or
-  `rtsps://` with a host before anything is added, and "Test" never adds.
-- A link made from Verlauf for a window shows that window's curves, and the share sheet says which window.
-- One danger style for every irreversible confirmation (removing a member or a place, switching regulation off,
-  deleting an alarm or the account): the confirming button filled in the alarm's colour - never the brand green.
-- Two devices in one place cannot share a name. "Fortsetzen" on a plan paused by "Regelung aus" asks before it
-  switches regulation on. With regulation off Steuerung keeps the light and the targets in view.
+The third critic walked setting up, steering, sharing and administering on the same image; the session decided
+and the second part built (where it is described now in brackets; `webapp/src` 71,844 to 72,820):
+- A target, a limit or a plan step's figure out of its range is refused in words that name the range, on the
+  field and on the server, never clamped - nothing but what was typed is written to a device; saving a target
+  that pauses a running plan says so from the first keystroke, Speichern is live while typing, and the toast
+  names the pause (app-ux §5; [server-engines.md](knowledge/server-engines.md#device-settings-and-plans); ADR 0001).
+- An alarm rule whose limits contradict each other is refused; two devices in one place cannot share a name; a
+  stream camera's address must be `rtsp://` or `rtsps://` with a host before anything is added, and "Test" adds
+  nothing (app-ux §5; [terp-cam.md](knowledge/terp-cam.md); [server.md](knowledge/server.md)).
+- A link made for a stretch shows that stretch's curves of the places the grow stood in, and the share sheet
+  from Verlauf names the window and offers the place first (app-ux §2, §7; ADR 0001).
+- One danger style for every irreversible confirmation (ADR 0002, "Shape"; app-ux §9).
+- "Fortsetzen" on a plan paused by "Regelung aus" asks before it switches regulation on; with regulation off
+  Steuerung keeps the light and the targets in view, and the banner lists what the question lists (app-ux §5).
 - No paragraph of explanation in a setting-up flow, and UTC is never named to a grower; a page's title fits at
-  320 px ("Ort bearbeiten" rather than the place's name and a verb); Start's place list says the state in the
-  device pill's words; the phone's top bar shows one logo everywhere.
+  320 px; "Ort bearbeiten" is the edit page's title; Start's place list says the state in the device pill's
+  words; the phone's top bar shows the shield everywhere (app-ux §2, §5, §9; ADR 0002).
+- A guest whose access ends is led to Start; a guest without a place of his own is told so at "Kamera
+  hinzufügen"; the claim says a camera as "Terp Cam gekoppelt"; the public page and a link open on the newest
+  picture or on none; the plan's hold on the lamp is said in words; admin: the pinned column under a sheet's
+  scrim, Flotte's columns all in view; and the trifles - "Speichern" everywhere, one toast form, "Weiter ·
+  <noun>", "Abluft · Lüfter fest", "Code · QR" on its code (app-ux §2, §3, §5; app-wording; webapp.md).
 
 **The run**
 - One branch and one pull request for the whole redesign.
@@ -389,36 +395,39 @@ The third critic walked setting up, steering, sharing and administering on the s
 
 Each with what stands until he answers, and the session's recommendation where it has one.
 
-**Answered by Chris on 2026-11-13** (asked one by one; what is not built yet is built in the final fix round's
-second part unless it says otherwise)
+**Answered by Chris on 2026-11-13** (asked one by one; the final fix round's second part built what is not marked
+otherwise - where it is described now in brackets)
 - The amendment to ADR 0001 (places, rooms, where a device stood, and what was added while clearing up) is
-  confirmed as written.
-- Remove what nothing asks: `GET /v1/spaces/{id}/series`, the climate half of `GET /v1/grows/{id}/series`,
+  confirmed as written. `PATCH /v1/spaces/{id}` keeps refusing the whole request on an ended place.
+- What nothing asks is removed: `GET /v1/spaces/{id}/series`, the climate half of `GET /v1/grows/{id}/series`,
   `PUT /v1/spaces/{id}/devices/{deviceId}`, the archive routes (so "put away" is no state of its own any more),
-  `dueTasks` and `layout: 'day_of_grow'`. `AdminLogPage` waits for the decision about its route.
-- Migration steps 029 and 030 are tested on a local copy of production data before the pull request.
+  `dueTasks` and `layout: 'day_of_grow'` (ADR 0001, "The API"). **Not built**: `AdminLogPage` waits for the
+  decision about its route.
+- Migration steps 029 and 030 are tested on a local copy of production data before the pull request (done, item
+  4 below; step 031 of this part ran in unit tests only).
 - The kinds of a place are seven: Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges - the
-  model's four stay and three are added; no place is migrated.
-- The owner may read an ended place's curves (read only).
-- "Erledigt" on an open alert, and what an alert delivered stored when it is raised: yes, as a small round of
-  their own after the final fix round.
-- The unit choice (°F, oz, gal) is removed until views convert. No minimum length for a password.
-- The server names a paired camera "Terp Cam". "Kamera" / "camera" in sentences, "Cam" only in "Terp Cam".
-  "Phase" is the one word for the growth stage; "automatic" is the English tag for "von allein".
+  model's four stay and three are added; no place is migrated (ADR 0001, app-wording).
+- The owner may read an ended place's curves, read only (app-ux §2, Meldungen's "Verlauf öffnen" too).
+- The unit choice (°F, oz, gal) is removed until views convert (app-ux §2, app-wording). No minimum length for a
+  password.
+- The server names a paired camera "Terp Cam". "Kamera" / "camera" in sentences, "Cam" only in "Terp Cam"
+  (app-wording, terp-cam.md). "Phase" is the one word for the growth stage; "automatic" is the English tag for
+  "von allein".
 - Litres are "L" in both languages. A stage's week counts from the stage's own start (days 1-7 are week 1), not
-  the grow's calendar weeks. A share link's card carries a small logo. On a share link a line names its plants
-  whatever the counts switch says (it hides amounts, not names).
-- The claim no longer asks the stage first for an account that keeps a diary ("Was wächst hier?" alone).
+  the grow's calendar weeks (app-wording, "Grow time"; ADR 0001). A share link's card carries a small logo (ADR
+  0002, "The logo"). On a share link a line names its plants whatever the counts switch says (app-ux §10).
+- The claim no longer asks the stage first for an account that keeps a diary (app-ux §1).
 - A phase taken back gets no "put back the values" button; the question says what the tent holds and leads to
-  Steuerung.
-- Phases stored as `preset` before the fix that made a hand-set phase the person's are migrated to the person.
-- The one-width "1" is cut narrower, so a column stays nearly flush without "1 1,1". Every page is centred in the
-  room beside the rail at wide widths, reading pages too. The lamp's straw at 2.4:1 in light mode stays.
-- The first climate chip reads "Lassen, wie sie sind" in the phase, split and plan sheets alike.
-- `PATCH /v1/spaces/{id}` keeps refusing the whole request on an ended place.
-- An editor with unsaved hand edits (the feeding scheme's cells) asks before it is left.
-- A light output's hold is reported by the firmware, as a smart socket's override is, on every new command - a
-  firmware change of its own, outside this pull request.
+  Steuerung (app-ux §5).
+- Phases stored as `preset` before the fix that made a hand-set phase the person's are migrated to the person
+  (migration step 031, ADR 0001).
+- The one-width "1" is cut narrower; every page is centred in the room beside the rail at wide widths, reading
+  pages too; the lamp's straw at 2.4:1 in light mode stays (ADR 0002).
+- The first climate chip reads "Lassen, wie sie sind" in the phase, split and plan sheets alike (app-ux §5).
+- An editor with unsaved hand edits (the feeding scheme's cells) asks before it is left (app-ux §5).
+- **Not in this pull request**: "Erledigt" on an open alert, and what an alert delivered stored when it is raised
+  - a small round of their own after the final fix round; a light output's hold reported by the firmware, as a
+  smart socket's override is, on every new command - a firmware change of its own.
 
 **The contract**
 4. **Migration steps 026 to 030 on a copy of production data** (the redesign session, 2026-11-13, as Chris asked):
@@ -530,12 +539,45 @@ second part unless it says otherwise)
     only ("Temperatur 7 Min zu hoch", five times). A row names its rule where another rule's row reads the same; refuse it if
     the row should stay bare.
 
+**Left by the final fix round's second part** (each built as described; say where it should go otherwise)
+49. **"Raum" names two things**: the kind of a place that is a room (`grow_room`, English "Grow room") and the
+    room that groups places, so "Art: Raum" can stand beside "Raum: Keller" on "Ort bearbeiten". "Growraum" for
+    the kind would part them.
+50. **A grow's link for a stretch** reaches the curves and also the overview of each place the grow stood in,
+    clamped to its stay there (the access a place's link has); a route of its own would reach the curves alone.
+    Only a link whose window ends shows curves - a link onto a running grow stays its diary.
+51. **While regulation is off, any change on Steuerung switches it back on**, as the switch-off question says -
+    the light limit stepped in place included.
+52. **"Lassen, wie sie sind" in a plan step** stands for no closer climate than the stage, since a step's preset
+    writes nothing; the phase correction keeps the climates' own names ("Blüte" first), since it records how a
+    phase was entered and writes nothing.
+53. **A claim into a place where a grow runs** asks a diary-keeping account neither the stage nor what grows; the
+    device keeps its own targets until a phase or preset is set.
+54. **The guard for unsaved cells** stands on the Düngung tab: a reload from another tab of the grow loses cells
+    edited there without a question (the tabs keep them while the page stays).
+55. **An ended place's Verlauf** offers no saved view, though a view is the account's, not the place's.
+56. **"Test" of a stream address** goes through a camera made and removed for the test, which leaves a tombstone
+    row per test; a route that tests an address without a camera would leave none. A guest who may manage a place
+    is offered it for a camera.
+57. **Migration step 031** gives a preset phase without `setBy` to the grow's owner, so a member who set it in a
+    shared place reads as the owner; a preset applied under Steuerung is the caller's from now on, so only a plan
+    writes "von allein".
+58. **The English pills mix case** ("on target", "alarm", "stale" beside "Maintenance", "Control off" - the page's
+    and the regulation's names are capitalised by rule).
+
 ### What the walks could not see
 
 - **No such data on the session's stack**: a firmware update card and a firmware version, a camera alert, a leaf
   alert, a notification by Push or Telegram, three weeks of camera stills (so week cards and the week's film
   before the first full week), readings that follow a grow's phases, a place with two devices on a device's
   page (the rows there are covered by tests only).
+- **The final fix round's second part, seen in tests only** (the stack ran an older server image throughout): the
+  server's refusals (400 out of range, 422 `limits_contradict` and `not_a_stream_address`, 409 `name_taken` for a
+  device), the seven kinds saved, a stage's week from its own start, a camera named "Terp Cam", migration step 031
+  (on no copy of production data), a window link's curves against the new server (seen in a browser only with
+  the answer laid in), the share card with its logo (rendered by its unit test and looked at as an image), the
+  night guard, the browser's own leave dialog (headless Chrome draws none), "vor 1 T" kept whole, B11's refusal
+  on screen. No critic has walked the second part.
 - **Seen in tests only, on no running server**: `joinSpaceId`, `room_ended`, migration steps 029 and 030 (the
   critic's stack was not restarted over them); and of the pass after the clearing-up round's walk, the wider
   refusals of an ended place (a reminder, a grow, a move, a split, a correction, a change of the place) and

@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
-updated: 2026-11-13
-source: the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+updated: 2026-11-14
+source: the final fix round's second part - every page centred (Chris, 2026-11-13), a range refused in one place, one guard for unsaved edits, a page leading to Start when its place goes, a sheet out of an admin table's row, Verlauf's keyboard order (the redesign session of 2026-11-13); the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -128,7 +128,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     (what a sheet offers beyond places - "+ Neuer Ort" - is its children; "Ort entfernen" and "Neuer Grow" keep
     selects, as the prototype draws them); a device is moved by one write, `PATCH /devices/{id}` (`useUpdateDevice`,
     `api/devices.ts`), from its sheet, from the claim and from "Ort entfernen";
-  - *leaving and ending*: `leaveUnderSheet` and `hasLeft` (`app/places.ts`), `PlaceEnded`
+  - *leaving and ending*: `leaveUnderSheet` and `hasLeft` (`app/places.ts`), the place the open page belongs to
+    `usePagePlace` (`app/places.ts`), which `LostSight` (`app/shell/LostSight.tsx`) watches to lead to Start when it
+    goes out of sight, `PlaceEnded`
     (`screens/place/PlaceTitle.tsx`), `useEndPlace` (`api/spaces.ts`);
   - *names*: a device by `deviceName` / `deviceTitle` among `standingWith`, a camera by `cameraTitle`,
     `camerasCalled` and `useCameraCalled`, the tail that tells two apart by `camTag` (`ui/naming.ts`,
@@ -141,6 +143,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     `plants`. A line's pictures are its own control: the count opens `ui/PictureViewer`, and where a share link
     shows them `PictureStrip` (`ui/PictureViewer.tsx`) draws them in the line, as the correction sheet does;
     a grow's bar is `GrowBar` (`screens/grow/GrowBar.tsx`), on the grow page and under Start's picture;
+  - *a figure's range*: the ranges a person's figure is held to are the contract's `TARGET_RANGES`
+    (`shared-types/src/v1/configuration-fields.ts`), which `FIGURES` (`screens/control/climate/figures.ts`) and
+    the plan editor read; a figure outside one is said by `rangeRefusal` / `rangeSaid` and a server's refusal of
+    it recognised by `refusedForRange` (`screens/control/climate/range.ts`), and the stepper passes on what was
+    typed, never a clamped figure (`targets/Stepper.tsx`);
   - *a device and its climate*: regulation is switched back on by `ControlOff` (`screens/control/Mode.tsx`),
     which Steuerung and a leading device's page mount, and `useSwitchOn` (`screens/devices/switch-on.ts`) says the
     toast; maintenance is begun, told and ended by `MaintenanceControl` (`screens/devices/Maintenance.tsx`),
@@ -155,7 +162,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     sentence and the cards' rank; a place's alerts with the device each is about are `placeAlerts`
     (`screens/start/place.ts`), read by `usePlaceAlerts` (`screens/start/reads.ts`) from the bell's own read;
   - *asking and answering*: an inline question is `ui/Asking.tsx` (it brings itself into view and takes
-    Escape), a name put right `ui/NameSheet.tsx` (a grow's, a plant's, a firmware build's; `refused` says under the
+    Escape; with `danger` its yes is the one danger style, `.dangerFilled`), edits by hand that must not be lost
+    unasked are guarded by `LeaveGuard` (`screens/grow/scheme/LeaveGuard.tsx`: the router's `useBlocker` and
+    `beforeunload`), a sheet opened from an admin table's row renders outside the row (`OutOfTheRow`,
+    `screens/admin/parts.tsx` - the pinned actions cell is a stacking context, and a sheet inside it lay under the
+    later rows' pinned cells), a name put right `ui/NameSheet.tsx` (a grow's, a plant's, a firmware build's; `refused` says under the
     fields why a name is not saved), a
     handle typed to confirm `HandleField` (`ui/SheetParts.tsx`); a setting of the account is saved, answered and
     taken back by `useSaveAccount` (`screens/me/save.ts`), which the notification settings wrap
@@ -169,6 +180,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     there is one; a page that could not be read is `LoadFailed` with its read and its title (Start's
     `StartFailed` is it, with when the page last loaded under it), an address that names nothing `NoLongerHere`,
     and an address the app has no page for `screens/NotFound.tsx`;
+  - *a stream address*: `isStreamAddress` (`screens/camera/stream.ts`), the server's own rule (`rtsp://` or
+    `rtsps://` with a host);
   - *units*: a dose's or a litre's unit is drawn through `unitShown` (`ui/figures.ts`), which writes the litre
     "L" and leaves the stored unit alone; a dashed box that frames a question, an offer or a warning is no empty state and sets
     `ui.cardDashed` itself;
@@ -206,7 +219,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   reads the silence a cursor stands in from the answer's `silences` (`silenceAt`); a lane's `spans` only name the lamp's stretches by the clock, in `Strip.said`, the words beside
   its name), `restOf` says where the cursor rests - the device's last reading, else the window's last drawn
   point - and `readAt` what it reads: one point for every figure and output of the card and of each panel's
-  head ([app-ux.md §7](app-ux.md#7-verlauf-day-and-night)). `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw;
+  head ([app-ux.md §7](app-ux.md#7-verlauf-day-and-night)). `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw, in the order the layout
+  shows them, so the keyboard meets them as they are seen (`useTwoColumns`, the page's own 1200 px breakpoint);
   `labels.ts` says when; `window.ts` holds the bands by day and night and the picture of a moment. One read
   answers the page, `GET /v1/spaces/{id}/timeline` (`useTimeline`, `src/api/timeline.ts`), asked for every panel a
   place can have so the sheet offers a tick only for what is there; a second one of the same route is what is
@@ -450,8 +464,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   (`PATCH /v1/devices/{id}/configuration` with `set`) and answered by the toast; a line then shows what the
   server stored. A stream camera's Erweitert is no item: it is a fold of the camera's settings sheet, saved with
   it (`screens/camera/StreamOptions.tsx`).
-- On a desktop the shell centres every screen's root with a left margin (`.main > *` in
-  `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
+- On a desktop the shell centres every screen's root in the room beside the rail, a reading-width page as much as
+  a wide one (`.main > *` in `src/app/shell/AppShell.module.css`, `margin-inline: auto`; Chris, 2026-11-13 - a
+  reading page had stood on the left edge of the page-wide frame so titles would not move between pages). A root that sets `width: 100%` therefore also needs a `max-width`
   (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
   sideways from about 1400 px - a place's page at `/spaces/:id` did, until it took `--page-width` itself. The
   margin is a text page's: a root wider than `--page-width` - Verlauf's, by 200 px - sets its own, by its own

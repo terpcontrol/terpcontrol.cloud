@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
-updated: 2026-11-13
-source: the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+updated: 2026-11-14
+source: the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -133,11 +133,8 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   with the ADR's amendment). `SpacesService.remove` refuses for a device, a camera and a running grow (409
   `space_in_use`: `device_here`, `camera_here`, `grow_here`) and no longer for members - `member_here` is gone. It
   then deletes the place's memberships, invites, share links and the reminders about it through `closeWaysInto`, the function
-  `endRoomIfEmpty` ends a room with. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) are another act:
-  they refuse nothing that stands in the place, keep people, invites and links, and can be undone; the web app
-  calls neither. **They ask `own`** (the redesign session of 2026-11-13, awaiting Chris's confirmation): they
-  write the `archivedAt` a removal writes, and with `manage` a guest who steers a place could put the host's
-  place away. Whether the routes stay at all is Chris's to say.
+  `endRoomIfEmpty` ends a room with. There is no other way to end a place: the archive routes, which put one away
+  with its people and could be undone, are gone (Chris, 2026-11-13), and `archivedAt` is the tombstone alone.
 - **An ended room takes nothing, and neither does an ended place.** One helper says both refusals
   (`refuseEnded`, `common/v1/rooms.ts`; `refuseEndedId` where only the id is in hand): 409 `room_ended` for a
   room, 409 `space_archived` for a place. `SpacesService.requireStanding` refuses any ended space - room or
@@ -180,8 +177,12 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   member who may manage the place and an administrator included. Every write of where a device stands goes through
   it, because they all go through `DevicesService.update` or `claim`.
 - **A second name is refused with a sentence:** 409 `name_taken`, whose `detail` names the place or room that has it
-  ("Another place is already called "Zelt"."), from `POST`/`PATCH /spaces` and from bringing an archived place back;
-  a blank name is 422 `name_required`. A claim is never refused for a name: the place it makes counts on ("Zelt 2").
+  ("Another place is already called "Zelt"."), from `POST`/`PATCH /spaces`; a blank name is 422 `name_required`.
+  A claim is never refused for a name: the place it makes counts on ("Zelt 2"). **Two devices standing in one place
+  carry different names too** (the redesign session of 2026-11-13): a rename or a move that would make a second
+  "Abluft" there is 409 `name_taken` (`field` `name` or `spaceId`), compared as place names are; a device whose
+  name is its type takes no part, a claim numbers a second "Abluft" on, and duplicates stored before stay until
+  somebody renames or moves one (`refuseTakenName`, `devices.service.ts`).
 - `GET /home` names in `people` the owner of every place on it that is not the reader's own, beside the authors and
   assignees its cards name, so a shared place can say whose it is.
 - A write is authorised on every subject it names (an entry's grow, space, device, plants, media), not on a primary
@@ -233,7 +234,10 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 ## Share links and public pages
 - The token comes as `X-Share-Token` or `?share=` and is looked up on every request, so revoking is immediate. A
   `public_page` link dies when its grow stops being public; a space link covers a grow only if the grow stood in the
-  space within the link's window. A live link cannot be deleted (409 `share_link_live`); it is revoked first.
+  space within the link's window. **A grow link whose window ends reaches the places the grow stood in during it**,
+  each only over the grow's stay there (`stayInside`, `common/v1/access.service.ts`; the redesign session of
+  2026-11-13): their timeline and overview, clamped to that stay, so a link made from Verlauf for a stretch shows
+  its curves; a link onto a running grow reaches no place. A live link cannot be deleted (409 `share_link_live`); it is revoked first.
 - A link or public reader must gain nothing. The window rule exists once, in `common/v1/range.ts`, as does whether a
   link or an invite still opens anything (`stillValid`); three private copies of the window had grown up and the grow
   report had none, which handed a fortnight's link the whole grow. Every route a link reaches clamps with it, applies

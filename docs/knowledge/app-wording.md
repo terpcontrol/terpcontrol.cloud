@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
-updated: 2026-11-13
-source: after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
+updated: 2026-11-14
+source: Chris's answers of 2026-11-13 - "Kamera" in sentences and "Cam" only in "Terp Cam", a stage's week from its own start, litres as "L", seven kinds of a place, no unit choice; the final fix round's second part - one toast form for a save, range refusals, "Weiter · <noun>", "Speichern" everywhere (the redesign session of 2026-11-13, not Chris); after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -42,6 +42,10 @@ string exists in English and German, with no English left in the German catalogu
   whether it took is a line of its own ("Firmware-Update abgeschlossen", "Update kam nicht an").
 - Thresholds are written in words ("über 28 °C"), not with arrows or "›", since every link ends in one; metric names
   are written out (Temperatur, Luftfeuchte; not Temp, rF).
+- **One word for one button**: a form is saved with "Speichern" everywhere ("Sichern" went from "Ort bearbeiten" and
+  Verlauf's saved views); a step of a flow goes on with "Weiter · <noun>" ("Weiter · Klima", "Weiter · Steckdosen
+  und Kamera", "Weiter · Benachrichtigungen", "Weiter · Grow"). A page that edits a thing is titled by what it
+  does, "Ort bearbeiten", with the name in its field rather than in the title.
 
 ## One word per thing
 
@@ -63,7 +67,7 @@ string exists in English and German, with no English left in the German catalogu
 | a place, a device or a camera that reports | online | online (never "live"; "verbunden" only in "Verbunden über") |
 | the automatic schedule | plan | Plan, never Rezept; old message keys stay and read the new way |
 | the lamp's ceiling | light limit | Lichtgrenze |
-| maintenance | Maintenance · 15 min | Wartung · 15 Min ("Regelung und Alarme pausieren"; never Wartungsmodus) |
+| maintenance | Maintenance · 15 min | Wartung · 15 Min ("Regelung und Alarme pausiert" while it runs; never Wartungsmodus) |
 | the built-in offline rule | Device offline | Gerät offline |
 | a fridge's fans | clip fan, internal fan, back-wall fan | Klemmlüfter, Innenlüfter, Rückwandlüfter |
 | a fridge's dehumidifier output | compressor | Kompressor (a tent's dehumidifier keeps its name) |
@@ -72,8 +76,18 @@ string exists in English and German, with no English left in the German catalogu
 | a Tasmota plug a controller or fridge switches | smart socket | smarte Steckdose, short Steckdose; never Smart-Steckdose |
 | the stand-alone device type `plug` | Plantalytix Socket | der Plantalytix Socket |
 | the brand | Terp Control, Terp Cam | Terp Control, Terp Cam |
+| a camera, in a sentence | camera | Kamera ("Cam" only in "Terp Cam") |
+| what a place is | tent, fridge, balcony, drying box, greenhouse, grow room, other | Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges |
 
-- The brand is two words in every user-visible text (Chris, 2026-06-25). Factual references to the original product
+- The brand is two words in every user-visible text (Chris, 2026-06-25). **A camera is "Kamera" / "camera" in a
+  sentence, and "Cam" stands only in the product's name "Terp Cam"** (Chris, 2026-11-13): "Kamera prüfen",
+  "Kamerabilder an", "Die Terp Cam in der Nähe einstecken"; the firmware's own display words ("connect cam",
+  "cam ready") are quoted as the display shows them. The server names a camera paired from then on "Terp Cam"
+  (`PAIRED_CAMERA_NAME`, `server/src/modules/device-protocol/hardware-report.service.ts`), so an unnamed one no
+  longer reads by a fragment of its id; the claim says "Terp Cam gekoppelt" or "keine Kamera".
+- **The seven kinds of a place** (Chris, 2026-11-13; `PLACE_KINDS`, `ui/naming.ts`) are named in that order;
+  "Anderer Ort" became "Sonstiges". "Raum" is both the kind of a place that is a room (`grow_room`) and the room
+  that groups places - his word for both; English says "Grow room" for the kind. Factual references to the original product
   (where the app came from, the privacy text) keep its name.
 - "Abluft", "Umluft" and "Lüfter" are only roles a smart socket is given (an AIR is the Lüfter); the fan device
   type is "Lüfter" everywhere.
@@ -141,8 +155,11 @@ string exists in English and German, with no English left in the German catalogu
   setting names its value again ("Widerrufen · Sprache: Deutsch"); an entry taken back is "nicht mehr im
   Tagebuch" (`log.gone`), a task unticked "Aufgabe wieder offen" (`log.reopened`), a thing just made "… gibt es
   nicht mehr" (`log.noMore`), a phase begun "wieder die Phase davor" (`log.phaseBefore`), and where the earlier
-  words are not at hand "… wie zuvor" (`log.asBefore`). A save to an offline device keeps its suffix on both
-  ("· gespeichert, noch nicht am Gerät"). An undo that fails says "Das ließ sich nicht widerrufen"; an entry's
+  words are not at hand "… wie zuvor" (`log.asBefore`). **A save has one form** (the redesign session of
+  2026-11-13, after the third critic read it with and without a "·"): "Temperatur am Tag 26,0 °C gespeichert", for a
+  device not heard "… gespeichert, noch nicht am Gerät" (`control.saved`, `useSaved`), and what else the save did
+  follows after " · ": "· Plan pausiert", "· Plan läuft wieder", "· Regelung an". The offline suffix holds on the
+  undo's answer too. An undo that fails says "Das ließ sich nicht widerrufen"; an entry's
   delete that fails has its own sentence.
 - English, from the same walk: what applies at a time "applies" or is "in effect now" - a device "holds" its
   targets, figures do not "hold"; whoever may change a place "manages" it, as the role "can manage" says, and
@@ -168,9 +185,12 @@ string exists in English and German, with no English left in the German catalogu
   Tag 29". A diary that has ended, and one read from outside past its window, has no today: its cards are dates.
   A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 26 bis 22 ·
   Blüte, Woche 2".
-- The stage is counted in weeks ("Blüte, Woche 3") as the server counts them (`stageWeek`, from `stageWeekOf` in
-  `shared-types/src/v1/grow-days.ts`); a phase's own days divided by seven give another week. A week of the diary is
-  named by its days and carries the stage most of it lay in; a feeding scheme's own week is always "Schema-Woche".
+- **A stage is counted in weeks from its own start** (Chris, 2026-11-13): days 1 to 7 of the stage are "Blüte,
+  Woche 1", day 8 begins week 2 - the server counts it (`stageWeek`, from `stageWeekOf` in
+  `shared-types/src/v1/grow-days.ts`) and no client counts it again; it replaced counting the grow's weeks the
+  stage had touched, which said "Woche 3" on a stage's 13th day. A week of the diary stays seven days of the grow,
+  named by its days, and carries the stage most of it lay in with that stage's week at its middle (today's for the
+  week still running); a feeding scheme's own week is always "Schema-Woche".
 - What a device or the plan did without a person is marked "von allein" (English "automatic" as a tag; "by
   itself" read translated there and stays only inside a sentence - the redesign session of 2026-11-13) - not what somebody
   switched, such as maintenance ("Wartung · 2 Min") -, in a diary line, as the author of an entry a plan or a
@@ -213,15 +233,21 @@ string exists in English and German, with no English left in the German catalogu
   weights go through the one number format too.
 - A span of days is "Tag 1 bis 18" / "Day 1 to 18", as "Tag 19 bis heute" is.
 - A refusal names the field and says what it takes: "pH: Das ist keine Zahl.", "Mehr als 0 L.", "Ein Gewicht ist
-  0 g oder mehr.", "Eine Dosis ist 0 oder mehr. Die Zelle bleibt, wie sie war."; a disabled Save says "Zum
-  Speichern fehlt noch …". A reminder to water or feed is called by its kind ("Gießen") until it is named.
+  0 g oder mehr.", "Eine Dosis ist 0 oder mehr. Die Zelle bleibt, wie sie war.", "Pflanzen: eine ganze Zahl ab 1.";
+  a disabled Save says "Zum Speichern fehlt noch …". A reminder to water or feed is called by its kind ("Gießen")
+  until it is named. **A figure out of its range names the range** (the redesign session of 2026-11-13, after the
+  third critic saw 99 written as 35,0 °C): "Temperatur am Tag: Das geht nur zwischen 15 und 35 °C." under a
+  target's field (`rangeRefusal`, `screens/control/climate/range.ts`), "Schritt 1 – Tag · Temperatur: zwischen 15
+  und 35 °C, oder leer lassen." in the plan editor, "Ein anderes Gerät an diesem Ort heißt schon „…“." for a
+  device's name, and a stream address that is none says what one looks like (rtsp://192.168.1.40:554/stream1).
 - **No figure stands on a line without what it counts** (the redesign session of 2026-11-12): a figure is bound to
   its unit (`unbroken`, `ui/fact-text.ts`), and a sentence made of facts with "·" between them is set as those
   facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the
   line under a field, a chapter of the report, the count of a line's pictures.
 - Not localised: CSV cells, ids, ISO instants, the `yyyy-MM-dd` of a date field, firmware versions.
-- Unit preferences (°F, oz, gal) are stored with the account but not applied yet; a line under "Einheiten" on
-  Ich › Darstellung says so.
+- **No unit choice** (Chris, 2026-11-13): the views write °C, grams and litres, so Ich › Darstellung offers no
+  °F, oz or gal; the preference stays stored with the account, and nothing reads or writes it until the views
+  convert.
 - **"Erledigt" is the tasks' word** - the tick of a task and the group of ticked ones. An alert that is over is
   "Vorbei" (English "Resolved"), never "Erledigt"; the way to the notification settings is "Benachrichtigungen
   einstellen" wherever it is offered; English "Log" is the verb for "Eintragen" (the redesign session of
