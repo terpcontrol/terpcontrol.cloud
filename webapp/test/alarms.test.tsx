@@ -13,6 +13,7 @@ import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import type { Told } from '@/log/log-context';
 import { headersOf } from '@/ui/headers';
+import { rulePage } from './fixtures';
 import { announced, drawAt } from './harness';
 import { Toast } from './toast';
 import { catalogue, translate } from './translations';
@@ -131,7 +132,7 @@ const me = {
 const answers = (path: string): unknown => {
   if (path === '/spaces/space-1/overview') return overview;
   if (path === '/me') return me;
-  if (path === '/devices/device-1/alarm-rules') return { items: RULES, nextCursor: null };
+  if (path === '/devices/device-1/alarm-rules') return rulePage(RULES);
   throw new Error(`no answer for ${path}`);
 };
 
@@ -166,7 +167,7 @@ beforeEach(() => {
 describe('the alarm rules page', () => {
   it('says so when nothing here has rules, and offers the one thing there is to do', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
@@ -185,7 +186,7 @@ describe('the alarm rules page', () => {
       repeatSeconds: 1800,
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [offline], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([offline]) : answers(path)) as never,
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
@@ -197,7 +198,7 @@ describe('the alarm rules page', () => {
   it('lists a device this build knows nothing about as long as it holds a rule, and offers it no new one', async () => {
     const mystery = rule({ id: 'rule-mystery', deviceId: 'mystery-1', name: 'Tank empty', origin: 'device' });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [mystery], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? rulePage([mystery]) : answers(path)) as never,
     );
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
@@ -210,9 +211,7 @@ describe('the alarm rules page', () => {
     const running = RULES.find(rule => rule.watch.kind === 'output_running')!;
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
-        Promise.resolve(
-          path === '/devices/device-1/alarm-rules' ? { items: [{ ...running, forSeconds: 0 }], nextCursor: null } : answers(path),
-        ) as never,
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([{ ...running, forSeconds: 0 }]) : answers(path)) as never,
     );
     draw();
 
@@ -248,6 +247,8 @@ describe('the alarm rules page', () => {
     // The cloud's own rule can be switched off like any other, so its head does not call it always on.
     const labels = screen.getAllByText(/^(From the climate preset Flower|Built in|From the device|Written here)$/).map(label => label.textContent);
     expect(labels).toEqual(['From the climate preset Flower', 'Built in', 'From the device', 'Written here']);
+    // Each group is a heading a screen reader can step to, under the page's own where one device is listed.
+    expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(labels);
     expect(screen.queryByText(/always/i)).not.toBeInTheDocument();
   });
 
@@ -424,7 +425,7 @@ describe('the alarm rules page', () => {
     const until = NOW.plus({ minutes: 45 });
     const silenced = RULES.map(one => (one.id === 'rule-hot' ? { ...one, silencedUntil: until.toISO()! } : one));
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: silenced, nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(silenced) : answers(path)) as never,
     );
     vi.mocked(api.delete).mockResolvedValue(undefined as never);
     draw();
@@ -465,7 +466,7 @@ describe('the alarm rules page', () => {
       watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [plugRule], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([plugRule]) : answers(path)) as never,
     );
     draw([device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
@@ -493,7 +494,7 @@ describe('the alarm rules page', () => {
       watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [plugRule], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([plugRule]) : answers(path)) as never,
     );
     const both = [device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })];
 
@@ -685,8 +686,7 @@ describe('the alarm rules page', () => {
     const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
     const mine = rule({ id: 'rule-mine', name: 'Box soaking', watch: { kind: 'reading', metric: 'humidity', upper: 95, lower: null } });
     vi.mocked(api.get).mockImplementation(
-      (path: string) =>
-        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [humid, mine, RULES[0]], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([humid, mine, RULES[0]]) : answers(path)) as never,
     );
     const germinating = (warnTooHumid: boolean) =>
       device({
@@ -780,7 +780,7 @@ describe('the rule sheet', () => {
    */
   it('writes a fan level in percent and offers no fraction to type instead', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fan-1', type: 'fan', name: 'Exhaust fan' })]);
     fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
@@ -817,7 +817,7 @@ describe('the rule sheet', () => {
    */
   it('calls a fridge´s outputs what the device´s card calls them, and offers the CO2 the fridge reads', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fridge-1', type: 'fridge', name: 'Fridge module' })]);
 
@@ -833,7 +833,7 @@ describe('the rule sheet', () => {
 
   it('offers a plug both the output it drives and the climate it measures', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
@@ -855,7 +855,7 @@ describe('the rule sheet', () => {
    */
   it('offers a fan the temperature, humidity and VPD it measures, not its output alone', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fan-2/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fan-2/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fan-2', type: 'fan', name: 'Exhaust fan' })]);
 
@@ -874,7 +874,7 @@ describe('the rule sheet', () => {
   it('keeps an output the hardware does not report where a rule already watches it', async () => {
     const backwall = rule({ id: 'rule-fan', name: 'Back-wall fan', watch: { kind: 'output_level', output: 'fanBackwall', upper: 0.9, lower: null } });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [backwall], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([backwall]) : answers(path)) as never,
     );
     draw();
 
@@ -998,7 +998,7 @@ describe('the rule sheet', () => {
       delivery: { mode: 'custom', custom: { channel: 'email', target: 'you@example.invalid', includeDetails: true, webhook: null } },
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [carried], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([carried]) : answers(path)) as never,
     );
     draw();
 
@@ -1252,8 +1252,7 @@ describe('the alarm templates', () => {
     expect(ruleTitle(i18next.t.bind(i18next), dry)).toBe('Too dry');
 
     vi.mocked(api.get).mockImplementation(
-      (path: string) =>
-        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [...RULES, dry, drier], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([...RULES, dry, drier]) : answers(path)) as never,
     );
     draw();
 
@@ -1271,9 +1270,7 @@ describe('the alarm templates', () => {
     let written = false;
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
-        Promise.resolve(
-          path === '/devices/device-1/alarm-rules' ? { items: written ? [...RULES, made] : RULES, nextCursor: null } : answers(path),
-        ) as never,
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(written ? [...RULES, made] : RULES) : answers(path)) as never,
     );
     vi.mocked(api.post).mockImplementation(() => {
       written = true;

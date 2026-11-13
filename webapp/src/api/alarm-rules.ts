@@ -19,6 +19,13 @@ import { invalidate, useWriteSettled } from './write';
 /** Every rule an account could be asked to draw at once: a device has a handful, never a page. */
 const RULES_LIMIT = 100;
 
+/** What a list of rules comes to, where the list is all there is. */
+export const countsOf = (rules: AlarmRule[]): AlarmRulePage['counts'] => ({
+  total: rules.length,
+  enabled: rules.filter(rule => rule.enabled).length,
+  triggered: rules.filter(rule => rule.enabled && rule.state.triggered).length,
+});
+
 const rulesKey = (deviceId: string) => ['devices', deviceId, 'alarm-rules'];
 
 const readRules = (deviceId: string, signal?: AbortSignal) =>
@@ -50,8 +57,14 @@ export const useAlarmRulesOf = (deviceIds: string[], { refetchIntervalMs = LIVE_
     })),
     combine: results => {
       const byId = new Map<string, AlarmRule>();
-      for (const result of results) for (const rule of result.data?.items ?? []) byId.set(rule.id, rule);
-      return { rules: byId, isPending: results.some(isFirstLoad) };
+      // What each device's rules come to on the server, whichever page of them was read.
+      const counts = new Map<string, AlarmRulePage['counts']>();
+      results.forEach((result, index) => {
+        for (const rule of result.data?.items ?? []) byId.set(rule.id, rule);
+        // A server from before the counts says nothing of them: its one page is then all there is to count.
+        if (result.data) counts.set(deviceIds[index], result.data.counts ?? countsOf(result.data.items));
+      });
+      return { rules: byId, counts, isPending: results.some(isFirstLoad) };
     },
   });
 

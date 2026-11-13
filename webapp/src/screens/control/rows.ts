@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import type { AlarmRule, Device, PendingSetting, Plan, SocketPage } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmRulePage, Device, PendingSetting, Plan, SocketPage } from '@fg2/shared-types/v1';
 import type { OutputLevel } from '@/api/devices';
 import { configurationFieldsOf, workModesOf, type WorkMode } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { Translate } from '@/i18n/i18n';
@@ -18,6 +18,7 @@ import { fanFactsOf } from './devices/own-summary';
 import { heldWords } from './held-light';
 import { activeStep, isWaiting, readingAt } from './plan-clock';
 import { pauseReasonOf } from './plan-labels';
+import { countsOf } from '@/api/alarm-rules';
 
 /** What a row under Steuerung's climate says of the page behind it, in a few words; amber is for what needs a person. */
 export interface RowLine {
@@ -55,25 +56,36 @@ export const hasMode = (device: Device): boolean =>
 export const modeWord = (t: Translate, device: Device): string =>
   device.control ? t(`operatingMode.${device.control.drying ? 'drying' : device.control.mode}`) : '';
 
-/** "3 Regeln · alle ruhig", or which rule has raised; "1 von 7 Regeln an" where some are off - in amber when the offline rule is one of them. */
-export const alarmsLine = (t: Translate, rules: AlarmRule[]): RowLine => {
-  const on = rules.filter(rule => rule.enabled);
+/**
+ * "3 Regeln · alle ruhig", or which rule has raised; "1 von 7 Regeln an" where some are off - in amber when the offline
+ * rule is one of them. The figures are the server's for each device (`counts`), not the length of the page read: a
+ * device of 110 rules read "100 Regeln".
+ */
+export const alarmsLine = (t: Translate, rules: AlarmRule[], counts: AlarmRulePage['counts'][] = [countsOf(rules)]): RowLine => {
+  const all = counts.reduce(
+    (sum, one) => ({ total: sum.total + one.total, enabled: sum.enabled + one.enabled, triggered: sum.triggered + one.triggered }),
+    {
+      total: 0,
+      enabled: 0,
+      triggered: 0,
+    },
+  );
   const deaf = rules.some(rule => rule.origin === 'always' && !rule.enabled);
-  if (on.length === 0) return { text: t('control.rows.alarmsNone'), warn: deaf };
-  const raised = on.filter(rule => rule.state.triggered);
+  if (all.enabled === 0) return { text: t('control.rows.alarmsNone'), warn: deaf };
+  const raised = rules.filter(rule => rule.enabled && rule.state.triggered);
   const count =
-    on.length < rules.length
-      ? t('control.rows.alarmsOnOf', { on: on.length, total: rules.length })
-      : t('control.rows.alarmsOn', { count: on.length });
+    all.enabled < all.total
+      ? t('control.rows.alarmsOnOf', { on: all.enabled, total: all.total })
+      : t('control.rows.alarmsOn', { count: all.enabled });
   const state =
-    raised.length === 0
+    all.triggered === 0
       ? t('control.rows.alarmsCalm')
-      : raised.length === 1
+      : all.triggered === 1 && raised.length === 1
         ? t('control.rows.alarmRaised', { name: ruleTitle(t, raised[0]) })
-        : t('control.rows.alarmsRaised', { count: raised.length });
+        : t('control.rows.alarmsRaised', { count: all.triggered });
   const off = deaf ? ` · ${t('control.rows.alarmOff', { name: t('alarms.offlineRule') })}` : '';
 
-  return { text: `${count} · ${state}${off}`, warn: raised.length > 0 || deaf };
+  return { text: `${count} · ${state}${off}`, warn: all.triggered > 0 || deaf };
 };
 
 /** Whether a plan could set this device's climate as it runs: its document states targets, and an AIR fan at a fixed speed follows none. */

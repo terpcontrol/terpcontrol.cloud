@@ -10,7 +10,7 @@ import { Alerts } from '@/screens/Alerts';
 import { crossedBound, worstFirst } from '@/screens/alerts/inbox';
 import { forgetKept } from '@/ui/kept';
 import { alertLabel } from '@/ui/units';
-import { deviceWith } from './fixtures';
+import { deviceWith, rulePage } from './fixtures';
 import { drawAt, json, reading } from './harness';
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
@@ -204,7 +204,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
     return json({ spaces: server.home, followedGrows: [], people: [], layers: state.who === 'demo' ? { diary: true } : server.me.layers });
   if (method === 'GET' && path === '/v1/cameras') return json({ items: server.cameras, nextCursor: null });
   const rules = /^\/v1\/devices\/([^/]+)\/alarm-rules/.exec(path);
-  if (method === 'GET' && rules) return json({ items: server.rules.filter(one => one.deviceId === rules[1]), nextCursor: null });
+  if (method === 'GET' && rules) return json(rulePage(server.rules.filter(one => one.deviceId === rules[1])));
   if (method === 'GET' && path === '/v1/me') return json(server.me);
   if (method === 'GET' && path.startsWith('/v1/tasks')) return json({ items: server.tasks, nextCursor: null });
   if (method === 'GET' && path.startsWith('/v1/grows')) return json({ items: server.grows, nextCursor: null });
@@ -1245,8 +1245,9 @@ describe('the inbox', () => {
     unmount();
     draw();
 
-    await waitFor(() => expect(rows()).toHaveLength(7));
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // The sheet came back open, so the list stands behind it, out of the tree.
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    expect(within(screen.getByRole('region', { name: 'Resolved', hidden: true })).getAllByRole('listitem', { hidden: true })).toHaveLength(7);
   });
 
   it('reads a name once and a rule only for the devices something went wrong on', async () => {

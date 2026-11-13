@@ -21,6 +21,17 @@
   gap: var(--space-1) var(--space-3);
 }
 
+/* A group's heading in the label's look, and its (i) beside it rather than inside it. */
+.groupName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.groupTitle {
+  letter-spacing: 0;
+}
+
 .groupAside {
   margin-left: auto;
   font-size: var(--text-xs);
@@ -149,14 +160,6 @@
 .state {
   font-size: var(--text-xs);
   color: var(--muted);
-}
-
-.add {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  text-align: center;
 }
 
 .textarea {

@@ -83,12 +83,15 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
               : alarmsLine(
                   t,
                   [...held.rules.values()].filter(rule => rule.deviceId === device.id),
+                  [held.counts.get(device.id)].filter(one => one !== undefined),
                 )
           }
         >
           {device => (
             <DeviceRules
               device={device}
+              // Under a device's own heading where several are listed, under the page's where one is.
+              level={watched.length > 1 ? 3 : 2}
               grow={grow}
               me={me.data}
               toldAbove={reachesNoOne}
@@ -102,7 +105,7 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
 
       {/* A silence stops the announcement and maintenance stops the engine: which is which is one tap away, not a paragraph. */}
       {watched.length > 0 ? (
-        <p className={`mono ${styles.quietLine}`}>
+        <p className={styles.quietLine}>
           {t('alarms.quietLine')}
           <Help topic="alarmQuiet" />
         </p>
@@ -113,6 +116,8 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
 
 interface DeviceRulesProps {
   device: Device;
+  /** The rank of a group's heading. */
+  level: 2 | 3;
   grow: OverviewGrow | null;
   /** The account, once it has answered; until then nothing is said about where a routed rule goes. */
   me: Me | undefined;
@@ -125,8 +130,9 @@ interface DeviceRulesProps {
 }
 
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
+function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
   const { t } = useTranslation();
+  const Heading = level === 2 ? 'h2' : 'h3';
   const { tell } = useLog();
   const rules = useDeviceAlarmRules(device.id);
   const update = useUpdateAlarmRule(device.id);
@@ -180,16 +186,19 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
 
       {groups.map(group => (
         <div key={group.origin} className={ui.stack2}>
+          {/* Each group is a heading of its own, so a screen reader can go from one to the next; its (i) stands beside it. */}
           <header className={styles.groupHead}>
-            <span className="label">
-              {group.origin === 'preset'
-                ? stageName
-                  ? t('alarms.group.presetOf', { name: stageName })
-                  : t('alarms.group.presetNone')
-                : t(`alarms.group.${group.origin}`)}
+            <span className={styles.groupName}>
+              <Heading className={`label ${styles.groupTitle}`}>
+                {group.origin === 'preset'
+                  ? stageName
+                    ? t('alarms.group.presetOf', { name: stageName })
+                    : t('alarms.group.presetNone')
+                  : t(`alarms.group.${group.origin}`)}
+              </Heading>
               {group.origin === 'preset' ? <Help topic="presetRules" /> : group.origin === 'always' ? <Help topic="offlineRule" /> : null}
             </span>
-            {group.origin === 'preset' ? <span className={`mono ${styles.groupAside}`}>{t('alarms.group.presetAside')}</span> : null}
+            {group.origin === 'preset' ? <span className={styles.groupAside}>{t('alarms.group.presetAside')}</span> : null}
           </header>
           <ul className={ui.group}>
             {group.rules.map(rule => (
@@ -218,7 +227,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
       {mayManage ? <Templates device={device} rules={rules.data.items} onMade={setMade} /> : null}
 
       {mayManage && watchable(device) ? (
-        <button type="button" className={`${ui.cardDashed} ${styles.add}`} onClick={() => setOpen('new')}>
+        <button type="button" className={ui.button} onClick={() => setOpen('new')}>
           {t('alarms.add')}
         </button>
       ) : null}
@@ -300,7 +309,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
                 <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.templateIcon} />
                 <span className={styles.templateText}>
                   <span className={styles.templateName}>{name}</span>
-                  <span className={`mono ${styles.templateLine}`}>
+                  <span className={styles.templateLine}>
                     {making === template.key ? t('alarms.template.making') : <Facts facts={factsOf(line)} />}
                   </span>
                 </span>
@@ -376,12 +385,12 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
         {rule.state.triggered ? <span className={styles.dot} role="img" aria-label={t('alarms.triggered')} /> : null}
         <span className={styles.name}>{title}</span>
         {watching ? <span className={styles.watching}>{watching}</span> : null}
-        {bound ? <span className={`mono ${styles.bound}`}>{bound}</span> : null}
+        {bound ? <span className={styles.bound}>{bound}</span> : null}
       </span>
-      <span className={`mono ${styles.meta}`}>{metaLine(t, rule, told.said)}</span>
-      {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}
-      {resting && !(mayManage && device.spaceId) ? <span className={`mono ${styles.reason}`}>{t('alarms.meta.restsInGermination')}</span> : null}
-      {ownLine ? <span className={`mono ${styles.meta}`}>{t('alarms.meta.germinationLine', { bound: ownLine })}</span> : null}
+      <span className={styles.meta}>{metaLine(t, rule, told.said)}</span>
+      {missing ? <span className={styles.reason}>{t(`alarms.needs.${missing}`)}</span> : null}
+      {resting && !(mayManage && device.spaceId) ? <span className={styles.reason}>{t('alarms.meta.restsInGermination')}</span> : null}
+      {ownLine ? <span className={styles.meta}>{t('alarms.meta.germinationLine', { bound: ownLine })}</span> : null}
     </>
   );
 
@@ -407,7 +416,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
             onChange={onToggle}
           />
         ) : (
-          <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
+          <span className={styles.state}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}
         {mayManage && (silence.silenced || rule.state.triggered) ? (
           <button type="button" className={ui.chip} disabled={silence.busy} onClick={silence.toggle}>
@@ -423,12 +432,12 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
       {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it.
           Where the choice is made is Steuerung, which shows it while the device germinates. */}
       {resting && mayManage && device.spaceId ? (
-        <Link to={controlPath(device.spaceId)} className={`mono ${styles.fix}`}>
+        <Link to={controlPath(device.spaceId)} className={styles.fix}>
           {t('alarms.meta.restsInGerminationChange')}
         </Link>
       ) : null}
       {!toldAbove && rule.enabled && told.unreached ? (
-        <Link to="/me/notifications" className={`mono ${styles.fix}`}>
+        <Link to="/me/notifications" className={styles.fix}>
           {t('alarms.meta.reachesNobody')}
         </Link>
       ) : null}

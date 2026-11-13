@@ -69,7 +69,11 @@ export function PageRows({
     <nav aria-label={t(alone ? 'device.steering' : 'control.rows.label')}>
       <Rows grid={!alone}>
         {children}
-        {row('alarms', devices.some(watchable) || rules.rules.size > 0, rules.isPending ? null : alarmsLine(t, [...rules.rules.values()]))}
+        {row(
+          'alarms',
+          devices.some(watchable) || rules.rules.size > 0,
+          rules.isPending ? null : alarmsLine(t, [...rules.rules.values()], [...rules.counts.values()]),
+        )}
         {row(
           'plan',
           plans.plans.length > 0 || planned.length > 0,

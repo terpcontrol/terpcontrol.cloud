@@ -821,6 +821,26 @@ describe('what a row says about the page behind it', () => {
     expect(alarmsLine(t, [rule({ origin: 'always', enabled: false })])).toEqual({ text: 'no rule on', warn: true });
   });
 
+  /** "Alarme · 100 Regeln" was said of a device with 110: the list is read one page deep, the figures are the server's. */
+  it('counts the rules the server counts, not the ones on the page it read', () => {
+    const page = [rule({}), rule({ id: 'b', name: 'Too humid', state: { triggered: true } })];
+
+    expect(alarmsLine(t, page, [{ total: 110, enabled: 104, triggered: 1 }])).toEqual({
+      text: '104 of 110 rules on · “Too humid” has gone off',
+      warn: true,
+    });
+    // A rule raised on a page not read is counted, not named.
+    expect(
+      alarmsLine(t, page, [
+        { total: 60, enabled: 60, triggered: 2 },
+        { total: 50, enabled: 50, triggered: 1 },
+      ]),
+    ).toEqual({
+      text: '110 rules · 3 have gone off',
+      warn: true,
+    });
+  });
+
   /** Only a smart socket reports a hold: "all on auto" is claimed of a list made of sockets, and never of a lamp. */
   it('says each output with what it does, and "all on auto" only of sockets', () => {
     const lampless = { ...device(), configuration: { day: { temperature: 25 } } } as Device;
