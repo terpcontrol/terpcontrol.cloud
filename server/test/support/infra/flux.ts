@@ -5,7 +5,7 @@ import { InfluxPoint } from './stores';
  * is understood; anything else is ignored rather than rejected, so a query that
  * gains an unrelated clause keeps working.
  */
-export interface ParsedFlux {
+interface ParsedFlux {
   start: string;
   stop: string;
   measurement?: string;
@@ -33,7 +33,7 @@ export interface ParsedFlux {
   timeOfSample: boolean;
 }
 
-export type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count' | 'first' | 'last';
+type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count' | 'first' | 'last';
 
 /** The `limit(n:)` the server's own queries carry, so a wide range with a small
  * interval cannot build an unbounded list here either. */
@@ -119,7 +119,7 @@ const aggregate = (values: number[], fn: AggregateFn): number | null => {
   }
 };
 
-export interface ResultRow {
+interface ResultRow {
   time: number;
   value: number | null;
   field: string;

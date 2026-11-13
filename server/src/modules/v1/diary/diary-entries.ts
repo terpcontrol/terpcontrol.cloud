@@ -73,7 +73,7 @@ const valuesOf = (values: Entry['values'], hide: Redaction): Entry['values'] => 
  * What a device and the plan engine write for themselves. They are entries like
  * any other and are kept like any other, but they are a machine's running
  * commentary rather than a record of the grow, so a day of the diary and a report
- * chapter leave them out and the timeline's rail reads them under a cap of their
+ * chapter leave them out and the Timeline reads them under a cap of their
  * own.
  */
 export const MACHINE_KINDS: EntryKind[] = entryKind.options.filter(kind => kind === 'system' || kind === 'plan');
@@ -81,7 +81,7 @@ export const MACHINE_KINDS: EntryKind[] = entryKind.options.filter(kind => kind 
 /**
  * What a day of the diary or a report chapter is about: everything somebody did to the
  * grow, and everything that happened to it, with a machine's bookkeeping left
- * out. The rail on the Timeline tab is deliberately not this list - a tent's
+ * out. The lines of the Timeline are deliberately not this list - a tent's
  * whole record is what it is scrubbed for.
  */
 export const DIARY_KINDS = entryKind.options.filter(kind => !MACHINE_KINDS.includes(kind));
@@ -140,7 +140,7 @@ export const TOLD_OF_MACHINES: FilterQuery<EntryDocument> = { $or: MACHINE_LINES
  * writes its own, so runs that touch are one; a run nobody ended is over when
  * its minutes are.
  */
-export const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
+const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
   const runs: Span[] = [];
   let open = null as Span | null;
 
@@ -221,7 +221,7 @@ export const readingsIn = (entry: Pick<EntryDocument, 'values'>): EntryReading[]
  * to several grows at once.
  *
  * A reading names its measurement by key, and the definition of that key lives
- * on the grow, so a tent's latest lines and a tent's rail would otherwise have
+ * on the grow, so a tent's latest lines and its Timeline would otherwise have
  * to be read grow by grow before a figure could be given a name and a unit -
  * and are drawn with the raw key instead. Only the wording travels: the band a
  * measurement is aimed at stays on the grow, because both answers are read

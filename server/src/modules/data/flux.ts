@@ -813,7 +813,7 @@ export const latestByField = (rows: FluxRow[]): Map<string, { value: number; mea
  * kept as the gap it is rather than dropped: a chart draws the hole rather than
  * joining across it, which is what an unfitted sensor really leaves behind.
  */
-export interface SeriesGrid {
+interface SeriesGrid {
   instants: string[];
   valuesByField: Map<string, Map<string, number | null>>;
 }
@@ -842,7 +842,7 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
 };
 
 /** The readings a computed metric is built from, at one instant. */
-export interface Readings {
+interface Readings {
   temperature: number | null;
   humidity: number | null;
   leafTemperature: number | null;

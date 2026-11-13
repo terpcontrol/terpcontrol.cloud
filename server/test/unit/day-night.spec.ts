@@ -335,7 +335,7 @@ describe('the verdict over a day', () => {
 
   /**
    * Moving the light from 06:00 to 13:00 at eight in the evening turned the
-   * afternoon that had been a day into a night after the fact: the cockpit
+   * afternoon that had been a day into a night after the fact: Start
    * said "too warm since 12:00" about a fridge that had held its day all
    * afternoon, while the Timeline drew the same afternoon correctly.
    */

@@ -26,7 +26,7 @@ export const figureOf = (value: unknown): string =>
 export const changeLine = (path: string, before: unknown, after: unknown): string => `${path}: ${figureOf(before)} → ${figureOf(after)}`;
 
 /** A line read back, its two figures as it says them (`figureOf`). */
-export interface ChangeSaid {
+interface ChangeSaid {
   path: string;
   before: string;
   after: string;

@@ -33,7 +33,7 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 const TICK_MS = 60 * 1000;
 
 /** What one pass did, which is what the health card is drawn from and what a test reads. */
-export interface AlarmHealthPass {
+interface AlarmHealthPass {
   /** Claimed devices the pass went round. */
   devices: number;
   /**
@@ -45,13 +45,13 @@ export interface AlarmHealthPass {
 }
 
 /** The same, with the instant it finished, which is the half a screen needs and a test does not. */
-export type LastAlarmHealthPass = AlarmHealthPass & { ranAt: Date };
+type LastAlarmHealthPass = AlarmHealthPass & { ranAt: Date };
 
 /**
  * How the loop itself is doing: its last completed pass, and the run of
  * failures since - which is the fact a bare log line could not carry.
  */
-export interface AlarmHealthState {
+interface AlarmHealthState {
   last: LastAlarmHealthPass | null;
   /** Passes that have failed since the last one that completed. */
   failures: number;

@@ -32,7 +32,7 @@ export const narrowedToDevice = (stood: Stood[], deviceId: string | undefined): 
 };
 
 /** A climate device that held a place before another, with the part of the window that is its own. */
-export interface Predecessor {
+interface Predecessor {
   deviceId: string;
   held: Span;
 }

@@ -8,7 +8,7 @@ import { mqttConfig } from '../../config/configuration';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const mqtt = require('mqtt');
 
-export interface MqttMessage {
+interface MqttMessage {
   topic: string;
   message: string;
 }

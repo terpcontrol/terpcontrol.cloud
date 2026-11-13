@@ -12,7 +12,7 @@ import { FFMPEG_STATE_DIR } from './infra/app';
 const PLAN = join(FFMPEG_STATE_DIR, 'plan.json');
 const CALLS = join(FFMPEG_STATE_DIR, 'calls.jsonl');
 
-export interface ScriptedRun {
+interface ScriptedRun {
   /**
    * Part of the command line this answer is for - the stream URL, normally.
    * Without it the next ffmpeg run takes the answer, and the webcam poller is

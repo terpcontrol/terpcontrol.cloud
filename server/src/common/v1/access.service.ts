@@ -327,8 +327,8 @@ export class AccessService {
   }
 
   /**
-   * Whether a grow stands in a demo place now. The tour's Start and a demo
-   * place's cockpit show the grow standing there, and its page and charts have
+   * Whether a grow stands in a demo place now. The tour's Start shows the grow
+   * standing in a demo place, and its page and curves have
    * to open for the tour as well (Chris, 2026-10-17); a grow that has ended or
    * moved out of the demo is private again. `grows.isDemo` still flags one by hand.
    */

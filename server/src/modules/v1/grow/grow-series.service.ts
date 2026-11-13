@@ -30,7 +30,7 @@ import { GrowsService } from './grows.service';
  *
  * A grow is not a device and not a tent: where it stood is what its placements
  * say, so the climate of a range is whatever the controllers of those places
- * measured, pooled into one line per metric the same way the Timeline tab pools
+ * measured, pooled into one line per metric the same way the Timeline pools
  * them. That is deliberate to the point of being the reason this reads through
  * the timeline's own arithmetic rather than its own: a band drawn here and a
  * band drawn there are the same band, and a grower comparing the two screens

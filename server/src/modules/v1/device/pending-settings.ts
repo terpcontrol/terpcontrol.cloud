@@ -50,7 +50,7 @@ const RECORDED: Readonly<Record<string, (said: Said) => number | string | null |
 const asRead = (said: string): string => (said === 'true' ? '1' : said === 'false' ? '0' : said);
 
 /** The lines of one save's diary entry, and when it was written (epoch milliseconds). */
-export interface SavedChange {
+interface SavedChange {
   at: number;
   lines: readonly string[];
 }

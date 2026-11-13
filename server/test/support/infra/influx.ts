@@ -124,7 +124,7 @@ const json = (res: ServerResponse, status: number, payload: unknown): void => {
   res.end(body);
 };
 
-export interface FakeInfluxOptions {
+interface FakeInfluxOptions {
   influx: InfluxStore;
   mail: MailStore;
   /** Lets a spec take the MQTT broker away and bring it back. */

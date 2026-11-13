@@ -473,7 +473,7 @@ describe('what grows here', () => {
 
   /**
    * The tour is shown an account as its keeper sees it. Without the devices a
-   * demo place's cockpit on Start had no hardware, while the device list - which
+   * demo place on Start had no hardware, while the device list - which
    * the tour reads anyway - showed it.
    */
   it('names the devices and the work here to the demo tour', async () => {

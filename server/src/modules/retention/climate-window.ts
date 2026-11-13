@@ -18,7 +18,7 @@
  */
 
 /** What a space or an account stores: a number of days, or nothing said. */
-export interface Retention {
+interface Retention {
   climateDays: number | null;
 }
 

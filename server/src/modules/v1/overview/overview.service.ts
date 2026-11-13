@@ -37,7 +37,7 @@ import { framesEvery, shownCameras } from '../timeline/frames';
 import { verdictOf } from './climate-verdict';
 
 /**
- * The tent page's landing tab: what is true in one space now, what needs a
+ * Start of one place: what is true in one space now, what needs a
  * human, what grows there, what its cameras saw today, how the last day went
  * and what was last written.
  *

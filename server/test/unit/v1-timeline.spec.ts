@@ -854,7 +854,7 @@ describe('the band that applied', () => {
   });
 
   describe('the record of what the controller aimed at', () => {
-    /** What the controller is configured with now, which is what the cockpit judges the tent against. */
+    /** What the controller is configured with now, which is what Start judges the tent against. */
     const NOW_AIMED = { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: 1100 };
     const FLOWER_AIMED = { day: { temperature: 26, humidity: 45 }, night: { temperature: 21, humidity: 50 }, co2: 900 };
     const aimed = (temperature: number) => ({ day: { temperature, humidity: 50 }, night: { temperature: temperature - 4, humidity: 55 }, co2: 900 });
@@ -868,7 +868,7 @@ describe('the band that applied', () => {
         one.day?.setpoint,
       ]);
 
-    it('draws the band from the record over a phase´s snapshot, so the present is what the cockpit judges against', async () => {
+    it('draws the band from the record over a phase´s snapshot, so the present is what Start judges against', async () => {
       // The tent was put on another climate this morning, a phase that began
       // overnight: from then on the snapshot is not what the controller holds.
       await recorded(['2026-06-01T00:00:00.000Z', aimed(24)], [FLOWERING_FROM.toISOString(), FLOWER_AIMED], ['2026-06-10T09:00:00.000Z', NOW_AIMED]);

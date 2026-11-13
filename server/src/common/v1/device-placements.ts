@@ -91,7 +91,7 @@ export interface Stood<T extends Pick<StoredDevice, 'id'> = StoredDevice> {
 }
 
 /** The devices with a placement in one of these places that reaches into the stretch. */
-export const stoodDuring = (spaceIds: readonly string[], span: Span): FilterQuery<StoredDevice> => ({
+const stoodDuring = (spaceIds: readonly string[], span: Span): FilterQuery<StoredDevice> => ({
   $or: [
     {
       placements: {

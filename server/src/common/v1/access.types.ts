@@ -83,7 +83,7 @@ export interface Grant {
  * The demo tour is redacted, because it reads a stranger's grow and the
  * owner's privacy applies, but it is no outsider: it is shown an account as
  * its keeper sees it, which is the tour's whole purpose. Hiding its devices
- * left Start's cockpit without the hardware the device list shows.
+ * left Start without the hardware the place holds.
  */
 export const isOutsider = (grant: Pick<Grant, 'grantee'>): boolean => grant.grantee === 'public' || grant.grantee === 'share';
 

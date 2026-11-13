@@ -12,7 +12,7 @@ import { reportsNoSensor } from '@common/v1/sentinels';
  * hour after a change all ask it of the record rather than of the document as
  * it stands now. Judged by the document of now, a light moved from eight to
  * one o'clock turned the morning that had been a day into a night after the
- * fact, and the cockpit said "4.7 °C too high since 08:12" about a fridge that
+ * fact, and Start said "4.7 °C too high since 08:12" about a fridge that
  * had been on its day's target all morning.
  */
 

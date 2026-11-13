@@ -163,7 +163,7 @@ const stretchOf = (range: 'phase' | 'grow', grow: GrowDocument, at: Date): { sta
  * so twenty minutes are every sample and an hour every second one, and a day
  * three minutes. A step somebody chose is held to the store's own rule for one.
  */
-export const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
+const stepFor = (startsAt: Date, endsAt: Date, asked?: number): number => {
   const seconds = Math.max(1, Math.round((endsAt.getTime() - startsAt.getTime()) / 1000));
   const even = asked && asked > 0 ? storeStepFor(startsAt, endsAt, asked) : Math.ceil(seconds / PANEL_WINDOWS);
   // Beyond three days the deficit is worked out from means over a grain of five minutes (`grainsQuery`), so a

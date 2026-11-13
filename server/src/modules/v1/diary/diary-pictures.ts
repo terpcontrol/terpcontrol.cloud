@@ -27,7 +27,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 const STILL_WINDOW_MS = 90 * 60 * 1000;
 
 /** A day to find the picture of. `key` is whatever the caller tells its days apart by. */
-export interface PicturedDay {
+interface PicturedDay {
   key: number;
   startsAt: Date;
   endsAt: Date;
