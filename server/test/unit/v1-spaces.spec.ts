@@ -552,6 +552,27 @@ describe('archiving one', () => {
 
     expect((await refusal(() => spaces.archive(session(OWNER), SPACE, false))).problem.code).toBe('name_taken');
   });
+
+  /**
+   * A place that has ended is on no screen, removed or put away: a name or a
+   * kind written to it would be read by nobody. It takes them again once it is
+   * brought back.
+   */
+  it.each([
+    ['removed', () => spaces.remove(SPACE)],
+    ['put away', () => spaces.archive(session(OWNER), SPACE, true)],
+  ])('takes no name and no kind once it is %s', async (_how, end) => {
+    const before = await spaces.require(SPACE);
+    await end();
+    const ended = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
+
+    expect((await refusal(() => spaces.update(session(OWNER), SPACE, { name: 'Renamed too late' }))).problem).toMatchObject(ended);
+    expect((await refusal(() => spaces.update(session(OWNER), SPACE, { kind: 'fridge' }))).problem).toMatchObject(ended);
+    expect(await spaces.require(SPACE)).toMatchObject({ name: before.name, kind: before.kind });
+
+    expect((await spaces.archive(session(OWNER), SPACE, false)).archivedAt).toBeNull();
+    expect((await spaces.update(session(OWNER), SPACE, { name: 'Renamed in time' })).name).toBe('Renamed in time');
+  });
 });
 
 describe('ending one', () => {

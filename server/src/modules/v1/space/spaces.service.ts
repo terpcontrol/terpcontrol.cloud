@@ -76,15 +76,10 @@ export class SpacesService {
     return space;
   }
 
-  /** An ended room takes nothing - no name, no place, no person: it was a field of places that are gone, and is on no screen. */
-  public async requireOpen(id: string): Promise<SpaceDocument> {
-    const space = await this.require(id);
-    if (space.kind === 'room') refuseEnded(space);
-
-    return space;
-  }
-
-  /** The space somebody is let into - by an invitation, as a member, with a link: an ended place refuses them as an ended room does. */
+  /**
+   * The space something is written to - a name, a person let in by an invitation, as a member or with a link: one
+   * that has ended takes none of it, a place as little as a room, and is on no screen where it could be found again.
+   */
   public async requireStanding(id: string): Promise<SpaceDocument> {
     const space = await this.require(id);
     refuseEnded(space);
@@ -162,7 +157,7 @@ export class SpacesService {
   }
 
   public async update(ctx: AccessContext, id: string, body: SpaceUpdate): Promise<Space> {
-    const space = await this.requireOpen(id);
+    const space = await this.requireStanding(id);
     const kind = body.kind ?? space.kind;
     if ((kind === 'room') !== (space.kind === 'room')) throw roomByItself('A place does not become a room, nor a room a place.');
     this.refuseTwoRooms(body);
@@ -290,12 +285,13 @@ export class SpacesService {
     }
 
     await this.access.require(ctx, subjectRef('space', roomId), 'manage');
-    const room = await this.requireOpen(roomId);
+    const room = await this.require(roomId);
     if (room.kind !== 'room') {
       throw unprocessable('not_a_room', 'Spaces are grouped by a space of kind `room`.', [
         { field: 'roomId', code: 'not_a_room', detail: `That space is a ${room.kind}.` },
       ]);
     }
+    refuseEnded(room);
 
     return room;
   }

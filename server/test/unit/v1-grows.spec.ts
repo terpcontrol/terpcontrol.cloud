@@ -554,6 +554,43 @@ const phaseLineOf = async (growId: string, phaseId: string) => db.entries.findOn
 const moveLineOf = async (growId: string, placementId: string) =>
   db.entries.findOne({ growId, kind: 'move', 'values.placementId': placementId }).lean();
 
+/**
+ * A place that has ended - removed or put away, which is one state in the data -
+ * takes no plants: a grow started there, moved there, split off into it or
+ * corrected into it would stand on no screen. The fridge beside it still takes
+ * each of them, so the refusal is the ended place's.
+ */
+describe('a place that has ended', () => {
+  const ENDED = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
+  const refused = async (action: () => Promise<unknown>) => {
+    await expect(action()).rejects.toMatchObject({ problem: ENDED });
+  };
+
+  it('takes no grow: none started there, moved there, split off into it or corrected into it', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { archivedAt: new Date() } });
+
+    await refused(() => started({ name: 'Too late', spaceId: FRIDGE }));
+    await refused(() => grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN));
+    await refused(() => grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN));
+    await refused(() => grows.updatePlacement(session(OWNER), grow.id, open.id, { spaceId: FRIDGE }, NOTHING_HIDDEN));
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.locations.map(row => row.spaceId)).toEqual([TENT]);
+    expect(await db.grows.countDocuments({})).toBe(1);
+
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { archivedAt: null } });
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.locations.map(row => row.spaceId)).toEqual([FRIDGE]);
+  });
+
+  it('leaves a grow that stands nowhere alone: no place is asked about', async () => {
+    await db.spaces.updateOne({ id: TENT }, { $set: { archivedAt: new Date() } });
+
+    expect((await started({ spaceId: null })).placements[0].spaceId).toBeNull();
+  });
+});
+
 describe('correcting a phase', () => {
   const WRONG_DAY = new Date('2026-05-03T08:00:00.000Z');
 

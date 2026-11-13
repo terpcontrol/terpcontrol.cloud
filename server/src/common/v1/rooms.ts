@@ -28,3 +28,13 @@ export const refuseEnded = (space: Pick<SpaceDocument, 'kind' | 'archivedAt'>): 
 
   throw conflict('space_archived', 'That place has ended, and nothing is put into an ended place.');
 };
+
+/**
+ * The same refusal where only the id is in hand - a grow started or moved
+ * there, a reminder kept on it. A space that is not there at all is the access
+ * rule's to answer, which each of those writes has asked first.
+ */
+export const refuseEndedId = async (spaces: Model<SpaceDocument>, id: string): Promise<void> => {
+  const space = await spaces.findOne({ id }, { kind: 1, archivedAt: 1 }).lean<Pick<SpaceDocument, 'kind' | 'archivedAt'>>();
+  if (space) refuseEnded(space);
+};

@@ -238,10 +238,54 @@ describe('what stands in a space', () => {
   it.each([
     ['removed', (id: string) => owner.client.delete(`/v1/spaces/${id}`).expect(204)],
     ['put away', (id: string) => owner.client.put(`/v1/spaces/${id}/archive`).expect(200)],
-  ])('refuses a place that was %s an invite, a member and a share link', async (how, end) => {
+  ])('refuses a place that was %s an invite, a member, a share link, a reminder, a grow and a new name', async (how, end) => {
     const id = await makeSpace(owner, { kind: 'tent', name: `A tent that was ${how}` });
+    const beside = await makeSpace(owner, { kind: 'tent', name: `The tent beside the one that was ${how}` });
+    const grow = { name: `Grown where a tent was ${how}`, type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }] };
+    const reminder = { kind: 'water', label: 'Water it', everyDays: 3, onceAt: null };
+    // While it stands the place takes each of them, so the refusals below are the ended place's.
+    const kept = (
+      await owner.client
+        .post('/v1/reminders')
+        .send({ ...reminder, subject: { type: 'space', id } })
+        .expect(201)
+    ).body.id;
+    await owner.client.delete(`/v1/reminders/${kept}`).expect(204);
+    const standing = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ ...grow, spaceId: beside })
+        .expect(201)
+    ).body.id;
+    const plantIds = [(await owner.client.get(`/v1/grows/${standing}/plants`).expect(200)).body.items[0].id];
+    await owner.client
+      .patch(`/v1/spaces/${id}`)
+      .send({ name: `A tent that will be ${how}` })
+      .expect(200);
     await end(id);
     const ended = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
+
+    expect(
+      (
+        await owner.client
+          .post('/v1/reminders')
+          .send({ ...reminder, subject: { type: 'space', id } })
+          .expect(409)
+      ).body,
+    ).toMatchObject(ended);
+    expect(
+      (
+        await owner.client
+          .post('/v1/grows')
+          .send({ ...grow, spaceId: id })
+          .expect(409)
+      ).body,
+    ).toMatchObject(ended);
+    expect((await owner.client.post(`/v1/grows/${standing}/placements`).send({ spaceId: id }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.post(`/v1/grows/${standing}/splits`).send({ plantIds, spaceId: id }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.patch(`/v1/spaces/${id}`).send({ name: 'Named too late' }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.patch(`/v1/spaces/${id}`).send({ kind: 'fridge' }).expect(409)).body).toMatchObject(ended);
+    expect((await owner.client.get(`/v1/grows/${standing}`).expect(200)).body.placements).toMatchObject([{ spaceId: beside, endedAt: null }]);
 
     expect((await owner.client.post(`/v1/spaces/${id}/invites`).send({ role: 'can_log' }).expect(409)).body).toMatchObject(ended);
     expect((await owner.client.post(`/v1/spaces/${id}/members`).send({ handle: stranger.handle, role: 'can_log' }).expect(409)).body).toMatchObject(

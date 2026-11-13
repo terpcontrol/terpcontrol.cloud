@@ -8,10 +8,12 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { remindersAbout } from './due-tasks';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
@@ -38,6 +40,7 @@ export class RemindersService {
   constructor(
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     private readonly access: AccessService,
     private readonly visible: VisibleSubjectsService,
   ) {}
@@ -153,10 +156,11 @@ export class RemindersService {
    * that are no longer there - a daily watering for a grow harvested in August.
    * Nothing takes it off again, either: the tasks of an ended grow are not on
    * the board, so the reminder would sit there producing them unseen until
-   * somebody opened that grow's own list.
+   * somebody opened that grow's own list. A place that has ended keeps none
+   * either: its rhythms ended with it, and a new one would be due on no screen.
    */
   private async requireRunning(subject: GrowOrSpaceRef): Promise<void> {
-    if (subject.type !== 'grow') return;
+    if (subject.type === 'space') return refuseEndedId(this.spaces, subject.id);
 
     const ended = await this.grows.exists({ id: subject.id, endedAt: { $ne: null } });
     if (ended)

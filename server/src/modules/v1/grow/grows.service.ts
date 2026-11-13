@@ -30,6 +30,7 @@ import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -746,9 +747,14 @@ export class GrowsService {
     await this.entryRows.deleteMany({ growId, kind: 'move', 'values.placementId': placementId });
   }
 
-  /** Putting plants into a space that exists is managing that space, which the guard on the route has not decided about. */
+  /**
+   * Putting plants into a space that exists is managing that space, which the guard on the route has not decided
+   * about - and a place that has ended takes no plants: a grow started in it or moved there would stand on no screen.
+   */
   private async requireSpaceFor(ctx: AccessContext, spaceId: string | null | undefined): Promise<void> {
-    if (spaceId) await this.access.require(ctx, subjectRef('space', spaceId), 'manage');
+    if (!spaceId) return;
+    await this.access.require(ctx, subjectRef('space', spaceId), 'manage');
+    await refuseEndedId(this.spaces, spaceId);
   }
 
   // -------------------------------------------------------------------------
