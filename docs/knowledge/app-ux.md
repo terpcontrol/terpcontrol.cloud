@@ -1080,12 +1080,25 @@ page the same day ("after the walk" below) - none of those is Chris's.
   that reaches now follows it and says "jetzt"; one stepped back to stands still, and then - only then - a
   button "Jetzt" leads back to the same width ending now (after the walk: the way back must be marked). No chip
   is hidden: the chips wrap, and where the head does not fit one row - several places, a device to choose - it
-  takes a second; no row scrolls. No chip is lit for a range the page is not showing.
+  takes a second; no row scrolls. No chip is lit for a range the page is not showing. An arrow is named as a
+  person says it (after the fourth walk): by the chip's own words ("7 Tage früher"), a stretch no chip names
+  by its whole days ("3 Tage früher"), and anything else - a stretch of a grow, 72 hours and a minute -
+  "Zeitraum davor" and "Zeitraum danach", never "4321 Min früher". An axis names a day one way on every line
+  and both ends: by the clock up to a day and a half, "Di 10." up to eight days, its date past that.
 - **The cursor keeps its instant through a zoom**, and its place on the screen. Resting at the end of a window
   that follows now, a zoom stays at now; in a window that stands still with no cursor set, it keeps the middle.
   **The cursor is what the address says and nothing else remembers it** (after the third walk): with no `at`
-  the card rests on "jetzt" - "Verlauf" in the bar leaves no cursor behind - or, on a tent gone quiet, on its
-  last reading, also in a window a pinch left standing over it.
+  the card rests - "Verlauf" in the bar leaves no cursor behind -, and a cursor the address sets in the future
+  is dropped from it.
+  **At rest the card says the last thing that was heard** (the redesign session's rule A after the fourth walk, 2026-11-13; `restOf`,
+  `screens/timeline/model.ts`): the device's last reading where the window holds it - its values, its output
+  levels, its time -, else the window's last drawn point; one function says where, and the page reads the
+  curves there once, for the card and for the head of every panel. The reading is "jetzt, 03:59" while the
+  server calls it fresh and "letzter Wert · 03:59" from the moment it is stale - the mark Start goes by
+  (`valueAge`, two minutes), on every range, for the owner and through a link. A cursor left at the window's
+  end stood past the reach of the last point: a reading five to ten minutes old gave a blank card under
+  "jetzt" with outputs that contradicted it, and a window zoomed into the past rested on "— · — · —". With
+  the cursor set down beside the reading the card names it the same way, with the reading's own time.
   A drag with the mouse marks the stretch to zoom into, two fingers pinch to it, and Ctrl with the wheel - a
   trackpad's pinch - zooms around the pointer; the wheel alone is the page's. There is no free panning - the
   old Ctrl-drag, a two-finger pan: steps by the window, drag-select and pinch stand in (kept after the walk; a
@@ -1117,10 +1130,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   fix pass had made it whole and asked Chris; the session's word stands until he says otherwise. "Jetzt" is the
   device's last reading, which the answer carries for every reader alike (`reading`; a share link's reader sees
   the same figures and output levels), drawn as the curve's last point on
-  every range - not the mean of a month's last hour and a half - and only while the device reports: silent by
-  the offline rule, the head and the card read "letzter Wert · 16:17", the band, the night and the lamp's strip
-  end there, on 30 Tage as on 24 Std. The mean of the window that reading fell into gives way to it, whichever
-  half of the window it fell in, and at rest the card says each output's live level, not a window's mean. Start's
+  every range - not the mean of a month's last hour and a half - and only while the server calls it fresh: stale,
+  the head and the card read "letzter Wert · 16:17", and the band and the night end there, on 30 Tage as on
+  24 Std. The mean of the window that reading fell into gives way to it, whichever half of the window it fell
+  in, and on the reading the card says each output as the reading has it, not a window's mean. Start's
   two small curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
   a VPD that occurred**, at every range ([data.md](data.md#influxdb)): its "Tief" and "Hoch" are of the deficit
   of single samples up to three days and of means over five minutes beyond, which the help on VPD and on the
@@ -1136,14 +1149,22 @@ page the same day ("after the walk" below) - none of those is Chris's.
 - **An output is a strip under the curve it acts on**, on that curve's own time axis so a run stands under what it
   did: the heater under temperature, the dehumidifier (a fridge's compressor) under humidity, the CO₂ valve under
   CO₂; the lamp and what acts on no curve drawn - fans, a socket's relay - in a card of their own on a phone and
-  under the last panel beside the rail. This replaces the lanes and the outputs drawn as curves. A slice of a
-  strip is tinted by the share of it the output ran, which keeps what Chris asked of the lanes on 2026-10-12 - a
-  compressor cycling all week reads as how often it ran, not as one solid bar. How hard it ran is said at the
-  cursor ("Licht 65 %"), and drawn: an output driven at a level - a dimmed lamp, a fan's speed, the heater's
-  demand - is a filled shape: over each slice the level it ran at by the share of the slice it ran, so a sunrise
-  is a ramp and a heater's demand no row of ticks; one that only switches is tinted by its share (after the
-  walks; the old charts drew outputs as curves). Past the last thing heard a strip is blank, which is not
-  "off". The picture puts a
+  under the last panel beside the rail. This replaces the lanes and the outputs drawn as curves.
+  **An output's figure is counted from its samples** (the session's rule B after the fourth walk, 2026-11-13): for every drawn
+  point the answer says how many samples the window held, in how many the output ran, and its mean level over
+  all of them in per cent, off counting as 0 ([server-engines.md](server-engines.md#read-models)).
+  Everything said about an output comes from these and nothing from a run rounded out to the step - a valve
+  that opens five seconds every two minutes read "75 % der Zeit an" where its samples said 3 %. A point of
+  the strip is tinted by the share of its samples the output ran in, which keeps what Chris asked of the
+  lanes on 2026-10-12 - a compressor cycling all week reads as how often it ran, not as one solid bar -, and
+  one driven at a level - a dimmed lamp, a fan's speed, the heater's demand - is filled to its mean level, so
+  a sunrise is a ramp and a heater's demand no row of ticks. "x % der Zeit an" is the samples it ran in of
+  the samples heard. At the cursor one form per output: one driven at a level in per cent, also at 0
+  ("Licht 0 %"), on a mean point its mean level; a switch "an" or "aus", and over a point it ran in part of
+  "33 % an". Where no sample was heard - inside a silence, before a device's first reading - the strip is
+  blank and the card says "—", never "aus". The lamp's stretches by the clock are its samples' within three
+  days ("07:02 bis 19:02", the same on every zoom) and to five minutes beyond; one that ended because the
+  device fell silent is named by its last reading ("06:02 bis letzter Wert 10:00"). The picture puts a
   strip's name left of it; it stands over the strip instead, because a strip that starts a name's width to the
   right no longer lines up with the curve above.
 - **"Anpassen" holds what the page has no room for** - one sheet: a tick per curve the place has (temperature,
@@ -1165,9 +1186,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   on, over the grow, from the read that page already has, drawn by Verlauf's plot (`measurementCurve`,
   `plotOption`); the words there no longer promise "Graphen", and neither does any other screen.
 - **The table is one row per drawn point**: every curve with the lowest and highest of its window beside its
-  mean, and every output as how hard it ran over that window in per cent ("Licht (%)"; one that only switches
-  as the share of the window it was on) - a switching adds no row, and nothing after the last reading says 0
-  for an output nobody measured (after the third walk) -, at the step on screen: with
+  mean, and every output as its mean level over that window's samples in per cent ("Licht (%)"; one that only
+  switches as the share of them it ran in) - a switching adds no row, and nothing is written where nothing was
+  heard. Its last row is the device's last reading where the curves end on it, with what that reading says of
+  every output, as the card does (after the third and fourth walk) -, at the step on screen: with
   semicolons and decimal commas where the reader's figures have commas, a byte-order mark, one number of
   decimals to a column, no row in which nothing is said, and a deficit's column named as worked out.
 - **The diary of the window is told as the diary tells it** (`DiaryLine`): oldest first, as the curves run, a run
@@ -1188,7 +1210,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
 - **Nothing to draw is said as what it is**: a device that has sent nothing "wartet auf erste Werte"; a window
   nothing was measured in is dated by the last reading and leads to it; a place no device measures in says so and
   lists what was written. While another window is on its way the one before it stays, dimmed; a place gone quiet
-  rests the cursor on its last reading and says that it is the last, and the band and the night end with it.
+  rests the cursor on its last reading and says that it is the last, and the band and the night end with it. A
+  window a device that fills every window left empty is a gap at every range, and no night is shaded through
+  hours nobody reported in (after the fourth walk; [server-engines.md](server-engines.md#read-models)).
   **A window whose read fails keeps the last picture** (after the walk): the chips, the arrows and "Anpassen"
   stay, a notice says that this window could not be loaded and whether the server answered or there is no
   connection (`refusalText`), and its retry says that it is trying. The notice stays through a retry and goes

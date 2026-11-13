@@ -132,6 +132,21 @@ Pitfalls, each met at least once:
   `/live` is one `last()` over 30 days. `history()` adds each output's switchings, because a mean turns a lamp
   into a duty cycle: at a grain of five minutes at the most, and at the window's own step where that is finer
   (`switchingGrainFor`), so a zoom shows the second a dehumidifier came on and a compressor's four-minute rest.
+  Within three days the lamp and an AIR's `day` are a read of their own at five seconds, so a lamp's stretch
+  is its samples' on every zoom: 25 ms over a day and 67 ms over three at a sample every 5 s, beside the other
+  reads.
+- **An output's samples are counted per drawn window** (`countsQuery`, `figuresOf`; rule B of the redesign
+  session, 2026-11-13; what it is for: [server-engines.md](server-engines.md#read-models)): one
+  script with two `aggregateWindow(count)` beside the series' means - every sample of every output, and the
+  samples above zero of those driven at a level and of the valve. A switch writes 0 or 1, so the samples it
+  ran in are its mean times its count and it is left out of the second count: a filter on the value is what
+  the store does not push down (four months of five outputs counted in 53 ms, counted above zero in 227 ms).
+  The mean level is the series' own mean, off counting as the 0 it is. It replaces the read of the level
+  while running and the valve's dose (`levelsQuery`) and costs, on the long tent below, 8 ms for 6 over a
+  day, 15 for 14 over a week, 52 for 44 over a month and 183 for 158 over 120 days (medians of nine).
+  Checked point by point against the raw samples of three tents at a day, a week and a month: no window
+  differs. The store's windows are `[start, stop)`; the test double's are `(start, stop]`, which is why a
+  spec seeds its samples off the grid.
 - **The extremes of a window** (`extremesQuery`, asked with `SeriesRequest.extremes`, which only the Timeline
   sets): `aggregateWindow(min)` and `(max)` over the stored fields of the metrics asked for, in one script beside
   the mean, raw samples only - a day kept as its mean has none - and not at all at the five-second step, where a
@@ -150,9 +165,22 @@ Pitfalls, each met at least once:
   are not pushed down - five times that. Beyond three days they are means over five minutes, pushed down
   (`grainsQuery`; `deficitGrainFor` widens the grain past four and a half months to keep the read within its
   limit): 17 ms a week, 50 ms a month, 88 ms two months and 182 ms four, against 11, 26, 45 and 85 ms at
-  fifteen minutes - so five it is. A lamp switches inside two such grains a day. The switchings are no longer
+  fifteen minutes - so five it is. The switchings are no longer
   read for the deficit at all. A day kept as its mean has that mean to go by. PPFD is one reading times a
   factor, so its extremes are the reading's.
+- **A grain the lamp switched in is worked out from its own samples** (`switchedGrains`, `samplesInQuery`; the
+  redesign session of 2026-11-13 after the fourth walk). A grain is judged day or night as a whole, and that
+  one is neither: lit in six samples of ten it took the day's leaf offset for the air of all ten, and a
+  week's lowest deficit read 0.80 kPa where no sample of it was below 0.90. Of two neighbouring grains in
+  different halves the lit one is read sample by sample - the dark one is dark throughout; both where a
+  fan's flag or a plug's schedule says the half - and its figure is the mean of every sample's own deficit,
+  which is its lit and its dark part weighted by their readings. Only those grains: two a day, none where
+  the grain's leaf temperature was measured (the half decides the offset and nothing else), none above 1,500
+  of them. The read follows the grains', which say which they are, as unions of sixty stretches a script;
+  it costs about a millisecond a stretch however they are bundled - 15 ms on a week, 60 ms on a month and
+  232 ms on 120 days (238 grains, a sample every 5 s) after the grains' own 16, 49 and 202 ms. On the staged
+  tent of the walk the week reads 0.90 to 1.11 kPa, as the five-minute means of its raw samples do, and
+  every split grain equals the mean of its samples' deficits.
 - **Beyond three days every step is a whole number of grains** (`stepFor`, `timeline-window.ts`; the redesign
   session of 2026-11-13 after the third walk): a point of 541 s held one grain or two and was off by up to
   0.09 kPa from the mean of what it drew. An automatic step is rounded up to the grain and one asked finer is
@@ -186,7 +214,7 @@ Pitfalls, each met at least once:
 
 - While `legacy_images` stands, thinning and the cleanup spare every picture it names (`migrations/way-back.ts`); the
   hourly picture sweep does not. Dropping `legacy_images` hands those pictures to both.
-- A summarised day keeps only means: switchings, output levels and CO2 valve counts read raw samples only.
+- A summarised day keeps only means: switchings and the counts of an output's samples read raw samples only.
 - A photo uploaded and never attached to an entry stays while its grow or space exists - the cleanup takes only what
   nothing reaches - although the upload route's comment says the daily sweep removes it.
 

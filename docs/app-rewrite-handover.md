@@ -105,18 +105,29 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     older series routes (`/spaces/{id}/series`, a grow's) still bound a device by its stay without the
     hand-over cut Verlauf makes (`fromHandover`): they are assembled apart and nothing of the web app asks them.
     The fourth walk (2026-11-13) found those rules holding and the cost unchanged, and two majors and four
-    minors in what no walk had computed before - the card at rest and the outputs' figures; decided by the
-    redesign session, not built yet, and not Chris's word:
+    minors in what no walk had computed before - the card at rest and the outputs' figures. What the redesign
+    session decided about them - not Chris's word - is built (2026-11-13; rules in
+    [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night), the reads in
+    [data.md](knowledge/data.md#influxdb) and [server-engines.md](knowledge/server-engines.md#read-models));
+    the stack's images are older, so the server's part was seen in tests and against the store, not yet walked:
       - At rest the card says the last thing that was heard: the answer's last reading, as "jetzt" while the
-        server calls it fresh and as "letzter Wert · …" once it is stale, on every range; in a past window the
-        window's last drawn point. (A reading five to ten minutes old gave a blank card labelled "jetzt" at
-        24 Std, with outputs that contradicted the reading.)
-      - An output's figure is counted from its samples: per drawn point its mean level and the share of
-        samples in which it was on. The card, the table, "x % der Zeit an" and the lane come from these, not
-        from runs rounded out to the step (a valve open 3 % of the time read as 75 %); a point where nothing
-        was heard says "—", never "aus".
-      - A five-minute grain in which the lamp switched is computed as its lit and its dark part; within three
-        days the lamp's switch times are the samples', to the minute.
+        server calls it fresh and as "letzter Wert · …" once it is stale, on every range, for the owner and
+        through a link; in a past window the window's last drawn point. (A reading five to ten minutes old
+        gave a blank card labelled "jetzt" at 24 Std, with outputs that contradicted the reading.)
+      - An output's figure is counted from its samples: per drawn point the samples heard, those it ran in
+        and its mean level (`points` on a lane; `level` and `heardSeconds` left the contract). The card, the
+        table, "x % der Zeit an" and the strip come from these, not from runs rounded out to the step (a
+        valve open 3 % of the time read as 75 %); a point where nothing was heard says "—", never "aus".
+        One count read replaces the read of levels: 183 for 158 ms on the 120-day window.
+      - A five-minute grain in which the lamp switched is worked out from its own samples (232 ms more on
+        the 120-day read of a tent without a leaf sensor, none with one); within three days the lamp's
+        switch times are the samples', to the minute, and the night begins where its stretch ends.
+      - A window without a reading is a gap at every range, and no night is shaded through hours nobody
+        reported; the table's last row is the last reading; the arrows of a stretch no chip names say whole
+        days or "Zeitraum davor"; an axis names a day one way; a cursor in the future leaves the address.
+    Not built of that walk: nothing of its list. Left as they were: the leaf coverage threshold at one half,
+    and what the walk did not check (the widths between 900 and 1200, whose lamp is read across a change of
+    device with different schedules).
     Open, for Chris:
       1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
          a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.

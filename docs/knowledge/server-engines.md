@@ -1,6 +1,6 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
-updated: 2026-11-12
+updated: 2026-11-13
 source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12)
 paths:
   - server/src/modules/alarm/**
@@ -154,19 +154,42 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   reading whole (`reading`: its values, their instant, each output on or off with its level in per cent) while
   it stands in the place, so "now" is the same figures for the owner, a member and a link's reader and no
   screen asks `/live` beside it. The lamp's nights are read from each device over its own stay
-  (`lampNightsOf`), as the curves are, and a lane says for how long its device was heard (`heardSeconds`),
-  which is what "on x % of the time" is a share of (the redesign session of 2026-11-13). Every panel carries a line and its lowest
+  (`lampNightsOf`), as the curves are. Every panel carries a line and its lowest
   and highest at every range; of VPD beyond three
   days they are those of means over five minutes ([data.md](data.md#influxdb)), which the help says once.
+- **An output's figure is counted from its samples** (rule B of the
+  redesign session after the fourth walk of Verlauf, 2026-11-13). A lane answers `points`: for every drawn
+  window its device wrote a sample of the output in, how many samples the window held (`heard`), in how many
+  the output ran (`on`), and for one driven at a level the mean level over all of them in per cent of full
+  output, a sample in which it was off counting as 0 (`level`, to a tenth; null for a switch and for the CO₂
+  valve). A window without samples has no point, which is "nothing was heard" and never "off". What a card
+  says at a point, the share of the time an output ran, a table's column and how a strip is filled are
+  counted from these. A lane's `spans` say only when - the lamp's stretches by the clock, the nights - and no
+  figure is taken from one: a span is rounded out to the grain it was found at, so a valve that opens for
+  five seconds every two minutes was one run all day and read as open 75 % of it, a heater 19 % for 13.5 %.
+  The lane's `level` (the level while running, the valve's dose) and `heardSeconds` are gone from the
+  contract; nothing reads them. The read behind it: [data.md](data.md#influxdb).
+- **Within three days a lamp's stretch is its samples'** (`history()`, the same session): its switchings, and
+  an AIR's own day, are read at five seconds, so "07:02 bis 19:02" is the same on every zoom and the night
+  begins where the stretch ends; beyond three days both are to five minutes. A stretch of what was heard
+  begins with the window its first point stands for (`heardStretches`): a device back at 16:00 after a
+  silence has its first three-minute point at 16:03, and its lamp was lit from 16:00.
 - **The state a window is found in holds from the window's start.** The switchings read stamps its opening
   state with the first grain a sample fell into, up to a grain after the window began; a night that began there
   left a sliver of day in a window of darkness (`stateStretches`). **A lane runs to the window's end only while
   its device reports by the offline rule** (`VALUE_AGE.staleSeconds` against the newest sample, `heardStretches`):
   measured against the rhythm of a month's windows, a lamp stayed "on" for six hours after its device went
   quiet. **A window named into the future ends now** (`windowOf`), so today's day is read at today's step.
-- **A finely read line breaks after a short silence**: under a minute to the window a curve and a lane are cut
-  after three windows without a sample, half a minute at least, where a wider read keeps the ten minutes after
-  which a device counts as gone (`silenceOf`, `timeline-series.ts`) - a restart is what a zoom looks for.
+- **A window without a reading is a silence at every range** (`silenceOf`, `timeline-series.ts`; the redesign
+  session of 2026-11-13 after the fourth walk): a device that fills every window it is read in has left a
+  silence wherever one stands empty, and the curve, the lanes and the night break there - never less than the
+  two minutes after which a reading is stale (`VALUE_AGE.liveSeconds`), so a sample a second late into the
+  next window of a minute breaks nothing. Held to four of its windows, a month drew its line through a
+  six-hour morning nobody reported, which a week broke at. A device that reports more slowly than it is read
+  - an hourly history in windows of three minutes - is silent after four of its own gaps. Under a minute to
+  the window the cut is after three windows without a sample, half a minute at least: a restart is what a
+  zoom looks for. **A night is shaded only through hours somebody reported in** (`nightsOf`): the schedule's
+  nights are cut to what was heard as the lamp's always were, mid-window and after the last word.
 - The rail caps machine lines (system, plan) apart from people's lines, so they cannot push the diary out. A
   reader from outside - a share link, a public page - is answered no alarm, no device id, no grow of the place
   and only what people wrote, whichever window, step or panel the request names: the cut is a condition of the

@@ -134,7 +134,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `compare` (`grow:<id>` or `space:<id>`), `focus`. `model.ts` turns one answer into what is drawn - which curves
   the place offers and which are ticked, each panel as a `Plot` with its figures, the strips and the curve each
   stands under (`ACTS_ON`), what a cursor reads, the table - so `Timeline.tsx` holds the view and the reads and
-  nothing of the arithmetic. `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw;
+  nothing of the arithmetic. An output is read from the answer's `points` alone (`figureAt`, `shareOf`,
+  `blocksOf`; a lane's `spans` only name the lamp's stretches by the clock), and `restOf` says where the
+  cursor rests - the device's last reading, else the window's last drawn point; the page reads the curves
+  there once and hands each panel what it read ([app-ux.md §7](app-ux.md#7-verlauf-day-and-night)). `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw;
   `labels.ts` says when; `window.ts` holds the bands by day and night and the picture of a moment. One read
   answers the page, `GET /v1/spaces/{id}/timeline` (`useTimeline`, `src/api/timeline.ts`), asked for every panel a
   place can have so the sheet offers a tick only for what is there; a second one of the same route is what is
