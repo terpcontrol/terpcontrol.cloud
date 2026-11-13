@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -95,11 +95,15 @@ second list below is that session's decision, not Chris's word, until he confirm
   `.css`) when the run began, 71,732 when the clearing-up round began, 71,207 at its end and 71,542 after the
   pass that built its critic's list - that pass added about 335 lines: an undo's answer handed over at some
   thirty-five call sites, toasts for five writes that had answered nothing, the alerts joined onto Start, the
-  fold that reads on. `webapp/test` grew from 33,865 to 40,214, since every rule a walk decided got a test. Some of the 22 are still built more
-  than once; the round's report lists each with where. The biggest: a device card's status line against the
-  liveness pill, the maintenance banner under Alarme against the shared maintenance control, the two controls
-  that switch regulation back on, `ui/EntryRow` against the diary's line, the shared place's page as a second
-  place page, a plant's chart beside the shared plot, and the fold-away blocks made by hand.
+  fold that reads on. A consolidation pass then took what was plainly one thing built twice and ended at
+  70,753 (71,533 when it began): the diary's line everywhere instead of the old row (−307), one control that switches regulation
+  back on (−22), the shared maintenance control under Alarme (−30), the pill's words on a device's card (+3),
+  one chip row for places and one for a stage's climates (+1, and −9 in the plan editor), the firmware sheet on
+  the shared name sheet (−10), "Erweitert" as one fold (−24), the CSS declared twice and the empty states
+  (−395), what the merges left without a reader (−6). `webapp/test` grew from 33,865 to 40,375, since every
+  rule a walk decided got a test. What stays apart, each with its reason, is in the list of open points below
+  ("Left by the clearing-up round"); what exists once is listed in
+  [webapp.md](knowledge/webapp.md).
 - **A round for type and colour follows** (Chris, 2026-11-13); its choice is the owner's. Nothing of the look
   changes before it, and [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)
   is amended in the same commits as `webapp/src/theme/tokens.css`. That a name typed with "x" between figures is
@@ -141,6 +145,13 @@ Each is built unless it says otherwise, and each can be refused by itself.
   of the grow has is refused under the field.
 - A dose in the feeding grid and the scheme editor is written in the language's format ("2,5"), and an unsaved
   scheme's bar stands at the window's foot above the tab bar.
+- A diary line is drawn one way; the row of the app before the redesign is gone from the shared place and the
+  device diagnosis. A share link's reader reaches a line's photos by the count on the line, one tap away,
+  instead of thumbnails in the row (`screens/public/SharedSpace.tsx`, `ui/EntryWords.tsx`).
+- Start's status carries "+n" for open alerts it does not name also while the place is offline, waiting, in
+  maintenance or switched off, and then leads to Meldungen (`screens/start/place.ts`).
+- The split sheet's and the plan editor's climate chips read the climates' own names, as the phase correction
+  did (`StageClimates`, `screens/grow/ClimatePick.tsx`); "Nur die Phase" as the first chip went.
 
 **Steuerung and devices**
 - A setting is changed one way - a sheet with "Speichern" for a figure, a write on the tap for a switch -,
@@ -167,6 +178,12 @@ Each is built unless it says otherwise, and each can be refused by itself.
 - An undo's answer has one form and says what holds now: "Widerrufen · <what holds again>" (`undoneLabel`,
   `log/lines.ts`); the toast's type refuses an undo that does not say it. The words for the cases are in
   [app-wording.md](knowledge/app-wording.md).
+- A device's card says how it is heard in the pill's words ("veraltet · vor 4 Min", "offline · seit 3 Std";
+  `livenessWords`, `ui/age.ts`); the hour it fell silent is on the banner and its page, no longer on the card.
+- Regulation is switched back on by one block, Steuerung's, which a leading device's page mounts while it is
+  off; the page's row only switches off (`ControlOff`, `screens/control/Mode.tsx`).
+- Under Alarme a running maintenance is the shared control, never offering a start there: both ends named,
+  with "Verlängern" and the undo it did not have (`MaintenanceControl`, `screens/devices/Maintenance.tsx`).
 
 **Verlauf** (rules in [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night))
 - A figure of VPD is a VPD that occurred: within three days the deficit of single samples, beyond that from
@@ -250,6 +267,8 @@ Each is built unless it says otherwise, and each can be refused by itself.
   good leaves no page under it in the history.
 - A stream camera's form says under its field that a home-network address will not answer, only at a place
   without a device.
+- An ended place also refuses a camera made in it or moved into it, a diary line or a photo about it and a
+  climate preset - what a person asks for; the machines' lines are still written ([server.md](knowledge/server.md)).
 
 **Meldungen and Ich**
 - An alert that is over is "Vorbei", so that "Erledigt" is the tasks' word; the list is in the order of its
@@ -269,6 +288,7 @@ Each is built unless it says otherwise, and each can be refused by itself.
 - The units' choice stays stored and says in a line that the views show °C, grams and litres for now.
 - A deleted reminder has no way back.
 - At 320 px three open cards do not fit one screen; the page is laid out for 390.
+- Rows under "Vorbei" of different rules that read alike name their rule (`screens/Alerts.tsx`).
 
 **Wording** ([app-wording.md](knowledge/app-wording.md))
 - What reports is "online"; a stage's climate is a "Klima-Preset" and never a "Vorlage"; what a device or a
@@ -301,10 +321,10 @@ Each with what stands until he answers, and the session's recommendation where i
    invitations and links; an ended place and one put away are one state in the data, so migration step 029
    cannot tell them apart either. They ask `own` now, and a place put away refuses what an ended place
    refuses. What it still gives out is unchanged: its old share link stays readable, its guests go on reading
-   it, and its old invitation is alive again once the place is brought back. Three writes on an ended place
-   still go through, removed or put away: a camera put into it, a diary line or a picture on it, and a preset
-   application. Nothing in the app puts a place away. Recommendation: remove the routes with question 1, and
-   refuse the three writes then.
+   it, and its old invitation is alive again once the place is brought back. An ended place
+   now refuses a camera, a diary line or a photo and a preset as well, removed or put away - so the task of a
+   reminder on a put-away place can no longer be ticked, since the tick writes a line about the place. Nothing
+   in the app puts a place away. Recommendation: remove the routes with question 1.
 3. **The amendment to ADR 0001**, point by point - in particular that `devices.spaceId` stays beside the
    placements (stored twice, sparing a search in an array on every read about now), that a stay under five
    minutes leaves no trace, that a first placement is read back past its beginning (a device taken over
@@ -408,16 +428,29 @@ Each with what stands until he answers, and the session's recommendation where i
     empty for a fast one.
 
 **Left by the clearing-up round and its critic's walk**
-46. The firmware screen's rename sheet is not on the shared name sheet, and the ideas still built twice named
-    under "The weight" above. The fix pass after the critic's walk grew `webapp/src` by 336 lines to 71,542
-    (undo answers, toasts for writes that said nothing, alerts on Start), so the session runs one consolidation
-    pass over what is plainly one thing built twice; a plant's chart and the shared place's page stay apart.
-    The same pass closes the last three ways into an ended place (a camera, a diary line, a preset).
+46. **What is still built apart after the consolidation pass, each with its reason** - say where one should
+    be merged all the same:
+    - the two lists of a place's devices: cards with state and actions under Steuerung, plain rows under "Ort
+      bearbeiten", as the prototype draws them; both stand on the shared row;
+    - pausing a plan before a write and resuming it after, in four files: each site decides for itself when a
+      plan must pause and which pause is its own to resume; the two transitions are one hook already;
+    - the stage rows of the phase, split and entry sheets and of the claim: they differ in which stages they
+      offer, in their names and in what follows the choice;
+    - Steuerung's preset sheet, the claim's step and "Was wächst hier?": different questions around one list
+      of climates, and two writes with different effects (one device against every device and the grow's phase);
+    - the selects of "Ort entfernen" and "Neuer Grow", beside the chip row of places: as the prototype draws them;
+    - rows that open what is loaded under them (the diary's week, an alert card's history), the two blocks on
+      the platform's own fold with the app's chevron (settings a device has not taken, the old cloud's move),
+      and "Was du tun kannst" twice - a shared part came out longer than the two;
+    - a plant's chart beside the shared plot (sibling lines without the plot's dots and dashes), and the shared
+      place's page, read through a link without a session - only its lines were merged;
+    - 67 lines of CSS repeated by chance or on selectors that are not one class, and 34 dashed boxes set by
+      hand: frames of a question, an offer or a warning, and single sentences in files without the page states.
 47. **"automatic" as the English tag** for what a device or a plan did without a person (German "von allein");
     inside a sentence English still says "by itself". Recommendation: confirm.
 48. **Rows under "Vorbei" of different rules with the same sentence read alike** now that a row folds one rule
-    only ("Temperatur 7 Min zu hoch", five times). The session has the rule's name built as the row's second
-    fact in the next pass; refuse it if the row should stay bare.
+    only ("Temperatur 7 Min zu hoch", five times). A row names its rule where another rule's row reads the same; refuse it if
+    the row should stay bare.
 49. **`PATCH /v1/spaces/{id}` refuses the whole request on an ended place**, not only a name and a kind - its
     room, its retention and its preset prompt too. Recommendation: keep.
 50. **No unsaved editor has a leave guard** - the feeding scheme's draft survives a change of tab inside the app
@@ -426,6 +459,14 @@ Each with what stands until he answers, and the session's recommendation where i
     "camera" in sentences, "Cam" only in "Terp Cam".
 52. **"Phase" / "phase" as the one word for the growth stage** (the wording pass replaced "Stadium" and
     "stage"; a rollout's "Stufe" stays). Recommendation: confirm.
+53. **The claim asks the stage twice** of an account that keeps a diary: in "Was macht das Zelt gerade?" and
+    again, prefilled, in "Was wächst hier?". Recommendation: drop the first for such an account, as a step of
+    its own - it is the flow, not a copy.
+54. **"Nur die Phase" as the first climate chip** became the stage's own name in the split sheet and the plan
+    editor, as the phase correction always had it, so a chosen "Blüte" stands under a chosen "Blüte". Say if
+    "Nur die Phase" should come back for all three.
+55. **Steuerung says "Alarme · 100 Regeln"** of a device with 110: the list is read one page deep.
+    Recommendation: take the count from the server.
 
 ### What the walks could not see
 
@@ -461,8 +502,16 @@ Each with what stands until he answers, and the session's recommendation where i
   real keyboard on a phone; two toasts at 1280x800 by mouse; the refused plant name, the measurement's delete
   question and the entry's delete question after the wording; the new toasts in English and any admin page in
   English; the fold's read-on at a page's edge (tests only - the walked account held less than a page of what
-  is over); "+n" on a card among several places.
-- **Known and left**: among two unnamed cameras of a place a guest's tag differs from the owner's, because a
+  is over); "+n" on a card among several places. The pass after it looked at each of these on its own stack
+  and saw them, except a real keyboard on a phone and an admin page in English.
+- **Of the consolidation pass, not seen on a screen**: a diary line with more than two pictures on a shared
+  place, a link narrowed to a window, and a public grow at its own address; the plan's note on the switch-on
+  block and "Regelung aus" in Start's targets card (tests only); a reader without the right to manage under
+  Alarme during maintenance; the plan editor's chips; the server's raw words in the camera form; "+n" at 390
+  and during maintenance; a public page's picture in its frame; the firmware rename sheet (the stack holds no
+  build).
+- **Known and left**: two toasts by keyboard right after the window was resized left the older toast's select
+  covered once in seven runs; a guest let in again is shown the once-only layout notice again; among two unnamed cameras of a place a guest's tag differs from the owner's, because a
   guest is not given the camera's P2P id and the tag falls back to the camera's own id. The 20 px by which one
   account page came out shorter after the clearing-up round were live data - a session row's facts fitting on
   one line.

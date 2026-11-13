@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-13
-source: Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -120,12 +120,13 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   only a socket's row under Ausgänge hands its page an address (`leadingBackTo`), for the page to put in its own
   place once the socket is removed. Verlauf's view is read and written
   only in `src/screens/timeline/view.ts` (below), through which `app/old-charts.ts` maps old bookmarks too.
-- **What exists once - look here before writing a second** (the redesign session's clearing-up round of
-  2026-11-13; the audit before the redesign had found such ideas built three to nine times):
+- **What exists once - look here before writing a second** (the redesign session's clearing-up round and its
+  consolidation pass of 2026-11-13; the audit before the redesign had found such ideas built three to nine times):
   - *places*: where a thing may be put is `placesFor` (the places the session may manage), an owner's places in
     use `placesOf`, both in `app/places.ts`; the kinds of a place `PLACE_KINDS` and the kind a device's new
-    place gets `placeKindOf` (`ui/naming.ts`); the chip row of places a grow may stand in
-    `screens/grow/PlaceChoices.tsx`; a device is moved by one write, `PATCH /devices/{id}` (`useUpdateDevice`,
+    place gets `placeKindOf` (`ui/naming.ts`); the chip row that chooses a place in a sheet `ui/PlaceChoices.tsx`
+    (what a sheet offers beyond places - "+ Neuer Ort" - is its children; "Ort entfernen" and "Neuer Grow" keep
+    selects, as the prototype draws them); a device is moved by one write, `PATCH /devices/{id}` (`useUpdateDevice`,
     `api/devices.ts`), from its sheet, from the claim and from "Ort entfernen";
   - *leaving and ending*: `leaveUnderSheet` and `hasLeft` (`app/places.ts`), `PlaceEnded`
     (`screens/place/PlaceTitle.tsx`), `useEndPlace` (`api/spaces.ts`);
@@ -134,11 +135,24 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     `ui/camera-name.ts`); a grow's day beside its name by `growDay` (`screens/grow/progress.ts`); a work mode by
     `modeWord` (`screens/control/rows.ts`); a reading by the catalogue group `home.metric`; an alarm rule by
     `ruleTitle` (`i18n/alarm-line.ts`);
+  - *a diary line*: `DiaryLine` (`screens/grow/diary/DiaryLine.tsx`) on `ui/Lines` wherever lines of a diary are
+    listed - Start, the day cards, Bericht, Verlauf, a shared place - and `Line` with `EntryWords` on a device's
+    diagnosis; a line's words are composed in `ui/EntryWords.tsx` alone. A line counts its pictures, and on a
+    shared place the count opens `ui/PictureViewer` on the link's own addresses;
+  - *a device and its climate*: regulation is switched back on by `ControlOff` (`screens/control/Mode.tsx`),
+    which Steuerung and a leading device's page mount, and `useSwitchOn` (`screens/devices/switch-on.ts`) says the
+    toast; maintenance is begun, told and ended by `MaintenanceControl` (`screens/devices/Maintenance.tsx`),
+    whose `standing` form under Alarme never offers a start; whether a device is heard is worded by
+    `livenessWords` (`ui/age.ts`) for the pill and for a card's line; the climates of one stage are the chip row
+    `StageClimates` (`screens/grow/ClimatePick.tsx`) with `keptPreset` (`ui/presets.ts`), in the phase and split
+    sheets and the plan editor; "Erweitert" as a fold is `ui/advanced/AdvancedFold.tsx`, and what a server said
+    in its own words `Raw` (`screens/camera/Film.tsx`);
   - *which alert leads*: `worstFirst` (`screens/alerts/inbox.ts`) orders Meldungen's open list, Start's
     sentence and the cards' rank; a place's alerts with the device each is about are `placeAlerts`
     (`screens/start/place.ts`), read by `usePlaceAlerts` (`screens/start/reads.ts`) from the bell's own read;
   - *asking and answering*: an inline question is `ui/Asking.tsx` (it brings itself into view and takes
-    Escape), a name put right `ui/NameSheet.tsx` (`refused` says under the fields why a name is not saved), a
+    Escape), a name put right `ui/NameSheet.tsx` (a grow's, a plant's, a firmware build's; `refused` says under the
+    fields why a name is not saved), a
     handle typed to confirm `HandleField` (`ui/SheetParts.tsx`); a setting of the account is saved, answered and
     taken back by `useSaveAccount` (`screens/me/save.ts`), which the notification settings wrap
     (`useWriteNotifications`, `screens/notifications/write.ts`), a setting of a device by `useSaved`
@@ -147,15 +161,22 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     `log/lines.ts`), and `Told` takes no undo without what holds again;
   - *what is due*: `useDue` with `duePlaces` (`screens/start/due.ts`) for Start's order and counts, the inbox
     and the bell.
-  - *layout*: a column with a gap (`stack1` to `stack4`), a list without its bullets (`list`), a row that wraps
-    (`wrap`, `wrapRow`), a row (`row2`, `row3`), a head row with its ends apart (`headRow`), the text column
-    beside a control (`textColumn`), two halves (`halves`), the redesign's card, its heading and its pill
-    button (`panel`, `cardHeading`, `pill`) are classes of `ui/ui.module.css`, set in the markup beside a
-    screen's own class; a module declares only what is its own. The "+ …" row that adds something is `.add` of
+  - *nothing here*: `NothingHere` (`ui/PageState.tsx`) is the dashed note that says so, with a way on where
+    there is one; a dashed box that frames a question, an offer or a warning is no empty state and sets
+    `ui.cardDashed` itself;
+  - *layout*: a column with a gap (`stack1` to `stack4`), a page's column (`page`), a list without its bullets
+    (`list`), the list of what a change will do (`effects`), a row that wraps (`wrap`, `wrapRow`), a row (`row2`,
+    `row3`, `rowTop`), a head row with its ends apart (`headRow`), the text column beside a control
+    (`textColumn`), two halves (`halves`), a picture that fills its frame (`cover`), a line cut at its end
+    (`cut`), the redesign's card, its heading, its row, its wide button and its pill button (`panel`,
+    `cardHeading`, `rowCard`, `wide`, `pill`) are classes of `ui/ui.module.css`, set in the markup beside a
+    screen's own class; a module declares only what is its own. `main.tsx` imports `ui.module.css` right after
+    the global sheet, so it stands first in the built stylesheet and a screen's rule wins over a shared class
+    by order. The "+ …" row that adds something is `.add` of
     `ui/Rows.module.css`. The room a page keeps under the toasts is theirs alone (`log/toast-room.ts`: `lastUsed`,
     the control a toast answers; `roomFor` and `clearance`, how much room and how far to scroll), set as
     `--toast-room` by `log/Toasts.tsx`, whose `clearOf` scrolls every standing toast's control clear of the box.
-  What is still built twice is listed in the round's report and named in
+  What stays apart, each with its reason, is in
   [the handover](../app-rewrite-handover.md#the-navigation-redesign).
 - **Verlauf** is `src/screens/timeline/`. `view.ts` is its address and nothing else: `viewOf` reads it, `viewParams`
   writes a change of it, and the arithmetic of a window lives beside them - `windowOf` (a chip, a width ending
