@@ -5,6 +5,8 @@ import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } fr
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
+import { useGrowPlants } from '@/api/grows';
+import { Plants } from '@/screens/grow/Plants';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
@@ -357,5 +359,78 @@ describe('a plant of a grow', () => {
     expect(screen.queryByText('Nothing measured for this plant yet')).not.toBeInTheDocument();
     // The lines are read separately and are still there to be read.
     expect(within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem')[0]).toHaveTextContent('Height 58 cm');
+  });
+});
+
+/** A plant put in by mistake is taken out again: asked first, since nothing brings it back. */
+describe('taking a plant out of its grow', () => {
+  it('asks, deletes it and says so, with no way back', async () => {
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(screen.getByText(/^Delete Amnesia 1\? The plant leaves the grow/)).toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/plants/plant-1'));
+    expect(await screen.findByText('Amnesia 1 deleted')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+});
+
+/** The Pflanzen tab: the grow's plants, and one more after the start - what replaces a dead one, a cutting that came later. */
+describe('the plants of a grow', () => {
+  function Tab({ ended = false, mayManage = true }: { ended?: boolean; mayManage?: boolean }) {
+    const read = useGrowPlants('grow-1');
+    return <Plants grow={{ ...grow, endedAt: ended ? at(1) : null }} plants={read} spaces={spaces()} mayManage={mayManage} />;
+  }
+  const drawTab = (props: { ended?: boolean; mayManage?: boolean } = {}) =>
+    drawAt(
+      <LogProvider>
+        <Tab {...props} />
+      </LogProvider>,
+    );
+
+  it('adds a plant of the last plant´s strain, numbered by the server where no name is typed, and offers to take it out again', async () => {
+    vi.mocked(api.post).mockResolvedValue(plant('plant-3', 'Amnesia 3') as never);
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a plant' }));
+    const sheet = screen.getByRole('dialog', { name: 'Add a plant' });
+    expect(within(sheet).getByRole('textbox', { name: 'Strain' })).toHaveValue('Amnesia');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/plants', { strain: 'Amnesia' }));
+    expect(await screen.findByText('New plant: Amnesia 3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/plants/plant-3'));
+  });
+
+  it('does not add a plant under a name another plant of the grow has, nor one without a strain', async () => {
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add a plant' }));
+    const sheet = screen.getByRole('dialog', { name: 'Add a plant' });
+    fireEvent.change(within(sheet).getByRole('textbox', { name: /^Name/ }), { target: { value: 'Amnesia 2' } });
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('Another plant of this grow is already called “Amnesia 2”.');
+    expect(within(sheet).getByRole('button', { name: 'Add' })).toBeDisabled();
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: /^Name/ }), { target: { value: '' } });
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Strain' }), { target: { value: ' ' } });
+    expect(within(sheet).getByRole('button', { name: 'Add' })).toBeDisabled();
+  });
+
+  it('offers no plant to a grow that has ended', async () => {
+    drawTab({ ended: true });
+    expect(await screen.findByText('Amnesia 2')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add a plant' })).not.toBeInTheDocument();
+  });
+
+  it('offers none to a reader who may not manage the grow', async () => {
+    drawTab({ mayManage: false });
+    expect(await screen.findByText('Amnesia 2')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add a plant' })).not.toBeInTheDocument();
   });
 });

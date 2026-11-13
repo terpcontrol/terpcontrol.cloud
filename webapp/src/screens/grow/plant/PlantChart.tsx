@@ -54,9 +54,9 @@ export function PlantChart({ definition, series, plantId, label, others, nights,
       <header className={styles.chartHead}>
         <span className={styles.chartName}>
           {definition.name}
-          {definition.unit ? <span className={`mono ${styles.chartUnit}`}> · {definition.unit}</span> : null}
+          {definition.unit ? <span className={styles.chartUnit}> · {definition.unit}</span> : null}
         </span>
-        <span className={`mono ${styles.legend}`}>
+        <span className={styles.legend}>
           <span className={styles.legendMine}>
             <span className={styles.mineMark} aria-hidden />
             {label}

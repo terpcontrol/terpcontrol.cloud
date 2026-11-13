@@ -6,7 +6,8 @@ import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-prese
 import { serverNow } from '@/api/clock';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
-import { GROW, placesFor } from '@/app/places';
+import { GROW, placesFor, useChosenPlace } from '@/app/places';
+import { useLog } from '@/log/log-context';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
 import { usePlaceStage } from '@/screens/start/stage';
@@ -75,6 +76,8 @@ export function WhatGrows({
   const grows = useGrows();
   const spaces = useSpaces(fixed === null);
   const { start, busy, refused } = useStartGrow();
+  const chosen = useChosenPlace();
+  const { tell } = useLog();
   const [name, setName] = useState('');
   const [since, setSince] = useState<Since>('today');
   const [date, setDate] = useState(() => serverNow().toJSDate());
@@ -85,8 +88,11 @@ export function WhatGrows({
 
   const places = placesFor(spaces.data?.items ?? []);
   const running = grows.data?.items ?? [];
-  // Asked for, the first free place stands chosen: defaulting into a flowering tent would put a second grow in it.
-  const spaceId = fixed ?? (where === null ? (places.find(one => growIn(running, one.id) === null)?.id ?? null) : where || null);
+  // Asked for, the place stands chosen that the grower is looking at - the header's, or the only one there is: a
+  // grow started from "Alle Grows" with one tent belongs in that tent, not in no place. Among several with none
+  // chosen it is the first free one, since defaulting into a flowering tent would put a second grow in it.
+  const inView = places.find(one => one.id === chosen) ?? (places.length === 1 ? places[0] : places.find(one => growIn(running, one.id) === null));
+  const spaceId = fixed ?? (where === null ? (inView?.id ?? null) : where || null);
   const onPlace = usePlaceStage(spaceId);
   const on = given ?? onPlace;
   const controller = usePlaceController(spaceId);
@@ -117,7 +123,11 @@ export function WhatGrows({
     onStarting?.();
     try {
       const germinationChoices = germinates && Object.keys(germination).length > 0 ? germination : undefined;
-      onStarted(await start({ body, stage, startedAt, climate, germinationChoices }), spaceId);
+      const growId = await start({ body, stage, startedAt, climate, germinationChoices });
+      // The grow is its own answer - its page opens. That the place's targets were written with it is said, since
+      // nothing on that page shows it; the way back is Steuerung's, not one call from here.
+      if (climate) tell({ label: `${t('grow.told.started', { name: body.name })} · ${t('log.targetsSet')}`, undo: null });
+      onStarted(growId, spaceId);
     } catch {
       // The refusal is drawn under the fields; what already stands is not written again on the next tap.
     }

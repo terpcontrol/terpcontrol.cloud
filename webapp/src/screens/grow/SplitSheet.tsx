@@ -5,6 +5,7 @@ import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/
 import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
 import { placesFor } from '@/app/places';
+import { useLog } from '@/log/log-context';
 import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
@@ -14,6 +15,7 @@ import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
 import { StageClimates } from './ClimatePick';
+import { placeName } from './placement';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -56,6 +58,7 @@ export function SplitSheet({
 }) {
   const { t } = useTranslation();
   const split = useSplit(grow.id);
+  const { tell } = useLog();
 
   const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
@@ -80,11 +83,11 @@ export function SplitSheet({
   return (
     <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <p className={`mono ${styles.now}`}>{t('grow.lifecycle.split.what')}</p>
+        <p className={styles.now}>{t('grow.lifecycle.split.what')}</p>
 
         <Block
           label={t('grow.lifecycle.split.whichGoTheirOwnWay')}
-          aside={chosen.length > 0 ? <span className="mono">{t('grow.lifecycle.split.staying', { count: staying })}</span> : undefined}
+          aside={chosen.length > 0 ? t('grow.lifecycle.split.staying', { count: staying }) : undefined}
         >
           <PlantPicker
             plants={plants}
@@ -151,7 +154,14 @@ export function SplitSheet({
                 preset: stage === null ? undefined : preset,
                 spaceId,
               },
-              { onSuccess: () => onClose() },
+              {
+                onSuccess: () => {
+                  onClose();
+                  // What holds for the plants that went their own way; phase and place are two writes, so there is no one way back.
+                  const what = [stage ? t(`home.stage.${stage}`) : null, spaceId === undefined ? null : placeName(t, spaces, spaceId)];
+                  tell({ label: [t('grow.told.split', { count: chosen.length }), ...what].filter(Boolean).join(' · '), undo: null });
+                },
+              },
             );
           }}
         >

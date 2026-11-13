@@ -113,7 +113,12 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       ))}
 
       {diary.hasNextPage ? (
-        <button type="button" className={ui.button} disabled={diary.isFetchingNextPage} onClick={() => void diary.fetchNextPage()}>
+        <button
+          type="button"
+          className={ui.button}
+          aria-disabled={diary.isFetchingNextPage || undefined}
+          onClick={() => diary.isFetchingNextPage || void diary.fetchNextPage()}
+        >
           {diary.isFetchingNextPage ? t('home.waiting') : t('grow.earlierWeeks')}
         </button>
       ) : null}

@@ -1,16 +1,19 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
 import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
+import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { nextStage } from '@/log/defaults';
+import { useLog } from '@/log/log-context';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { keptPreset } from '@/ui/presets';
+import { keptPreset, presetsOf } from '@/ui/presets';
 import { standsIn } from '@/ui/session-access';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -18,7 +21,7 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick, StageClimates } from './ClimatePick';
 import { RepairAnswer } from './RepairAnswer';
-import { climateRequest, defaultPick, usePlaceController, type PhaseClimate } from './phase-climate';
+import { climateRequest, defaultPick, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -48,6 +51,8 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const { t } = useTranslation();
   const zone = useZone();
   const add = useAddPhase();
+  const withdraw = useWithdrawPhase(grow.id);
+  const { tell } = useLog();
 
   const ended = grow.endedAt !== null;
   const [stage, setStage] = useState<GrowthStage>(() => nextStage(grow) ?? grow.summary.stage ?? STAGES[0]);
@@ -81,7 +86,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   return (
     <Sheet title={t('grow.lifecycle.phase.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <p className={`mono ${styles.now}`}>{nowLine(t, grow, zone)}</p>
+        <p className={styles.now}>{nowLine(t, grow, zone)}</p>
 
         <Block label={t(ended ? 'grow.lifecycle.phase.record' : 'grow.lifecycle.phase.enter')} help="stage">
           <Choices label={t('grow.lifecycle.phase.stageLabel')}>
@@ -109,7 +114,19 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
             onClick={() =>
               add.mutate(
                 { growId: grow.id, body: { stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) } },
-                { onSuccess: () => onClose() },
+                {
+                  // As the entry sheet answers a phase: what holds now, and the way back where taking the phase back
+                  // is all it did - a phase that also wrote the place's targets would leave them standing.
+                  onSuccess: phase => {
+                    onClose();
+                    tell({
+                      label: [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), grow.name, pick.climate ? t('log.targetsSet') : null]
+                        .filter(Boolean)
+                        .join(' · '),
+                      ...(pick.climate ? { undo: null } : { undo: () => withdraw.mutateAsync(phase.id), undone: t('log.phaseBefore') }),
+                    });
+                  },
+                },
               )
             }
           >
@@ -119,11 +136,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           </button>
         </Block>
 
-        <Block
-          label={t('grow.lifecycle.phase.history')}
-          help="phaseCorrection"
-          aside={<span className="mono">{t('grow.lifecycle.phase.oldestFirst')}</span>}
-        >
+        <Block label={t('grow.lifecycle.phase.history')} help="phaseCorrection" aside={t('grow.lifecycle.phase.oldestFirst')}>
           {ordered.length === 0 ? (
             <p className={ui.note}>{t('grow.lifecycle.phase.noneYet')}</p>
           ) : (
@@ -196,7 +209,7 @@ function PhaseRow({
     <li className={styles.row}>
       <div className={ui.headRow}>
         <span className={styles.rowTitle}>{label(t, phase.stage, phase.preset)}</span>
-        <span className={`mono ${styles.rowMeta}`}>
+        <span className={styles.rowMeta}>
           {calendarDay(phase.startedAt, zone)} · {t(`grow.lifecycle.phase.source.${phase.source}`)}
         </span>
       </div>
@@ -226,7 +239,9 @@ function PhaseRow({
  */
 function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase; onDone: () => void }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const correct = useCorrectPhase(grow.id);
+  const { tell } = useLog();
 
   const [stage, setStage] = useState(phase.stage);
   const [preset, setPreset] = useState(phase.preset);
@@ -238,6 +253,8 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
 
   return (
     <div className={styles.editor}>
+      {/* Both rows are named: the stage and the climate it was entered on can carry the same word, "Blüte" twice. */}
+      <span className="label">{t('grow.lifecycle.phase.stageLabel')}</span>
       <Choices label={t('grow.lifecycle.phase.stageLabel')}>
         {STAGES.map(one => (
           <Choice
@@ -254,6 +271,7 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
       </Choices>
 
       {/* The record's label and nothing else: correcting a phase writes no climate. */}
+      {presetsOf(stage).length > 0 ? <span className="label">{t('grow.lifecycle.phase.presetLabel')}</span> : null}
       <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} />
       <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
 
@@ -264,29 +282,80 @@ function PhaseEditor({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase
         yes={t('grow.lifecycle.saveCorrection')}
         busy={correct.isPending}
         disabled={!changed}
-        onYes={() => correct.mutate({ phaseId: phase.id, body: { stage, preset, startedAt } }, { onSuccess: onDone })}
+        onYes={() =>
+          correct.mutate(
+            { phaseId: phase.id, body: { stage, preset, startedAt } },
+            {
+              // A correction writes no climate, so one call puts the phase back as it stood.
+              onSuccess: () => {
+                onDone();
+                tell({
+                  label: t('grow.lifecycle.phase.told.corrected', { phase: label(t, stage, preset), day: calendarDay(startedAt, zone) }),
+                  undo: () =>
+                    correct.mutateAsync({ phaseId: phase.id, body: { stage: phase.stage, preset: phase.preset, startedAt: phase.startedAt } }),
+                  undone: t('grow.lifecycle.phase.told.asWas', {
+                    phase: label(t, phase.stage, phase.preset),
+                    day: calendarDay(phase.startedAt, zone),
+                  }),
+                });
+              },
+            },
+          )
+        }
         onDone={onDone}
       />
     </div>
   );
 }
 
-/** A phase the grow never entered. What it is left with is said first, and the tap after that is the whole confirmation. */
+/**
+ * A phase the grow never entered. What it is left with is said first, and the tap after that is the whole
+ * confirmation. Taking a phase back writes no device, so what the tent is set to now is said beside it - and where the
+ * device dries or germinates under a grow that then reads another phase, that it goes on doing so until it is ended
+ * under Steuerung, with the way there: a phase taken back once left a tent drying under "Blüte · Alles im Ziel".
+ */
 function PhaseWithdrawal({ grow, phase, onDone }: { grow: GrowListItem; phase: Phase; onDone: () => void }) {
   const { t } = useTranslation();
   const withdraw = useWithdrawPhase(grow.id);
+  const { tell } = useLog();
   const effect = withdrawalEffect(grow, phase);
+  const spaceId = grow.endedAt === null ? standsIn(grow) : null;
+  const held = useHeldNow(spaceId);
+  const left = effect.noPhaseLeft ? null : (effect.stage?.to ?? grow.summary.stage);
+  const stays = held?.mode && held.mode !== left ? held.mode : null;
 
   return (
     <div className={styles.editor}>
       <Effect effect={effect} changed entry="grow.lifecycle.phase.effect.entryGone" />
+      {held ? (
+        <p className={ui.note}>
+          {t('grow.lifecycle.phase.effect.device', { figures: held.figures })}
+          {stays && spaceId ? (
+            <>
+              {' '}
+              {t(`grow.lifecycle.phase.effect.stays.${stays}`)}{' '}
+              <Link to={controlPath(spaceId)} className={ui.headLink}>
+                {t(`control.preset.end.${stays}`)} ›
+              </Link>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       <Refused error={withdraw.error} />
 
       <RepairAnswer
         yes={t('grow.lifecycle.phase.confirmWithdraw')}
         danger
         busy={withdraw.isPending}
-        onYes={() => withdraw.mutate(phase.id, { onSuccess: onDone })}
+        onYes={() =>
+          withdraw.mutate(phase.id, {
+            // Entering it again would write its climate where it had one, so there is no one call back.
+            onSuccess: () => {
+              onDone();
+              tell({ label: t('grow.lifecycle.phase.told.withdrawn', { phase: label(t, phase.stage, phase.preset) }), undo: null });
+            },
+          })
+        }
         onDone={onDone}
       />
     </div>

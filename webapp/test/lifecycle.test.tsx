@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime, Settings } from 'luxon';
+import { Route, Routes } from 'react-router';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
@@ -140,6 +141,86 @@ describe('the grow´s menu', () => {
 });
 
 /**
+ * A grow started by mistake - "Grow starten" on an empty form makes one at once - is deleted from its menu by its
+ * owner while nothing but the line of its phase stands in its diary. Its phases go first, each with its line, so no
+ * line of a grow that is gone stays on its place's Start.
+ */
+describe('deleting a grow', () => {
+  const diaryOf = (kinds: string[]) => ({
+    items: [{ days: [{ entries: kinds.map((kind, index) => ({ id: `e${index}`, kind })) }] }],
+    nextCursor: null,
+    people: [],
+    earlier: [],
+  });
+  const wire = (kinds: string[]) => {
+    const asked: { method: string; path: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        const method = init?.method ?? 'GET';
+        asked.push({ method, path });
+        if (method === 'DELETE') return new Response(null, { status: 204 });
+        if (path === '/grows/grow-1/diary') return json(diaryOf(kinds));
+        return json({ items: [], nextCursor: null });
+      }),
+    );
+    return asked;
+  };
+  const drawMenu = (mayOwn = true) =>
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/grows/:growId" element={<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={mayOwn} />} />
+          <Route path="/grows" element={<h1>All grows</h1>} />
+        </Routes>
+      </LogProvider>,
+      { at: '/grows/grow-1' },
+    );
+  const menu = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('is offered to the owner of a grow whose diary holds only its phases, asks, and goes to every grow after', async () => {
+    const asked = wire(['phase', 'phase']);
+    drawMenu();
+    menu();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete grow' }));
+    const sheet = screen.getByRole('dialog', { name: 'Delete grow' });
+    expect(sheet).toHaveTextContent('Delete Spring run? The grow goes with its plants and the line of its phase. This cannot be undone.');
+    expect(asked.filter(one => one.method === 'DELETE')).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('heading', { name: 'All grows' })).toBeInTheDocument();
+    expect(asked.filter(one => one.method === 'DELETE').map(one => one.path)).toEqual([
+      '/grows/grow-1/phases/p2',
+      '/grows/grow-1/phases/p1',
+      '/grows/grow-1',
+    ]);
+    expect(await screen.findByText('Spring run deleted')).toBeInTheDocument();
+  });
+
+  it('is not offered where somebody wrote in the diary', async () => {
+    const asked = wire(['phase', 'water']);
+    drawMenu();
+    await waitFor(() => expect(asked).toContainEqual({ method: 'GET', path: '/grows/grow-1/diary' }));
+    // The answer is read before the menu is asked.
+    await new Promise(resolve => setTimeout(resolve, 20));
+    menu();
+    expect(screen.queryByRole('button', { name: 'Delete grow' })).not.toBeInTheDocument();
+  });
+
+  it('is not offered to a reader who manages the grow without owning it', async () => {
+    const asked = wire(['phase']);
+    drawMenu(false);
+    menu();
+    expect(screen.queryByRole('button', { name: 'Delete grow' })).not.toBeInTheDocument();
+    expect(asked.some(one => one.path === '/grows/grow-1/diary')).toBe(false);
+  });
+});
+
+/**
  * The name, which is the one thing about a grow the app could not change.
  *
  * It is invented by the sheet that makes the grow - "Mimosa Sunrise XXL Auto
@@ -275,6 +356,28 @@ describe('the harvest sheet', () => {
     expect(screen.getByRole('button', { name: 'Harvest 2 plants' })).toBeInTheDocument();
   });
 
+  /** A weight that is no number, or below nothing, was sent as no weight at all: refused with a word, the harvest held back. */
+  it('refuses a weight it cannot read by the field´s name, and harvests nothing until it is put right', () => {
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
+    const [wet, dry] = screen.getAllByPlaceholderText('—');
+
+    fireEvent.change(wet, { target: { value: 'abc' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Wet: that is not a number.');
+    expect(wet).toHaveAttribute('aria-invalid', 'true');
+    expect(wet).toHaveAccessibleDescription('Wet: that is not a number.');
+    expect(screen.getByRole('button', { name: /^Harvest/ })).toBeDisabled();
+
+    fireEvent.change(wet, { target: { value: '420' } });
+    fireEvent.change(dry, { target: { value: '-5' } });
+    expect(screen.getByRole('alert')).toHaveTextContent('Dry: a weight is 0 g or more.');
+    expect(dry).toHaveAttribute('aria-invalid', 'true');
+    expect(wet).not.toHaveAttribute('aria-invalid');
+
+    fireEvent.change(dry, { target: { value: '' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Harvest/ })).toBeEnabled();
+  });
+
   it('says the grow ends before the last plants come down, and on which day', () => {
     drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
 
@@ -293,12 +396,6 @@ describe('the harvest sheet', () => {
 
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
     expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
-  });
-
-  it('keeps the unit over the weights in the figure face', () => {
-    drawHarvest(<HarvestSheet grow={grow} plants={plants} onClose={() => {}} />);
-
-    expect(screen.getByText('grams, as a total').className).toMatch(/mono/);
   });
 });
 
@@ -368,7 +465,11 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   const tent = spaceWhere('own', { name: 'Blue Dream tent' });
 
   it('says so and offers nothing, the way the harvest sheet does over the same record', () => {
-    drawAt(<SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={[]} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText(/No plants are recorded in this grow, so there is nothing here to split off/)).toBeInTheDocument();
     // Not the picker, not the phase or place chips, and no button that leads to
@@ -379,14 +480,22 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   });
 
   it('is the whole sheet for a grow that does have plants', () => {
-    drawAt(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByRole('button', { name: /Split off/ })).toBeInTheDocument();
     expect(screen.queryByText(/No plants are recorded/)).not.toBeInTheDocument();
   });
 
   it('names the climates of the phase the plants go into as the phase sheet and Control do, and their places and none', () => {
-    drawAt(<SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
     const climates = screen.getByRole('group', { name: 'Climate preset' });
@@ -406,6 +515,54 @@ describe('the split sheet over a grow whose record carries no plants', () => {
   });
 });
 
+/** A move and a split answer with what holds now; neither is one call to take back, so neither offers a way back. */
+describe('the answer of a move and a split', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+  const other = spaceWhere('own', { id: 'space-2', name: 'Second tent' });
+  const wire = () => {
+    const sent: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        sent.push({ method: init?.method ?? 'GET', path, body: init?.body ? JSON.parse(String(init.body)) : null });
+        return json({ id: 'answer' });
+      }),
+    );
+    return sent;
+  };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('says where the grow stands after a move', async () => {
+    const sent = wire();
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move · Second tent' }));
+    expect(await screen.findByText(reading('Spring run · new place: Second tent'))).toBeInTheDocument();
+    expect(sent.find(one => one.method === 'POST')).toMatchObject({ path: '/grows/grow-1/placements', body: { spaceId: 'space-2' } });
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  it('says how many plants went their own way, and into what', async () => {
+    wire();
+    drawAt(
+      <LogProvider>
+        <SplitSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Their place' })).getByRole('button', { name: 'Second tent' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Split off 1 plant' }));
+    expect(await screen.findByText(reading('1 plant goes its own way · Second tent'))).toBeInTheDocument();
+  });
+});
+
 /**
  * Where a grow that stands nowhere any more stood. `summary.locations` is empty
  * once the last placement is closed, and the sheet read that as a present fact.
@@ -420,20 +577,32 @@ describe('the move sheet of a grow that has ended', () => {
   };
 
   it('names the place it stood in, as the header behind it and its own history do', () => {
-    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('last place: Blue Dream tent')).toBeInTheDocument();
     expect(screen.queryByText('Place now: No fixed place')).not.toBeInTheDocument();
   });
 
   it('still says in the present where a running grow stands', () => {
-    drawAt(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Place now: Blue Dream tent')).toBeInTheDocument();
   });
 
   it('offers no move of its own, only the rows of where it stood', () => {
-    drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.queryByRole('button', { name: /^Move · / })).not.toBeInTheDocument();
     expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
@@ -452,7 +621,11 @@ describe('the move sheet of a grow that has ended', () => {
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */
   it('says a running grow stands in no fixed place where that is what it does', () => {
-    drawAt(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Place now: No fixed place')).toBeInTheDocument();
   });
@@ -469,7 +642,11 @@ describe('the phase sheet over a grow that has ended', () => {
   const finished: GrowListItem = { ...grow, endedAt: at(0) };
 
   it('says what the grow finished as and when, rather than what it is doing now', () => {
-    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={finished} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Ended in Flower on day 35 of the grow · 18 Sep 2026')).toBeInTheDocument();
     expect(screen.queryByText(/^Now /)).not.toBeInTheDocument();
@@ -478,7 +655,11 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 
   it('keeps the phase list repairable, worded as a record rather than a move, dated to the day it ended', () => {
-    drawAt(<PhaseSheet grow={finished} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={finished} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByRole('button', { name: 'Record Drying' })).toBeEnabled();
     // Not today: a phase filed a month after the plants came down would be a
@@ -487,7 +668,11 @@ describe('the phase sheet over a grow that has ended', () => {
   });
 
   it('speaks in the present over a grow that is still running, which is what the ended wording is told against', () => {
-    drawAt(<PhaseSheet grow={grow} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={grow} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.getByText('Now Flower · day 11 of the phase · day 35, week 5 of the grow')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enter Drying' })).toBeInTheDocument();
@@ -537,7 +722,11 @@ describe('the climate beside a phase', () => {
 
   it('leaves the targets as they are unless a climate is chosen, and says what they stay at', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true');
@@ -559,7 +748,11 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
@@ -570,19 +763,135 @@ describe('the climate beside a phase', () => {
     expect(asked.find(call => call.method === 'POST')?.body).toMatchObject({ stage: 'flowering', preset: null, climate: true });
   });
 
+  /** Every write of the grow's menu answers: a phase begun says so, with the way back where taking it back is all it did. */
+  it('answers a phase entered as a record with the way back, and one that set the targets without one', async () => {
+    const asked: { method: string; url: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', url: String(input) });
+        return init?.method === 'DELETE' ? new Response(null, { status: 204 }) : json(phase('p3', 'flowering', 0));
+      }),
+    );
+    hardware.devices = [tent()];
+    const { unmount } = drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Entered Flower · Spring run'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'DELETE' && call.url.endsWith('/grows/grow-1/phases/p3'))).toBe(true));
+    unmount();
+
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Entered Flower · Spring run · targets set'))).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Taking a phase back writes no device. A tent left drying under a grow that then read "Flower" was told nothing
+   * and showed "All on target": the question says what the device holds, and that it goes on drying, with the way to
+   * where drying is ended.
+   */
+  it('says, before a phase is taken back, what the device goes on holding, and leads to where drying is ended', () => {
+    const drying: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'flowering', 20), phase('p2', 'drying', 2)],
+      summary: { ...grow.summary, stage: 'drying' },
+    };
+    hardware.devices = [{ ...tent(), control: { running: true, drying: true, mode: 'standard', energySaving: false } }];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={drying} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[1]);
+    expect(screen.getByText('The grow then shows Flower instead of Drying.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        reading(
+          /^Nothing changes on the device – it goes on holding: light off · 22 °C · 58 %\. So it goes on drying until you end drying under Control\./,
+        ),
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'End drying ›' })).toHaveAttribute('href', '/control?space=space-1');
+  });
+
+  it('says what a lit device goes on holding where a phase is taken back, and leads nowhere it need not', () => {
+    const flowering: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'vegetative', 20), phase('p2', 'flowering', 2)],
+      summary: { ...grow.summary, stage: 'flowering' },
+    };
+    hardware.devices = [tent()];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[1]);
+    expect(screen.getByText(reading(/^Nothing changes on the device – it goes on holding: Light on 06:00–00:00 · 18 h · /))).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^End / })).not.toBeInTheDocument();
+  });
+
+  /** The stage and the climate it was entered on can carry the same word: both rows are named. */
+  it('names both rows where a phase is corrected, and answers the correction with the phase as it stood', async () => {
+    const asked: { method: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', body: init?.body === undefined ? null : JSON.parse(String(init.body)) });
+        return json(phase('p1', 'flowering', 20));
+      }),
+    );
+    const flowering: GrowListItem = { ...grow, phases: [phase('p1', 'flowering', 20)], summary: { ...grow.summary, stage: 'flowering' } };
+    hardware.devices = [tent()];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Correct' }));
+    expect(screen.getAllByText('Phase', { selector: '.label' }).length).toBeGreaterThan(0);
+    expect(screen.getByText('Climate preset', { selector: '.label' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Climate preset' })).getByRole('button', { name: 'Late flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save the correction' }));
+
+    expect(await screen.findByText(reading(/^Phase corrected · Flower · .+ from \d+ \w+ 2026$/))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.filter(call => call.method === 'PATCH')).toHaveLength(2));
+    expect(asked.filter(call => call.method === 'PATCH')[1].body).toMatchObject({ stage: 'flowering', preset: null });
+  });
+
   /**
    * Drying with the targets left as they are named a light window, a day and a
    * night the device was about to stop having, and the day's humidity it would
    * not hold.
    */
-  it('says what drying holds where the targets are left, and nothing of a light or a day', () => {
+  it('keeps the light where drying is only recorded, and says what its climate holds: the dark, and nothing of a day', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Drying' }));
-    // The stage dries whatever is chosen: the night's figures round the clock, in the dark.
-    expect(screen.getByText(reading('New: light off · 22 °C · 58 %'))).toBeInTheDocument();
-    expect(screen.queryByText(reading(/Light on 06:00/))).not.toBeInTheDocument();
+    // A phase without its climate is a record: the tent keeps its light, as the chip says.
+    expect(screen.getByText(reading(/^Stay: Light on 06:00/))).toBeInTheDocument();
+    expect(screen.queryByText(reading(/light off/))).not.toBeInTheDocument();
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Drying' }));
     expect(screen.getByText(reading('New: light off · 18 °C · 58 %'))).toBeInTheDocument();
@@ -603,7 +912,11 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     // The stage chip records the stage and is called by it; the one choice that darkens is the climate beside it.
     expect(screen.queryAllByRole('button', { name: 'Germination · dark' })).toHaveLength(0);
@@ -645,7 +958,11 @@ describe('the climate beside a phase', () => {
       }),
     );
     hardware.devices = [{ ...tent(), type: 'fridge', control: { running: true, drying: false, mode: 'standard', energySaving: false } }];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Germination' }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Germination · dark' }));
@@ -667,7 +984,7 @@ describe('the climate beside a phase', () => {
     });
   });
 
-  it('offers the seedling´s climate first while the device germinates, and says the light comes back either way', () => {
+  it('offers the seedling´s climate first while the device germinates, and says the light comes back only with it', () => {
     const germinating: GrowListItem = {
       ...grow,
       phases: [phase('p1', 'germination', 3)],
@@ -684,28 +1001,39 @@ describe('the climate beside a phase', () => {
         },
       },
     ];
-    drawAt(<PhaseSheet grow={germinating} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={germinating} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 %'))).toBeInTheDocument();
 
-    // Left as they are, the night germination wrote over comes back with the light.
+    // Left as they are, nothing is written: the device goes on germinating in the dark, and the sheet says so.
     fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));
-    // Germination ends either way, so what the device holds is new either way.
-    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 26 °C · night 19 °C · 62 %'))).toBeInTheDocument();
+    expect(screen.getByText(reading(/^Stay: light off · /))).toBeInTheDocument();
   });
 
   it('is not asked where nothing standing there states a climate', () => {
     hardware.devices = [];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();
   });
 
   it('says curing has no climate rather than offering one', () => {
     hardware.devices = [tent()];
-    drawAt(<PhaseSheet grow={veg} onClose={() => {}} />);
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Curing' }));
     expect(screen.queryByRole('group', { name: 'Targets' })).not.toBeInTheDocument();

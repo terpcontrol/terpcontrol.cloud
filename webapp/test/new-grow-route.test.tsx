@@ -4,6 +4,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { drawAt } from './harness';
+import { Toast } from './toast';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -39,7 +40,12 @@ const answers = (path: string): unknown => {
 };
 
 const draw = async (at: string) => {
-  drawAt(<NewGrowRoute />, { at });
+  drawAt(
+    <Toast>
+      <NewGrowRoute />
+    </Toast>,
+    { at },
+  );
   await waitFor(() => expect(screen.getByRole('button', { name: 'Start a grow' })).toBeEnabled());
 };
 

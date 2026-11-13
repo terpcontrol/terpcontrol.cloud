@@ -2,7 +2,7 @@ import { Globe } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
-import type { GrowListItem, Space } from '@fg2/shared-types/v1';
+import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { useSpaces } from '@/api/spaces';
@@ -17,12 +17,12 @@ import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
 import { Diary } from './diary/Diary';
 import { Feeding } from './Feeding';
+import { GrowBar } from './GrowBar';
 import { GrowMenu } from './GrowMenu';
 import { GROW_TABS, growTabOf, growTabPath, type GrowTab } from './grow-tabs';
 import { Pictures } from './pictures/Pictures';
 import { lastPlaceOf, placeName } from './placement';
 import { Plants } from './Plants';
-import { useProgress } from './progress';
 import { Report } from './Report';
 import styles from './GrowPage.module.css';
 
@@ -64,7 +64,15 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
       </section>
     );
   }
-  if (!grow.data) return noLongerThere(grow.error) ? <NoSuchGrow /> : <LoadFailed retry={() => void grow.refetch()} />;
+  if (!grow.data) {
+    return noLongerThere(grow.error) ? (
+      <NoSuchGrow />
+    ) : (
+      <NoGrow>
+        <LoadFailed read={grow} />
+      </NoGrow>
+    );
+  }
 
   // A grow is written to through the place it stands in today, which is what
   // `access()` widens a membership over; the lifecycle moves are `manage` there
@@ -77,7 +85,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
 
   return (
     <section className={`${ui.stack3} ${styles.page}`} data-tab={tab}>
-      <GrowHead grow={grow.data} spaces={spaces.data?.items ?? []}>
+      <GrowHead grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []}>
         <GrowMenu
           grow={grow.data}
           plants={plants.data?.items ?? []}
@@ -91,7 +99,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'diary' ? <Diary grow={grow.data} now={now} picturesTo={growTabPath(base, 'pictures')} /> : null}
       {tab === 'pictures' ? <Pictures grow={grow.data} now={now} /> : null}
-      {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} /> : null}
+      {tab === 'plants' ? <Plants grow={grow.data} plants={plants} spaces={spaces.data?.items ?? []} mayManage={mayManage} /> : null}
       {tab === 'feeding' ? <Feeding grow={grow.data} mayManage={mayManage} /> : null}
       {tab === 'report' ? (
         <Report grow={grow.data} spaces={spaces.data?.items ?? []} mayOwn={mayOwn} now={now} picturesTo={growTabPath(base, 'pictures')} />
@@ -145,28 +153,42 @@ function NoSuchGrow() {
  * stood said in the past tense - its placements are all closed, and "no fixed
  * place" would be wrong of a grow that spent its life in a tent.
  */
-export function GrowHead({ grow, spaces, children = null }: { grow: GrowListItem; spaces: Space[]; children?: ReactNode }) {
+export function GrowHead({ grow, plants, spaces, children = null }: { grow: GrowListItem; plants: Plant[]; spaces: Space[]; children?: ReactNode }) {
   const { t } = useTranslation();
   const zone = useZone();
   const { summary } = grow;
-  const { fill } = useProgress({ growId: grow.id, stage: summary.stage, dayNumber: summary.dayNumber });
   // The date is read where the account is: the day a grow ended on moves with the zone.
   const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
   // A grow that has ended says how long it ran and when it ended; a running one its day and its phase, each explained where it is met.
   const stage = summary.stage ? stageLabel(t, summary.stage, summary.preset) : t('home.card.noPhase');
   const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: placeName(t, spaces, location.spaceId) }));
   const stood = places.length > 0 ? null : lastPlaceOf(grow);
+  // Plants gone their own way are said beside the stage most of the grow is in - those still standing by their
+  // stage, and one that was cut as harvested: it is in no stage any more. A grow that has ended has none standing.
+  const gone = new Set(plants.filter(plant => plant.status !== 'active').map(plant => plant.id));
+  const harvested = plants.filter(plant => plant.status === 'harvested').length;
+  const stages = summary.groups
+    .map(group => ({ stage: group.stage, count: group.plantIds.filter(id => !gone.has(id)).length }))
+    .filter(group => group.count > 0);
+  const standing = endedOn
+    ? []
+    : [
+        ...(stages.length > 1 ? stages.map(group => `${group.count} ${t(`home.stage.${group.stage}`)}`) : []),
+        ...(harvested > 0 && harvested < plants.length ? [t('grow.harvestedCount', { count: harvested })] : []),
+      ];
   const where = stood ? [{ spaceId: stood.spaceId, name: t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) }) }] : places;
   return (
     <header className={styles.head}>
       <div className={styles.title}>
-        <h1>{grow.name}</h1>
-        <div className={styles.actions}>
-          {children}
+        {/* The grow's menu and the way to every grow are the app around the record, and stay off its paper. On a
+            phone they are a row of their own over the name, which then has its line to itself. */}
+        <div className={styles.actions} data-print="omit">
           <Link to={ALL_GROWS} className={`${ui.pill} ${styles.pill}`}>
             {t('grow.all.pill')}
           </Link>
+          {children}
         </div>
+        <h1>{grow.name}</h1>
         <p className={styles.facts}>
           <span>
             {endedOn ? (
@@ -196,10 +218,7 @@ export function GrowHead({ grow, spaces, children = null }: { grow: GrowListItem
                 <Term topic="autoTag">{t('home.card.auto')}</Term>
               </>
             ) : null}
-            {/* Plants gone their own way are said beside the stage most of the grow is in. */}
-            {summary.groups.length > 0
-              ? ` · ${summary.groups.map(group => `${group.plantIds.length} ${t(`home.stage.${group.stage}`)}`).join(', ')}`
-              : ''}
+            {standing.length > 0 ? ` · ${standing.join(', ')}` : ''}
             {grow.visibility === 'public' ? (
               <>
                 {' · '}
@@ -222,17 +241,14 @@ export function GrowHead({ grow, spaces, children = null }: { grow: GrowListItem
           ) : null}
         </p>
       </div>
-      <span
-        className={styles.bar}
-        role="img"
-        aria-label={
+      <GrowBar
+        grow={{ growId: grow.id, stage: summary.stage, dayNumber: summary.dayNumber }}
+        label={
           summary.stage
             ? t(endedOn ? 'grow.phaseBarEndedLabel' : 'grow.phaseBarLabel', { stage: t(`home.stage.${summary.stage}`) })
             : t('home.card.noPhase')
         }
-      >
-        <span style={{ width: `${Math.round(fill * 100)}%` }} />
-      </span>
+      />
     </header>
   );
 }

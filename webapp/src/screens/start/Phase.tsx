@@ -2,13 +2,14 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowCard } from '@fg2/shared-types/v1';
+import { GrowBar } from '@/screens/grow/GrowBar';
 import { growDay, useProgress } from '@/screens/grow/progress';
 import styles from './Start.module.css';
 
 /** "Blüte · Woche 3 … Ernte in etwa 6 Wochen" over the bar. */
 function PhaseWords({ grow }: { grow: GrowCard }) {
   const { t } = useTranslation();
-  const { fill, weeksLeft } = useProgress(grow);
+  const { weeksLeft } = useProgress(grow);
   const phase = grow.stage
     ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('start.week', { week: grow.stageWeek }) : null].filter(Boolean).join(' · ')
     : t('home.card.noPhase');
@@ -19,9 +20,7 @@ function PhaseWords({ grow }: { grow: GrowCard }) {
         <span>{phase}</span>
         {weeksLeft ? <span>{t('start.harvestIn', { count: weeksLeft })}</span> : null}
       </span>
-      <span className={styles.phaseBar} aria-hidden>
-        <span className={styles.phaseFill} style={{ width: `${Math.round(fill * 100)}%` }} />
-      </span>
+      <GrowBar grow={grow} />
     </>
   );
 }

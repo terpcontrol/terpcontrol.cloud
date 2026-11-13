@@ -1,12 +1,14 @@
 import type { Entry, EntryDose, EntryReading, GrowListItem, GrowthStage, HumanEntryKind, SchemeWeek } from '@fg2/shared-types/v1';
 import { DateTime } from 'luxon';
-import type { LogTarget } from './log-context';
+import { useTranslation } from 'react-i18next';
+import { useLog, type LogTarget } from './log-context';
 import type { MomentBegins } from './Moment';
 import { dosesFor, growDayAt, growOriginOf, growWeekAt, schemeWeekOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { useUpdateGrow } from '@/api/grows';
 import { instantOf } from '@/ui/age';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { STAGES } from '@/ui/stages';
+import { DAY, useZone, zonedAt } from '@/ui/zone';
 
 /**
  * What a kind's view opens on before anybody types anything: the sheet
@@ -75,14 +77,27 @@ const growBegan = (grow: GrowListItem): Date => DateTime.fromJSDate(growOriginOf
 /**
  * What the moment of a line about a grow is held to: where the grow began,
  * and how its start is moved there by somebody who may manage it. Null for a
- * line about a place, which has no first day.
+ * line about a place, which has no first day. A start moved is answered with
+ * the day it is now and the start it had, one write away: what stood on the
+ * start moves back with it, as it moved with it.
  */
 export const useGrowBegins = (grow: GrowListItem | undefined, target: LogTarget | null): MomentBegins | null => {
+  const { t } = useTranslation();
+  const zone = useZone();
+  const { tell } = useLog();
   const move = useUpdateGrow(grow?.id ?? '');
   const mayManage = enough(useMayWith()(growStanding(grow ?? { ownerId: null, placements: [] })), 'manage');
   if (!grow || !target?.growId) return null;
 
-  return { at: growBegan(grow), move: mayManage ? to => move.mutateAsync({ startedAt: instantOf(DateTime.fromJSDate(to)) }) : null };
+  const startOn = (startedAt: string) => move.mutateAsync({ startedAt });
+  const said = (startedAt: string) => t('grow.told.start', { date: zonedAt(Date.parse(startedAt), zone).toFormat(DAY) });
+  const moveTo = async (to: Date) => {
+    const startedAt = instantOf(DateTime.fromJSDate(to));
+    await startOn(startedAt);
+    tell({ label: said(startedAt), undo: () => startOn(grow.startedAt), undone: said(grow.startedAt), from: `start-${grow.id}` });
+  };
+
+  return { at: growBegan(grow), move: mayManage ? moveTo : null };
 };
 
 /** The phase after the one the grow is in. Nothing follows curing, and a grow with no phase yet is started elsewhere. */

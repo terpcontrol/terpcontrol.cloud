@@ -93,7 +93,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           {isPublic ? (
             <div className={ui.row2}>
-              <code className={`mono ${styles.address}`}>{appUrl(`/g/${grow.slug}`)}</code>
+              <code className={styles.address}>{appUrl(`/g/${grow.slug}`)}</code>
               <CopyButton value={appUrl(`/g/${grow.slug}`)} label={t('sharing.copyAddress')} />
             </div>
           ) : null}
@@ -171,11 +171,11 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   return (
     <li className={`${lifecycle.row} ${styles.link}`} data-dead={dead}>
       <div className={ui.row2}>
-        <code className={`mono ${styles.address}`}>{address}</code>
+        <code className={styles.address}>{address}</code>
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
       </div>
 
-      <p className={`mono ${styles.linkMeta}`}>{describe(t, link, now, zone)}</p>
+      <p className={styles.linkMeta}>{describe(t, link, now, zone)}</p>
 
       {changing ? (
         <Editor
@@ -329,7 +329,7 @@ function Field({
         aria-label={help ? label : undefined}
         onChange={event => onChange(event.target.value)}
       />
-      <span className={`mono ${styles.hint}`}>{value ? '' : hint}</span>
+      <span className={styles.hint}>{value ? '' : hint}</span>
     </label>
   );
 }

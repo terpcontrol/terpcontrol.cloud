@@ -1,7 +1,9 @@
 /* A grow's page: its head - the name, what can be done, the day and phase
-   over the bar - then the tabs. A phone's column first, and the same head
-   beside the rail: the name with what can be done, the facts on their own
-   line under it, at every width. */
+   over the bar - then the tabs. A phone's column first: the way to every grow
+   and the menu as a row over the name, which has its line to itself - beside
+   it, "Alle Grows" wrapped a name of fourteen letters to two lines at 390 px.
+   Beside the rail the name with what can be done to its right. The facts on
+   their own line under it, at every width. */
 
 .page {
   width: 100%;
@@ -35,14 +37,14 @@
 
 .actions {
   display: flex;
-  flex: none;
+  flex: 1 0 100%;
   align-items: center;
   gap: var(--space-2);
 }
 
-/* On a phone the way to every grow stands before the menu. */
+/* On a phone the way to every grow stands left, the menu at the row's other end. */
 .actions > a.pill {
-  order: -1;
+  margin-right: auto;
 }
 
 .pill {
@@ -97,20 +99,6 @@
   align-items: center;
   gap: 3px;
   white-space: nowrap;
-}
-
-.bar {
-  display: block;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--rule);
-}
-
-.bar > span {
-  display: block;
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--green);
 }
 
 .muted {
@@ -202,8 +190,17 @@
     content: '\00a0· ';
   }
 
+  .actions {
+    flex: none;
+    order: 1;
+  }
+
+  .facts {
+    order: 2;
+  }
+
   .actions > a.pill {
-    order: 0;
+    margin-right: 0;
   }
 
   .wideOnly {

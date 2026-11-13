@@ -2,17 +2,19 @@ import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { usePageOfGrow } from '@/app/places';
-import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries } from '@/api/grows';
+import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries, useRemovePlant } from '@/api/grows';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
+import { useLog } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
-import { LoadFailed, NoLongerHere, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, NothingHere, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -56,6 +58,10 @@ export function PlantPage() {
   const spaces = useSpaces();
   const mayWith = useMayWith();
   const [sheet, setSheet] = useState<PlantSheet | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const remove = useRemovePlant();
+  const navigate = useNavigate();
+  const { tell } = useLog();
 
   if (grow.isPending || plants.isPending) {
     return (
@@ -97,7 +103,7 @@ export function PlantPage() {
           <h1>{plant.label}</h1>
           <p className={styles.subtitle}>{subtitle(t, grow.data, plant)}</p>
         </div>
-        <span className={`mono ${styles.corner}`}>
+        <span className={styles.corner}>
           {grow.data.name}
           {' · '}
           {t('grow.plant.ofCount', { index: all.indexOf(plant) + 1, count: all.length })}
@@ -144,7 +150,7 @@ export function PlantPage() {
 
       <header className={styles.sectionHead}>
         <span className="label">{t('grow.plant.ownEntries')}</span>
-        <span className={`mono ${styles.aside}`}>{t('grow.plant.growEntriesToo')}</span>
+        <span className={styles.aside}>{t('grow.plant.growEntriesToo')}</span>
       </header>
 
       {entries.isPending ? (
@@ -160,9 +166,9 @@ export function PlantPage() {
       )}
 
       {mayManage ? (
-        <div className={`${ui.wrap} ${styles.actions}`} role="group" aria-label={t('grow.plant.actionsLabel')}>
+        <div className={ui.wrap} role="group" aria-label={t('grow.plant.actionsLabel')}>
           <button type="button" className={ui.button} onClick={() => setSheet('move')}>
-            <Move size={13} strokeWidth={1.75} aria-hidden />
+            <Move size={16} strokeWidth={1.75} aria-hidden />
             {t('grow.plant.move')}
           </button>
           {/* Splitting every plant out of a grow splits nothing, and a plant
@@ -170,20 +176,44 @@ export function PlantPage() {
               neither is offered. */}
           {all.length > 1 ? (
             <button type="button" className={ui.button} onClick={() => setSheet('split')}>
-              <Split size={13} strokeWidth={1.75} aria-hidden />
+              <Split size={16} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.split')}
             </button>
           ) : null}
           {standing(plant) ? (
             <button type="button" className={ui.button} onClick={() => setSheet('harvest')}>
-              <Scissors size={13} strokeWidth={1.75} aria-hidden />
+              <Scissors size={16} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.harvest')}
             </button>
           ) : null}
           <button type="button" className={ui.button} onClick={() => setSheet('rename')}>
             {t('grow.plant.rename')}
           </button>
+          <button type="button" className={ui.button} onClick={() => setRemoving(true)}>
+            {t('grow.plant.remove')}
+          </button>
         </div>
+      ) : null}
+      {/* A plant put in by mistake is taken out again. No one call brings it back - the phases and places that named
+          it forget it - so it is asked first and answered without a way back. */}
+      {removing ? (
+        <Asking
+          note={t('grow.plant.removeAsk', { name: plant.label })}
+          yes={t('grow.plant.removeYes')}
+          danger
+          busy={remove.isPending}
+          onYes={() =>
+            remove.mutate(plant.id, {
+              onSuccess: () => {
+                tell({ label: t('grow.plant.told.removed', { name: plant.label }), undo: null });
+                void navigate(`/grows/${growId}/plants`, { replace: true });
+              },
+            })
+          }
+          onCancel={() => setRemoving(false)}
+        >
+          <Refused error={remove.error} />
+        </Asking>
       ) : null}
 
       {/* The grow's own sheets, opened on this plant. What they do and what
@@ -326,7 +356,7 @@ function Line({ entry, grow, plant }: LineProps) {
           const definition = grow.measurements.find(one => one.key === reading.key);
 
           return (
-            <span key={`${reading.key}-${reading.plantId ?? ''}`} className={`mono ${styles.lineReading}`}>
+            <span key={`${reading.key}-${reading.plantId ?? ''}`} className={styles.lineReading}>
               {' · '}
               {definition?.name ?? reading.key} {withUnit(reading.value, definition?.unit ?? '')}
             </span>

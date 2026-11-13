@@ -222,15 +222,6 @@
   font-size: var(--text-xs);
 }
 
-/* The moves a plant can make, drawn at the size the grow page draws the same
-   moves for the whole grow: a row of chips, not four field-high buttons. */
-.actions > button {
-  height: var(--chip-height);
-  padding: 0 var(--space-3);
-  gap: var(--space-1);
-  font-size: var(--text-xs);
-}
-
 @media (min-width: 900px) {
   .page {
     max-width: var(--reading-width);

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { placesFor } from '@/app/places';
+import { useLog } from '@/log/log-context';
 import { refusalCode } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
 import { PlaceChoices } from '@/ui/PlaceChoices';
@@ -44,6 +45,7 @@ export function MoveSheet({
 }) {
   const { t } = useTranslation();
   const move = useMovePlants(grow.id);
+  const { tell } = useLog();
 
   const open = placesFor(spaces);
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
@@ -53,6 +55,15 @@ export function MoveSheet({
   // control already refuses.
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
+
+  // The answer says where they stand now. No one call takes a move back - the place they left is closed - so the
+  // way back is the row below, which the sheet keeps.
+  const moved = () => {
+    onClose();
+    const name = chosen === null ? grow.name : t('grow.lifecycle.somePlants', { count: chosen.length });
+    const label = spaceId === null ? t('grow.told.movedNowhere', { name }) : t('grow.told.moved', { place: placeName(t, spaces, spaceId), name });
+    tell({ label, undo: null });
+  };
 
   const placements = [...grow.placements].sort((one, other) => other.startedAt.localeCompare(one.startedAt));
   // A grow whose last placement is closed stands nowhere, and the header of the
@@ -64,7 +75,7 @@ export function MoveSheet({
   return (
     <Sheet title={t('grow.lifecycle.move.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <p className={`mono ${styles.now}`}>
+        <p className={styles.now}>
           {stood
             ? t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) })
             : t('grow.lifecycle.move.standsIn', {
@@ -98,16 +109,14 @@ export function MoveSheet({
               type="button"
               className={`${ui.button} ${ui.primary} ${styles.submit}`}
               disabled={move.isPending}
-              onClick={() =>
-                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
-              }
+              onClick={() => move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: moved })}
             >
               {move.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.submit', { place: placeName(t, spaces, spaceId) })}
             </button>
           </Block>
         )}
 
-        <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
+        <Block label={t('grow.lifecycle.move.history')} aside={t('grow.lifecycle.move.newestFirst')}>
           <ul className={ui.list}>
             {placements.map(placement => (
               <PlacementRow
@@ -153,7 +162,7 @@ function PlacementRow({
     <li className={styles.row} data-dim={placement.endedAt !== null}>
       <div className={ui.headRow}>
         <span className={styles.rowTitle}>{placeName(t, spaces, placement.spaceId)}</span>
-        <span className={`mono ${styles.rowMeta}`}>
+        <span className={styles.rowMeta}>
           {day(placement.startedAt)} → {placement.endedAt ? day(placement.endedAt) : t('grow.lifecycle.move.stillThere')}
           {placement.plantIds === null ? '' : ` · ${t('grow.lifecycle.somePlants', { count: placement.plantIds.length })}`}
         </span>

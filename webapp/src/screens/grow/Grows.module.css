@@ -18,16 +18,9 @@
   min-width: 0;
 }
 
+/* A quiet pill, as "Alle Grows" is on a grow's page: the brand green is the bar's "+ Eintrag" alone. */
 .new {
   flex: none;
-  min-height: var(--control-height);
-  padding: 0 var(--space-4);
-  background: var(--green-fill);
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--on-green);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
 }
 
 .shelf {

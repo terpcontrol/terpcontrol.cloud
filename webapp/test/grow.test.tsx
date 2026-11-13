@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { LogProvider } from '@/log/LogProvider';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus } from '@fg2/shared-types/v1';
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus, Plant } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
 import { mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
@@ -296,6 +298,30 @@ describe('the report tab', () => {
     expect(within(trained).getByRole('button', { name: /Lower shoots defoliated/ })).toBeInTheDocument();
   });
 
+  /** "1 days", "1 entries" and a weight written "12.5 g" beside a diary that says "12,5 g": each figure as its language counts and writes it. */
+  it('counts each total in its own number, and writes the harvest´s weights in the reader´s format', async () => {
+    wire.report = {
+      ...REPORT,
+      dayCount: 1,
+      totals: { entryCount: 1, waterCount: 1, feedCount: 2, photoCount: 1 },
+      harvest: { harvestedAt: at(0), wetWeightG: 60, dryWeightG: 12.5 },
+    };
+    drawReport();
+
+    expect(await screen.findByText('day')).toBeInTheDocument();
+    expect(screen.getByText('entry')).toBeInTheDocument();
+    expect(screen.getByText('watering')).toBeInTheDocument();
+    expect(screen.getByText('feedings')).toBeInTheDocument();
+    expect(screen.getByText('photo')).toBeInTheDocument();
+    expect(screen.getByText('Harvested · wet 60 g · dry 12.5 g')).toBeInTheDocument();
+
+    await translate(['en', 'de'], 'de');
+    onTestFinished(() => translate());
+    expect(await screen.findByText('Geerntet · nass 60 g · trocken 12,5 g')).toBeInTheDocument();
+    expect(screen.getByText('Tag')).toBeInTheDocument();
+    expect(screen.getByText('Eintrag')).toBeInTheDocument();
+  });
+
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
     wire.job = EXPORT_ROW('rendering');
     drawReport();
@@ -388,7 +414,7 @@ describe('the head of a grow´s page', () => {
   const tent = [{ id: 'space-1', name: 'Tent 1' } as never];
 
   it('says the day, the phase with its week and where the grow stands, over the bar of how far it has come', () => {
-    draw(<GrowHead grow={grow} spaces={tent} />);
+    draw(<GrowHead grow={grow} plants={[]} spaces={tent} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Spring run' })).toBeInTheDocument();
     expect(screen.getByText('Day 35')).toBeInTheDocument();
@@ -398,8 +424,28 @@ describe('the head of a grow´s page', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, now in Flower');
   });
 
+  /** A plant cut is in no stage any more: counted as harvested, not among the stages of the plants still standing. */
+  it('counts a harvested plant as harvested, beside the stages of the plants still standing', () => {
+    const split: GrowListItem = {
+      ...grow,
+      summary: {
+        ...grow.summary,
+        groups: [
+          { stage: 'seedling', preset: null, phaseDay: 3, plantIds: ['a', 'b'] },
+          { stage: 'vegetative', preset: null, phaseDay: 1, plantIds: ['c'] },
+        ],
+      },
+    };
+    const plant = (id: string, status: Plant['status']) =>
+      ({ id, growId: 'grow-1', strain: 'X', label: id, status, harvest: null, createdAt: at(3) }) as Plant;
+    draw(<GrowHead grow={split} plants={[plant('a', 'harvested'), plant('b', 'active'), plant('c', 'active')]} spaces={tent} />);
+
+    expect(screen.getByText(/· 1 Seedling, 1 Veg, 1 harvested/)).toBeInTheDocument();
+    expect(screen.queryByText(/2 Seedling/)).not.toBeInTheDocument();
+  });
+
   it('is one head under both of the grow´s addresses: the way to every grow beside its name, and nothing leading back', () => {
-    draw(<GrowHead grow={grow} spaces={tent} />);
+    draw(<GrowHead grow={grow} plants={[]} spaces={tent} />);
 
     expect(screen.getByRole('link', { name: 'All grows' })).toHaveAttribute('href', '/grows');
     expect(screen.queryByRole('link', { name: /^Back to/ })).not.toBeInTheDocument();
@@ -409,7 +455,7 @@ describe('the head of a grow´s page', () => {
     const finished: GrowListItem = { ...grow, endedAt: at(0, 15), summary: { ...grow.summary, locations: [] } };
 
     it('says how long it ran and the day it ended, rather than a day it is on', () => {
-      draw(<GrowHead grow={finished} spaces={tent} />);
+      draw(<GrowHead grow={finished} plants={[]} spaces={tent} />);
 
       expect(screen.getByText('35 days · ended 18 Sep 2026')).toBeInTheDocument();
       expect(screen.queryByText('Day 35')).not.toBeInTheDocument();
@@ -418,7 +464,7 @@ describe('the head of a grow´s page', () => {
 
     it('names the tent it stood in, which its own report names on every chapter', () => {
       // An ended grow has no open placement, so "where the plants are" is empty.
-      draw(<GrowHead grow={finished} spaces={tent} />);
+      draw(<GrowHead grow={finished} plants={[]} spaces={tent} />);
 
       expect(screen.getByRole('link', { name: 'last place: Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
     });
@@ -524,6 +570,20 @@ describe('a day of the diary', () => {
     // A day that is over says the hours the lamp burned in one line.
     expect(lines[2]).toMatch(/^06:00Light 06:00–18:00automatic$/);
     expect(lines).toHaveLength(3);
+  });
+
+  /** Regulation switched off and on left no line, where maintenance does: the day's incident lost its cause. */
+  it('says regulation switched off as maintenance is said: one line, a person´s, for off and on - and still off where nobody switched it on', () => {
+    drawDay(
+      day(1, {
+        events: [
+          { kind: 'controlOff', at: at(1, 9), endedAt: DateTime.fromISO(at(1, 9)).plus({ minutes: 12 }).toISO()! },
+          { kind: 'controlOff', at: at(1, 20), endedAt: null },
+        ],
+      }),
+    );
+
+    expect(linesOf()).toEqual(['20:00Control is off', '09:00Control off · 12 min']);
   });
 
   it('gives a lamp that has not gone off no end: on since then while it is known to burn, and only that it came on otherwise', () => {
@@ -730,6 +790,27 @@ describe('a day of the diary', () => {
     expect(lines[3]).toMatch(/You watered/);
   });
 
+  /** Fifteen pills in one card said nothing new: lines the devices wrote in a row carry "automatic" once, at the head of the run. */
+  it('marks a run of the devices´ lines once, at its head, and a run after a person´s line again', () => {
+    const step = (id: string, hour: number, index: number) =>
+      entry({
+        id,
+        kind: 'plan',
+        source: 'plan',
+        authorId: null,
+        occurredAt: at(1, hour),
+        message: { key: 'message-recipe-advanced', params: [String(index)] },
+        values: { kind: 'plan', planId: 'plan-1', stepIndex: index, transition: null },
+      });
+    drawDay(day(1, { entries: [step('e', 9, 5), note('n', 8), step('c', 7, 3), step('b', 6, 2), step('a', 5, 1)] }));
+
+    const lines = screen.getAllByRole('listitem');
+    expect(lines.map(line => line.hasAttribute('data-marked'))).toEqual([true, false, true, true, true]);
+    // Each line is marked in the markup; the sheet shows the mark on the first of a run only.
+    const sheet = readFileSync(resolve(__dirname, '../src/ui/Lines.module.css'), 'utf8');
+    expect(sheet).toMatch(/\.line\[data-marked\]\s*\+\s*\.line\[data-marked\]\s+\.mark\s*\{\s*display:\s*none;/);
+  });
+
   it('folds a run of the same machine line into one, as every summary does', () => {
     const step = (id: string, hour: number) =>
       entry({
@@ -872,7 +953,12 @@ describe('the diary', () => {
   it('reads the weeks before only when asked for them, eight at a time', async () => {
     drawDiary();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Earlier weeks' }));
+    const earlier = await screen.findByRole('button', { name: 'Earlier weeks' });
+    earlier.focus();
+    fireEvent.click(earlier);
+    // While it asks it keeps the focus: disabling it dropped the focus, whose ring then read as a button of its own.
+    expect(earlier).not.toBeDisabled();
+    expect(earlier).toHaveFocus();
 
     expect(await screen.findByRole('button', { name: reads(/^Day 21/) })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Earlier weeks' })).not.toBeInTheDocument();

@@ -29,9 +29,12 @@ const STRENGTHS = [0.5, 0.75, 1, 1.25];
  * nothing already growing. A grower who believes otherwise finds out in a
  * season they cannot have back.
  *
- * Nothing is written until Save. A grid is a table somebody works across, and
- * a PATCH per cell would put a dozen writes and a dozen chances of a refusal
- * between a thought and its result.
+ * A figure typed into the grid or a setting changed is not written until Save.
+ * A grid is a table somebody works across, and a PATCH per cell would put a
+ * dozen writes and a dozen chances of a refusal between a thought and its
+ * result. Choosing another scheme is one decision with a button of its own, so
+ * it is written at once and answered with the way back - a bar under the grid
+ * saying "not saved" was read as the new scheme standing.
  *
  * That is also why the draft is held against the grid it was changed against
  * rather than seeded once. With nothing typed the screen follows the stored
@@ -84,29 +87,35 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       () => setEdit(null),
     );
 
-  // Taking a grow off its scheme leaves a draft of nothing, which is still a
-  // change and still has to be saved: the empty state therefore carries the
-  // same bar as the grid does rather than swallowing the decision.
+  // Another scheme, or none, replaces the grid with whatever was typed into it, as the sheet says before the tap.
+  const switchTo = (scheme: GrowScheme | null) => {
+    setChoosing(false);
+    const name = (of: GrowScheme) => growSchemeLabel(of.origin, shipped.data ?? [], own.data?.items ?? [], t('grow.ownScheme'));
+    answer(
+      { scheme },
+      scheme ? t('grow.scheme.told.switched', { name: name(scheme) }) : t('grow.scheme.told.none'),
+      { to: { scheme: stored }, undone: stored ? t('grow.scheme.told.switched', { name: name(stored) }) : t('grow.scheme.told.none') },
+      () => setEdit(null),
+    );
+  };
+
   const unsaved =
     mayManage && dirty ? (
-      <>
-        <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
-          <span className={`mono ${styles.unsavedNote}`}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
-          <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
-            {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
+      <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
+        <span className={styles.unsavedNote}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
+        <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
+          {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
+        </button>
+        {moved ? (
+          <button type="button" className={ui.button} onClick={() => setEdit({ draft, against: stored })}>
+            {t('grow.scheme.keepMine')}
           </button>
-          {moved ? (
-            <button type="button" className={ui.button} onClick={() => setEdit({ draft, against: stored })}>
-              {t('grow.scheme.keepMine')}
-            </button>
-          ) : (
-            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
-              {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
-            </button>
-          )}
-        </div>
-        <Refused error={update.error} />
-      </>
+        ) : (
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={update.isPending} onClick={save}>
+            {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
+          </button>
+        )}
+      </div>
     ) : null;
 
   const sheet = choosing ? (
@@ -115,10 +124,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       shipped={shipped.data ?? []}
       own={own.data?.items ?? []}
       grid={draft?.grid ?? []}
-      onSwitch={scheme => {
-        setDraft(scheme);
-        setChoosing(false);
-      }}
+      onSwitch={switchTo}
       onClose={() => setChoosing(false)}
     />
   ) : null;
@@ -134,7 +140,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
             </button>
           </div>
         ) : null}
-        {unsaved}
+        <Refused error={update.error} />
         {sheet}
       </div>
     );
@@ -280,6 +286,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       </GridEditor>
 
       {unsaved}
+      <Refused error={update.error} />
 
       {sheet}
     </div>
@@ -307,7 +314,7 @@ function BasedOn({
       <span>
         {t('grow.scheme.basedOn')} <span className={styles.basedOnName}>{name}</span>
       </span>
-      <span className={`mono ${styles.basedOnAside}`}>
+      <span className={styles.basedOnAside}>
         {edited ? `${t('grow.edited')} · ` : ''}
         {version ?? ''}
         {onOpen ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden /> : null}

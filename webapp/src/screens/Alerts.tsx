@@ -229,8 +229,10 @@ export function Alerts() {
             <button
               type="button"
               className={ui.button}
-              disabled={fetching}
+              // Not disabled while it asks: that would drop the focus, and the rescue's ring then read as a button of its own.
+              aria-disabled={fetching || undefined}
               onClick={() => {
+                if (fetching) return;
                 setShown(shown + OVER_MORE);
                 if (shown + OVER_MORE <= folds.length) return;
                 if (open.hasNextPage) void open.fetchNextPage();

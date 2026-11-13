@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { useMoveGrowHere } from '@/api/lifecycle';
 import { useSpaces } from '@/api/spaces';
+import { useLog } from '@/log/log-context';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
@@ -41,12 +42,16 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const move = useMoveGrowHere(spaceId);
   const mayManage = useMayManage(spaceId);
   const spaces = useSpaces();
+  const { tell } = useLog();
 
-  const [growId, setGrowId] = useState<string | null>(null);
+  const [picked, setGrowId] = useState<string | null>(null);
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [starting, setStarting] = useState(false);
 
   if (starting) return <StartGrowSheet spaceId={spaceId} name={spaceName} onClose={onClose} />;
+
+  // The only grow that could come stands chosen: there is nothing to pick among one.
+  const growId = picked ?? (movable.items.length === 1 ? movable.items[0].id : null);
 
   const standing = (grow: GrowListItem): string | null => {
     const open = grow.placements.find(one => one.endedAt === null);
@@ -98,7 +103,18 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
           className={`${ui.button} ${ui.primary} ${styles.submit}`}
           disabled={move.isPending || growId === null}
           onClick={() =>
-            growId === null ? undefined : move.mutate({ growId, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+            growId === null
+              ? undefined
+              : move.mutate(
+                  { growId, startedAt: instantOf(DateTime.fromJSDate(at)) },
+                  {
+                    onSuccess: () => {
+                      onClose();
+                      const name = movable.items.find(one => one.id === growId)?.name ?? '';
+                      tell({ label: t('grow.told.moved', { place: spaceName, name }), undo: null });
+                    },
+                  },
+                )
           }
         >
           {move.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.submit', { place: spaceName })}
