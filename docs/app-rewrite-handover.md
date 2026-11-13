@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -64,7 +64,9 @@ second list below is that session's decision, not Chris's word, until he confirm
   [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** seven walks' lists are built. The
   seventh walk found the sixth list built and holding against the samples (rest on the reading in 180 of 180
   loads, no sideways scroll at 37 widths, a silence's edges 0 s off, the 120-day read of a place 836-889 ms in the
-  median); its own list - five minors and the trifles - was seen by its builder and by no critic yet.
+  median). The eighth walk found the seventh list built but for one part - the curve of a slow device is still
+  cut on the route, where lanes, nights and the lamp's words are whole - and two weaknesses of the new rule; its
+  list (three minors and trifles, below) is decided and not built.
 - **Place and room**: a device keeps where it stood, names are unique, a room is a field of the place, "Ort
   bearbeiten" and "Ort entfernen" as pages, the claim outside the bar asking once where a device hangs, five
   migration steps `026` to `030` (the amendment to
@@ -200,6 +202,15 @@ Each is built unless it says otherwise, and each can be refused by itself.
 - After the seventh walk: what a gap is follows the interval the device was keeping there, not the step - four
   of its own intervals, read from the samples each window held ([server-engines.md](knowledge/server-engines.md#read-models)).
   A device that reports as slowly as it is drawn, or slower, is one line with whole band, nights and lanes.
+- **Decided after the eighth walk, not yet built.** The curve takes the same verdict as the lanes: the route
+  hands the samples' counts to the panels too (`panelsOf` is called without them), so one pause is one answer in
+  curve, band, lanes, nights, the lamp's line and the CSV. A cadence has an upper bound - no device is taken to
+  report more slowly than the backfilled history's quarter of an hour - so a device that gets a few samples
+  through every two hours is silent in between rather than a whole day. The interval beside a gap does not move
+  with how samples fall into windows: one pause, one verdict at every range finer than it. The card says a
+  silence's ends from the samples, as the lamp's line does; the first interval of a window is no gap; the last
+  ticked curve cannot be unticked and "Keine Kurve gewählt" goes; no night of no length; a CSV row for every
+  point of the answer.
 - "x % der Zeit an" is a share of the time the device was heard, not of its samples.
 - In a silence the card says "keine Messung" and between which two readings; its rows and the heads' figures
   keep the room they have at rest. A point of one sample says its stretch without "Mittel", and no stretch
@@ -437,9 +448,9 @@ Each with what stands until he answers, and the session's recommendation where i
 - **Verlauf**: the CSV download was opened in no browser; the widths between 900 and 1200 px; whose lamp is read
   across a change of device with different schedules; a device change older than a day and a plug's schedule in
   a grain in which it switched (each has a unit test and no staged place); "Kein Bild um diese Zeit" at 320 px;
-  an unknown grow "asked once" has no test. Of the seventh list: no critic has walked it; its server part ran
-  in the suites and through the working tree's read against a session stack's store, laid into that stack's
-  answer for the browser - not on a running server, whose route was not timed with it. Of the sixth list, after its critic's walk: rest in a zoom was seen on simulated tents, not on a real device;
+  an unknown grow "asked once" has no test. Of the seventh list, after its critic's walk: the 120-day read
+  is under 1 s only on a quiet machine (887-1004 ms in the median at load 6 to 8, up to 1300 ms at load 12 to
+  28), so what the pass cost could not be told from noise; slow devices were staged, none was real. Of the sixth list, after its critic's walk: rest in a zoom was seen on simulated tents, not on a real device;
   the oldest device change the stack could stage was 14.7 hours old. The integration fake windows `(start, stop]` where the store windows
   `[start, stop)` ([data.md](knowledge/data.md#influxdb)).
 - **Of the clearing-up round and the pass after its walk, not seen on a screen**: a folded alert of an output
