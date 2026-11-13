@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -104,10 +104,29 @@ second list below is that session's decision, not Chris's word, until he confirm
   rule a walk decided got a test. What stays apart, each with its reason, is in the list of open points below
   ("Left by the clearing-up round"); what exists once is listed in
   [webapp.md](knowledge/webapp.md).
-- **A round for type and colour follows** (Chris, 2026-11-13); its choice is the owner's. Nothing of the look
-  changes before it, and [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)
-  is amended in the same commits as `webapp/src/theme/tokens.css`. That a name typed with "x" between figures is
-  drawn with "×" outside the place pages is a feature of the typeface and goes to that round.
+- **The look "Nebel" is chosen and built, not yet on this branch** (Chris, 2026-11-13: the type was bold
+  everywhere and nothing fine, the colours neither soft nor in tune; from three proposals he chose "Nebel", and
+  decided the same day that the one primary action keeps the brand green where the proposal had made it navy).
+  It is built on a local branch of the session and lands after Verlauf's eighth list, with the rewrite of
+  [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand) in the same
+  commits as `webapp/src/theme/tokens.css`. What the redesign session worked out for it, open to Chris:
+  - Albert Sans in three weights and no bold - light for titles and figures, regular, medium for what is
+    stressed; the two heavier weight tokens go. Section labels are small and in sentence case; nothing is in
+    capitals. Icons are drawn at a stroke of 1.5.
+  - Albert Sans has no tabular figures, so `webapp/scripts/tabular-digits.py` cuts digits of one width out of it
+    as three small static faces, the way Inter's were cut.
+  - Surfaces are one warm hue, ink and whatever is chosen one navy, and the signals (temperature, humidity, CO₂,
+    warning, alarm) share one lightness and differ by hue; each value is worked out in OKLCH and written in
+    hex. The humidity colour is a step darker than on the pictures Chris saw, because as text on the inset
+    surface it came to 4.25:1; it is 4.56:1 now.
+  - The soft greens ("in band", live, a grow's progress) sit on the brand green's hue, so they and the primary
+    action's green are one family. A progress bar takes the soft green; only an action is filled with the brand's.
+  - The lamp has a colour of its own (`--lamp`, a soft straw) on a timeline lane and a lit day; it had borrowed
+    the warning's.
+  - Radii 12 / 18 / 24 px; a card's shadow low and wide in the paper's hue; the page's glow is gone.
+  - The server's film overlays and share-link cards are set in Albert Sans at 400 and 500 on the dark ground
+    (`server/scripts/install-fonts.mjs` unpacks `@fontsource/albert-sans`); no film was rendered with it yet.
+  - With the face, "×" for a typed "x" is gone everywhere: Albert Sans has no contextual alternates.
 
 ### Decided by the redesign session, not yet confirmed by Chris
 
