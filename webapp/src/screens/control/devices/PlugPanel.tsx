@@ -315,9 +315,7 @@ function Windows({ device, settings, mayManage, offset }: PanelProps & { setting
           onClose={() => setOpen(null)}
         >
           {values => (
-            <p className={`mono ${climate.derived}`}>
-              {t('plugSettings.windows.ends', { time: wallClock(values.ontime + values.duration * 60, offset) })}
-            </p>
+            <p className={climate.derived}>{t('plugSettings.windows.ends', { time: wallClock(values.ontime + values.duration * 60, offset) })}</p>
           )}
         </ValueSheet>
       ) : null}

@@ -73,7 +73,7 @@ export function VisitingTitle({ title, spaceId }: { title: string; spaceId: stri
   return (
     <h1>
       {title} · {overview.data?.name ?? '…'}
-      <span className={`mono ${styles.visiting}`}>{t('timeline.visiting')}</span>
+      <span className={styles.visiting}>{t('timeline.visiting')}</span>
     </h1>
   );
 }

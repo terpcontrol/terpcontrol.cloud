@@ -109,9 +109,8 @@
     }
   },
   "notFound": {
-    "title": "Page not found",
-    "text": "The page you were looking for does not exist or has moved.",
-    "home": "Back to the app"
+    "title": "Nothing at this address",
+    "text": "The app has no page here."
   },
   "devices": {
     "lightOutput": {
@@ -442,13 +441,11 @@
       "holds": "applies to Grow, Timeline and Control",
       "chosen": "chosen"
     },
-    "loadFailed": "Could not load. Try again.",
+    "loadFailed": "Could not load.",
     "unreachable": "Could not reach the server. Try again.",
     "cannotReach": {
       "title": "Could not reach the server",
       "why": "You are still signed in. The app asks the server to confirm that each time it starts, and this time the server did not answer – a restart at the other end, or a connection that dropped. Nothing has been lost and nothing has to be typed again; trying again in a moment is usually all it takes.",
-      "again": "Try again",
-      "asking": "Trying …",
       "signIn": "Sign in instead"
     },
     "gone": {
@@ -469,7 +466,6 @@
     "crashed": {
       "title": "This screen could not be drawn",
       "why": "Something in it went wrong half way through. Nothing that was measured or written down is affected, and the rest of the app still works.",
-      "again": "Try it again",
       "home": "Home"
     },
     "zoneAdopted": "Clock times now follow {{zone}}, the zone this device is in. Your account was still on {{from}}, which every account starts on – quiet hours are read in the new zone too.",
@@ -487,7 +483,17 @@
       }
     },
     "skipToContent": "Skip to the page",
-    "lostSight": "You no longer see {{places}}"
+    "lostSight": "You no longer see {{places}}",
+    "away": {
+      "none": {
+        "title": "No connection to the server",
+        "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back."
+      },
+      "server": {
+        "title": "The server reports an error",
+        "text": "Your devices keep controlling the climate. It is not your connection – try again in a moment."
+      }
+    }
   },
   "home": {
     "entryRepeats": "{{count}}× since {{since}}",
@@ -592,7 +598,8 @@
       "training": "trained",
       "move": "moved it",
       "moveFromTo": "moved it from {{from}} to {{to}}",
-      "nowhere": "no fixed place",
+      "moveTo": "put it in {{to}}",
+      "moveOut": "took it out of {{from}}",
       "visit": "started maintenance",
       "still": "kept a camera picture"
     },
@@ -620,7 +627,8 @@
       "dueSince": "due since {{time}}"
     },
     "entrySchemeWeek": "scheme week {{week}}",
-    "entryRepeatsUntil": "{{count}}× until {{until}}"
+    "entryRepeatsUntil": "{{count}}× until {{until}}",
+    "retrying": "Trying …"
   },
   "me": {
     "title": "Me",
@@ -642,7 +650,7 @@
         "fahrenheit": "°F",
         "grams": "g",
         "ounces": "oz",
-        "liters": "l",
+        "liters": "L",
         "gallons": "gal"
       },
       "unitsLine": "The screens show °C, grams and litres for now."
@@ -958,7 +966,6 @@
       "export": {
         "title": "Export everything",
         "ask": "Build the zip",
-        "again": "Try again",
         "queued": "queued",
         "rendering": "building the file …",
         "download": "Download · {{size}} · built {{age}} ago",
@@ -1045,7 +1052,7 @@
     "days_one": "{{count}} day",
     "days_other": "{{count}} days",
     "week": "week {{week}}",
-    "dayRange": "Day {{from}}–{{to}}",
+    "dayRange": "Day {{from}} to {{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
     "ownScheme": "Own scheme",
@@ -1073,14 +1080,19 @@
     "strength": "strength {{percent}} %",
     "report": {
       "days": "days",
+      "days_one": "day",
       "entries": "entries",
+      "entries_one": "entry",
       "waters": "waterings",
+      "waters_one": "watering",
       "feeds": "feedings",
+      "feeds_one": "feeding",
       "photos": "photos",
+      "photos_one": "photo",
       "harvest": "Harvested",
       "wet": "wet {{grams}} g",
       "dry": "dry {{grams}} g",
-      "dayFromToToday": "day {{from}} to today",
+      "dayFromToToday": "Day {{from}} to today",
       "waterCount_one": "{{count}} watering",
       "waterCount_other": "{{count}} waterings",
       "feedCount_one": "{{count}} feeding",
@@ -1108,7 +1120,12 @@
         "move": "Move",
         "split": "Split",
         "harvest": "Harvest",
-        "rename": "Name and type"
+        "rename": "Name and type",
+        "delete": "Delete grow"
+      },
+      "delete": {
+        "ask": "Delete {{name}}? The grow goes with its plants and the line of its phase. This cannot be undone.",
+        "yes": "Delete"
       },
       "when": "On",
       "cancel": "Cancel",
@@ -1149,7 +1166,17 @@
           "noPhaseLeft": "The grow is left with no phase and no day counter until one is entered again.",
           "timelineOnly": "Nothing the grow page shows moves: this phase lies before the one the grow is in.",
           "entry": "The diary line that announced it moves with it.",
-          "entryGone": "The diary line that announced it goes with it."
+          "entryGone": "The diary line that announced it goes with it.",
+          "device": "Nothing changes on the device – it goes on holding: {{figures}}.",
+          "stays": {
+            "drying": "So it goes on drying until you end drying under Control.",
+            "germination": "So it goes on germinating in the dark until you end germination under Control."
+          }
+        },
+        "told": {
+          "corrected": "Phase corrected · {{phase}} from {{day}}",
+          "asWas": "{{phase}} from {{day}}",
+          "withdrawn": "{{phase}} withdrawn"
         }
       },
       "move": {
@@ -1201,6 +1228,7 @@
         "whatWasWritten": "What was written",
         "alreadyDown": "Already down",
         "noWeight": "no weight",
+        "belowZero": "{{name}}: a weight is 0 g or more.",
         "ended": "{{name}} has ended · this is its report"
       },
       "split": {
@@ -1233,7 +1261,7 @@
       "startedOn": "Started on",
       "schemeUnreadable": "That scheme could not be read, so the grow cannot be started on it.",
       "starting": "Starting the grow …",
-      "startAndSet": "Start and set the climate to {{climate}}"
+      "startAndSet": "Start · climate: {{climate}}"
     },
     "measurements": {
       "title": "Measurements",
@@ -1357,9 +1385,17 @@
       "save": "Save",
       "saving": "Saving …",
       "told": {
-        "strain": "Strain: {{strain}}"
+        "strain": "Strain: {{strain}}",
+        "added": "New plant: {{name}}",
+        "removed": "{{name}} deleted"
       },
-      "nameTaken": "Another plant of this grow is already called “{{name}}”."
+      "nameTaken": "Another plant of this grow is already called “{{name}}”.",
+      "add": "Add a plant",
+      "addIt": "Add",
+      "labelOptional": "Name – left empty, it is numbered",
+      "remove": "Delete plant",
+      "removeAsk": "Delete {{name}}? The plant leaves the grow and its phases and places. What the diary says about it stays.",
+      "removeYes": "Delete"
     },
     "scheme": {
       "basedOn": "Based on",
@@ -1381,7 +1417,11 @@
       "flip": "Flip",
       "noFlip": "none · auto",
       "weekShort": "w{{week}}",
-      "perLitre": "per l",
+      "perLitre": "per L",
+      "refused": {
+        "number": "{{cell}}: that is not a number. The cell stays as it was.",
+        "negative": "{{cell}}: a dose is 0 or more. The cell stays as it was."
+      },
       "cellLabel": "{{product}}, week {{week}}",
       "thisWeekLine": "Week {{week}} is this week.",
       "howLine": "Tap a cell to edit; a row is a product, and “+ product” adds one of your own.",
@@ -1426,7 +1466,8 @@
       "told": {
         "saved": "Feeding scheme saved",
         "back": "Feeding scheme as before the change",
-        "none": "Grow without a feeding scheme"
+        "none": "Grow without a feeding scheme",
+        "switched": "Feeding scheme: {{name}}"
       }
     },
     "menu": {
@@ -1473,6 +1514,8 @@
       "written_other": "{{count}} entries",
       "maintenance": "Maintenance · {{span}}",
       "maintenanceOn": "Maintenance is on",
+      "controlOff": "Control off · {{span}}",
+      "controlOffOn": "Control is off",
       "light": "Light {{from}}–{{to}}",
       "outside": "{{metric}} off target for {{span}}",
       "outsideOften": "{{metric}} off target {{count}}× · {{span}} in all",
@@ -1484,7 +1527,9 @@
       "lightAgainAt": "on again at {{at}}",
       "lightAgainSince": "on again since {{at}}",
       "openCurves": "Curves of this day",
-      "measuredBy": "{{name}} measures from here on"
+      "measuredBy": "{{name}} measures from here on",
+      "alarmsAmong_one": "{{count}} of them an alarm",
+      "alarmsAmong_other": "{{count}} of them alarms"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -1507,6 +1552,17 @@
       "thisWeek": "This week · from day {{day}}",
       "add": "Take a photo",
       "noneInWeeks": "No pictures in these weeks"
+    },
+    "harvestedCount_one": "{{count}} harvested",
+    "harvestedCount_other": "{{count}} harvested",
+    "told": {
+      "moved": "{{name}} · new place: {{place}}",
+      "movedNowhere": "{{name}} · no fixed place",
+      "split_one": "{{count}} plant goes its own way",
+      "split_other": "{{count}} plants go their own way",
+      "started": "{{name}} started",
+      "start": "Start: {{date}}",
+      "deleted": "{{name}} deleted"
     }
   },
   "space": {
@@ -1931,7 +1987,6 @@
     "noteOptional": "Note (optional)",
     "undo": "Undo",
     "details": "Details",
-    "tryAgain": "Try again",
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
     "uploaded": "{{done}} of {{total}} pictures uploaded",
@@ -1972,7 +2027,10 @@
     "asBefore": "{{what}} as before",
     "noMore": "{{what}} is gone",
     "phaseBefore": "back in the phase before",
-    "deleteFailed": "Could not delete that entry"
+    "deleteFailed": "Could not delete that entry",
+    "litresBelow": "More than 0 L.",
+    "readingNoNumber": "{{name}}: that is not a number.",
+    "pictures": "This entry’s pictures"
   },
   "timeline": {
     "rangeLabel": "Range",
@@ -2185,6 +2243,7 @@
     "testFailed": "That did not reach the camera.",
     "testNoAnswer": "Still no answer after more than {{minutes}} minutes. Please try again.",
     "testOffline": "Possible again once the device is back online.",
+    "testSilent": "{{device}} is not reporting just now – possible again once it does.",
     "carrierOffline": "This camera is read through the device ({{device}}). No pictures arrive until it is back online.",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",
@@ -2241,7 +2300,7 @@
       },
       "overlaid": "with overlays",
       "play": "Play",
-      "close": "Close",
+      "close": "Close the film",
       "which": "Film",
       "playIt": "Play the film",
       "make": "Make the film",
@@ -2287,9 +2346,8 @@
       "since": "no picture since {{time}}"
     },
     "picture": {
-      "today": "today, {{time}}",
       "lightOff": "Light off · picture from {{time}}",
-      "last": "last picture {{time}}"
+      "last": "last picture from {{time}}"
     },
     "noPicture": "This camera has not delivered a picture yet.",
     "days": {
@@ -2490,10 +2548,6 @@
       "title": "Last day of this window · {{from}} – {{to}}",
       "range": "{{low}} – {{high}}",
       "none": "Nothing reported on the last day of this window"
-    },
-    "noPage": {
-      "title": "Nothing at this address",
-      "body": "The app has no page here."
     },
     "timeline": "Timeline"
   },
@@ -2753,11 +2807,6 @@
       "chore": "Chore",
       "custom": "Custom"
     },
-    "kindMeta": {
-      "water": "water",
-      "feed": "feed",
-      "chore": "chore"
-    },
     "assignedToYou": "assigned to you",
     "assignedToSomeone": "assigned to somebody else",
     "ticked": {
@@ -2774,6 +2823,11 @@
       "what": "What",
       "label": "What to do",
       "labelPlaceholder": "Water, Clean the carbon filter…",
+      "missing": {
+        "label": "To save, say what is to be done.",
+        "subject": "To save, choose what it is about: a grow or a place.",
+        "day": "To save, choose the day."
+      },
       "kind": "Kind",
       "litres": "Litres per can · optional",
       "about": "About",
@@ -3641,7 +3695,7 @@
     },
     "phasePreset": {
       "title": "Targets with the phase",
-      "text": "“Leave as they are” records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. A germination that is only recorded beside a device with its light on leaves the alarms as they are too. Out of germination, any other phase brings the light back. Auto is for autoflowers, which keep long days. A new climate replaces the targets under Control; when the light comes on stays as it is. Drying holds the night figures round the clock, with no light and no CO₂. The alarms Too hot, Too cold and Too humid follow the phase; in germination Too humid rests unless you switch it on."
+      "text": "“Leave as they are” records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. That holds for every phase, germination and drying included: only recorded, it leaves the device as it is, and beside a device with its light on the alarms too. Out of germination or drying, only the climate of another phase brings the light back. Auto is for autoflowers, which keep long days. A new climate replaces the targets under Control; when the light comes on stays as it is. Drying holds the night figures round the clock, with no light and no CO₂. The alarms Too hot, Too cold and Too humid follow the phase; in germination Too humid rests unless you switch it on."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
@@ -3862,7 +3916,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the phase and come and go with the climate preset under Control, with a phase of the grow or with a plan step. Energy saving applies to standard only."
+        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the phase and come and go with the climate preset under Control, with the climate of a phase of the grow or with a plan step. Energy saving applies to standard only."
       },
       "cameraTunnel": {
         "title": "Pull through the device",
@@ -3959,11 +4013,11 @@
     },
     "drying": {
       "title": "Drying",
-      "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, with the drying phase in the grow or with a drying plan step. Another preset, another phase or a plan step end it with targets of their own. “Control off” brings back the targets from before drying, and the device goes back to its operating mode, energy saving included."
+      "text": "While drying the device knows no day and no night: the light stays off, no CO₂ is dosed, it only dehumidifies and heats to the drying targets. Drying starts with the “Drying” preset under Control, as the climate of the drying phase in the grow or with a drying plan step. Another preset – the climate of a phase included – or a plan step end it with targets of their own. Entering a phase without its climate, or withdrawing one, changes nothing on the device: it goes on drying until drying is ended under Control. “Control off” brings back the targets from before drying, and the device goes back to its operating mode, energy saving included."
     },
     "germination": {
       "title": "Germination · dark",
-      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step – one without a phase too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set; while it runs, both are changed under Control in the climate preset."
+      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate – the climate of a phase included – or plan step – one without a phase too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering a phase without its climate, or withdrawing one, changes nothing on the device, its alarms included: it goes on germinating until germination is ended under Control. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set; while it runs, both are changed under Control in the climate preset."
     },
     "germinationAlarm": {
       "title": "“Too humid” during germination",
@@ -4859,18 +4913,13 @@
       "lost": "You see no place right now"
     },
     "failed": {
-      "title": "No connection to the server",
-      "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back.",
-      "retry": "Try again",
       "loadedToday": "Last loaded at {{time}}.",
-      "loadedOn": "Last loaded on {{time}}.",
-      "serverTitle": "The server reports an error",
-      "serverText": "Your devices keep controlling the climate. It is not your connection – try again in a moment.",
-      "retrying": "Trying …"
+      "loadedOn": "Last loaded on {{time}}."
     },
     "offline": {
       "title": "The device has not reported since {{time}}.",
-      "text": "It keeps holding the last targets. What you see below is the last there is."
+      "text": "It keeps holding the last targets. What you see below is the last there is.",
+      "textOff": "Control was off when it last reported. What you see below is the last there is."
     },
     "demo": {
       "says": "Demo · you are looking on, nothing can be changed",
@@ -4904,7 +4953,13 @@
       "noTargets": "Readings arriving · no targets yet",
       "waiting": "Waiting for the first readings",
       "controlOff": "Control off: the device holds no targets",
-      "more": "+{{count}}"
+      "more": "+{{count}}",
+      "open_one": "{{count}} alert open",
+      "open_other": "{{count}} alerts open",
+      "mode": {
+        "drying": "The device is drying, the grow is in the {{stage}} phase",
+        "germination": "The device is germinating in the dark, the grow is in the {{stage}} phase"
+      }
     },
     "metric": {
       "light": "Light"

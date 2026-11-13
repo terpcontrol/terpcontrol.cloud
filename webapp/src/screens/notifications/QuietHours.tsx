@@ -130,7 +130,7 @@ function TimeField({ label, value, locked, onChange, onLeave }: Field) {
     <label className={parts.field}>
       <span className="label">{label}</span>
       <input
-        className={`mono ${ui.input}`}
+        className={ui.input}
         type="time"
         value={text}
         disabled={locked}

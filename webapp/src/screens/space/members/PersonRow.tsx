@@ -95,7 +95,7 @@ export function PersonRow({
       <span className={styles.controls}>
         {mayManage ? (
           <select
-            className={`mono ${ui.chip} ${styles.roleSelect}`}
+            className={`${ui.chip} ${styles.roleSelect}`}
             value={guest.role}
             aria-label={t('space.members.roleOf', { name })}
             disabled={setRole.isPending}

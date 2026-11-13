@@ -3,7 +3,7 @@
    figure is set with. */
 
 .section {
-  /* The lamp's colour: lit, in the warm edge of the warning's ground. */
+  /* The lamp's colour: lit, in the lamp's own straw. */
   --lit: var(--lamp);
 
   display: flex;
@@ -15,7 +15,6 @@
 
 .planTitle {
   margin: 0;
-  font-family: var(--font-figure);
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   line-height: var(--line-tight);

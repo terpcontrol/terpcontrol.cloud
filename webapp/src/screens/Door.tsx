@@ -70,7 +70,7 @@ export function CodeField({ value, disabled, onChange }: { value: string; disabl
       </label>
       <input
         id="activation-code"
-        className={`mono ${ui.input}`}
+        className={ui.input}
         autoComplete="one-time-code"
         autoCapitalize="none"
         spellCheck={false}

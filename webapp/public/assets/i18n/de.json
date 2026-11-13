@@ -109,9 +109,8 @@
     }
   },
   "notFound": {
-    "title": "Seite nicht gefunden",
-    "text": "Die aufgerufene Seite existiert nicht oder wurde verschoben.",
-    "home": "Zurück zur App"
+    "title": "Unter dieser Adresse liegt nichts",
+    "text": "Die App hat hier keine Seite."
   },
   "devices": {
     "lightOutput": {
@@ -442,13 +441,11 @@
       "holds": "gilt für Grow, Verlauf und Steuerung",
       "chosen": "gewählt"
     },
-    "loadFailed": "Konnte nicht laden. Bitte erneut versuchen.",
+    "loadFailed": "Konnte nicht laden.",
     "unreachable": "Server nicht erreichbar. Bitte erneut versuchen.",
     "cannotReach": {
       "title": "Server nicht erreichbar",
       "why": "Du bist weiterhin angemeldet. Die App lässt sich das bei jedem Start vom Server bestätigen, und diesmal kam keine Antwort – ein Neustart auf der anderen Seite oder eine abgerissene Verbindung. Es ist nichts verloren und nichts muss neu eingetippt werden; meist genügt es, es gleich noch einmal zu versuchen.",
-      "again": "Erneut versuchen",
-      "asking": "Versucht …",
       "signIn": "Stattdessen anmelden"
     },
     "gone": {
@@ -469,7 +466,6 @@
     "crashed": {
       "title": "Dieser Bildschirm konnte nicht gezeichnet werden",
       "why": "Mitten im Zeichnen ist etwas schiefgegangen. An Messwerten und Einträgen ändert das nichts, und der Rest der App läuft weiter.",
-      "again": "Noch einmal versuchen",
       "home": "Start"
     },
     "zoneAdopted": "Uhrzeiten richten sich jetzt nach {{zone}}, der Zeitzone dieses Geräts. Dein Konto stand noch auf {{from}}, womit jedes Konto beginnt – auch die Ruhezeiten gelten jetzt in der neuen Zone.",
@@ -487,7 +483,17 @@
       }
     },
     "skipToContent": "Zum Seiteninhalt springen",
-    "lostSight": "Du siehst {{places}} nicht mehr"
+    "lostSight": "Du siehst {{places}} nicht mehr",
+    "away": {
+      "none": {
+        "title": "Keine Verbindung zum Server",
+        "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht."
+      },
+      "server": {
+        "title": "Der Server meldet einen Fehler",
+        "text": "Deine Geräte regeln weiter. An deiner Verbindung liegt es nicht – versuch es gleich nochmal."
+      }
+    }
   },
   "home": {
     "entryRepeats": "{{count}}× seit {{since}}",
@@ -600,7 +606,10 @@
       "move_you": "hast umgestellt",
       "moveFromTo": "hat von {{from}} nach {{to}} umgestellt",
       "moveFromTo_you": "hast von {{from}} nach {{to}} umgestellt",
-      "nowhere": "keinem festen Ort",
+      "moveTo": "hat nach {{to}} gestellt",
+      "moveTo_you": "hast nach {{to}} gestellt",
+      "moveOut": "hat aus {{from}} genommen",
+      "moveOut_you": "hast aus {{from}} genommen",
       "visit": "hat die Wartung gestartet",
       "visit_you": "hast die Wartung gestartet",
       "still": "hat ein Kamerabild festgehalten",
@@ -630,7 +639,8 @@
       "dueSince": "seit {{time}} fällig"
     },
     "entrySchemeWeek": "Schema-Woche {{week}}",
-    "entryRepeatsUntil": "{{count}}× bis {{until}}"
+    "entryRepeatsUntil": "{{count}}× bis {{until}}",
+    "retrying": "Versucht es …"
   },
   "me": {
     "title": "Ich",
@@ -652,7 +662,7 @@
         "fahrenheit": "°F",
         "grams": "g",
         "ounces": "oz",
-        "liters": "l",
+        "liters": "L",
         "gallons": "gal"
       },
       "unitsLine": "Die Ansichten zeigen vorerst °C, Gramm und Liter."
@@ -968,7 +978,6 @@
       "export": {
         "title": "Alles exportieren",
         "ask": "ZIP erstellen",
-        "again": "Erneut versuchen",
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}} · vor {{age}}",
@@ -1055,7 +1064,7 @@
     "days_one": "{{count}} Tag",
     "days_other": "{{count}} Tage",
     "week": "Woche {{week}}",
-    "dayRange": "Tag {{from}}–{{to}}",
+    "dayRange": "Tag {{from}} bis {{to}}",
     "dayShort": "T {{day}}",
     "correctLine": "Diesen Eintrag berichtigen",
     "ownScheme": "Eigenes Schema",
@@ -1083,10 +1092,13 @@
     "strength": "Stärke {{percent}} %",
     "report": {
       "days": "Tage",
+      "days_one": "Tag",
       "entries": "Einträge",
+      "entries_one": "Eintrag",
       "waters": "Gießen",
       "feeds": "Düngen",
       "photos": "Fotos",
+      "photos_one": "Foto",
       "harvest": "Geerntet",
       "wet": "nass {{grams}} g",
       "dry": "trocken {{grams}} g",
@@ -1099,7 +1111,7 @@
         "title": "Export",
         "note": "Alles über diesen Grow in einem Zip: das Tagebuch, die Messwerte und das Klima – eine Zeile pro Minute, gemittelt – als CSV, und jedes Foto davon.",
         "ask": "Diesen Grow exportieren",
-        "again": "Erneut versuchen",
+        "again": "Noch einmal versuchen",
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}}",
@@ -1118,7 +1130,12 @@
         "move": "Umziehen",
         "split": "Aufteilen",
         "harvest": "Ernten",
-        "rename": "Name und Art"
+        "rename": "Name und Art",
+        "delete": "Grow löschen"
+      },
+      "delete": {
+        "ask": "{{name}} löschen? Der Grow verschwindet mit seinen Pflanzen und der Zeile seiner Phase. Das lässt sich nicht zurücknehmen.",
+        "yes": "Löschen"
       },
       "when": "Am",
       "cancel": "Abbrechen",
@@ -1159,7 +1176,17 @@
           "noPhaseLeft": "Der Grow bleibt ohne Phase und ohne Tageszähler, bis wieder eine gesetzt wird.",
           "timelineOnly": "Auf der Grow-Seite ändert sich nichts: Diese Phase liegt vor der, in der der Grow steht.",
           "entry": "Die Tagebuchzeile, die sie angekündigt hat, zieht mit.",
-          "entryGone": "Die Tagebuchzeile, die sie angekündigt hat, verschwindet mit ihr."
+          "entryGone": "Die Tagebuchzeile, die sie angekündigt hat, verschwindet mit ihr.",
+          "device": "Am Gerät ändert das nichts – es hält weiter: {{figures}}.",
+          "stays": {
+            "drying": "Es trocknet also weiter, bis du die Trocknung unter Steuerung beendest.",
+            "germination": "Es keimt also weiter im Dunkeln, bis du die Keimung unter Steuerung beendest."
+          }
+        },
+        "told": {
+          "corrected": "Phase berichtigt · {{phase}} ab {{day}}",
+          "asWas": "{{phase}} ab {{day}}",
+          "withdrawn": "{{phase}} zurückgenommen"
         }
       },
       "move": {
@@ -1211,6 +1238,7 @@
         "whatWasWritten": "Was geschrieben wurde",
         "alreadyDown": "Bereits geerntet",
         "noWeight": "kein Gewicht",
+        "belowZero": "{{name}}: Ein Gewicht ist 0 g oder mehr.",
         "ended": "{{name}} ist beendet · hier ist sein Bericht"
       },
       "split": {
@@ -1243,7 +1271,7 @@
       "startedOn": "Gestartet am",
       "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
       "starting": "Grow wird gestartet …",
-      "startAndSet": "Starten und Klima auf {{climate}} stellen"
+      "startAndSet": "Starten · Klima: {{climate}}"
     },
     "measurements": {
       "title": "Messwerte",
@@ -1367,9 +1395,17 @@
       "save": "Speichern",
       "saving": "Speichert …",
       "told": {
-        "strain": "Sorte: {{strain}}"
+        "strain": "Sorte: {{strain}}",
+        "added": "Neue Pflanze: {{name}}",
+        "removed": "{{name}} ist gelöscht"
       },
-      "nameTaken": "Eine andere Pflanze dieses Grows heißt schon „{{name}}“."
+      "nameTaken": "Eine andere Pflanze dieses Grows heißt schon „{{name}}“.",
+      "add": "Pflanze hinzufügen",
+      "addIt": "Hinzufügen",
+      "labelOptional": "Name – frei gelassen, wird sie nummeriert",
+      "remove": "Pflanze löschen",
+      "removeAsk": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Was im Tagebuch über sie steht, bleibt.",
+      "removeYes": "Löschen"
     },
     "scheme": {
       "basedOn": "Basiert auf",
@@ -1391,7 +1427,11 @@
       "flip": "Umstellung",
       "noFlip": "keine · Auto",
       "weekShort": "W{{week}}",
-      "perLitre": "pro l",
+      "perLitre": "pro L",
+      "refused": {
+        "number": "{{cell}}: Das ist keine Zahl. Die Zelle bleibt, wie sie war.",
+        "negative": "{{cell}}: Eine Dosis ist 0 oder mehr. Die Zelle bleibt, wie sie war."
+      },
       "cellLabel": "{{product}}, Woche {{week}}",
       "thisWeekLine": "Woche {{week}} ist diese Woche.",
       "howLine": "Auf eine Zelle tippen, um sie zu ändern; eine Zeile ist ein Produkt, „+ Produkt“ fügt ein eigenes hinzu.",
@@ -1436,7 +1476,8 @@
       "told": {
         "saved": "Düngeschema gespeichert",
         "back": "Düngeschema wie vor der Änderung",
-        "none": "Grow ohne Düngeschema"
+        "none": "Grow ohne Düngeschema",
+        "switched": "Düngeschema: {{name}}"
       }
     },
     "menu": {
@@ -1483,6 +1524,8 @@
       "written_other": "{{count}} Einträge",
       "maintenance": "Wartung · {{span}}",
       "maintenanceOn": "Wartung läuft",
+      "controlOff": "Regelung aus · {{span}}",
+      "controlOffOn": "Regelung ist aus",
       "light": "Licht {{from}}–{{to}}",
       "outside": "{{metric}} {{span}} außerhalb",
       "outsideOften": "{{metric}} {{count}}× außerhalb · zusammen {{span}}",
@@ -1494,7 +1537,9 @@
       "lightAgainAt": "wieder an um {{at}}",
       "lightAgainSince": "wieder an seit {{at}}",
       "openCurves": "Kurven zu diesem Tag",
-      "measuredBy": "Ab hier misst {{name}}"
+      "measuredBy": "Ab hier misst {{name}}",
+      "alarmsAmong_one": "davon {{count}} Alarm",
+      "alarmsAmong_other": "davon {{count}} Alarme"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -1517,6 +1562,17 @@
       "thisWeek": "Diese Woche · ab Tag {{day}}",
       "add": "Foto aufnehmen",
       "noneInWeeks": "Keine Bilder in diesen Wochen"
+    },
+    "harvestedCount_one": "{{count}} geerntet",
+    "harvestedCount_other": "{{count}} geerntet",
+    "told": {
+      "moved": "{{name}} · neuer Ort: {{place}}",
+      "movedNowhere": "{{name}} · kein fester Ort",
+      "split_one": "{{count}} Pflanze geht ihren eigenen Weg",
+      "split_other": "{{count}} Pflanzen gehen ihren eigenen Weg",
+      "started": "{{name}} gestartet",
+      "start": "Start: {{date}}",
+      "deleted": "{{name}} ist gelöscht"
     }
   },
   "space": {
@@ -1895,7 +1951,7 @@
     "targetLabel": "Worum es in dem Eintrag geht",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf Start · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
-    "litres": "{{litres}} l",
+    "litres": "{{litres}} L",
     "tile": {
       "water": "Gießen",
       "feed": "Düngen",
@@ -1941,7 +1997,6 @@
     "noteOptional": "Notiz (optional)",
     "undo": "Widerrufen",
     "details": "Details",
-    "tryAgain": "Nochmal versuchen",
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
     "uploaded": "{{done}} von {{total}} Bildern hochgeladen",
@@ -1969,11 +2024,11 @@
     "noConnection": "Keine Verbindung · wird gesendet, sobald sie wieder da ist",
     "targetsSet": "Zielwerte gesetzt",
     "waterLitres": "Wasser in Litern",
-    "lastTime": "Zuletzt {{ago}} · {{litres}} l",
+    "lastTime": "Zuletzt {{ago}} · {{litres}} L",
     "plantLabel": "Welche Pflanze",
     "schemeWeek": "Schema-Woche {{week}}",
     "litresNoNumber": "Das ist keine Zahl.",
-    "litresTooMuch": "Höchstens {{max}} l.",
+    "litresTooMuch": "Höchstens {{max}} L.",
     "corrected": "Eintrag berichtigt",
     "takenBack": "Eintrag gelöscht",
     "undone": "Widerrufen",
@@ -1982,7 +2037,10 @@
     "asBefore": "{{what}} wie zuvor",
     "noMore": "{{what}} gibt es nicht mehr",
     "phaseBefore": "wieder die Phase davor",
-    "deleteFailed": "Der Eintrag konnte nicht gelöscht werden"
+    "deleteFailed": "Der Eintrag konnte nicht gelöscht werden",
+    "litresBelow": "Mehr als 0 L.",
+    "readingNoNumber": "{{name}}: Das ist keine Zahl.",
+    "pictures": "Bilder dieses Eintrags"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -2195,6 +2253,7 @@
     "testFailed": "Das hat die Kamera nicht erreicht.",
     "testNoAnswer": "Auch nach über {{minutes}} Minuten keine Antwort. Bitte erneut versuchen.",
     "testOffline": "Geht wieder, sobald das Gerät online ist.",
+    "testSilent": "{{device}} meldet sich gerade nicht – geht wieder, sobald es sich meldet.",
     "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
@@ -2251,7 +2310,7 @@
       },
       "overlaid": "mit Einblendungen",
       "play": "Abspielen",
-      "close": "Schließen",
+      "close": "Film schließen",
       "which": "Film",
       "playIt": "Film abspielen",
       "make": "Film erstellen",
@@ -2297,9 +2356,8 @@
       "since": "kein Bild seit {{time}}"
     },
     "picture": {
-      "today": "heute, {{time}}",
       "lightOff": "Licht aus · Bild von {{time}}",
-      "last": "letztes Bild {{time}}"
+      "last": "letztes Bild von {{time}}"
     },
     "noPicture": "Diese Kamera hat noch kein Bild geliefert.",
     "days": {
@@ -2500,10 +2558,6 @@
       "title": "Letzter Tag dieses Zeitraums · {{from}} – {{to}}",
       "range": "{{low}} – {{high}}",
       "none": "Am letzten Tag dieses Zeitraums wurde nichts gemeldet"
-    },
-    "noPage": {
-      "title": "Unter dieser Adresse liegt nichts",
-      "body": "Die App hat hier keine Seite."
     },
     "timeline": "Verlauf"
   },
@@ -2763,11 +2817,6 @@
       "chore": "Routine",
       "custom": "Eigene"
     },
-    "kindMeta": {
-      "water": "gießen",
-      "feed": "düngen",
-      "chore": "Routine"
-    },
     "assignedToYou": "dir zugeteilt",
     "assignedToSomeone": "jemand anderem zugeteilt",
     "ticked": {
@@ -2784,6 +2833,11 @@
       "what": "Was",
       "label": "Was zu tun ist",
       "labelPlaceholder": "Gießen, Aktivkohlefilter reinigen …",
+      "missing": {
+        "label": "Zum Speichern fehlt noch, was zu tun ist.",
+        "subject": "Zum Speichern fehlt noch, worum es geht: ein Grow oder ein Ort.",
+        "day": "Zum Speichern fehlt noch der Tag."
+      },
       "kind": "Art",
       "litres": "Liter pro Kanne · optional",
       "about": "Wofür",
@@ -3651,7 +3705,7 @@
     },
     "phasePreset": {
       "title": "Zielwerte mit der Phase",
-      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Eine Keimung, die nur eingetragen wird, lässt neben einem Gerät mit Licht auch die Alarme, wie sie sind. Aus der Keimung heraus bringt jede andere Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Das gilt für jede Phase, auch für Keimung und Trocknung: Nur eingetragen, lässt sie das Gerät, wie es ist, und neben einem Gerät mit Licht auch die Alarme. Aus der Keimung oder Trocknung heraus bringt erst das Klima einer anderen Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",
@@ -3872,7 +3926,7 @@
     "advanced": {
       "operatingMode": {
         "title": "Betriebsart",
-        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung · dunkel und Trocknung wählst du nicht hier: Sie gehören zur Phase und kommen und gehen mit dem Klima-Preset unter Steuerung, mit einer Phase im Grow oder mit einem Planschritt. Der Energiespar-Modus gilt nur im Standard."
+        "text": "Was das Gerät als Ganzes tut, solange die Regelung an ist. Standard regelt Temperatur, Luftfeuchte, Licht und CO₂ nach Tag und Nacht. Gewächshaus regelt nur die Temperatur: Licht und CO₂ laufen nach dem Lichtplan weiter, der Kompressor kühlt nur und entfeuchtet nicht gezielt. Keimung · dunkel und Trocknung wählst du nicht hier: Sie gehören zur Phase und kommen und gehen mit dem Klima-Preset unter Steuerung, mit dem Klima einer Phase im Grow oder mit einem Planschritt. Der Energiespar-Modus gilt nur im Standard."
       },
       "cameraTunnel": {
         "title": "Über das Gerät holen",
@@ -3969,11 +4023,11 @@
     },
     "drying": {
       "title": "Trocknung",
-      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, mit der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset, eine andere Phase oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. „Regelung aus“ bringt die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
+      "text": "In der Trocknung kennt das Gerät keinen Tag und keine Nacht: Das Licht bleibt aus, CO₂ wird nicht dosiert, es wird nur entfeuchtet und geheizt, auf die Zielwerte der Trocknung. Sie beginnt mit dem Preset „Trocknung“ unter Steuerung, als Klima der Phase Trocknung im Grow oder mit einem Planschritt der Trocknung. Ein anderes Preset – auch als Klima einer Phase – oder ein Planschritt beenden sie mit ihren eigenen Zielwerten. Wer eine Phase ohne Klima einträgt oder zurücknimmt, ändert am Gerät nichts: Es trocknet weiter, bis die Trocknung unter Steuerung beendet wird. „Regelung aus“ bringt die Zielwerte von vor der Trocknung zurück, und das Gerät kehrt zu seiner Betriebsart zurück, Energiespar eingeschlossen."
     },
     "germination": {
       "title": "Keimung · dunkel",
-      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Dazu bringt die Keimung 75 % Luftfeuchte mit: Samen keimen gut zwischen etwa 70 und 90 % – trockener trocknet das Substrat oben aus und die Samenschale wird hart, feuchter steht Wasser auf Substrat und Schale. 75 % liegt sicher dazwischen, unter den 90 %, ab denen „Zu feucht“ warnt, und der Sämling danach hält 65–70 %. Halten kann sie nur ein Befeuchter an einer Steckdose; endet die Keimung, gilt die Luftfeuchte von vorher wieder. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten oder mit einem Planschritt der Keimung. Jedes andere Klima, jede andere Phase und jeder andere Planschritt – auch einer ohne Phase – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer die Phase Keimung ohne Klima einträgt, ändert am Gerät nichts, auch nicht an seinen Alarmen. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst; solange sie läuft, änderst du beides unter Steuerung im Klima-Preset."
+      "text": "Samen keimen im Dunkeln: Das Gerät geht in die Betriebsart Keimung – kein Licht, kein CO₂, die Luftfeuchte hält höchstens ein Befeuchter – und heizt und kühlt rund um die Uhr auf eine Temperatur. Am Zelt kühlt dabei die Abluft; ein Entfeuchter bleibt aus, denn er würde wärmen und das Keimsubstrat austrocknen. Vorgeschlagen sind 24 °C, die Mitte der 22–26 °C, in denen Samen am schnellsten keimen. Dazu bringt die Keimung 75 % Luftfeuchte mit: Samen keimen gut zwischen etwa 70 und 90 % – trockener trocknet das Substrat oben aus und die Samenschale wird hart, feuchter steht Wasser auf Substrat und Schale. 75 % liegt sicher dazwischen, unter den 90 %, ab denen „Zu feucht“ warnt, und der Sämling danach hält 65–70 %. Halten kann sie nur ein Befeuchter an einer Steckdose; endet die Keimung, gilt die Luftfeuchte von vorher wieder. Die Keimung beginnt mit „Keimung · dunkel“ unter Steuerung, als Klima der Phase Keimung, beim Einrichten oder mit einem Planschritt der Keimung. Jedes andere Klima – auch als Klima einer Phase – und jeder andere Planschritt – auch einer ohne Phase – beendet sie: Das Gerät hält wieder Tag und Nacht mit Licht, im Standard samt Energiespar. Wer eine Phase ohne Klima einträgt oder zurücknimmt, ändert am Gerät nichts, auch nicht an seinen Alarmen: Es keimt weiter, bis die Keimung unter Steuerung beendet wird. Ob „Zu feucht“ in der Keimung warnt und ob ein Befeuchter die Luftfeuchte hält, wählst du dort, wo du die Keimung einstellst; solange sie läuft, änderst du beides unter Steuerung im Klima-Preset."
     },
     "germinationAlarm": {
       "title": "„Zu feucht“ in der Keimung",
@@ -4869,18 +4923,13 @@
       "lost": "Du siehst gerade keinen Ort"
     },
     "failed": {
-      "title": "Keine Verbindung zum Server",
-      "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht.",
-      "retry": "Nochmal versuchen",
       "loadedToday": "Zuletzt geladen um {{time}}.",
-      "loadedOn": "Zuletzt geladen am {{time}}.",
-      "serverTitle": "Der Server meldet einen Fehler",
-      "serverText": "Deine Geräte regeln weiter. An deiner Verbindung liegt es nicht – versuch es gleich nochmal.",
-      "retrying": "Versuche es …"
+      "loadedOn": "Zuletzt geladen am {{time}}."
     },
     "offline": {
       "title": "Das Gerät meldet sich seit {{time}} nicht.",
-      "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand."
+      "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand.",
+      "textOff": "Die Regelung war aus, als es sich zuletzt gemeldet hat. Was unten steht, ist der letzte Stand."
     },
     "demo": {
       "says": "Demo · du siehst zu, ändern geht nicht",
@@ -4914,7 +4963,13 @@
       "noTargets": "Werte kommen an · noch keine Zielwerte",
       "waiting": "Wartet auf die ersten Werte",
       "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte",
-      "more": "+{{count}}"
+      "more": "+{{count}}",
+      "open_one": "{{count}} Meldung offen",
+      "open_other": "{{count}} Meldungen offen",
+      "mode": {
+        "drying": "Das Gerät trocknet, der Grow ist in der Phase {{stage}}",
+        "germination": "Das Gerät keimt im Dunkeln, der Grow ist in der Phase {{stage}}"
+      }
     },
     "metric": {
       "light": "Licht"

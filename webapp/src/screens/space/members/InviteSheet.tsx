@@ -152,19 +152,19 @@ function Made({ invite }: { invite: Invite }) {
       <div id="invite-way-panel" role="tabpanel" aria-labelledby={`invite-way-${way}`} className={`${ui.card} ${styles.pane}`}>
         {way === 'link' ? (
           <div className={`${ui.row2} ${styles.addressRow}`}>
-            <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
+            <code className={styles.address}>{shownAddress(invite.code)}</code>
             <CopyButton value={address} label={t('space.members.copyLink')} />
           </div>
         ) : way === 'code' ? (
           <>
-            <code className={`mono ${styles.code}`}>{invite.code}</code>
-            <p className={`mono ${styles.hint}`}>{t('space.members.sheet.codeHint', { address: codeEntryAddress() })}</p>
+            <code className={styles.code}>{invite.code}</code>
+            <p className={styles.hint}>{t('space.members.sheet.codeHint', { address: codeEntryAddress() })}</p>
             <CopyButton value={invite.code} label={t('space.members.sheet.copyCode')} />
           </>
         ) : (
           <>
             <QrCode value={address} label={t('space.members.sheet.qrLabel', { address: shownAddress(invite.code) })} />
-            <p className={`mono ${styles.hint}`}>{t('space.members.sheet.qrHint')}</p>
+            <p className={styles.hint}>{t('space.members.sheet.qrHint')}</p>
           </>
         )}
       </div>

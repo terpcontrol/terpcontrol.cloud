@@ -106,7 +106,6 @@
   padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--card-2);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   color: var(--muted);
@@ -205,7 +204,6 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-pill);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   line-height: var(--line-tight);
@@ -295,7 +293,6 @@
   display: flex;
   align-items: baseline;
   gap: 3px;
-  font-family: var(--font-figure);
   font-size: 20px;
   font-weight: var(--weight-figure);
   letter-spacing: -0.01em;
@@ -336,8 +333,12 @@
     border-color 120ms ease-out;
 }
 
-.button:hover:not(:disabled) {
-  border-color: var(--brand);
+/* Only for a pointer that hovers: a tap leaves the pointer where it was, and the ring stayed on whatever slid under it - a
+   key of the keypad the sheet opened over a tile - where it reads as the focus. */
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    border-color: var(--brand);
+  }
 }
 
 /* An icon keeps its size when a narrow row squeezes the words beside it. */
@@ -408,7 +409,6 @@
   border: var(--rule-solid);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   white-space: nowrap;

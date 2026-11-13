@@ -167,7 +167,7 @@ export function SocketFormSheet({
             <Help topic="socketAddress" />
           </span>
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             aria-label={t('socketForm.address')}
             value={draft.address}
             placeholder="192.168.1.50"
@@ -282,7 +282,7 @@ function SpanField({ label, span, onChange }: { label: string; span: Span; onCha
   return (
     <span className={styles.span}>
       <input
-        className={`mono ${ui.input} ${styles.spanValue}`}
+        className={`${ui.input} ${styles.spanValue}`}
         inputMode="decimal"
         aria-label={label}
         value={span.value}

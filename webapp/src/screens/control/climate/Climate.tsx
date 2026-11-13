@@ -449,7 +449,7 @@ function FigureSheet({
         return (
           <>
             {half && (metric === 'temperature' || metric === 'humidity') ? (
-              <p className={`mono ${styles.derived}`}>
+              <p className={styles.derived}>
                 <Term topic="vpd">{t('targets.table.vpd', { value: vpdText(device, next, half) })}</Term>
               </p>
             ) : null}

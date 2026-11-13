@@ -220,7 +220,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           {plan.name}
           <Help topic="plan" />
         </h2>
-        <span className={`mono ${styles.status}`} data-status={plan.state.status}>
+        <span className={styles.status} data-status={plan.state.status}>
           {t(`space.control.status.${plan.state.status}`)}
         </span>
       </header>
@@ -239,12 +239,12 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       {plan.state.status === 'completed' ? null : step ? (
         <>
           <p className={styles.stepLine}>
-            <span className={`mono ${styles.stepNumber}`}>
+            <span className={styles.stepNumber}>
               {t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })}
             </span>
             <span className={styles.stepName}>{step.name}</span>
           </p>
-          <p className={`mono ${styles.stepMeta}`}>
+          <p className={styles.stepMeta}>
             {stepMeta(t, step, offsetOf(serverNow(), zone), followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop))}
           </p>
 
@@ -300,7 +300,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine
           clears it to send the step within its next pass. A plan at rest writes nothing, whether it ever ran or not,
           so the line names no last step. */}
-      <p className={`mono ${styles.applied}`} {...ageAttribute(liveness)}>
+      <p className={styles.applied} {...ageAttribute(liveness)}>
         {plan.state.lastAppliedAt
           ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
           : t(going ? 'space.control.applied.never' : 'space.control.applied.atRest')}
@@ -503,10 +503,10 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
             <span className={`${ui.textColumn} ${styles.stepText}`}>
               <span className={styles.stepTitle}>{step.name}</span>
-              <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
+              <span className={styles.stepNote}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
             </span>
             {active ? (
-              <span className={`mono ${styles.here}`} data-status={how}>
+              <span className={styles.here} data-status={how}>
                 {how === 'waiting' ? t('space.control.waiting.short') : t(`space.control.status.${plan.state.status}`)}
               </span>
             ) : null}

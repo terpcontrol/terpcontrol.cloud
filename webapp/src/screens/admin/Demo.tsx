@@ -64,7 +64,7 @@ export function Demo() {
       <section className={styles.card}>
         <div className={styles.cardHead}>
           <Label text={t('admin.demo.devices')} help="demoObjects" />
-          <span className={`mono ${styles.consequence}`}>{t('admin.demo.deviceCount', { devices: shownDevices.length })}</span>
+          <span className={styles.consequence}>{t('admin.demo.deviceCount', { devices: shownDevices.length })}</span>
         </div>
         <ul className={styles.lines}>
           {shownDevices.map(device => {
@@ -97,9 +97,7 @@ export function Demo() {
         <ul className={styles.lines}>
           {shownSpaces.map(space => (
             <li key={space.id} className={ui.wrapRow}>
-              <Link className="mono" to={placePath(space.id)}>
-                {space.name}
-              </Link>
+              <Link to={placePath(space.id)}>{space.name}</Link>
               <span className={styles.consequence}>{t(`publicPage.spaceKind.${space.kind}`, { defaultValue: space.kind })}</span>
             </li>
           ))}
@@ -115,7 +113,7 @@ export function Demo() {
           {shownGrows.map(grow => (
             <li key={grow.id} className={ui.wrapRow}>
               <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
-              <span className={`mono ${styles.consequence}`}>
+              <span className={styles.consequence}>
                 {grow.summary.dayNumber !== null ? t('home.card.dayN', { day: grow.summary.dayNumber }) : t('admin.demo.notStarted')}
                 {grow.visibility === 'public' ? ` · ${t('admin.demo.public')}` : ''}
               </span>
@@ -132,9 +130,7 @@ export function Demo() {
         <ul className={styles.lines}>
           {shownCameras.map(camera => (
             <li key={camera.id} className={ui.wrapRow}>
-              <Link className="mono" to={`/cameras/${camera.id}`}>
-                {camera.name}
-              </Link>
+              <Link to={`/cameras/${camera.id}`}>{camera.name}</Link>
               <Liveness state={cameraFreshness(camera, now)}>
                 {camera.state.lastStillAt ? t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) }) : t('devices.noStill')}
               </Liveness>

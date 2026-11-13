@@ -92,9 +92,7 @@ export function Fleet() {
   return (
     <section className={ui.stack4}>
       <AdminHead title={t('admin.fleet.title')} readAt={fleet.dataUpdatedAt}>
-        <span className={`mono ${styles.counts}`}>
-          {`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}
-        </span>
+        <span className={styles.counts}>{`${t('admin.count.devices', { count: counted })} · ${t('admin.count.online', { count: online })}`}</span>
         <Filters filter={filter} onChange={setFilter} types={typesOf(rows)} />
       </AdminHead>
 
@@ -137,7 +135,7 @@ export function Fleet() {
           that, because the rows above it also hold the standalone cameras and
           no route counts those on their own. */}
       <div className={ui.wrapRow}>
-        <span className={`mono ${styles.consequence}`}>
+        <span className={styles.consequence}>
           {t('admin.fleet.showing', { shown: shown.length, loaded: rows.length, devices: t('admin.count.devices', { count: counted }) })}
           {` · ${t('admin.fleet.camerasOwn')}`}
           {cameras.hasNextPage ? ` · ${t('admin.fleet.camerasPartial')}` : ''}
@@ -194,7 +192,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
       </Choice>
 
       <input
-        className={`mono ${ui.input} ${styles.search}`}
+        className={`${ui.input} ${styles.search}`}
         type="search"
         autoComplete="off"
         aria-label={t('admin.fleet.filter.search')}

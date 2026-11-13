@@ -139,7 +139,7 @@ function Register({ classes }: { classes: DeviceClass[] }) {
         </label>
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.version')}</span>
-          <input className={`mono ${ui.input}`} value={version} autoComplete="off" onChange={event => setVersion(event.target.value)} />
+          <input className={ui.input} value={version} autoComplete="off" onChange={event => setVersion(event.target.value)} />
         </label>
       </div>
 
@@ -272,9 +272,9 @@ function UploadSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       </label>
       <label className={styles.field}>
         <span className="label">{t('admin.firmware.fileName')}</span>
-        <input className={`mono ${ui.input}`} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
+        <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
       </label>
-      {file ? <p className={`mono ${styles.consequence}`}>{t('admin.count.bytes', { count: file.size })}</p> : null}
+      {file ? <p className={styles.consequence}>{t('admin.count.bytes', { count: file.size })}</p> : null}
       <Refused error={upload.error} />
     </Sheet>
   );

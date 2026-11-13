@@ -126,9 +126,10 @@
      does not borrow the ochre. */
   --output: #6981ab;
 
-  /* The lamp's own light, on a lane and behind a lit day: a soft straw,
-     lighter than the ochre a warning is written in. */
-  --lamp: #dcbc74;
+  /* The lamp's own light, on a lane and behind a lit day: a straw, lighter and
+     yellower than the ochre a warning is written in, and strong enough to be
+     seen on its lane (oklch 0.72 0.12 88; in dark mode 0.86 0.10 95). */
+  --lamp: #c4a040;
 
   /* The ground a warning or an alarm stands on and the edge round it, written
      out rather than mixed, so each is the signal's own hue at the lightness of
@@ -295,74 +296,80 @@
   }
 }
 
-:root[data-theme='dark'] {
-  color-scheme: dark;
+/* Dark mode is the screen's. Paper is light whatever the theme: under print the
+   light tokens above hold, so a report printed from the dark theme is ink on
+   paper rather than the dark mode's pale ink on a white sheet - a browser
+   prints no background unless it is asked to. */
+@media screen {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
 
-  /* Dark mode - a near-black with a breath of the navy; the ink is the paper. */
-  --bg: #14161a;
-  --card: #1d1f24;
-  --card-2: #24282e;
-  --rule: #2d3037;
-  --rule-strong: #44484f;
-  --control-edge: #808693;
-  --ink: #e9e8e3;
-  --muted: #adaba3;
-  --label: #adaba3;
-  --heading: #f3f2ee;
+    /* Dark mode - a near-black with a breath of the navy; the ink is the paper. */
+    --bg: #14161a;
+    --card: #1d1f24;
+    --card-2: #24282e;
+    --rule: #2d3037;
+    --rule-strong: #44484f;
+    --control-edge: #808693;
+    --ink: #e9e8e3;
+    --muted: #adaba3;
+    --label: #adaba3;
+    --heading: #f3f2ee;
 
-  --brand: #afc5ec;
-  --on-brand: #161b24;
-  --brand-wash: #242e40;
-  --selected: #242e40;
-  --selected-edge: #6d81a5;
-  --on-selected: #f3f2ee;
-  --bar-current: #afc5ec;
-  --green: #95c78a;
-  --green-ink: #acd9a2;
-  --green-wash: #243221;
-  --green-fill: #3e8024;
-  --on-green: #ffffff;
+    --brand: #afc5ec;
+    --on-brand: #161b24;
+    --brand-wash: #242e40;
+    --selected: #242e40;
+    --selected-edge: #6d81a5;
+    --on-selected: #f3f2ee;
+    --bar-current: #afc5ec;
+    --green: #95c78a;
+    --green-ink: #acd9a2;
+    --green-wash: #243221;
+    --green-fill: #3e8024;
+    --on-green: #ffffff;
 
-  --tint: #24282e;
-  --tint-hover: #2a2e35;
+    --tint: #24282e;
+    --tint-hover: #2a2e35;
 
-  --band: rgba(149, 199, 138, 0.16);
-  --night: rgba(0, 0, 0, 0.2);
-  --night-long: rgba(0, 0, 0, 0.1);
-  --grid: rgba(173, 171, 163, 0.12);
+    --band: rgba(149, 199, 138, 0.16);
+    --night: rgba(0, 0, 0, 0.2);
+    --night-long: rgba(0, 0, 0, 0.1);
+    --grid: rgba(173, 171, 163, 0.12);
 
-  --shadow: none;
-  --shadow-raised: 0 24px 48px -16px rgb(0 0 0 / 60%);
-  --shadow-bar: 0 -8px 24px -16px rgb(0 0 0 / 50%);
+    --shadow: none;
+    --shadow-raised: 0 24px 48px -16px rgb(0 0 0 / 60%);
+    --shadow-bar: 0 -8px 24px -16px rgb(0 0 0 / 50%);
 
-  --logo-colour: none;
-  --logo-reverse: block;
+    --logo-colour: none;
+    --logo-reverse: block;
 
-  --scrim: rgb(0 0 0 / 60%);
-  --toast: #2d333d;
-  --toast-ink: #e9e8e3;
+    --scrim: rgb(0 0 0 / 60%);
+    --toast: #2d333d;
+    --toast-ink: #e9e8e3;
 
-  --temperature: #e8a587;
-  --humidity: #8ac1d7;
-  --co2: #cda8d6;
-  --warning: #dfc07f;
-  --alarm: #ea9794;
-  --on-signal: var(--bg);
-  --series-mark: initial;
-  --series-fill: #242e40;
-  --series-edge: #6d81a5;
-  --series-ink: #f3f2ee;
+    --temperature: #e8a587;
+    --humidity: #8ac1d7;
+    --co2: #cda8d6;
+    --warning: #dfc07f;
+    --alarm: #ea9794;
+    --on-signal: var(--bg);
+    --series-mark: initial;
+    --series-fill: #242e40;
+    --series-edge: #6d81a5;
+    --series-ink: #f3f2ee;
 
-  --output: #90a5cb;
-  --lamp: #dfc07f;
-  /* A warning in dark mode stands on the lifted surface and its edge says the rest. */
-  --warning-wash: var(--card-2);
-  --warning-edge: #b89a5a;
-  --alarm-wash: var(--card-2);
-  --alarm-edge: #c87976;
+    --output: #90a5cb;
+    --lamp: #e5d183;
+    /* A warning in dark mode stands on the lifted surface and its edge says the rest. */
+    --warning-wash: var(--card-2);
+    --warning-edge: #b89a5a;
+    --alarm-wash: var(--card-2);
+    --alarm-edge: #c87976;
+  }
 }
 
-@media (prefers-color-scheme: dark) {
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
@@ -421,7 +428,7 @@
     --series-ink: #f3f2ee;
 
     --output: #90a5cb;
-    --lamp: #dfc07f;
+    --lamp: #e5d183;
     /* A warning in dark mode stands on the lifted surface and its edge says the rest. */
     --warning-wash: var(--card-2);
     --warning-edge: #b89a5a;

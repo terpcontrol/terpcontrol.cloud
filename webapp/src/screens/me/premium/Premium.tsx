@@ -175,21 +175,18 @@ function CameraCard({
       <div className={ui.headRow}>
         <span className={styles.cameraName}>
           <Link to={`/cameras/${camera.id}`}>{name}</Link>
-          <Facts
-            className={`mono ${styles.kind}`}
-            facts={[...factsOf(t(`me.premium.kind.${camera.kind}`)).filter(word => word !== factsOf(name)[0]), place]}
-          />
+          <Facts className={styles.kind} facts={[...factsOf(t(`me.premium.kind.${camera.kind}`)).filter(word => word !== factsOf(name)[0]), place]} />
           {enforced && entitled ? <span className={styles.chip}>{t('me.premium.tier.premium')}</span> : null}
         </span>
         {enforced ? (
-          <span className={`mono ${styles.until}`} data-tier={tier}>
+          <span className={styles.until} data-tier={tier}>
             {entitled ? (validUntil ? t('me.premium.until', { date: calendarDay(validUntil, zone) }) : '') : t('me.premium.tier.free')}
           </span>
         ) : null}
       </div>
       <p className={`${ui.note} ${styles.line}`}>{lineOf(t, camera, premium, zone)}</p>
       {days !== null ? (
-        <p className={`mono ${styles.ending}`} role="status">
+        <p className={styles.ending} role="status">
           {days === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: days })}
         </p>
       ) : null}
@@ -244,7 +241,7 @@ function Covers({ free }: { free: PremiumFree | null }) {
           {t('me.premium.covers')}
           <Help topic="premiumCamera" />
         </span>
-        <span className={`mono ${styles.only}`}>{t('me.premium.camerasOnly')}</span>
+        <span className={styles.only}>{t('me.premium.camerasOnly')}</span>
       </header>
       <div className={ui.tableCard}>
         <table className={styles.table}>
@@ -290,7 +287,7 @@ function Offer({ camera, premium }: { camera: Camera; premium: Me['premium'] }) 
   return (
     <a className={`${ui.button} ${styles.offer}`} href={premium.extendUrl!} target="_blank" rel="noreferrer">
       {camera.entitlement.grant === null ? t('me.premium.get') : t('me.premium.extend')}
-      {premium.priceLabel ? <span className={`mono ${styles.price}`}> · {premium.priceLabel}</span> : null}
+      {premium.priceLabel ? <span className={styles.price}> · {premium.priceLabel}</span> : null}
     </a>
   );
 }

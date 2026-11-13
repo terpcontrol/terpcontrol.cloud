@@ -61,13 +61,10 @@ export function DeviceDiagnosis() {
       {head}
 
       <div className={styles.facts}>
-        <Fact label={t('admin.diagnosis.device')} value={<span className="mono">{one.id}</span>} />
+        <Fact label={t('admin.diagnosis.device')} value={one.id} />
         <Fact label={t('admin.diagnosis.type')} value={typeName(one.type, t)} />
-        <Fact label={t('admin.diagnosis.serial')} value={<span className="mono">{one.serialNumber ?? '—'}</span>} />
-        <Fact
-          label={t('admin.diagnosis.owner')}
-          value={owner ? `@${owner.handle} · ${owner.email}` : one.ownerId ? <span className="mono">{one.ownerId}</span> : t('admin.fleet.unclaimed')}
-        />
+        <Fact label={t('admin.diagnosis.serial')} value={one.serialNumber ?? '—'} />
+        <Fact label={t('admin.diagnosis.owner')} value={owner ? `@${owner.handle} · ${owner.email}` : (one.ownerId ?? t('admin.fleet.unclaimed'))} />
         {/* The customer reads every time in their own zone; on the phone with them, support has to know which. */}
         {owner ? <Fact label={t('admin.diagnosis.zone')} value={owner.preferences.timezone ?? t('admin.diagnosis.noZone')} /> : null}
         <Fact
@@ -143,7 +140,7 @@ function Place({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
   const overview = useSpaceOverview(spaceId);
 
-  return <Fact label={t('admin.diagnosis.place')} value={overview.data?.name ?? <span className="mono">{spaceId}</span>} />;
+  return <Fact label={t('admin.diagnosis.place')} value={overview.data?.name ?? spaceId} />;
 }
 
 /** The build it reports, by the version it was stamped with where this install has a record of it. */
@@ -153,7 +150,7 @@ function Build({ device }: { device: Device }) {
   const build = itemsOf(firmwares.data).find(one => one.id === device.state.firmwareId);
 
   return (
-    <span className="mono">
+    <span>
       {buildLabel(build) ?? device.state.firmwareId ?? '—'} · {t(`devices.channel.${device.firmware.channel}`)}
     </span>
   );

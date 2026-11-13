@@ -77,7 +77,7 @@ export function AdminNotLoaded({ head, lines = 4, retry }: { head: ReactNode; li
 /** How recently something was heard from, as the coloured dot and the words beside it. */
 export function Liveness({ state, children }: { state: string; children: ReactNode }) {
   return (
-    <span className={`mono ${styles.liveness}`} data-liveness={state}>
+    <span className={styles.liveness} data-liveness={state}>
       <span className={styles.dot} aria-hidden />
       {children}
     </span>

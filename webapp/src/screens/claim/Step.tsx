@@ -46,7 +46,7 @@ export function Step({
 
   return (
     <section className={styles.step} data-state={state} aria-current={open ? 'step' : undefined}>
-      <span className={`mono ${styles.marker}`} data-state={state} aria-hidden>
+      <span className={styles.marker} data-state={state} aria-hidden>
         {state === 'done' ? <Check size={14} strokeWidth={2.5} /> : number}
       </span>
 

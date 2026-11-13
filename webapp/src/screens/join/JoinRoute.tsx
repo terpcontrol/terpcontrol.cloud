@@ -91,9 +91,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
         <p className={styles.term}>{t(`space.members.join.asRole.${preview.role ?? 'can_log'}`)}</p>
         <p className={styles.term}>{t('space.members.join.sees', { name })}</p>
         <p className={styles.term}>{t('space.members.join.doesNotSee')}</p>
-        {preview.expiresAt ? (
-          <p className={`mono ${styles.until}`}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p>
-        ) : null}
+        {preview.expiresAt ? <p className={styles.until}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p> : null}
       </div>
 
       {isDemo ? (
@@ -155,7 +153,7 @@ function CodeEntry() {
         noValidate
       >
         <input
-          className={`mono ${ui.input}`}
+          className={ui.input}
           aria-label={t('space.members.join.code.field')}
           placeholder={t('space.members.join.code.field')}
           autoCapitalize="characters"

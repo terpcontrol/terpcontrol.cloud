@@ -46,10 +46,7 @@ export function Account() {
     <AccountPage title={t('me.account.title')} demo={t('me.demo')}>
       {(account, held) => (
         <>
-          <Row
-            title={t('me.account.email.title')}
-            line={<Facts facts={[<span className="mono">{account.email}</span>, ...factsOf(t('me.account.email.line'))]} />}
-          />
+          <Row title={t('me.account.email.title')} line={<Facts facts={[account.email, ...factsOf(t('me.account.email.line'))]} />} />
           <PasswordRow held={held} />
           <ZoneRow kept={account.preferences.timezone} held={held} />
 
@@ -254,7 +251,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
             <div className={ui.textColumn}>
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
               <Facts
-                className={`mono ${styles.sessionMeta}`}
+                className={styles.sessionMeta}
                 facts={[
                   t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) }),
                   t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) }),

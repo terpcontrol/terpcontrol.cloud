@@ -10,7 +10,7 @@ export function Fact({ label, value }: { label: React.ReactNode; value: React.Re
   return (
     <div className={`${ui.headRow} ${styles.fact}`}>
       <dt className="label">{label}</dt>
-      <dd className={`mono ${styles.factValue}`}>{value}</dd>
+      <dd className={styles.factValue}>{value}</dd>
     </div>
   );
 }

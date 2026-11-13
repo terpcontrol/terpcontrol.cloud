@@ -148,10 +148,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
           />
         </Block>
 
-        <Block
-          label={t('space.control.editor.steps')}
-          aside={<span className="mono">{t('space.control.editor.stepCount', { count: draft.steps.length })}</span>}
-        >
+        <Block label={t('space.control.editor.steps')} aside={t('space.control.editor.stepCount', { count: draft.steps.length })}>
           {draft.steps.length === 0 ? <p className={ui.note}>{t('space.control.editor.noSteps')}</p> : null}
 
           <ol className={ui.group}>
@@ -161,7 +158,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                   <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
                   <span className={`${ui.textColumn} ${styles.stepText}`}>
                     <span className={styles.stepTitle}>{step.name}</span>
-                    <span className={`mono ${styles.stepNote}`}>
+                    <span className={styles.stepNote}>
                       {stepMeta(t, step, offsetOf(now, zone), followsGermination(draft.steps, index, draft.loop))}
                     </span>
                   </span>
@@ -350,7 +347,7 @@ function StepFields({
         {hasCo2Sensor(device) || dark ? null : (
           <span className={styles.figure}>
             <span className={styles.figureLabel}>{t('space.control.figure.co2')}</span>
-            <span className={`mono ${styles.figureNeeds}`}>{t('alarms.needs.co2')}</span>
+            <span className={styles.figureNeeds}>{t('alarms.needs.co2')}</span>
           </span>
         )}
       </div>
@@ -501,7 +498,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
         </span>
         <input
           id={id}
-          className={`mono ${styles.figureInput}`}
+          className={styles.figureInput}
           type="number"
           inputMode="numeric"
           min={LIGHT_HOURS.min}
@@ -513,7 +510,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           value={hours ?? ''}
           onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
         />
-        <span className={`mono ${styles.figureUnit}`}>{t('planLight.unit')}</span>
+        <span className={styles.figureUnit}>{t('planLight.unit')}</span>
       </span>
       {own !== null ? (
         <span className={styles.figure}>
@@ -522,7 +519,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           </span>
           <TimeInput
             id={`${id}-on`}
-            className={`mono ${styles.figureInput} ${styles.figureClock}`}
+            className={`${styles.figureInput} ${styles.figureClock}`}
             seconds={own}
             offset={offset}
             onChange={seconds => onChange(withStepLightsOn(step, seconds))}
@@ -568,7 +565,7 @@ function FigureField({
     <label className={styles.figure}>
       <span className={styles.figureLabel}>{t(held ? `space.control.figure.${held}.${figure.key}` : `space.control.figure.${figure.key}`)}</span>
       <input
-        className={`mono ${styles.figureInput}`}
+        className={styles.figureInput}
         type="number"
         inputMode="decimal"
         placeholder="—"
@@ -579,7 +576,7 @@ function FigureField({
           })
         }
       />
-      <span className={`mono ${styles.figureUnit}`}>{t(`space.control.figureUnit.${figure.key}`)}</span>
+      <span className={styles.figureUnit}>{t(`space.control.figureUnit.${figure.key}`)}</span>
     </label>
   );
 }

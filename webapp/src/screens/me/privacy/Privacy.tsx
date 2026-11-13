@@ -136,9 +136,7 @@ export function Privacy() {
 function Address({ path, copy }: { path: string; copy: string }) {
   return (
     <div className={styles.address}>
-      <Link to={path} className="mono">
-        {appUrl(path)}
-      </Link>
+      <Link to={path}>{appUrl(path)}</Link>
       <CopyButton value={appUrl(path)} label={copy} />
     </div>
   );

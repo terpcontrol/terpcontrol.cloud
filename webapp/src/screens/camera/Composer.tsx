@@ -126,7 +126,7 @@ export function Composer({ camera, grow, growFilms = true, pending, onRender, on
           ) : (
             // A preview that is missing means this camera has never delivered a
             // picture at all, which is not the same as today holding none.
-            <p className={`mono ${ui.matNote}`}>{t('composer.noPictureYet')}</p>
+            <p className={ui.matNote}>{t('composer.noPictureYet')}</p>
           )}
           {preview && camera.state.lastStillAt ? (
             <span className={ui.photoCaption}>{t('composer.latestPicture', { age: ageLabel(camera.state.lastStillAt) })}</span>

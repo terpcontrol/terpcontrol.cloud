@@ -63,7 +63,7 @@ export function WhenField({ label, at, onChange, until }: { label: string; at: D
     <label className={`${ui.card} ${styles.when}`}>
       <span className={styles.whenLabel}>{label}</span>
       <input
-        className={`mono ${styles.whenInput}`}
+        className={styles.whenInput}
         type="date"
         max={dayOf(last, zone)}
         value={dayOf(at, zone)}
@@ -77,10 +77,8 @@ export function WhenField({ label, at, onChange, until }: { label: string; at: D
  * A labelled block inside a sheet, so that a long sheet reads as the few
  * questions it is.
  *
- * The aside is set in the text face and left there: it carries a count as
- * often as it carries a sentence of advice, and mono belongs to the figures.
- * A caller whose aside really is a figure or a caption wraps it in `mono`
- * itself, which is the one place that knows which of the two it has.
+ * The aside is a count or a sentence of advice beside the label, in the
+ * text's own digits: one width belongs to figures in a column.
  *
  * A block whose children are the rows of one list - the day's targets, the
  * night's - says `grouped`, and they are drawn as the app's one group: a card
@@ -137,7 +135,7 @@ export function HandleField({
     <label className={className}>
       <span className={`label ${styles.asWritten}`}>{label}</span>
       <input
-        className={`mono ${ui.input}`}
+        className={ui.input}
         value={value}
         autoComplete="off"
         autoCapitalize="none"

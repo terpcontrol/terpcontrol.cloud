@@ -207,7 +207,7 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
     <li className={`${ui.card} ${ui.row3} ${styles.card}`} data-dead={dead ? '' : undefined}>
       <button type="button" className={styles.cardText} onClick={onOpen}>
         <span className={styles.cardTitle}>{title}</span>
-        <span className={`mono ${styles.cardLine}`}>
+        <span className={styles.cardLine}>
           <Line parts={parts} />
         </span>
       </button>
@@ -259,12 +259,12 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           <div>
             <span className="label">{t('me.shareLinks.address')}</span>
             <div className={styles.addressRow}>
-              <code className={`mono ${styles.address}`}>{address}</code>
+              <code className={styles.address}>{address}</code>
               <CopyButton value={address} label={t('sharing.copyLink')} />
             </div>
           </div>
         )}
-        <p className={`mono ${styles.cardLine}`}>
+        <p className={styles.cardLine}>
           <Line parts={parts} />
         </p>
         <p className={styles.sentence}>{t(dead ? 'me.shareLinks.forgetNote' : 'me.shareLinks.revokeNote')}</p>

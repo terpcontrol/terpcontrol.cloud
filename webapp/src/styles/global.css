@@ -21,6 +21,16 @@ html:has([data-scrim]) {
   overflow: hidden;
 }
 
+/* Below the rail's width the top bar and the tab bar stand over the page, and
+   a control the keyboard moves to is scrolled clear of both rather than under
+   them - on every page, a desktop zoomed past the breakpoint included. */
+@media (max-width: 899px) {
+  html {
+    scroll-padding-top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-2));
+    scroll-padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -72,6 +82,18 @@ h2,
   font-size: var(--text-name);
 }
 
+/* The look has three weights and none is bold: what an element would set
+   heavier by itself - a `b`, a `strong`, a table's head, a heading under an
+   `h2` - is the medium. */
+b,
+strong,
+th,
+h3,
+h4,
+optgroup {
+  font-weight: var(--weight-medium);
+}
+
 /* A field does not inherit the page's type on its own, and a browser's own
    default for a textarea is monospace - so a person's sentences would come out
    in the face the design keeps for figures. Named by element, so `mono` on a
@@ -89,7 +111,6 @@ select {
 input[type='number'] {
   appearance: textfield;
   -moz-appearance: textfield;
-  font-family: var(--font-figure);
 }
 
 input[type='number']::-webkit-outer-spin-button,
@@ -98,18 +119,20 @@ input[type='number']::-webkit-inner-spin-button {
   appearance: none;
 }
 
-/* Figures, timestamps and captions: tabular, so a column of numbers lines up.
-   A big figure is the sans at a lighter weight rather than a second face.
+/* Digits of one width, for figures that stand under one another or change in
+   place: a table's column, an axis, a list's time column, a stepper's value, a
+   countdown. Nothing else takes it - a sentence, a date, a chip, a title and a
+   figure standing alone are set in the face's own digits, because a "1" centred
+   on a zero's width leaves a hole on either side ("60, 1 %").
 
-   Tabular comes from the face `--font-figure` names first, which holds the ten
-   digits and nothing else, never from `font-variant-numeric`: the face has no
-   tabular figures of its own, and a caption is as often a sentence as a
-   figure. */
-.figure,
+   One width comes from the face `--font-figure` names first, which holds the
+   ten digits and nothing else, never from `font-variant-numeric`: the face has
+   no tabular figures of its own. */
 .mono {
   font-family: var(--font-figure);
 }
 
+/* A big figure is the sans at a lighter weight rather than a second face. */
 .figure {
   font-weight: var(--weight-figure);
 }
@@ -253,9 +276,11 @@ svg.lucide {
 
 /* Paper. The browser's own print is the only way a report reaches it, and a
    printed page has nothing to tap: the rail, the top bar, the tab bar with its
-   Eintrag button, a page's tabs and its row of actions, and the export card are
-   the app around the record rather than the record, so they are left off it.
-   An element says so with data-print="omit". */
+   Eintrag button, a page's tabs and its row of actions - a grow's menu and
+   "Alle Grows" -, and the export card are the app around the record rather
+   than the record, so they are left off it. An element says so with
+   data-print="omit". Paper is light whatever the theme: the dark tokens are
+   the screen's alone (theme/tokens.css). */
 @media print {
   [data-print='omit'] {
     display: none !important;

@@ -73,14 +73,14 @@ export function RolloutCard({
           <div key={deviceClass.id} className={styles.block}>
             <div className={styles.blockHead}>
               <span className={styles.blockName}>{deviceClass.name}</span>
-              <span className={`mono ${styles.consequence}`}>
+              <span className={styles.consequence}>
                 {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
               </span>
             </div>
 
             <ul className={styles.lines}>
               {stands.map(stand => (
-                <li key={stand.channel} className="mono">
+                <li key={stand.channel}>
                   {t(`devices.channel.${stand.channel}`)} ·{' '}
                   {stand.firmwareId
                     ? t('admin.rollout.stand', {
@@ -93,7 +93,7 @@ export function RolloutCard({
               ))}
             </ul>
 
-            <p className={`mono ${styles.consequence}`}>
+            <p className={styles.consequence}>
               {paused
                 ? t('admin.rollout.pausedNow', { percent })
                 : t('admin.rollout.stagedNow', {

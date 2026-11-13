@@ -103,7 +103,7 @@ export function StartFromTemplateSheet({
                   <button type="button" className={`${ui.card} ${styles.template}`} onClick={() => onChosen(readyDraft(t, plan, notify))}>
                     <span className={styles.templateName}>{t(`growPresets.plans.${plan.id}.name`)}</span>
                     <span className={styles.templateWhat}>{t(`growPresets.plans.${plan.id}.description`)}</span>
-                    <span className={`mono ${styles.templateNote}`}>
+                    <span className={styles.templateNote}>
                       {[t('space.control.template.steps', { count: plan.steps.length }), t('readyPlans.weeks', { count: weeksOf(plan) })].join(' · ')}
                     </span>
                   </button>
@@ -126,7 +126,7 @@ export function StartFromTemplateSheet({
                 onClick={() => onChosen(draftFromTemplate(template.steps, template.name, template.id, notify))}
               >
                 <span className={styles.templateName}>{template.name}</span>
-                <span className={`mono ${styles.templateNote}`}>
+                <span className={styles.templateNote}>
                   {[
                     t('space.control.template.steps', { count: template.steps.length }),
                     template.ownerId === user?.id ? t('space.control.template.yours') : t('space.control.template.published'),

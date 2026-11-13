@@ -27,7 +27,7 @@ export function LegacyMove({ className }: { className?: string }) {
           {t('legacyMove.noChangeServerEnd')}
         </li>
         <li>
-          {t('legacyMove.address')} <code className={`mono ${styles.address}`}>{API_URL}</code>
+          {t('legacyMove.address')} <code className={styles.address}>{API_URL}</code>
           {/* The module's field starts out as "http://", and the "s" goes in only once the "://" is gone. */}
           {API_URL.startsWith('https://') ? t('legacyMove.addressEnd') : '.'}
         </li>

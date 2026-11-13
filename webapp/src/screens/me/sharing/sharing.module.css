@@ -78,13 +78,12 @@
 }
 
 /* The dashed row that starts a link: the lesser option beside bordered cards,
-   as a button, in the mono the board sets its caption in. */
+   as a button, in the size the board sets its caption in. */
 .new {
   display: flex;
   justify-content: center;
   width: 100%;
   color: var(--muted);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 

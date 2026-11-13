@@ -87,12 +87,12 @@ function Co2Report({ device, mayManage }: DeviceContext) {
           <p className={ui.note}>{t('co2Report.noRate')}</p>
         )}
         {openingsPerGram !== null ? (
-          <p className={`mono ${styles.rate}`}>{t('co2Report.rate', { rate: decimalFigure(openingsPerGram, 1), count: finished.length })}</p>
+          <p className={styles.rate}>{t('co2Report.rate', { rate: decimalFigure(openingsPerGram, 1), count: finished.length })}</p>
         ) : null}
         {finished.length > 0 ? (
           <ul className={styles.before}>
             {finished.map(cylinder => (
-              <li key={cylinder.since} className="mono">
+              <li key={cylinder.since}>
                 {t('co2Report.cylinder', {
                   from: calendarDay(cylinder.since, zone),
                   to: calendarDay(cylinder.until ?? cylinder.since, zone),
@@ -146,7 +146,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
           aria-label={t('co2Report.filled')}
           onChange={event => setFilled(event.target.value)}
         />
-        <span className="mono">g</span>
+        <span>g</span>
       </label>
       {hadOne ? (
         <label className={styles.field}>
@@ -159,7 +159,7 @@ function RefillForm({ spaceId, deviceId, hadOne, onDone }: { spaceId: string; de
             placeholder={t('co2Report.empty')}
             onChange={event => setRest(event.target.value)}
           />
-          <span className="mono">g</span>
+          <span>g</span>
         </label>
       ) : null}
       {hadOne ? <p className={ui.note}>{t('co2Report.leftOverNote')}</p> : null}

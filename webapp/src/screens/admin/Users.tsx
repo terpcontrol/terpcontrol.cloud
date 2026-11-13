@@ -66,7 +66,7 @@ export function Users() {
   return (
     <section className={ui.stack4}>
       <AdminHead title={t('admin.users.title')} readAt={people.dataUpdatedAt}>
-        <span className={`mono ${styles.counts}`}>
+        <span className={styles.counts}>
           {[
             t('admin.count.accounts', { count: all.length }),
             t('admin.count.admins', { count: all.filter(one => one.isAdmin).length }),
@@ -75,7 +75,7 @@ export function Users() {
         </span>
         <span className={ui.wrapRow}>
           <input
-            className={`mono ${ui.input} ${styles.search}`}
+            className={`${ui.input} ${styles.search}`}
             type="search"
             autoComplete="off"
             aria-label={t('admin.users.search')}
@@ -126,7 +126,7 @@ export function Users() {
       </div>
 
       <div className={ui.wrapRow}>
-        <span className={`mono ${styles.consequence}`}>{t('admin.users.showing', { shown: shown.length, loaded: all.length })}</span>
+        <span className={styles.consequence}>{t('admin.users.showing', { shown: shown.length, loaded: all.length })}</span>
         {people.hasNextPage ? (
           <button type="button" className={ui.chip} onClick={() => void people.fetchNextPage()} disabled={people.isFetchingNextPage}>
             {t('admin.fleet.loadMore')}
@@ -182,7 +182,7 @@ function Field({ label, onType, ...input }: { label: string; onType: (value: str
   return (
     <label className={styles.field}>
       <span className="label">{label}</span>
-      <input className={`mono ${ui.input}`} autoComplete="off" {...input} onChange={event => onType(event.target.value)} />
+      <input className={ui.input} autoComplete="off" {...input} onChange={event => onType(event.target.value)} />
     </label>
   );
 }
@@ -341,9 +341,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
       ))}
 
       {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
-      {account.activationCode ? (
-        <p className={`mono ${styles.consequence}`}>{t('admin.users.activationCode', { code: account.activationCode })}</p>
-      ) : null}
+      {account.activationCode ? <p className={styles.consequence}>{t('admin.users.activationCode', { code: account.activationCode })}</p> : null}
 
       <Refused error={change.error} />
     </Sheet>

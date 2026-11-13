@@ -55,7 +55,7 @@ export function LightOutputRow({ output, offline, mayManage, runs, now }: LightO
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>{title}</span>
           {/* What the lamp runs at, dated like any reading; gone quiet, it is the level as of then. */}
-          <span className={`mono ${styles.rowNote}`}>
+          <span className={styles.rowNote}>
             <Facts
               facts={
                 measured

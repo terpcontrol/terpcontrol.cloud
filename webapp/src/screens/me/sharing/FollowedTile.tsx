@@ -32,7 +32,7 @@ export function FollowedTile({ grow, now }: { grow: FollowedGrowCard; now: DateT
         <span className={styles.tileTitle}>
           @{grow.handle} · {grow.name}
         </span>
-        <span className={`mono ${styles.tileMeta}`}>{followedMeta(t, grow, now, zone)}</span>
+        <span className={styles.tileMeta}>{followedMeta(t, grow, now, zone)}</span>
       </Link>
       <FollowButton growId={grow.growId} />
     </li>

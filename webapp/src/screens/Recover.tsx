@@ -83,7 +83,7 @@ function AskForMail() {
           </label>
           <input
             id="recovery-code"
-            className={`mono ${ui.input}`}
+            className={ui.input}
             autoComplete="one-time-code"
             autoCapitalize="none"
             spellCheck={false}

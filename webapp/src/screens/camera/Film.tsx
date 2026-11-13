@@ -57,14 +57,14 @@ export function Film({
         <span className={styles.filmTitle}>
           {t(`camera.film.kind.${film.window ?? 'custom'}`)} · {spanLabel(film, zone)}
         </span>
-        <span className={`mono ${styles.filmStatus}`} data-status={status}>
+        <span className={styles.filmStatus} data-status={status}>
           {t(`camera.film.${status}`)}
           {film.lengthSeconds ? ` · ${lengthLabel(film.lengthSeconds)}` : ''}
           {film.quality ? ` · ${film.quality.toUpperCase()}` : ''}
           {composedOf(film) ? ` · ${t('camera.film.overlaid')}` : ''}
         </span>
         {source && collapsed ? (
-          <button type="button" className={`mono ${styles.filmLink}`} aria-expanded={playing} onClick={() => setPlaying(on => !on)}>
+          <button type="button" className={styles.filmLink} aria-expanded={playing} onClick={() => setPlaying(on => !on)}>
             {t(playing ? 'camera.film.close' : 'camera.film.play')}
           </button>
         ) : null}
@@ -123,8 +123,8 @@ const lengthLabel = (seconds: number): string => `${Math.floor(seconds / 60)}:${
 export function Raw({ summary, children }: { summary: string; children: string }) {
   return (
     <details className={styles.raw}>
-      <summary className="mono">{summary}</summary>
-      <p className="mono">{children}</p>
+      <summary>{summary}</summary>
+      <p>{children}</p>
     </details>
   );
 }

@@ -76,7 +76,7 @@ export function LightPlan(props: LightPlanProps) {
         </span>
         {changed ? <span className={styles.draftTag}>{t('targets.plan.draft')}</span> : null}
       </p>
-      {changed ? <p className={`mono ${styles.was}`}>{t('targets.plan.was', { window: scheduleTitle(t, baseline, offset) })}</p> : null}
+      {changed ? <p className={styles.was}>{t('targets.plan.was', { window: scheduleTitle(t, baseline, offset) })}</p> : null}
 
       <Bar
         schedule={baseline}

@@ -75,7 +75,7 @@ function MutedLine({ me, held, until }: { me: Me; held: boolean; until: string }
 
   return (
     <div className={styles.muted} role="status">
-      <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: sinceLabel(until, now, zoneOf(me)) })}</span>
+      <span className={styles.mutedText}>{t('notifications.muted', { time: sinceLabel(until, now, zoneOf(me)) })}</span>
       <button
         type="button"
         className={ui.chip}

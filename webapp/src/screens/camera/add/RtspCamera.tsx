@@ -191,7 +191,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         </div>
         <input
           id="rtsp-url"
-          className={`mono ${ui.input}`}
+          className={ui.input}
           value={url}
           placeholder={t('cameras.add.rtsp.placeholder')}
           autoCapitalize="none"
@@ -325,7 +325,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
           {capture.data.still ? (
             <>
               {shot ? <img className={styles.shot} src={shot} alt={t('cameras.add.rtsp.shotAlt')} /> : null}
-              <p className={`mono ${styles.shotNote}`}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
+              <p className={styles.shotNote}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
             </>
           ) : (
             <>

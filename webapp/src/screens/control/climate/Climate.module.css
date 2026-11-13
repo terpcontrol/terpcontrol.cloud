@@ -193,7 +193,6 @@
   border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius);
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-lg);
   font-weight: var(--weight-medium);
   white-space: nowrap;
@@ -230,10 +229,9 @@ button.figure:hover {
   border-width: 2px;
 }
 
-/* One of a few choices is words: the text's own face, and a second line rather than a cut. */
+/* One of a few choices is words: the text's size and weight, and a second line rather than a cut. */
 .figure[data-word] {
   padding: var(--space-1) var(--space-3);
-  font-family: inherit;
   font-size: var(--text-md);
   font-weight: var(--weight-medium);
   white-space: normal;
@@ -247,7 +245,6 @@ button.figure:hover {
 }
 
 .vpd {
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
 }

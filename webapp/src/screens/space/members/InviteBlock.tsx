@@ -119,7 +119,7 @@ function LinkRow({ invite, into, apart, onShow }: { invite: Invite; into: string
   return (
     <li className={`${ui.card} ${ui.stack2}`} aria-label={code}>
       <div className={`${ui.row2} ${styles.addressRow}`}>
-        <code className={`mono ${styles.address}`}>{shownAddress(code)}</code>
+        <code className={styles.address}>{shownAddress(code)}</code>
         <CopyButton value={inviteAddress(code)} label={t('space.members.copyLink')} />
       </div>
       <div className={styles.termsRow}>

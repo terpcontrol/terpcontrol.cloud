@@ -73,18 +73,18 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
 
   return (
     <aside className={styles.banner} data-age={current ? undefined : 'stale'}>
-      <p className={`mono ${styles.bannerLine}`}>
+      <p className={styles.bannerLine}>
         <Clock size={13} strokeWidth={1.75} aria-hidden />
         {window}
         {endsAt !== null && !current ? ` · ${t('publicPage.asOf', { age: ageLabel(endsAt, now) })}` : ''}
       </p>
       {resolution.includeCameras ? null : (
-        <p className={`mono ${styles.bannerLine}`}>
+        <p className={styles.bannerLine}>
           <CameraOff size={13} strokeWidth={1.75} aria-hidden />
           {t('publicPage.noCameras')}
         </p>
       )}
-      {resolution.expiresAt ? <p className={`mono ${styles.bannerLine}`}>{t('publicPage.expires', { date: day(resolution.expiresAt) })}</p> : null}
+      {resolution.expiresAt ? <p className={styles.bannerLine}>{t('publicPage.expires', { date: day(resolution.expiresAt) })}</p> : null}
     </aside>
   );
 }

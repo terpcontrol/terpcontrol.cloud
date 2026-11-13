@@ -162,7 +162,7 @@ export function PresetSheet({
             {figures.map(({ field, to }) => (
               <li key={field}>
                 <span>{figureName(t, field, ending ? 'cycle' : after.regime)}</span>
-                <span className="mono">
+                <span>
                   {figureText(field, baseline[field])} → {figureText(field, to)}
                 </span>
               </li>
@@ -170,7 +170,7 @@ export function PresetSheet({
             {hours ? (
               <li>
                 <span>{t('targets.aria.lightHours')}</span>
-                <span className="mono">
+                <span>
                   {hoursWritten(baseline.lightHours)} → {hoursWritten(next.lightHours)}&nbsp;{t('targets.unit.hours')}
                 </span>
               </li>

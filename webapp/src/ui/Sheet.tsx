@@ -115,7 +115,7 @@ export function Sheet({
             {title}
             {note ? <span className={styles.note}>{note}</span> : null}
           </h2>
-          {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
+          {aside ? <span className={styles.aside}>{aside}</span> : null}
           {corner}
           <button type="button" className={styles.close} onClick={onClose} aria-label={t('log.close')}>
             <X size={18} strokeWidth={1.75} aria-hidden />

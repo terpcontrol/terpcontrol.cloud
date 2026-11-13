@@ -44,7 +44,7 @@ export function OfflineSteps({ devicesLink = null }: { devicesLink?: string | nu
         <li>{t('offline.wifi')}</li>
         <li>{t('offline.replug')}</li>
       </ol>
-      <p className={`mono ${styles.note}`}>
+      <p className={styles.note}>
         {t('offline.keeps')}
         {devicesLink ? (
           <>

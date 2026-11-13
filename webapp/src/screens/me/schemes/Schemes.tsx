@@ -106,7 +106,7 @@ function SchemeRow({ title, line, onOpen }: { title: string; line: string; onOpe
     <button type="button" className={`${ui.card} ${ui.joined} ${styles.schemeRow}`} onClick={onOpen}>
       <span className={ui.textColumn}>
         <span className={styles.schemeTitle}>{title}</span>
-        <span className={`mono ${styles.schemeLine}`}>{line}</span>
+        <span className={styles.schemeLine}>{line}</span>
       </span>
       <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
     </button>
@@ -135,7 +135,7 @@ function AssetSheet({ id, onClose }: { id: string; onClose: () => void }) {
         <p className={ui.problem}>{t('grow.new.schemeUnreadable')}</p>
       ) : (
         <div className={ui.stack3}>
-          <p className={`mono ${styles.meta}`}>
+          <p className={styles.meta}>
             {joined([
               asset.data.manufacturer,
               t('me.schemes.weeks', { count: asset.data.grid.length }),

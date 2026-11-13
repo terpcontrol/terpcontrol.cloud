@@ -37,7 +37,6 @@ span.asWritten {
   background: none;
   color: var(--ink);
   font-size: var(--text-md);
-  font-family: var(--font-figure);
 }
 
 /* The browser draws the picker glyph itself, in whichever mode `color-scheme`

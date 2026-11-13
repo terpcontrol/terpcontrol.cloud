@@ -192,7 +192,7 @@ export function CameraSettings({
                 {editing ? (
                   <>
                     <input
-                      className={`mono ${ui.input} ${styles.settingInput}`}
+                      className={`${ui.input} ${styles.settingInput}`}
                       value={(value('url') as string | undefined) ?? camera.url ?? ''}
                       onChange={event => set('url', event.target.value)}
                       aria-label={t('camera.address')}
@@ -227,7 +227,7 @@ export function CameraSettings({
                 )}
                 {camera.kind === 'rtsp' && mayManage ? (
                   <span className={styles.changeAddress}>
-                    <button type="button" className={`mono ${styles.textLink}`} onClick={readdressing ? keepAddress : () => setReaddressing(true)}>
+                    <button type="button" className={styles.textLink} onClick={readdressing ? keepAddress : () => setReaddressing(true)}>
                       {t(readdressing ? 'camera.keepAddress' : 'camera.changeAddress')} ›
                     </button>
                     <Help topic="streamChange" />
@@ -276,7 +276,7 @@ export function CameraSettings({
                   onChange={event => set('stillIntervalSeconds', Number(event.target.value))}
                   aria-label={t('camera.stillEvery')}
                 />
-                <span className="mono">s</span>
+                <span>s</span>
                 {steered ? (
                   <>
                     <SwitchRow label={t('camera.nightOff')} on={value('nightOff') === true} onChange={next => set('nightOff', next)} />
@@ -324,7 +324,7 @@ export function CameraSettings({
             <span className={styles.settingStack}>
               <Said facts={[entitlementLine(t, camera, enforced, zoneOf(me.data))]} />
               {ending !== null ? (
-                <span className={`mono ${styles.settingWarning}`} role="status">
+                <span className={styles.settingWarning} role="status">
                   {ending === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: ending })}
                 </span>
               ) : null}
@@ -333,7 +333,7 @@ export function CameraSettings({
                   {t('camera.entitlement.freeLine', { missing: missingLine(t, me.data.premium.free) })}
                 </span>
               ) : null}
-              <Link to="/me/premium" className={`mono ${styles.textLink}`}>
+              <Link to="/me/premium" className={styles.textLink}>
                 {t('camera.seePremium')} ›
               </Link>
             </span>
@@ -376,7 +376,7 @@ export function CameraSettings({
 /** What a row states, at its right: facts side by side that break between two of them, never after a "·". */
 function Said({ facts }: { facts: readonly (string | null | false)[] }) {
   return (
-    <span className={`mono ${styles.settingValue}`}>
+    <span className={styles.settingValue}>
       <Facts facts={facts} />
     </span>
   );

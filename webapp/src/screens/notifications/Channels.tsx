@@ -248,7 +248,7 @@ export function TelegramCard({ me, held }: CardProps) {
               <a className={`${ui.button} ${ui.primary}`} href={offered.url} target="_blank" rel="noreferrer">
                 {t('notifications.telegram.open')}
               </a>
-              <span className={`mono ${ui.note}`}>{t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}</span>
+              <span className={ui.note}>{t('notifications.telegram.validUntil', { time: clock(offered.validUntil, zone) })}</span>
             </p>
           ) : null}
           {ran && !linked ? <p className={ui.note}>{t('notifications.telegram.expired')}</p> : null}
@@ -425,7 +425,7 @@ export function WebhookCard({ me, held }: CardProps) {
               <label className={parts.field}>
                 <span className="label">{t('notifications.webhook.url')}</span>
                 <input
-                  className={`mono ${ui.input}`}
+                  className={ui.input}
                   type="url"
                   inputMode="url"
                   autoComplete="off"
@@ -447,7 +447,7 @@ export function WebhookCard({ me, held }: CardProps) {
               <label className={parts.field}>
                 <span className="label">{t('notifications.webhook.headers')}</span>
                 <textarea
-                  className={`mono ${ui.input} ${styles.text}`}
+                  className={`${ui.input} ${styles.text}`}
                   rows={3}
                   value={headers}
                   disabled={held}

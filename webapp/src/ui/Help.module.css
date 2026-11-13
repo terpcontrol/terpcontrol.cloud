@@ -55,6 +55,15 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.22em;
   cursor: help;
+  position: relative;
+}
+
+/* A finger high where it is tapped, without its line growing: a term in a line of small type ("19 % im Zielband" in a
+   chapter of the Bericht) was 19 px. A row that sets its own reach for the words in it keeps that. */
+.term::after {
+  position: absolute;
+  inset: -9px 0;
+  content: '';
 }
 
 .term:hover,

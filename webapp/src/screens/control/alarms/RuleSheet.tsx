@@ -235,7 +235,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             draft.severity === 'critical' ? (
               <EmailAlarmsOffer me={me} others={false} />
             ) : (
-              <Link to="/me/notifications" className={`mono ${ui.headLink}`}>
+              <Link to="/me/notifications" className={ui.headLink}>
                 {t('alarms.sheet.setUp')} ›
               </Link>
             )
@@ -430,7 +430,7 @@ function BoundField({
     <label className={control.figure}>
       <span className={control.figureLabel}>{label}</span>
       <input
-        className={`mono ${control.figureInput}`}
+        className={control.figureInput}
         type="number"
         inputMode="decimal"
         step="any"
@@ -441,7 +441,7 @@ function BoundField({
         value={value}
         onChange={event => onChange(event.target.value)}
       />
-      {unit ? <span className={`mono ${control.figureUnit}`}>{unit}</span> : null}
+      {unit ? <span className={control.figureUnit}>{unit}</span> : null}
     </label>
   );
 }
@@ -462,7 +462,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
         aria-label={`${label} ${t('spoken.minutes')}`}
         onChange={event => onChange(Math.max(0, Number(event.target.value) || 0))}
       />
-      <span className={`mono ${control.figureUnit}`}>{t('alarms.sheet.minutes')}</span>
+      <span className={control.figureUnit}>{t('alarms.sheet.minutes')}</span>
     </div>
   );
 }
@@ -494,7 +494,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-headers"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.headers}
         placeholder={t('alarms.sheet.headersHint')}
@@ -505,7 +505,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-triggered"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.triggeredPayload}
         placeholder={t('alarms.sheet.payloadHint')}
@@ -516,7 +516,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-resolved"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.resolvedPayload}
         placeholder={t('alarms.sheet.payloadHint')}

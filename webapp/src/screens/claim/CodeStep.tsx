@@ -94,7 +94,7 @@ export function CodeStep({
     >
       <div className={ui.fieldRow}>
         <input
-          className={`mono ${ui.input}`}
+          className={ui.input}
           placeholder={t('claim.code.field')}
           aria-label={t('claim.code.field')}
           autoCapitalize="characters"

@@ -19,8 +19,8 @@ export function About() {
 
   return (
     <MePage title={t('me.about.title')}>
-      <Row title={t('me.about.app')} line={<span className="mono">{versionLine(t, APP_VERSION, BUILD_MODE)}</span>} />
-      <Row title={t('me.about.server')} line={<span className="mono">{API_URL}</span>} />
+      <Row title={t('me.about.app')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
+      <Row title={t('me.about.server')} line={API_URL} />
       {CUSTOM_LINKS_HTML ? (
         <section className={`${ui.card} ${ui.stack2}`}>
           <span className="label">{t('me.about.links')}</span>

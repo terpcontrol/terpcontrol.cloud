@@ -35,8 +35,12 @@
   text-decoration: none;
 }
 
-.row:hover:not([aria-disabled='true']) {
-  background: var(--tint);
+/* A pointer that rests over a row is answered; a finger is not, or the row it
+   tapped, and the one a page opens under it, would stay filled after the tap. */
+@media (hover: hover) {
+  .row:hover:not([aria-disabled='true']) {
+    background: var(--tint);
+  }
 }
 
 .row[aria-disabled='true'] {

@@ -29,5 +29,5 @@ export function InviteTerms({ invite, into, className = '' }: { invite: Invite; 
     t('space.members.links.revokeAnyTime'),
   ];
 
-  return <Facts facts={parts} className={`mono ${className}`} />;
+  return <Facts facts={parts} className={className} />;
 }

@@ -136,7 +136,7 @@ export function ClassRollout({
     <div className={styles.block}>
       <div className={styles.blockHead}>
         <span className={styles.blockName}>{deviceClass.name}</span>
-        <span className={`mono ${styles.consequence}`}>
+        <span className={styles.consequence}>
           {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
           {deviceClass.description ? ` · ${deviceClass.description}` : ''}
         </span>
@@ -151,7 +151,7 @@ export function ClassRollout({
               {`${t(`devices.channel.${channel}`)} · ${t('admin.count.devices', { count: stand.devices })} · ${t('admin.count.online', { count: stand.online })}`}
             </span>
             <select
-              className={`mono ${ui.input} ${ui.menu}`}
+              className={`${ui.input} ${ui.menu}`}
               value={draft[channel] ?? ''}
               onChange={event => setDraft({ ...draft, [channel]: event.target.value || null })}
             >
@@ -181,7 +181,7 @@ export function ClassRollout({
             aria-label={t('admin.firmware.stage')}
             onChange={event => setDraft({ ...draft, percent: Number(event.target.value) })}
           />
-          <span className={`mono ${styles.consequence}`}>
+          <span className={styles.consequence}>
             {t('admin.firmware.stageReach', {
               percent: draft.percent,
               reach: staged(draft.percent, size.total),
@@ -195,7 +195,7 @@ export function ClassRollout({
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.concurrent')}</span>
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             type="number"
             min={1}
             value={draft.concurrentUpdates}
@@ -205,7 +205,7 @@ export function ClassRollout({
         <label className={styles.field} htmlFor={failuresId}>
           <Label text={t('admin.firmware.maxFailures')} help="rolloutFailures" />
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             type="number"
             min={1}
             id={failuresId}

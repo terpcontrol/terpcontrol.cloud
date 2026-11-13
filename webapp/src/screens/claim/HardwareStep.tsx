@@ -32,7 +32,7 @@ export function HardwareStep({ device, sockets, camOnly = false }: { device: Dev
         {camOnly ? null : (
           <li>
             <span className="label">{t('claim.hardware.sockets')}</span>
-            <span className={`mono ${styles.reportedValue}`}>
+            <span className={styles.reportedValue}>
               {!sockets
                 ? t('claim.hardware.notReported')
                 : rows.length === 0
@@ -43,7 +43,7 @@ export function HardwareStep({ device, sockets, camOnly = false }: { device: Dev
         )}
         <li>
           <span className="label">{t('claim.hardware.cam')}</span>
-          <span className={`mono ${styles.reportedValue}`}>{cameraName(device, t)}</span>
+          <span className={styles.reportedValue}>{cameraName(device, t)}</span>
         </li>
       </ul>
 
