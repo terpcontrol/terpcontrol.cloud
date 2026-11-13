@@ -17,7 +17,8 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zonedAt } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
-import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES } from './definitions';
+import { bandOf, fromTemplate, readingCounts, ruleOf, TEMPLATES, toldOf } from './definitions';
+import { useAnswered } from '../told';
 import { MeasurementSheet } from './MeasurementSheet';
 import styles from './Measurements.module.css';
 
@@ -50,6 +51,7 @@ export function Measurements() {
     definitions.map(definition => definition.key),
   );
   const update = useUpdateGrow(growId);
+  const answer = useAnswered(update, `measurements-${growId}`);
   // What a grow measures is part of the grow, so changing it is `manage` where
   // the grow stands rather than anything about the session.
   const mayWith = useMayWith();
@@ -72,9 +74,14 @@ export function Measurements() {
   // a definition, and the screen says nothing about it before it knows.
   const counted = series.isSuccess ? readingCounts(series.data.measurements) : null;
   const readingsUnder = (key: string): number | null => (counted === null ? null : (counted.get(key) ?? 0));
-  const write = (measurements: MeasurementDefinition[]) => update.mutate({ measurements });
+  // The switch is its own answer; a measurement added by one tap says so, and the list as it stood is one write away.
   const flip = (definition: MeasurementDefinition) =>
-    write(definitions.map(one => (one.key === definition.key ? { ...one, chart: !one.chart } : one)));
+    update.mutate({ measurements: definitions.map(one => (one.key === definition.key ? { ...one, chart: !one.chart } : one)) });
+  const add = (definition: MeasurementDefinition) =>
+    answer({ measurements: [...definitions, definition] }, toldOf(t, definition.name, true), {
+      to: { measurements: definitions },
+      undone: toldOf(t, definition.name, false),
+    });
   // The grow from its first day to its last, or to the hour now.
   const stretch = {
     from: Date.parse(grow.data.startedAt),
@@ -132,7 +139,7 @@ export function Measurements() {
             <span className="label">{t('grow.measurements.templates')}</span>
             <span className={`mono ${styles.aside}`}>{t('grow.measurements.tapToAdd')}</span>
           </header>
-          <div className={ui.wrap} role="group" aria-label={t('grow.measurements.templates')}>
+          <div className={`${ui.wrap} ${styles.templates}`} role="group" aria-label={t('grow.measurements.templates')}>
             {TEMPLATES.map(template => {
               const here = definitions.some(definition => definition.key === template.key);
               return (
@@ -142,7 +149,7 @@ export function Measurements() {
                   className={ui.chip}
                   disabled={here || update.isPending}
                   title={here ? t('grow.measurements.alreadyHere') : undefined}
-                  onClick={() => write([...definitions, fromTemplate(t, template)])}
+                  onClick={() => add(fromTemplate(t, template))}
                 >
                   {t(`grow.measurements.template.${template.key}`)}
                   {template.unit ? <span className={styles.chipUnit}>{template.unit}</span> : null}

@@ -1,5 +1,6 @@
 import type { DateTime } from 'luxon';
 import type {
+  Alert,
   CardSetpoint,
   CardValue,
   ClimateVerdict,
@@ -20,9 +21,10 @@ import { STEERED, TARGET_BAND, type Steered } from '@fg2/shared-types/v1-schemas
 import { ruleTitle } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
 import { fieldValue } from '@/ui/advanced/field-values';
-import { offlineLabel, sinceLabel, valueAge } from '@/ui/age';
+import { deviceLiveness, offlineLabel, silentSince, sinceLabel, valueAge } from '@/ui/age';
 import { darkReasonOf, figureOf, statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
+import { deviceName } from '@/ui/naming';
 import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
@@ -30,7 +32,8 @@ import { plugModeOf, plugReadingOf } from '@/screens/control/devices/own-summary
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '@/screens/control/targets/day-night';
 import { windowWords } from '@/screens/control/targets/schedule-words';
 import { draftOf } from '@/screens/control/targets/targets-draft';
-import { livenessOf, measuredAtOf, worstAlertOf, type Liveness } from './attention';
+import { worstFirst } from '@/screens/alerts/inbox';
+import { livenessOf, measuredAtOf, type Liveness } from './attention';
 
 /**
  * What Start decides about a place before it draws anything: which device
@@ -310,18 +313,39 @@ export type Status =
   | { kind: 'waiting' }
   | { kind: 'maintenance'; quiet: Quiet }
   | { kind: 'controlOff' }
-  | { kind: 'alert'; alert: OpenAlert }
+  /** The alert Meldungen leads with for this place, and how many more of the place's are open behind it. */
+  | { kind: 'alert'; alert: PlaceAlert; more: number }
   /** `since` is null for a run too short to count yet, and undefined where no verdict was at hand to say. */
   | { kind: 'off'; metric: Steered; high: boolean; delta: number; since?: string | null }
   | { kind: 'stale'; at: string | null }
   | { kind: 'noTargets' }
   | { kind: 'good' };
 
+/** A place's open alert as its card lists it, about a device where the account's own list of alerts names one. */
+export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device };
+
+/**
+ * A place's open alerts for its status: each with the device the account's
+ * list of alerts (`open`, what Meldungen draws) says it is about. A silence
+ * is kept only as that of a device known to stand here and still silent: the
+ * place's own silence is the pill's and the box's to say, a device heard
+ * again waits for its alert to close, and a reader without that list - the
+ * demo - is told of no device.
+ */
+export const placeAlerts = (listed: OpenAlert[], open: readonly Alert[] | undefined, here: Device[], now: DateTime): PlaceAlert[] =>
+  listed.flatMap((alert): PlaceAlert[] => {
+    const deviceId = open?.find(one => one.id === alert.alertId)?.deviceId ?? null;
+    if (!isSilence(alert)) return [{ ...alert, deviceId }];
+    const device = here.find(one => one.id === deviceId);
+    return device && deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? [{ ...alert, deviceId, device }] : [];
+  });
+
 interface StatusInput {
   values: CardValue[];
   setpoints: CardSetpoint[];
   deviceIds: string[] | null;
-  openAlerts: OpenAlert[];
+  /** As `placeAlerts` hands them over; a bare list names no silence. */
+  openAlerts: PlaceAlert[];
   /** The day's verdict, which a place's own Start reads and its card among several is not sent. */
   verdict?: ClimateVerdict | null;
   quiet: Quiet | null;
@@ -335,11 +359,11 @@ interface StatusInput {
 
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
+  // The first in Meldungen's order (`worstFirst`), so Start names what the inbox leads with.
+  const [alert, ...more] = worstFirst(place.openAlerts.filter(one => !isSilence(one) || one.device !== undefined));
+  const alerted: Status | null = alert ? { kind: 'alert', alert, more: more.length } : null;
   // A place with no sensor can still have something open: a camera that stopped delivering is its one way to go wrong.
-  if (liveness === 'none') {
-    const alert = worstAlertOf({ openAlerts: place.openAlerts.filter(one => !isSilence(one)) });
-    return alert ? { kind: 'alert', alert } : { kind: 'none' };
-  }
+  if (liveness === 'none') return alerted ?? { kind: 'none' };
   if (liveness === 'offline') {
     if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values) };
     // No value at all: a device that has yet to send its first one, unless it is known to have been heard and gone quiet.
@@ -348,8 +372,7 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   if (place.quiet) return { kind: 'maintenance', quiet: place.quiet };
   if (place.controlOff) return { kind: 'controlOff' };
 
-  const alert = worstAlertOf({ openAlerts: place.openAlerts.filter(one => !isSilence(one)) });
-  if (alert) return { kind: 'alert', alert };
+  if (alerted) return alerted;
 
   const off = STEERED.flatMap(metric => {
     const setpoint = setpointOf(place.setpoints, metric);
@@ -412,7 +435,10 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
     case 'alert': {
       // The rule by the name every page calls it, which is not the English one the server stores.
       const alert = { ...status.alert, name: status.alert.name && ruleTitle(t, { name: status.alert.name }) };
-      return `${alertLabel(t, alert, now, zone)} · ${t('start.status.since', { time: sinceLabel(alert.startedAt, now, zone) })}`;
+      // A device of the place gone silent beside one that reports is named, as Meldungen names it.
+      const what = alert.device ? t('alerts.title.offline', { what: deviceName(alert.device, t) }) : alertLabel(t, alert, now, zone);
+      const since = t('start.status.since', { time: sinceLabel(alert.device ? silentSince(alert) : alert.startedAt, now, zone) });
+      return [what, since, status.more > 0 ? t('start.status.more', { count: status.more }) : null].filter(Boolean).join(' · ');
     }
     case 'maintenance':
       return status.quiet.parked

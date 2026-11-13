@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfigurationPatch, PendingSetting } from '@fg2/shared-types/v1';
 import { useConfigure, useDeviceLive, useHeardAt } from '@/api/devices';
-import { useLog } from '@/log/log-context';
+import { useLog, type Back } from '@/log/log-context';
 import { fieldValue, heldSetting } from '@/ui/advanced/field-values';
 import { deviceLiveness } from '@/ui/age';
 import { useNow } from '@/ui/useNow';
@@ -11,9 +11,10 @@ import { fieldOf, pendingByPath, pendingField } from './figures';
  * How every save of a device's settings is answered, whatever was set and
  * wherever: the toast that names what changed - "… gespeichert", and for a
  * device that is not heard "noch nicht am Gerät", the page's own words for
- * it - with the way to take it back where that is one write. A device
- * acknowledges nothing, so nothing here says that it took anything. `from`
- * names the setting, so saving it again answers in the same toast.
+ * it - with the way to take it back where that is one write, and what then
+ * holds again, said the same way. A device acknowledges nothing, so nothing
+ * here says that it took anything. `from` names the setting, so saving it
+ * again answers in the same toast.
  */
 export const useSaved = (device: Device) => {
   const { t } = useTranslation();
@@ -22,12 +23,14 @@ export const useSaved = (device: Device) => {
 
   return {
     offline,
-    say: (what: string, undo: (() => Promise<unknown>) | null = null, from?: string) =>
+    say: (what: string, back: Back | null = null, from?: string) => {
+      const saved = (said: string) => t(offline ? 'control.saved.later' : 'control.saved.now', { what: said });
       tell({
-        label: t(offline ? 'control.saved.later' : 'control.saved.now', { what }),
-        undo,
+        label: saved(what),
+        ...(back ? { undo: back.undo, undone: saved(back.undone) } : { undo: null }),
         from: from === undefined ? undefined : `${device.id}:${from}`,
-      }),
+      });
+    },
   };
 };
 
@@ -64,14 +67,17 @@ export const useSettings = (device: Device) => {
       const before = held && field ? heldSetting(field, held.held) : null;
       return before !== null && JSON.stringify(before) === JSON.stringify(fieldValue(device, name)) ? undefined : held;
     },
-    /** Stores `set` and says `what` changed; true once the server has it. Taken back by writing what stood before. */
-    write: async (set: SettingsSet, what: string): Promise<boolean> => {
-      const before = Object.entries(set).map(([name]) => [name, fieldValue(device, name)] as const);
+    /**
+     * Stores `set` and says what holds, in the words `says` gives a set of values; true once the server has it.
+     * Taken back by writing what stood before, which is then said the same way.
+     */
+    write: async <S extends SettingsSet>(set: S, says: (values: S) => string): Promise<boolean> => {
+      const before = Object.fromEntries(Object.keys(set).map(name => [name, fieldValue(device, name)])) as S;
       try {
         await configure.mutateAsync(set);
         // A setting the document never stated has nothing to go back to.
-        const whole = before.every(([, value]) => value !== null);
-        saved.say(what, whole ? () => configure.mutateAsync(Object.fromEntries(before) as SettingsSet) : null, Object.keys(set).join(' '));
+        const whole = Object.values(before).every(value => value !== null);
+        saved.say(says(set), whole ? { undo: () => configure.mutateAsync(before), undone: says(before) } : null, Object.keys(set).join(' '));
         return true;
       } catch {
         // Said under the control that asked, from the write that was refused.

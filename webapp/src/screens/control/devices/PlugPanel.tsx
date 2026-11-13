@@ -112,7 +112,7 @@ function ClockSetting({
           figures={[{ key: name, label, value: seconds, clock: { offset } }]}
           busy={settings.busy}
           error={settings.error}
-          onSave={values => settings.write({ [name]: values[name] }, `${label} ${wallClock(values[name], offset)}`)}
+          onSave={values => settings.write({ [name]: values[name] }, held => `${label} ${wallClock(held[name], offset)}`)}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -208,8 +208,10 @@ function Points({
             settings.write(
               Object.fromEntries(
                 (['on', 'off'] as const).flatMap(edge => (values[edge] === pointOf(open, edge) ? [] : [[nameOf(open, edge), values[edge]]])),
-              ),
-              `${halfLabel(open)} ${(['on', 'off'] as const).map(edge => `${edgeLabel(edge)} ${say(values[edge])}`).join(', ')}`,
+              ) as Record<string, number>,
+              // An edge that did not move is not in the set: it reads as it stands.
+              held =>
+                `${halfLabel(open)} ${(['on', 'off'] as const).map(edge => `${edgeLabel(edge)} ${say(held[nameOf(open, edge)] ?? pointOf(open, edge))}`).join(', ')}`,
             )
           }
           onClose={() => setOpen(null)}
@@ -232,7 +234,8 @@ function Windows({ device, settings, mayManage, offset }: PanelProps & { setting
   const span = (window: TimerWindow) => `${wallClock(window.ontime, offset)}–${wallClock(window.ontime + window.duration * 60, offset)}`;
   const said = (list: FieldValue) => (Array.isArray(list) && list.length > 0 ? list.map(span).join(', ') : t('plugSettings.summary.noWindows'));
   const edited = open === null ? null : (windows[open] ?? nextWindow(windows, offset));
-  const put = (next: TimerWindow[], what: string) => settings.write({ timerWindows: next }, what);
+  const put = (next: TimerWindow[], what: string) =>
+    settings.write({ timerWindows: next }, held => (held.timerWindows === next ? what : `${t('plugSettings.windows.label')} ${said(windows)}`));
 
   return (
     <SettingsBlock

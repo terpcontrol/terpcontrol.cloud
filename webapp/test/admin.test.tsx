@@ -456,7 +456,7 @@ describe('the fleet table', () => {
 
     const rows = screen.getAllByRole('row');
     expect(within(rows[1]).getByText('@mo')).toBeInTheDocument();
-    expect(screen.getByText('unclaimed')).toBeInTheDocument();
+    expect(screen.getByText('not added by anyone yet')).toBeInTheDocument();
     // The build is drawn under the name it was registered with, and the row for
     // a build this install has no record of keeps the opaque id.
     expect(screen.getAllByText('Spring build').length).toBeGreaterThan(0);

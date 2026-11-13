@@ -188,7 +188,9 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
         label: [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), target.label, climate.climate ? t('log.targetsSet') : null]
           .filter(Boolean)
           .join(' · '),
-        undo: climate.climate ? null : () => api.delete(`/grows/${growId}/phases/${phase.id}`).then(() => diaryChanged(client)),
+        ...(climate.climate
+          ? { undo: null }
+          : { undo: () => api.delete(`/grows/${growId}/phases/${phase.id}`).then(() => diaryChanged(client)), undone: t('log.phaseBefore') }),
       });
     } catch {
       setSaving(false);
@@ -429,7 +431,7 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
 
       {failed ? (
         <p className={ui.problem} role="alert">
-          {t(failed === 'back' ? 'log.undoFailed' : 'log.saveFailed')}
+          {t(failed === 'back' ? 'log.deleteFailed' : 'log.saveFailed')}
         </p>
       ) : null}
 

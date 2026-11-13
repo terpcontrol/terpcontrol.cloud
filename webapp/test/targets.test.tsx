@@ -308,7 +308,7 @@ describe('the climate under Steuerung', () => {
     wire.live = { active: 'night', period: 'night' };
     await drawn();
 
-    await waitFor(() => expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Day', 'Nightholds now']));
+    await waitFor(() => expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Day', 'Nightin effect now']));
   });
 
   /**
@@ -609,7 +609,7 @@ describe('the climate under Steuerung', () => {
       expect(within(sheet).queryByRole('button', { name: 'End germination' })).not.toBeInTheDocument();
       fireEvent.click(within(sheet).getByRole('button', { name: 'End drying' }));
       expect(within(sheet).getByRole('button', { name: 'End drying' })).toHaveAttribute('aria-pressed', 'true');
-      const back = within(sheet).getByRole('list', { name: 'What holds again afterwards' });
+      const back = within(sheet).getByRole('list', { name: 'What applies again afterwards' });
       expect(within(back).getByText('Day temperature').parentElement).toHaveTextContent('25.0 °C → 26.0 °C');
       expect(within(back).getByText('Light limit').parentElement).toHaveTextContent('80 % → 100 %');
       // A figure the spell left where it was is not listed.
@@ -634,7 +634,7 @@ describe('the climate under Steuerung', () => {
       tap(/^Climate preset/);
       const sheet = screen.getByRole('dialog');
       fireEvent.click(within(sheet).getByRole('button', { name: 'End germination' }));
-      const back = within(sheet).getByRole('list', { name: 'What holds again afterwards' });
+      const back = within(sheet).getByRole('list', { name: 'What applies again afterwards' });
       expect(within(back).getByText('Night temperature').parentElement).toHaveTextContent('20.0 °C → 18.0 °C');
       expect(within(sheet).getByText(/Applying ends germination/)).toBeInTheDocument();
       expect(within(sheet).getByText(/This pauses the plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
@@ -742,7 +742,7 @@ describe('the climate under Steuerung', () => {
       expect(screen.getByRole('button', { name: 'Change Day temperature, 25.0 °C, not with the device yet' })).toHaveAttribute('data-pending');
       expect(figure('Night temperature')).not.toHaveAttribute('data-pending');
       // What it held is said only where the cloud knows it, and the limit is marked as the figures are: pending is one colour.
-      expect(screen.getByText('Light limit: 80 % saved at 14:32. The device takes it over once it is back online.')).toBeInTheDocument();
+      expect(screen.getByText('Light limit: 80 % saved at 14:32. It reaches the device once it is back online.')).toBeInTheDocument();
       const limit = screen.getByRole('spinbutton', { name: 'Light limit' }).closest('[data-pending]');
       expect(limit).not.toBeNull();
       expect(limit).not.toHaveAttribute('data-changed');
@@ -867,7 +867,7 @@ describe('the climate under Steuerung', () => {
 
       expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'round the clock']);
       expect(screen.getByText('Light on round the clock · 24 h')).toBeInTheDocument();
-      expect(screen.getByText(/Night figures – hold again as soon as there is a night/)).toHaveTextContent('20 °C · 55 %');
+      expect(screen.getByText(/Night figures – apply again as soon as there is a night/)).toHaveTextContent('20 °C · 55 %');
     });
 
     /** Switched off there is no table, because the device holds none of it - and the one way out stands beside the sentence. */

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SchemeWeek } from '@fg2/shared-types/v1';
-import { dashFigure, typedFigure } from '@/ui/figures';
+import { dashFigure, looseFigure, typedFigure } from '@/ui/figures';
 import { ecTargetAt, hasEcTargets, productsOf, type Product } from './grid';
 import styles from './Scheme.module.css';
 
@@ -152,8 +152,8 @@ const commonUnit = (products: Product[]): string | null => {
   return [...counts.entries()].sort(([, one], [, other]) => other - one)[0]?.[0] ?? null;
 };
 
-/** An en dash is "not this week": a cell nobody doses, which is not a cell dosed at zero. */
-const figure = (value: number | null): string => (value === null ? '–' : String(value));
+/** A dose as the reader's language writes it; an en dash is "not this week": a cell nobody doses, which is not a cell dosed at zero. */
+const figure = (value: number | null): string => (value === null ? '–' : looseFigure(value));
 
 /**
  * One cell, open. It commits when the cursor leaves it, so that tapping the
@@ -171,7 +171,7 @@ function CellInput({
   onDone: (value: number | null) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState(value === null ? '' : String(value));
+  const [text, setText] = useState(value === null ? '' : looseFigure(value));
 
   const commit = () => {
     const trimmed = text.trim();

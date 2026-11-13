@@ -351,12 +351,12 @@ describe('an install that gates nothing', () => {
   it('says so once, and draws no chip, no date, no countdown and no offer however the records read', async () => {
     await drawLoaded();
 
-    expect(screen.getByText(/This installation gates nothing/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is locked on this installation/)).toBeInTheDocument();
     expect(screen.queryByText(/until /)).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
     expect(screen.queryByText(/needs Premium/)).toBeNull();
-    expect(screen.getAllByText('everything included on this install')).toHaveLength(3);
+    expect(screen.getAllByText('everything included on this installation')).toHaveLength(3);
 
     // The word is the page's title and the table's column, and is on no card:
     // a tier is not a fact about a camera where nothing is gated.
@@ -394,7 +394,7 @@ describe('what Premium covers', () => {
         .map(row => within(row).getByRole('rowheader').textContent),
     ).toEqual([
       'Current picture and today’s timelapse',
-      'Full resolution stills',
+      'Full-resolution stills',
       'Stills kept',
       'Timelapse over the whole grow, HD',
       'Reel export with overlays',
@@ -436,7 +436,7 @@ describe('what Premium covers', () => {
     draw();
 
     expect(await screen.findByText('The demo has no account of its own, so there is no Premium to look at.')).toBeInTheDocument();
-    expect(tableSays()).toEqual([FIXED[0], ['per install', 'whole'], ['per install', 'whole grow'], ...FIXED.slice(1)]);
+    expect(tableSays()).toEqual([FIXED[0], ['per installation', 'whole'], ['per installation', 'whole grow'], ...FIXED.slice(1)]);
     expect(vi.mocked(fetchStub).mock.calls).toHaveLength(0);
   });
 });
@@ -457,7 +457,7 @@ describe('the two screens that describe the free tier', () => {
     expect(tableSays()[2]).toEqual(['whole grow', 'whole grow']);
 
     drawPrivacy();
-    expect(await screen.findByText('Premium: the whole grow · free: kept just as long on this install')).toBeInTheDocument();
+    expect(await screen.findByText('Premium: the whole grow · free: kept just as long on this installation')).toBeInTheDocument();
   });
 
   it('agree on the days where the install names them', async () => {
@@ -492,7 +492,7 @@ describe('the camera page', () => {
     expect(
       await screen.findByText('Without Premium, its stills are served whole and kept just as long, but its films stay SD with a watermark.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('not entitled')).toBeInTheDocument();
+    expect(screen.getByText('no Premium')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /What Premium covers/ })).toHaveAttribute('href', '/me/premium');
   });
 

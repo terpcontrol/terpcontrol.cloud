@@ -8,8 +8,9 @@ import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, typ
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
-import { withRoom } from './toast-room';
+import { lastUsed, withRoom } from './toast-room';
 import { Toasts, type LoggedLine } from './Toasts';
+import { undoneLabel } from './lines';
 import { refusalText } from '@/ui/refusal';
 
 /**
@@ -71,8 +72,9 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   /**
    * Takes a line back - by its own way where it only told of something, else by deleting what it wrote - and answers
-   * where the Undo stood: with what holds again in the teller's words, else with what was taken back. A refusal is
-   * said there too. A line still on its way has no id yet and is taken back the moment the server answers with one.
+   * where the Undo stood with what holds again: in the teller's words, and of a written line that the diary no
+   * longer has it. A refusal is said there too. A line still on its way has no id yet and is taken back the moment
+   * the server answers with one.
    */
   const undo = useCallback(
     ({ key, entry, revert }: Pick<LoggedLine, 'key' | 'entry' | 'revert'>) => {
@@ -82,7 +84,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
       }
       change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
       void (revert?.() ?? takeEntryBack(entry!.id).then(() => diaryChanged(client))).then(
-        () => change(key, line => saying(`${i18n.t('log.undone')}${line.undone ? ` · ${line.undone}` : `: ${line.label}`}`)),
+        () => change(key, line => saying(undoneLabel(i18n.t, line.undone ?? i18n.t('log.gone')))),
         error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
       );
     },
@@ -133,6 +135,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
         send: request.send,
         changed: request.changed,
         revert: null,
+        undone: request.undone,
+        answers: lastUsed(),
         details: request.details ?? null,
         state: 'saving',
         undoable: request.undoable ?? true,
@@ -184,14 +188,17 @@ export function LogProvider({ children }: { children: ReactNode }) {
           label,
           undoable: options.undoable,
           changed: options.changed,
+          undone: t('log.reopened'),
           send: () => completeTask(taskId).finally(() => ticking.current.delete(taskId)),
         });
       },
-      [log],
+      [log, t],
     ),
-    tell: useCallback(({ label, undo: back, undone, from }: Told) => {
-      const line = { ...saying(label), key: nextKey.current++, send: () => Promise.reject(new Error('nothing to send')), revert: back, undone, from };
-      setLines(current => withRoom(current, { ...line, undoable: back !== null }));
+    tell: useCallback(({ label, from, ...back }: Told) => {
+      const told = { ...saying(label), key: nextKey.current++, send: () => Promise.reject(new Error('nothing to send')), from, answers: lastUsed() };
+      setLines(current =>
+        withRoom(current, { ...told, revert: back.undo, undone: back.undo ? back.undone : undefined, undoable: back.undo !== null }),
+      );
     }, []),
   };
 

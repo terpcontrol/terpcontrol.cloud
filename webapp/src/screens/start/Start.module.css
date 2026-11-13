@@ -246,24 +246,7 @@ a.status {
   font-weight: var(--weight-semibold);
 }
 
-/* --- a box that says something is wrong --- */
-
-.box {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: 14px var(--space-4);
-  background: var(--warning-wash);
-  border: var(--rule-width) solid var(--warning-edge);
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
-}
-
-.box h2 {
-  font-size: var(--text-lg);
-  letter-spacing: 0;
-  color: var(--warning);
-}
+/* --- a box that says something is wrong: the amber box of a device gone quiet (`ui/OfflineHelp`), with a button --- */
 
 .boxAction {
   align-self: flex-start;
@@ -390,9 +373,11 @@ a.status {
   text-align: center;
 }
 
+/* Four equal columns, and a figure wider than its share - a VPD below zero on a narrow phone - takes what it needs
+   from the others rather than running into its neighbour. */
 .pictureFigures {
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: minmax(max-content, 1fr);
   grid-auto-flow: column;
 }
 
@@ -519,6 +504,13 @@ a.tileLabel::after {
 .tileNote {
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+/* "im Ziel" explains itself where it is tapped: a finger high and wide, into the tile's air around the words. */
+.tileNote button::after {
+  position: absolute;
+  inset: -12px -4px;
+  content: '';
 }
 
 .tileNote[data-tone='good'] {

@@ -530,7 +530,7 @@ describe('taking everything away', () => {
   it('will not delete anything until the handle has been typed', async () => {
     await drawLoaded();
 
-    expect(screen.getByText(reading('really deleted, not hidden · devices stay claimable'))).toBeInTheDocument();
+    expect(screen.getByText(reading('really deleted, not hidden · devices can be added again'))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete my account …' }));
 
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });

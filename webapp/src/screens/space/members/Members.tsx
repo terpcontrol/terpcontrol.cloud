@@ -7,6 +7,7 @@ import { useSpaces } from '@/api/spaces';
 import { Facts } from '@/ui/Facts';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Rows, RowText } from '@/ui/Rows';
+import rows from '@/ui/Rows.module.css';
 import { useMayIn } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -89,7 +90,7 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
           />
         ))}
         {mayWrite ? (
-          <button type="button" className={styles.invite} aria-expanded={inviting} aria-controls={invitesId} onClick={() => setInviting(!inviting)}>
+          <button type="button" className={rows.add} aria-expanded={inviting} aria-controls={invitesId} onClick={() => setInviting(!inviting)}>
             + {t('space.members.inviteSomebody')}
           </button>
         ) : null}

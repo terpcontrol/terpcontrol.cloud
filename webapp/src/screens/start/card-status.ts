@@ -8,7 +8,7 @@ import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { silenceOf } from './attention';
 import { climateDeviceOf, controlOffOf, statusOf, statusText } from './place';
-import { useHumidifierHold } from './reads';
+import { useHumidifierHold, usePlaceAlerts } from './reads';
 
 /**
  * What a place says about itself away from its own page - on its Start card
@@ -30,7 +30,8 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const humidifierHold = useHumidifierHold(device);
   const silence = silenceOf(values, here, now);
   const silentSince = silence && !silence.waiting ? silence.since : null;
-  const status = statusOf({ ...card, values, setpoints, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince }, now);
+  const openAlerts = usePlaceAlerts(card.openAlerts, here, now);
+  const status = statusOf({ ...card, values, setpoints, openAlerts, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince }, now);
   const said = (status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
 
   return { here, device, values, status, said };

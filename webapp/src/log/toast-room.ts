@@ -25,10 +25,31 @@ export const withRoom = (lines: LoggedLine[], line: LoggedLine): LoggedLine[] =>
   return [...others.filter(one => !going.has(one.key)), line];
 };
 
-/** The room a toast keeps from the box it stands by and from the window's edge. */
-const GAP = 8;
+/** The control used last, by pointer or by keyboard - a click is both, a change is a select's: what the next toast answers. */
+let used: Element | null = null;
+if (typeof document !== 'undefined') {
+  const note = (event: Event) =>
+    (used = event.target instanceof Element ? (event.target.closest('button, a, select, input, textarea, label') ?? event.target) : null);
+  for (const type of ['click', 'change']) document.addEventListener(type, note, true);
+}
+export const lastUsed = (): Element | null => used;
+
+/** The room a toast keeps from the box it stands by, from the window's edge and from the control it answers. */
+export const GAP = 8;
 
 type Box = { top: number; bottom: number };
+
+/** How far the page moves so that none of `controls` lies under the toasts' box: by the lowest one's overlap; one beside the box asks nothing. */
+export const clearance = (controls: readonly Box[], toasts: Box): number =>
+  Math.max(0, ...controls.filter(one => one.bottom > toasts.top && one.top < toasts.bottom).map(one => one.bottom - toasts.top + GAP));
+
+/**
+ * The room a page keeps under its end: what the toasts ask (`wanted`), and beyond it whatever of the room it has
+ * (`has`) the page is scrolled into - that goes only as the page is scrolled back out of it, so nothing jumps when
+ * a toast leaves. `scrolled` is the page's scroll, `most` how far it reaches as it stands.
+ */
+export const roomFor = (wanted: number, has: number, scrolled: number, most: number): number =>
+  wanted + Math.max(0, scrolled - Math.max(0, most - (has - wanted)));
 
 /**
  * Where the toasts stand while a sheet is open, so that none lies on it: under

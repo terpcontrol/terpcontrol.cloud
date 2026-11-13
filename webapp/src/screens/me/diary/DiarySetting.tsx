@@ -52,7 +52,13 @@ export function DiarySetting() {
                     onClick={() => {
                       if (kept === choice) return;
                       void set(choice).then(
-                        () => tell({ label: t(`me.diary.told.${key}`), undo: () => set(kept), from: 'me:diary' }),
+                        () =>
+                          tell({
+                            label: t(`me.diary.told.${key}`),
+                            undo: () => set(kept),
+                            undone: t(`me.diary.told.${kept ?? 'auto'}`),
+                            from: 'me:diary',
+                          }),
                         // Said under the row, from the write that was refused.
                         () => undefined,
                       );

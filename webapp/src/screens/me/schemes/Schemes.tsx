@@ -8,6 +8,7 @@ import type { Translate } from '@/i18n/i18n';
 import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
+import { useAnswered } from '@/screens/grow/told';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -176,6 +177,8 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
   const { t } = useTranslation();
   const update = useUpdateScheme();
   const remove = useDeleteScheme();
+  const saved = useAnswered(update, `scheme-${scheme.id}`);
+  const removed = useAnswered(remove, `scheme-${scheme.id}`);
   const [name, setName] = useState(scheme.name);
   const [grid, setGrid] = useState<SchemeWeek[]>(scheme.grid);
   const [asking, setAsking] = useState(false);
@@ -185,6 +188,15 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
   const published = asset.data?.grid ?? null;
   const dirty = name.trim() !== scheme.name || !same(grid, scheme.grid);
   const left = published !== null && !same(grid, published);
+  // The copy as it stood is one write away, so the answer offers it back; a deleted one would come back as another scheme.
+  const save = () =>
+    saved(
+      { id: scheme.id, body: { name: name.trim(), grid } },
+      t('me.schemes.told.saved', { name: name.trim() }),
+      { to: { id: scheme.id, body: { name: scheme.name, grid: scheme.grid } }, undone: t('me.schemes.told.back', { name: scheme.name }) },
+      onClose,
+    );
+  const forget = () => removed(scheme.id, t('me.schemes.told.removed', { name: scheme.name }), null, onClose);
 
   return (
     <Sheet
@@ -193,12 +205,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
       onClose={onClose}
       actions={
         <>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary}`}
-            disabled={!dirty || name.trim() === '' || update.isPending}
-            onClick={() => update.mutate({ id: scheme.id, body: { name: name.trim(), grid } }, { onSuccess: onClose })}
-          >
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={!dirty || name.trim() === '' || update.isPending} onClick={save}>
             {update.isPending ? t('me.schemes.saving') : t('me.schemes.save')}
           </button>
           <Refused error={update.error} />
@@ -230,7 +237,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
             yes={t('me.schemes.deleteYes')}
             danger
             busy={remove.isPending}
-            onYes={() => remove.mutate(scheme.id, { onSuccess: onClose })}
+            onYes={forget}
             onCancel={() => setAsking(false)}
           >
             <Refused error={remove.error} />

@@ -55,15 +55,17 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
   );
 
   // What is on its way or waiting, one line: an update told and not back yet, one that did not take, or a newer build.
-  const next = firmware.owedId
-    ? device.state.updateFailedAt
-      ? t('devices.panel.updateFailed', { ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
-      : t('devices.panel.updateOwed')
-    : firmware.offered
-      ? t('device.firmware.there', { day: firmware.madeOn(firmware.offered) })
-      : firmware.coming
-        ? t('device.firmware.coming', { day: firmware.madeOn(firmware.coming) })
-        : null;
+  // A device never heard reports no build and installs none, whatever its rollout names.
+  const next =
+    firmware.owedId && device.state.lastSeenAt
+      ? device.state.updateFailedAt
+        ? t('devices.panel.updateFailed', { ago: t('devices.ago', { age: ageLabel(device.state.updateFailedAt, now) }) })
+        : t('devices.panel.updateOwed')
+      : firmware.offered
+        ? t('device.firmware.there', { day: firmware.madeOn(firmware.offered) })
+        : firmware.coming
+          ? t('device.firmware.coming', { day: firmware.madeOn(firmware.coming) })
+          : null;
 
   // `firmware` is written whole, so the pinned build goes back as it was: a channel chosen tells the device to install nothing.
   const set = (to: FirmwareChannel) => update.mutateAsync({ firmware: { channel: to, targetId: device.firmware.targetId } });
@@ -71,7 +73,13 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
     const before = device.firmware.channel;
     if (to === before || update.isPending) return;
     void set(to).then(
-      () => tell({ label: t(`device.firmware.told.${to}`), undo: () => set(before), from: `firmware-${device.id}` }),
+      () =>
+        tell({
+          label: t(`device.firmware.told.${to}`),
+          undo: () => set(before),
+          undone: t(`device.firmware.told.${before}`),
+          from: `firmware-${device.id}`,
+        }),
       // Said under the controls, from the write that refused.
       () => undefined,
     );

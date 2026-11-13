@@ -515,6 +515,29 @@ describe('Start of a place that only regulates', () => {
     expect(await screen.findByRole('link', { name: new RegExp(`^Too warm.*since ${hhmm(ago(20))}$`) })).toHaveAttribute('href', '/alerts');
   });
 
+  it('names a second device gone silent beside the one that reports, and how many more alerts the place has open', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'controller', name: 'Mother controller', state: { lastSeenAt: ago(35) } as never })];
+    const silent = { kind: 'offline', severity: 'critical', startedAt: ago(5), value: 1800, metric: 'offline', name: null };
+    const mould = { kind: 'threshold', severity: 'warning', startedAt: ago(20), value: 75, metric: 'humidity', name: 'Mould watch' };
+    server.alerts = [
+      { id: 'alert-1', deviceId: 'device-1', spaceId: 'space-1', ...mould },
+      { id: 'alert-2', deviceId: 'device-2', spaceId: 'space-1', ...silent },
+    ];
+    onePlace(
+      overviewOf({
+        deviceIds: ['device-1', 'device-2'],
+        openAlerts: [
+          { alertId: 'alert-1', ...mould },
+          { alertId: 'alert-2', ...silent },
+        ] as never,
+      }),
+    );
+    draw();
+
+    const sentence = await screen.findByRole('link', { name: new RegExp(`^Mother controller offline.*since ${hhmm(ago(35))}.*\\+1$`) });
+    expect(sentence).toHaveAttribute('href', '/alerts');
+  });
+
   it('says a work mode that is not the everyday one in two words, with the way to change it', async () => {
     server.devices = [fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } as never })];
     draw();
@@ -780,7 +803,7 @@ describe('the states of Start', () => {
 
     const row = await screen.findByRole('link', { name: /^Change targets and light/ });
     expect(row).toHaveAttribute('href', '/control?space=space-1');
-    expect(row).toHaveTextContent('Works now too. The device takes it over as soon as it is back online.');
+    expect(row).toHaveTextContent('Works now too. It reaches the device as soon as it is back online.');
     expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
   });
 
@@ -832,7 +855,7 @@ describe('the states of Start', () => {
     // Whose place it is leads to who else is here, which is where a member leaves; a reader who may change
     // nothing about the place has no menu beside its name.
     expect(await screen.findByRole('link', { name: 'by @host, see the members' })).toHaveAttribute('href', '/spaces/space-1/members');
-    expect(screen.getByText('you may log')).toBeInTheDocument();
+    expect(screen.getByText('you can log')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     // What a member may do is there: the watering is theirs to enter.
@@ -976,7 +999,7 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
-  it('says the same of a place that was removed, whose own read still answers', async () => {
+  it('says the same of somebody else´s place that was removed, whose own read still answers', async () => {
     server.home = homeOf([cardOf(), cardOf({ spaceId: 'space-2', name: 'Tent 2' })]);
     server.overviews.set('space-9', overviewOf({ spaceId: 'space-9', name: 'Removed tent', deviceIds: [] }));
     draw('/spaces/space-9');
@@ -986,7 +1009,9 @@ describe('the states of Start', () => {
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByText('Removed tent')).not.toBeInTheDocument();
   });
-  it('says it of an administrator´s own removed place too, and still draws a customer´s', async () => {
+
+  /** Nobody took the owner out of a place they removed themselves: its address says that it has ended, as Verlauf and Steuerung do. */
+  it('says of a place of one´s own that it has ended - an administrator´s too - and still draws a customer´s', async () => {
     who.admin = true;
     server.home = homeOf([cardOf(), cardOf({ spaceId: 'space-2', name: 'Tent 2' })]);
     server.overviews.set('space-9', overviewOf({ spaceId: 'space-9', name: 'Removed tent', deviceIds: [] }));
@@ -994,8 +1019,9 @@ describe('the states of Start', () => {
     server.ended = [spaceWhere('own', { id: 'space-9', name: 'Removed tent', archivedAt: '2026-05-01T00:00:00.000Z' })];
     const { unmount } = draw('/spaces/space-9');
 
-    expect(await screen.findByText('This place cannot be opened.')).toBeInTheDocument();
-    expect(screen.queryByText('Removed tent')).not.toBeInTheDocument();
+    expect(await screen.findByText(/The place Removed tent no longer exists/)).toBeInTheDocument();
+    expect(screen.queryByText('This place cannot be opened.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     unmount();
 
     draw('/spaces/space-7');

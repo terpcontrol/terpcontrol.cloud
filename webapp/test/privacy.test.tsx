@@ -304,7 +304,7 @@ describe('how long anything is kept', () => {
     expect(server.patched).toHaveLength(0);
     expect(
       sheet.getByText(
-        'Climate readings older than 90 days become one figure a day: everything before 24 Jun 2026, and from now on each day that leaves the window. The daily figure stays on Timeline and in your export; the readings themselves are deleted and cannot come back.',
+        'Climate readings older than 90 days become one figure a day: everything before 24 Jun 2026, and from now on each day that leaves the window. The daily figure stays in the Timeline and in your export; the readings themselves are deleted and cannot come back.',
       ),
     ).toBeInTheDocument();
 
@@ -354,7 +354,7 @@ describe('how long anything is kept', () => {
 
     // This install has turned no sweep on, which is the default and which the
     // line has to say plainly: nothing of a free camera's is deleted here.
-    expect(screen.getByText(/free: kept just as long on this install/)).toBeInTheDocument();
+    expect(screen.getByText(/free: kept just as long on this installation/)).toBeInTheDocument();
   });
 
   it('says what this install will really keep where the account has said nothing', async () => {
@@ -363,7 +363,7 @@ describe('how long anything is kept', () => {
       climateRetention: { installDays: 365, appliesDays: 365 },
     });
 
-    expect(screen.getByText(/this install keeps at most 365 days of raw samples/)).toBeInTheDocument();
+    expect(screen.getByText(/this installation keeps at most 365 days of raw samples/)).toBeInTheDocument();
   });
 
   it('names the days where the install has named them', async () => {

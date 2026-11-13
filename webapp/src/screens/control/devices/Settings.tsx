@@ -145,7 +145,7 @@ export function NumberSetting({
           busy={settings.busy}
           error={settings.error}
           invalid={invalid ? values => invalid(values[name]) : undefined}
-          onSave={values => settings.write({ [name]: values[name] }, `${label} ${say(values[name])}`)}
+          onSave={values => settings.write({ [name]: values[name] }, held => `${label} ${say(held[name])}`)}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -165,7 +165,7 @@ export function SwitchSetting({ device, settings, mayManage, name, label, help, 
           label={label}
           on={on}
           disabled={disabled || settings.busy}
-          onChange={next => void settings.write({ [name]: next }, `${label} ${onOff(t, next)}`)}
+          onChange={next => void settings.write({ [name]: next }, held => `${label} ${onOff(t, Boolean(held[name]))}`)}
         />
       ) : (
         <span className={styles.read}>{onOff(t, on)}</span>
@@ -216,7 +216,7 @@ export function ChoiceSetting({
           says={says}
           busy={settings.busy}
           error={settings.error}
-          onSave={value => settings.write({ [name]: value }, `${label} ${word(value)}`)}
+          onSave={value => settings.write({ [name]: value }, held => `${label} ${word(held[name])}`)}
           onClose={() => setOpen(false)}
         />
       ) : null}

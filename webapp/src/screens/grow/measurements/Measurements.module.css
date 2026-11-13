@@ -107,15 +107,21 @@
   font-size: var(--text-xs);
 }
 
-.chipUnit {
-  color: var(--label);
+/* A template is a finger high where it is tapped, by the air round it: the chip keeps its size and its row stands
+   that much clear of the next. */
+.templates > button {
+  position: relative;
+  margin-block: var(--space-1);
 }
 
-/* The sheet behind a card. */
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+.templates > button::after {
+  position: absolute;
+  inset: -8px 0;
+  content: '';
+}
+
+.chipUnit {
+  color: var(--label);
 }
 
 .band {

@@ -147,19 +147,19 @@ describe('an account with nothing configured', () => {
     const first = draw();
     await screen.findByRole('switch', { name: 'Push' });
     expect(await screen.findByRole('rowheader', { name: 'Critical alarms' })).toBeInTheDocument();
-    await expect(screen.findByRole('rowheader', { name: 'Week film' }, { timeout: 400 })).rejects.toThrow();
+    await expect(screen.findByRole('rowheader', { name: 'Weekly film' }, { timeout: 400 })).rejects.toThrow();
     first.unmount();
 
     // A host's camera, seen as a guest, films for the host.
     server.cameras = [{ id: 'camera-2', ownerId: 'host', removedAt: null, isDemo: false }];
     const guest = draw();
     await screen.findByRole('switch', { name: 'Push' });
-    await expect(screen.findByRole('rowheader', { name: 'Week film' }, { timeout: 400 })).rejects.toThrow();
+    await expect(screen.findByRole('rowheader', { name: 'Weekly film' }, { timeout: 400 })).rejects.toThrow();
     guest.unmount();
 
     server.cameras = [{ id: 'camera-1', ownerId: server.me.id, removedAt: null, isDemo: false }];
     await drawLoaded();
-    expect(await screen.findByRole('rowheader', { name: 'Week film' })).toBeInTheDocument();
+    expect(await screen.findByRole('rowheader', { name: 'Weekly film' })).toBeInTheDocument();
   });
 
   /** Due tasks are the diary's reminders; an account that keeps no diary has nothing that could fall due. */
@@ -167,7 +167,7 @@ describe('an account with nothing configured', () => {
     server.me = me({}, { layers: { diary: false } });
     const first = draw();
     expect(await screen.findByRole('rowheader', { name: 'Critical alarms' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'Plan asks' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'Grow plan questions' })).toBeInTheDocument();
     expect(screen.queryByRole('rowheader', { name: 'Tasks due' })).not.toBeInTheDocument();
     first.unmount();
 
@@ -185,7 +185,7 @@ describe('an account with nothing configured', () => {
     for (const cell of screen.getAllByRole('switch', { name: / by / })) expect(cell).toBeDisabled();
     // Why a column cannot be moved, and that what it was given is kept, is the help's to say and not a paragraph's.
     expect(screen.getByRole('button', { name: 'About What goes where' })).toHaveAccessibleDescription(
-      /A channel is off until it is configured, and its column cannot be moved until then; what is already routed to it is kept/,
+      /A channel is off until it is configured, and its column cannot be switched until then; what is already routed to it is kept/,
     );
     expect(screen.queryByText(/A channel is off until/, { selector: 'p' })).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'false');
@@ -396,12 +396,13 @@ describe('switching e-mail on', () => {
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
-    await waitFor(() => expect(toasts()).toEqual(['Critical alarms, tasks due, and plan asks by e-mail to login@example.org']));
+    await waitFor(() => expect(toasts()).toEqual(['Critical alarms, tasks due, and plan questions by e-mail to login@example.org']));
     fireEvent.click(within(toastHost()!).getByRole('button', { name: 'Undo' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.email).toBeNull();
     expect(lastPatch().routing).toEqual({ ...NOTHING.routing, tasks: ['email'], plan: ['email'] });
+    await waitFor(() => expect(toasts()).toEqual(['Undone · E-mail · off']));
   });
 
   it('names no rows where nothing calls on the account, which the server reads as the critical alarms', async () => {
@@ -612,6 +613,8 @@ describe('quiet hours', () => {
 
     fireEvent.click(within(toastHost()!).getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 420 }));
+    // The answer names what holds again, not the window that was taken back.
+    await waitFor(() => expect(toasts()).toEqual(['Undone · Quiet hours 23:00–07:00']));
   });
 
   it('refuse a window of no length with a sentence, keep the saved one in the title and write nothing of it', async () => {
@@ -767,7 +770,7 @@ describe('linking Telegram', () => {
     await drawLoaded();
 
     expect(
-      screen.getByText(reading(/^linked .* · critical alarms and week film · a reply to an alarm or a task goes into the diary$/)),
+      screen.getByText(reading(/^linked .* · critical alarms and weekly film · a reply to an alarm or a task goes into the diary$/)),
     ).toBeInTheDocument();
   });
 
@@ -778,7 +781,7 @@ describe('linking Telegram', () => {
     });
     await drawLoaded();
 
-    expect(screen.getByText(reading(/^linked .* · plan asks$/))).toBeInTheDocument();
+    expect(screen.getByText(reading(/^linked .* · plan questions$/))).toBeInTheDocument();
   });
 
   it('asks before unlinking a chat, and only then writes null', async () => {

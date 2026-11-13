@@ -540,6 +540,8 @@
   padding: var(--space-3);
   border: var(--rule-dashed);
   border-radius: var(--radius);
+  /* Brought into view when asked (`Asking.tsx`): clear of the bar at the window's foot, not under it. */
+  scroll-margin: var(--space-3) 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-3));
 }
 
 /* Read aloud but not drawn. */

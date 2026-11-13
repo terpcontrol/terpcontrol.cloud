@@ -72,7 +72,8 @@ function Factor({
     const before: DeviceSettings = device.settings;
     try {
       await update.mutateAsync({ settings: { ...before, [name]: next } });
-      tell({ label: t('control.saved.now', { what: `${label} ${say(next)}` }), undo: () => update.mutateAsync({ settings: before }) });
+      const saved = (value: number) => t('control.saved.now', { what: `${label} ${say(value)}` });
+      tell({ label: saved(next), undo: () => update.mutateAsync({ settings: before }), undone: saved(stored) });
       return true;
     } catch {
       // Said in the sheet that asked, from the write that was refused.

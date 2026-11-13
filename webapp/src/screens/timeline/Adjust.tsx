@@ -214,7 +214,11 @@ function Views({ saved, definition, onApply }: { saved: ChartView[]; definition:
       {
         onSuccess: kept => {
           setName('');
-          tell({ label: t('timeline.adjust.viewSaved', { name: kept.name }), undo: () => remove.mutateAsync(kept.id) });
+          tell({
+            label: t('timeline.adjust.viewSaved', { name: kept.name }),
+            undo: () => remove.mutateAsync(kept.id),
+            undone: t('log.noMore', { what: kept.name }),
+          });
         },
       },
     );
@@ -225,6 +229,7 @@ function Views({ saved, definition, onApply }: { saved: ChartView[]; definition:
         tell({
           label: t('timeline.adjust.viewDeleted', { name: view.name }),
           undo: () => save.mutateAsync({ name: view.name, definition: view.definition }),
+          undone: t('timeline.adjust.viewSaved', { name: view.name }),
         });
       },
     });

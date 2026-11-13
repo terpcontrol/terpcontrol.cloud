@@ -750,7 +750,7 @@ describe('the choice of place', () => {
     const router = open(`${item}?space=space-9`);
 
     expect(
-      await screen.findByText('The place Old tent has been removed. Its curves are now only with the grows that grew there.'),
+      await screen.findByText('The place Old tent no longer exists. You can still see its curves on the grows that were there.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');

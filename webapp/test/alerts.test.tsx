@@ -7,7 +7,7 @@ import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
-import { crossedBound, lastEndedFirst, worstFirst } from '@/screens/alerts/inbox';
+import { crossedBound, worstFirst } from '@/screens/alerts/inbox';
 import { forgetKept } from '@/ui/kept';
 import { alertLabel } from '@/ui/units';
 import { deviceWith } from './fixtures';
@@ -183,8 +183,11 @@ const answer = (method: string, path: string, body: unknown): Response => {
     if (state.who === 'demo') return json({ items: [], nextCursor: null });
     const query = new URL(path, 'http://x').searchParams;
     // What is open and what is over are asked for apart, and the route answers
-    // each half on its own as the server does.
-    const half = (list: Alert[]) => list.filter(one => (query.get('open') === 'true' ? one.resolvedAt === null : one.resolvedAt !== null));
+    // each half on its own as the server does - what is over in the order it ended, the last first.
+    const half = (list: Alert[]) =>
+      query.get('open') === 'true'
+        ? list.filter(one => one.resolvedAt === null)
+        : list.filter(one => one.resolvedAt !== null).sort((a, b) => b.resolvedAt!.localeCompare(a.resolvedAt!));
     if (query.get('cursor')) return json({ items: half(server.older), nextCursor: null });
 
     return json({ items: half(server.alerts), nextCursor: server.older.length ? 'cursor-1' : null });
@@ -347,7 +350,7 @@ describe('the inbox', () => {
     ]);
   });
 
-  /** The server lists what is over by when it began; the page is headed by when it ended, and stands in that order. */
+  /** The server lists what is over by when it ended; the page is headed by that and stands in that order. */
   it('stands what is over in the order it ended, and says where once the account sees a second place', async () => {
     server.places = [...server.places, { id: 'space-2', name: 'Cellar' }];
     server.alerts = [
@@ -405,6 +408,44 @@ describe('the inbox', () => {
     );
     expect(await screen.findAllByText('3 alerts deleted')).toHaveLength(1);
     await waitFor(() => expect(overRows()).toEqual([['Humidity too low for 1 h', stamp(NOW.minus({ hours: 4 }))]]));
+  });
+
+  /** Fifty rules that watch one reading are fifty things that happened, not one row "50×" whose sheet names one of them. */
+  it('folds only one rule´s episodes: two rules that say the same of one device are two rows', async () => {
+    const ended = (id: string, ruleId: string, minutes: number) =>
+      alert({ id, ruleId, startedAt: iso(NOW.minus({ minutes: minutes + 4 })), resolvedAt: iso(NOW.minus({ minutes })) });
+    server.alerts = [ended('b-2', 'rule-2', 10), ended('a-2', 'rule-1', 20), ended('b-1', 'rule-2', 30), ended('a-1', 'rule-1', 40)];
+    server.rules = [rule(), rule({ id: 'rule-2', name: 'Humidity high at night' })];
+    draw();
+
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Humidity too high', `${stamp(NOW.minus({ minutes: 10 }))} · 2× since ${clock(NOW.minus({ minutes: 34 }))}`],
+        ['Humidity too high', `${stamp(NOW.minus({ minutes: 20 }))} · 2× since ${clock(NOW.minus({ minutes: 44 }))}`],
+      ]),
+    );
+  });
+
+  /**
+   * What is over is paged by when it ended. A day the pages read so far end in may go on behind them, so its rows
+   * are read to their end before they say a number: "2×" deleted two and came back as "1×".
+   */
+  it('reads a day that goes on behind the page to its end before a row of it counts or deletes', async () => {
+    const flap = (id: string, minutes: number) =>
+      alert({ id, startedAt: iso(NOW.minus({ minutes: minutes + 4 })), resolvedAt: iso(NOW.minus({ minutes })) });
+    server.alerts = [flap('third', 10), flap('second', 30)];
+    server.older = [flap('first', 50)];
+    draw();
+
+    const over = await screen.findByRole('region', { name: 'Resolved' });
+    await waitFor(() => expect(over).toHaveTextContent(`3× since ${clock(NOW.minus({ minutes: 54 }))}`));
+    expect(over).not.toHaveTextContent('2×');
+    // Nobody asked for "Earlier": the row could not be said without the page behind it.
+    expect(sentTo('GET', '/v1/alerts').some(one => one.path.includes('cursor=cursor-1'))).toBe(true);
+    fireEvent.click(within(over).getAllByRole('button')[0]);
+    const sheet = screen.getByRole('dialog');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
+    expect(within(sheet).getByRole('button', { name: 'Delete 3 alerts' })).toBeInTheDocument();
   });
 
   /** What is over is not said to be running: the one title with a verb in it changes its tense in a folded row too. */
@@ -1722,14 +1763,5 @@ describe('the arithmetic behind the cards', () => {
 
     expect(worstFirst(open).map(one => one.id)).toEqual(['new-critical', 'old-critical', 'warn', 'info']);
     expect(open.map(one => one.id)).toEqual(['warn', 'info', 'old-critical', 'new-critical']);
-  });
-
-  it('orders what is over by when it ended, whatever order it began in', () => {
-    const over = [
-      alert({ id: 'blip', startedAt: iso(NOW.minus({ hours: 1 })), resolvedAt: iso(NOW.minus({ minutes: 59 })) }),
-      alert({ id: 'night', startedAt: iso(NOW.minus({ hours: 9 })), resolvedAt: iso(NOW.minus({ minutes: 5 })) }),
-    ];
-
-    expect(lastEndedFirst(over).map(one => one.id)).toEqual(['night', 'blip']);
   });
 });

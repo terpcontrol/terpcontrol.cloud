@@ -72,8 +72,8 @@ interface ClimateWrite {
   /** The preset taken, which says whether a drying spell or a germination starts or ends with it. */
   chip?: ClimateChoice | null;
   choices?: ChoiceValues;
-  /** What changed, as the toast says it: "Temperatur am Tag 24,0 °C". */
-  label: string;
+  /** What holds, as the toast says it of a draft - the one saved and, taken back, the one before: "Temperatur am Tag 24,0 °C". */
+  says: (draft: TargetsDraft) => string;
 }
 
 type Open = { kind: 'figure'; field: FigureField } | { kind: 'preset' } | null;
@@ -132,7 +132,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
     return status === 'running' && (spell || choicesMoved || changedFields(next, baseline).some(field => owned.has(field)));
   };
 
-  const write = async ({ next, chip = null, choices, label }: ClimateWrite): Promise<boolean> => {
+  const write = async ({ next, chip = null, choices, says }: ClimateWrite): Promise<boolean> => {
     const dryingChange = spellChangeOf(chip, device, 'drying');
     const germinationChange = spellChangeOf(chip, device, 'germination');
     const drying = device.control && chip ? chip.stage === 'drying' : undefined;
@@ -197,7 +197,8 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
                     );
                     await resume();
                   };
-      saved.say(label, undo, chip ? 'preset' : moved.join(' '));
+      const undone = chip ? t('log.asBefore', { what: t('targets.title') }) : says(baseline);
+      saved.say(says(next), undo && { undo, undone }, chip ? 'preset' : moved.join(' '));
       return true;
     } catch {
       // Said under the control that asked, from the write that was refused.
@@ -280,9 +281,12 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           busy={busy}
           error={refused}
           pauses={next => (pausesFor(next) ? planName : null)}
-          onTimes={next => write({ next, label: scheduleTitle(t, next, offset) })}
+          onTimes={next => write({ next, says: draft => scheduleTitle(t, draft, offset) })}
           onLimit={value =>
-            write({ next: { ...baseline, lightLimit: value }, label: `${t('targets.aria.lightLimit')} ${figureText('lightLimit', value)}` })
+            write({
+              next: { ...baseline, lightLimit: value },
+              says: draft => `${t('targets.aria.lightLimit')} ${figureText('lightLimit', draft.lightLimit)}`,
+            })
           }
         />
       )}
@@ -369,7 +373,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           pauses={next => (pausesFor(next) ? planName : null)}
           busy={busy}
           error={refused}
-          onSave={next => write({ next, label: `${figureName(t, open.field, regime)} ${figureText(open.field, next[open.field])}` })}
+          onSave={next => write({ next, says: draft => `${figureName(t, open.field, regime)} ${figureText(open.field, draft[open.field])}` })}
           onClose={() => setOpen(null)}
         />
       ) : null}
@@ -385,7 +389,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           runs={status === 'running' ? planName : null}
           busy={busy}
           error={refused}
-          onSave={(next, chip, choices, label) => write({ next, chip, choices, label })}
+          onSave={(next, chip, choices, label) => write({ next, chip, choices, says: () => label })}
           onEnd={endSpell}
           onClose={() => setOpen(null)}
         />

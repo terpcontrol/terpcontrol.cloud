@@ -65,6 +65,6 @@ describe('what an alarm rule is called', () => {
       name: 'Too hot',
     };
 
-    expect(statusText(t, { kind: 'alert', alert }, now, 'Europe/Berlin')).toMatch(/^Zu warm · 36,0\s°C Temperatur · seit 16:43$/);
+    expect(statusText(t, { kind: 'alert', alert, more: 0 }, now, 'Europe/Berlin')).toMatch(/^Zu warm · 36,0\s°C Temperatur · seit 16:43$/);
   });
 });

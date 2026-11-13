@@ -35,7 +35,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
   const decline = () => {
     if (diary) {
       void place.mutateAsync('never').then(
-        () => tell({ label: t('start.grow.declinedHere'), undo: () => place.mutateAsync('ask') }),
+        () => tell({ label: t('start.grow.declinedHere'), undo: () => place.mutateAsync('ask'), undone: t('start.grow.asksAgain') }),
         () => undefined,
       );
       return;
@@ -43,7 +43,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
     // What the account said before, which is what taking the answer back restores: its own choice, or none.
     const before = me.data?.preferences.diary ?? null;
     void account.mutateAsync('off').then(
-      () => tell({ label: t('start.grow.declined'), undo: () => account.mutateAsync(before) }),
+      () => tell({ label: t('start.grow.declined'), undo: () => account.mutateAsync(before), undone: t('start.grow.asksAgain') }),
       () => undefined,
     );
   };

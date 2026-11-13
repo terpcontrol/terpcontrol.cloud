@@ -195,7 +195,9 @@ export function PlantPage() {
         <SplitSheet grow={grow.data} plants={all} spaces={spaces.data?.items ?? []} preselect={[plant.id]} onClose={() => setSheet(null)} />
       ) : null}
       {sheet === 'harvest' ? <HarvestSheet grow={grow.data} plants={all} preselect={[plant.id]} onClose={() => setSheet(null)} /> : null}
-      {sheet === 'rename' ? <RenameSheet growId={growId} plant={plant} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'rename' ? (
+        <RenameSheet growId={growId} plant={plant} others={all.filter(one => one.id !== plant.id)} onClose={() => setSheet(null)} />
+      ) : null}
     </section>
   );
 }

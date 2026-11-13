@@ -72,6 +72,7 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
                         write(
                           { routing: routingWith(routing, category, channel, !on) },
                           t(`notifications.told.${on ? 'off' : 'on'}`, { what: cell }),
+                          t(`notifications.told.${on ? 'on' : 'off'}`, { what: cell }),
                           now => ({
                             routing: routingWith(now.routing, category, channel, on),
                           }),

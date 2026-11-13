@@ -6,7 +6,7 @@ import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
-import { useLog, type Told } from '@/log/log-context';
+import { useLog, type Back } from '@/log/log-context';
 import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
@@ -98,16 +98,22 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const complete = draft.label.trim().length > 0 && draft.subject !== null && (draft.rhythm === 'every' ? draft.everyDays >= 1 : onceOn !== '');
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
-  const told = (what: 'created' | 'changed' | 'deleted', label: string, undo: Told['undo']) => {
-    tell({ label: t(`tasks.told.${what}`, { label }), undo });
+  const told = (what: 'created' | 'changed' | 'deleted', label: string, back: Back | { undo: null } = { undo: null }) => {
+    tell({ label: t(`tasks.told.${what}`, { label }), ...back });
     onClose();
   };
   const save = () => {
     const body = bodyOf(draft, onceOn, userId, reminder?.assigneeId ?? null, zone);
-    if (!reminder) return create.mutate(body, { onSuccess: made => told('created', made.label, () => remove.mutateAsync(made.id)) });
+    if (!reminder)
+      return create.mutate(body, {
+        onSuccess: made => told('created', made.label, { undo: () => remove.mutateAsync(made.id), undone: t('log.noMore', { what: made.label }) }),
+      });
     const { id, kind, label, everyDays, onceAt, assigneeId, defaults } = reminder;
     const before = { id, kind, label, everyDays, onceAt, assigneeId, defaults };
-    update.mutate({ id, ...body }, { onSuccess: () => told('changed', body.label, () => update.mutateAsync(before)) });
+    update.mutate(
+      { id, ...body },
+      { onSuccess: () => told('changed', body.label, { undo: () => update.mutateAsync(before), undone: t('log.asBefore', { what: label }) }) },
+    );
   };
 
   return (
@@ -233,11 +239,11 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           <div className={ui.stack2}>
             {askingDelete ? (
               <Asking
-                note={t('tasks.sheet.deleteAsk')}
+                note={t(reminder.everyDays === null ? 'tasks.sheet.deleteAskOnce' : 'tasks.sheet.deleteAsk')}
                 yes={t('tasks.sheet.deleteYes')}
                 danger
                 busy={busy}
-                onYes={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label, null) })}
+                onYes={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label) })}
                 onCancel={() => setAskingDelete(false)}
               >
                 <Refused error={remove.error} />

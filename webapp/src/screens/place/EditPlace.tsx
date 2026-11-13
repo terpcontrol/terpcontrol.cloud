@@ -19,6 +19,7 @@ import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
 import { usePlaceDevices } from '@/ui/place-devices';
 import { Row, Rows } from '@/ui/Rows';
+import rows from '@/ui/Rows.module.css';
 import { useMayIn, useMayManage } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
@@ -373,11 +374,11 @@ function DevicesHere({ space }: { space: Space }) {
           <Row key={camera.id} title={called[at]} line={t('place.edit.camera')} to={cameraPath(camera.id)} />
         ))}
         {!owns ? null : elsewhere.length > 0 ? (
-          <button type="button" className={styles.add} onClick={() => setBringing(true)}>
+          <button type="button" className={rows.add} onClick={() => setBringing(true)}>
             + {t('place.edit.bring')}
           </button>
         ) : (
-          <Link to={claim} className={styles.add}>
+          <Link to={claim} className={rows.add}>
             + {t('place.edit.bring')}
           </Link>
         )}

@@ -22,21 +22,28 @@ const moved = (before: unknown, change: unknown, path = ''): string[] =>
  * (`error`). `back` is asked of the account as it stands when it is taken
  * back - `PATCH /me` replaces each object it is given, so the way back puts
  * the one field back into the object of that moment and a setting saved in
- * between stays. `from` names the control where several fields are one.
+ * between stays, and `undone` is what the toast then says holds again. `from`
+ * names the control where several fields are one.
  */
+type AccountBack = { to: (now: Me) => MeUpdate; undone: string };
+
 export const useSaveAccount = () => {
   const update = useUpdateMe();
   const client = useQueryClient();
   const { tell } = useLog();
   /** The toast of a write that landed, by this hook or by another route that wrote the account. */
-  const answer = (label: string, from: string, back: ((now: Me) => MeUpdate) | null, changed?: () => void) =>
-    tell({ label, from: `me:${from}`, undo: back ? () => update.mutateAsync(back(client.getQueryData<Me>(meKey)!)).then(changed) : null });
+  const answer = (label: string, from: string, back: AccountBack | null, changed?: () => void) =>
+    tell({
+      label,
+      from: `me:${from}`,
+      ...(back ? { undo: () => update.mutateAsync(back.to(client.getQueryData<Me>(meKey)!)).then(changed), undone: back.undone } : { undo: null }),
+    });
 
   return {
     error: update.error,
     pending: update.isPending,
     answer,
-    save: (change: MeUpdate, label: string, back: ((now: Me) => MeUpdate) | null = null, changed?: () => void, from?: string) => {
+    save: (change: MeUpdate, label: string, back: AccountBack | null = null, changed?: () => void, from?: string) => {
       const before = client.getQueryData<Me>(meKey);
       const landed = () => {
         changed?.();

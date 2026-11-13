@@ -117,7 +117,7 @@ describe('the grow´s menu', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn />);
     open();
 
-    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and kind', 'Tips for this phase']);
+    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and type', 'Tips for this phase']);
     expect(screen.getByRole('link', { name: 'Measurements' })).toHaveAttribute('href', `/grows/${grow.id}/measurements`);
   });
 
@@ -153,7 +153,7 @@ describe('renaming a grow', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn={false} />);
     fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
 
-    expect(screen.getByRole('button', { name: 'Name and kind' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Name and type' })).toBeInTheDocument();
   });
 
   it('sends the trimmed name and the kind of plant, and nothing else: a rename moves nothing that was recorded', async () => {
@@ -427,7 +427,7 @@ describe('the move sheet of a grow that has ended', () => {
     const offered = within(document.getElementById(menu.getAttribute('aria-controls')!)!)
       .getAllByRole('button')
       .map(button => button.textContent);
-    expect(offered).toEqual(['Phase', 'Move', 'Name and kind']);
+    expect(offered).toEqual(['Phase', 'Move', 'Name and type']);
   });
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */

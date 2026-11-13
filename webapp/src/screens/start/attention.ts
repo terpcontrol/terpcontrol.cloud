@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
-import type { CardValue, HomeSpaceCard, Severity, ValueState } from '@fg2/shared-types/v1';
+import type { CardValue, HomeSpaceCard, ValueState } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
+import { WORST_FIRST, worstFirst } from '@/screens/alerts/inbox';
 import { deviceLiveness, LIVENESS_RANK, valueAge } from '@/ui/age';
 
 /**
@@ -72,22 +73,14 @@ export const silenceOf = (
 export const measuredAtOf = (values: CardValue[]): string | null =>
   values.reduce<string | null>((newest, value) => (value.measuredAt && (!newest || value.measuredAt > newest) ? value.measuredAt : newest), null);
 
-const SEVERITY: Record<Severity, number> = { critical: 3, warning: 2, info: 1 };
 const NOTHING_DUE: ReadonlySet<string> = new Set();
 
-/** How badly a card wants a person: an alarm first, then something due, then something offline. */
+/** How badly a card wants a person: an alarm first - as bad as the one Meldungen would lead with -, then something due, then something offline. */
 const attentionOf = (card: HomeSpaceCard, due: boolean): number => {
-  const alarm = Math.max(0, ...card.openAlerts.map(alert => SEVERITY[alert.severity] * 10));
+  const worst = worstFirst(card.openAlerts)[0];
   const offline = livenessOf(card) === 'offline' ? 1 : 0;
-  return alarm + (due ? 5 : 0) + offline;
+  return (worst ? (3 - WORST_FIRST[worst.severity]) * 10 : 0) + (due ? 5 : 0) + offline;
 };
-
-/** The one alert that sets the card's tone. */
-export const worstAlertOf = (card: Pick<HomeSpaceCard, 'openAlerts'>) =>
-  card.openAlerts.reduce<HomeSpaceCard['openAlerts'][number] | null>(
-    (worst, alert) => (worst && SEVERITY[worst.severity] >= SEVERITY[alert.severity] ? worst : alert),
-    null,
-  );
 
 /**
  * Stable: two cards that need nothing keep the order the server gave them, which is the order the places were set up

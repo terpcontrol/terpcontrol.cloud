@@ -257,6 +257,8 @@ export const server = {
   plan: null as Record<string, unknown> | null,
   /** What is waiting on the task list: reminders due and plan steps to confirm. */
   tasks: [] as Record<string, unknown>[],
+  /** What is open in the account's list of alerts, which names the device each is about. */
+  alerts: [] as Record<string, unknown>[],
   /** The grows the pickers and the grow page read. */
   grows: [] as Record<string, unknown>[],
   /** One grow as its own route answers it, by id: where its feeding scheme is. */
@@ -280,6 +282,7 @@ export const resetServer = () => {
   server.overviews = new Map();
   server.plan = null;
   server.tasks = [];
+  server.alerts = [];
   server.grows = [];
   server.grow = new Map();
   server.calls = [];
@@ -315,6 +318,7 @@ export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
     return server.plan ? json(server.plan) : json({ status: 404, code: 'plan_not_found', title: 'No plan', detail: '', errors: [] }, 404);
   if (/^\/spaces\/[^/]+\/timeline$/.test(path)) return json(timeline());
   if (path === '/tasks') return json({ items: server.tasks, nextCursor: null });
+  if (path === '/alerts' && searchParams.get('open') === 'true') return json({ items: server.alerts, nextCursor: null });
   if (path === '/grows') return json({ items: server.grows, nextCursor: null });
   const grow = /^\/grows\/([^/]+)$/.exec(path);
   if (grow && server.grow.has(grow[1])) return json(server.grow.get(grow[1]));

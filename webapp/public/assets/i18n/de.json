@@ -919,7 +919,12 @@
       "delete": "Löschen",
       "deleteAsk": "{{name}} löschen? Grows, die schon danach gedüngt werden, behalten ihr eigenes Raster. Die Kopie in deinem Regal ist endgültig weg; aus einem Grow, der das Raster noch hat, lässt sich im Reiter Düngung ein neues anlegen.",
       "deleteYes": "Ja, löschen",
-      "demo": "Die Demo hat kein eigenes Regal, hier stehen also nur die mitgelieferten Schemata."
+      "demo": "Die Demo hat kein eigenes Regal, hier stehen also nur die mitgelieferten Schemata.",
+      "told": {
+        "saved": "Schema „{{name}}“ gespeichert",
+        "back": "Schema „{{name}}“ wie vor der Änderung",
+        "removed": "Schema „{{name}}“ gelöscht"
+      }
     },
     "account": {
       "title": "Konto",
@@ -973,10 +978,10 @@
       },
       "delete": {
         "title": "Mein Konto löschen",
-        "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu übernehmen",
+        "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu hinzufügen",
         "open": "Mein Konto löschen …",
         "what": "Alles, was diesem Konto gehört, ist weg: die Orte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
-        "grows": "Wer deine Orte sieht, verliert sie, und wer deinen Grows folgt, verliert sie auch. Geräte, die du übernommen hast, kann danach wieder übernehmen, wer sie in der Hand hat.",
+        "grows": "Wer deine Orte sieht, verliert sie, und wer deinen Grows folgt, verliert sie auch. Geräte, die du hinzugefügt hast, kann danach wieder hinzufügen, wer sie in der Hand hat.",
         "typeHandle": "Tippe {{handle}} zur Bestätigung",
         "notHandle": "Das ist nicht dein Handle.",
         "yes": "Mein Konto löschen"
@@ -1326,7 +1331,13 @@
         "one": "Erst ein Messwert: {{last}}",
         "alt_one": "{{name}} über den Grow: ein Messwert, {{low}} {{unit}}"
       },
-      "noteNoPlace": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden."
+      "noteNoPlace": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
+      "told": {
+        "added": "{{name}} wird jetzt gemessen",
+        "removed": "{{name}} wird nicht mehr gemessen",
+        "saved": "Messwert „{{name}}“ gespeichert",
+        "back": "Messwert „{{name}}“ wie vor der Änderung"
+      }
     },
     "plant": {
       "back": "Zurück zu den Pflanzen",
@@ -1356,7 +1367,11 @@
       "label": "Bezeichnung",
       "strain": "Sorte",
       "save": "Speichern",
-      "saving": "Speichert …"
+      "saving": "Speichert …",
+      "told": {
+        "strain": "Sorte: {{strain}}"
+      },
+      "nameTaken": "Eine andere Pflanze dieses Grows heißt schon „{{name}}“."
     },
     "scheme": {
       "basedOn": "Basiert auf",
@@ -1419,7 +1434,12 @@
       "ecUnit": "mS/cm",
       "movedUnder": "anderswo geändert",
       "keepMine": "Meines behalten",
-      "takeTheirs": "Deren übernehmen"
+      "takeTheirs": "Deren übernehmen",
+      "told": {
+        "saved": "Düngeschema gespeichert",
+        "back": "Düngeschema wie vor der Änderung",
+        "none": "Grow ohne Düngeschema"
+      }
     },
     "menu": {
       "label": "Mehr zu {{name}}",
@@ -1899,9 +1919,9 @@
     "now": "jetzt",
     "save": "Speichern",
     "saveDay": "Speichern · Tag {{day}}",
-    "takeBack": "Eintrag widerrufen",
-    "takeBackAsk": "Diesen Eintrag widerrufen? Er verschwindet endgültig aus dem Tagebuch.",
-    "takeBackYes": "Widerrufen",
+    "takeBack": "Eintrag löschen",
+    "takeBackAsk": "Diesen Eintrag löschen? Er verschwindet endgültig aus dem Tagebuch.",
+    "takeBackYes": "Löschen",
     "logAsPlanned": "Wie geplant eintragen",
     "saveFailed": "Der Eintrag konnte nicht gespeichert werden",
     "photoTitle": "Fotoeintrag",
@@ -1927,7 +1947,7 @@
     "dismiss": "Schließen",
     "takingBack": "wird widerrufen",
     "uploaded": "{{done}} von {{total}} Bildern hochgeladen",
-    "undoFailed": "Der Eintrag konnte nicht widerrufen werden",
+    "undoFailed": "Das ließ sich nicht widerrufen",
     "taskClosed": "Aufgabe erledigt",
     "startsIn": "ab Schema-Woche {{week}}",
     "moment": {
@@ -1957,8 +1977,14 @@
     "litresNoNumber": "Das ist keine Zahl.",
     "litresTooMuch": "Höchstens {{max}} l.",
     "corrected": "Eintrag berichtigt",
-    "takenBack": "Eintrag widerrufen",
-    "undone": "Widerrufen"
+    "takenBack": "Eintrag gelöscht",
+    "undone": "Widerrufen",
+    "gone": "nicht mehr im Tagebuch",
+    "reopened": "Aufgabe wieder offen",
+    "asBefore": "{{what}} wie zuvor",
+    "noMore": "{{what}} gibt es nicht mehr",
+    "phaseBefore": "wieder die Phase davor",
+    "deleteFailed": "Der Eintrag konnte nicht gelöscht werden"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -2335,8 +2361,8 @@
         },
         "noDevice": {
           "label": "Noch kein Gerät",
-          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket –, und dieses Konto hat noch keins übernommen. Übernimm zuerst eins, dann führt dich dieser Reiter durch das Koppeln.",
-          "claim": "Gerät übernehmen"
+          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket –, und dieses Konto hat noch keins. Füge zuerst eins hinzu, dann führt dich dieser Reiter durch das Koppeln.",
+          "claim": "Gerät hinzufügen"
         }
       },
       "found": {
@@ -2773,7 +2799,8 @@
       "grows": "Grows",
       "places": "Orte",
       "reaches": "Wenn sie fällig wird, meldet sie sich per {{channels}}.",
-      "reachesNobody": "Fällige Aufgaben erreichen dich noch nicht"
+      "reachesNobody": "Fällige Aufgaben erreichen dich noch nicht",
+      "deleteAskOnce": "Die Erinnerung und ihre offene Aufgabe verschwinden. Bereits geschriebene Tagebuchzeilen bleiben."
     },
     "confirm": {
       "ask": "Das bestätigt den Schritt und startet {{name}}; es lässt sich nicht zurücknehmen.",
@@ -3106,17 +3133,17 @@
     "opened": "{{title}} · Schritt {{step}} von {{of}}",
     "next": "Weiter · {{what}}",
     "finish": "Fertig · Ort öffnen",
-    "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie keine Hardware übernehmen. Melde dich mit deinem eigenen Konto an, um ein Gerät hinzuzufügen.",
+    "demo": "Die Demo darf alles ansehen und nichts ändern, also kann sie kein Gerät hinzufügen. Melde dich mit deinem eigenen Konto an, um eins hinzuzufügen.",
     "code": {
       "title": "Den Code vom Display ablesen",
-      "field": "Claim-Code",
-      "claim": "Übernehmen",
-      "claiming": "Wird übernommen …",
-      "claimed": "Übernommen",
+      "field": "Code vom Display",
+      "claim": "Hinzufügen",
+      "claiming": "Wird hinzugefügt …",
+      "claimed": "Hinzugefügt",
       "live": "online vor {{age}}",
       "stale": "zuletzt gemeldet vor {{age}}",
       "offline": "offline · zuletzt gemeldet vor {{age}}",
-      "neverHeard": "Übernommen, aber es hat sich noch nicht gemeldet. Es erscheint hier, sobald es online ist; der Rest lässt sich schon einrichten.",
+      "neverHeard": "Hinzugefügt, aber es hat sich noch nicht gemeldet. Es erscheint hier, sobald es online ist; der Rest lässt sich schon einrichten.",
       "firmware": "Firmware {{version}}",
       "sockets_one": "{{count}} Steckdose",
       "sockets_other": "{{count}} Steckdosen",
@@ -3276,7 +3303,7 @@
     },
     "fleet": {
       "title": "Flotte",
-      "unclaimed": "nicht übernommen",
+      "unclaimed": "noch von niemandem hinzugefügt",
       "neverSeen": "nie",
       "open": "{{id}} öffnen",
       "noPlace": "Dieses Gerät steht an keinem Ort, es gibt also nichts zu öffnen.",
@@ -3336,7 +3363,7 @@
       "statsFailed": "Die Zahlen der Installation ließen sich nicht lesen.",
       "statsMissing": "Dieser Server liefert seine eigenen Zahlen noch nicht: Er hat keine Route /admin/stats.",
       "statsGap": "Solange sie nicht gelesen sind, fehlen auch: Geräte online, das Gewicht der Bilder, die Zeitraffer-Warteschlange, die Kamerazahl und der Aufräumlauf.",
-      "notAnswered": "Nicht hier, weil diese Installation dafür noch keine Zahl liefert: MQTT-Verbindungen, wie der Broker sie zählt – „online“ oben ist, was gehört wurde, nicht, was verbunden ist -, die Größe der Zeitreihen-Datenbank, das Server-Log und die Alarme der letzten sieben Tage je Gerät.",
+      "notAnswered": "Nicht hier, weil diese Installation dafür noch keine Zahl liefert: MQTT-Verbindungen, wie der Broker sie zählt – „online“ oben ist, was gehört wurde, nicht, was verbunden ist –, die Größe der Zeitreihen-Datenbank, das Server-Log und die Alarme der letzten sieben Tage je Gerät.",
       "cameras": "{{cameras}} · {{quiet}}",
       "unclassified": "{{devices}} in keiner Klasse, die keine Ausrollung erreicht",
       "paused": "{{paused}} {{ofClasses}} pausiert",
@@ -3426,7 +3453,7 @@
       "deleteTitle": "@{{handle}} löschen",
       "deleteBody": "Alles, was @{{handle}} gehört, geht mit dem Konto: die eigenen Orte, Grows, Einträge, Bilder und Filme. Was die Person an fremden Orten geschrieben hat, bleibt dort und verliert ihren Namen. Das lässt sich nicht zurückholen.",
       "deleteAdmin": "Ist das das Konto, mit dem die Installation konfiguriert ist, behält der Server es: Dieses Konto wird bei jedem Start über seine Adresse gesucht und hier nicht gelöscht.",
-      "deleteDevices": "Die übernommenen Geräte kann danach wieder übernehmen, wer sie in Händen hält.",
+      "deleteDevices": "Die Geräte, die dieses Konto hinzugefügt hat, kann danach wieder hinzufügen, wer sie in Händen hält.",
       "deleteMine": "Das ist dein eigenes Konto. Löschen meldet dich ab und lässt diese Installation ohne dich zurück.",
       "typeHandle": "Tippe {{handle}} zur Bestätigung",
       "deleteIt": "Konto löschen",
@@ -3793,7 +3820,7 @@
     },
     "deleteAccount": {
       "title": "Das Konto löschen",
-      "text": "Zeilen, die du an fremden Orten geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu übernehmen lassen. Einen einzelnen Grow löschst du auf seiner eigenen Seite."
+      "text": "Zeilen, die du an fremden Orten geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu hinzufügen lassen. Einen einzelnen Grow löschst du auf seiner eigenen Seite."
     },
     "passwordChange": {
       "title": "Das Passwort ändern",
@@ -4411,17 +4438,17 @@
   "release": {
     "label": "Gerät abgeben",
     "title": "{{name}} abgeben",
-    "sureTitle": "Wirklich abgeben?",
+    "sureTitle": "Gerät abgeben?",
     "what": "„{{name}}“ verschwindet aus deinem Konto. Wer das Gerät danach in der Hand hat, fügt es mit dem Code auf seinem Display zum eigenen Konto hinzu.",
     "goes": "Mit dem Gerät gehen sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist.",
     "goesAlarms": "Mit dem Gerät gehen seine Alarme.",
-    "stays": "Der Ort {{place}} und sein Tagebuch bleiben. Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es übernimmt.",
-    "staysNowhere": "Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es übernimmt.",
+    "stays": "Der Ort {{place}} und sein Tagebuch bleiben. Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es hinzufügt.",
+    "staysNowhere": "Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es hinzufügt.",
     "next": "Weiter",
     "sure": "Das lässt sich nicht rückgängig machen. In dein Konto kommt das Gerät nur zurück, wenn du es wieder mit dem Code vom Display hinzufügst – wie beim ersten Mal.",
-    "yes": "Endgültig entfernen",
-    "releasing": "Wird entfernt …",
-    "done": "„{{name}}“ ist aus deinem Konto entfernt und kann jetzt von jemand anderem hinzugefügt werden."
+    "yes": "Abgeben",
+    "releasing": "Wird abgegeben …",
+    "done": "„{{name}}“ ist abgegeben und kann von jemand anderem hinzugefügt werden."
   },
   "autoUpdate": {
     "label": "Automatisch aktualisieren"
@@ -4823,7 +4850,8 @@
       "date": "Datum wählen",
       "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Grow-Tagebuch.",
       "declinedHere": "Hier fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows.",
-      "here": "Was wächst hier?"
+      "here": "Was wächst hier?",
+      "asksAgain": "Die Frage steht wieder auf Start"
     },
     "device": {
       "title": "Mit einem Gerät misst es hier von selbst"
@@ -4885,7 +4913,8 @@
       "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
       "noTargets": "Werte kommen an · noch keine Zielwerte",
       "waiting": "Wartet auf die ersten Werte",
-      "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte"
+      "controlOff": "Regelung aus: Das Gerät hält keine Zielwerte",
+      "more": "+{{count}}"
     },
     "metric": {
       "light": "Licht"

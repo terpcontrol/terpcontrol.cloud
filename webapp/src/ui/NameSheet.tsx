@@ -20,6 +20,7 @@ export function NameSheet<K extends string>({
   busy,
   save,
   ready = names => Object.values(names).every(name => name !== ''),
+  refused = () => null,
   onSave,
   onClose,
 }: {
@@ -32,12 +33,15 @@ export function NameSheet<K extends string>({
   /** The button's words, which while it saves are the caller's "saving". */
   save: string;
   ready?: (names: Record<K, string>) => boolean;
+  /** Why what stands there is not saved, said under the fields; it holds the button too. */
+  refused?: (names: Record<K, string>) => string | null;
   onSave: (names: Record<K, string>) => void;
   onClose: () => void;
 }) {
   const keys = Object.keys(fields) as K[];
   const [typed, setTyped] = useState(() => Object.fromEntries(keys.map(key => [key, fields[key].value])) as Record<K, string>);
   const names = Object.fromEntries(keys.map(key => [key, typed[key].trim()])) as Record<K, string>;
+  const why = refused(names);
 
   return (
     <Sheet
@@ -45,7 +49,7 @@ export function NameSheet<K extends string>({
       aside={aside}
       onClose={onClose}
       actions={
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !ready(names)} onClick={() => onSave(names)}>
+        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || why !== null || !ready(names)} onClick={() => onSave(names)}>
           {save}
         </button>
       }
@@ -62,6 +66,11 @@ export function NameSheet<K extends string>({
             />
           </Block>
         ))}
+        {why ? (
+          <p className={ui.problem} role="alert">
+            {why}
+          </p>
+        ) : null}
         {children}
         <Refused error={error} />
       </div>

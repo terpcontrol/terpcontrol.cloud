@@ -19,6 +19,8 @@ import { Switch } from '@/ui/Switch';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
+// A link is a row and its editor a box as the grow's other sheets draw theirs.
+import lifecycle from './Lifecycle.module.css';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -167,7 +169,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const dead = isDead(link, now);
 
   return (
-    <li className={styles.link} data-dead={dead}>
+    <li className={`${lifecycle.row} ${styles.link}`} data-dead={dead}>
       <div className={ui.row2}>
         <code className={`mono ${styles.address}`}>{address}</code>
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
@@ -265,7 +267,7 @@ function Editor({
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft(current => ({ ...current, [key]: value }));
 
   return (
-    <div className={styles.editor}>
+    <div className={lifecycle.editor}>
       <div className={styles.fields}>
         <Field label={t('sharing.from')} value={draft.from} hint={t('sharing.fromStart')} help="shareWindow" onChange={value => set('from', value)} />
         <Field label={t('sharing.to')} value={draft.to} hint={t('sharing.toOpen')} onChange={value => set('to', value)} />

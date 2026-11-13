@@ -469,7 +469,7 @@ describe('the camera page, by who is reading', () => {
     state.diary = false;
     const { unmount } = drawPage();
 
-    expect(screen.getByRole('button', { name: 'Day film' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Daily film' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Phase' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Whole grow/ })).not.toBeInTheDocument();
@@ -495,7 +495,7 @@ describe('the camera page, by who is reading', () => {
     expect(screen.queryByRole('button', { name: /^Camera settings/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/192\.168\.1\.40/)).not.toBeInTheDocument();
     // Of the four films only the one there is, and it plays.
-    expect(screen.queryByRole('button', { name: 'Day film' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Daily film' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Week' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
@@ -1223,7 +1223,7 @@ describe('what the camera is set to', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Unpair' }));
 
     expect(state.removed).toHaveLength(0);
-    expect(screen.getByText(/Unpairing stops this camera being read/)).toBeInTheDocument();
+    expect(screen.getByText(/Unpairing stops the cloud reading this camera/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Unpair it' }));
     expect(state.removed).toEqual(['camera-1']);
@@ -1420,7 +1420,7 @@ describe('the films', () => {
     const { container, rerender } = drawAt(page());
 
     fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
-    expect(state.told).toEqual([{ label: 'Day film is being made', undo: null }]);
+    expect(state.told).toEqual([{ label: 'Daily film is being made', undo: null }]);
     expect(screen.getByText('waiting · SD')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Make the film' })).toBeInTheDocument();
     expect(container.querySelector('video')).toBeNull();

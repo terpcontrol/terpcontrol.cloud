@@ -98,13 +98,14 @@ function Units() {
                   name={t(`me.appearance.${kind}`)}
                   value={units[kind]}
                   disabled={held}
-                  onChange={value =>
-                    save(
-                      { preferences: { units: { ...units, [kind]: value } } },
-                      t('me.saved.setting', { what: t(`me.appearance.${kind}`), value: t(`me.appearance.unit.${value}`) }),
-                      now => ({ preferences: { units: { ...now.preferences.units, [kind]: units[kind] } } }),
-                    )
-                  }
+                  onChange={value => {
+                    const said = (unit: string) =>
+                      t('me.saved.setting', { what: t(`me.appearance.${kind}`), value: t(`me.appearance.unit.${unit}`) });
+                    save({ preferences: { units: { ...units, [kind]: value } } }, said(value), {
+                      to: now => ({ preferences: { units: { ...now.preferences.units, [kind]: units[kind] } } }),
+                      undone: said(units[kind]),
+                    });
+                  }}
                 >
                   {choices.map(unit => (
                     <option key={unit} value={unit}>

@@ -15,38 +15,34 @@ import type { AlertNames } from './names';
 const millis = (instant: string) => DateTime.fromISO(instant).toMillis();
 
 /** How bad first, because what is open is read from the top and a phone shows three cards of it. */
-const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+export const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+
+/** What the order is decided by: an alert of the inbox, or one as a card of Start lists it, which names a device only where the inbox's list was at hand. */
+type Ranked = Pick<Alert, 'kind' | 'severity' | 'startedAt' | 'value'> & { deviceId?: string | null };
 
 /** When each device with an open offline alert was last heard. */
-export const silentDevices = (open: Alert[]): Map<string, string> =>
+export const silentDevices = (open: Ranked[]): Map<string, string> =>
   new Map(open.flatMap(alert => (alert.kind === 'offline' && alert.deviceId ? [[alert.deviceId, silentSince(alert)] as const] : [])));
 
 /** When the device a reading's alert is about was last heard, where it has gone silent since: the reading is as old as that. */
-export const heardOf = (alert: Alert, silent: Map<string, string>): string | null =>
+export const heardOf = (alert: Ranked, silent: Map<string, string>): string | null =>
   (alert.kind === 'threshold' && alert.deviceId && silent.get(alert.deviceId)) || null;
 
 /**
  * What is open, the worst first, the clock deciding only between equals - a
  * second critical tent below three warnings is off the bottom of a phone. A
  * reading of a device gone silent is an old one, and stands under everything
- * that is about now - the card saying the device is offline among it.
+ * that is about now - the card saying the device is offline among it. It is
+ * the one order: Meldungen lists by it, Start names a place's first by it and
+ * ranks its cards by how bad that one is.
  */
-export const worstFirst = (open: Alert[], silent = silentDevices(open)): Alert[] =>
+export const worstFirst = <T extends Ranked>(open: T[], silent = silentDevices(open)): T[] =>
   [...open].sort(
     (a, b) =>
       Number(heardOf(a, silent) !== null) - Number(heardOf(b, silent) !== null) ||
       WORST_FIRST[a.severity] - WORST_FIRST[b.severity] ||
       millis(b.startedAt) - millis(a.startedAt),
   );
-
-/**
- * What is over, what ended last first: a record is read from its end. The
- * server lists and pages it by when an episode began, so this orders what has
- * been read - an episode that began before the oldest page read and ended
- * late is not among it until that page is asked for.
- */
-export const lastEndedFirst = (over: Alert[]): Alert[] =>
-  [...over].sort((a, b) => millis(b.resolvedAt ?? b.startedAt) - millis(a.resolvedAt ?? a.startedAt));
 
 /**
  * The bound the reading went past: the lower edge for a reading below it, the

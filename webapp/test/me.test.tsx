@@ -298,7 +298,7 @@ describe('what each door says', () => {
   it('says whether a stranger finds the profile, and how many of the grows one can open', async () => {
     draw();
 
-    expect(await lineUnder('Privacy and profile')).toBe('profile public · 1 grow public');
+    expect(await lineUnder('Privacy and profile')).toBe('profile public · 1 public grow');
   });
 
   it('says the profile is private where it is', async () => {
@@ -306,7 +306,7 @@ describe('what each door says', () => {
     server.grows = [...GROWS, grow('summer', { visibility: 'public' })];
     draw();
 
-    expect(await lineUnder('Privacy and profile')).toBe('profile private · 2 grows public');
+    expect(await lineUnder('Privacy and profile')).toBe('profile private · 2 public grows');
   });
 
   it('counts the grows followed, beside the grows', async () => {
@@ -331,7 +331,7 @@ describe('what each door says', () => {
     server.me = me({ preferences: { ...me().preferences, units: { temperature: 'fahrenheit', weight: 'grams', volume: 'gallons' } } });
     draw();
 
-    expect(await lineUnder('Appearance')).toBe('English · as the system');
+    expect(await lineUnder('Appearance')).toBe('English · same as the system');
   });
 
   it('says whether the diary is kept, and that the account left that to its use', async () => {
@@ -347,7 +347,7 @@ describe('what each door says', () => {
   it('names the one scheme the running grows are on, marks it edited, and counts the shelf, beside the grows', async () => {
     drawGrows();
 
-    expect(await lineUnder('Feeding schemes')).toBe('Biobizz · Light·Mix (edited) · 1 own');
+    expect(await lineUnder('Feeding schemes')).toBe('Biobizz · Light·Mix (edited) · 1 of your own');
   });
 });
 
@@ -393,7 +393,7 @@ describe('one read that fails', () => {
     expect(screen.getByRole('link', { name: /^Privacy and profile/ })).toHaveTextContent('loading');
 
     answerGrows(json({ items: server.grows, nextCursor: null }));
-    expect(await lineUnder('Privacy and profile')).toBe('profile public · 1 grow public');
+    expect(await lineUnder('Privacy and profile')).toBe('profile public · 1 public grow');
   });
 });
 
@@ -409,7 +409,7 @@ describe('what is empty', () => {
     });
     draw();
 
-    expect(await lineUnder('Privacy and profile')).toBe('profile public · no grow public');
+    expect(await lineUnder('Privacy and profile')).toBe('profile public · no public grow');
     expect(await lineUnder('Notifications')).toBe('no channel on');
   });
 
@@ -422,7 +422,7 @@ describe('what is empty', () => {
 
     expect(await lineUnder('Following')).toBe('nobody yet');
     expect(await lineUnder('Share links')).toBe('no links yet');
-    expect(await lineUnder('Feeding schemes')).toBe('none in use · no own yet');
+    expect(await lineUnder('Feeding schemes')).toBe('none in use · none of your own yet');
   });
 
   /**
@@ -440,7 +440,7 @@ describe('what is empty', () => {
 
     server.own = [OWN];
     drawGrows();
-    expect(await lineUnder('Feeding schemes')).toContain('1 own');
+    expect(await lineUnder('Feeding schemes')).toContain('1 of your own');
   });
 
   /**
@@ -515,8 +515,8 @@ describe('the lines on their own', () => {
       grow('demo', { visibility: 'public', isDemo: true }),
     ];
 
-    expect(profileLine(t, grows, me())).toBe('profile public · 1 grow public');
-    expect(profileLine(t, grows.slice(1), me({ publicProfile: false }))).toBe('profile private · no grow public');
+    expect(profileLine(t, grows, me())).toBe('profile public · 1 public grow');
+    expect(profileLine(t, grows.slice(1), me({ publicProfile: false }))).toBe('profile private · no public grow');
   });
 
   it('says the diary´s state for an account that answered, and that it was left to its use for one that did not', () => {
@@ -548,7 +548,7 @@ describe('the demo', () => {
 
     expect(screen.getByText('@demo')).toBeInTheDocument();
     expect(doors()).toEqual(['/me/appearance', '/me/about']);
-    expect(await lineUnder('Appearance')).toBe('English · as the system');
+    expect(await lineUnder('Appearance')).toBe('English · same as the system');
     expect(
       screen.getByText('The demo has no account of its own: there are no notifications, no account and no privacy settings here.'),
     ).toBeInTheDocument();

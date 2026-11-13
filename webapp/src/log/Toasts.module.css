@@ -94,12 +94,12 @@
   padding-inline: var(--space-4);
 }
 
-/* A toast never stays over the row it is about: while one stands at the window's foot the page under it is longer
-   by the room of one that names two changes, so the control it answers can move clear of it (`clearOf`, `Toasts.tsx`)
-   and every other row can be scrolled clear. */
-:root:has(.toasts:not([data-in-sheet])) main::after {
+/* A toast never stays over the row it is about: while toasts stand at the window's foot the page under them is
+   longer by their box, so the control each answers moves clear of it and every other row can be scrolled clear
+   (`clearOf`, `Toasts.tsx`, which sets the room and takes it back without a jump). */
+:root[data-toast-room] main::after {
   display: block;
-  height: calc(var(--space-8) + var(--space-7));
+  height: var(--toast-room);
   content: '';
 }
 

@@ -6,7 +6,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { isAhead, sinceLabel } from '@/ui/age';
 import { useNow } from '@/ui/useNow';
-import { zoneOf } from '@/ui/zone';
+import { clock, zoneOf } from '@/ui/zone';
 import { AccountPage } from '@/screens/me/parts';
 import { EmailCard, PushCard, TelegramCard, WebhookCard } from './Channels';
 import { NotifyNotice } from './NotifyNotice';
@@ -76,7 +76,12 @@ function MutedLine({ me, held, until }: { me: Me; held: boolean; until: string }
   return (
     <div className={styles.muted} role="status">
       <span className={`mono ${styles.mutedText}`}>{t('notifications.muted', { time: sinceLabel(until, now, zoneOf(me)) })}</span>
-      <button type="button" className={ui.chip} disabled={held} onClick={() => write({ mutedUntil: null }, t('alerts.told.loud'))}>
+      <button
+        type="button"
+        className={ui.chip}
+        disabled={held}
+        onClick={() => write({ mutedUntil: null }, t('alerts.told.loud'), t('alerts.told.muted', { time: clock(until, zoneOf(me)) }))}
+      >
         {t('notifications.unmute')}
       </button>
       <Refused error={error} />

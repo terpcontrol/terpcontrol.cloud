@@ -71,10 +71,11 @@ function FanSlowing({ device, settings, mayManage }: Pick<DeviceContext, 'device
     return fan ? deviceTitle(fan, t, devices.data?.items) : t('plugCo2.noFan');
   };
   const percent = figureSaid(t('targets.unit.percent'));
-  const put = async (next: { fanId: string | null; speed: number }, what: string): Promise<boolean> => {
+  const put = async (next: { fanId: string | null; speed: number }, says: (at: typeof next) => string): Promise<boolean> => {
+    const before = coupled ?? { fanId: null, speed: 100 };
     try {
       await couple.mutateAsync(next);
-      settings.say(what, () => couple.mutateAsync(coupled ?? { fanId: null, speed: 100 }));
+      settings.say(says(next), { undo: () => couple.mutateAsync(before), undone: says(before) });
       return true;
     } catch {
       // Said in the sheet that asked, from the write that was refused.
@@ -111,7 +112,9 @@ function FanSlowing({ device, settings, mayManage }: Pick<DeviceContext, 'device
           chosen={coupled?.fanId ?? ''}
           busy={couple.isPending}
           error={couple.error}
-          onSave={fanId => put({ fanId: fanId || null, speed: fanId ? (coupled?.speed ?? 30) : 100 }, `${t('plugCo2.fan')} ${nameOf(fanId || null)}`)}
+          onSave={fanId =>
+            put({ fanId: fanId || null, speed: fanId ? (coupled?.speed ?? 30) : 100 }, at => `${t('plugCo2.fan')} ${nameOf(at.fanId)}`)
+          }
           onClose={() => setOpen(null)}
         />
       ) : null}
@@ -121,7 +124,7 @@ function FanSlowing({ device, settings, mayManage }: Pick<DeviceContext, 'device
           figures={[{ key: 'speed', label: t('plugCo2.fanSpeed'), value: coupled.speed, min: 0, max: 100, step: 5, unit: t('targets.unit.percent') }]}
           busy={couple.isPending}
           error={couple.error}
-          onSave={values => put({ fanId: coupled.fanId, speed: values.speed }, `${t('plugCo2.fanSpeed')} ${percent(values.speed)}`)}
+          onSave={values => put({ fanId: coupled.fanId, speed: values.speed }, at => `${t('plugCo2.fanSpeed')} ${percent(at.speed)}`)}
           onClose={() => setOpen(null)}
         />
       ) : null}

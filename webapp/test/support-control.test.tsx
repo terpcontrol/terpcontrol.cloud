@@ -74,7 +74,7 @@ describe('Steuerung of a customer´s place, read by support', () => {
     );
 
     expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
-    expect(screen.getByText('This session may look and not set.')).toBeInTheDocument();
+    expect(screen.getByText('This session can look but not change anything.')).toBeInTheDocument();
     expect(screen.queryByText(/Nothing stands here yet/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Add a device' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Change|^Preset|the light limit$|Add a device/ })).not.toBeInTheDocument();

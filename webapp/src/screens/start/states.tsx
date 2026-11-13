@@ -5,6 +5,7 @@ import { ApiError } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { sinceLabel } from '@/ui/age';
 import { useLeave } from '@/ui/leave';
+import amber from '@/ui/OfflineHelp.module.css';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone, zoned } from '@/ui/zone';
@@ -64,7 +65,7 @@ export function StartFailed({ retry, error = null, retrying = false }: { retry: 
       <div className={styles.head}>
         <h1>{t('shell.tabs.home')}</h1>
       </div>
-      <section className={styles.box} role="alert">
+      <section className={amber.box} role="alert">
         <h2>{t(answered ? 'start.failed.serverTitle' : 'start.failed.title')}</h2>
         <p>{t(answered ? 'start.failed.serverText' : 'start.failed.text')}</p>
         <button type="button" className={styles.boxAction} disabled={retrying} aria-busy={retrying || undefined} onClick={retry}>

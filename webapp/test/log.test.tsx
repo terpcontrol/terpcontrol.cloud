@@ -219,7 +219,7 @@ function OpenLog() {
         correct
       </button>
       {/* What an offer declined on Start says once its card is gone, and what a plan step confirmed there reads again. */}
-      <button type="button" onClick={() => tell({ label: 'The diary stays off.', undo: told.undo })}>
+      <button type="button" onClick={() => tell({ label: 'The diary stays off.', undo: told.undo, undone: 'The question is back on Home' })}>
         tell
       </button>
       <button type="button" onClick={() => complete('step-1', 'Step confirmed · Late flower', { undoable: false, changed: told.changed })}>
@@ -400,7 +400,7 @@ describe('the log sheet', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/entry-new'));
     // The toast answers in its place, and offers nothing more.
-    expect(await screen.findByText(reading('Undone: Watered · Spring run · Day 34'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('Undone · no longer in the diary'))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Undo|Details/ })).not.toBeInTheDocument();
   });
 
@@ -417,7 +417,7 @@ describe('the log sheet', () => {
 
     land(written);
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/entry-new'));
-    expect(await screen.findByText(reading('Undone: Watered · Spring run · Day 34'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('Undone · no longer in the diary'))).toBeInTheDocument();
   });
 
   it('says when a line did not save and offers it again rather than pretending', async () => {
@@ -577,7 +577,7 @@ describe('the log sheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(told.undo).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText('Undone: The diary stays off.')).toBeInTheDocument();
+    expect(await screen.findByText(reading('Undone · The question is back on Home'))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
     // No diary line is deleted for it.
     expect(api.delete).not.toHaveBeenCalled();
@@ -593,7 +593,7 @@ describe('the log sheet', () => {
     // The second try shows that it is one, and is answered like the first would have been.
     expect(screen.getByText('taking it back')).toBeInTheDocument();
     await waitFor(() => expect(told.undo).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText('Undone: The diary stays off.')).toBeInTheDocument();
+    expect(await screen.findByText(reading('Undone · The question is back on Home'))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
 
@@ -892,9 +892,9 @@ describe('the log sheet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'correct' }));
     const again = await screen.findByRole('dialog', { name: 'Water' });
-    fireEvent.click(within(again).getByRole('button', { name: 'Take this entry back' }));
-    fireEvent.click(within(again).getByRole('button', { name: 'Take it back' }));
-    expect(await screen.findByText(reading('Entry taken back'))).toBeInTheDocument();
+    fireEvent.click(within(again).getByRole('button', { name: 'Delete this entry' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText(reading('Entry deleted'))).toBeInTheDocument();
     expect(api.delete).toHaveBeenCalledWith(`/entries/${lastWater.id}`);
   });
 

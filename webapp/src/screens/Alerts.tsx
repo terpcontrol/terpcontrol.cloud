@@ -1,4 +1,5 @@
 import type { DateTime } from 'luxon';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Alert, Me } from '@fg2/shared-types/v1';
@@ -25,7 +26,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { AlertCard, ResolvedRow } from './alerts/AlertCard';
-import { beganAt, heardOf, lastEndedFirst, openAgain, silentDevices, titleOf, worstFirst } from './alerts/inbox';
+import { beganAt, heardOf, openAgain, silentDevices, titleOf, worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import { useWriteNotifications } from './notifications/write';
 import styles from './alerts/Alerts.module.css';
@@ -76,7 +77,8 @@ export function Alerts() {
 
   const silent = silentDevices(itemsOf(open.data));
   const standing = worstFirst(itemsOf(open.data), silent);
-  const ended = lastEndedFirst(itemsOf(resolved.data));
+  // What is over is listed and paged by the server in the order it ended, the last first.
+  const ended = itemsOf(resolved.data);
   // What a card offers is decided by the place it names: where the device stands for an open alert, where it
   // happened for one that is over. A place that ended since is not among those in use; its record is still its
   // owner's to delete, and only the list of ended places says so.
@@ -91,12 +93,22 @@ export function Alerts() {
   const ruleDevices = [...new Set([...standing, ...ended].filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
   const ruleOf = (alert: Alert) => (alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null);
-  // A reading that came and went all morning is one row: the same sentence about the same device on the same day.
+  // A reading that came and went all morning is one row: one rule's sentence about the same device on the same day.
   const day = (alert: Alert) => zoned(alert.resolvedAt ?? alert.startedAt, zoneOf(me.data)).toISODate();
-  const kind = (alert: Alert) => [day(alert), alert.spaceId, alert.deviceId, titleOf(t, alert, ruleOf(alert), names, null)].join('|');
+  const kind = (alert: Alert) => [day(alert), alert.spaceId, alert.deviceId, alert.ruleId, titleOf(t, alert, ruleOf(alert), names, null)].join('|');
   const kinds = new Map(ended.map(alert => [alert.id, kind(alert)]));
   const kindOf = (alert: Alert) => kinds.get(alert.id)!;
-  const over = foldSame(ended, kindOf, beganAt);
+  // What is over is paged by when it ended, so the oldest row read may stand in a day that goes on behind it. A
+  // row of that day is not whole yet: it is held back, and read on, rather than counted or deleted by a part.
+  const cutDay = resolved.hasNextPage && ended.length > 0 ? day(ended[ended.length - 1]) : null;
+  const folds = foldSame(ended, kindOf, beganAt);
+  const over = folds.slice(0, shown).filter(row => day(row.newest) !== cutDay);
+  const cut = over.length < Math.min(shown, folds.length) && !resolved.isError;
+  const readOn = cut && !resolved.isFetchingNextPage;
+  const { fetchNextPage } = resolved;
+  useEffect(() => {
+    if (readOn) void fetchNextPage();
+  }, [readOn, fetchNextPage]);
 
   const head = (
     <PageHead back={{ to: '/', label: t('me.back') }} title={t('shell.alerts')}>
@@ -188,11 +200,11 @@ export function Alerts() {
       ) : null}
 
       {resolved.isPending ? <Waiting lines={2} /> : null}
-      {over.length > 0 ? (
+      {folds.length > 0 ? (
         <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-over">
           <h2 id="alerts-over">{t('alerts.over')}</h2>
           <Rows>
-            {over.slice(0, shown).map(({ newest, since }) => (
+            {over.map(({ newest, since }) => (
               <ResolvedRow
                 key={newest.id}
                 {...card(newest)}
@@ -203,14 +215,15 @@ export function Alerts() {
               />
             ))}
           </Rows>
-          {over.length > shown || more ? (
+          {cut ? <Waiting lines={1} /> : null}
+          {folds.length > shown || more ? (
             <button
               type="button"
               className={ui.button}
               disabled={fetching}
               onClick={() => {
                 setShown(shown + OVER_MORE);
-                if (shown + OVER_MORE <= over.length) return;
+                if (shown + OVER_MORE <= folds.length) return;
                 if (open.hasNextPage) void open.fetchNextPage();
                 if (resolved.hasNextPage) void resolved.fetchNextPage();
               }}
@@ -252,7 +265,8 @@ function Mute({ account, now }: { account: Me; now: DateTime }) {
   const time = (instant: string) => clock(instant, zoneOf(account));
   const toggle = () => {
     const next = until ? null : instantOf(now.plus({ seconds: MUTE_SECONDS }));
-    write({ mutedUntil: next }, next ? t('alerts.told.muted', { time: time(next) }) : t('alerts.told.loud'), () => ({ mutedUntil: until }));
+    const said = (at: string | null) => (at ? t('alerts.told.muted', { time: time(at) }) : t('alerts.told.loud'));
+    write({ mutedUntil: next }, said(next), said(until), () => ({ mutedUntil: until }));
   };
 
   return (

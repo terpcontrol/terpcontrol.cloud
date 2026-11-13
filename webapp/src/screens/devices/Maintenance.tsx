@@ -52,6 +52,7 @@ export function MaintenanceControl({ devices, now, id, disabled = false }: { dev
       tell({
         label: forSeconds === 0 ? t('maintenance.told.ended') : t(before ? 'maintenance.told.extended' : 'maintenance.told.started', { until }),
         undo: () => hold(secondsTo(before)),
+        undone: before ? t('maintenance.running', { until: clock(before, zone) }) : t('maintenance.told.ended'),
         from: `maintenance-${ids.join(' ')}`,
       });
     } catch {

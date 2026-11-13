@@ -3,20 +3,6 @@
    the card and the invitation's sheet keep their own module,
    `Invite.module.css`. */
 
-/* The card's last row, which opens the ways in under the card. */
-.invite {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 56px;
-  padding: 0 var(--space-4);
-  background: none;
-  border: 0;
-  color: var(--brand);
-  font-weight: var(--weight-semibold);
-  text-align: left;
-}
-
 /* A person: who they are and, beside it, what can be done about them - which
    goes under the name as one group where a phone has no room for both. */
 .person {

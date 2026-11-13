@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useParams } from 'react-router';
 import { fetchedAt } from '@/api/clock';
 import { useHome } from '@/api/home';
@@ -6,6 +7,7 @@ import { failingSince } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import { hasLeft, isPlace } from '@/app/places';
+import { PlaceEnded } from '@/screens/place/PlaceTitle';
 import { NoLongerHere } from '@/ui/PageState';
 import { EmptyStart } from './EmptyStart';
 import { GrowStart } from './GrowStart';
@@ -13,6 +15,7 @@ import { Places } from './Places';
 import { PlaceStart } from './PlaceStart';
 import { noteLoaded } from './loaded';
 import { StartFailed, StartWaiting } from './states';
+import styles from './Start.module.css';
 
 /**
  * Start. An account with one place is shown that place; one whose single grow
@@ -57,6 +60,7 @@ export function Start() {
  * as a card - and keeps its page.
  */
 export function StartOfPlace() {
+  const { t } = useTranslation();
   const { spaceId = '' } = useParams();
   const { user } = useSession();
   const home = useHome();
@@ -65,18 +69,24 @@ export function StartOfPlace() {
   const room = spaces.data?.items.some(space => space.id === spaceId && space.kind === 'room') === true;
 
   const inUse = spaces.data?.items.some(space => space.id === spaceId && space.archivedAt === null) === true;
-  const ended = useEndedSpaces(user?.isAdmin === true && spaces.data !== undefined && !inUse);
+  const ended = useEndedSpaces(user !== null && !user.isDemo && spaces.data !== undefined && !inUse);
+  const own = ended.data?.items.find(space => space.id === spaceId && space.kind !== 'room');
 
   if (hasLeft(spaceId) || (cards.length === 1 && cards[0].spaceId === spaceId)) return <Navigate to="/" replace />;
   if (room && home.data && !cards.some(card => card.spaceId === spaceId)) return <Navigate to="/" replace />;
   // Whether the address names a room is known once the places have answered; until then nothing of a place is drawn for it.
   if (spaces.isPending || home.isPending || ended.isLoading) return <StartWaiting />;
-  // A place that has ended still answers its own read, so the account's places say that it is gone, as they do
-  // where it is edited and removed. Support reads a place that is not its own, which only that read answers for -
-  // an administrator's own ended place is gone like anybody's.
-  if (spaces.data && !inUse && (!user?.isAdmin || ended.data?.items.some(space => space.id === spaceId))) {
-    return <NoLongerHere what="space" />;
+  // A place that has ended still answers its own read, so the account's places say that it is gone: one of its
+  // own that it has ended, as Verlauf and Steuerung say it, any other that it is no longer shared. Support reads
+  // a place that is not its own, which only that read answers for.
+  if (own) {
+    return (
+      <section className={styles.page}>
+        <PlaceEnded title={t('shell.tabs.home')} name={own.name} />
+      </section>
+    );
   }
+  if (spaces.data && !inUse && !user?.isAdmin) return <NoLongerHere what="space" />;
 
   return <PlaceStart key={spaceId} spaceId={spaceId} back={cards.length > 1} />;
 }

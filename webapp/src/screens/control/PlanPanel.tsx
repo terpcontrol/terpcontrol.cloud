@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
-import { useLog } from '@/log/log-context';
+import { useLog, type Back } from '@/log/log-context';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Asking } from '@/ui/Asking';
@@ -333,9 +333,10 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
    * What a move did, said once it has landed: the button that asked may be gone with it. Only a pause is taken back
    * whole - continuing sends the step's figures again, and every other move starts or ends something.
    */
-  const told = (what: string, params: Record<string, unknown> = {}, undo: (() => Promise<unknown>) | null = null) => {
+  const said = (what: string, params: Record<string, unknown> = {}) => t(`space.control.told.${what}`, { plan: plan.name, ...params });
+  const told = (what: string, params: Record<string, unknown> = {}, back: Back | { undo: null } = { undo: null }) => {
     close();
-    tell({ label: t(`space.control.told.${what}`, { plan: plan.name, ...params }), undo, from: `plan-${device.id}` });
+    tell({ label: said(what, params), ...back, from: `plan-${device.id}` });
   };
   const stepName = (index: number | null) => (index === null ? '' : (plan.steps[index]?.name ?? ''));
 
@@ -375,7 +376,17 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
             className={ui.button}
             disabled={busy}
             onClick={() =>
-              move.mutate({ kind: 'pause', reason: null }, { onSuccess: () => told('paused', {}, () => move.mutateAsync({ kind: 'resume' })) })
+              move.mutate(
+                { kind: 'pause', reason: null },
+                {
+                  onSuccess: () =>
+                    told(
+                      'paused',
+                      {},
+                      { undo: () => move.mutateAsync({ kind: 'resume' }), undone: said('resumed', { step: stepName(plan.state.activeStepIndex) }) },
+                    ),
+                },
+              )
             }
           >
             {t('space.control.move.pause')}

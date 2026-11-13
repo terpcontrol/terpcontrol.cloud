@@ -111,14 +111,14 @@ describe('the followed grows', () => {
 
     await waitFor(() => expect(server.unfollowed).toEqual(['grow-9']));
     await waitFor(() => expect(screen.queryByText('@greenthumb · Autoflower run')).not.toBeInTheDocument());
-    expect(screen.getByText('You follow nobody yet. Follow sits at the top of any public diary.')).toBeInTheDocument();
+    expect(screen.getByText('You follow nobody yet. “Follow” is at the top of every public diary.')).toBeInTheDocument();
   });
 
   it('says so when nobody is followed', async () => {
     server.home = { spaces: [], followedGrows: [], people: [], layers: { diary: true } };
     draw();
 
-    expect(await screen.findByText('You follow nobody yet. Follow sits at the top of any public diary.')).toBeInTheDocument();
+    expect(await screen.findByText('You follow nobody yet. “Follow” is at the top of every public diary.')).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 });

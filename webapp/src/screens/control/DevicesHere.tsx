@@ -17,6 +17,7 @@ import { socketName, socketState } from '@/screens/devices/socket-words';
 import { rowsOf } from '@/screens/devices/sockets';
 import { ageLabel, deviceLiveness, offlineLabel, sinceLabel } from '@/ui/age';
 import { Facts } from '@/ui/Facts';
+import { camerasCalled } from '@/ui/camera-name';
 import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
 import { Row, Rows, RowText } from '@/ui/Rows';
 import { Sheet } from '@/ui/Sheet';
@@ -59,6 +60,8 @@ export function DevicesHere({
   const reads = useLiveReads(ids);
   const tables = useSocketTables(ids);
   const cameras = (useCameras().data?.items ?? []).filter(camera => camera.spaceId === spaceId && camera.removedAt === null);
+  // A camera nobody named carries its tag only among several such of the place, as in "Ort bearbeiten".
+  const called = camerasCalled(cameras.map(camera => cameraTitle(camera, devices.find(device => device.id === camera.deviceId) ?? null, t)));
   // A camera's picture stands in its row beside the rail only: a phone is not sent a picture it does not draw.
   const stills = useLatestStills(wide ? cameras.map(camera => camera.id) : []);
   const spokeAt = (device: Device) => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
@@ -77,7 +80,7 @@ export function DevicesHere({
         />
       ))}
 
-      {cameras.map(camera => {
+      {cameras.map((camera, index) => {
         const carrier = devices.find(device => device.id === camera.deviceId) ?? null;
         return (
           <Row
@@ -85,7 +88,7 @@ export function DevicesHere({
             alone
             to={cameraPath(camera.id)}
             lead={wide ? <Thumb stillId={stills.get(camera.id) ?? null} /> : null}
-            title={cameraTitle(camera, carrier, t)}
+            title={called[index]}
             line={<Facts facts={cameraFacts(t, camera, carrier, carrier ? deviceLiveness(spokeAt(carrier), now) === 'offline' : false, now, zone)} />}
           />
         );

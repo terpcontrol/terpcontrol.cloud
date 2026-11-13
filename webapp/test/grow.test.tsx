@@ -516,22 +516,22 @@ describe('a day of the diary', () => {
 
     const lines = linesOf();
     expect(lines[0]).toMatch(/You watered/);
-    expect(lines[0]).not.toMatch(/by itself/);
+    expect(lines[0]).not.toMatch(/automatic/);
     // On and off are one line, and a person's.
     expect(lines[1]).toBe('07:00Maintenance · 2 min');
     // A day that is over says the hours the lamp burned in one line.
-    expect(lines[2]).toMatch(/^06:00Light 06:00–18:00by itself$/);
+    expect(lines[2]).toMatch(/^06:00Light 06:00–18:00automatic$/);
     expect(lines).toHaveLength(3);
   });
 
   it('gives a lamp that has not gone off no end: on since then while it is known to burn, and only that it came on otherwise', () => {
     drawDay(day(0, { events: [{ kind: 'light', at: at(0, 6), on: true, still: true }] }), true);
-    expect(linesOf()).toEqual(['06:00Light on since 06:00by itself']);
+    expect(linesOf()).toEqual(['06:00Light on since 06:00automatic']);
     cleanup();
 
     // A day that is over, or a device that fell silent: nobody says what the lamp did after it came on.
     drawDay(day(1, { events: [{ kind: 'light', at: at(1, 18), on: true, still: false }] }));
-    expect(linesOf()).toEqual(['18:00Light on at 18:00by itself']);
+    expect(linesOf()).toEqual(['18:00Light on at 18:00automatic']);
   });
 
   it('does not take a lamp going off in the morning for the end of the evening it came on in', () => {
@@ -544,13 +544,13 @@ describe('a day of the diary', () => {
       }),
     );
 
-    expect(linesOf()).toEqual(['18:00Light off at 00:00 · on again at 18:00by itself']);
+    expect(linesOf()).toEqual(['18:00Light off at 00:00 · on again at 18:00automatic']);
   });
 
   it('says when another device took over the measuring, by its name or else by its kind, as a line nobody wrote', () => {
     drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'Controller B', type: 'controller' }] }));
     // The stamp says when: the line does not say the hour a second time.
-    expect(linesOf()).toEqual(['23:00Controller B measures from here on ›by itself']);
+    expect(linesOf()).toEqual(['23:00Controller B measures from here on ›automatic']);
     // It leads to the curves of that moment, as a stretch outside the targets does, with no reading marked.
     expect(screen.getByRole('link', { name: reads(/Controller B measures from here on/) }).getAttribute('href')).toMatch(
       /^\/timeline\?space=space-1&at=/,
@@ -595,7 +595,7 @@ describe('a day of the diary', () => {
 
     const sheet = await screen.findByRole('dialog', { name: 'Photo' });
     expect(within(sheet).getByRole('textbox')).toHaveValue('First flowers');
-    expect(within(sheet).getByRole('button', { name: 'Take this entry back' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Delete this entry' })).toBeInTheDocument();
   });
 
   it('says of a camera´s picture somebody made a line of that it was kept, not taken', () => {
@@ -620,7 +620,7 @@ describe('a day of the diary', () => {
     });
     drawDay(day(1, { entries: [alarm] }));
 
-    expect(linesOf()).toEqual([expect.stringMatching(/Alarm: Too warmTemperature above 28 °Cby itself$/)]);
+    expect(linesOf()).toEqual([expect.stringMatching(/Alarm: Too warmTemperature above 28 °Cautomatic$/)]);
     expect(screen.queryByRole('button', { name: /Too warm/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Too warm/ })).not.toBeInTheDocument();
   });
@@ -783,7 +783,7 @@ describe('the diary', () => {
     ]);
     // The rest of the week the cards began in, then the week before with what it holds.
     expect(screen.getByRole('button', { name: reads(/^Day 32 to 29 · Flower, week 2/) })).toHaveTextContent('1 entry');
-    expect(screen.getByRole('button', { name: reads(/^Day 28 to 26 · Flower, week 1/) })).toHaveTextContent('3 pictures · Week film');
+    expect(screen.getByRole('button', { name: reads(/^Day 28 to 26 · Flower, week 1/) })).toHaveTextContent('3 pictures · Weekly film');
   });
 
   it('opens a week´s days where they stand, with its film', async () => {
@@ -795,7 +795,7 @@ describe('the diary', () => {
 
     expect(row).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('heading', { name: 'Fri 11 Sep · Day 28' })).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /^Week film · Flower, week 1/ })[0]).toHaveTextContent('Day 22 to 28 in 20 seconds');
+    expect(screen.getAllByRole('button', { name: /^Weekly film · Flower, week 1/ })[0]).toHaveTextContent('Day 22 to 28 in 20 seconds');
   });
 
   it('is found as it was left by whoever comes back to it: the week opened stays open', async () => {
@@ -938,7 +938,7 @@ describe('the pictures of a grow', () => {
     expect(await screen.findByRole('heading', { name: 'This week · from day 29' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Flower, week 1 · Day 22 to 28' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').map(tile => tile.textContent)).toEqual(['Day 35', 'Your photo', 'Day 34', 'Day 28']);
-    expect(screen.getByRole('button', { name: /^Week film · Flower, week 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Weekly film · Flower, week 1/ })).toBeInTheDocument();
   });
 
   it('shows the photos alone or the camera alone', async () => {

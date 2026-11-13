@@ -49,10 +49,11 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
   // Beside a window that is refused the title keeps the saved one.
   const titled = empty ? quiet : shown;
 
-  const answer = (window: QuietHours | null) => {
-    const said = window ? { from: timeOf(window.fromMinute), to: timeOf(window.toMinute) } : { what: t('notifications.quietHours') };
-    write({ quietHours: window }, t(`notifications.told.${window ? 'quiet' : 'off'}`, said));
-  };
+  const said = (window: QuietHours | null) =>
+    window
+      ? t('notifications.told.quiet', { from: timeOf(window.fromMinute), to: timeOf(window.toMinute) })
+      : t('notifications.told.off', { what: t('notifications.quietHours') });
+  const answer = (window: QuietHours | null) => write({ quietHours: window }, said(window), said(quiet));
   const save = () => {
     if (!wanted || empty || sameWindow(wanted, sent)) return;
     setSent(wanted);

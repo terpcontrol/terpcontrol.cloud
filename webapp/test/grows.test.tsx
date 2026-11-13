@@ -184,7 +184,7 @@ describe('the page', () => {
   it('has the doors to what belongs to growing at its foot', async () => {
     draw(<Grows />);
 
-    const beside = await screen.findByRole('region', { name: 'With them' });
+    const beside = await screen.findByRole('region', { name: 'More' });
     expect(
       within(beside)
         .getAllByRole('link')
@@ -198,7 +198,7 @@ describe('the page', () => {
 
     await screen.findByRole('link', { name: /Autumn run/ });
     expect(screen.queryByRole('button', { name: /New grow/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'With them' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'More' })).not.toBeInTheDocument();
   });
 
   it('is what stops the page for a grow somebody cannot reach blaming the grow for having ended', async () => {

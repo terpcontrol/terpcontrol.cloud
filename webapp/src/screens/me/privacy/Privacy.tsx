@@ -53,9 +53,10 @@ export function Privacy() {
       {(account, held) => {
         const { privacy, handle } = account;
         const hides = (key: 'hideWeights' | 'hideCounts') => (hidden: boolean) =>
-          save({ privacy: { ...privacy, [key]: hidden } }, t(`me.saved.${key}.${hidden ? 'on' : 'off'}`), now => ({
-            privacy: { ...now.privacy, [key]: !hidden },
-          }));
+          save({ privacy: { ...privacy, [key]: hidden } }, t(`me.saved.${key}.${hidden ? 'on' : 'off'}`), {
+            to: now => ({ privacy: { ...now.privacy, [key]: !hidden } }),
+            undone: t(`me.saved.${key}.${hidden ? 'off' : 'on'}`),
+          });
 
         return (
           <>
@@ -70,7 +71,10 @@ export function Privacy() {
                 on={account.publicProfile}
                 disabled={held}
                 onChange={publicProfile =>
-                  save({ publicProfile }, t(`me.saved.profile.${publicProfile ? 'on' : 'off'}`), () => ({ publicProfile: !publicProfile }))
+                  save({ publicProfile }, t(`me.saved.profile.${publicProfile ? 'on' : 'off'}`), {
+                    to: () => ({ publicProfile: !publicProfile }),
+                    undone: t(`me.saved.profile.${publicProfile ? 'off' : 'on'}`),
+                  })
                 }
               />
             </Row>

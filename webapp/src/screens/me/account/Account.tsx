@@ -103,11 +103,10 @@ function ZoneRow({ kept, held }: { kept: string; held: boolean }) {
           value={kept}
           className={styles.zone}
           disabled={held}
-          onChange={timezone =>
-            save({ preferences: { timezone } }, t('me.saved.setting', { what: t('me.account.timezone'), value: timezone }), () => ({
-              preferences: { timezone: kept },
-            }))
-          }
+          onChange={timezone => {
+            const said = (zone: string) => t('me.saved.setting', { what: t('me.account.timezone'), value: zone });
+            save({ preferences: { timezone } }, said(timezone), { to: () => ({ preferences: { timezone: kept } }), undone: said(kept) });
+          }}
         >
           {offeredZones(kept).map(zone => (
             <option key={zone} value={zone}>

@@ -261,7 +261,11 @@ export function TelegramCard({ me, held }: CardProps) {
               onYes={() => {
                 setAsking(false);
                 setOffered(null);
-                write({ channels: { ...me.notifications.channels, telegram: null } }, t('notifications.told.unlinked'));
+                write(
+                  { channels: { ...me.notifications.channels, telegram: null } },
+                  t('notifications.told.unlinked'),
+                  t('notifications.told.on', { what: t('notifications.channel.telegram') }),
+                );
               }}
               onCancel={() => setAsking(false)}
             />
@@ -292,10 +296,11 @@ export function EmailCard({ me, held }: CardProps) {
   const [draft, setDraft] = useState('');
   const typed = draft.trim();
 
+  const off = t('notifications.told.off', { what: t('notifications.channel.email') });
   const toggle = () => {
     setEditing(false);
     if (address === null) mailOn(rows.length > 0 ? rows : undefined);
-    else write({ channels: { ...me.notifications.channels, email: null } }, t('notifications.told.off', { what: t('notifications.channel.email') }));
+    else write({ channels: { ...me.notifications.channels, email: null } }, off, t('notifications.told.email', { address }));
   };
 
   return (
@@ -311,7 +316,11 @@ export function EmailCard({ me, held }: CardProps) {
                 event.preventDefault();
                 if (!typed) return;
                 setEditing(false);
-                write({ channels: { ...me.notifications.channels, email: typed } }, t('notifications.told.email', { address: typed }));
+                write(
+                  { channels: { ...me.notifications.channels, email: typed } },
+                  t('notifications.told.email', { address: typed }),
+                  address ? t('notifications.told.email', { address }) : off,
+                );
               }}
             >
               <label className={parts.field}>
@@ -371,10 +380,11 @@ export function WebhookCard({ me, held }: CardProps) {
     setEditing(true);
   };
 
+  const off = t('notifications.told.off', { what: t('notifications.channel.webhook') });
   const toggle = () => {
     if (webhook !== null) {
       setEditing(false);
-      write({ channels: { ...me.notifications.channels, webhook: null } }, t('notifications.told.off', { what: t('notifications.channel.webhook') }));
+      write({ channels: { ...me.notifications.channels, webhook: null } }, off, t('notifications.told.webhook', { host: hostOf(webhook.url) }));
       return;
     }
     if (editing) {
@@ -405,7 +415,11 @@ export function WebhookCard({ me, held }: CardProps) {
                 event.preventDefault();
                 if (!draft.url) return;
                 setEditing(false);
-                write({ channels: { ...me.notifications.channels, webhook: draft } }, t('notifications.told.webhook', { host: hostOf(draft.url) }));
+                write(
+                  { channels: { ...me.notifications.channels, webhook: draft } },
+                  t('notifications.told.webhook', { host: hostOf(draft.url) }),
+                  webhook ? t('notifications.told.webhook', { host: hostOf(webhook.url) }) : off,
+                );
               }}
             >
               <label className={parts.field}>

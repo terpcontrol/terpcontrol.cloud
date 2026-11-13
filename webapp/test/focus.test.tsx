@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { MemoryRouter } from 'react-router';
+import { Asking as Question } from '@/ui/Asking';
 import { useFocusRescue } from '@/ui/focus-rescue';
 import { Sheet } from '@/ui/Sheet';
 import { translate } from './translations';
@@ -140,6 +141,38 @@ describe('a sheet', () => {
 
       expect(window.history.length).toBe(entries);
     });
+  });
+
+  /** Escape pressed over a question is the question's way back: the sheet under it stays, with what was typed into it. */
+  it('leaves Escape to a question asked inside it, and takes the next one itself', () => {
+    function Page() {
+      const [open, setOpen] = useState(true);
+      const [asking, setAsking] = useState(false);
+      return open ? (
+        <Sheet title="Scheme" onClose={() => setOpen(false)}>
+          <input aria-label="Name" defaultValue="" />
+          {asking ? (
+            <Question note="Delete it?" yes="Yes" busy={false} onYes={() => undefined} onCancel={() => setAsking(false)} />
+          ) : (
+            <button type="button" onClick={() => setAsking(true)}>
+              Delete
+            </button>
+          )}
+        </Sheet>
+      ) : null;
+    }
+    render(<Page />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'typed' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    // The question holds the focus, so it is what a screen reader reads.
+    expect(screen.getByText('Delete it?')).toHaveFocus();
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByText('Delete it?')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed');
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('makes the page behind it unreachable while it is open, and gives it back as it closes', () => {

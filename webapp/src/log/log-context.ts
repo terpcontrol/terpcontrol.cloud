@@ -69,6 +69,8 @@ export interface LogRequest {
    * button that undoes half of something is worse than no button at all.
    */
   undoable?: boolean;
+  /** What holds again once the line is taken back, where that is more than the diary no longer having it. */
+  undone?: string;
 }
 
 /** What a tick may still be taken back, for the ticks where taking it back would only be half of one. */
@@ -78,19 +80,22 @@ export interface CompleteOptions {
   changed?: (client: QueryClient) => void;
 }
 
+/**
+ * The way back from something told, and what holds again once it is taken: the toast answers in its place with
+ * "Undone · <undone>" (`undoneLabel`), never with the label it took back - that names what no longer holds. A
+ * refusal is said there too, with the offer to try again.
+ */
+export interface Back {
+  undo: () => Promise<unknown>;
+  undone: string;
+}
+
 /** Something that was done already, said in the toast with the way to take it back - where it can be taken back whole. */
-export interface Told {
+export type Told = (Back | { undo: null }) & {
   label: string;
-  /**
-   * Takes it back, and the toast answers in its place: "Undone: <label>". A refusal is said there too, with the offer
-   * to try again. Null where there is no taking it back.
-   */
-  undo: (() => Promise<unknown>) | null;
-  /** What holds again once it is taken back, where the label taken back would read wrong: "Undone · <this>". */
-  undone?: string;
   /** The control that was used, where it may be used again at once - a switch, a stepper: its next toast takes this one's place. */
   from?: string;
-}
+};
 
 interface LogState {
   openSheet: (opening?: LogOpening) => void;

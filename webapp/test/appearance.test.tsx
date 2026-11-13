@@ -176,8 +176,9 @@ describe('the language', () => {
     await waitFor(() => expect(told.map(one => one.label)).toEqual(['Sprache: Deutsch']));
 
     // Taken back, the toast answers in the language gone back to, not with the German line under an English word.
-    expect(told[0].undone).toBe('Language: English');
-    await told[0].undo!();
+    const back = told[0] as Extract<Told, { undone: string }>;
+    expect(back.undone).toBe('Language: English');
+    await back.undo();
 
     expect(document.documentElement.lang).toBe('en');
     expect(localStorage.getItem('terp.language')).toBe('en');

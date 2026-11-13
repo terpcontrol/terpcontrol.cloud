@@ -139,18 +139,16 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
 
         {mine ? (
           <Block label={t('devices.settings.place')} help="deviceMove">
-            <div className={styles.places}>
-              <Choices label={t('devices.settings.place')}>
-                {placesOf(listed, device.ownerId).map(space => (
-                  <Choice key={space.id} chosen={space.id === (chosen ?? device.spaceId)} disabled={busy} onChoose={() => setChosen(space.id)}>
-                    {space.name}
-                  </Choice>
-                ))}
-                <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
-                  + {t('devices.settings.newPlace')}
+            <Choices label={t('devices.settings.place')}>
+              {placesOf(listed, device.ownerId).map(space => (
+                <Choice key={space.id} chosen={space.id === (chosen ?? device.spaceId)} disabled={busy} onChoose={() => setChosen(space.id)}>
+                  {space.name}
                 </Choice>
-              </Choices>
-            </div>
+              ))}
+              <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
+                + {t('devices.settings.newPlace')}
+              </Choice>
+            </Choices>
             {chosen === NEW ? (
               <input
                 className={ui.input}

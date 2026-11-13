@@ -136,3 +136,7 @@ export const lastReadings = (entries: Entry[]): Map<string, LastReading> => {
 
 /** "58 cm", and "6.3" for the measurements that have no unit at all, such as pH. */
 export const withUnit = (value: number, unit: string): string => [looseFigure(value), unit].filter(Boolean).join(' ');
+
+/** What holds once a measurement was added (`here`) or deleted: the toast's words, and with `!here` what taking it back leaves. */
+export const toldOf = (t: Translate, name: string, here: boolean): string =>
+  t(here ? 'grow.measurements.told.added' : 'grow.measurements.told.removed', { name });

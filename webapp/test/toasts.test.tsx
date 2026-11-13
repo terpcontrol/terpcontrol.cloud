@@ -2,7 +2,8 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { useLog } from '@/log/log-context';
 import { LogProvider } from '@/log/LogProvider';
-import { besideSheet, withRoom } from '@/log/toast-room';
+import { undoneLabel } from '@/log/lines';
+import { besideSheet, clearance, lastUsed, roomFor, withRoom } from '@/log/toast-room';
 import type { LoggedLine } from '@/log/Toasts';
 import { Sheet } from '@/ui/Sheet';
 import { drawAt } from './harness';
@@ -22,6 +23,7 @@ const line = (key: number, over: Partial<LoggedLine> = {}): LoggedLine => ({
   label: `line ${key}`,
   send: () => Promise.reject(new Error('nothing to send')),
   revert: null,
+  answers: null,
   details: null,
   state: 'saved',
   failure: null,
@@ -232,5 +234,73 @@ describe('where the toasts stand while a sheet is open', () => {
   it('is the sheet´s foot where neither side has the room, and never the room the window keeps free above a sheet', () => {
     expect(besideSheet({ top: 56, bottom: 744 }, 96, 800, 24)).toBe('foot');
     expect(besideSheet({ top: 100, bottom: 844 }, 44, 844, 59)).toBe('foot');
+  });
+});
+
+/**
+ * jsdom lays nothing out, so that a toast stands clear of its control is seen in a browser; what it is worked out
+ * from is held here.
+ */
+describe('a toast and the control it answers', () => {
+  const toasts = { top: 460, bottom: 524 };
+
+  it('moves the page by the overlap of the lowest control a standing toast answers, and by nothing for one beside the box', () => {
+    expect(clearance([{ top: 472, bottom: 516 }], toasts)).toBe(64);
+    // Two toasts, two rows: the lower one decides, and the upper is clear with it.
+    expect(
+      clearance(
+        [
+          { top: 420, bottom: 464 },
+          { top: 472, bottom: 516 },
+        ],
+        toasts,
+      ),
+    ).toBe(64);
+    expect(
+      clearance(
+        [
+          { top: 300, bottom: 344 },
+          { top: 540, bottom: 584 },
+        ],
+        toasts,
+      ),
+    ).toBe(0);
+    expect(clearance([], toasts)).toBe(0);
+  });
+
+  it('answers the control that was used, whether a pointer or a key pressed it or a select was changed', () => {
+    drawAt(
+      <>
+        <button type="button" role="switch" aria-checked="false">
+          <span>knob</span>
+        </button>
+        <select aria-label="Role">
+          <option>one</option>
+          <option>two</option>
+        </select>
+      </>,
+    );
+    // Space on a focused switch is a click without a pointer; the knob inside it is not the control.
+    fireEvent.click(screen.getByText('knob'));
+    expect(lastUsed()).toBe(screen.getByRole('switch'));
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Role' }), { target: { value: 'two' } });
+    expect(lastUsed()).toBe(screen.getByRole('combobox', { name: 'Role' }));
+  });
+
+  it('keeps the room a page is scrolled into when the toasts go, and gives it back as the page is scrolled out of it', () => {
+    // A page 500 px longer than its window, 72 px of that the toasts' room, scrolled to its end.
+    expect(roomFor(0, 72, 500, 500)).toBe(72);
+    expect(roomFor(0, 72, 470, 500)).toBe(42);
+    expect(roomFor(0, 72, 400, 500)).toBe(0);
+    // A second toast makes the room larger at once; the first one leaving takes back only what is not scrolled into.
+    expect(roomFor(136, 72, 500, 500)).toBe(136);
+    expect(roomFor(72, 136, 564, 564)).toBe(136);
+    // A page shorter than its window keeps nothing.
+    expect(roomFor(0, 72, 0, 0)).toBe(0);
+  });
+
+  it('answers an undo in one form, with what holds again', () => {
+    expect(undoneLabel(key => (key === 'log.undone' ? 'Undone' : key), 'Alarm “H-06” on')).toBe('Undone · Alarm “H-06” on');
   });
 });

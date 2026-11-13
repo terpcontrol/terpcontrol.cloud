@@ -4,12 +4,14 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
+import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help, Term } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
 import { withFlipWeek } from './scheme/grid';
 import { GridEditor } from './scheme/GridEditor';
+import { useAnswered } from './told';
 import { SchemeSheet } from './scheme/SchemeSheet';
 import styles from './scheme/Scheme.module.css';
 
@@ -45,6 +47,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const update = useUpdateGrow(grow.id);
+  const answer = useAnswered(update, `scheme-${grow.id}`);
 
   const [edit, setEdit] = useSchemeEdit(grow.id);
   const [choosing, setChoosing] = useState(false);
@@ -72,7 +75,14 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
     if (draft) setDraft({ ...draft, grid: next(draft.grid), edited: true });
   };
 
-  const save = () => update.mutate({ scheme: draft }, { onSuccess: () => setEdit(null) });
+  // The grid that fed the plants until now is one write away, so the answer offers it back.
+  const save = () =>
+    answer(
+      { scheme: draft },
+      t(draft ? 'grow.scheme.told.saved' : 'grow.scheme.told.none'),
+      { to: { scheme: stored }, undone: t(stored ? 'grow.scheme.told.back' : 'grow.scheme.told.none') },
+      () => setEdit(null),
+    );
 
   // Taking a grow off its scheme leaves a draft of nothing, which is still a
   // change and still has to be saved: the empty state therefore carries the
@@ -185,18 +195,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
           </span>
           <span className={styles.waterRow}>
             <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
-            <input
-              id={`${fieldId}-water`}
-              className={styles.settingValue}
-              type="number"
-              min={0}
-              step={0.1}
-              disabled={!mayManage}
-              aria-label={t('grow.scheme.waterEc')}
-              placeholder={t('grow.scheme.ecPlaceholder')}
-              value={draft.waterEc ?? ''}
-              onChange={event => setDraft({ ...draft, waterEc: event.target.value === '' ? null : Number(event.target.value) })}
-            />
+            <WaterEc id={`${fieldId}-water`} value={draft.waterEc} disabled={!mayManage} onChange={waterEc => setDraft({ ...draft, waterEc })} />
           </span>
         </label>
 
@@ -324,6 +323,43 @@ function BasedOn({
     </button>
   ) : (
     <section className={`${ui.card} ${styles.basedOn}`}>{inside}</section>
+  );
+}
+
+/**
+ * What the water measures, written and typed as the reader's language writes a decimal. What is being typed stands
+ * as typed until the field is left; an empty field is "nobody has looked", and anything that is no figure changes nothing.
+ */
+function WaterEc({
+  id,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  value: number | null;
+  disabled: boolean;
+  onChange: (value: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [typing, setTyping] = useState<string | null>(null);
+
+  return (
+    <input
+      id={id}
+      className={styles.settingValue}
+      inputMode="decimal"
+      disabled={disabled}
+      aria-label={t('grow.scheme.waterEc')}
+      placeholder={t('grow.scheme.ecPlaceholder')}
+      value={typing ?? (value === null ? '' : looseFigure(value))}
+      onChange={event => {
+        const typed = typedFigure(event.target.value);
+        setTyping(event.target.value);
+        if (event.target.value.trim() === '' || (typed !== null && typed >= 0)) onChange(typed);
+      }}
+      onBlur={() => setTyping(null)}
+    />
   );
 }
 

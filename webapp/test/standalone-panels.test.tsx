@@ -286,7 +286,7 @@ describe('an AIR fan', () => {
   it('is its own control at the top of its place, and at a fixed speed nothing else', async () => {
     draw(device('fan-1', 'fan', FAN));
 
-    expect(setting('The fan runs')).toHaveTextContent('Fixed');
+    expect(setting('Fan mode')).toHaveTextContent('Fixed');
     expect(setting('Speed by day')).toHaveTextContent('70 %');
     expect(screen.queryByRole('table', { name: 'Targets' })).not.toBeInTheDocument();
 
@@ -300,13 +300,13 @@ describe('an AIR fan', () => {
   it('holds the temperature and humidity it reads under its control, once it follows them', async () => {
     draw(device('fan-1', 'fan', { ...FAN, mode: 3 }));
 
-    expect(setting('The fan runs')).toHaveTextContent('By both');
+    expect(setting('Fan mode')).toHaveTextContent('By both');
     expect(await screen.findByRole('button', { name: /^Change Day temperature, 25.0 °C/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Change Night humidity, 55 %/ })).toBeInTheDocument();
     expect(
       within(screen.getByRole('table', { name: 'Targets' }))
         .getAllByRole('columnheader')
-        .map(head => head.textContent?.replace(/holds now|by the schedule/, '')),
+        .map(head => head.textContent?.replace(/in effect now|by the schedule/, '')),
     ).toEqual(['', 'Bright', 'Dark']);
     // A fan has no lamp and no CO2 of its own.
     expect(screen.queryByRole('button', { name: 'Change times' })).not.toBeInTheDocument();
@@ -332,10 +332,10 @@ describe('an AIR fan', () => {
     ).toBeInTheDocument();
     expect(setting('Speed by day')).toHaveAttribute('data-pending');
 
-    fireEvent.click(setting('The fan runs'));
+    fireEvent.click(setting('Fan mode'));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'By humidity' }));
     save();
-    await waitFor(() => expect(said()).toBe('The fan runs By humidity · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Fan mode By humidity · saved, not with the device yet'));
   });
 });
 
@@ -439,8 +439,8 @@ describe('what Start and the device panel say about them', () => {
     ]);
     const timed = device('plug-1', 'plug', { ...PLUG, workmode: 'timer', timer: { timeframes: [{ ontime: 82800, duration: 120 }] } });
     expect(plugSummaryOf(t, timed, 3600)?.at(-1)).toEqual({ label: 'Time windows', parts: ['00:00–02:00'] });
-    expect(ownStatusOf(t, plug, 0)).toBe('Readings arrive · Plantalytix Socket: Heating');
-    expect(ownFactOf(t, device('fan-1', 'fan', FAN), 0)).toEqual({ label: 'The fan runs', value: 'Fixed' });
+    expect(ownStatusOf(t, plug, 0)).toBe('Readings arriving · Plantalytix Socket: Heating');
+    expect(ownFactOf(t, device('fan-1', 'fan', FAN), 0)).toEqual({ label: 'Fan mode', value: 'Fixed' });
     expect(ownFactOf(t, device('light-1', 'light', LIGHT), 7200)).toEqual({ label: 'Light', value: '08:00–00:00' });
   });
 
@@ -461,11 +461,11 @@ describe('what Start and the device panel say about them', () => {
   it('sums a fan at a fixed speed up by its speeds, and says so in the first line of Start´s targets', () => {
     const fan = device('fan-1', 'fan', FAN);
     expect(fanSummaryOf(t, fan)).toEqual([
-      { label: 'The fan runs', parts: ['Fixed'] },
+      { label: 'Fan mode', parts: ['Fixed'] },
       { label: 'Speed', parts: ['By day 70 %', 'At night 40 %'] },
     ]);
     expect(fanSummaryOf(t, device('fan-1', 'fan', { ...FAN, mode: 2 }))).toBeNull();
-    expect(ownStatusOf(t, fan, 0)).toMatch(/fan runs: Fixed$/);
+    expect(ownStatusOf(t, fan, 0)).toMatch(/fan: Fixed$/);
   });
 
   it('reads a LIGHT’s window from the top of its document, and none from a fan', () => {

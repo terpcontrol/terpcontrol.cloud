@@ -76,9 +76,17 @@
   text-wrap: balance;
 }
 
+/* The one way on from a page read from outside: a finger high, into the foot's own air above and below it. */
 .footLink {
+  position: relative;
   color: var(--brand);
   font-weight: var(--weight-semibold);
+}
+
+.footLink::after {
+  position: absolute;
+  inset: -12px 0;
+  content: '';
 }
 
 /* ------------------------------------------------------------------ nothing */

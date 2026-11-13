@@ -71,27 +71,25 @@
   white-space: nowrap;
 }
 
-/* The way to the day's curves is a finger high round its middle where it is tapped, without its line growing: it
-   reaches over the title and the share. A share that is itself tapped - today's, for its explanation - stands a
-   finger clear of it and reaches as far. */
-@media (max-width: 899px) {
-  a.dayClimate,
-  .dayShare button {
-    position: relative;
-    z-index: 1;
-    align-self: flex-start;
-  }
+/* The way to the day's curves is a finger high round its middle where it is tapped, at every width and without its
+   line growing: it reaches over the title and the share. A share that is itself tapped - today's, for its
+   explanation - stands a finger clear of it and reaches as far. */
+a.dayClimate,
+.dayShare button {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+}
 
-  a.dayClimate::after,
-  .dayShare button::after {
-    position: absolute;
-    inset: -12px 0;
-    content: '';
-  }
+a.dayClimate::after,
+.dayShare button::after {
+  position: absolute;
+  inset: -12px 0;
+  content: '';
+}
 
-  .dayShare:has(button) {
-    margin-top: 21px;
-  }
+.dayShare:has(button) {
+  margin-top: 21px;
 }
 
 .dayShare {

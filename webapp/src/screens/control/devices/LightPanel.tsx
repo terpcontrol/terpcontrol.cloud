@@ -72,8 +72,12 @@ export function LightPanel({ device, mayManage }: { device: Device; mayManage: b
       mayManage={mayManage}
       busy={settings.busy}
       error={settings.error}
-      onTimes={next => settings.write({ lightsOn: next.lightsOn, lightsOff: lightsOffOf(next) }, scheduleTitle(t, next, offset))}
-      onLimit={value => settings.write({ brightness: value }, `${t('targets.aria.lightLimit')} ${figureText('lightLimit', value)}`)}
+      onTimes={next =>
+        settings.write({ lightsOn: next.lightsOn, lightsOff: lightsOffOf(next) }, held =>
+          scheduleTitle(t, held.lightsOn === next.lightsOn ? next : baseline, offset),
+        )
+      }
+      onLimit={value => settings.write({ brightness: value }, held => `${t('targets.aria.lightLimit')} ${figureText('lightLimit', held.brightness)}`)}
     />
   );
 }

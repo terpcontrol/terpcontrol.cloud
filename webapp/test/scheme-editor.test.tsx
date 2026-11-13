@@ -1,10 +1,13 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
 import { Feeding } from '@/screens/grow/Feeding';
 import { forgetSchemeEdit } from '@/screens/grow/scheme/edit-store';
 import { drawAt, json } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -116,9 +119,17 @@ vi.stubGlobal(
  * tent this grow stands in; this screen is handed the answer. `rerender` takes
  * the grow rather than the tree, because what moves under this screen is the grow.
  */
+const told: Told[] = [];
+
+const tab = (grow: GrowListItem, mayManage: boolean) => (
+  <Toast told={told}>
+    <Feeding grow={grow} mayManage={mayManage} />
+  </Toast>
+);
+
 const draw = (grow: GrowListItem, mayManage = true) => {
-  const drawn = drawAt(<Feeding grow={grow} mayManage={mayManage} />);
-  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(<Feeding grow={next} mayManage={mayManage} />) };
+  const drawn = drawAt(tab(grow, mayManage));
+  return { ...drawn, rerender: (next: GrowListItem) => drawn.rerender(tab(next, mayManage)) };
 };
 
 /** The tab once the shipped index has been read, which is when the scheme has a name rather than an id. */
@@ -131,9 +142,10 @@ const patched = () => wire.calls.filter(call => call.method === 'PATCH');
 
 const posted = () => wire.calls.filter(call => call.method === 'POST' && call.path === '/schemes');
 
-beforeAll(() => translate());
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
+  told.length = 0;
   wire.calls = [];
   wire.refuseSave = null;
   session.user = SIGNED_IN;
@@ -168,7 +180,7 @@ describe('the feeding tab', () => {
 
     // The four the grow decides rather than the chart.
     expect(screen.getByRole('combobox', { name: 'Strength' })).toHaveValue('1');
-    expect(screen.getByRole('spinbutton', { name: 'Water EC' })).toHaveValue(0.4);
+    expect(screen.getByRole('textbox', { name: 'Water EC' })).toHaveValue('0.4');
     expect(screen.getByText('tap')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('light_mix');
     expect(screen.getByRole('combobox', { name: 'Flip' })).toHaveValue('4');
@@ -217,6 +229,61 @@ describe('the feeding tab', () => {
         grid: GRID.map(week => (week.week === 5 ? { ...week, amounts: amounts(null, 3, 0.5) } : week)),
       },
     });
+    // The save answers, and the grid that fed the plants until now is one tap away.
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0]).toMatchObject({ label: 'Feeding scheme saved', undone: 'Feeding scheme as before the change' });
+    await act(() => told[0].undo?.());
+    expect(patched()[1].body).toEqual({ scheme: SCHEME });
+  });
+
+  /** A dose and the water's EC are figures a grower reads and types: "2,5" in German, never "2.5" beside an EC of "0,8". */
+  it('writes and reads every figure as the reader’s language does', async () => {
+    await i18next.changeLanguage('de');
+    try {
+      draw(growOn(SCHEME));
+      await screen.findByText('Biobizz · Light·Mix');
+
+      expect(screen.getByRole('button', { name: 'Cal·Mag, Woche 2' })).toHaveTextContent('0,5');
+      expect(screen.getByRole('textbox', { name: 'Wasser-EC' })).toHaveValue('0,4');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cal·Mag, Woche 2' }));
+      expect(screen.getByLabelText('Cal·Mag, Woche 2')).toHaveValue('0,5');
+      fireEvent.change(screen.getByLabelText('Cal·Mag, Woche 2'), { target: { value: '2,5' } });
+      fireEvent.blur(screen.getByLabelText('Cal·Mag, Woche 2'));
+      expect(screen.getByRole('button', { name: 'Cal·Mag, Woche 2' })).toHaveTextContent('2,5');
+
+      fireEvent.change(screen.getByRole('textbox', { name: 'Wasser-EC' }), { target: { value: '0,6' } });
+      fireEvent.blur(screen.getByRole('textbox', { name: 'Wasser-EC' }));
+      expect(screen.getByRole('textbox', { name: 'Wasser-EC' })).toHaveValue('0,6');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+      await waitFor(() => expect(patched()).toHaveLength(1));
+      expect(patched()[0].body.scheme.waterEc).toBe(0.6);
+      expect(patched()[0].body.scheme.grid[1].amounts[2].value).toBe(2.5);
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
+  });
+
+  /** A scheme chosen is drawn at once and feeds nothing until it is saved: the bar that says so comes with it, without a reload. */
+  it('says a scheme just chosen is not saved, with the two ways out, and saves it from there', async () => {
+    draw(growOn(null));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a scheme' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Biobizz · Light·Mix/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Switch to this scheme' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to this scheme' }));
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('not saved')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeInTheDocument();
+    expect(patched()).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(told).toHaveLength(1));
+    // Taking it back leaves the grow as it stood: on no scheme.
+    expect(told[0]).toMatchObject({ label: 'Feeding scheme saved', undone: 'Grow without a feeding scheme' });
+    expect(screen.queryByText('not saved')).not.toBeInTheDocument();
   });
 
   it('says what the server said when the save was refused, and keeps the edit on the screen', async () => {
@@ -288,7 +355,7 @@ describe('the feeding tab', () => {
     ).toEqual(['0.8', '1.2', '1.2', '1.6', '1.8', '\u2013']);
     expect(within(row).queryByRole('button')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Water EC' }), { target: { value: '0.9' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Water EC' }), { target: { value: '0.9' } });
     expect(within(screen.getByRole('row', { name: /EC target/ })).getAllByRole('cell')[0]).toHaveTextContent('1.3');
   });
 

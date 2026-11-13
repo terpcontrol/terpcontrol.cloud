@@ -207,13 +207,13 @@ describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', ()
     const lines = 'day.fixed_speed: 100 → 80\nmin_speed: 10 → 20\nmode: 0 → 1\nnight.max_speed: 100 → 60';
 
     expect(said('en', lines)).toBe(
-      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nThe fan runs: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
+      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nFan mode: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
     );
     expect(said('de', lines)).toBe(
       'Drehzahl tagsüber: 100 % → 80 %\nMindestdrehzahl: 10 % → 20 %\nLüfter läuft: fest → nach Temperatur\nHöchstdrehzahl nachts: 100 % → 60 %',
     );
     // A mode a newer firmware adds keeps its code.
-    expect(said('en', 'mode: 3 → 7')).toBe('The fan runs: by both → 7');
+    expect(said('en', 'mode: 3 → 7')).toBe('Fan mode: by both → 7');
   });
 
   it('says the windows a socket slows a fan in, which move with the clocks', () => {

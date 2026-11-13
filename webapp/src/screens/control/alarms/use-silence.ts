@@ -34,7 +34,10 @@ export const useSilence = (rule: AlarmRule | null, deviceId: string, now: DateTi
       else {
         silence.mutate(
           { ruleId: rule.id, body: { forSeconds: SILENCE_SECONDS } },
-          { onSuccess: () => tell({ label: t('alarms.told.silenced', told), undo: () => unsilence.mutateAsync(rule.id), from }) },
+          {
+            onSuccess: () =>
+              tell({ label: t('alarms.told.silenced', told), undo: () => unsilence.mutateAsync(rule.id), undone: t('alarms.told.loud', told), from }),
+          },
         );
       }
     },

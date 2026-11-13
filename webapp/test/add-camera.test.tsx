@@ -342,7 +342,7 @@ describe('an account with no device to pair a cam at', () => {
 
     expect(panel().getByText('No device yet')).toBeInTheDocument();
     expect(panel().getByText(/a fridge module, a controller, a fan or a Plantalytix Socket/)).toBeInTheDocument();
-    expect(panel().getByRole('link', { name: /Claim a device/ })).toHaveAttribute('href', '/claim');
+    expect(panel().getByRole('link', { name: /Add a device/ })).toHaveAttribute('href', '/claim');
     // A watch that nothing could ever cross is not left running.
     expect(panel().queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();
     expect(panel().queryByText(/press the knob/)).not.toBeInTheDocument();
@@ -449,7 +449,7 @@ describe('a camera at a stream address', () => {
     expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     expect(within(field).getByRole('paragraph')).toHaveTextContent(
-      'Balcony: no device here fetches the stream from your network · an address of your home network will not answer the cloud',
+      'Balcony: no device here fetches the stream from your network · an address on your home network will not answer the cloud',
     );
   });
 
@@ -641,7 +641,7 @@ describe('a camera at a stream address', () => {
     await openRtsp();
     fill();
 
-    expect(screen.getByText(/Test adds the camera and then asks it for one picture/)).toBeInTheDocument();
+    expect(screen.getByText(/“Test” adds the camera and then asks it for one picture/)).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
@@ -661,7 +661,7 @@ describe('a camera at a stream address', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Take it away again' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove it again' }));
     });
 
     expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');

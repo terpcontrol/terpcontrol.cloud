@@ -1,10 +1,11 @@
 import { DateTime } from 'luxon';
 import { describe, expect, it } from 'vitest';
-import type { SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
 import { firstChoice, type PlaceCard } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
 import { livenessOf, livenessThrough, sortedByAttention } from '@/screens/start/attention';
-import { holdVerdictOf, judgedPanel, statusOf } from '@/screens/start/place';
+import { worstFirst } from '@/screens/alerts/inbox';
+import { holdVerdictOf, judgedPanel, placeAlerts, statusOf } from '@/screens/start/place';
 import { groupedByRoom, startOrder } from '@/screens/start/rooms';
 import { ago, cardOf, growOf, setpoints, values } from './place-wire';
 import { spaceWhere } from './session';
@@ -46,6 +47,40 @@ describe('the sentence a place says', () => {
       statusOf({ ...place, deviceIds: [], openAlerts: [{ ...alert, kind: 'camera_stale' as never, severity: 'warning' as const }] }, now).kind,
     ).toBe('alert');
     expect(statusOf({ ...place, values: [] }, now).kind).toBe('waiting');
+  });
+
+  /**
+   * A tent with a controller that reports and a fridge module gone silent: Meldungen leads with the silence, and
+   * Start said "online" and named the warning beside it. One order for both, from the same alerts.
+   */
+  it('names the alert Meldungen leads with, the silent device among it, and counts the rest', () => {
+    const open = [
+      { ...alert, alertId: 'mould', severity: 'warning' as const, name: 'Mould watch', deviceId: 'device-1' },
+      { ...alert, alertId: 'silent', kind: 'offline' as const, metric: 'offline' as const, value: 1800, name: null, deviceId: 'device-2' },
+      { ...alert, alertId: 'fridge-warm', startedAt: ago(1), deviceId: 'device-2' },
+      { ...alert, alertId: 'hot', startedAt: ago(9), deviceId: 'device-1' },
+    ];
+    const inbox = open.map(({ alertId, ...one }) => ({ ...one, id: alertId }));
+    const device = (id: string, lastSeenAt: string) => ({ id, state: { lastSeenAt } }) as Device;
+    const here = [device('device-1', ago(0)), device('device-2', ago(35))];
+    const listed = open.map(({ deviceId: _, ...one }) => one);
+
+    // Critical before warning; the silence before the reading of the device gone silent, which is an old one.
+    expect(worstFirst(inbox).map(one => one.id)).toEqual(['silent', 'hot', 'mould', 'fridge-warm']);
+    const status = statusOf({ ...place, openAlerts: placeAlerts(listed, inbox as never, here, now) }, now);
+    expect(status).toMatchObject({ kind: 'alert', alert: { alertId: 'silent', device: { id: 'device-2' } }, more: 3 });
+
+    // Without the account's list - the demo - no device is known: the place's own silence is the pill's to say, and no other is named.
+    expect(statusOf({ ...place, openAlerts: placeAlerts(listed, undefined, here, now) }, now)).toMatchObject({
+      alert: { alertId: 'fridge-warm' },
+      more: 2,
+    });
+    // A device heard again waits for its alert to close and is not called offline meanwhile; its reading is about now again.
+    const back = [here[0], device('device-2', ago(0))];
+    expect(statusOf({ ...place, openAlerts: placeAlerts(listed, inbox as never, back, now) }, now)).toMatchObject({
+      alert: { alertId: 'fridge-warm' },
+      more: 2,
+    });
   });
 
   it('says since when a reading is off, once the day´s verdict holds an open run outside the band', () => {

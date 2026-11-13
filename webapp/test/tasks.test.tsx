@@ -436,6 +436,17 @@ describe('a one-off rhythm read from behind the account', () => {
     expect(section('Rhythms').getByText(reading(/^once on 30 Sep 2026 · Spring run · chore$/))).toBeInTheDocument();
   });
 
+  it('is asked before it is deleted without a rhythm being named, since it has none', async () => {
+    await drawLoaded();
+
+    fireEvent.click(within(section('Rhythms').getByText('Repot').closest('li')!).getByRole('button', { name: 'Edit' }));
+    const sheet = screen.getByRole('dialog', { name: 'Reminder' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete this reminder' }));
+
+    expect(within(sheet).getByText(/^The reminder and its open task go\./)).toBeInTheDocument();
+    expect(within(sheet).queryByText(/rhythm stops/)).not.toBeInTheDocument();
+  });
+
   it('opens the sheet on the day it falls on, above a floor the account has reached', async () => {
     await drawLoaded();
 
@@ -729,6 +740,7 @@ describe('a reminder', () => {
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete this reminder' }));
     expect(api.delete).not.toHaveBeenCalled();
+    expect(within(sheet).getByText(/^The rhythm stops/)).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Yes, delete it' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/reminders/rem-1'));
@@ -819,7 +831,7 @@ describe('a member who may only log', () => {
 
     expect(section('This week').getByText('Confirm: Late flower on day 36?')).toBeInTheDocument();
     expect(section('This week').queryByRole('button', { name: /^Done:/ })).not.toBeInTheDocument();
-    expect(section('This week').getByText(/Only whoever steers the place can do that\./)).toBeInTheDocument();
+    expect(section('This week').getByText(/Only whoever manages the place can do that\./)).toBeInTheDocument();
   });
 
   it('is offered neither the Edit on somebody else’s rhythm nor a new one', async () => {

@@ -6,7 +6,7 @@ import { Facts } from '@/ui/Facts';
 import { factsOf } from '@/ui/fact-text';
 import { ANNOUNCER } from '@/ui/live-region';
 import type { LogRequest, LogTarget, TileKind } from './log-context';
-import { besideSheet } from './toast-room';
+import { besideSheet, clearance, GAP, roomFor } from './toast-room';
 import styles from './Toasts.module.css';
 
 /**
@@ -32,6 +32,8 @@ export interface LoggedLine {
   undone?: string;
   /** The control a toast that tells of something came from, whose next toast takes its place. */
   from?: string;
+  /** The control that was used when the line began (`lastUsed`): what the toast must not stand over. */
+  answers: Element | null;
   /** The line could not be sent because nothing answered: it is sent again by itself once the connection is back. */
   waiting?: boolean;
   details: { kind: TileKind; target: LogTarget } | null;
@@ -135,31 +137,46 @@ const useStanding = (shown: boolean): HTMLElement => {
   return host;
 };
 
-/** What a person touched last: the control a toast that follows is most likely about. */
-let touched: Element | null = null;
-if (typeof document !== 'undefined') document.addEventListener('pointerdown', event => (touched = event.target as Element | null), true);
+/** The room the page has under its end and the room the toasts ask; what a scroll has left of the first is taken back on the next. */
+const room = { has: 0, wanted: 0 };
+const keepRoom = (wanted = room.wanted) => {
+  const page = document.documentElement;
+  if (wanted === 0 && room.has === 0) return;
+  room.wanted = wanted;
+  room.has = roomFor(wanted, room.has, window.scrollY, page.scrollHeight - window.innerHeight);
+  page.style.setProperty('--toast-room', `${room.has}px`);
+  page.toggleAttribute('data-toast-room', room.has > 0);
+  if (room.has > wanted) window.addEventListener('scroll', refit, { passive: true, once: true });
+};
+const refit = () => keepRoom();
 
 /**
- * Moves the control a toast answers clear of it: what holds the focus or was touched last, where the toasts at the
- * window's foot lie over it. The page keeps the room for that while a toast is shown (`Toasts.module.css`); what
- * stands in a sheet or does not scroll with the page - the bar, a toast - is left where it is.
+ * A toast never stands over the control it answers, whatever activated it and however many toasts stand: the page
+ * keeps room under its end for the toasts' box (`Toasts.module.css`), and is moved until every control a standing
+ * toast answers is clear of it. Asked again whenever a toast arrives or the box changes. What stands in a sheet or
+ * does not scroll with the page - the bar, a toast - is left; with a sheet open the page under it does not move.
  */
-const clearOf = (host: HTMLElement) => {
-  if (host.hasAttribute('data-in-sheet')) return;
-  const toasts = host.getBoundingClientRect();
-  for (const used of [document.activeElement, touched]) {
-    if (!used?.isConnected || used === document.body || used.closest(`[role="dialog"], nav, .${styles.toasts}`)) continue;
-    const { top, bottom } = used.getBoundingClientRect();
-    if (bottom > toasts.top && top < toasts.bottom) return window.scrollBy({ top: bottom - toasts.top + 8 });
-  }
+const clearOf = (host: HTMLElement, lines: readonly LoggedLine[]) => {
+  const atFoot = host.parentElement === document.body && !document.querySelector('[data-scrim]');
+  keepRoom(atFoot ? host.offsetHeight + GAP : 0);
+  if (!atFoot) return;
+  const moves = lines.flatMap(({ answers }) =>
+    answers?.isConnected && !answers.closest(`nav, .${styles.toasts}`) ? [answers.getBoundingClientRect()] : [],
+  );
+  const by = clearance(moves, host.getBoundingClientRect());
+  if (by > 0) window.scrollBy({ top: by });
 };
 
 export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsProps) {
-  const host = useStanding(lines.length > 0);
-  const newest = lines.at(-1)?.key;
+  const shown = lines.length > 0;
+  const host = useStanding(shown);
+  // Asked as the box is first seen - a toast arrived, or changed - and whenever it changes after.
   useEffect(() => {
-    if (newest !== undefined) clearOf(host);
-  }, [newest, host]);
+    if (!shown) return keepRoom(0);
+    const box = new ResizeObserver(() => clearOf(host, lines));
+    box.observe(host);
+    return () => box.disconnect();
+  }, [shown, host, lines]);
 
   return createPortal(
     lines.map(line => <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />),

@@ -62,6 +62,8 @@ const state = vi.hoisted(() => ({
   sent: [] as PlanTransition[],
   removed: 0,
   devices: [] as unknown[],
+  /** The account's cameras, of which the place's own get a row each. */
+  cameras: [] as unknown[],
   /** What the template list answers; undefined is a list still on its way. */
   templates: undefined as { items: unknown[]; nextCursor: null } | undefined,
 }));
@@ -69,6 +71,11 @@ const state = vi.hoisted(() => ({
 vi.mock('@/api/devices', async importOriginal => ({
   ...(await importOriginal<object>()),
   useDevices: () => ({ data: { items: state.devices, nextCursor: null }, isPending: false, refetch: () => {} }),
+}));
+
+vi.mock('@/api/cameras', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useCameras: () => ({ data: { items: state.cameras, nextCursor: null }, isPending: false }),
 }));
 
 vi.mock('@/api/plans', async importOriginal => ({
@@ -211,6 +218,7 @@ beforeEach(() => {
   state.sent = [];
   state.removed = 0;
   state.devices = [];
+  state.cameras = [];
   state.templates = undefined;
 });
 
@@ -305,7 +313,7 @@ describe('what Steuerung offers, by who is reading', () => {
     expect(screen.getByRole('link', { name: /^Alarms/ })).toHaveAttribute('href', '/control/alarms?space=space-1');
     expect(screen.getByRole('link', { name: /^Grow plan/ })).toHaveAttribute('href', '/control/plan?space=space-1');
     expect(screen.getByRole('button', { name: '+ Add a device or a camera' })).toBeInTheDocument();
-    expect(screen.queryByText(/You may log in this place, not steer it/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You can log in this place but not manage it/)).not.toBeInTheDocument();
   });
 
   it('gives a member the figures to read, nothing that writes, and the reason once', async () => {
@@ -314,7 +322,7 @@ describe('what Steuerung offers, by who is reading', () => {
     drawTab();
 
     expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
-    expect(screen.getAllByText(/You may log in this place, not steer it/)).toHaveLength(1);
+    expect(screen.getAllByText(/You can log in this place but not manage it/)).toHaveLength(1);
     expect(
       screen.queryByRole('button', { name: /^Change|^Climate preset|the light limit$|Maintenance|Restart|Add a device/ }),
     ).not.toBeInTheDocument();
@@ -330,7 +338,7 @@ describe('what Steuerung offers, by who is reading', () => {
     expect(await screen.findByText('Autoflower, 12 weeks')).toBeInTheDocument();
     for (const move of ['Pause', 'Extend', 'Skip', 'Stop', 'Confirm the step'])
       expect(screen.queryByRole('button', { name: move })).not.toBeInTheDocument();
-    expect(screen.getByText(/You may log in this place, not steer it/)).toBeInTheDocument();
+    expect(screen.getByText(/You can log in this place but not manage it/)).toBeInTheDocument();
   });
 });
 
@@ -479,6 +487,31 @@ describe('Steuerung of a place with several devices', () => {
     expect(within(short).getByRole('link', { name: /Everything about Pump socket/ })).toHaveAttribute('href', '/devices/device-2');
     // The place's own device stands first, whatever order the account lists them in.
     expect(lead.compareDocumentPosition(short) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  /** The tag printed on a cam tells two apart and nothing else: the place's only one is "Terp Cam", as in "Ort bearbeiten". */
+  it('calls the place´s only camera by no tag, and tags two that nobody named', async () => {
+    const paired = (id: string, did: string) => ({
+      id,
+      did,
+      name: 'Blue Dream tent',
+      kind: 'terpcam_controller',
+      spaceId: 'space-1',
+      deviceId: 'device-1',
+      removedAt: null,
+      state: { lastStillAt: null },
+    });
+    state.devices = [device()];
+    state.cameras = [paired('cam-1', 'VSTC007171'), { ...paired('cam-9', 'VSTC009999'), spaceId: 'space-2' }];
+    const { unmount } = drawTab();
+
+    expect(await screen.findByRole('link', { name: /^Terp Cam(?! ·)/ })).toHaveAttribute('href', '/cameras/cam-1');
+    unmount();
+
+    state.cameras = [paired('cam-1', 'VSTC007171'), paired('cam-2', 'VSTC008282')];
+    drawTab();
+    expect(await screen.findByRole('link', { name: /^Terp Cam\s·\s7171/ })).toHaveAttribute('href', '/cameras/cam-1');
+    expect(screen.getByRole('link', { name: /^Terp Cam\s·\s8282/ })).toHaveAttribute('href', '/cameras/cam-2');
   });
 
   it('names the three things that can be added, the Terp Cam among them', async () => {

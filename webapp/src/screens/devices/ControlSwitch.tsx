@@ -75,12 +75,13 @@ function ControlOffSheet({ device, onClose }: { device: Device; onClose: () => v
     try {
       if (running) await move.mutateAsync({ kind: 'pause', reason: t('climateControl.pauseReason') });
       await configure.mutateAsync({ control: false });
+      const undo = async () => {
+        await configure.mutateAsync({ control: true });
+        if (running) await move.mutateAsync({ kind: 'resume' });
+      };
       saved.say(
         `${t('climateControl.label')} ${t('climateControl.state.off')}`,
-        async () => {
-          await configure.mutateAsync({ control: true });
-          if (running) await move.mutateAsync({ kind: 'resume' });
-        },
+        { undo, undone: `${t('climateControl.label')} ${t('climateControl.state.on')}` },
         'control',
       );
       onClose();

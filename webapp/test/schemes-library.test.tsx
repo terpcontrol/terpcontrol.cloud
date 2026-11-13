@@ -1,8 +1,10 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Scheme, SchemeUpdate, SchemeWeek } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
 import { Schemes } from '@/screens/me/schemes/Schemes';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -86,11 +88,20 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 });
 
-const draw = () => drawAt(<Schemes />, { at: '/me/schemes' });
+const told: Told[] = [];
+
+const draw = () =>
+  drawAt(
+    <Toast told={told}>
+      <Schemes />
+    </Toast>,
+    { at: '/me/schemes' },
+  );
 
 beforeAll(() => translate());
 
 beforeEach(() => {
+  told.length = 0;
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
   server.own = [OWN];
@@ -153,6 +164,11 @@ describe('the own shelf', () => {
     expect(body.grid![3].amounts).toEqual(amounts(null, 3));
     expect(body.grid!.slice(0, 3)).toEqual(GRID.slice(0, 3));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    // The save answers, and the copy as it stood - its name and its grid - is what taking it back sends.
+    expect(told[0]).toMatchObject({ label: 'Scheme “Biobizz, my way, stronger” saved', undone: 'Scheme “Biobizz, my way” as before the change' });
+    await told[0].undo?.();
+    expect(server.patched[1]).toEqual({ id: 'own-1', body: { name: 'Biobizz, my way', grid: GRID } });
   });
 
   it('offers the chips a grow has, and can put the grid back to the chart it started from', async () => {
@@ -189,6 +205,8 @@ describe('the own shelf', () => {
     await waitFor(() => expect(server.deleted).toEqual(['own-1']));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(await screen.findByText(/You have not kept a scheme of your own yet/)).toBeInTheDocument();
+    // Said, and without a way back: a scheme made again would be another one.
+    expect(told).toMatchObject([{ label: 'Scheme “Biobizz, my way” deleted', undo: null }]);
   });
 });
 

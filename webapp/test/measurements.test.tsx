@@ -200,7 +200,7 @@ describe('what a grow measures', () => {
     expect(rows[0]).toHaveTextContent('per plant');
     expect(rows[1]).toHaveTextContent('per grow · target 1.4–1.8');
     // A target that is not a band at all stays words beside the figure.
-    expect(rows[2]).toHaveTextContent('aim under the input EC plus a fifth');
+    expect(rows[2]).toHaveTextContent('aim for less than the input EC plus a fifth');
     expect(within(rows[2]).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
   });
 
@@ -231,6 +231,13 @@ describe('what a grow measures', () => {
         { key: 'pot_size', name: 'Pot size', unit: 'L', perPlant: true, targetMin: null, targetMax: null, chart: false },
       ],
     });
+
+    // One tap wrote it, so the answer says so and offers the list as it stood.
+    expect(await screen.findByText('Pot size is measured now')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.patch).mock.calls[1][1]).toEqual({ measurements: [height, ec, runoff] });
+    expect(await screen.findByText(reading('Undone · Pot size is no longer measured'))).toBeInTheDocument();
   });
 
   it('will not offer a template the grow already measures', async () => {
@@ -354,6 +361,8 @@ describe('changing one measurement', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, ec] });
+    expect(await screen.findByText('Runoff EC is no longer measured')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
   it('keeps the key when the name changes, so every reading already written stays named', async () => {
@@ -365,6 +374,9 @@ describe('changing one measurement', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, { ...ec, name: 'EC in' }, runoff] });
+    expect(await screen.findByText('Measurement “EC in” saved')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText(reading('Undone · Measurement “EC · input” as before the change'))).toBeInTheDocument();
   });
 });
 

@@ -24,6 +24,12 @@
   color: var(--muted);
 }
 
+/* A group's name keeps its help mark beside it: on a narrow phone what stands at the head's other end wraps instead. */
+.group > header > :first-child {
+  flex: none;
+  white-space: nowrap;
+}
+
 /* A card is the one row, and under it the question a plan step's circle asks
    before it is answered. */
 .card {

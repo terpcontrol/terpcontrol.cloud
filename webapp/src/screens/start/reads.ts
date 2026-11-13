@@ -1,11 +1,13 @@
 import type { DateTime } from 'luxon';
-import type { Device, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, OpenAlert, SpaceOverview } from '@fg2/shared-types/v1';
+import { useOpenAlerts } from '@/api/alerts';
 import { useDeviceLive } from '@/api/devices';
+import { itemsOf } from '@/api/pages';
 import { failingSince } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useHumidifier } from '@/screens/control/germination/germination-choices';
 import { useHeldLight } from '@/screens/control/held-light';
-import { humidifierHoldOf, type HumidifierHold } from '@/screens/start/place';
+import { humidifierHoldOf, placeAlerts, type HumidifierHold } from '@/screens/start/place';
 
 /**
  * A place as its page draws it: the overview, with the values and targets of
@@ -65,3 +67,6 @@ export const useLamp = (device: Device | null, here: Device[], now: DateTime) =>
 
   return { live, lit, held: useHeldLight(lit?.device ?? null, now) };
 };
+
+/** A place's open alerts for its status (`placeAlerts`), each about the device the account's own list of alerts - Meldungen's - names. */
+export const usePlaceAlerts = (listed: OpenAlert[], here: Device[], now: DateTime) => placeAlerts(listed, itemsOf(useOpenAlerts().data), here, now);

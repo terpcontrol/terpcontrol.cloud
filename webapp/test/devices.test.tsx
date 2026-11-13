@@ -361,6 +361,16 @@ describe('a device on its own page', () => {
       expect(await screen.findByText(/New firmware did not install \(.* ago\)/)).toBeInTheDocument();
     });
 
+    /** A device that was never heard reports no build and installs none: the rollout's target is not an update under way. */
+    it('says of a device that never reported that no firmware is being installed', async () => {
+      builds(BUILD, NEWER);
+      wire.devices = [controller({ firmware: { channel: 'stable', targetId: NEWER.id }, state: { lastSeenAt: null, firmwareId: null } })];
+      await draw();
+
+      expect(await screen.findByText(/version not known/i)).toBeInTheDocument();
+      expect(screen.queryByText(/New firmware/)).toBeNull();
+    });
+
     it('switches automatic updates on the stable channel, re-sending the build it is pinned to, and says what holds now', async () => {
       wire.devices = [controller({ firmware: { channel: 'manual', targetId: 'fw-old' } })];
       vi.mocked(api.patch).mockImplementation((_path, body) => Promise.resolve({ ...wire.devices[0], ...(body as object) }) as never);

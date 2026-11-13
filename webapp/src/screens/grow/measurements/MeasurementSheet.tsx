@@ -8,7 +8,8 @@ import { looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { keyFor } from './definitions';
+import { useAnswered } from '../told';
+import { keyFor, toldOf } from './definitions';
 import styles from './Measurements.module.css';
 
 interface MeasurementSheetProps {
@@ -52,6 +53,8 @@ interface Draft {
 export function MeasurementSheet({ grow, definition, readings, onClose }: MeasurementSheetProps) {
   const { t } = useTranslation();
   const update = useUpdateGrow(grow.id);
+  const write = useAnswered(update, `measurements-${grow.id}`);
+  const back = { measurements: grow.measurements };
   const [draft, setDraft] = useState<Draft>(() => draftOf(definition));
   const [askingDelete, setAskingDelete] = useState(false);
 
@@ -73,17 +76,24 @@ export function MeasurementSheet({ grow, definition, readings, onClose }: Measur
     };
     const measurements = definition ? grow.measurements.map(one => (one.key === definition.key ? written : one)) : [...grow.measurements, written];
 
-    update.mutate({ measurements }, { onSuccess: onClose });
+    const name = definition?.name ?? written.name;
+    const [label, undone] = definition
+      ? [t('grow.measurements.told.saved', { name: written.name }), t('grow.measurements.told.back', { name })]
+      : [toldOf(t, name, true), toldOf(t, name, false)];
+    write({ measurements }, label, { to: back, undone }, onClose);
   };
 
-  const remove = () => update.mutate({ measurements: grow.measurements.filter(one => one.key !== definition?.key) }, { onSuccess: onClose });
+  const remove = () => {
+    const [measurements, name] = [grow.measurements.filter(one => one.key !== definition?.key), definition?.name ?? ''];
+    write({ measurements }, toldOf(t, name, false), { to: back, undone: toldOf(t, name, true) }, onClose);
+  };
 
   return (
     <Sheet
       title={definition ? t('grow.measurements.sheet.editTitle', { name: definition.name }) : t('grow.measurements.sheet.newTitle')}
       onClose={onClose}
     >
-      <div className={styles.sheetBody}>
+      <div className={ui.stack4}>
         <Block label={t('grow.measurements.sheet.name')}>
           <input
             className={ui.input}

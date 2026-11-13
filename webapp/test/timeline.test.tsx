@@ -415,7 +415,7 @@ describe('Verlauf as it opens', () => {
     await settled();
 
     const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
-    expect(lines.map(line => line.textContent)).toEqual([expect.stringMatching(/Device rebooted.*by itself/), expect.stringMatching(/You watered/)]);
+    expect(lines.map(line => line.textContent)).toEqual([expect.stringMatching(/Device rebooted.*automatic/), expect.stringMatching(/You watered/)]);
   });
 
   it('says in that list when another device took over the measuring, as a line nobody wrote', async () => {
@@ -427,7 +427,7 @@ describe('Verlauf as it opens', () => {
     expect(lines.map(line => line.textContent)).toEqual([
       expect.stringMatching(/Device rebooted/),
       // The stamp says when, and the line does not say the hour again.
-      expect.stringMatching(/^\d\d:\d\d, Set the cursor on this momentController B measures from here onby itself$/),
+      expect.stringMatching(/^\d\d:\d\d, Set the cursor on this momentController B measures from here onautomatic$/),
       expect.stringMatching(/You watered/),
     ]);
   });
@@ -819,7 +819,7 @@ describe('a window that is not what the address asked for', () => {
 
   it('draws the place`s own device where the address names one that does not stand here, says so and drops it - without asking the server what it can only refuse', async () => {
     draw('/timeline?device=device-nobody-has');
-    expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
+    expect(await screen.findByText(/The device in the address is not in this place/)).toBeInTheDocument();
     await settled();
     expect(address().searchParams.has('device')).toBe(false);
     expect(server.asked.every(query => !query.has('deviceId'))).toBe(true);

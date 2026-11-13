@@ -221,12 +221,12 @@ describe('giving a device up', () => {
     expect(within(first).getByText(/The place Tent 1 and its diary stay/)).toBeInTheDocument();
     fireEvent.click(within(first).getByRole('button', { name: 'Continue' }));
 
-    const second = await screen.findByRole('dialog', { name: 'Really give it up?' });
+    const second = await screen.findByRole('dialog', { name: 'Give this device up?' });
     expect(api.delete).not.toHaveBeenCalled();
-    fireEvent.click(within(second).getByRole('button', { name: 'Remove for good' }));
+    fireEvent.click(within(second).getByRole('button', { name: 'Give up' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/sim-controller-1/claim'));
-    expect(await screen.findByText(/has left your account and can now be added by someone else/)).toBeInTheDocument();
+    expect(await screen.findByText(/has been given up and can be added by someone else/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
     // The page of a device that is gone is no page to be left on.

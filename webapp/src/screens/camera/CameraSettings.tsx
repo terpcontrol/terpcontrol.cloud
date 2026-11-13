@@ -139,7 +139,9 @@ export function CameraSettings({
           const what = [...new Set(keys.flatMap(key => SAID[key] ?? []))].map(key => t(key)).join(', ');
           tell({
             label: t('camera.saved', { what }),
-            undo: keys.some(key => KEPT_BY_SERVER.includes(key)) ? null : () => update.mutateAsync({ cameraId: camera.id, body: before }),
+            ...(keys.some(key => KEPT_BY_SERVER.includes(key))
+              ? { undo: null }
+              : { undo: () => update.mutateAsync({ cameraId: camera.id, body: before }), undone: t('log.asBefore', { what }) }),
           });
           onClose();
         },

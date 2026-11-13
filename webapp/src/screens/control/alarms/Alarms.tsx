@@ -143,6 +143,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
           tell({
             label: t(enabled ? 'alarms.told.on' : 'alarms.told.off', { name: ruleTitle(t, rule) }),
             undo: () => update.mutateAsync({ ruleId: rule.id, body: { enabled: !enabled } }),
+            undone: t(enabled ? 'alarms.told.off' : 'alarms.told.on', { name: ruleTitle(t, rule) }),
             from: `rule-${rule.id}`,
           }),
       },
@@ -260,7 +261,11 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
     create.mutate(templateBody(template), {
       onSuccess: rule => {
         onMade(rule.id);
-        tell({ label: t('alarms.told.made', { name: ruleTitle(t, rule) }), undo: () => remove.mutateAsync(rule.id) });
+        tell({
+          label: t('alarms.told.made', { name: ruleTitle(t, rule) }),
+          undo: () => remove.mutateAsync(rule.id),
+          undone: t('log.noMore', { what: ruleTitle(t, rule) }),
+        });
       },
       onSettled: () => setMaking(null),
     });

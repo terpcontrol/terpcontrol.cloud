@@ -46,7 +46,7 @@ import { climateDeviceOf, controlOffOf, ownPhotoOf, shownStill, statusOf, status
 import { Menu, MenuLink } from '@/ui/Menu';
 import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
-import { usePlace, useHumidifierHold, useLamp } from './reads';
+import { usePlace, useHumidifierHold, useLamp, usePlaceAlerts } from './reads';
 import { growDay } from '@/screens/grow/progress';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
@@ -128,12 +128,13 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const waiting = liveness === 'offline' && values.length === 0 && silentSince === null;
   const offline = liveness === 'offline' && !waiting;
   const humidifierHold = useHumidifierHold(device);
+  const openAlerts = usePlaceAlerts(overview.openAlerts, here, judged);
   const status = statusOf(
     {
       values,
       setpoints,
       deviceIds: overview.deviceIds,
-      openAlerts: overview.openAlerts,
+      openAlerts,
       verdict: climate?.verdict ?? overview.verdict,
       quiet: quietOf(here, now),
       controlOff: controlOffOf(here),
@@ -421,7 +422,7 @@ function StatusSentence({
         : ((status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone));
     to =
       status.kind === 'alert'
-        ? status.alert.kind === 'camera_stale' && camera
+        ? status.alert.kind === 'camera_stale' && camera && status.more === 0
           ? `/cameras/${camera.cameraId}`
           : '/alerts'
         : status.kind === 'off'

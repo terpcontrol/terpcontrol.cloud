@@ -199,8 +199,8 @@ const left = (at: string, { device: id = 'sim-controller-7f3a', ask = ASKED, mad
 const claim = (at?: string) => {
   state.unsent = true;
   const drawn = draw(at);
-  fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
   return drawn;
 };
@@ -211,7 +211,7 @@ const openStep = () => document.querySelector('[aria-current="step"] h2');
 /** The screen with a device claimed on it, which is every step after the first. */
 const drawClaimed = async () => {
   const drawn = claim();
-  await screen.findByRole('heading', { level: 2, name: /Claimed/ });
+  await screen.findByRole('heading', { level: 2, name: /Added/ });
   // The first device of an account is asked nothing about where it hangs: the next question is what it is doing.
   await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
 
@@ -315,7 +315,7 @@ describe('adding a device', () => {
     // What will be asked depends on the device, which only the code says: no count that a claim would then change.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add a device$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual(['Read the code off the display']);
-    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('');
+    expect(screen.getByRole('textbox', { name: 'Code on the display' })).toHaveValue('');
     expect(screen.queryByRole('button', { name: /Next/ })).not.toBeInTheDocument();
     // The code is all that is asked: where the device hangs depends on what it is, which only the code says.
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
@@ -379,8 +379,8 @@ describe('adding a device', () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
     fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and cam?' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Next · notifications' }));
@@ -400,14 +400,14 @@ describe('adding a device', () => {
   it('takes the code the empty home already read', () => {
     draw('/claim?code=ABCD1234');
 
-    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+    expect(screen.getByRole('textbox', { name: 'Code on the display' })).toHaveValue('ABCD1234');
   });
 
   it('claims exactly the code that was read, and names no place in an account that has none', async () => {
     state.spaces = [];
     draw();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: ' abcd1234 ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: ' abcd1234 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'abcd1234', spaceNames: WORDS }));
   });
@@ -416,7 +416,7 @@ describe('adding a device', () => {
     await drawClaimed();
 
     // The device by its name, and nothing of its id: one controller needs no telling apart.
-    expect(screen.getByRole('heading', { level: 2, name: /Claimed/ })).toHaveTextContent(/^Claimed · Terp Controller$/);
+    expect(screen.getByRole('heading', { level: 2, name: /Added/ })).toHaveTextContent(/^Added · Terp Controller$/);
     // Its build and its sockets are read once the device is.
     await waitFor(() =>
       expect(screen.getByText(/online 20 s ago/)).toHaveTextContent('online 20 s ago · firmware 082eda0-stable · 0 sockets · Cam: none'),
@@ -430,7 +430,7 @@ describe('adding a device', () => {
 
     const steps = screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent);
     expect(steps).toEqual([
-      'Claimed · Terp Controller',
+      'Added · Terp Controller',
       'What is it doing right now?',
       'Sockets and cam',
       'How will you hear about problems?',
@@ -475,7 +475,7 @@ describe('adding a device', () => {
     await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add Plantalytix Socket · step 2 of 4$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
-      'Claimed · Plantalytix Socket',
+      'Added · Plantalytix Socket',
       'Cam',
       'How will you hear about problems?',
       'What grows here?',
@@ -543,7 +543,7 @@ describe('adding a device', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 5 of 5$/);
     expect(address()).toBe(left('grow'));
     // The steps before are answered and written; this page asks its one question.
-    expect(screen.queryByRole('heading', { level: 2, name: /Claimed/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Added/ })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Strain or name' }), { target: { value: 'Blue Dream' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Plants' }), { target: { value: '3' } });
@@ -645,7 +645,7 @@ describe('adding a device', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-new/phases', expect.anything()));
     await waitFor(() => expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/grows').length).toBeGreaterThan(2));
     expect(screen.getByRole('heading', { level: 2, name: 'What grows here?' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: /Claimed/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Added/ })).not.toBeInTheDocument();
 
     phaseWritten();
     await waitFor(() => expect(address()).toBe('/spaces/space-new'));
@@ -778,11 +778,11 @@ describe('adding a device', () => {
     );
 
     draw();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('That device already belongs to somebody.');
-    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+    expect(screen.getByRole('textbox', { name: 'Code on the display' })).toHaveValue('ABCD1234');
   });
 
   /**
@@ -795,15 +795,15 @@ describe('adding a device', () => {
     );
 
     draw();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
     expect(api.post).not.toHaveBeenCalled();
-    expect(screen.getByRole('textbox', { name: 'Claim code' })).toHaveValue('ABCD1234');
+    expect(screen.getByRole('textbox', { name: 'Code on the display' })).toHaveValue('ABCD1234');
 
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-new' }));
   });
 
@@ -811,8 +811,8 @@ describe('adding a device', () => {
     vi.mocked(api.post).mockRejectedValue(new TypeError('Failed to fetch'));
 
     draw();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
   });
@@ -831,7 +831,7 @@ describe('adding a device', () => {
 
     await drawClaimed();
 
-    expect(screen.getByText(/has not said anything yet/)).toBeInTheDocument();
+    expect(screen.getByText(/has not reported yet/)).toBeInTheDocument();
   });
 
   /** A place the claim makes is named in the claim's own write: the words for a tent and a fridge, which the server picks from and numbers. */
@@ -857,7 +857,7 @@ describe('adding a device', () => {
 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Add controller · step 2 of 5'));
     expect(openStep()).toHaveTextContent('What is it doing right now?');
-    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Code on the display' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Next/ })).toBeEnabled();
   });
 
@@ -873,7 +873,7 @@ describe('adding a device', () => {
     const drawn = draw(left('doing'));
 
     expect(await screen.findByText('This device is not on your account.')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Claim code' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Code on the display' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add a device$/);
     // A refusal is an answer: the device is not asked for again.
     await settled(drawn);
@@ -1277,7 +1277,7 @@ describe('adding a device', () => {
     expect(api.delete).toHaveBeenCalledWith('/spaces/space-new');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 5$/);
     expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
-      'Claimed · Terp Controller',
+      'Added · Terp Controller',
       'Where it hangs',
       'Sockets and cam',
       'How will you hear about problems?',
@@ -1338,11 +1338,11 @@ describe('adding a device', () => {
 
     // The place's name by itself, after what it is.
     expect(await screen.findByText('Place: Mother tent')).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceId: 'space-mother' }));
-    await screen.findByRole('heading', { level: 2, name: /Claimed/ });
+    await screen.findByRole('heading', { level: 2, name: /Added/ });
     await settled(drawn);
     // No place question is asked, so the count is said as soon as the code is taken.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
@@ -1360,8 +1360,8 @@ describe('adding a device', () => {
     draw('/claim?space=space-mother');
 
     await screen.findByText('Place: Mother tent');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and cam'));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 4$/);
@@ -1375,8 +1375,8 @@ describe('adding a device', () => {
     draw('/claim?space=space-mother');
 
     await screen.findByText('Place: Mother tent');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => expect(address()).toBe('/spaces/space-mother'));
     expect(told).toEqual([{ label: 'Mother tent: Fan now hangs here', undo: null }]);
@@ -1389,8 +1389,8 @@ describe('adding a device', () => {
     await settled(drawn);
 
     expect(screen.queryByText(/^Place:/)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS }));
   });
@@ -1471,7 +1471,7 @@ describe('adding a device', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'browser back' }));
     await waitFor(() => expect(address()).toBe('/spaces/space-new'));
-    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Code on the display' })).not.toBeInTheDocument();
   });
 
   it('leaves the question of where it hangs by its own Back as by the browser´s: to the place the device hangs in', async () => {
@@ -1540,8 +1540,8 @@ describe('adding a device', () => {
     who.demo = true;
     draw();
 
-    expect(screen.queryByRole('textbox', { name: 'Claim code' })).not.toBeInTheDocument();
-    expect(screen.getByText(/cannot claim hardware/)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Code on the display' })).not.toBeInTheDocument();
+    expect(screen.getByText(/cannot add a device/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add a device$/);
     expect(screen.queryByRole('button', { name: 'Stop adding' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/');

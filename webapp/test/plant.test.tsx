@@ -6,7 +6,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -269,6 +269,28 @@ describe('a plant of a grow', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(vi.mocked(api.patch).mock.calls[0][0]).toBe('/plants/plant-1');
     expect(vi.mocked(api.patch).mock.calls[0][1]).toEqual({ label: 'Tall one', strain: 'Amnesia' });
+
+    // The write answers with what holds now, and taking it back sends the name it had.
+    expect(await screen.findByText('Amnesia 1 is now called Tall one')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.patch).mock.calls[1][1]).toEqual({ label: 'Amnesia 1', strain: 'Amnesia' });
+    expect(await screen.findByText(reading('Undone · Tall one is now called Amnesia 1'))).toBeInTheDocument();
+  });
+
+  /** Two plants of one grow under one name are one plant wherever a line names them. */
+  it('does not save a name another plant of the grow has', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const sheet = screen.getByRole('dialog');
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Label' }), { target: { value: ' Amnesia 2 ' } });
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('Another plant of this grow is already called “Amnesia 2”.');
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Label' }), { target: { value: 'Amnesia 3' } });
+    expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows the sentence the server refused the rename with', async () => {
@@ -320,8 +342,8 @@ describe('a plant of a grow', () => {
     fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Measure' });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take this entry back' }));
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take it back' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete this entry' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/e-2'));
   });
