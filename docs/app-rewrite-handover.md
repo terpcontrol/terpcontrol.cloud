@@ -166,20 +166,24 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
         `/timeline?device=<id>` is about that device and the chosen place follows.
       - At 320 px nothing leaves its card, and what a finger is offered is 44 px high, on the pages the walk
         named.
-      The second walk (2026-11-13) found no blocker, one major and a dozen minors; decided by the redesign
-      session, not built yet, and not Chris's word:
+      The second walk (2026-11-13) found no blocker, one major and a dozen minors. What the redesign session
+      decided about them - its rules, not Chris's word - is built (2026-11-13), the server's part seen in tests
+      only, the pages on the session's stack against a server that did not hold it yet; a third walk has not
+      looked:
       - "Ort entfernen" names everybody who loses sight - a guest of the place, and the room with its members
-        where the place is its room's last - in the one confirmation, and the removal ends their access. Guests
-        no longer block a removal; today a direct guest does and a room's member is ended without a word.
-      - A joining device is claimed in one write that carries its place (today: claim, move, remove the place
-        the claim made - a failure of the second or third is silent and leaves a stray place). The step count
-        is said only once the place question is answered.
+        where the place is its room's last - in the one confirmation and in the toast, and the removal ends
+        their access: the server ends a place's memberships, invitations and share links with it, as it does a
+        room's (the amendment to ADR 0001 says so, still awaiting Chris). Guests no longer block a removal.
+      - A joining device is claimed in one write that carries its place (`joinSpaceId`); the server makes no
+        place for it. The step count is said once the place question is answered, and no step is ticked that
+        was not asked. A place's ⋯ on Start offers its owner "Gerät hinzufügen", preset to that place.
       - The server refuses an ended room as a place's room and as an invitation's target, and keeps to the
-        owner what the app already keeps to the owner: taking a device out of a place, and a place's room. (A
-        guest who may manage can do both through the API today.)
-      - Every write answers: undoing a device move, and "Zurückziehen" of an invitation link.
-      - No sentence glues a preposition to a place's name ("Was wächst in Zelt?"), no scrap of an id stands
-        beside a kind, a camera is called by its own name, and a place's ⋯ on Start offers "Gerät hinzufügen".
+        owner what the app already kept to the owner: taking a device out of every place, and a place's room.
+      - Every write answers: undoing a device move, and "Zurückziehen" of an invitation link - which asks
+        first, because the server cannot take a revocation back.
+      - No sentence glues a preposition to a place's name ("Was wächst hier?"), no scrap of an id stands
+        beside a kind (the last four of the id, and only where two of a kind without a name share a list), a
+        camera is called by its own name.
       - After a refusal half-way the remove page reads its data again before it says what is still here.
     Left for Chris, each with what is built meanwhile:
       1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
@@ -202,6 +206,17 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
       9. A move's diary line keeps the names the two places had then; renaming a place later does not rewrite it.
       10. A stream camera at a place without a device: that a home-network address will not answer there is now
           only behind the help button, so it is learnt from the failed test.
+      11. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) need only `manage`, keep people and links, and
+          write the same `archivedAt` a removal writes; the app calls neither. A guest who manages could put a
+          host's place away through the API, and with a room's last place that ends the room and its members.
+          They are left as they are; asking `own`, or removing them, is a decision about what "put away" means.
+      12. An ended place still takes an invitation, a member by handle and a share link from its owner through
+          the API (only rooms refuse); it hinges on 11, because "ended" and "put away" are one state.
+      13. The owner's ⋯ on Start is a list of two rows now and reads "Mehr" on a desktop; editing a place is
+          two taps for the owner, adding a device to it three.
+      14. The server copies a device's name onto the camera it pairs; the app treats such a name as none ("Terp
+          Cam"), but cannot tell once the device is renamed. Naming a paired camera "Terp Cam" on the server
+          would settle it.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
     preset, light limit, ...) are each built in three to nine places, against one unused export.
   - Round 4 (Steuerung, devices, camera), state of 2026-11-12 (the redesign session; rules in
