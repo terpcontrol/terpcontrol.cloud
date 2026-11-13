@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the brand look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
-updated: 2026-11-12
-source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+updated: 2026-11-13
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen 2026-11-13); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -158,6 +158,12 @@ latin-ext cuts precached. Google Fonts would be a third-party request on every l
 rely on and which tells somebody else who opened the app.
 
 ### The look: the brand
+
+**Being replaced by "Nebel"** (Chris, 2026-11-13). Chris asked for a look that still follows the brand but is more
+modern, softer and finer - colours tuned to one another rather than set side by side, and type that is not bold
+everywhere - and chose the direction "Nebel" from three proposals: Albert Sans in light weights, a warm paper in
+place of the cool white, navy as the ink and for the one action, a sage green for "in band" only. It lands with the
+rewrite of this section, in the same commits as `tokens.css`; until then the values below are what the app wears.
 
 The app wears the company's own brand, as terpcontrol.com sets it: its colours, its plain sans and its radii.
 `webapp/src/theme/tokens.css` is where every value below is written; this section says what they are and why, and
