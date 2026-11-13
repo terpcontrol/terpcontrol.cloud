@@ -48,6 +48,7 @@ const rowOf = (rows: SocketRowModel[], key: string): SocketRowModel | null => {
  * command that went out is said as asked until the device reports it.
  */
 export function SocketPage() {
+  const { t } = useTranslation();
   const { deviceId = '', socket = '' } = useParams();
   const found = useDevice(deviceId);
   const tables = useSocketTables(found.device ? [deviceId] : []);
@@ -55,7 +56,7 @@ export function SocketPage() {
 
   if (found.gone) return <NoLongerHere what="device" />;
   if (found.isPending) return <Waiting lines={4} />;
-  if (!found.device) return <LoadFailed retry={found.refetch} />;
+  if (!found.device) return <LoadFailed title={t('shell.gone.title.socket')} read={found} />;
 
   const table = tables.tables.get(deviceId);
   if (!table) return tables.isError ? <LoadFailed retry={found.refetch} /> : <Waiting lines={4} />;

@@ -376,7 +376,7 @@ describe('one read that fails', () => {
 
     for (const name of DOORS) expect(screen.getByRole('link', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-    for (const name of affected) expect(await lineUnder(name)).toBe('Could not load. Try again.');
+    for (const name of affected) expect(await lineUnder(name)).toBe('Could not load.');
   });
 
   it('draws a line read off two answers as loading while one of them is still out, whatever the other has said', async () => {

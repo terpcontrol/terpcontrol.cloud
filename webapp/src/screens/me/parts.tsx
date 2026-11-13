@@ -144,7 +144,7 @@ export function Menu({
 }) {
   return (
     <select
-      className={`mono ${ui.chip} ${ui.menu} ${className ?? ''}`}
+      className={`${ui.chip} ${ui.menu} ${className ?? ''}`}
       value={value}
       aria-label={name}
       disabled={disabled}
@@ -190,7 +190,7 @@ export function ExportRow() {
       below={
         <>
           {status === 'queued' || status === 'rendering' ? (
-            <p className={`mono ${styles.exportStatus}`} role="status">
+            <p className={styles.exportStatus} role="status">
               {t(`me.account.export.${status}`)}
             </p>
           ) : null}
@@ -219,7 +219,7 @@ export function ExportRow() {
       ) : null}
       {fresh ? null : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
-          {status === 'failed' ? t('me.account.export.again') : t('me.account.export.ask')}
+          {status === 'failed' ? t('home.retry') : t('me.account.export.ask')}
         </button>
       )}
     </Row>

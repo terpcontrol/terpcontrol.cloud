@@ -75,7 +75,7 @@ function CannotReach({ asking, onAskAgain, from }: { asking: boolean; onAskAgain
       </p>
       <div className={styles.actions}>
         <button type="button" className={ui.button} onClick={onAskAgain} disabled={asking}>
-          {asking ? t('shell.cannotReach.asking') : t('shell.cannotReach.again')}
+          {t(asking ? 'home.retrying' : 'home.retry')}
         </button>
         <Link to="/sign-in" replace state={{ from }} className={ui.button}>
           {t('shell.cannotReach.signIn')}

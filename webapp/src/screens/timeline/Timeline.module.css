@@ -387,28 +387,34 @@
   gap: 0 var(--space-2);
 }
 
-.panelHead h2 {
+.panelHead h2,
+.panelName {
   display: inline-flex;
   flex: 1 1 auto;
   align-items: baseline;
   gap: var(--space-1);
 }
 
+/* The name in its curve's colour, which the frame round it carries. */
+.panelName h2 {
+  flex: none;
+  color: inherit;
+}
+
 /* The (i) beside a name, lent a finger's room around it. */
-.panelHead h2 button {
+.panelName button {
   position: relative;
   /* Over the figures beside it, so the room lent to it is its own to the last pixel. */
   z-index: 1;
 }
 
-.panelHead h2 button::after {
+.panelName button::after {
   content: '';
   position: absolute;
   inset: -14px;
 }
 
 .panelValue {
-  font-family: var(--font-figure);
   font-size: 16px;
   font-weight: var(--weight-medium);
   white-space: nowrap;
@@ -427,7 +433,6 @@
 
 .panelMany strong {
   color: var(--ink);
-  font-family: var(--font-figure);
   font-weight: var(--weight-medium);
 }
 

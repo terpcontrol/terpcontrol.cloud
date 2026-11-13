@@ -79,13 +79,14 @@ const GROUP_ORDER = ['tuning', 'ramps', 'factors', 'dosing', 'cylinder'];
  * only reads the next.
  */
 export function DevicePage() {
+  const { t } = useTranslation();
   const { deviceId = '', page = null } = useParams();
   const found = useDevice(deviceId);
   usePageOfPlace(found.device?.spaceId ?? null);
 
   if (found.gone) return <NoLongerHere what="device" />;
   if (found.isPending) return <Waiting lines={5} />;
-  if (!found.device) return <LoadFailed retry={found.refetch} />;
+  if (!found.device) return <LoadFailed title={t('shell.gone.title.device')} read={found} />;
 
   return <DeviceScreen key={deviceId} device={found.device} among={found.among} page={page} />;
 }

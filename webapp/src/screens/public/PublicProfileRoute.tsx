@@ -8,8 +8,8 @@ import { PUBLIC_WIDTH, publicPicture, usePublicUser } from '@/api/public';
 import { session, useSession } from '@/api/session';
 import { initials } from '@/ui/handle';
 import { useNow } from '@/ui/useNow';
+import { NotFound } from '@/screens/NotFound';
 import { FollowButton } from './FollowButton';
-import { Nothing } from './Nothing';
 import { Photo } from '@/ui/Photo';
 import { followedMeta } from './followed';
 import { PublicShell, PublicUnread } from './PublicShell';
@@ -30,7 +30,7 @@ export function PublicProfileRoute() {
   if (!segment.startsWith('@')) {
     return (
       <PublicShell>
-        <Nothing titleKey="publicPage.noPage.title" bodyKey="publicPage.noPage.body" />
+        <NotFound />
       </PublicShell>
     );
   }
@@ -77,7 +77,7 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
         <div className={styles.profileText}>
           <h1 className={styles.title}>@{author.handle}</h1>
           {author.bio ? <p className={styles.description}>{author.bio}</p> : null}
-          <p className={`mono ${styles.facts}`}>{t('publicPage.diaryCount', { count: grows.length })}</p>
+          <p className={styles.facts}>{t('publicPage.diaryCount', { count: grows.length })}</p>
         </div>
       </header>
 
@@ -105,7 +105,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={`${ui.textColumn} ${styles.cardText}`}>
           <span className={`name ${ui.cut}`}>{grow.name}</span>
-          <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
+          <span className={styles.cardMeta}>{followedMeta(t, grow, now, null)}</span>
         </span>
       </Link>
       {own ? null : <FollowButton growId={grow.growId} />}

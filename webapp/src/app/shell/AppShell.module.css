@@ -12,7 +12,9 @@
 
 .main {
   flex: 1;
-  padding: 0 var(--space-4) var(--space-4);
+  /* A step of room under the top bar: a control in a page's first row - Start's ⋯, a way back - draws its focus ring
+     4 px out, and the bar would cover the ring's top. */
+  padding: var(--space-1) var(--space-4) var(--space-4);
   /* Room for the tab bar and whatever the phone puts below it. */
   padding-bottom: calc(var(--tabbar-height) + var(--space-4) + env(safe-area-inset-bottom));
   padding-left: max(var(--space-4), env(safe-area-inset-left));

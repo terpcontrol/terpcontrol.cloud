@@ -194,10 +194,13 @@ describe('a sheet', () => {
     render(<Page />);
 
     expect(screen.getByText('The page')).toHaveAttribute('inert');
-    expect(screen.getByText('Inside').closest('[inert]')).toBeNull();
+    // Out of the tree too, for a tool that reads the markup and does not know `inert`.
+    expect(screen.getByText('The page')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Inside').closest('[inert], [aria-hidden]')).toBeNull();
 
     act(() => void fireEvent.keyDown(document, { key: 'Escape' }));
     expect(screen.getByText('The page')).not.toHaveAttribute('inert');
+    expect(screen.getByText('The page')).not.toHaveAttribute('aria-hidden');
   });
 
   /** A page with one button, which opens a sheet with one field in it. */

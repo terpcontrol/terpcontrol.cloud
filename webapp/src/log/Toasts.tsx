@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Entry } from '@fg2/shared-types/v1';
@@ -167,9 +167,104 @@ const clearOf = (host: HTMLElement, lines: readonly LoggedLine[]) => {
   if (by > 0) window.scrollBy({ top: by });
 };
 
+/** Where a Tab can land, in the order it would. */
+const STOPS =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const stopsIn = (root: ParentNode, outside?: Element): HTMLElement[] =>
+  [...root.querySelectorAll<HTMLElement>(STOPS)].filter(
+    one => !one.closest('[inert], [hidden], [aria-hidden="true"]') && (outside === undefined || !outside.contains(one)),
+  );
+
+/** The control a toast answers as the keyboard reaches it: a label's own field. */
+const controlOf = (answers: Element | null | undefined): HTMLElement | null => {
+  const control = answers instanceof HTMLLabelElement ? answers.control : answers;
+  return control instanceof HTMLElement && control.isConnected ? control : null;
+};
+
+/**
+ * A toast's actions are the next stops of the keyboard after the control it
+ * answers, wherever the toast is drawn: Tab from the control lands on "Widerrufen",
+ * Tab from the toast's last action goes on where it would have gone from the
+ * control, and Shift+Tab walks the same way back. The portal stays at the end
+ * of the page, which is where a toast has to stand to be seen, and the order
+ * is the page's.
+ *
+ * What a toast answers is the control that was used (`lastUsed`); where that
+ * has gone with the sheet it stood in, it is what had the focus once the toast
+ * came - the control the sheet was opened from.
+ */
+const useTabOrder = (host: HTMLElement, lines: readonly LoggedLine[]) => {
+  const anchors = useRef(new Map<number, HTMLElement>());
+
+  useEffect(() => {
+    const active = document.activeElement;
+    const known = anchors.current;
+    for (const key of known.keys()) if (!lines.some(line => line.key === key)) known.delete(key);
+    for (const line of lines) {
+      if (known.get(line.key)?.isConnected) continue;
+      const anchor = controlOf(line.answers) ?? (active instanceof HTMLElement && active !== document.body && !host.contains(active) ? active : null);
+      if (anchor) known.set(line.key, anchor);
+    }
+  }, [host, lines]);
+
+  useEffect(() => {
+    if (lines.length === 0) return undefined;
+    const toastOf = (key: number) => host.querySelector<HTMLElement>(`[data-key="${key}"]`);
+    const anchorOf = (key: number) => {
+      const anchor = anchors.current.get(key);
+      return anchor?.isConnected ? anchor : null;
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return;
+      const page = stopsIn(document, host);
+      const move = (to: HTMLElement | undefined) => {
+        if (!to) return;
+        event.preventDefault();
+        // Ahead of a sheet's own trap, which would take the focus back into its box.
+        event.stopPropagation();
+        to.focus();
+      };
+
+      // Newest first: two toasts answering one control are reached newest first.
+      for (const line of [...lines].reverse()) {
+        const toast = toastOf(line.key);
+        const anchor = anchorOf(line.key);
+        const stops = toast ? stopsIn(toast) : [];
+        if (!toast || !anchor || stops.length === 0) continue;
+
+        if (toast.contains(active)) {
+          if (event.shiftKey && active === stops[0]) return move(anchor);
+          if (!event.shiftKey && active === stops.at(-1)) return move(page[page.indexOf(anchor) + 1]);
+          return;
+        }
+        if (!event.shiftKey && active === anchor) return move(stops[0]);
+        if (event.shiftKey && page[page.indexOf(active) - 1] === anchor) return move(stops.at(-1));
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [host, lines]);
+
+  /** Back to the control a toast answers, where the focus stood in the toast: an undo or a toast that goes leaves it on nothing otherwise. */
+  return (key: number) => {
+    const anchor = anchors.current.get(key);
+    if (anchor?.isConnected && toastHolds(host, key)) anchor.focus();
+  };
+};
+
+const toastHolds = (host: HTMLElement, key: number): boolean => {
+  const active = document.activeElement;
+  return active instanceof Node && (host.querySelector(`[data-key="${key}"]`)?.contains(active) ?? false);
+};
+
 export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsProps) {
   const shown = lines.length > 0;
   const host = useStanding(shown);
+  const back = useTabOrder(host, lines);
   // Asked as the box is first seen - a toast arrived, or changed - and whenever it changes after.
   useEffect(() => {
     if (!shown) return keepRoom(0);
@@ -179,13 +274,32 @@ export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsP
   }, [shown, host, lines]);
 
   return createPortal(
-    lines.map(line => <Toast key={line.key} line={line} onUndo={onUndo} onRetry={onRetry} onDismiss={onDismiss} onDetails={onDetails} />),
+    lines.map(line => (
+      <Toast
+        key={line.key}
+        line={line}
+        onUndo={one => {
+          back(one.key);
+          onUndo(one);
+        }}
+        onRetry={onRetry}
+        onDismiss={onDismiss}
+        onDetails={onDetails}
+        onGoing={() => back(line.key)}
+      />
+    )),
     host,
   );
 }
 
-function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps, 'lines'> & { line: LoggedLine }) {
+function Toast({ line, onUndo, onRetry, onDismiss, onDetails, onGoing }: Omit<ToastsProps, 'lines'> & { line: LoggedLine; onGoing: () => void }) {
   const { t } = useTranslation();
+  // Read as it goes, while its buttons are still on the page.
+  const going = useRef(onGoing);
+  useLayoutEffect(() => {
+    going.current = onGoing;
+  });
+  useLayoutEffect(() => () => going.current(), []);
 
   // The window is the server's answer plus five seconds of it, so the toast
   // goes when the Undo it offers does - never before, never long after.
@@ -199,14 +313,14 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
   if (line.state === 'failed') {
     // A refusal's own sentence where it has one; the generic line is for a failure that has nothing to say.
     return (
-      <div className={styles.toast} data-failed>
+      <div className={styles.toast} data-key={line.key} data-failed>
         <span className={styles.label}>
           {line.reason ?? t(line.failure === 'undo' ? 'log.undoFailed' : 'log.saveFailed')}
           {/* Try again sends only what is still missing, so the toast says how much that is. */}
           {line.failure === 'write' && line.progress && line.progress.done > 0 ? ` · ${t('log.uploaded', line.progress)}` : null}
         </span>
         <button type="button" className={styles.action} onClick={() => onRetry(line)}>
-          {t('log.tryAgain')}
+          {t('home.retry')}
         </button>
         <button type="button" className={styles.action} onClick={() => onDismiss(line.key)}>
           {t('log.dismiss')}
@@ -216,7 +330,7 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
   }
 
   return (
-    <div className={styles.toast}>
+    <div className={styles.toast} data-key={line.key}>
       {/* Set as facts, so no figure of the line stands on a row of its own without its unit. */}
       <Facts
         className={styles.label}
@@ -229,7 +343,7 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails }: Omit<ToastsProps
         ]}
       />
       {line.undoing ? (
-        <span className={`mono ${styles.quiet}`}>{t('log.takingBack')}</span>
+        <span className={styles.quiet}>{t('log.takingBack')}</span>
       ) : (
         <>
           {line.undoable ? (

@@ -6,6 +6,18 @@
   padding-top: var(--space-4);
 }
 
+/* The one way on in the amber box of a page that could not be read (`ui/OfflineHelp.module.css`). */
+.again {
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 0 18px;
+  border: var(--rule-width) solid var(--selected-edge);
+  border-radius: var(--radius);
+  background: var(--selected);
+  color: var(--on-selected);
+  font-weight: var(--weight-medium);
+}
+
 .refreshFailed {
   font-size: var(--text-xs);
   color: var(--warning);

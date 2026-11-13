@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
-import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, NothingHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Control } from '../control/Control';
 import { PlaceEnded, Visited } from './PlaceTitle';
@@ -18,10 +18,11 @@ export function ControlTab() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { page = null } = useParams();
-  const { home, places, here, visiting, ended } = useCurrentPlace(true);
+  const { home, places, here, visiting, ended, stray } = useCurrentPlace(true);
 
   if (home.isPending || ended === undefined) return <Waiting lines={4} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  if (!home.data) return <LoadFailed title={t('shell.tabs.control')} read={home} />;
+  if (stray) return <NoLongerHere what="space" />;
 
   // Support, reading a customer's place: the place the address names, read only,
   // rather than "nothing to steer here" over a place that steers plenty.

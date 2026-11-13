@@ -24,6 +24,8 @@ export const useDevice = (deviceId: string) => {
     among: device ? standingWith(device, own.data?.items) : undefined,
     isPending: device === null && (own.isPending || (elsewhere && (single?.isPending ?? false))),
     gone: device === null && elsewhere && noLongerThere(single?.error),
+    error: own.error ?? single?.error ?? null,
+    isFetching: own.isFetching || (single?.isFetching ?? false),
     refetch: () => {
       void own.refetch();
       if (elsewhere) void single?.refetch();

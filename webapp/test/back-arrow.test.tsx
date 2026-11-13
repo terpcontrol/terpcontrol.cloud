@@ -216,7 +216,7 @@ describe('the addresses around a device that name nothing', () => {
   it('says there that the page does not exist, under a heading and with a way on', () => {
     render(<RouterProvider router={createMemoryRouter(screens, { initialEntries: ['/devices'] })} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to the app' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('heading', { level: 1, name: 'Nothing at this address' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 });

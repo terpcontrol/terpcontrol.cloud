@@ -56,7 +56,7 @@ export function Grows() {
       </section>
     );
   }
-  if (!grows.data) return <LoadFailed retry={() => void grows.refetch()} />;
+  if (!grows.data) return <LoadFailed title={t('grow.all.title')} read={grows} />;
 
   const running = grows.data.items.filter(grow => grow.endedAt === null);
   const finished = grows.data.items.filter(grow => grow.endedAt !== null);
@@ -67,7 +67,7 @@ export function Grows() {
         <BackLink to={GROW} label={t('grow.measurements.back')} />
         <h1>{t('grow.all.title')}</h1>
         {mayManage ? (
-          <button type="button" className={styles.new} onClick={() => setStarting(true)}>
+          <button type="button" className={`${ui.pill} ${styles.new}`} onClick={() => setStarting(true)}>
             + {t('grow.all.new')}
           </button>
         ) : null}

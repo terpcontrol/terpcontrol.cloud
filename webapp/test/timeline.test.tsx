@@ -298,6 +298,8 @@ describe('Verlauf as it opens', () => {
     // CO₂ is measured and waits for its tick.
     expect(screen.queryByRole('region', { name: 'CO₂' })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: /Humidity between 54.2 and 71.5 %/ })).toBeInTheDocument();
+    // A panel's heading is its name alone: the (i) beside it is a button of its own, not read as part of the heading.
+    expect(within(panel('VPD')).getByRole('heading', { level: 2 })).toHaveAccessibleName('VPD');
   });
 
   it('asks for the last 24 hours by their name, with every panel a place can have', async () => {
@@ -1075,7 +1077,8 @@ describe('the sheet "Adjust"', () => {
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'CO₂' }));
 
     expect(within(sheet).getByRole('checkbox', { name: 'CO₂' })).toBeChecked();
-    expect(await screen.findByRole('region', { name: 'CO₂' })).toBeInTheDocument();
+    // The page behind the open sheet is out of the tree, and drawn all the same.
+    expect(await screen.findByRole('region', { name: 'CO₂', hidden: true })).toBeInTheDocument();
     expect(address().searchParams.get('show')).toBe('temperature,humidity,vpd,light,outputs,diary,machine,co2');
     expect(JSON.parse(localStorage.getItem('terp.curves')!)).toContain('co2');
     // What the place does not measure is not offered at all.
@@ -1086,7 +1089,7 @@ describe('the sheet "Adjust"', () => {
     const sheet = await adjust();
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'All curves in one picture' }));
 
-    const one = await screen.findByRole('region', { name: 'Temperature, Humidity, VPD' });
+    const one = await screen.findByRole('region', { name: 'Temperature, Humidity, VPD', hidden: true });
     expect(one).toHaveTextContent('Temperature 25.2 °C');
     expect(one).toHaveTextContent('VPD 1.40 kPa');
     expect(address().searchParams.get('one')).toBe('1');
@@ -1097,7 +1100,11 @@ describe('the sheet "Adjust"', () => {
     const sheet = await adjust();
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Device messages' }));
 
-    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem')).toHaveLength(1));
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Diary in this window', hidden: true })).getAllByRole('listitem', { hidden: true }),
+      ).toHaveLength(1),
+    );
   });
 
   it('offers no step under five minutes for a window wider than three days', async () => {

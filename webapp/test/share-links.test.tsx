@@ -215,7 +215,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [link({})];
     draw();
 
-    await waitFor(() => expect(card('Could not load. Try again. · Timeline')).toBeInTheDocument());
+    await waitFor(() => expect(card('Could not load. · Timeline')).toBeInTheDocument());
     expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
   });
 
@@ -224,7 +224,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [orphanPage];
     draw();
 
-    const gone = await waitFor(() => card('Could not load. Try again. · public page'));
+    const gone = await waitFor(() => card('Could not load. · public page'));
     expect(gone).not.toHaveTextContent('grow now private');
     expect(gone).not.toHaveTextContent('the grow’s permanent link');
   });

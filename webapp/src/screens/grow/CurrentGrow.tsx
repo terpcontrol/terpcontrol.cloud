@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import { useGrowsEverIn } from '@/api/grows';
 import { useSpaceOverview } from '@/api/spaces';
-import { GROW, ALL_GROWS, useCurrentPlace } from '@/app/places';
-import { Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
-import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
+import { GROW, ALL_GROWS, isPlace, useCurrentPlace } from '@/app/places';
+import { PlaceEnded, Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
+import { LoadFailed, NoLongerHere, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
@@ -17,19 +17,30 @@ import styles from './GrowPage.module.css';
 
 /**
  * Grow, the bar's item: the grow running in the chosen place, as that grow's
- * own page with its tabs under this address. An account whose grows stand in
- * no place has none to choose, and is shown the first of them. Where nothing
- * grows, the page offers to start a grow - in the chosen place where there is
- * one - and leads to every grow the account has had.
+ * own page with its tabs under this address. A grow standing in no place is in
+ * none to choose, and is shown where the chosen place grows nothing - "nothing
+ * grows here" over a grow on the balcony read as having none. Where nothing
+ * grows at all, the page offers to start a grow - in the chosen place where
+ * there is one - and leads to every grow the account has had.
  */
 export function CurrentGrow() {
+  const { t } = useTranslation();
   const { tab: segment } = useParams();
-  const { home, places, here, visiting } = useCurrentPlace();
+  const { home, here, visiting, ended, stray } = useCurrentPlace(true);
   const tab = growTabOf(segment);
 
   if (tab === null) return <Navigate to={GROW} replace />;
-  if (home.isPending) return <Waiting lines={4} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  if (home.isPending || ended === undefined) return <Waiting lines={4} />;
+  if (!home.data) return <LoadFailed title={t('shell.tabs.grow')} read={home} />;
+  // An address naming a place the account has not got, or one of its own that has ended, says so and draws no other.
+  if (stray) return <NoLongerHere what="space" />;
+  if (ended) {
+    return (
+      <section className={`${ui.stack3} ${styles.page}`}>
+        <PlaceEnded title={t('shell.tabs.grow')} name={ended.name} />
+      </section>
+    );
+  }
   // A customer's place, which support reads by the address: the grow standing there, or that there is no such place.
   if (visiting) {
     return (
@@ -39,7 +50,7 @@ export function CurrentGrow() {
     );
   }
 
-  const growId = (places.length > 0 ? here : home.data.spaces[0])?.grow?.growId ?? null;
+  const growId = here?.grow?.growId ?? home.data.spaces.find(card => !isPlace(card) && card.grow)?.grow?.growId ?? null;
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
 
   return (

@@ -175,7 +175,7 @@ describe('the toasts on a page', () => {
     laidOut({ top: 72, high: 528 });
     const drawn = drawAt(withSheet(true));
 
-    fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
+    fireEvent.click(screen.getByText('one'));
     const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
 
     const sheet = screen.getByRole('dialog');
@@ -196,7 +196,7 @@ describe('the toasts on a page', () => {
     laidOut({ top: 359, high: 241 });
     drawAt(withSheet(true));
 
-    fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
+    fireEvent.click(screen.getByText('one'));
     const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
 
     // The sheet begins at 359 of 600: the toasts end a step above it.
@@ -211,11 +211,84 @@ describe('the toasts on a page', () => {
     laidOut({ top: 100, high: 200 });
     drawAt(withSheet(true));
 
-    fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
+    fireEvent.click(screen.getByText('one'));
     const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
 
     await waitFor(() => expect(toasts.style.top).toBe('308px'));
     expect(toasts.style.flexDirection).toBe('column-reverse');
+  });
+});
+
+describe('a toast and the keyboard', () => {
+  /** The keys as a browser hands them over: a Tab pressed on whatever has the focus. */
+  const tab = (shift = false) => fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: shift });
+  const focused = () => (document.activeElement as HTMLElement).textContent;
+
+  const page = () =>
+    drawAt(
+      <LogProvider>
+        <Probe />
+        <button type="button">after</button>
+      </LogProvider>,
+    );
+
+  it('makes "Undo" the next stop after the control it answers, and goes on from there where the control would have', async () => {
+    page();
+    const rename = screen.getByRole('button', { name: 'rename' });
+    rename.focus();
+    fireEvent.click(rename);
+    await screen.findByRole('button', { name: 'Undo' });
+
+    tab();
+    expect(focused()).toBe('Undo');
+    tab();
+    expect(focused()).toBe('after');
+    tab(true);
+    expect(focused()).toBe('Undo');
+    tab(true);
+    expect(focused()).toBe('rename');
+  });
+
+  it('hands the focus back to that control once the undo is pressed, rather than to the page', async () => {
+    page();
+    const rename = screen.getByRole('button', { name: 'rename' });
+    rename.focus();
+    fireEvent.click(rename);
+    tab();
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    expect(document.activeElement).toBe(rename);
+    await waitFor(() => expect(shown()).toEqual(['Undone · Flower tent is now called Tent']));
+  });
+
+  it('hands the focus back to that control when its time is up while the focus stands in it', async () => {
+    vi.useFakeTimers();
+    try {
+      page();
+      const rename = screen.getByRole('button', { name: 'rename' });
+      rename.focus();
+      fireEvent.click(rename);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      tab();
+      expect(focused()).toBe('Undo');
+
+      await act(() => vi.advanceTimersByTimeAsync(10_000));
+      expect(shown()).toEqual([]);
+      expect(document.activeElement).toBe(rename);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('leaves a Tab elsewhere on the page alone', async () => {
+    page();
+    fireEvent.click(screen.getByRole('button', { name: 'rename' }));
+    await screen.findByRole('button', { name: 'Undo' });
+    const one = screen.getByRole('button', { name: 'one' });
+    one.focus();
+
+    expect(tab()).toBe(true);
+    expect(document.activeElement).toBe(one);
   });
 });
 

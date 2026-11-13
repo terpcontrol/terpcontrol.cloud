@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { PlaceEnded, Visited, VisitingTitle } from './place/PlaceTitle';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
@@ -23,7 +23,7 @@ import styles from './timeline/Timeline.module.css';
 export function Timeline() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const { home, here, places, visiting, ended } = useCurrentPlace(true);
+  const { home, here, places, visiting, ended, stray } = useCurrentPlace(true);
   const [params, setParams] = useSearchParams();
   const devices = useDevices();
   const deviceId = params.get('device');
@@ -37,7 +37,8 @@ export function Timeline() {
 
   // Not the place chosen before, for the moment it takes to learn where the device stands.
   if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending)) return <Waiting lines={3} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  if (!home.data) return <LoadFailed title={t('shell.tabs.timeline')} read={home} />;
+  if (stray) return <NoLongerHere what="space" />;
 
   if (visiting) {
     return (

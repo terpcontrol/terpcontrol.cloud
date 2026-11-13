@@ -9,18 +9,26 @@ const STOPS =
  * Makes everything but `panel` inert - every sibling of it and of each of its
  * ancestors - and returns how to undo exactly that. `aria-modal` alone does not
  * keep VoiceOver on iOS or TalkBack inside a dialog: swiping walks on into the
- * page behind it. The app's live region stays heard.
+ * page behind it. It is hidden from the tree as well, for a tool that reads the
+ * page's own markup rather than the browser's tree and does not know `inert`.
+ * The app's live region stays heard.
  */
 const inertOutside = (panel: HTMLElement): (() => void) => {
-  const made: Element[] = [];
+  const made: { element: Element; hid: boolean }[] = [];
   for (let node: HTMLElement = panel; node.parentElement && node !== document.body; node = node.parentElement) {
     for (const sibling of node.parentElement.children) {
       if (sibling === node || sibling.hasAttribute('inert') || sibling.hasAttribute(ANNOUNCER)) continue;
+      const hid = !sibling.hasAttribute('aria-hidden');
       sibling.setAttribute('inert', '');
-      made.push(sibling);
+      if (hid) sibling.setAttribute('aria-hidden', 'true');
+      made.push({ element: sibling, hid });
     }
   }
-  return () => made.forEach(element => element.removeAttribute('inert'));
+  return () =>
+    made.forEach(({ element, hid }) => {
+      element.removeAttribute('inert');
+      if (hid) element.removeAttribute('aria-hidden');
+    });
 };
 
 /**

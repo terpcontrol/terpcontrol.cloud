@@ -87,10 +87,11 @@ export function Panel(props: PanelProps) {
       <header className={styles.panelHead}>
         {alone ? (
           <>
-            <h2 style={inked(first)}>
-              {first.name}
+            {/* The (i) beside the heading rather than in it, which a screen reader would read as part of the name. */}
+            <span className={styles.panelName} style={inked(first)}>
+              <h2>{first.name}</h2>
               {first.key === 'vpd' ? <Help topic="vpd" /> : explain ? <Help topic="nightBand" /> : null}
-            </h2>
+            </span>
             <span className={styles.panelRange}>
               <Facts
                 facts={[

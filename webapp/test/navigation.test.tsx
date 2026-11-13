@@ -255,6 +255,8 @@ const server = {
   targets: false,
   /** Whether a grow stands in the first place. */
   growing: false,
+  /** Whether a grow stands in no place, beside the places. */
+  loose: false,
   /** Whether the first two places stand in a room. */
   room: false,
   /** The place an alert is open in, which Start then lists first. */
@@ -269,7 +271,10 @@ const server = {
 };
 
 const home = (): HomeAnswer => ({
-  spaces: server.places.map(([id, name]) => card(id, name)),
+  spaces: [
+    ...server.places.map(([id, name]) => card(id, name)),
+    ...(server.loose ? [{ ...card('space-0', 'Spring run'), spaceId: null, deviceIds: [], values: [], grow: GROWING } as HomeSpaceCard] : []),
+  ],
   followedGrows: [],
   people: [],
   layers: { diary: server.diary },
@@ -375,6 +380,7 @@ beforeEach(() => {
   server.cameras = 0;
   server.targets = false;
   server.growing = false;
+  server.loose = false;
   server.grows = [];
   server.room = false;
   server.alerting = null;
@@ -733,12 +739,20 @@ describe('the choice of place', () => {
     expect(chips('Tent 2')).toHaveLength(2);
   });
 
-  it('takes a place the account has not got out of the address, and shows the chosen one', async () => {
+  /** An unknown `space=` is an address that names nothing, as an unknown place, grow or device is: said, and no other place drawn in its stead. */
+  it.each([
+    ['/control/alarms?space=somebody-elses&rule=rule-1', 'Control'],
+    ['/control?space=somebody-elses', 'Control'],
+    ['/timeline?space=somebody-elses', 'Timeline'],
+    ['/grow?space=somebody-elses', 'Grow'],
+  ])('says at %s that a place the account has not got cannot be opened, keeps the address and leaves the chosen one', async address => {
     localStorage.setItem('terp.place', 'space-2');
-    const router = open('/control/alarms?space=somebody-elses&rule=rule-1');
+    const router = open(address);
 
-    await waitFor(() => expect(where(router)).toBe('/control/alarms'));
-    expect(chips('Tent 2')).toHaveLength(2);
+    expect(await screen.findByRole('alert')).toHaveTextContent('This place cannot be opened.');
+    expect(screen.getByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
+    expect(where(router)).toBe(address);
+    expect(timelinesAsked()).toEqual([]);
     expect(chosen()).toBe('space-2');
   });
 
@@ -840,12 +854,25 @@ describe('Grow, the bar´s item', () => {
     expect(screen.queryByRole('button', { name: 'Move a grow here' })).not.toBeInTheDocument();
   });
 
-  it('offers to move a grow into the chosen place where one runs somewhere else', async () => {
+  /** "Nothing growing here" over a grow on the balcony read as having none. */
+  it('shows the grow standing in no place where the chosen place grows nothing', async () => {
+    server.loose = true;
+    open('/grow?space=space-2');
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Spring run/ })).toBeInTheDocument();
+    expect(screen.queryByText('Nothing growing here yet')).not.toBeInTheDocument();
+  });
+
+  it('offers to move a grow into the chosen place where one runs somewhere else, with the only one there is chosen', async () => {
     server.places = TWO;
     server.grows = [grow];
     open('/grow?space=space-2');
 
-    expect(await screen.findByRole('button', { name: 'Move a grow here' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Move a grow here' }));
+    const sheet = await screen.findByRole('dialog');
+    // There is nothing to pick among one: it stands chosen, and the move is a tap away.
+    expect(await within(sheet).findByRole('button', { name: /^Spring run/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: 'Move · Tent 2' })).toBeEnabled();
   });
 });
 

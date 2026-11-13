@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { fetchedAt } from '@/api/clock';
+import { ApiError } from '@/api/problem';
 import { ageLabel } from './age';
+import amber from './OfflineHelp.module.css';
 import ui from './ui.module.css';
 import styles from './PageState.module.css';
 import { refusalText } from '@/ui/refusal';
@@ -27,19 +29,63 @@ export function Refused({ error, fallback, className }: { error: unknown; fallba
   );
 }
 
-/** What went wrong when a page has nothing to show yet, with the way to try again. */
-export function LoadFailed({ retry }: { retry: () => void }) {
-  const { t } = useTranslation();
+/** A read as a page holds it: what it failed with, whether it is asking again, and how to ask. */
+type Read = { error: unknown; isFetching: boolean; refetch: () => unknown };
 
-  return (
-    <section className={styles.failed}>
-      <p className={ui.problem} role="alert">
-        {t('shell.loadFailed')}
-      </p>
-      <button type="button" className={ui.button} onClick={retry}>
-        {t('home.retry')}
-      </button>
+/**
+ * What could not be read, with the one way to try again. A page that has
+ * nothing to show hands over its read and its title: the title stays, so the
+ * window still says where one is, and the box says what Start says - that
+ * there is no connection, which changes nothing for the tent, or that the
+ * server answered with a fault, which is not the reader's connection - and
+ * while it asks again the button says so. `children` is what the page still
+ * knows. A part of a page that could not be read hands over only how to ask
+ * again, and is one line.
+ */
+export function LoadFailed({ retry, read, title, children }: { retry?: () => void; read?: Read; title?: string; children?: ReactNode }) {
+  const { t } = useTranslation();
+  if (!read) {
+    return (
+      <section className={styles.failed}>
+        <p className={ui.problem} role="alert">
+          {t('shell.loadFailed')}
+        </p>
+        <button type="button" className={ui.button} onClick={retry}>
+          {t('home.retry')}
+        </button>
+      </section>
+    );
+  }
+  // An answer that is a problem came from the server; anything else never got that far.
+  const answered = read.error instanceof ApiError ? 'server' : 'none';
+
+  const says = (
+    <>
+      <section className={amber.box} role="alert">
+        <h2>{t(`shell.away.${answered}.title`)}</h2>
+        <p>{t(`shell.away.${answered}.text`)}</p>
+        <button
+          type="button"
+          className={styles.again}
+          disabled={read.isFetching}
+          aria-busy={read.isFetching || undefined}
+          onClick={() => void read.refetch()}
+        >
+          {t(read.isFetching ? 'home.retrying' : 'home.retry')}
+        </button>
+      </section>
+      {children}
+    </>
+  );
+
+  // A page that has a head of its own to stand under hands over no title.
+  return title ? (
+    <section className={`${ui.stack3} ${ui.page}`}>
+      <h1>{title}</h1>
+      {says}
     </section>
+  ) : (
+    says
   );
 }
 
@@ -80,7 +126,7 @@ export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now:
 
   return (
     // No live region: the age in it changes every ten seconds, and each would be said again.
-    <p className={`mono ${styles.refreshFailed}`}>{t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}</p>
+    <p className={styles.refreshFailed}>{t('home.refreshFailed', { age: ageLabel(fetchedAt(failedAt), now) })}</p>
   );
 }
 
@@ -90,7 +136,7 @@ export function Waiting({ lines = 3 }: { lines?: number }) {
 
   return (
     <div className={`${ui.card} ${ui.stack3}`} aria-busy="true">
-      <span className={`mono ${styles.waitingNote}`}>{t('home.waiting')}</span>
+      <span className={styles.waitingNote}>{t('home.waiting')}</span>
       {Array.from({ length: lines }, (_, index) => (
         <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
       ))}

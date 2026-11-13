@@ -157,7 +157,8 @@ const choosePlace = (spaceId: string) => {
   told();
 };
 
-const useChosenPlace = (): string | null => useSyncExternalStore(subscribe, chosenPlace, chosenPlace);
+/** The place the header's chip holds, for a form that proposes it. */
+export const useChosenPlace = (): string | null => useSyncExternalStore(subscribe, chosenPlace, chosenPlace);
 
 const pagePlace = (): string | null => pageOf;
 
@@ -269,10 +270,11 @@ const placeShown = (places: PlaceCard[], asked: string | null, chosen: string | 
  *
  * `visiting` is the place the address names where `isVisiting` says it is a
  * customer's, which is drawn as that place rather than swapped for one of
- * ours. `stray` is an address naming a place the account has not got, which
- * the page that reads it takes out again - unless the page says of a place of
- * the account's own that has ended that it has (`saysEnded`): then `ended` is
- * that place - undefined while that is being asked - and its address stays.
+ * ours. `stray` is an address naming a place the account has not got: the
+ * page that reads it says so, as the address of an unknown place, grow or
+ * device does, and draws no other place in its stead. Where the page says of
+ * a place of the account's own that has ended that it has (`saysEnded`),
+ * `ended` is that place - undefined while that is being asked.
  */
 export const usePlaceChoice = (places: PlaceCard[] | undefined, saysEnded = false) => {
   const { user } = useSession();
@@ -313,15 +315,9 @@ export const usePlaceChoice = (places: PlaceCard[] | undefined, saysEnded = fals
 /** The chosen place for a page about it, with the home it is read from; `saysEnded` as in `usePlaceChoice`. */
 export const useCurrentPlace = (saysEnded = false) => {
   const home = useHome();
-  const [, setParams] = useSearchParams();
   const places = (home.data?.spaces ?? []).filter(isPlace);
   const choice = usePlaceChoice(home.data && places, saysEnded);
+
   // Not while the home is being read again: a place made a moment ago is named by a link before the home lists it.
-  const stray = choice.stray && !home.isFetching;
-
-  useEffect(() => {
-    if (stray) void setParams({}, { replace: true });
-  }, [stray, setParams]);
-
-  return { home, places, ...choice };
+  return { home, places, ...choice, stray: choice.stray && !home.isFetching };
 };
