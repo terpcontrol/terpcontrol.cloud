@@ -45,7 +45,7 @@ export type GrantKind = 'included' | 'migration' | 'purchase';
 
 export type PlanStatus = 'running' | 'paused' | 'stopped' | 'completed';
 
-export type SpaceKind = 'tent' | 'fridge' | 'room' | 'balcony' | 'other';
+export type SpaceKind = 'tent' | 'fridge' | 'room' | 'balcony' | 'dry_box' | 'greenhouse' | 'grow_room' | 'other';
 
 export type GrowType = 'photoperiod' | 'autoflower';
 

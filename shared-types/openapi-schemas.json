@@ -304,6 +304,9 @@
       "fridge",
       "room",
       "balcony",
+      "dry_box",
+      "greenhouse",
+      "grow_room",
       "other"
     ]
   },

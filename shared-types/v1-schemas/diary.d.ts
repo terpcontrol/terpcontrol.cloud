@@ -2521,6 +2521,9 @@ export declare const homeSpaceCard: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
+        grow_room: "grow_room";
     }>>;
     roomId: z.ZodNullable<z.ZodString>;
     deviceIds: z.ZodArray<z.ZodString>;
@@ -2898,6 +2901,9 @@ export declare const homeAnswer: z.ZodObject<{
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
+            dry_box: "dry_box";
+            greenhouse: "greenhouse";
+            grow_room: "grow_room";
         }>>;
         roomId: z.ZodNullable<z.ZodString>;
         deviceIds: z.ZodArray<z.ZodString>;
@@ -3781,6 +3787,9 @@ export declare const spaceOverview: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
+        grow_room: "grow_room";
     }>;
     roomId: z.ZodNullable<z.ZodString>;
     deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
@@ -4923,6 +4932,9 @@ export declare const spaceTimeline: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
+        grow_room: "grow_room";
     }>;
     range: z.ZodEnum<{
         phase: "phase";
@@ -7358,6 +7370,9 @@ export declare const sharedSpace: z.ZodObject<{
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
+            dry_box: "dry_box";
+            greenhouse: "greenhouse";
+            grow_room: "grow_room";
         }>;
         roomId: z.ZodNullable<z.ZodString>;
         deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
@@ -8257,6 +8272,9 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
+            dry_box: "dry_box";
+            greenhouse: "greenhouse";
+            grow_room: "grow_room";
         }>;
         roomId: z.ZodNullable<z.ZodString>;
         deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
@@ -9173,6 +9191,9 @@ export declare const sharedResolution: z.ZodObject<{
                 fridge: "fridge";
                 room: "room";
                 balcony: "balcony";
+                dry_box: "dry_box";
+                greenhouse: "greenhouse";
+                grow_room: "grow_room";
             }>;
             roomId: z.ZodNullable<z.ZodString>;
             deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;

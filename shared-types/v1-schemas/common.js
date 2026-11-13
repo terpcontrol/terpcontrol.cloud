@@ -241,8 +241,13 @@ exports.mediaKind = (0, exports.named)('MediaKind', zod_1.z.enum(['still', 'time
  */
 exports.grantKind = (0, exports.named)('GrantKind', zod_1.z.enum(['included', 'migration', 'purchase']));
 exports.planStatus = (0, exports.named)('PlanStatus', zod_1.z.enum(['running', 'paused', 'stopped', 'completed']));
-/** `room` groups the others, one level deep; a grow needs no space at all. */
-exports.spaceKind = (0, exports.named)('SpaceKind', zod_1.z.enum(['tent', 'fridge', 'room', 'balcony', 'other']));
+/**
+ * What a place is: a tent, a fridge, a balcony, a dry box, a greenhouse, a grow
+ * room (`grow_room`, a room grown in as a place) or something else. `room`
+ * is no place but the grouping of places, one level deep; a grow needs no space
+ * at all.
+ */
+exports.spaceKind = (0, exports.named)('SpaceKind', zod_1.z.enum(['tent', 'fridge', 'room', 'balcony', 'dry_box', 'greenhouse', 'grow_room', 'other']));
 exports.growType = (0, exports.named)('GrowType', zod_1.z.enum(['photoperiod', 'autoflower']));
 exports.reminderKind = (0, exports.named)('ReminderKind', zod_1.z.enum(['water', 'feed', 'chore', 'custom']));
 /** `view` is a link to the app's own read-only view; `public_page` is the shared diary page. */

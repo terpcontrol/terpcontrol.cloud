@@ -21,8 +21,11 @@ const deviceTag = (device: Device): string =>
     .slice(-4)
     .toUpperCase();
 
-/** The kinds a place is; a room is none of them - it groups places. Their words are `place.edit.kind.*`. */
-export const PLACE_KINDS: readonly SpaceKind[] = ['tent', 'fridge', 'balcony', 'other'];
+/**
+ * The seven kinds a place is, in the order they are offered; a room is none of them - it groups places, while a
+ * `grow_room` is a place that is a room ("Raum"). Their words are `place.edit.kind.*`.
+ */
+export const PLACE_KINDS: readonly SpaceKind[] = ['tent', 'fridge', 'balcony', 'dry_box', 'greenhouse', 'grow_room', 'other'];
 
 /**
  * The kind of place a device of this type stands in when a place is made for
