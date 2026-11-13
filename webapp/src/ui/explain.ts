@@ -14,6 +14,7 @@ export const HELP_TOPICS = [
   'climatePreset',
   'stage',
   'stepPreset',
+  'stepSettings',
   'plan',
   'planMoves',
   'dayNight',

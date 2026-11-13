@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
@@ -16,6 +17,7 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import {
+  boundsContradict,
   createBody,
   DEFAULT_WATCH,
   draftOf,
@@ -51,9 +53,12 @@ const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
  * the stage wrote can be changed here too, and the sheet says what that is
  * worth - the next stage writes its thresholds again.
  *
- * What the sheet refuses itself is one thing only: a band with no edge, which
- * is a rule that could never trip. Everything else is the server's to refuse,
- * and its answer stays in the sheet under the button that asked.
+ * What the sheet refuses itself is a band with no edge, which is a rule that
+ * could never trip, and two edges that contradict each other, which is a rule
+ * that trips at every value - the second from the moment both are typed, with
+ * Speichern held until they agree. Everything else is the server's to refuse,
+ * and its answer stays in the sheet under the button that asked; its refusal of
+ * the same contradiction is said in the sheet's words.
  *
  * The rule the cloud keeps for every device is the one this sheet does not ask
  * its usual questions of: what it watches is the health loop rather than a
@@ -75,6 +80,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
   const noBound = refusedBound && !hasBound(draft);
+  const contradicts = boundsContradict(draft);
 
   const change = (over: Partial<RuleDraft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
@@ -99,6 +105,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const outputChips: OutputMetric[] = watchedOutput && !outputs.includes(watchedOutput) ? [...outputs, watchedOutput] : outputs;
 
   const save = () => {
+    if (contradicts) return;
     if (!hasBound(draft)) {
       setRefusedBound(true);
       return;
@@ -108,13 +115,29 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
     else create.mutate(createBody(draft), { onSuccess: onClose });
   };
 
+  const writeError = create.error ?? update.error;
   const actions = (
     <>
-      <Refused error={create.error ?? update.error ?? remove.error} />
+      {refusedContradiction(writeError) ? (
+        <p className={ui.problem} role="alert">
+          {t('alarms.sheet.contradicts')}
+        </p>
+      ) : (
+        <Refused error={writeError ?? remove.error} />
+      )}
 
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy} onClick={save}>
-        {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
-      </button>
+      {/* While the rule's deletion is asked, the question is the sheet's one answer. */}
+      {askingDelete ? null : (
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary} ${styles.submit}`}
+          disabled={busy || contradicts}
+          aria-describedby={contradicts ? 'rule-contradicts' : undefined}
+          onClick={save}
+        >
+          {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
+        </button>
+      )}
 
       {rule && rule.origin !== 'always' ? (
         askingDelete ? (
@@ -190,8 +213,20 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
         {wantsBound(draft) ? (
           <Block label={t('alarms.sheet.bounds')}>
             <div className={ui.halves}>
-              <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} missing={noBound} onChange={upper => change({ upper })} />
-              <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} missing={noBound} onChange={lower => change({ lower })} />
+              <BoundField
+                label={t('alarms.sheet.above')}
+                unit={unit}
+                value={draft.upper}
+                refusedBy={noBound ? 'rule-no-bound' : contradicts ? 'rule-contradicts' : null}
+                onChange={upper => change({ upper })}
+              />
+              <BoundField
+                label={t('alarms.sheet.below')}
+                unit={unit}
+                value={draft.lower}
+                refusedBy={noBound ? 'rule-no-bound' : contradicts ? 'rule-contradicts' : null}
+                onChange={lower => change({ lower })}
+              />
             </div>
             {/* What the figure above means, for the outputs whose series has no
                 unit to say it. A percentage says it with the sign on the field
@@ -202,6 +237,11 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             {noBound ? (
               <p className={ui.problem} role="alert" id="rule-no-bound">
                 {t('alarms.sheet.noBound')}
+              </p>
+            ) : null}
+            {contradicts ? (
+              <p className={ui.problem} role="alert" id="rule-contradicts">
+                {t('alarms.sheet.contradicts')}
               </p>
             ) : null}
           </Block>
@@ -416,14 +456,14 @@ function BoundField({
   label,
   unit,
   value,
-  missing,
+  refusedBy,
   onChange,
 }: {
   label: string;
   unit: string;
   value: string;
-  /** Neither edge is set and a save was refused for it, which the line under the two says. */
-  missing: boolean;
+  /** The id of the line under the two that refuses them: no edge at all, or two that contradict each other. */
+  refusedBy: string | null;
   onChange: (value: string) => void;
 }) {
   return (
@@ -436,8 +476,8 @@ function BoundField({
         step="any"
         placeholder="—"
         aria-label={unit ? `${label} ${unit}` : label}
-        aria-invalid={missing || undefined}
-        aria-describedby={missing ? 'rule-no-bound' : undefined}
+        aria-invalid={refusedBy ? true : undefined}
+        aria-describedby={refusedBy ?? undefined}
         value={value}
         onChange={event => onChange(event.target.value)}
       />
@@ -527,3 +567,12 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
     </div>
   );
 }
+
+/**
+ * Whether the server refused the rule for edges that contradict each other: the sheet refuses them first, so this
+ * is what an older page leaves, and it is said in the sheet's own words.
+ */
+const refusedContradiction = (error: unknown): boolean =>
+  error instanceof ApiError &&
+  error.status === 422 &&
+  [error.problem.code, ...error.problem.errors.map(one => one.code)].some(code => /contradict|inverted|crossed/.test(code ?? ''));

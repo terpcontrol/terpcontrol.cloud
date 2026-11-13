@@ -1,10 +1,11 @@
 import type { DateTime } from 'luxon';
 import { Announce } from '@/ui/Announce';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
+import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { useLog, type Back } from '@/log/log-context';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
@@ -37,7 +38,7 @@ import {
   startsInMs,
   throughStep,
 } from './plan-clock';
-import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
+import { draftOf, durationFits, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
 import { followsGermination, pauseReasonOf, stepLengthLabel, stepMeta, usePauseReasons } from './plan-labels';
 import styles from './Control.module.css';
@@ -299,13 +300,15 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 
       {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine
           clears it to send the step within its next pass. A plan at rest writes nothing, whether it ever ran or not,
-          so the line names no last step. */}
-      <p className={styles.applied} {...ageAttribute(liveness)}>
-        {plan.state.lastAppliedAt
-          ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
-          : t(going ? 'space.control.applied.never' : 'space.control.applied.atRest')}
-        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
-      </p>
+          which the line about what follows says. */}
+      {going ? (
+        <p className={styles.applied} {...ageAttribute(liveness)}>
+          {plan.state.lastAppliedAt
+            ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
+            : t('space.control.applied.never')}
+          {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
+        </p>
+      ) : null}
     </>
   );
 }
@@ -313,16 +316,19 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
 /**
  * The five moves and the stop, each offered only where the server would take
  * it. Skipping and stopping ask first, where the tap would be: neither can be
- * taken back.
+ * taken back. So does going on while the device's regulation is off: the step
+ * it sends switches it back on, which is said before and after.
  */
 function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; now: DateTime; onRefresh: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
+  const client = useQueryClient();
   const move = usePlanTransition(device.id);
   const stop = useStopPlan(device.id);
   const remove = useRemovePlan(device.id);
-  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | 'remove' | null>(null);
+  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | 'remove' | 'resume' | null>(null);
   const [by, setBy] = useState<StepDuration>({ value: 1, unit: 'days' });
+  const switchedOff = device.control?.running === false;
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
@@ -339,6 +345,20 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
     tell({ label: said(what, params), ...back, from: `plan-${device.id}` });
   };
   const stepName = (index: number | null) => (index === null ? '' : (plan.steps[index]?.name ?? ''));
+  const paused = plan.state.status === 'paused';
+  // Going on sends the step, which switches regulation back on: the device is read again, so Steuerung says it is on.
+  const resume = () =>
+    move.mutate(
+      { kind: 'resume' },
+      {
+        onSuccess: () => {
+          if (switchedOff) void planMoved(client);
+          told(paused ? (switchedOff ? 'resumedOn' : 'resumed') : switchedOff ? 'startedOn' : 'started', {
+            step: stepName(plan.state.activeStepIndex),
+          });
+        },
+      },
+    );
 
   return (
     <div className={styles.moves}>
@@ -360,14 +380,9 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
             type="button"
             className={`${ui.button} ${ui.primary}`}
             disabled={busy}
-            onClick={() =>
-              move.mutate(
-                { kind: 'resume' },
-                { onSuccess: () => told(plan.state.status === 'paused' ? 'resumed' : 'started', { step: stepName(plan.state.activeStepIndex) }) },
-              )
-            }
+            onClick={() => (switchedOff ? setAsking(asking === 'resume' ? null : 'resume') : resume())}
           >
-            {t(plan.state.status === 'paused' ? 'space.control.move.resume' : 'space.control.move.start')}
+            {t(paused ? 'space.control.move.resume' : 'space.control.move.start')}
           </button>
         ) : null}
         {can.pause ? (
@@ -420,16 +435,26 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         {can.resume || can.pause ? <Help topic="planMoves" /> : null}
       </div>
 
-      {/* Starting puts the grow standing here into the stage the first step names, with a diary line: said before the tap. */}
-      {can.resume && plan.state.status !== 'paused' && startStage ? (
+      {/* Starting puts the grow standing here into the stage the first step names: said before the tap. */}
+      {can.resume && !paused && startStage ? (
         <p className={ui.note}>{t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}</p>
+      ) : null}
+
+      {asking === 'resume' ? (
+        <Asking
+          note={t(paused ? 'space.control.ask.resumeOn' : 'space.control.ask.startOn', { plan: plan.name })}
+          yes={t(paused ? 'space.control.ask.resumeOnYes' : 'space.control.ask.startOnYes')}
+          busy={busy}
+          onYes={resume}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'extend' ? (
         <Asking
           note={t('space.control.ask.extend')}
-          yes={t('space.control.ask.extendYes', { length: stepLengthLabel(t, by) })}
-          busy={busy}
+          yes={t('space.control.ask.extendYes', { length: durationFits(by, 1) ? stepLengthLabel(t, by) : '…' })}
+          busy={busy || !durationFits(by, 1)}
           onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: () => told('extended', { length: stepLengthLabel(t, by) }) })}
           onCancel={close}
         >

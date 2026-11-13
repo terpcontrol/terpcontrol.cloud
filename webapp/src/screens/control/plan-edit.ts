@@ -11,7 +11,7 @@ import type {
   StepDuration,
 } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { figureAt, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { figureAt, sectionOf, TARGET_RANGES, type TargetPath } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf, roundTheClock } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { elapsedMs, isGoing } from './plan-clock';
@@ -115,9 +115,39 @@ export const replaceBody = (draft: PlanDraft): PlanReplace => ({
 /** The light hours a step may name: the targets page's own range. */
 export const LIGHT_HOURS = { min: 0, max: 24 } as const;
 
-/** Whether every step names light hours the server takes, or none at all. */
-export const lightHoursFit = (steps: StepDraft[]): boolean =>
-  steps.every(step => step.lightHours === null || (step.lightHours >= LIGHT_HOURS.min && step.lightHours <= LIGHT_HOURS.max));
+/** Whether a step names light hours the server takes, or none at all. */
+export const lightHoursFit = (step: Pick<StepDraft, 'lightHours'>): boolean =>
+  step.lightHours === null || (step.lightHours >= LIGHT_HOURS.min && step.lightHours <= LIGHT_HOURS.max);
+
+/** Whether a length was read as one the route takes: a number, and at least `min` - nought is a step of no length. */
+export const durationFits = (duration: StepDuration, min: 0 | 1): boolean => Number.isFinite(duration.value) && duration.value >= min;
+
+/** A figure a step carries outside the range Steuerung holds it to, with that range. */
+export interface FigureRefused {
+  figure: Figure;
+  min: number;
+  max: number;
+}
+
+/** The range a step's figure is held to: the one a target set by hand is held to everywhere, which the server refuses beyond. */
+export const rangeOf = (figure: Figure): { min: number; max: number } => TARGET_RANGES[`${figure.section}.${figure.field}` as TargetPath];
+
+/**
+ * The figures of a step that lie outside their range: refused in words, never pulled back into it. A figure the
+ * step already carried as it was saved (`stored`, its settings then) is not held to the range again, as the server
+ * does not: a recipe migrated from the old app keeps what it was written with until somebody changes it.
+ */
+export const figuresRefused = (step: StepDraft, device: Device, stored: DeviceConfiguration | null = null): FigureRefused[] =>
+  figuresFor(device, step.stage).flatMap(figure => {
+    const value = figureOf(step.settings, figure);
+    const { min, max } = rangeOf(figure);
+    const kept = stored !== null && value === figureOf(stored, figure);
+    return value !== null && !kept && (value < min || value > max) ? [{ figure, min, max }] : [];
+  });
+
+/** The settings a step of the plan carried as it was saved, found by its id; null for a step new to the plan. */
+export const storedSettings = (plan: Plan | null, step: StepDraft): DeviceConfiguration | null =>
+  (step.id === undefined ? undefined : plan?.steps.find(one => one.id === step.id)?.settings) ?? null;
 
 /** A step one place up or down. Out of the list at either end is no move at all rather than a wrap-around. */
 export const moveStep = (steps: StepDraft[], index: number, by: -1 | 1): StepDraft[] => {

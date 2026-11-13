@@ -383,6 +383,16 @@ export const wantsBound = (draft: RuleDraft): boolean => draft.watch.kind !== 'o
 
 export const hasBound = (draft: RuleDraft): boolean => !wantsBound(draft) || numberOrNull(draft.upper) !== null || numberOrNull(draft.lower) !== null;
 
+/**
+ * Whether the two edges contradict each other: a rule fires above its upper edge or below its lower one, so a
+ * lower edge at or over the upper fires at every value ("over 70, under 80"). Refused before the server has to.
+ */
+export const boundsContradict = (draft: RuleDraft): boolean => {
+  const upper = numberOrNull(draft.upper);
+  const lower = numberOrNull(draft.lower);
+  return wantsBound(draft) && upper !== null && lower !== null && lower >= upper;
+};
+
 export const watchOf = (draft: RuleDraft): AlarmWatch => {
   if (draft.watch.kind === 'reading')
     return { kind: 'reading', metric: draft.watch.metric, upper: numberOrNull(draft.upper), lower: numberOrNull(draft.lower) };

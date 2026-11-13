@@ -183,7 +183,7 @@ describe('light hours in a step', () => {
     );
     expect(screen.getByText('No phase · 1 wk · ends germination')).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: /^Edit / })[1]);
-    expect(screen.getByText(/This step ends the germination before it/)).toBeInTheDocument();
+    expect(screen.getByText(/This step only ends the germination before it/)).toBeInTheDocument();
     expect(screen.queryByText(/This step writes nothing/)).not.toBeInTheDocument();
   });
 
@@ -212,11 +212,13 @@ describe('light hours in a step', () => {
   it('are not saved outside a day, and the step says why', () => {
     drawAt(<PlanEditor device={device()} plan={null} draft={draft({ lightHours: 30 })} onClose={() => {}} />);
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: 0 to 24 hours, or leave it empty.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Light on for: between 0 and 24 h, or leave it empty.');
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeDisabled();
     // Tied to the field and to Save, where the step saying it may be folded away.
     expect(screen.getByRole('spinbutton', { name: 'Light on for' })).toBeInvalid();
-    expect(screen.getByRole('button', { name: 'Save the plan' })).toHaveAccessibleDescription('Light on for: 0 to 24 hours, or leave it empty.');
+    expect(screen.getByRole('button', { name: 'Save the plan' })).toHaveAccessibleDescription(
+      'Flower – Light on for: between 0 and 24 h, or leave it empty.',
+    );
   });
 
   it('ask before an Escape throws away what was changed, and close at once with nothing changed', () => {
@@ -292,7 +294,7 @@ describe('light hours in a step', () => {
     expect(screen.queryByText('Day · temperature')).not.toBeInTheDocument();
     expect(screen.queryByText('Light limit')).not.toBeInTheDocument();
     expect(screen.getByText('Drying · temperature')).toBeInTheDocument();
-    expect(screen.getByText(/^A step into drying switches the device into its drying mode/)).toBeInTheDocument();
+    expect(screen.getByText(/^In drying the light stays off/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Save the plan' }));
     expect(state.saved[0].steps[0]).toMatchObject({ stage: 'drying', lightHours: null, settings: { night: { temperature: 22, humidity: 58 } } });
@@ -317,9 +319,7 @@ describe('light hours in a step', () => {
     expect(screen.getByText('Germination · temperature')).toBeInTheDocument();
     expect(screen.getByText('Germination · humidity')).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /^A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity/,
-      ),
+      screen.getByText(/^In germination it is dark and the device holds this temperature round the clock; a humidifier holds the humidity/),
     ).toBeInTheDocument();
 
     // The humidity the step carried for a leafy plant was a dehumidifier's line; germination brings its own 75 %.
@@ -435,7 +435,7 @@ describe('the two ready-made plans', () => {
     const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
-    expect(screen.getByText(/^Starting puts a grow here into Veg,/)).toBeInTheDocument();
+    expect(screen.getByText('Starting puts a grow here into Veg.')).toBeInTheDocument();
 
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
     view.unmount();
@@ -462,7 +462,7 @@ describe('the two ready-made plans', () => {
 
     expect(container.querySelectorAll('p')).toHaveLength(1);
     expect(screen.getByText('No plan yet.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'About Grow plan' })).toHaveAccessibleDescription(/Saving a plan does not start it\./);
+    expect(screen.getByRole('button', { name: 'About Grow plan' })).toHaveAccessibleDescription(/Saving a plan does not start it,/);
   });
 });
 

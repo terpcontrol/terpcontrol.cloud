@@ -1,11 +1,14 @@
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { announce } from '@/ui/live-region';
 import { Asking } from '@/ui/Asking';
 import { useTranslation } from 'react-i18next';
-import type { Device, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useSavePlan } from '@/api/plans';
+import { ApiError } from '@/api/problem';
+import type { Translate } from '@/i18n/i18n';
+import { looseFigure } from '@/ui/figures';
 import { Sheet } from '@/ui/Sheet';
 import { awaitingClimate, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
 import { StageClimates } from '@/screens/grow/ClimatePick';
@@ -26,8 +29,11 @@ import { scheduleTitle } from './targets/schedule-words';
 import { draftOf as targetsOf } from './targets/targets-draft';
 import {
   asWritableBy,
+  CLIMATE_FIGURES,
+  durationFits,
   editEffect,
   figuresFor,
+  figuresRefused,
   figureOf,
   heldByStage,
   isDarkStage,
@@ -37,14 +43,17 @@ import {
   newStep,
   NIGHT_HUMIDITY,
   otherSections,
+  rangeOf,
   replaceBody,
   stepLightHours,
   stepLightsOn,
+  storedSettings,
   withFigure,
   withoutStepLightsOn,
   withStepLightsOn,
   writesNothing,
   type Figure,
+  type FigureRefused,
   type PlanDraft,
   type PlanEditEffect,
   type StepDraft,
@@ -70,6 +79,11 @@ import styles from './Control.module.css';
  * Saving does not start anything. A plan that is at rest stays at rest, which
  * is the server's own rule and the reason "start" on the plan screen is a
  * resume.
+ *
+ * A figure outside the range Steuerung holds it to, a length the route cannot
+ * take and light hours past a day are refused under their field and again
+ * under the button they keep from saving - never pulled into the range, which
+ * would write something nobody typed.
  */
 export function PlanEditor({ device, plan, draft: opened, onClose }: { device: Device; plan: Plan | null; draft: PlanDraft; onClose: () => void }) {
   const { t } = useTranslation();
@@ -86,7 +100,11 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   const [leaving, setLeaving] = useState(false);
   // Escape, the backdrop and × all close the sheet; with edits in it they ask first, since Escape is pressed out of habit.
   const close = () => (JSON.stringify(draft) === first ? onClose() : setLeaving(true));
-  const fits = lightHoursFit(draft.steps);
+  const refused = draft.steps.flatMap(step =>
+    refusalsOf(t, step, device, storedSettings(plan, step)).map(refusal => t('space.control.editor.refusedIn', { step: step.name, refusal })),
+  );
+  const fits = refused.length === 0;
+  const fromServer = serverRefusal(t, save.error, draft);
 
   const effect = plan ? editEffect(plan, draft.steps, now) : null;
   const steps = (next: StepDraft[]) => setDraft(current => ({ ...current, steps: next }));
@@ -210,6 +228,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                   <StepFields
                     id={`${step.key}-fields`}
                     step={step}
+                    stored={storedSettings(plan, step)}
                     device={device}
                     afterGermination={followsGermination(draft.steps, index, draft.loop)}
                     onChange={over => change(step.key, over)}
@@ -227,7 +246,13 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
         <Notify draft={draft} onChange={notify => setDraft({ ...draft, notify })} />
 
         {effect ? <Effect effect={effect} /> : <p className={ui.note}>{t('space.control.effect.newPlan')}</p>}
-        <PlanRefusal error={save.error} />
+        {fromServer ? (
+          <p className={ui.problem} role="alert">
+            {fromServer}
+          </p>
+        ) : (
+          <PlanRefusal error={save.error} />
+        )}
 
         <button
           type="button"
@@ -240,9 +265,13 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
         </button>
         {/* The step that says why may be folded away; the reason stands under the button it keeps from saving. */}
         {fits ? null : (
-          <p className={ui.note} id="plan-save-why">
-            {t('planLight.range', LIGHT_HOURS)}
-          </p>
+          <div className={ui.stack1} id="plan-save-why">
+            {refused.map(line => (
+              <p key={line} className={ui.note}>
+                {line}
+              </p>
+            ))}
+          </div>
         )}
       </div>
     </Sheet>
@@ -262,12 +291,15 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
 function StepFields({
   id,
   step,
+  stored,
   device,
   afterGermination,
   onChange,
 }: {
   id: string;
   step: StepDraft;
+  /** What the step carried as it was saved, whose figures are not held to their range again. */
+  stored: DeviceConfiguration | null;
   device: Device;
   /** Whether the step follows a germination step, which it ends however little else it writes. */
   afterGermination: boolean;
@@ -293,6 +325,10 @@ function StepFields({
   };
   // Held round the clock in the dark: drying, or germination.
   const dark = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
+  const figures = figuresFor(device, step.stage);
+  const refused = figuresRefused(step, device, stored);
+  const rangeId = (figure: Figure) => `${id}-${figure.key}-range`;
+  const pairOf = (figure: Figure) => Math.floor(figures.findIndex(one => one.key === figure.key) / 2);
 
   return (
     <div className={styles.fields} id={id}>
@@ -324,20 +360,51 @@ function StepFields({
       <p className={ui.note}>{t('space.control.step.stageNote')}</p>
 
       {step.stage && presetsOf(step.stage).length > 0 ? (
-        <StageClimates label={t('space.control.step.preset')} stage={step.stage} chosen={step.preset} onPick={preset => onChange({ preset })}>
-          <Help topic="stepPreset" />
-        </StageClimates>
+        <>
+          <span className="label">
+            {t('space.control.step.preset')}
+            <Help topic="stepPreset" />
+          </span>
+          <StageClimates
+            label={t('space.control.step.preset')}
+            stage={step.stage}
+            chosen={step.preset}
+            onPick={preset => onChange({ preset })}
+            keep
+          />
+        </>
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
       <DurationField value={step.duration} min={0} fractional onChange={duration => onChange({ duration })} />
-      {step.duration.value <= 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
+      {step.duration.value === 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
-      <span className="label">{t('space.control.step.settings')}</span>
+      <span className="label">
+        {t('space.control.step.settings')}
+        <Help topic="stepSettings" />
+      </span>
       <div className={`${ui.halves} ${styles.figures}`}>
-        {figuresFor(device, step.stage).map(figure => (
-          <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} held={dark} />
-        ))}
+        {/* A figure out of its range is refused across the grid under the pair it stands in, so the day's two and
+            the night's two stay side by side. */}
+        {figures.map((figure, index) => {
+          const said = index % 2 === 1 || index === figures.length - 1 ? refused.filter(one => pairOf(one.figure) === Math.floor(index / 2)) : [];
+          return (
+            <Fragment key={figure.key}>
+              <FigureField
+                figure={figure}
+                step={step}
+                onChange={onChange}
+                held={dark}
+                refusedBy={refused.some(one => one.figure.key === figure.key) ? rangeId(figure) : null}
+              />
+              {said.map(one => (
+                <p key={one.figure.key} id={rangeId(one.figure)} className={`${ui.problem} ${styles.figureWide}`} role="alert">
+                  {figureRefusal(t, one, dark)}
+                </p>
+              ))}
+            </Fragment>
+          );
+        })}
         {/* A drying room and a germination are dark round the clock: they have no light hours to set. */}
         {dark ? null : <LightHoursField step={step} device={device} onChange={onChange} />}
         {/* The figure this controller cannot run keeps its place and says what
@@ -364,11 +431,6 @@ function StepFields({
           }
         />
       ) : null}
-      {step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max) ? (
-        <p className={ui.note} role="alert" id={`step-light-${step.key}-range`}>
-          {t('planLight.range', LIGHT_HOURS)}
-        </p>
-      ) : null}
       {/* A drying or germination step says what it writes in its own note above, by its stage alone if need be;
           the day, CO₂ and the light are not among it. */}
       {dark && !awaiting ? null : (
@@ -377,7 +439,7 @@ function StepFields({
             ? t(afterGermination ? 'space.control.step.endsGermination' : 'space.control.step.writesNothing')
             : awaiting
               ? t('space.control.step.writesNowhere')
-              : t(hasCo2Sensor(device) ? 'space.control.step.writesSections' : 'space.control.step.writesSectionsNoCo2')}
+              : t('space.control.step.writesSections')}
         </p>
       )}
       {extra.length > 0 ? <p className={ui.note}>{t('space.control.step.alsoWrites', { sections: extra.join(', ') })}</p> : null}
@@ -427,7 +489,11 @@ const fromController = (step: StepDraft, device: Device): Partial<StepDraft> => 
   };
 };
 
-/** A length and its unit. A step may be open-ended at nought; anything else is at least one of its unit. */
+/**
+ * A length and its unit. A step may be open-ended at nought; anything else is at least one of its unit. What was
+ * typed stays as typed: a length below `min`, or none that reads as a number, is refused under the field and handed
+ * on as it is (`durationFits` says whether it can be sent), never pulled up to `min`.
+ */
 export function DurationField({
   value,
   min,
@@ -445,25 +511,40 @@ export function DurationField({
   onChange: (duration: StepDuration) => void;
 }) {
   const { t } = useTranslation();
+  const id = useId();
+  const [typed, setTyped] = useState(() => String(value.value));
+  const fits = durationFits(value, min);
 
   return (
-    <div className={ui.wrapRow}>
-      <input
-        className={`${ui.input} ${styles.number}`}
-        type="number"
-        min={min}
-        step={fractional ? 'any' : undefined}
-        value={value.value}
-        aria-label={t('space.control.step.durationValue')}
-        onChange={event => onChange({ ...value, value: Math.max(min, Number(event.target.value) || min) })}
-      />
-      <Choices label={t('space.control.step.durationUnit')}>
-        {DURATION_UNITS.map(unit => (
-          <Choice key={unit} chosen={value.unit === unit} onChoose={() => onChange({ ...value, unit })}>
-            {t(`space.control.unitName.${unit}`)}
-          </Choice>
-        ))}
-      </Choices>
+    <div className={ui.stack1}>
+      <div className={ui.wrapRow}>
+        <input
+          className={`${ui.input} ${styles.number}`}
+          type="number"
+          min={min}
+          step={fractional ? 'any' : undefined}
+          value={typed}
+          aria-label={t('space.control.step.durationValue')}
+          aria-invalid={fits ? undefined : true}
+          aria-describedby={fits ? undefined : `${id}-range`}
+          onChange={event => {
+            setTyped(event.target.value);
+            onChange({ ...value, value: event.target.value.trim() === '' ? Number.NaN : Number(event.target.value) });
+          }}
+        />
+        <Choices label={t('space.control.step.durationUnit')}>
+          {DURATION_UNITS.map(unit => (
+            <Choice key={unit} chosen={value.unit === unit} onChoose={() => onChange({ ...value, unit })}>
+              {t(`space.control.unitName.${unit}`)}
+            </Choice>
+          ))}
+        </Choices>
+      </div>
+      {fits ? null : (
+        <p id={`${id}-range`} className={ui.problem} role="alert">
+          {t('space.control.step.durationRange', { min })}
+        </p>
+      )}
     </div>
   );
 }
@@ -487,7 +568,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
   const own = stepLightsOn(step.settings);
   const hours = stepLightHours(step);
   const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
-  const outside = step.lightHours !== null && (step.lightHours < LIGHT_HOURS.min || step.lightHours > LIGHT_HOURS.max);
+  const outside = !lightHoursFit(step);
 
   return (
     <>
@@ -512,6 +593,11 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
         />
         <span className={styles.figureUnit}>{t('planLight.unit')}</span>
       </span>
+      {outside ? (
+        <p className={`${ui.problem} ${styles.figureWide}`} role="alert" id={`${id}-range`}>
+          {t('planLight.range', LIGHT_HOURS)}
+        </p>
+      ) : null}
       {own !== null ? (
         <span className={styles.figure}>
           <span className={styles.figureLabel}>
@@ -551,24 +637,32 @@ function FigureField({
   step,
   onChange,
   held = null,
+  refusedBy,
 }: {
   figure: Figure;
   step: StepDraft;
   onChange: (over: Partial<StepDraft>) => void;
   /** A drying or germination step, whose night figures are what it holds round the clock and are named so. */
   held?: 'drying' | 'germination' | null;
+  /** The id of the sentence that refuses the figure, where it lies outside its range. */
+  refusedBy: string | null;
 }) {
   const { t } = useTranslation();
   const value = figureOf(step.settings, figure);
+  const { min, max } = rangeOf(figure);
 
   return (
     <label className={styles.figure}>
-      <span className={styles.figureLabel}>{t(held ? `space.control.figure.${held}.${figure.key}` : `space.control.figure.${figure.key}`)}</span>
+      <span className={styles.figureLabel}>{figureLabel(t, figure, held)}</span>
       <input
         className={styles.figureInput}
         type="number"
         inputMode="decimal"
         placeholder="—"
+        min={min}
+        max={max}
+        aria-invalid={refusedBy ? true : undefined}
+        aria-describedby={refusedBy ?? undefined}
         value={value ?? ''}
         onChange={event =>
           onChange({
@@ -647,3 +741,51 @@ function Effect({ effect }: { effect: PlanEditEffect }) {
     </ul>
   );
 }
+
+/** What a step's figure is called: by the spell where the step holds one climate round the clock. */
+const figureLabel = (t: Translate, figure: Figure, held: 'drying' | 'germination' | null): string =>
+  t(held ? `space.control.figure.${held}.${figure.key}` : `space.control.figure.${figure.key}`);
+
+/** "Tag · Temperatur: zwischen 15 und 35 °C, oder leer lassen." */
+const figureRefusal = (t: Translate, refused: FigureRefused, held: 'drying' | 'germination' | null): string =>
+  t('space.control.step.outOfRange', {
+    name: figureLabel(t, refused.figure, held),
+    low: looseFigure(refused.min),
+    high: looseFigure(refused.max),
+    unit: t(`space.control.figureUnit.${refused.figure.key}`),
+  });
+
+/** Everything that keeps a step from being saved, in the words its fields say it in. */
+const refusalsOf = (t: Translate, step: StepDraft, device: Device, stored: DeviceConfiguration | null): string[] => {
+  const held = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
+  return [
+    ...figuresRefused(step, device, stored).map(refused => figureRefusal(t, refused, held)),
+    ...(lightHoursFit(step) ? [] : [t('planLight.range', LIGHT_HOURS)]),
+    ...(durationFits(step.duration, 0) ? [] : [t('space.control.step.durationRange', { min: 0 })]),
+  ];
+};
+
+/**
+ * A save the server refused for one figure of one step, said in the words the field would have said it in: the
+ * sheet refuses the same ranges first, so this is what an older page or a range moved on the server leaves.
+ */
+const serverRefusal = (t: Translate, error: unknown, draft: PlanDraft): string | null => {
+  if (!(error instanceof ApiError) || (error.status !== 400 && error.status !== 422)) return null;
+  for (const { field } of error.problem.errors) {
+    const match = /^steps[.[](\d+)\]?\.(.+)$/.exec(field);
+    const step = match ? draft.steps[Number(match[1])] : undefined;
+    if (!match || !step) continue;
+    const path = match[2].replace(/^settings\./, '');
+    const held = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
+    const figure = CLIMATE_FIGURES.find(one => `${one.section}.${one.field}` === path);
+    const refusal = figure
+      ? figureRefusal(t, { figure, ...rangeOf(figure) }, held)
+      : path === 'lightHours'
+        ? t('planLight.range', LIGHT_HOURS)
+        : path.startsWith('duration')
+          ? t('space.control.step.durationRange', { min: 0 })
+          : null;
+    if (refusal) return t('space.control.editor.refusedIn', { step: step.name, refusal });
+  }
+  return null;
+};

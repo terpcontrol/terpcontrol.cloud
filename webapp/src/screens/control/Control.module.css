@@ -325,7 +325,9 @@
 /* On a phone a step's line and its four buttons do not fit side by side: the
    line keeps the width and the buttons go under it, rather than squeezing the
    line into a column a word wide. The figures go one to a row, where two
-   across would cut off their units. */
+   across would cut off their units; wider, two across, so the day's two and
+   the night's two read as the halves of the cycle they are - three across cut
+   a sheet's labels into a word a line. */
 @media (max-width: 599px) {
   .editHead {
     flex-wrap: wrap;
@@ -342,14 +344,6 @@
 
   .figures {
     grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 900px) {
-  /* The figures fit three across once there is room, so the six read as the
-     two halves of the cycle they are. */
-  .figures {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 

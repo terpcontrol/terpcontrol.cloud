@@ -684,7 +684,7 @@ describe('Steuerung of a place with several devices', () => {
     state.devices = [device(), fan];
     drawTab();
 
-    expect(await screen.findByRole('link', { name: /^Outputs/ })).toHaveTextContent('Fan: Fixed · By day 70 % · At night 40 %');
+    expect(await screen.findByRole('link', { name: /^Outputs/ })).toHaveTextContent('Fan fixed · By day 70 % · At night 40 %');
   });
 
   /** Every setting has one place: among the outputs a further fan's speed is said, and its row leads to where it is set. */
@@ -868,17 +868,17 @@ describe('what a row says about the page behind it', () => {
     expect(outputsLine(t, [lamp], NOW, null, null, hold)).toEqual({ text: 'Light held off until 13:05 · Exhaust on', warn: true });
   });
 
-  /** A fan's mode stands with the fan it is of, so no line ends on a bare "Fixed". */
+  /** A fan's mode stands with the fan it is of as one fact, so no line ends on a bare "Fixed" nor reads "Fan: Fixed". */
   it('binds an AIR fan´s mode to its name', () => {
     const fan = { ...device(), type: 'fan', configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } } as unknown as Device;
     const line = outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null).text;
 
-    expect(line).toBe('Fan: Fixed · By day 70 % · At night 40 %');
+    expect(line).toBe('Fan fixed · By day 70 % · At night 40 %');
   });
 
   /**
    * The one rule of a line that sums up a device. A fan silent since 13:54 whose mode was changed at 16:07 read "as of
-   * 13:54 · Fan: By temperature": a setting dated to a moment at which the device held another.
+   * 13:54 · Fan by temperature": a setting dated to a moment at which the device held another.
    */
   it('dates what a silent device reported and says a setting it has not been handed as stored, never as of then', () => {
     const saved = NOW.minus({ minutes: 20 }).toISO()!;
@@ -890,11 +890,11 @@ describe('what a row says about the page behind it', () => {
     } as unknown as Device;
     const waits = new Map([['mode', { field: 'mode', held: 0, savedAt: saved }]]);
     expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits)).toEqual({
-      text: 'Fan: By temperature saved at 11:40, not with the device yet',
+      text: 'Fan by temperature saved at 11:40, not with the device yet',
       warn: true,
     });
     // Handed to the device before it fell silent, the setting is what is stored and carries no date either.
-    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54').text).toBe('Fan: By temperature');
+    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54').text).toBe('Fan by temperature');
 
     // A fridge's lamp is a report and stands as of then; its fans are settings, and the one stored since is said as that.
     const fridge = {
@@ -911,7 +911,7 @@ describe('what a row says about the page behind it', () => {
     // Only the place's own device is read for what it has not taken: a further device's settings stand as stored.
     expect(
       outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits).text,
-    ).toBe('as of 09:54 · Light 100 % · Fan: By temperature');
+    ).toBe('as of 09:54 · Light 100 % · Fan by temperature');
     expect(notTaken(t, 'Control off', saved, NOW, null)).toBe('Control off saved at 11:40, not with the device yet');
   });
 
@@ -943,7 +943,7 @@ describe('what a row says about the page behind it', () => {
 
     expect(
       outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(second, sockets(), level), outputsOf(lamp, sockets(), level)], NOW, null).text,
-    ).toBe('Light 100 % · Second controller: Light 100 % · Light 100 %');
+    ).toBe('Light 100 % · Second controller · Light 100 % · Light 100 %');
   });
 
   it('says the mode that runs and what else its page offers', () => {
@@ -1303,7 +1303,7 @@ describe('the plan panel', () => {
 
     expect(screen.getAllByText('Completed')[0]).toBeInTheDocument();
     expect(screen.queryByText(/Step 1 of/)).not.toBeInTheDocument();
-    expect(screen.getByText('Every step has run. Starting it again begins at step 1.')).toBeInTheDocument();
+    expect(screen.getByText('Every step has run; started again, it begins at step 1.')).toBeInTheDocument();
   });
 
   it('dates the last time the step reached the controller rather than claiming it is running it', () => {

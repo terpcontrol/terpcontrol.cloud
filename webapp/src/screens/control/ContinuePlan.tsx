@@ -1,6 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useDevicePlan, usePlanTransition } from '@/api/plans';
+import { planMoved, useDevicePlan, usePlanTransition } from '@/api/plans';
 import type { Device } from '@fg2/shared-types/v1';
 import { useLog } from '@/log/log-context';
 import { SettingRow } from '@/ui/advanced/SettingRow';
@@ -17,11 +18,13 @@ import styles from './ContinuePlan.module.css';
  *
  * The step chosen starts from nought, as the engine starts any step, and a
  * plan that was paused or put away runs again; the question says so first
- * (`Asking`). It draws nothing for a device without steps.
+ * (`Asking`), and that the step switches regulation back on where it is off.
+ * It draws nothing for a device without steps.
  */
 export function ContinuePlan({ device }: { device: Device }) {
   const { t } = useTranslation();
   const { tell } = useLog();
+  const client = useQueryClient();
   const plan = useDevicePlan(device.id);
   const move = usePlanTransition(device.id);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -36,6 +39,7 @@ export function ContinuePlan({ device }: { device: Device }) {
   const index = steps.findIndex(step => step.id === pick);
   const step = steps[index];
   const label = (number: number, name: string) => t('continuePlan.step', { number, name });
+  const switchedOff = device.control?.running === false;
 
   return (
     <>
@@ -66,7 +70,12 @@ export function ContinuePlan({ device }: { device: Device }) {
 
       {asking && step ? (
         <Asking
-          note={t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' })}
+          note={[
+            t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' }),
+            switchedOff ? t('continuePlan.switchesOn') : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           yes={t('continuePlan.yes', { number: index + 1 })}
           busy={move.isPending}
           onYes={() =>
@@ -76,7 +85,12 @@ export function ContinuePlan({ device }: { device: Device }) {
                 onSuccess: () => {
                   setAsking(false);
                   setChosen(null);
-                  tell({ label: t('continuePlan.done', { number: index + 1, name: step.name }), undo: null, from: `plan-${device.id}` });
+                  if (switchedOff) void planMoved(client);
+                  tell({
+                    label: t(switchedOff ? 'continuePlan.doneOn' : 'continuePlan.done', { number: index + 1, name: step.name }),
+                    undo: null,
+                    from: `plan-${device.id}`,
+                  });
                 },
               },
             )

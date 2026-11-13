@@ -894,6 +894,50 @@ describe('the rule sheet', () => {
     expect(api.post).not.toHaveBeenCalled();
   });
 
+  /** Over 70 and under 80 is every value: such a rule fired at once and went on firing. */
+  it('refuses two edges that contradict each other from the moment both are typed, before the server has to', async () => {
+    const sheet = await openNew();
+    const save = within(sheet).getByRole('button', { name: 'Save the alarm' });
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Humidity' }));
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '70' } });
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '80' } });
+
+    const said = 'That would fire at every value: the figure under “below” has to be smaller than the one under “above”.';
+    expect(within(sheet).getByRole('alert')).toHaveTextContent(said);
+    expect(within(sheet).getByLabelText(/^above/)).toBeInvalid();
+    expect(within(sheet).getByLabelText(/^below/)).toHaveAccessibleDescription(said);
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription(said);
+    fireEvent.click(save);
+    expect(api.post).not.toHaveBeenCalled();
+
+    // Equal edges leave a single value quiet, which is no rule either; a band the other way round is one.
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '70' } });
+    expect(save).toBeDisabled();
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '40' } });
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
+    expect(save).toBeEnabled();
+  });
+
+  it('says the server’s refusal of contradicting edges in the sheet’s own words', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({
+        status: 422,
+        code: 'limits_contradict',
+        title: 'Invalid',
+        detail: 'A rule is quiet only between its two limits, and these leave no room between them.',
+        errors: [{ field: 'watch.lower', code: 'not_below_upper', detail: 'It would ring below 80 and above 70, which is every value.' }],
+      }),
+    );
+    const sheet = await openNew();
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '30' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
+
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('That would fire at every value');
+  });
+
   it('creates a rule with exactly the body the contract names', async () => {
     const sheet = await openNew();
 
@@ -1192,6 +1236,10 @@ describe('the rule sheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete the alarm' }));
     expect(api.delete).not.toHaveBeenCalled();
+    // The one danger style: the yes is filled in the alarm's red, never the brand green.
+    expect(within(sheet).getByRole('button', { name: 'Delete it' }).className).toMatch(/dangerFilled/);
+    expect(within(sheet).getByRole('button', { name: 'Delete it' }).className).not.toMatch(/primary/);
+    expect(within(sheet).queryByRole('button', { name: 'Save the alarm' })).not.toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete it' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hook'));
