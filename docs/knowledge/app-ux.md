@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-13
-source: round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
+source: where the rounds of place and room and of Ich and Meldungen meet - an alert's place, one list of what is due, the answer to "Widerrufen" (the redesign session of 2026-11-13, not Chris); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -116,10 +116,14 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     lands on the sign-in page under "Dein Konto ist gelöscht.".
   - *E-mail is switched on one way* (`mailOn`, `screens/notifications/write.ts`): the card's switch and the
     notice's "Per E-Mail benachrichtigen" send the same request - what can call on the account, critical alarms
-    and due tasks - and are answered by the same toast, whose way back removes only what that tap set. The green
-    receipt stands only while what it says holds.
+    and due tasks - and are answered by the same toast, whose way back removes only what that tap set. **What
+    e-mail carries is said in one wording, read off the grid** (`inWords`, `screens/notifications/settings.ts`;
+    `mailSaid`, `reach.ts`): the card's line, the notice's title, the tap's receipt and its toast name the rows
+    the write routes, whole rows as the server routes them. The green receipt stands only while what it says
+    holds.
   - *A quiet-hours time is saved on a pause, on leaving the field and on leaving the page*, never per keystroke;
-    the row's title follows the fields, and a window of no length is refused in place with a sentence.
+    the row's title follows the fields, and a window of no length is refused in place with a sentence, beside
+    which the title keeps the window that is saved.
   - *The export is found again*: the row shows the file this browser asked for, also after a reload, and offers
     a new one beside it once the file is older than the hour the route answers unchanged.
   - *The screens of whoever runs the install are behind Verwaltung*: the row opens the fleet, the four screens
@@ -134,8 +138,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   channel of this account for an hour, answered by a toast and taken back there - with the page's one help
   button. "Offen": a card per alert still standing, the worst first, and one per update that waits for
   somebody's word ("Firmware … ist da", for a device whose updates are off). "Aufgaben", where the diary is
-  kept: the rows of Start's "Heute" (`DueList`, `screens/start/Today.tsx`) and "Alle Aufgaben und Erinnerungen ›"
-  to the task list. "Vorbei": the alerts that are over as rows, more behind "Früher"; a row opens the whole of
+  kept or a plan step waits: the rows of Start's "Heute" (`DueList`, `screens/start/Today.tsx`) and, with the
+  diary, "Alle Aufgaben und Erinnerungen ›" to the task list. "Vorbei": the alerts that are over as rows, more behind "Früher"; a row opens the whole of
   it in a sheet, with its curves and "Löschen". At the foot, "Benachrichtigungen einstellen ›".
   - *An alert is a sentence*: "Luftfeuchte zu hoch", a reading by its full name ("Blatttemperatur"), a device
     gone quiet and a camera without pictures by their names; under it since when, where and how far out ("seit
@@ -155,19 +159,32 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     "Regel bearbeiten" for whoever manages it, and the notification settings where the alarm reaches nobody. One
     silence of each kind stands on the page: the account's in the head, a rule's behind its card's ⋯. A device
     gone quiet offers what to try behind "Was du tun kannst". Maintenance is not started here (§5).
-  - *"Vorbei" stands in the order of its label*: what ended last, first; a row says where (once the account
-    sees more than one place) and when - the hour today, the day before that -, and the same thing happening
+  - *An alert is shown under the place name it carries* (`Alert.spaceName`; the redesign session of 2026-11-13,
+    where the rounds of place and room and of Meldungen meet): an open alert stands where its device stands - it
+    moves with the device, so the card, its ⋯, "Regel bearbeiten" and "Verlauf öffnen" name that place and Start
+    marks that place alone -, and one that is over keeps the place it happened in, an ended place by the name it
+    had. No card, row or sheet shows an id; without a name a card says the kind of thing. What a card offers
+    goes by that place: the ⋯ and "Löschen" need `manage` there, looked up among the places in use and, for an
+    ended one, among the account's ended places; "Verlauf öffnen" is offered only for a place in use. A ⋯ exists
+    from two items on - one item is a button in the row.
+  - *"Vorbei" stands in the order of its label*: what ended last, first; a row says where (unless it is the
+    reader's only place) and when - the hour today, the day before that -, and the same thing happening
     again and again in one place on one day is one row, folded by the function Start's "Zuletzt" folds with
     ("8× seit 04:59", `foldSame`, `screens/grow/diary/days.ts`). The sheet says how far it went against which
-    bound; under a minute is "kurz". The list is ordered over what has been read: the server pages it by when
+    bound; under a minute is "kurz"; "seitdem wieder im Ziel" is said only while the same rule on the same device
+    is not open again. "Löschen" on a folded row deletes every episode in it, asked by their number ("4 Meldungen
+    löschen") and answered by one toast. The list is ordered over what has been read: the server pages it by when
     an alert began, so one that began long ago and ended late appears once "Früher" has read its page. Coming
     back from "Verlauf öffnen" finds the rows that were unfolded, the open sheet and the scroll (`ui/kept.ts`).
   - *The bell counts what the page lists* (`app/shell/bell.ts`): the alerts still standing and the updates
-    waiting; with nothing open, the reader's own due tasks. **The count and the page's task rows are one read**,
-    the task list as `/tasks` filters it under "Meine" (`useDueEverywhere`, `screens/start/due.ts`): a task with
-    somebody else's name on it is neither counted nor listed. It is read on the alerts' beat and on focus, so a
-    task ticked in one tab leaves the other's bell; an account without a diary and the demo are not asked.
-    Start's "Heute" stays the place's list, whoever a task is for.
+    waiting; with nothing open, what is due for the reader. **What is due for me is one list** (`useDue`,
+    `screens/start/due.ts`): the task list's "Heute" under "Meine", less what the reader may not settle - `log`
+    where a reminder stands, `manage` for a plan step, the roles the server asks. Start's "Heute", a place card's
+    "n Aufgaben fällig", the inbox's "Aufgaben" and the bell read it, and `/tasks` decides a tick by the same
+    answer (`useSubjects`). A task with somebody else's name on it is on `/tasks` under "Alle" only; a reader who
+    may only look is offered no row; a row about a place names the place, one about a grow the grow and where it
+    stands. The diary's reminders come with the diary, a waiting plan step also without it, to whoever steers a
+    place. It is read on the alerts' beat and on focus, so a task ticked in one tab leaves the other's bell.
   - *Not built: "Erledigt" on an open card.* The prototype keeps an alert that got better under "Offen" until
     somebody ticks it. The server knows open and over and nothing between, so such an alert stands under
     "Vorbei" at once; keeping it open needs a stored field and is Chris's to decide.
@@ -402,7 +419,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Teilen".
   - *Name, kind and room are one save*, answered by a toast that names each change and takes all of it back
     ("Zelt 1 heißt jetzt Blütezelt · Blütezelt steht jetzt in Dachboden"); the toast says the room's stored name,
-    not what was typed, and "Widerrufen" is answered with what holds again. A kind changed alone reads "<Name> ·
+    not what was typed, and "Widerrufen" is answered with what holds again (in the shared toast, §5). A kind changed alone reads "<Name> ·
     Art: Balkon"; after a rename in the same toast, "Art: …" alone. Renaming or regrouping writes nothing
     into a grow. Without a connection the save fails at once, with the sentence for a lost connection and the
     button to send it again: every write is sent whatever the browser believes about the connection (`WRITES`,
@@ -1028,6 +1045,13 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *A plan's moves name what happened*: "„Plan“ pausiert" is taken back by continuing; a plan continued,
     started, confirmed, extended, skipped, stopped, removed or continued at a step of one's own choosing sends or
     ends something and is only said (`told`, `screens/control/PlanPanel.tsx`).
+- **"Widerrufen" answers, in the toast it stood in** (`log/LogProvider.tsx`; the redesign session of 2026-11-13):
+  once its way back has landed, the toast stays where it stood, without a button, and says so - "Widerrufen: …"
+  with what it had said, or "Widerrufen · …" with what holds again where the caller hands that along (`undone`
+  of `tell`: a label that says "jetzt" needs it). This holds for every undo in the app, a diary line's and a
+  tick's included; no page writes a second toast of its own. A way back that was refused says so with "Nochmal
+  versuchen", which shows that it is trying. The newest toast stands at the edge the stack hangs on - over the
+  bar, at the window's foot, against an open sheet's box - so none moves when another's time is up.
 - **Toasts do not pile up** (`log/toast-room.ts`, `log/Toasts.tsx`; the redesign session of 2026-11-12, after its
   critic's walk): at most two stand. A control that may be used again at once names itself (`from` of `tell`) and
   its next answer takes the place of its last - five steps of the light limit are one toast. Beyond that the

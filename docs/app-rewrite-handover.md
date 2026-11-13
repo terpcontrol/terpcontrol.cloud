@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-13
-source: Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -161,13 +161,14 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     together on the session's stack: both lists are built and the server's rules for place and room hold under
     direct attack, with one gap (an ended room still took a share link). No blocker, three majors and ten
     minors, all in what an alert, a task and a guest are told after a move or a removal; decided by the redesign
-    session, not Chris's word. The server's and the place pages' part is built (2026-11-13; the server's seen in
-    tests only, not yet walked), the inbox's, Start's tasks' and Ich's part is not:
+    session, not Chris's word. Both parts are built (2026-11-13) and not yet walked: the server's and the place
+    pages', and the inbox's, Start's tasks' and Ich's:
       - An open alert stands where its device stands: it moves with the device in the same write
         (`DevicesService.place`), and giving a device up deletes its alerts as before; an alert that is over
         keeps the place it happened in, and every alert read names that place (`Alert.spaceName`, an ended
-        place's too). Built on the server; the cards, rows and sheets of Meldungen and Start's marks still read
-        the old way. For open alerts this replaces "an alarm counts for the place it was raised in"; for
+        place's too). The cards, rows and sheets of Meldungen read that name and never an id, a card's actions go
+        by the place its device stands in, and "Löschen" on an alert of an ended place by the account's ended
+        places; "Verlauf öffnen" is not offered for a place that has ended. For open alerts this replaces "an alarm counts for the place it was raised in"; for
         Verlauf's past that stays. Migration step 030 moves the open alerts earlier moves left behind.
       - "Ort entfernen" keeps every answer across a refusal - a camera's "entkoppeln" was dropped by the re-read
         and never sent - and a place's reminders end with the place, said in the confirmation (built; step 029
@@ -175,8 +176,16 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
       - A guest whose access ended while the app is open is told so, and bell and tasks follow (built).
       - An ended room takes no share link; a claim names the place it makes in its own write; the cross of
         the claim says where the device hangs (built).
-      - Not built yet: Start's "Heute", the inbox and the bell offer one list of what is due for me; deleting
-        a folded "Vorbei" row deletes the fold; every "Widerrufen" answers, from the shared toast.
+      - Start's "Heute", a place card's count, the inbox and the bell read one list of what is due for me - the
+        task list's "Heute" under "Meine", less what the reader may not settle; a task with somebody else's name
+        is on `/tasks` under "Alle" only, and a reader who may only look is offered no row. Deleting a folded
+        "Vorbei" row deletes the fold, asked by its number. Every "Widerrufen" answers in the toast it stood in.
+        E-mail says what it carries in one wording, read off the grid.
+      - Left by this part: Start still ranks its cards by the home's `dueTasks` (`screens/start/attention.ts`),
+        which nothing else in the app reads any more - once it follows the one list, `dueTasks` on the home and
+        the overview are contract fields to remove, which is Chris's to say; a past alert of a device that has
+        since moved opens Verlauf of the old place with a device that no longer stands there; and whether an
+        ended place's Verlauf should stay readable is open.
   - Round 7 (Ich and Meldungen), state of 2026-11-13 (the redesign session; rules in
     [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built:
     Ich as one card of rows with a page per subject - the zone moved to Konto, the diary's answers to a page of
