@@ -58,6 +58,8 @@ const state = vi.hoisted(() => ({
   capture: null as TestCapture | null,
   /** A press that got no answer at all. */
   captureError: null as unknown,
+  /** A press still waiting for its answer. */
+  capturing: false,
   /** Whether the account keeps a grow diary, whose films are a phase and a whole grow. */
   diary: true,
   /** The account's devices, which a camera read through one goes dark with; null is a read still out. */
@@ -159,7 +161,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
     mutate: (_: undefined, options?: { onSuccess?: (answer: TestCapture) => void }) => state.capture && options?.onSuccess?.(state.capture),
     data: state.capture ?? undefined,
     error: state.captureError,
-    isPending: false,
+    isPending: state.capturing,
   }),
   useRequestTimelapse: () => ({
     mutate: (body: TimelapseCreate, options?: { onSuccess?: (accepted: { media: unknown }) => void }) => {
@@ -292,6 +294,7 @@ beforeEach(() => {
   state.zone = 'UTC';
   state.lastStill = null;
   state.capture = null;
+  state.capturing = false;
   state.captureError = null;
   state.diary = true;
   state.devices = null;
@@ -636,6 +639,42 @@ describe('the camera page, by who is reading', () => {
     expect(screen.getByRole('button', { name: 'Take a picture now' })).not.toHaveAttribute('aria-disabled');
   });
 
+  /**
+   * A device that has missed its reports opens no relay: a press then waited out the server's whole read (the critic
+   * watched "Taking a picture …" for 45 s beside a camera that had not delivered for minutes). Not offered while the
+   * device is not heard, with the reason beside it, and a press it fell silent under is dropped rather than left hanging.
+   */
+  it('holds the picture button while the device it is read through is late with its reports, and drops a press made before', async () => {
+    const carrier = (secondsAgo: number) =>
+      ({
+        id: 'device-1',
+        name: null,
+        type: 'controller',
+        spaceId: 'space-1',
+        state: { lastSeenAt: serverNow().minus({ seconds: secondsAgo }).toISO()! },
+      }) as unknown as Device;
+    state.devices = [carrier(5 * 60)];
+    const drawn = drawPage();
+
+    const button = screen.getByRole('button', { name: 'Take a picture now' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('Controller is not reporting just now – possible again once it does.')).toBeInTheDocument();
+    // Not the box of a device that is gone: it is late, not offline.
+    expect(screen.queryByText(/is read through the device/)).not.toBeInTheDocument();
+    drawn.unmount();
+
+    // A press made while it was heard, and still waiting when it fell silent: the button says it can be pressed again later.
+    state.capturing = true;
+    state.devices = [carrier(5)];
+    const live = drawPage();
+    expect(screen.getByRole('button', { name: 'Taking a picture …' })).toBeDisabled();
+    live.unmount();
+    state.devices = [carrier(3 * 60)];
+    drawPage();
+    expect(screen.queryByRole('button', { name: 'Taking a picture …' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
   it('names a press the server turned down because the device was offline as that', () => {
     expect(causeOf('the device this camera is read through is offline since 2026-10-03T18:48:00.401Z')).toBe('camera.failure.deviceOffline');
   });
@@ -704,7 +743,7 @@ describe('the picture', () => {
     drawPage(delivering());
 
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-newest');
-    expect(screen.getByText(/^today, \d\d:\d\d$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Picture from \d\d:\d\d$/)).toBeInTheDocument();
     expect(pill()).toHaveAttribute('data-liveness', 'live');
     expect(pill()).toHaveTextContent(/^online · \d+ s ago$/);
   });
@@ -740,7 +779,7 @@ describe('the picture', () => {
 
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-old');
     expect(screen.getByRole('img').parentElement).toHaveAttribute('data-age', 'offline');
-    expect(screen.getByText('last picture 19 Sep 12:00')).toBeInTheDocument();
+    expect(screen.getByText('last picture from 19 Sep 12:00')).toBeInTheDocument();
     expect(pill()).toHaveTextContent('no picture since 19 Sep 12:00');
     // Its alt text names the instant too: read aloud, an old picture is not "just now".
     expect(screen.getByRole('img')).toHaveAccessibleName('Terp Cam 1 at 19 Sep 12:00');
@@ -767,7 +806,7 @@ describe('the picture', () => {
     state.lastStill = 'still-old';
     drawPage();
 
-    expect(screen.getByText('last picture 19 Sep 21:00')).toBeInTheDocument();
+    expect(screen.getByText('last picture from 19 Sep 21:00')).toBeInTheDocument();
   });
 });
 
@@ -824,7 +863,7 @@ describe('the days under the picture', () => {
     expect(slider()).toHaveAttribute('aria-valuetext', 'Day 34, 18 Sep 12:00');
     expect(screen.getByText('Day 34 of 35')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-34');
-    expect(screen.getByText('18 Sep 12:00')).toBeInTheDocument();
+    expect(screen.getByText('Picture from 18 Sep 12:00')).toBeInTheDocument();
     expect(screen.getByText('· Day 34', { exact: false })).toBeInTheDocument();
   });
 
@@ -1255,8 +1294,12 @@ describe('the films', () => {
 
     expect(container.querySelector('video')).toHaveAttribute('src', '/media/film-today');
     expect(container.textContent).toContain('19 Sep 00:00 → 19 Sep 10:59');
-    fireEvent.click(screen.getByRole('button', { name: 'Close', expanded: true }));
+    // Putting the film away is not the screen's main action: the button that does it is a quiet one.
+    const close = screen.getByRole('button', { name: 'Close the film', expanded: true });
+    expect(close.className).not.toMatch(/primary/);
+    fireEvent.click(close);
     expect(container.querySelector('video')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Play the film' }).className).toMatch(/primary/);
   });
 
   /**
@@ -1435,7 +1478,7 @@ describe('the films', () => {
     expect(container.querySelectorAll('video')).toHaveLength(1);
     expect(container.querySelector('video')).toHaveAttribute('autoplay');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close', expanded: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close the film', expanded: true }));
     expect(container.querySelector('video')).toBeNull();
     expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
   });

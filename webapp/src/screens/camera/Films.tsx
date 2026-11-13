@@ -81,19 +81,10 @@ export function Films({
   return (
     <section className={`${ui.stack3} ${styles.films}`} aria-label={t('camera.timelapses')}>
       {offered.length > 0 ? (
-        <div className={`${ui.scrollRow} ${styles.spans}`} role="group" aria-label={t('camera.film.which')}>
+        // A row that wraps rather than scrolls: an edge never cuts a chip in two.
+        <div className={`${ui.wrap} ${styles.spans}`} role="group" aria-label={t('camera.film.which')}>
           {offered.map(one => (
-            <button
-              key={one.span}
-              type="button"
-              className={ui.chip}
-              aria-pressed={one.span === span?.span}
-              onClick={event => {
-                // The row scrolls sideways on a phone: the chip chosen comes in from the edge that cut it.
-                event.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-                setChosen(one.span);
-              }}
-            >
+            <button key={one.span} type="button" className={ui.chip} aria-pressed={one.span === span?.span} onClick={() => setChosen(one.span)}>
               {t(`camera.span.${one.span}`)}
               {one.span === 'grow' && camera.entitlement.tier === 'free' ? <span className={styles.premium}>{t('camera.premium')}</span> : null}
             </button>
@@ -104,9 +95,10 @@ export function Films({
       {film || beside || (span && mayManage && span.reason === null) ? (
         <div className={styles.actions}>
           {film ? (
+            // Putting a playing film away is no screen's main action: the green is for playing it.
             <button
               type="button"
-              className={`${ui.button} ${ui.primary}`}
+              className={shown ? ui.button : `${ui.button} ${ui.primary}`}
               aria-expanded={shown}
               onClick={() => setPressed({ id: film.id, playing: !shown })}
             >
@@ -124,7 +116,7 @@ export function Films({
 
       {span?.reason && !film ? <p className={ui.note}>{span.reason}</p> : null}
       {span?.premium && !film ? (
-        <Link to="/me/premium" className={`mono ${styles.textLink}`}>
+        <Link to="/me/premium" className={styles.textLink}>
           {t('camera.seePremium')} ›
         </Link>
       ) : null}
@@ -166,7 +158,7 @@ export function FilmsSheet({ camera, me, mayOwn, onClose }: { camera: Camera; me
           </button>
         ) : null}
         {mayOwn && me?.notifications && !rowReaches(me, 'weekly_timelapse') ? (
-          <Link to="/me/notifications" className={`mono ${styles.textLink}`}>
+          <Link to="/me/notifications" className={styles.textLink}>
             {t('camera.weekFilmByMail')} ›
           </Link>
         ) : null}

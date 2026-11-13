@@ -33,7 +33,7 @@ import { Row, Rows } from '@/ui/Rows';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, DATED_CLOCK, nowThere, zoned, zoneOf } from '@/ui/zone';
+import { clock, DATED_CLOCK, zoned, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
 import { CameraSettings } from './CameraSettings';
 import { causeOf } from './capture-failure';
@@ -50,13 +50,14 @@ import styles from './CameraPage.module.css';
  * diary, to a film of one's own and to what the camera is set to.
  */
 export function CameraPage() {
+  const { t } = useTranslation();
   const { cameraId = '' } = useParams();
   const camera = useCamera(cameraId);
   usePageOfPlace(camera.data?.spaceId ?? null);
 
   if (camera.isPending) return <Waiting lines={3} />;
   if (camera.data) return <CameraScreen camera={camera.data} failedAt={camera.isError ? camera.dataUpdatedAt : null} />;
-  return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed retry={() => void camera.refetch()} />;
+  return noLongerThere(camera.error) ? <NoLongerHere what="camera" /> : <LoadFailed title={t('shell.gone.title.camera')} read={camera} />;
 }
 
 /** The least time between two writes of the address: a drag across a grow is as many days, and a browser refuses a hundred writes in ten seconds. */
@@ -158,7 +159,10 @@ function Watch({
   const throughDevice = camera.deviceId !== null && readsThroughDevice(camera);
   const devices = useDevices(throughDevice);
   const carrier = throughDevice ? (devices.data?.items.find(device => device.id === camera.deviceId) ?? null) : null;
-  const carrierOffline = carrier !== null && deviceLiveness(carrier.state.lastSeenAt, now) === 'offline';
+  const carrierHeard = carrier ? deviceLiveness(carrier.state.lastSeenAt, now) : null;
+  const carrierOffline = carrierHeard === 'offline';
+  // A device that has missed its reports opens no relay either: a press would wait out the whole read for nothing.
+  const carrierSilent = carrierHeard !== null && carrierHeard !== 'live';
   const freshness = cameraFreshness(camera, now);
 
   const [asked, setAsked] = useDayInAddress();
@@ -197,15 +201,12 @@ function Watch({
   const picture = day ?? live;
   const shownDay = day?.dayNumber ?? lastDay;
   const old = day === null && freshness === 'offline';
+  // One form for a picture's caption, as Start's picture has it: "Bild von 18:17", with what makes it not the newest in front.
   const moment = !picture
     ? null
-    : day
-      ? zoned(picture.capturedAt, zone).toFormat(DATED_CLOCK)
-      : old
-        ? t('camera.picture.last', { time: sinceLabel(picture.capturedAt, now, zone) })
-        : live?.dark
-          ? t('camera.picture.lightOff', { time: sinceLabel(picture.capturedAt, now, zone) })
-          : todayOr(t, picture.capturedAt, now, zone);
+    : t(old ? 'camera.picture.last' : live?.dark && !day ? 'camera.picture.lightOff' : 'start.picture.takenAt', {
+        time: day ? zoned(picture.capturedAt, zone).toFormat(DATED_CLOCK) : sinceLabel(picture.capturedAt, now, zone),
+      });
 
   const films = filmsOfEachSpan(itemsOf(useTimelapses(camera.id).data));
   const ask = useRequestTimelapse(camera.id);
@@ -267,7 +268,7 @@ function Watch({
               alt={t('camera.frameAlt', { name: camera.name, time: zoned(picture.capturedAt, zone).toFormat(DATED_CLOCK) })}
             />
           ) : (
-            <p className={`mono ${ui.matNote}`}>{t(camera.state.lastStillAt ? 'home.waiting' : 'camera.noPicture')}</p>
+            <p className={ui.matNote}>{t(camera.state.lastStillAt ? 'home.waiting' : 'camera.noPicture')}</p>
           )}
           {picture ? (
             <span className={styles.labels}>
@@ -327,19 +328,28 @@ function Watch({
           ask={{ make, pending: ask.isPending, error: ask.error, job }}
           beside={
             mayManage ? (
-              // Held while the device is offline, which the box above says in full; the sentence under the row says it short.
+              // Held while the device is silent, and dropped from a press it fell silent under, which then never answers:
+              // the box above says it in full where the device is offline, the sentence under the row says it short.
               <button
                 type="button"
                 className={ui.button}
-                aria-disabled={carrierOffline || undefined}
-                disabled={test.isPending}
-                onClick={carrierOffline ? undefined : shoot}
+                aria-disabled={carrierSilent || undefined}
+                disabled={test.isPending && !carrierSilent}
+                onClick={carrierSilent ? undefined : shoot}
               >
-                {t(test.isPending ? 'camera.testing' : 'camera.testImage')}
+                {t(test.isPending && !carrierSilent ? 'camera.testing' : 'camera.testImage')}
               </button>
             ) : null
           }
-          below={mayManage ? <Shot test={test} mayOwn={mayOwn} offline={carrierOffline} /> : null}
+          below={
+            mayManage ? (
+              <Shot
+                test={test}
+                mayOwn={mayOwn}
+                silent={carrier && carrierSilent ? { device: deviceName(carrier, t), offline: carrierOffline } : null}
+              />
+            ) : null
+          }
         />
 
         <Rows>
@@ -368,10 +378,6 @@ function Watch({
   );
 }
 
-/** "heute, 12:00" for a picture of the day the account is having, its day and hour for an older one. */
-const todayOr = (t: Translate, at: string, now: DateTime, zone: string | null): string =>
-  zoned(at, zone).hasSame(nowThere(now, zone), 'day') ? t('camera.picture.today', { time: clock(at, zone) }) : sinceLabel(at, now, zone);
-
 /**
  * How old the camera's read is, as the pill in the head says it: online with
  * the age of its newest picture, late with that age alone, and once it has
@@ -392,11 +398,20 @@ const pillOf = (t: Translate, camera: Camera, freshness: string, waitsFor: strin
  * never reached the server is not that: the camera was not asked. The press
  * waits as long as the server's read may take and a little longer.
  */
-function Shot({ test, mayOwn, offline }: { test: ReturnType<typeof useTestCapture>; mayOwn: boolean; offline: boolean }) {
+function Shot({
+  test,
+  mayOwn,
+  silent,
+}: {
+  test: ReturnType<typeof useTestCapture>;
+  mayOwn: boolean;
+  /** The device the camera is read through, where it is not heard: offline, or late with its reports. */
+  silent: { device: string; offline: boolean } | null;
+}) {
   const { t } = useTranslation();
   const failed = test.data?.state === 'failed' ? test.data : null;
 
-  if (offline) return <p className={ui.note}>{t('camera.testOffline')}</p>;
+  if (silent) return <p className={ui.note}>{t(silent.offline ? 'camera.testOffline' : 'camera.testSilent', { device: silent.device })}</p>;
   if (test.isPending) return null;
   if (test.error) {
     return (
