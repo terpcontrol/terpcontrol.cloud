@@ -247,9 +247,10 @@
         "named": "{{was}} is now called {{name}}",
         "moved": "{{name}} is now in {{place}}",
         "with": "with {{what}}"
-      }
+      },
+      "rename": "Rename"
     },
-    "unnamed": "{{type}} · {{tag}}",
+    "unnamed": "{{type}} · {{tag}}",
     "hold": {
       "label": "Hold {{name}} by hand",
       "for": {
@@ -1467,7 +1468,7 @@
       "lightAgainAt": "on again at {{at}}",
       "lightAgainSince": "on again since {{at}}",
       "openCurves": "Curves of this day",
-      "measuredBy": "{{name}} measures from {{at}}"
+      "measuredBy": "{{name}} measures from here on"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -1815,7 +1816,8 @@
         "show": "Code · QR",
         "showOf": "Show {{code}} as a code and a QR",
         "revokeOf": "Revoke the link {{code}}",
-        "into": "for {{name}}"
+        "into": "for {{name}}",
+        "revokeAsk": "Nobody joins {{name}} with this link any more; it cannot be taken back."
       },
       "sheet": {
         "title": "Invite to {{name}}",
@@ -1832,12 +1834,6 @@
           "week": "7 days",
           "never": "until revoked"
         },
-        "needAccount": "They need their own account (e-mail, username and password).",
-        "sees": "They see: {{what}}.",
-        "seesRoom": "They see: every place in {{name}}, what is growing there, and the cams.",
-        "whatGrows": "what is growing in it",
-        "theCams": "the cams",
-        "doesNotSee": "They can also read every grow that stood here before, private ones too. They do not see: your other places, or grows that never stood here.",
         "make": "Make the link",
         "making": "Making the link …",
         "waysLabel": "How to hand it over",
@@ -3540,7 +3536,7 @@
       "claim_code_unknown": "No device is showing that code. Read it off the display again.",
       "device_already_yours": "You have already added this device. You find it under Control.",
       "device_claimed": "That device already belongs to somebody else. It has to be removed there first.",
-      "space_archived": "That place has ended. Bring it back before putting anything in it.",
+      "space_archived": "That place has been removed. Choose another.",
       "capability_not_announced": "This device has not said it understands that. It needs newer firmware.",
       "device_sent_no_settings": "This device has not sent its settings yet, so there is nothing to write into.",
       "device_states_no_climate": "This device states no climate, so there is nowhere to write one.",
@@ -3552,7 +3548,7 @@
       "camera_here": "A camera still looks in here.",
       "grow_here": "A grow is still running here.",
       "space_here": "Places still stand in this room.",
-      "member_here": "Other people are still members here - take them out under Members first."
+      "room_ended": "That room is gone: it ended with its last place."
     }
   },
   "alarmLine": {
@@ -3841,7 +3837,7 @@
     },
     "invite": {
       "title": "Inviting",
-      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. A username you already share a place with is added at once as can log, without being asked."
+      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. Whoever joins needs an account of their own (e-mail, username and password) and sees the place – for a room, every place in it –, what is growing there, the cams and every grow that stood there before, private ones too; not your other places, or grows that never stood there. A username you already share a place with is added at once as can log, without being asked."
     },
     "diaryLayer": {
       "title": "Grow diary",
@@ -4167,9 +4163,6 @@
       },
       "kept": "Curves and pictures up to today stay with the grow {{names}}.",
       "curves": "After that you see the curves of {{name}} only with grows that stood here.",
-      "guests_one": "{{count}} person is still let in. Let them go first.",
-      "guests_other": "{{count}} people are still let in. Let them go first.",
-      "toGuests": "To who is let in",
       "remove": "Remove {{name}}",
       "removing": "Removing …",
       "cancel": "Cancel",
@@ -4184,7 +4177,11 @@
         "remove": "{{name}} is removed",
         "with": "{{name}} moves along to the new place of {{beside}}",
         "nowhere": "{{name}} then stands in no fixed place",
-        "end": "{{name}} is ended"
+        "end": "{{name}} is ended",
+        "unseen_one": "{{name}} then no longer sees {{place}}",
+        "unseen_other": "{{name}} then no longer see {{place}}",
+        "roomEnds_one": "The room {{place}} ends – {{name}} then no longer sees it",
+        "roomEnds_other": "The room {{place}} ends – {{name}} then no longer see it"
       },
       "did": {
         "stands_one": "{{names}} now stands in {{place}}.",
@@ -4194,14 +4191,19 @@
         "release": "{{names}} given up.",
         "uncouple": "{{names}} unpaired.",
         "remove": "{{names}} removed.",
-        "end": "{{names}} ended."
+        "end": "{{names}} ended.",
+        "unseen_one": "{{names}} no longer sees {{place}}.",
+        "unseen_other": "{{names}} no longer see {{place}}.",
+        "roomEnds_one": "The room {{place}} has ended – {{names}} no longer sees it.",
+        "roomEnds_other": "The room {{place}} has ended – {{names}} no longer see it."
       },
       "half": {
         "still": "{{name}} is not removed yet.",
         "done": "Already done: {{what}}",
         "left": "Still here: {{names}}."
       },
-      "told": "{{name}} removed."
+      "told": "{{name}} removed.",
+      "last": "{{name}} is your only place, so it cannot be removed."
     }
   },
   "climatePick": {

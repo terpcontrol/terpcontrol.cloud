@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SpaceKind } from '@fg2/shared-types/v1';
 import { useDiaryLayer } from '@/api/layers';
 import { useMembers } from '@/api/members';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
+import { Facts } from '@/ui/Facts';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { Rows, RowText } from '@/ui/Rows';
 import { useMayIn } from '@/ui/session-access';
@@ -29,7 +29,7 @@ import styles from './Members.module.css';
  * The demo owns nothing and is told so rather than shown a list the server
  * will not answer.
  */
-export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name: string; kind: SpaceKind; roomId: string | null }) {
+export function Members({ spaceId, name, roomId }: { spaceId: string; name: string; roomId: string | null }) {
   const { t } = useTranslation();
   const now = useNow();
   const { user } = useSession();
@@ -59,6 +59,9 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
   // has as well; whether the first row is you is about who you are.
   const isYou = ownerId !== null && ownerId === user?.id;
   const ownerHandle = ownerId ? personOf(page, ownerId)?.handle : null;
+  // On one line, as facts side by side: who it is, and that they manage the place.
+  const owner = isYou ? t('space.members.you') : ownerHandle ? `@${ownerHandle}` : t('space.members.theOwner');
+  const owns = <span className={styles.owns}>{t(isYou ? 'space.members.youOwn' : 'space.members.owns')}</span>;
   const invitesId = `${spaceId}-invite`;
 
   return (
@@ -68,10 +71,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       <Rows>
         {/* The owner is the space's `ownerId` and never a membership row: there is nothing to change here. */}
         <div className={styles.person}>
-          <RowText
-            title={isYou ? t('space.members.you') : ownerHandle ? `@${ownerHandle}` : t('space.members.theOwner')}
-            line={t(isYou ? 'space.members.youOwn' : 'space.members.owns')}
-          />
+          <RowText title={<Facts facts={[owner, owns]} />} />
         </div>
         {guestsOf(page, spaceId).map(guest => (
           <PersonRow
@@ -96,12 +96,7 @@ export function Members({ spaceId, name, kind, roomId }: { spaceId: string; name
       </Rows>
 
       {mayWrite ? (
-        <InviteBlock
-          id={invitesId}
-          place={{ id: spaceId, name, kind }}
-          room={roomId && roomName ? { id: roomId, name: roomName, kind: 'room' } : null}
-          open={inviting}
-        />
+        <InviteBlock id={invitesId} place={{ id: spaceId, name }} room={roomId && roomName ? { id: roomId, name: roomName } : null} open={inviting} />
       ) : null}
 
       {leaving ? <RemoveSheet leaving={leaving} now={now} onClose={() => setLeaving(null)} /> : null}

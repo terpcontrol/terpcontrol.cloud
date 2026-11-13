@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Invite, SpaceKind } from '@fg2/shared-types/v1';
+import type { Invite } from '@fg2/shared-types/v1';
 import { useAddMember } from '@/api/members';
 import { useInvites, useRevokeInvite } from '@/api/invites';
 import { SHARE_LINKS } from '@/app/places';
+import { useLog } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { CopyButton } from '@/ui/CopyButton';
 import { typedHandle } from '@/ui/handle';
 import { Help } from '@/ui/Help';
@@ -17,7 +19,7 @@ import { inviteAddress, liveInvites, shownAddress } from './invites';
 import styles from './Invite.module.css';
 
 /** What an invitation lets somebody into: the place, or the room it stands in. */
-type Target = { id: string; name: string; kind: SpaceKind };
+type Target = { id: string; name: string };
 
 /**
  * The ways somebody gets into a place, under the list of who is in it.
@@ -27,6 +29,8 @@ type Target = { id: string; name: string; kind: SpaceKind };
  * being invited just now, so a link made yesterday is on the page today. Two
  * links can be out at once, and a block that showed the newest and stopped
  * only that one would tell a host a key was dead while another stayed live.
+ * The server keeps a revoked code revoked, so taking one back is asked first,
+ * in its card, and the toast that answers names what the link was for.
  *
  * Inviting (`open`) is two acts that are deliberately not the same. A **link**
  * goes to a stranger: a code anybody holding it may redeem, cut with a role
@@ -62,8 +66,9 @@ export function InviteBlock({ id, place, room, open }: { id: string; place: Targ
             <LinkRow
               key={invite.id}
               invite={invite}
+              into={targetOf(invite).name}
               // Which of the two it lets into is said only where there are two.
-              target={room ? targetOf(invite) : null}
+              apart={room !== null}
               onShow={() => setSheet({ target: targetOf(invite), shown: invite })}
             />
           ))}
@@ -95,52 +100,56 @@ export function InviteBlock({ id, place, room, open }: { id: string; place: Targ
         </>
       ) : null}
 
-      {sheet ? (
-        <InviteSheet
-          spaceId={sheet.target.id}
-          spaceName={sheet.target.name}
-          kind={sheet.target.kind}
-          shown={sheet.shown}
-          onClose={() => setSheet(null)}
-        />
-      ) : null}
+      {sheet ? <InviteSheet spaceId={sheet.target.id} spaceName={sheet.target.name} shown={sheet.shown} onClose={() => setSheet(null)} /> : null}
     </section>
   );
 }
 
 /** One code that is out: its address, what it is worth - read off the row the server answered -, and what can be done about it. */
-function LinkRow({ invite, target, onShow }: { invite: Invite; target: Target | null; onShow: () => void }) {
+function LinkRow({ invite, into, apart, onShow }: { invite: Invite; into: string; apart: boolean; onShow: () => void }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const revoke = useRevokeInvite(invite.spaceId);
+  const [asking, setAsking] = useState(false);
+  const { code } = invite;
+  const role = t(`space.members.role.${invite.role}`);
+  const stopped = [t('space.members.told.linkStopped', { code }), t('space.members.links.into', { name: into }), role].join(' · ');
+  const told = () => tell({ label: stopped, undo: null });
 
   return (
-    <li className={`${ui.card} ${styles.link}`} aria-label={invite.code}>
+    <li className={`${ui.card} ${styles.link}`} aria-label={code}>
       <div className={styles.addressRow}>
-        <code className={`mono ${styles.address}`}>{shownAddress(invite.code)}</code>
-        <CopyButton value={inviteAddress(invite.code)} label={t('space.members.copyLink')} />
+        <code className={`mono ${styles.address}`}>{shownAddress(code)}</code>
+        <CopyButton value={inviteAddress(code)} label={t('space.members.copyLink')} />
       </div>
       <div className={styles.termsRow}>
-        <InviteTerms invite={invite} into={target?.name} className={styles.terms} />
+        <InviteTerms invite={invite} into={apart ? into : undefined} className={styles.terms} />
         <span className={styles.termsActions}>
-          <button
-            type="button"
-            className={`${ui.chip} ${styles.finger}`}
-            aria-label={t('space.members.links.showOf', { code: invite.code })}
-            onClick={onShow}
-          >
+          <button type="button" className={`${ui.chip} ${styles.finger}`} aria-label={t('space.members.links.showOf', { code })} onClick={onShow}>
             {t('space.members.links.show')}
           </button>
           <button
             type="button"
             className={`${ui.chip} ${styles.finger}`}
-            aria-label={t('space.members.links.revokeOf', { code: invite.code })}
-            disabled={revoke.isPending}
-            onClick={() => revoke.mutate(invite.code)}
+            aria-label={t('space.members.links.revokeOf', { code })}
+            aria-expanded={asking}
+            onClick={() => setAsking(!asking)}
           >
             {t('space.members.revoke')}
           </button>
         </span>
       </div>
+      {asking ? (
+        <Asking
+          note={t('space.members.links.revokeAsk', { name: into })}
+          yes={t('space.members.revoke')}
+          danger
+          busy={revoke.isPending}
+          // Told from the promise: once the links are read again this row is gone. A refusal is said under the question.
+          onYes={() => void revoke.mutateAsync(code).then(told, () => null)}
+          onCancel={() => setAsking(false)}
+        />
+      ) : null}
       <Refused error={revoke.error} />
     </li>
   );

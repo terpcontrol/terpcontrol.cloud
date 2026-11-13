@@ -255,7 +255,7 @@ describe('a device on its own page', () => {
   it('tells two unnamed devices of a kind apart by the tail of their ids, and keeps a name a grower gave', async () => {
     wire.devices = [controller({ id: 'device-aaaabbbb-c0ffee' }), controller({ id: 'device-3' }), controller({ id: 'device-2', name: 'East tent' })];
     drawDevicePages('/devices/device-aaaabbbb-c0ffee');
-    expect(await screen.findByRole('heading', { name: /^Controller · \w+$/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /^Controller\s·\s\w{4}$/ })).toBeInTheDocument();
     cleanup();
 
     await draw('/devices/device-2', 'East tent');
@@ -774,7 +774,8 @@ describe('a device on its own page', () => {
       wire.youMay = 'manage';
       await draw();
 
-      expect(screen.getByRole('button', { name: /^Rename or move/ })).toBeInTheDocument();
+      // Where a device stands is asked of its owner alone: whoever manages it is offered its name.
+      expect(screen.getByRole('button', { name: /^Rename\s?in Tent 1$/ })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Give the device up' })).not.toBeInTheDocument();
     });
 
@@ -879,7 +880,7 @@ describe('a device on its own page', () => {
       wire.sockets = [socket()];
       await draw('/devices/device-1/sockets');
 
-      expect(screen.getByRole('button', { name: /^Rename or move/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Rename/ })).toBeInTheDocument();
       expect(screen.queryByRole('link', { name: /Heater/ })).not.toBeInTheDocument();
     });
 

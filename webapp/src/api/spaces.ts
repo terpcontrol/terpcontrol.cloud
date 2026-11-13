@@ -140,7 +140,8 @@ export const useCreateSpace = () =>
  * first (`remove-plan.ts`), then the place ends. Every step is a write of its
  * own, so one that is refused leaves what was done before it done: `note`
  * tells the page of each step as it goes through, and the next attempt is
- * handed only what is left. The server still refuses where people are let in.
+ * handed only what is left. Whoever is let in is let out by the server, with
+ * the place - and with its room, where that was the room's last place.
  *
  * A place is made in the step that moves its device into it. Where that move
  * fails the place is taken away again at once; where even that fails - the
@@ -184,8 +185,12 @@ export const useEndPlace = (spaceId: string) =>
       }
       await api.delete(`/spaces/${spaceId}`);
     },
-    // Read again whether it went through or stopped half-way: a place made on the way is then one to choose.
-    client => void invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']),
+    // Read again whether it went through or stopped half-way, and a refusal waits for those reads: what the page then
+    // calls still here is the place as it is, and a place made on the way is one to choose.
+    (client, _run, error) => {
+      const read = invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']);
+      return error ? read : undefined;
+    },
   );
 
 /** Where something goes when its place ends: a place that exists, the one made for a device in this attempt, or no place at all. */

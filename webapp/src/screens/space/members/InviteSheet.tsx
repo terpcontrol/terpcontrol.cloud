@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Invite, MemberRole, SpaceKind } from '@fg2/shared-types/v1';
+import type { Invite, MemberRole } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useCreateInvite } from '@/api/invites';
 import { useDiaryLayer } from '@/api/layers';
-import { useSpaceOverview } from '@/api/spaces';
 import { Sheet } from '@/ui/Sheet';
 import { useCopied } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
@@ -26,9 +25,9 @@ type Way = (typeof WAYS)[number];
  * characters to read aloud, and as a square to hold a phone up to.
  *
  * It is two screens on one sheet because the link does not exist until the
- * server has cut it. First the two questions - the role and the validity - and
- * the sentence that says what the guest will and will not see; then, once the
- * server has answered, the code it answered, and under it what that code
+ * server has cut it. First the two questions - the role and the validity,
+ * what a guest will and will not see behind the second's help -; then, once
+ * the server has answered, the code it answered, and under it what that code
  * grants read off the answer rather than off what was asked for. A code that
  * is already out opens the sheet on its second screen, so a host at a meeting
  * can show yesterday's link as a QR without cutting another.
@@ -36,13 +35,11 @@ type Way = (typeof WAYS)[number];
 export function InviteSheet({
   spaceId,
   spaceName,
-  kind,
   shown,
   onClose,
 }: {
   spaceId: string;
   spaceName: string;
-  kind: SpaceKind;
   /** A code already out, to be shown rather than made; null asks the two questions first. */
   shown: Invite | null;
   onClose: () => void;
@@ -108,7 +105,7 @@ export function InviteSheet({
           </div>
         </Block>
 
-        <Block label={t('space.members.sheet.valid')}>
+        <Block label={t('space.members.sheet.valid')} help="invite">
           <Choices label={t('space.members.sheet.valid')}>
             {VALIDITIES.map(one => (
               <Choice key={one} chosen={validity === one} onChoose={() => setValidity(one)}>
@@ -118,36 +115,9 @@ export function InviteSheet({
           </Choices>
         </Block>
 
-        <WhatTheySee spaceId={spaceId} spaceName={spaceName} kind={kind} />
         <Refused error={create.error} />
       </div>
     </Sheet>
-  );
-}
-
-/**
- * The board's sentence: that the guest needs an account of their own, what
- * they will see, and what they will not. What they will see names the grows
- * standing here when the tent's overview is already in hand - it is the page
- * this sheet opens over, so it costs nothing - and says "what is growing in
- * it" when it is not, rather than waiting for a read to finish a sentence.
- */
-function WhatTheySee({ spaceId, spaceName, kind }: { spaceId: string; spaceName: string; kind: SpaceKind }) {
-  const { t } = useTranslation();
-  const overview = useSpaceOverview(spaceId);
-  const grows = overview.data?.grows.map(grow => grow.name) ?? [];
-
-  const what =
-    kind === 'room'
-      ? t('space.members.sheet.seesRoom', { name: spaceName })
-      : t('space.members.sheet.sees', {
-          what: [spaceName, ...(grows.length > 0 ? grows : [t('space.members.sheet.whatGrows')]), t('space.members.sheet.theCams')].join(', '),
-        });
-
-  return (
-    <p className={styles.sentence}>
-      {t('space.members.sheet.needAccount')} {what} {t('space.members.sheet.doesNotSee')}
-    </p>
   );
 }
 

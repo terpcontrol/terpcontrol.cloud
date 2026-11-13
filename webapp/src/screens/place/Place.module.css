@@ -11,19 +11,13 @@
   padding-top: var(--space-2);
 }
 
-@media (min-width: 900px) {
-  .reading {
-    max-width: var(--reading-width);
-    padding-top: 0;
-  }
-}
-
 /* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. */
 .steering {
   width: 100%;
 }
 
 @media (min-width: 900px) {
+  .reading,
   .steering {
     max-width: var(--reading-width);
     padding-top: 0;
@@ -36,12 +30,21 @@
   }
 }
 
-
-
 /* "Ort bearbeiten" and "Ort entfernen": a head with the page's one action, the
-   fields, then what stands here and who is let in, each under its small title. */
+   fields, then what stands here and who is let in, each under its small title.
+   A name reads as it was typed: Inter's contextual alternates make "120x120"
+   a "120×120" in running text and not in a tracked heading. */
 .editing {
   gap: var(--space-4);
+  font-variant-ligatures: no-contextual;
+}
+
+/* A word of a name longer than its line breaks with a hyphen, as on Start. */
+.editing h1,
+.remove,
+.end {
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
 }
 
 .fields {
@@ -194,15 +197,15 @@ button.end:disabled {
   font-weight: var(--weight-semibold);
 }
 
-/* What still keeps the place from ending, and the way to it; and what an attempt that stopped half-way left. */
-.guests {
+/* What the page says in sentences: why the last place stays, with the way back, and what an attempt that stopped half-way left. */
+.said {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-2);
 }
 
-.guests p {
+.said p {
   margin: 0;
   overflow-wrap: anywhere;
 }

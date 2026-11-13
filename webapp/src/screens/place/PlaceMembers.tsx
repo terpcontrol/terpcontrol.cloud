@@ -36,7 +36,7 @@ export function PlaceMembers() {
       >
         <Help topic="memberRole" />
       </PageHead>
-      <Members spaceId={space.id} name={space.name} kind={space.kind} roomId={space.roomId} />
+      <Members spaceId={space.id} name={space.name} roomId={space.roomId} />
     </section>
   );
 }

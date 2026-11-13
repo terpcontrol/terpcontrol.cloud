@@ -8,6 +8,9 @@
 .tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  /* A finger wide as well as high, however short the word. */
+  min-width: var(--control-height);
   min-height: var(--control-height);
   padding: var(--space-2) 0;
   /* The underline sits on the rule, so the active tab's line replaces it rather than doubling it. */
@@ -25,7 +28,7 @@
 /* Five tabs fit the narrowest phone, so none of them waits past the edge - without the veil, which is room they need. */
 @media (max-width: 359px) {
   .tabs {
-    gap: 10px;
+    gap: 9px;
   }
 
   .tabs::after {

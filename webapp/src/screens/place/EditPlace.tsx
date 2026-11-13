@@ -12,6 +12,7 @@ import { useLog } from '@/log/log-context';
 import { DeviceSettingsSheet } from '@/screens/devices/DeviceSettingsSheet';
 import { Members } from '@/screens/space/members/Members';
 import { inSentence, mentionsOn } from '@/screens/space/members/people';
+import { cameraCalled } from '@/ui/camera-name';
 import { Help } from '@/ui/Help';
 import { cameraTitle, deviceTitle, givenName, typeName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
@@ -262,7 +263,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
           <span id="place-people">{t('place.edit.people', { name: space.name })}</span>
           <Help topic="memberRole" />
         </h2>
-        <Members spaceId={space.id} name={space.name} kind={space.kind} roomId={space.roomId} />
+        <Members spaceId={space.id} name={space.name} roomId={space.roomId} />
       </section>
 
       {owns && places.length > 1 ? (
@@ -300,13 +301,17 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
  * The devices and cameras standing here, each leading to its own page, and the
  * way to bring another: one standing in another place moves by the device's
  * own sheet - which says what goes with it and takes it back - and a new one
- * is added by its code.
+ * is added by its code. A device or a Terp Cam nobody named is told from
+ * another of its kind within the list it stands in, not within the account.
  */
 function DevicesHere({ space }: { space: Space }) {
   const { t } = useTranslation();
   const here = usePlaceDevices(space.id).items;
   const every = useDevices().data?.items;
-  const cameras = useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? [];
+  const cameras = (useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? []).map(
+    camera => [camera.id, cameraTitle(camera, here.find(device => device.id === camera.deviceId) ?? null, t)] as const,
+  );
+  const oneUnnamed = cameras.filter(([, title]) => cameraCalled(title, true) !== title).length < 2;
   const spaces = useSpaces().data?.items ?? [];
   // A device stands only in a place of its owner: only the owner of the place brings one, and only one of their own.
   const owns = useMayIn(space.id, 'own');
@@ -324,18 +329,13 @@ function DevicesHere({ space }: { space: Space }) {
         {here.map(device => (
           <Row
             key={device.id}
-            title={deviceTitle(device, t, every)}
+            title={deviceTitle(device, t, here)}
             line={givenName(device) ? typeName(device.type, t) : undefined}
             to={devicePath(device.id)}
           />
         ))}
-        {cameras.map(camera => (
-          <Row
-            key={camera.id}
-            title={cameraTitle(camera, here.find(device => device.id === camera.deviceId) ?? null, t)}
-            line={t('place.edit.camera')}
-            to={cameraPath(camera.id)}
-          />
+        {cameras.map(([id, title]) => (
+          <Row key={id} title={cameraCalled(title, oneUnnamed)} line={t('place.edit.camera')} to={cameraPath(id)} />
         ))}
         {!owns ? null : elsewhere.length > 0 ? (
           <button type="button" className={styles.add} onClick={() => setBringing(true)}>
@@ -354,7 +354,7 @@ function DevicesHere({ space }: { space: Space }) {
               {elsewhere.map(device => (
                 <Row
                   key={device.id}
-                  title={deviceTitle(device, t, every)}
+                  title={deviceTitle(device, t, elsewhere)}
                   line={t('place.edit.standsIn', { place: spaces.find(one => one.id === device.spaceId)?.name ?? t('place.edit.nowhere') })}
                   onOpen={() => {
                     setBringing(false);

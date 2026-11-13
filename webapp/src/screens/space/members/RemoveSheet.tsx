@@ -75,15 +75,17 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}
-          disabled={remove.isPending}
+          disabled={remove.isPending || remove.isSuccess}
           onClick={() =>
             remove.mutate(
               { spaceId, userId, gone },
               {
                 onSuccess: () => {
                   tell({ label: told.filter(Boolean).join(' · '), undo: null });
-                  onClose();
-                  if (gone) void navigate('/', { replace: true });
+                  if (!gone) return onClose();
+                  // The sheet stands on a history entry over the page's (`ui/sheet-back.ts`): stepped back, Start replaces the page's own.
+                  window.addEventListener('popstate', () => void navigate('/', { replace: true }), { once: true });
+                  window.history.back();
                 },
               },
             )

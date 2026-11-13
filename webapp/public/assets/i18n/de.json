@@ -247,9 +247,10 @@
         "named": "{{was}} heißt jetzt {{name}}",
         "moved": "{{name}} steht jetzt in {{place}}",
         "with": "mit {{what}}"
-      }
+      },
+      "rename": "Umbenennen"
     },
-    "unnamed": "{{type}} · {{tag}}",
+    "unnamed": "{{type}} · {{tag}}",
     "hold": {
       "label": "{{name}} von Hand halten",
       "for": {
@@ -1477,7 +1478,7 @@
       "lightAgainAt": "wieder an um {{at}}",
       "lightAgainSince": "wieder an seit {{at}}",
       "openCurves": "Kurven zu diesem Tag",
-      "measuredBy": "Ab {{at}} misst {{name}}"
+      "measuredBy": "Ab hier misst {{name}}"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -1825,7 +1826,8 @@
         "show": "Code · QR",
         "showOf": "{{code}} als Code und QR zeigen",
         "revokeOf": "Den Link {{code}} zurückziehen",
-        "into": "für {{name}}"
+        "into": "für {{name}}",
+        "revokeAsk": "Mit diesem Link tritt dann niemand mehr {{name}} bei; es lässt sich nicht zurücknehmen."
       },
       "sheet": {
         "title": "Einladen in {{name}}",
@@ -1842,12 +1844,6 @@
           "week": "7 Tage",
           "never": "bis zum Zurückziehen"
         },
-        "needAccount": "Sie brauchen ein eigenes Konto (E-Mail, Benutzername und Passwort).",
-        "sees": "Sie sehen: {{what}}.",
-        "seesRoom": "Sie sehen: jeden Ort in {{name}}, was dort wächst, und die Kameras.",
-        "whatGrows": "was darin wächst",
-        "theCams": "die Kameras",
-        "doesNotSee": "Sie können auch jeden Grow lesen, der früher hier stand, auch private. Sie sehen nicht: deine anderen Orte und Grows, die nie hier standen.",
         "make": "Link erzeugen",
         "making": "Erzeugt den Link …",
         "waysLabel": "Wie du ihn weitergibst",
@@ -3550,7 +3546,7 @@
       "claim_code_unknown": "Kein Gerät zeigt gerade diesen Code. Lies ihn noch einmal vom Display ab.",
       "device_already_yours": "Dieses Gerät hast du schon hinzugefügt. Du findest es unter Steuerung.",
       "device_claimed": "Dieses Gerät gehört schon jemand anderem. Es muss dort erst entfernt werden.",
-      "space_archived": "Dieser Ort wurde beendet. Hole ihn zurück, bevor du etwas hineinstellst.",
+      "space_archived": "Dieser Ort wurde entfernt. Wähle einen anderen.",
       "capability_not_announced": "Dieses Gerät hat nicht gemeldet, dass es das versteht. Es braucht eine neuere Firmware.",
       "device_sent_no_settings": "Dieses Gerät hat seine Einstellungen noch nicht gesendet, es gibt also nichts, wohinein geschrieben werden kann.",
       "device_states_no_climate": "Dieses Gerät nennt kein Klima, es gibt also nichts, wohin eines geschrieben werden kann.",
@@ -3562,7 +3558,7 @@
       "camera_here": "Hier schaut noch eine Kamera hinein.",
       "grow_here": "Hier läuft noch ein Grow.",
       "space_here": "In diesem Raum stehen noch Orte.",
-      "member_here": "Andere sind noch Mitglied hier – nimm sie unter Mitglieder erst heraus."
+      "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort."
     }
   },
   "alarmLine": {
@@ -3851,7 +3847,7 @@
     },
     "invite": {
       "title": "Einladen",
-      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf eintragen“ hinzugefügt, ohne gefragt zu werden."
+      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Wer beitritt, braucht ein eigenes Konto (E-Mail, Benutzername und Passwort) und sieht den Ort – bei einem Raum jeden Ort darin –, was dort wächst, die Kameras und jeden Grow, der früher dort stand, auch private; nicht deine anderen Orte und Grows, die nie dort standen. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf eintragen“ hinzugefügt, ohne gefragt zu werden."
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
@@ -4177,9 +4173,6 @@
       },
       "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
       "curves": "Die Kurven von {{name}} siehst du danach nur noch bei Grows, die hier standen.",
-      "guests_one": "Noch ist {{count}} Person eingeladen. Lass sie erst gehen.",
-      "guests_other": "Noch sind {{count}} Personen eingeladen. Lass sie erst gehen.",
-      "toGuests": "Zu den Eingeladenen",
       "remove": "{{name}} entfernen",
       "removing": "Wird entfernt …",
       "cancel": "Abbrechen",
@@ -4194,7 +4187,11 @@
         "remove": "{{name}} wird entfernt",
         "with": "{{name}} zieht mit an den neuen Ort von {{beside}}",
         "nowhere": "{{name}} steht dann an keinem festen Ort",
-        "end": "{{name}} wird beendet"
+        "end": "{{name}} wird beendet",
+        "unseen_one": "{{name}} sieht {{place}} dann nicht mehr",
+        "unseen_other": "{{name}} sehen {{place}} dann nicht mehr",
+        "roomEnds_one": "Raum {{place}} endet – {{name}} sieht ihn dann nicht mehr",
+        "roomEnds_other": "Raum {{place}} endet – {{name}} sehen ihn dann nicht mehr"
       },
       "did": {
         "stands_one": "{{names}} steht in {{place}}.",
@@ -4204,14 +4201,19 @@
         "release": "{{names}} abgegeben.",
         "uncouple": "{{names}} entkoppelt.",
         "remove": "{{names}} entfernt.",
-        "end": "{{names}} beendet."
+        "end": "{{names}} beendet.",
+        "unseen_one": "{{names}} sieht {{place}} nicht mehr.",
+        "unseen_other": "{{names}} sehen {{place}} nicht mehr.",
+        "roomEnds_one": "Raum {{place}} ist beendet – {{names}} sieht ihn nicht mehr.",
+        "roomEnds_other": "Raum {{place}} ist beendet – {{names}} sehen ihn nicht mehr."
       },
       "half": {
         "still": "{{name}} ist noch nicht entfernt.",
         "done": "Schon erledigt: {{what}}",
         "left": "Noch hier: {{names}}."
       },
-      "told": "{{name}} entfernt."
+      "told": "{{name}} entfernt.",
+      "last": "{{name}} ist dein einziger Ort und lässt sich deshalb nicht entfernen."
     }
   },
   "climatePick": {

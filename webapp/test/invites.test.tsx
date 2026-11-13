@@ -2,17 +2,20 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Invite, InviteCreate, MembershipPage, Space } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
 import { Members } from '@/screens/space/members/Members';
 import { expiresAtFor, liveInvites } from '@/screens/space/members/invites';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
  * The invitation an owner makes.
  *
  * What is checked hardest: that every code still out is listed and each can be
- * stopped on its own, because a card that showed the newest and stopped only
+ * stopped on its own - asked first, since a revoked code stays revoked, and
+ * answered by a toast -, because a card that showed the newest and stopped only
  * that one would tell a host a key was dead while another stayed live; and
  * that the sheet sends exactly the role and the life chosen and then describes
  * the link from the server's answer rather than from what it asked for.
@@ -77,7 +80,6 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (method === 'GET' && path.startsWith('/spaces?')) return json({ items: server.spaces, nextCursor: null });
   if (method === 'GET' && path === '/spaces') return json({ items: server.spaces, nextCursor: null });
   if (method === 'GET' && /^\/spaces\/[^/]+\/members/.test(path)) return json(NOBODY_ELSE);
-  if (method === 'GET' && path.startsWith('/spaces/space-1/overview')) return json({ grows: [{ growId: 'grow-1', name: 'Spring run' }] });
   if (method === 'GET' && path.startsWith('/spaces/space-1/invites')) return json({ items: server.invites, nextCursor: null });
 
   if (method === 'POST' && path === '/spaces/space-1/invites') {
@@ -90,7 +92,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json(made, 201);
   }
   const revocation = path.match(/^\/invites\/([^/]+)\/revocation$/);
-  if (method === 'PUT' && revocation) {
+  if (method === 'PUT' && revocation && server.invites.some(row => row.code === revocation[1])) {
     server.invites = server.invites.map(row => (row.code === revocation[1] ? { ...row, revokedAt: NOW.toISO()! } : row));
     return json(server.invites.find(row => row.code === revocation[1]));
   }
@@ -98,9 +100,16 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const wrapped = (node: React.ReactNode) => drawAt(<ThemeProvider>{node}</ThemeProvider>);
+const told: Told[] = [];
 
-const drawTab = () => wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={null} />);
+const wrapped = (node: React.ReactNode) =>
+  drawAt(
+    <ThemeProvider>
+      <Toast told={told}>{node}</Toast>
+    </ThemeProvider>,
+  );
+
+const drawTab = () => wrapped(<Members spaceId="space-1" name="Blue Dream tent" roomId={null} />);
 
 /** The ways to invite stand behind the row that invites: opened, as the owner opens them. */
 const inviting = async () => {
@@ -115,6 +124,7 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
+  told.length = 0;
   server.spaces = [space({})];
   server.invites = [];
   server.made = 0;
@@ -166,14 +176,35 @@ describe('the links a tent has out', () => {
     expect(screen.queryByText(/DDDDDDDD/)).not.toBeInTheDocument();
   });
 
-  it('revokes one link on its own and leaves the other out', async () => {
+  it('asks in the link´s card before revoking it, since that has no way back, then says what it was for and leaves the other out', async () => {
     drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Revoke the link BBBBBBBB' }));
 
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'PUT', path: '/invites/BBBBBBBB/revocation' });
+    const row = linkRows()[1];
+    expect(within(row).getByText('Nobody joins Blue Dream tent with this link any more; it cannot be taken back.')).toHaveFocus();
+    expect(server.wrote).toHaveLength(0);
+    // Put away, nothing is written; asked again and answered, the one link stops.
+    fireEvent.click(within(row).getByRole('button', { name: 'Cancel' }));
+    expect(within(row).queryByText(/cannot be taken back/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke the link BBBBBBBB' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'Revoke' }));
+
+    await waitFor(() => expect(told).toEqual([{ label: 'The link BBBBBBBB no longer works · for Blue Dream tent · can manage', undo: null }]));
+    expect(server.wrote).toEqual([expect.objectContaining({ method: 'PUT', path: '/invites/BBBBBBBB/revocation' })]);
     await waitFor(() => expect(screen.queryByText(/BBBBBBBB/)).not.toBeInTheDocument());
     expect(screen.getByText(/\/join\/AAAAAAAA$/)).toBeInTheDocument();
+  });
+
+  it('says in the card what the server said when it refused, and tells nothing', async () => {
+    drawTab();
+    await screen.findByRole('button', { name: 'Revoke the link AAAAAAAA' });
+    // Gone on the server since the list was read.
+    server.invites = server.invites.filter(row => row.code !== 'AAAAAAAA');
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke the link AAAAAAAA' }));
+    fireEvent.click(within(linkRows()[0]).getByRole('button', { name: 'Revoke' }));
+
+    expect(await within(linkRows()[0]).findByRole('alert')).toBeInTheDocument();
+    expect(told).toHaveLength(0);
   });
 
   it('opens a link that is already out as a code and a QR without cutting another', async () => {
@@ -197,8 +228,11 @@ describe('the invitation sheet', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
-    // The grows standing here come from the tent's overview, which the sheet reads when it is there.
-    expect(await within(sheet).findByText(/They see: Blue Dream tent, Spring run, the cams\./)).toBeInTheDocument();
+    // What a guest needs and sees is behind the help button of the validity: no paragraph stands over the button.
+    expect(within(sheet).getByRole('button', { name: 'About Inviting' })).toHaveAccessibleDescription(
+      /needs an account of their own .* sees the place .* not your other places/,
+    );
+    expect(within(sheet).queryByText(/They see|their own account/)).not.toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('radio', { name: /can manage/ }));
     fireEvent.click(within(sheet).getByRole('button', { name: '24 h' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Make the link' }));

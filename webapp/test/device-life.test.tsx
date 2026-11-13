@@ -147,9 +147,10 @@ describe('naming a device and moving it', () => {
     // The page is called by the new name at once, without waiting for the list.
     expect(await screen.findByRole('heading', { level: 1, name: 'East lamp' })).toBeInTheDocument();
 
-    // Taken back, the device has no name of its own again.
+    // Taken back, the device has no name of its own again, and the page is not left silent about it.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { name: null });
+    expect(told[1]).toEqual({ label: 'Undone · East lamp is now called Plantalytix Socket', undo: null });
   });
 
   /**
@@ -189,16 +190,19 @@ describe('naming a device and moving it', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(told.map(one => one.label)).toEqual(['Plantalytix Socket is now in Fridge 1']);
 
-    // Taken back, it stands where it stood.
+    // Taken back, it stands where it stood, and a toast says where that is.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { spaceId: 'space-1' });
+    expect(told[1]).toEqual({ label: 'Undone · Plantalytix Socket is now in Tent 1', undo: null });
   });
 
   /** A device stands only in a place of its owner, so somebody who manages the host's place is not asked where it stands. */
-  it('offers somebody who manages another´s device its name and no place to move it to', async () => {
+  it('offers somebody who manages another´s device its name and no place to move it to, and calls the row and the sheet that', async () => {
     answer([{ ...THE_PLUG, ownerId: THE_HOST }], [spaceWhere('manage'), ELSEWHERE]);
     await drawPage('Plantalytix Socket');
-    const sheet = await openSheet();
+    expect(screen.queryByRole('button', RENAME)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /^Rename\s?in Tent 1$/ }));
+    const sheet = within(await screen.findByRole('dialog', { name: 'Rename' }));
 
     expect(sheet.getByRole('textbox', { name: 'Name' })).toBeInTheDocument();
     expect(sheet.queryByRole('button', { name: 'Fridge 1' })).not.toBeInTheDocument();
@@ -245,6 +249,7 @@ describe('naming a device and moving it', () => {
     );
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { name: 'East tent', spaceId: 'space-1' });
+    expect(told[1].label).toBe('Undone · Fridge module is now called East tent · East tent is now in Tent 1 · with camera Canopy cam, 2 sockets');
   });
 
   /**

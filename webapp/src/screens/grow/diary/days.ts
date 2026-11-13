@@ -180,7 +180,7 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
   const measuring = day.events.flatMap(event =>
     event.kind === 'device'
       ? // The moment the curves change hands is one to look at, as a stretch outside the targets is.
-        [said(`device-${event.at}`, event.at, t('grow.diary.measuredBy', { at: clock(event.at, zone), name: deviceName(event, t) }), {}, null, true)]
+        [said(`device-${event.at}`, event.at, t('grow.diary.measuredBy', { name: deviceName(event, t) }), {}, null, true)]
       : [],
   );
 

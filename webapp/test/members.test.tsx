@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
-import { Route, Routes, useLocation } from 'react-router';
+import { createBrowserRouter, Link, Route, RouterProvider, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Invite, InvitePreview, MemberRole, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
 import type { Told } from '@/log/log-context';
@@ -10,7 +11,7 @@ import { PlaceMembers } from '@/screens/place/PlaceMembers';
 import { Members } from '@/screens/space/members/Members';
 import { guestsOf, inSentence, mentionsOn, rowsFor } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, testClient } from './harness';
 import { translate } from './translations';
 
 /**
@@ -138,7 +139,7 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   const listed = /^\/spaces\/([^/]+)\/invites/.exec(path);
   if (method === 'GET' && listed) return json({ items: server.invites.filter(one => one.spaceId === listed[1]), nextCursor: null });
   if (method === 'POST' && listed) {
-    server.invites = [invite({ spaceId: listed[1] }), ...server.invites];
+    server.invites = [invite({ id: `invite-into-${listed[1]}`, spaceId: listed[1] }), ...server.invites];
     return json(server.invites[0], 201);
   }
   // As the server does it: a row is written at the space it stands on, and the code somebody came in on is revoked with their row.
@@ -172,7 +173,7 @@ const wrapped = (node: ReactNode, at = '/') => drawAt(<ThemeProvider>{node}</The
 const drawTab = (roomId: string | null = 'room-1') =>
   wrapped(
     <>
-      <Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={roomId} />
+      <Members spaceId="space-1" name="Blue Dream tent" roomId={roomId} />
       <Watch />
     </>,
     '/spaces/space-1/members',
@@ -262,7 +263,8 @@ describe('who sees a place, as its owner', () => {
   it('is one list of everybody: the owner, the place´s guests, and the room´s members tagged as that', async () => {
     const rows = await drawnPeople();
 
-    expect(rows[0]).toHaveTextContent(/^You\s*manage this place$/);
+    // On one line, however narrow the phone: the owner and what they do are facts side by side.
+    expect(rows[0]).toHaveTextContent(/^You · manage this place$/);
     expect(within(rows[1]).getByText('@lea')).toBeInTheDocument();
     expect(rows[1]).not.toHaveTextContent('via Grow room');
     expect(within(rows[2]).getByText('@jonas')).toBeInTheDocument();
@@ -565,14 +567,14 @@ describe('who sees a place, as somebody who was let in', () => {
     expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(within(rows[1]).getByText('can log')).toBeInTheDocument();
-    expect(rows[0]).toHaveTextContent(/^The owner\s*manages this place$/);
+    expect(rows[0]).toHaveTextContent(/^The owner · manages this place$/);
   });
 
   it('names the owner, who is otherwise the one person on the list without a name', async () => {
     server.members = { ...MEMBERS, people: [...MEMBERS.people, { id: 'user-1', handle: 'chris' }] };
     const rows = await drawnPeople();
 
-    expect(rows[0]).toHaveTextContent(/^@chris\s*manages this place$/);
+    expect(rows[0]).toHaveTextContent(/^@chris · manages this place$/);
   });
 
   it('lets them out by the one control on their own row, takes them to Start and says what they left', async () => {
@@ -661,6 +663,44 @@ describe('the page of who sees a place', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Who sees Blue Dream tent' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'About Roles' })).toBeInTheDocument();
     expect(await screen.findByText('@jonas')).toBeInTheDocument();
+  });
+
+  /**
+   * On the window's own history, where an open sheet stands on an entry over its page's (`ui/sheet-back.ts`) and a
+   * memory router keeps none: a replace from the sheet took the sheet's entry and left the page's under Start.
+   */
+  it('leaves no entry of the page a guest left from: Back from Start leads to where they came from', async () => {
+    window.history.replaceState(null, '', '/came-from');
+    const router = createBrowserRouter([
+      { path: '/came-from', element: <Link to="/spaces/space-1/members">Who sees it</Link> },
+      { path: '/spaces/:spaceId/members', element: <PlaceMembers /> },
+      { path: '/', element: <p>Start</p> },
+    ]);
+    render(
+      <QueryClientProvider client={testClient()}>
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    try {
+      fireEvent.click(screen.getByRole('link', { name: 'Who sees it' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Leave Blue Dream tent' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Leave' }));
+
+      expect(await screen.findByText('Start')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(told).toEqual([expect.objectContaining({ label: 'You have left Blue Dream tent' })]);
+
+      await act(async () => {
+        window.history.back();
+        await new Promise(resolve => window.addEventListener('popstate', resolve, { once: true }));
+      });
+      expect(await screen.findByRole('link', { name: 'Who sees it' })).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/came-from');
+    } finally {
+      router.dispose();
+    }
   });
 
   it('sends whoever manages the place to the page that edits it', async () => {

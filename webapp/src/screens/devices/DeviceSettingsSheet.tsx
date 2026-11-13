@@ -24,7 +24,7 @@ const NEW = 'new';
  * button, before which nothing is written. A place chip only chooses; the
  * sheet then says what goes with the device - the camera it answers for, its
  * smart sockets - and the button says "Umziehen". The toast says what was
- * done, with the way to take it back.
+ * done, with the way to take it back, and taking it back says what holds again.
  *
  * A claim leaves the type's key as the name, which no screen shows, so an
  * unnamed device starts empty with the name every screen does show as the
@@ -88,15 +88,20 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
       const name = deviceTitle(after, t, among);
       const back: DeviceUpdate = { ...(renamed ? { name: device.name } : {}), ...(to ? { spaceId: device.spaceId } : {}) };
 
-      tell({
-        label: [
-          renamed ? t('devices.settings.told.named', { was: title, name }) : null,
-          to ? t('devices.settings.told.moved', { name, place: to.name }) : null,
-          to && along.length > 0 ? t('devices.settings.told.with', { what: along.join(', ') }) : null,
+      const said = (was: string, now: string, place: string | null) =>
+        [
+          renamed ? t('devices.settings.told.named', { was, name: now }) : null,
+          place ? t('devices.settings.told.moved', { name: now, place }) : null,
+          place && along.length > 0 ? t('devices.settings.told.with', { what: along.join(', ') }) : null,
         ]
           .filter(Boolean)
-          .join(' · '),
-        undo: fresh ? null : () => write.mutateAsync(back),
+          .join(' · ');
+      const stood = to && (here?.name ?? t('place.edit.nowhere'));
+      const undone = () => tell({ label: `${t('place.edit.told.undone')} · ${said(name, title, stood)}`, undo: null });
+
+      tell({
+        label: said(title, name, to?.name ?? null),
+        undo: fresh ? null : () => write.mutateAsync(back).then(undone),
         from: `device-${device.id}`,
       });
       onClose();
@@ -107,7 +112,7 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
 
   return (
     <Sheet
-      title={t('devices.settings.open')}
+      title={t(mine ? 'devices.settings.open' : 'devices.settings.rename')}
       onClose={onClose}
       actions={
         <button

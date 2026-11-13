@@ -140,12 +140,6 @@
   color: var(--muted);
 }
 
-.sentence {
-  font-size: var(--text-sm);
-  line-height: var(--line-body);
-  color: var(--muted);
-}
-
 .pane {
   display: flex;
   flex-direction: column;

@@ -340,7 +340,8 @@ describe('Verlauf as it opens', () => {
     const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
     expect(lines.map(line => line.textContent)).toEqual([
       expect.stringMatching(/Device rebooted/),
-      expect.stringMatching(/Controller B measures from \d\d:\d\d.*by itself/),
+      // The stamp says when, and the line does not say the hour again.
+      expect.stringMatching(/^\d\d:\d\d, Set the cursor on this momentController B measures from here onby itself$/),
       expect.stringMatching(/You watered/),
     ]);
   });

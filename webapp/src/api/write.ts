@@ -12,11 +12,14 @@ export const useWrite = <T, V = void>(mutationFn: (variables: V) => Promise<T>, 
   return useMutation({ mutationFn, onSuccess: (result, variables) => then(client, result, variables) });
 };
 
-/** The same for a write whose reads are taken again whether it was answered or refused. */
-export const useWriteSettled = <T, V = void>(mutationFn: (variables: V) => Promise<T>, then: (client: QueryClient, variables: V) => unknown) => {
+/** The same for a write whose reads are taken again whether it was answered or refused (`error`, then). */
+export const useWriteSettled = <T, V = void>(
+  mutationFn: (variables: V) => Promise<T>,
+  then: (client: QueryClient, variables: V, error: unknown) => unknown,
+) => {
   const client = useQueryClient();
 
-  return useMutation({ mutationFn, onSettled: (_result, _error, variables) => then(client, variables) });
+  return useMutation({ mutationFn, onSettled: (_result, error, variables) => then(client, variables, error) });
 };
 
 /** Every one of these reads taken again at once; the promise settles when all of them have. */

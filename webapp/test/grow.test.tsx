@@ -549,16 +549,17 @@ describe('a day of the diary', () => {
 
   it('says when another device took over the measuring, by its name or else by its kind, as a line nobody wrote', () => {
     drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'Controller B', type: 'controller' }] }));
-    expect(linesOf()).toEqual([expect.stringMatching(/^23:00Controller B measures from 23:00/)]);
+    // The stamp says when: the line does not say the hour a second time.
+    expect(linesOf()).toEqual(['23:00Controller B measures from here on ›by itself']);
     // It leads to the curves of that moment, as a stretch outside the targets does, with no reading marked.
-    expect(screen.getByRole('link', { name: reads(/Controller B measures from 23:00/) }).getAttribute('href')).toMatch(
+    expect(screen.getByRole('link', { name: reads(/Controller B measures from here on/) }).getAttribute('href')).toMatch(
       /^\/timeline\?space=space-1&at=/,
     );
     cleanup();
 
     // A claim stores the type where nobody said a name, and a type is a key, not a word.
     drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'controller', type: 'controller' }] }));
-    expect(linesOf()).toEqual([expect.stringMatching(/^23:00Controller measures from 23:00/)]);
+    expect(linesOf()).toEqual([expect.stringMatching(/^23:00Controller measures from here on/)]);
   });
 
   it('says a reading that left its targets as one line however often and on whichever side, and leads to the curve of that moment', () => {

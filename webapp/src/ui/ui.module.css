@@ -138,6 +138,17 @@
   color: var(--warning);
 }
 
+/* The word that explains itself is a finger high and wide where it is tapped, without the pill growing by it. */
+.live > button {
+  position: relative;
+}
+
+.live > button::after {
+  position: absolute;
+  inset: -14px -10px;
+  content: '';
+}
+
 /* A camera's picture shown whole: 16:9, as most cameras take it, with the
    picture inside at whatever shape it has on the dark of a viewer - never
    cropped, because a camera burns its clock into a corner and a grower checks

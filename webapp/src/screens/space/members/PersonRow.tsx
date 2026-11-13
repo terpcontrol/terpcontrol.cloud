@@ -67,7 +67,7 @@ export function PersonRow({
     !diary ? null : lastLogged === null ? t('space.members.neverLogged') : t('space.members.lastLogged', { age: ageLabel(lastLogged, now) }),
   ];
 
-  const change = async (role: MemberRole) => {
+  const change = async (role: MemberRole, select: HTMLElement) => {
     const rows = rowsFor(guest, role);
     const write = (roleOf: (row: Membership) => MemberRole) =>
       rows.reduce(
@@ -82,6 +82,8 @@ export function PersonRow({
         undo: () => write(row => row.role).then(() => tell({ label: `${t('place.edit.told.undone')} · ${said(guest.role)}`, undo: null })),
         from: `member-${guest.userId}`,
       });
+      // The toast stands at the window's foot: a row down there moves clear of it, by the room its select keeps (`.roleSelect`).
+      select.scrollIntoView?.({ block: 'nearest' });
     } catch {
       // Said in the row, from the write that was refused.
     }
@@ -97,7 +99,7 @@ export function PersonRow({
             value={guest.role}
             aria-label={t('space.members.roleOf', { name })}
             disabled={setRole.isPending}
-            onChange={event => void change(event.target.value as MemberRole)}
+            onChange={event => void change(event.target.value as MemberRole, event.target)}
           >
             {ROLES.map(role => (
               <option key={role} value={role}>

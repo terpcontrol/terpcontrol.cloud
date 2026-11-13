@@ -14,8 +14,12 @@ import type { Translate } from '@/i18n/i18n';
  */
 export const givenName = (device: Pick<Device, 'name' | 'type'>): string | null => (device.name && device.name !== device.type ? device.name : null);
 
-/** The tail of the id, which is as much of it as anybody reads off a screen or a label. */
-const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
+/** The last four letters or figures of the id: a tail cut by position begins with a hyphen ("-FAN-1"). */
+const deviceTag = (device: Device): string =>
+  device.id
+    .replace(/[^a-z0-9]/gi, '')
+    .slice(-4)
+    .toUpperCase();
 
 /** A device type in words: the type is the firmware's key for itself, and a key is not a word. */
 /**
@@ -61,13 +65,13 @@ export const cameraTag = (camera: Camera): string => (camera.did ?? camera.id).s
 
 /**
  * What to call a camera in its row. A camera a controller pairs is made from
- * that controller's report and was once named after it, so a camera carrying
- * the carrier's type key word for word has no name of its own either - it is
- * the same key twice removed - and is drawn by what is printed on the cam
- * instead. Anything a person typed is theirs and is left alone.
+ * that controller's report and named after it, so a camera carrying the
+ * carrier's name or its type key word for word has no name of its own - two
+ * rows would read alike - and is drawn by what is printed on the cam instead.
+ * Anything else a person typed is theirs and is left alone.
  */
 export const cameraTitle = (camera: Camera, carrier: Device | null, t: Translate): string =>
-  carrier && camera.name === carrier.type ? t('cameras.add.found.title', { tag: cameraTag(camera) }) : camera.name;
+  carrier && [carrier.type, carrier.name].includes(camera.name) ? t('cameras.add.found.title', { tag: cameraTag(camera) }) : camera.name;
 
 /**
  * Which build a device is on, in the words that say which one.

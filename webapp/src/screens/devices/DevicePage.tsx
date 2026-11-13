@@ -111,6 +111,8 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
 
   const name = deviceTitle(device, t, among);
   const place = spaces.data?.items.find(space => space.id === device.spaceId) ?? null;
+  // Only its owner is asked where a device stands (`DeviceSettingsSheet`): anybody else renames it there and no more.
+  const settings = t(device.ownerId === user?.id ? 'devices.settings.open' : 'devices.settings.rename');
   const context: DeviceContext = { device, mayManage, offline, mayOwn, isAdmin: user?.isAdmin === true, sockets: hosts ? table : undefined };
   // Erweitert is for whoever may change the device: its items write on the tap.
   const advanced = mayManage ? itemsFor('device', context) : [];
@@ -199,9 +201,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       )}
 
       <Rows>
-        {mayManage ? (
-          <Row title={t('devices.settings.open')} line={place ? t('device.standsIn', { place: place.name }) : null} onOpen={() => setNaming(true)} />
-        ) : null}
+        {mayManage ? <Row title={settings} line={place ? t('device.standsIn', { place: place.name }) : null} onOpen={() => setNaming(true)} /> : null}
         {hosts && mayManage && !device.isDemo ? (
           <PairSocketRow deviceId={device.id} deviceName={name} table={table} failed={tables.isError} unheard={offline || waiting} now={now} />
         ) : null}
