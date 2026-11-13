@@ -125,16 +125,17 @@ export class AlertsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'What has gone wrong, newest first' })
+  @ApiOperation({ summary: 'What has gone wrong, newest first; with `open=false`, what is over by when it ended' })
   @V1Answer(alertPage)
   public async list(@V1Query(alertQuery) query: AlertQuery, @Caller() caller: AccessContext): Promise<AlertPage> {
     if (query.deviceId) await this.access.require(caller, { type: 'device', id: query.deviceId }, 'view');
     if (query.spaceId) await this.access.require(caller, { type: 'space', id: query.spaceId }, 'view');
 
-    const where = await this.inbox.scope(caller, { deviceId: query.deviceId, spaceId: query.spaceId, open: openOf(query) });
+    const open = openOf(query);
+    const where = await this.inbox.scope(caller, { deviceId: query.deviceId, spaceId: query.spaceId, open });
     if (!where) return { items: [], nextCursor: null };
 
-    const page = await this.inbox.list(where, query);
+    const page = await this.inbox.list(where, query, open === false);
     const nameOf = await this.inbox.placeNames(page.items);
     return mapPage(page, alert => alertOf(alert, nameOf(alert)));
   }

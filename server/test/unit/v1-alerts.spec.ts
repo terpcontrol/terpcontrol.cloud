@@ -213,3 +213,60 @@ describe('a camera moved by itself', () => {
     expect((await db.alerts.findOne({ id: 'cam-over' }).lean())?.spaceId).toBe(OLD);
   });
 });
+
+describe('what is over', () => {
+  const hour = (h: number): Date => new Date(Date.UTC(2026, 5, 10, h));
+  // Began in this order, ended in another: the long one began first and ended last.
+  const PAST = [
+    { id: 'over-long', startedAt: hour(1), resolvedAt: hour(9) },
+    { id: 'over-short', startedAt: hour(5), resolvedAt: hour(6) },
+    { id: 'over-twin-a', startedAt: hour(2), resolvedAt: hour(7) },
+    { id: 'over-twin-b', startedAt: hour(3), resolvedAt: hour(7) },
+  ];
+
+  beforeEach(async () => {
+    await db.alerts.deleteMany({});
+    await db.alerts.create([
+      ...PAST.map(one => ({ ...one, deviceId: DEVICE, spaceId: OLD, kind: 'threshold', severity: 'warning' })),
+      { id: 'open-old', deviceId: DEVICE, spaceId: OLD, kind: 'threshold', severity: 'warning', startedAt: hour(4) },
+      { id: 'open-new', deviceId: DEVICE, spaceId: OLD, kind: 'offline', severity: 'critical', startedAt: hour(8) },
+    ]);
+  });
+
+  const pages = async (query: { open?: 'true' | 'false' }, limit: number): Promise<string[][]> => {
+    const read: string[][] = [];
+    let cursor: string | null | undefined;
+    do {
+      const page = await alerts.list({ ...query, limit, cursor: cursor ?? undefined }, as(OWNER));
+      read.push(page.items.map(alert => alert.id));
+      cursor = page.nextCursor;
+    } while (cursor);
+    return read;
+  };
+
+  it('is listed by when it ended, page after page, two that ended together neither twice nor not at all', async () => {
+    expect(await pages({ open: 'false' }, 50)).toEqual([['over-long', 'over-twin-b', 'over-twin-a', 'over-short']]);
+    expect(await pages({ open: 'false' }, 2)).toEqual([
+      ['over-long', 'over-twin-b'],
+      ['over-twin-a', 'over-short'],
+    ]);
+    expect(await pages({ open: 'false' }, 3)).toEqual([['over-long', 'over-twin-b', 'over-twin-a'], ['over-short']]);
+  });
+
+  it('leaves what is open, and a list of both, by when each began', async () => {
+    expect(await pages({ open: 'true' }, 1)).toEqual([['open-new'], ['open-old']]);
+    expect((await pages({}, 50))[0]).toEqual(['open-new', 'over-short', 'open-old', 'over-twin-b', 'over-twin-a', 'over-long']);
+  });
+
+  it('is read in that order from an index, without sorting what it found', async () => {
+    await db.alerts.createIndexes();
+    const plan = await db.alerts
+      .find({ spaceId: { $in: [OLD, NEW] }, resolvedAt: { $ne: null } })
+      .sort({ resolvedAt: -1, id: -1 })
+      .explain('queryPlanner');
+
+    const winning = JSON.stringify((plan as unknown as { queryPlanner: { winningPlan: unknown } }).queryPlanner.winningPlan);
+    expect(winning).toContain('spaceId_1_resolvedAt_-1_id_-1');
+    expect(winning).not.toMatch(/"stage":"SORT"[,}]/);
+  });
+});

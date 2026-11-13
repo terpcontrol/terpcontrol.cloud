@@ -51,6 +51,8 @@ export const alertsSchema = new Schema<StoredAlert>(
 // The open alerts of the spaces a person can see, newest first: the home cards
 // and the inbox both ask for exactly this.
 alertsSchema.index({ spaceId: 1, resolvedAt: 1, startedAt: -1 });
+// What is over in those spaces, by when it ended: the inbox pages through its past in that order.
+alertsSchema.index({ spaceId: 1, resolvedAt: -1, id: -1 });
 // One rule's history, and what the engine reopens or resolves against.
 alertsSchema.index({ ruleId: 1, startedAt: -1 });
 // A device's own alerts, which is also how they are swept when it is given up.

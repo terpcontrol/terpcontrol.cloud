@@ -24,7 +24,7 @@ import { PageQuery } from '@common/v1/validation';
  * see are worked out first and the query is held to them.
  */
 
-export interface AlertFilter {
+interface AlertFilter {
   deviceId?: string;
   spaceId?: string;
   /** True lists what is still open, false what is over, absent both. */
@@ -73,8 +73,14 @@ export class AlertInboxService {
     await this.alerts.deleteOne({ id: alert.id });
   }
 
-  public list(where: FilterQuery<StoredAlert>, query: PageQuery): Promise<CursorPage<StoredAlert>> {
-    return findPage(this.alerts, [where], query, { field: 'startedAt' });
+  /**
+   * Newest first - which for a list of what is over (`over`) is by when each
+   * ended: the inbox reads them as "ended ... ago", and a long episode that has
+   * just ended would otherwise sort pages down, behind short ones that began
+   * after it. A list that holds open alerts is by when each began.
+   */
+  public list(where: FilterQuery<StoredAlert>, query: PageQuery, over = false): Promise<CursorPage<StoredAlert>> {
+    return findPage(this.alerts, [where], query, { field: over ? 'resolvedAt' : 'startedAt' });
   }
 
   /** What the places these alerts name are called now, an ended place included: no reader is to show an id. */
