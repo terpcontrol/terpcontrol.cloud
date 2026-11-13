@@ -181,14 +181,14 @@ export const useEndPlace = (spaceId: string) =>
         else if (step.do === 'grow')
           await api.post(`/grows/${step.id}/placements`, { spaceId: placeOf(step.to), startedAt: serverNow().toUTC().toISO()! });
         else await api.patch(`/grows/${step.id}`, { endedAt: serverNow().toUTC().toISO()! });
-        note({ done: step.id });
+        note({ done: step.id, at: 'to' in step ? placeOf(step.to) : null });
       }
       await api.delete(`/spaces/${spaceId}`);
     },
     // Read again whether it went through or stopped half-way, and a refusal waits for those reads: what the page then
     // calls still here is the place as it is, and a place made on the way is one to choose.
     (client, _run, error) => {
-      const read = invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']);
+      const read = invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow'], ['reminders'], ['tasks']);
       return error ? read : undefined;
     },
   );
@@ -205,8 +205,8 @@ export type EndStep =
   | { do: 'grow'; id: string; to: EndTo }
   | { do: 'end'; id: string };
 
-/** What an attempt tells as it goes: a thing settled, a place made for a device, or that place taken away again. */
-export type EndNote = { done: string } | { made: string; place: Space | null };
+/** What an attempt tells as it goes: a thing settled and the place it now stands in, a place made for a device, or that place taken away again. */
+export type EndNote = { done: string; at: string | null } | { made: string; place: Space | null };
 
 export interface EndRun {
   steps: readonly EndStep[];

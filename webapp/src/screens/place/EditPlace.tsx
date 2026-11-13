@@ -119,7 +119,9 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
   const said = (was: Stand, now: Stand, sees: string[], seesNoMore: string[]) =>
     [
       was.name !== now.name ? t('place.edit.told.named', { was: was.name, name: now.name }) : null,
-      was.kind !== now.kind ? t('place.edit.told.kind', { name: now.name, kind: t(`place.edit.kind.${now.kind}`) }) : null,
+      // The name stands by itself before the kind, unless the line before has just said it.
+      was.kind !== now.kind && was.name === now.name ? now.name : null,
+      was.kind !== now.kind ? t('place.edit.told.kind', { kind: t(`place.edit.kind.${now.kind}`) }) : null,
       was.room === now.room
         ? null
         : now.room

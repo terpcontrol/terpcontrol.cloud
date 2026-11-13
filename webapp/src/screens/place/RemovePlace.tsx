@@ -7,6 +7,7 @@ import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useMembers } from '@/api/members';
+import { useReminders } from '@/api/reminders';
 import { useEndPlace, useSpaces, type EndNote } from '@/api/spaces';
 import { editPath } from '@/app/places';
 import { useLog } from '@/log/log-context';
@@ -32,12 +33,12 @@ import {
   choicesOf,
   fatesOf,
   gathered,
+  kept,
   leaderOf,
   moveTo,
   standingIn,
   unusedOf,
   withDevice,
-  withSettled,
   type Fate,
   type Standing,
 } from './remove-plan';
@@ -62,6 +63,7 @@ export function RemovePlace() {
   const cameras = useCameras();
   const grows = useSpaceGrows(spaceId || null);
   const members = useMembers(spaceId);
+  const reminders = useReminders();
   const owns = useMayIn(spaceId, 'own');
 
   if (spaces.isPending) return <Waiting lines={5} />;
@@ -70,9 +72,10 @@ export function RemovePlace() {
   if (spaces.data && (!space || space.kind === 'room')) return <NoLongerHere what="space" />;
   // Ending a place is its owner's.
   if (space && !owns) return <Navigate to={editPath(space.id)} replace />;
-  if (devices.isPending || cameras.isPending || grows.isPending || members.isPending) return <Waiting lines={5} />;
-  if (!spaces.data || !space || !devices.data || !cameras.data || !grows.data || !members.data) {
-    return <LoadFailed retry={() => [spaces, devices, cameras, grows, members].forEach(read => void read.refetch())} />;
+  const reads = [spaces, devices, cameras, grows, members, reminders];
+  if (reads.some(read => read.isPending)) return <Waiting lines={5} />;
+  if (!spaces.data || !space || !devices.data || !cameras.data || !grows.data || !members.data || !reminders.data) {
+    return <LoadFailed retry={() => reads.forEach(read => void read.refetch())} />;
   }
 
   const places = spaces.data.items.filter(one => one.kind !== 'room' && one.archivedAt === null && one.ownerId === space.ownerId);
@@ -88,7 +91,9 @@ export function RemovePlace() {
           places={places}
           every={devices.data.items}
           here={standingIn(space.id, devices.data.items, cameras.data.items, running)}
+          alive={new Set([...devices.data.items, ...cameras.data.items.filter(camera => camera.removedAt === null), ...running].map(one => one.id))}
           letIn={members.data}
+          reminders={reminders.data.items.filter(one => one.subject.type === 'space' && one.subject.id === space.id).length}
         />
       ) : (
         // Never the last one: that one is Start itself, which the page says rather than leading away without a word.
@@ -106,10 +111,13 @@ export function RemovePlace() {
 /** What the question was answered with, one fate at a time: the thing, where it goes, and how many it is about. */
 const agreedTo = (fate: Fate): string => [fate.id, fate.place ?? fate.fate, fate.count].join(' ');
 
-/** `places` are the owner's, this one among them; `every` device of the account says which of them hold a climate already. */
-type Ending = { space: Space; places: readonly Space[]; every: readonly Device[]; here: Standing; letIn: MembershipPage };
+/**
+ * `places` are the owner's, this one among them; `every` device of the account says which of them hold a climate
+ * already, `alive` what the account still holds at all, and `reminders` how many name this place and no grow.
+ */
+type Ending = { space: Space; places: Space[]; every: Device[]; here: Standing; alive: Set<string>; letIn: MembershipPage; reminders: number };
 
-function Removing({ space, places, every, here, letIn }: Ending) {
+function Removing({ space, places: listed, every, here, alive, letIn, reminders }: Ending) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { tell } = useLog();
@@ -117,15 +125,19 @@ function Removing({ space, places, every, here, letIn }: Ending) {
   const [chosen, setChosen] = useState<Record<string, string>>({});
   const [asking, setAsking] = useState(false);
   const [agreed, setAgreed] = useState<string[]>([]);
-  // What the last attempt was about and how far the attempts came: what one of them sent away is in no list read
-  // since, and what stays or goes with it has to find it still.
-  const [attempt, setAttempt] = useState<{ standing: Standing; done: string[]; made: Record<string, Space | null> } | null>(null);
+  // What the attempts were about and how far they came: each thing settled with the place it now stands in, and
+  // each place made for a device. No list read since decides what an answer is still owed for - a camera went along
+  // with its device, and a device that was given up is in none.
+  const [asked, setAsked] = useState<Standing | null>(null);
+  const [done, setDone] = useState<Record<string, string | null>>({});
+  const [made, setMade] = useState<Record<string, Space | null>>({});
 
-  const standing = attempt ? withSettled(here, attempt.standing, attempt.done) : here;
-  const made = attempt?.made ?? {};
+  const standing = asked ? kept(here, asked, id => id in done || alive.has(id)) : here;
+  // A place an attempt made is one of the owner's, whether or not the lists were read since.
+  const places = [...listed, ...Object.values(made).flatMap(one => (one && listed.every(place => place.id !== one.id) ? [one] : []))];
   const elsewhere = places.filter(one => one.id !== space.id);
   const held = new Set(every.flatMap(device => (device.spaceId && OWN_CLIMATE_TYPES.includes(device.type) ? [device.spaceId] : [])));
-  const choices = choicesOf(standing, elsewhere, chosen, held);
+  const choices = choicesOf(standing, elsewhere, chosen, held, done);
   const leader = leaderOf(standing, choices);
   const guests = [...mentionsOn(letIn, space.id).values()];
   const roomMembers = [...mentionsOn(letIn, space.roomId).values()];
@@ -146,14 +158,15 @@ function Removing({ space, places, every, here, letIn }: Ending) {
   const name = (id: string | null) => (names.get(id ?? '') ?? '').replaceAll(' · ', '\u00a0·\u00a0');
   // A place is named as a claim names the one it makes: "Zelt 2", not after the hardware.
   const fates = fatesOf(standing, choices, device => newPlaceName(device.type, places, t), places, space, made, {
+    reminders,
     guests: guests.length,
     room: letIn.room?.name ?? '',
     members: roomMembers.length,
   });
   // A camera with no write of its own went when the device it is with did.
-  const gone = new Set(fates.filter(fate => attempt?.done.includes(fate.step ? fate.id : (fate.beside ?? ''))).map(fate => fate.id));
+  const gone = new Set(fates.filter(fate => (fate.step ? fate.id : (fate.beside ?? '')) in done).map(fate => fate.id));
   const open = fates.filter(fate => !gone.has(fate.id));
-  const left = open.filter(fate => fate.what !== 'people').map(fate => name(fate.id));
+  const left = open.filter(fate => fate.what !== 'ends').map(fate => name(fate.id));
 
   const ready = standing.grows.every(grow => choices[grow.id] !== '') && !end.isPending;
   // The same answers again need no second question - whatever the lists read since changed about them does.
@@ -162,9 +175,9 @@ function Removing({ space, places, every, here, letIn }: Ending) {
     gathered(of).map(({ how, place, ids, count }) => t(`place.remove.did.${how}`, { count, names: inSentence(ids.map(name), i18n.language), place }));
 
   const note = (one: EndNote) =>
-    setAttempt(was => was && ('done' in one ? { ...was, done: [...was.done, one.done] } : { ...was, made: { ...was.made, [one.made]: one.place } }));
+    'done' in one ? setDone(was => ({ ...was, [one.done]: one.at })) : setMade(was => ({ ...was, [one.made]: one.place }));
   const remove = () => {
-    setAttempt(was => ({ standing, done: was?.done ?? [], made: was?.made ?? {} }));
+    setAsked(standing);
     end.mutate(
       { steps: open.flatMap(fate => fate.step ?? []), drop: unusedOf(made, fates), note },
       {
@@ -199,62 +212,40 @@ function Removing({ space, places, every, here, letIn }: Ending) {
         </select>
       </label>
     );
+  const option = (value: string, label: string) => (
+    <option key={value} value={value}>
+      {label}
+    </option>
+  );
   const into = (words: 'place.remove.move' | 'place.remove.grow.move') =>
-    elsewhere.map(place => (
-      <option key={place.id} value={moveTo(place.id)}>
-        {t(words, { place: place.name })}
-      </option>
-    ));
+    elsewhere.map(place => option(moveTo(place.id), t(words, { place: place.name })));
   const moves = into('place.remove.move');
-  const stays = leader ? <option value={STAY}>{t('place.remove.stay', { device: name(leader.id) })}</option> : null;
+  // Nothing stays or goes with a device that has left already: it goes to where that one now stands.
+  const stays = (id?: string | null) => (!id || id in done ? null : option(STAY, t('place.remove.stay', { device: name(id) })));
   const rows = [
-    ...standing.devices.map(device =>
-      sent(
-        device.id,
-        <>
-          {/* One given up ahead of the leading device would lead again itself: it has nobody to stay with. */}
-          {leader && standing.devices.indexOf(device) > standing.devices.indexOf(leader) ? stays : null}
-          <option value={NEW_PLACE}>{t('place.remove.device.new')}</option>
-          {moves}
-          <option value={RELEASE}>{t('place.remove.device.release')}</option>
-        </>,
-      ),
+    ...standing.devices.map((device, at) =>
+      sent(device.id, [
+        // One given up ahead of the leading device would lead again itself: it has nobody to stay with.
+        leader && at > standing.devices.indexOf(leader) ? stays(leader.id) : null,
+        option(NEW_PLACE, t('place.remove.device.new')),
+        moves,
+        option(RELEASE, t('place.remove.device.release')),
+      ]),
     ),
-    ...standing.paired.map(camera =>
-      sent(
-        camera.id,
-        <>
-          <option value={STAY}>{t('place.remove.stay', { device: name(camera.deviceId) })}</option>
-          <option value={UNCOUPLE}>{t('place.remove.camera.uncouple')}</option>
-        </>,
-      ),
-    ),
-    ...standing.loose.map(camera =>
-      sent(
-        camera.id,
-        <>
-          {stays}
-          {moves}
-          <option value={UNCOUPLE}>{t('place.remove.camera.remove')}</option>
-        </>,
-      ),
-    ),
+    ...standing.paired.map(camera => sent(camera.id, [stays(camera.deviceId), option(UNCOUPLE, t('place.remove.camera.uncouple'))])),
+    ...standing.loose.map(camera => sent(camera.id, [stays(leader?.id), moves, option(UNCOUPLE, t('place.remove.camera.remove'))])),
     ...standing.grows.map(grow =>
       sent(
         grow.id,
-        <>
-          <option value="">{t('place.remove.grow.ask')}</option>
-          {standing.devices
-            .filter(device => choices[device.id] === NEW_PLACE)
-            .map(device => (
-              <option key={device.id} value={withDevice(device.id)}>
-                {t('place.remove.grow.with', { device: name(device.id) })}
-              </option>
-            ))}
-          {into('place.remove.grow.move')}
-          <option value={NOWHERE}>{t('place.remove.grow.nowhere')}</option>
-          <option value={END}>{t('place.remove.grow.end')}</option>
-        </>,
+        [
+          option('', t('place.remove.grow.ask')),
+          standing.devices
+            .filter(device => choices[device.id] === NEW_PLACE && !(device.id in done))
+            .map(device => option(withDevice(device.id), t('place.remove.grow.with', { device: name(device.id) }))),
+          into('place.remove.grow.move'),
+          option(NOWHERE, t('place.remove.grow.nowhere')),
+          option(END, t('place.remove.grow.end')),
+        ],
         grow.day === null ? grow.name : `${grow.name} · ${t('home.card.dayN', { day: grow.day })}`,
       ),
     ),

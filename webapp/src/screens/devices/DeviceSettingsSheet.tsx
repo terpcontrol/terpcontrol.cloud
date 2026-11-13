@@ -7,6 +7,7 @@ import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { useSession } from '@/api/session';
 import { useLog } from '@/log/log-context';
+import { cameraCalled } from '@/ui/camera-name';
 import { Facts } from '@/ui/Facts';
 import { cameraTitle, deviceTitle, givenName, placeKindOf } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
@@ -67,10 +68,10 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
   const moving = mine && chosen !== null && chosen !== device.spaceId;
   const busy = write.isPending || create.isPending;
 
+  // A Terp Cam nobody named needs what is printed on it only to be told from a second one going along.
+  const cams = (cameras.data?.items ?? []).filter(camera => camera.deviceId === device.id && camera.removedAt === null);
   const along = [
-    ...(cameras.data?.items ?? [])
-      .filter(camera => camera.deviceId === device.id && camera.removedAt === null)
-      .map(camera => t('devices.settings.withCamera', { name: cameraTitle(camera, device, t) })),
+    ...cams.map(camera => t('devices.settings.withCamera', { name: cameraCalled(cameraTitle(camera, device, t), cams.length < 2) })),
     ...[tables.tables.get(device.id)?.items.length ?? 0].filter(count => count > 0).map(count => t('devices.settings.withSockets', { count })),
   ];
 

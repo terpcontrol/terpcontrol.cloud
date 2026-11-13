@@ -252,6 +252,19 @@ describe('naming a device and moving it', () => {
     expect(told[1].label).toBe('Undone · Fridge module is now called East tent · East tent is now in Tent 1 · with camera Canopy cam, 2 sockets');
   });
 
+  /** A Terp Cam nobody named is "Terp Cam": what is printed on it tells two apart, and one camera goes along. */
+  it('names the camera nobody named without a scrap of its id, before the move and in the toast', async () => {
+    wire.cameras = [{ id: 'camera-1', name: 'controller', did: 'SIMB07171', deviceId: 'device-1', spaceId: 'space-1', removedAt: null } as Camera];
+    answer([{ ...THE_PLUG, type: 'controller', name: 'East tent' }], [spaceWhere('own'), ELSEWHERE]);
+    await drawPage('East tent');
+    const sheet = await openSheet();
+    fireEvent.click(sheet.getByRole('button', { name: 'Fridge 1' }));
+
+    expect((await sheet.findByText(/Moves with it/)).closest('p')).toHaveTextContent(/^Moves with it: camera Terp Cam$/);
+    fireEvent.click(sheet.getByRole('button', { name: 'Move' }));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['East tent is now in Fridge 1 · with camera Terp Cam']));
+  });
+
   /**
    * Taking one device out of a place it shares - a fridge module stood beside a
    * tent controller - needs a place of its own, which may not exist yet. It is

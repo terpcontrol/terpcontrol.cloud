@@ -24,7 +24,8 @@ export const UNCOUPLE = 'uncouple';
 /** A grow: with a device to its new place (`with:<deviceId>`), into another place, to no place, or ended. Unanswered is `''`. */
 export const NOWHERE = 'nowhere';
 export const END = 'end';
-/** Whoever is let into the place itself, and into its room: a line each, like a thing standing here. */
+/** What ends with the place - its reminders, and what its guests and its room's members see: a line each, like a thing standing here. */
+export const REMINDERS = 'reminders';
 export const GUESTS = 'guests';
 export const MEMBERS = 'members';
 
@@ -62,13 +63,14 @@ export const standingIn = (spaceId: string, devices: readonly Device[], cameras:
 };
 
 /**
- * What stands here now, with what an attempt already settled kept ahead of it:
- * whatever stays or goes with one of those still finds where it went, and what
- * left by another way since is no longer sent anywhere.
+ * What an attempt was about, kept ahead of what stands here now until the
+ * place is gone: what it settled, and what the account still holds (`lasts`) -
+ * a camera goes along when its device moves, and is still to be taken off it.
  */
-export const withSettled = (now: Standing, was: Standing, done: readonly string[]): Standing => {
+export const kept = (now: Standing, was: Standing, lasts: (id: string) => boolean): Standing => {
+  const had = new Set([was.devices, was.paired, was.loose, was.grows].flatMap(some => some.map(one => one.id)));
   const both = <T extends { id: string }>(before: readonly T[], here: readonly T[]) =>
-    [...before, ...here].filter((one, at) => done.includes(one.id) === at < before.length);
+    [...before, ...here].filter((one, at) => (at < before.length ? lasts(one.id) : !had.has(one.id)));
   return {
     devices: both(was.devices, now.devices),
     paired: both(was.paired, now.paired),
@@ -94,30 +96,35 @@ export const choicesOf = (
   chosen: Choices,
   /** The places that hold a climate of their own already: a second one does not fit there - one place, one climate. */
   held: ReadonlySet<string> = new Set(),
+  /** Where what an attempt sent away now stands: what was to stay or go with a device that has left goes to that place by its name. */
+  settled: Readonly<Record<string, string | null>> = {},
 ): Record<string, string> => {
   const leader = leaderOf(standing, chosen);
+  const went = (id = '') => (settled[id] ? moveTo(settled[id]) : undefined);
+  const stay = went(leader?.id) ?? STAY;
   const second = (place: Space) => leader !== null && OWN_CLIMATE_TYPES.includes(leader.type) && held.has(place.id);
   const fits = leader ? elsewhere.find(place => place.kind === placeKindOf(leader.type) && !second(place)) : undefined;
   const alone = elsewhere[0] ? moveTo(elsewhere[0].id) : UNCOUPLE;
   const first: Record<string, string> = {
-    ...Object.fromEntries(standing.devices.map(device => [device.id, device !== leader ? STAY : fits ? moveTo(fits.id) : NEW_PLACE])),
+    ...Object.fromEntries(standing.devices.map(device => [device.id, device !== leader ? stay : fits ? moveTo(fits.id) : NEW_PLACE])),
     ...Object.fromEntries(standing.paired.map(camera => [camera.id, STAY])),
-    ...Object.fromEntries(standing.loose.map(camera => [camera.id, leader ? STAY : alone])),
+    ...Object.fromEntries(standing.loose.map(camera => [camera.id, leader ? stay : alone])),
     ...Object.fromEntries(standing.grows.map(grow => [grow.id, ''])),
   };
   // Staying holds only while there is somebody to stay with: the device that leads now is sent as a leader is.
   const sent = Object.fromEntries(Object.entries(first).map(([id, to]) => [id, chosen[id] === STAY ? to : (chosen[id] ?? to)]));
+  const along = (to: string, id = to.slice(5)) => (to.startsWith('with:') ? (went(id) ?? (sent[id] === NEW_PLACE ? to : '')) : to);
 
-  return Object.fromEntries(Object.entries(sent).map(([id, to]) => [id, to.startsWith('with:') && sent[to.slice(5)] !== NEW_PLACE ? '' : to]));
+  return Object.fromEntries(Object.entries(sent).map(([id, to]) => [id, along(to)]));
 };
 
-/** What becomes of one thing standing here, or of the people let in. */
+/** What becomes of one thing standing here, or of what ends with the place. */
 export interface Fate {
   id: string;
-  what: 'device' | 'camera' | 'grow' | 'people';
+  what: 'device' | 'camera' | 'grow' | 'ends';
   /** How the catalogue words it, under `place.remove.will`. */
-  fate: 'make' | 'move' | 'stay' | 'release' | 'uncouple' | 'remove' | 'with' | 'nowhere' | 'end' | 'unseen' | 'roomEnds';
-  /** How many the line is about: one, but for people. */
+  fate: 'make' | 'move' | 'stay' | 'release' | 'uncouple' | 'remove' | 'with' | 'nowhere' | 'end' | 'reminders' | 'unseen' | 'roomEnds';
+  /** How many the line is about: one, but for reminders and people. */
   count: number;
   /** The name of the place it then stands in; null where it stands in none. For people, what they no longer see. */
   place: string | null;
@@ -132,8 +139,9 @@ export interface Fate {
  * cameras, the grows. `nameOf` is what the place made for a device is called,
  * numbered on where one of `places` - or one made a line before - already
  * carries that name. A place an earlier attempt made for a device (`made`) is
- * moved into instead of making a second. Whoever is let in comes last: the
- * guests of the place lose it, and the members of its room lose the room where
+ * moved into instead of making a second. What ends with the place comes last:
+ * its reminders - a grow's go where the grow goes -, then whoever is let in:
+ * the guests of the place lose it, and the members of its room lose the room where
  * it ends with its last place - not where what stood here gets a place in it.
  */
 export const fatesOf = (
@@ -143,7 +151,7 @@ export const fatesOf = (
   places: readonly Place[],
   space: Place,
   made: Readonly<Record<string, Place | null>>,
-  letIn: { guests: number; room: string; members: number },
+  ends: { reminders: number; guests: number; room: string; members: number },
 ): Fate[] => {
   const names = new Set(places.map(place => nameKey(place.name)));
   const named = (spaceId: string): string => places.find(place => place.id === spaceId)?.name ?? '';
@@ -208,8 +216,9 @@ export const fatesOf = (
   const roomStays =
     fates.some(({ fate }) => fate === 'make') ||
     [...places, ...Object.values(made)].some(place => place && place.id !== space.id && place.roomId === space.roomId && !dropped.has(place.id));
-  if (letIn.guests > 0) add('people', GUESTS, 'unseen', space.name, null, null, letIn.guests);
-  if (letIn.members > 0 && !roomStays) add('people', MEMBERS, 'roomEnds', letIn.room, null, null, letIn.members);
+  if (ends.reminders > 0) add('ends', REMINDERS, 'reminders', null, null, null, ends.reminders);
+  if (ends.guests > 0) add('ends', GUESTS, 'unseen', space.name, null, null, ends.guests);
+  if (ends.members > 0 && !roomStays) add('ends', MEMBERS, 'roomEnds', ends.room, null, null, ends.members);
 
   return fates;
 };
@@ -223,16 +232,16 @@ export const unusedOf = (made: Readonly<Record<string, Place | null>>, fates: re
 
 /**
  * What became of things, gathered for a sentence each: what now stands in one
- * place together, each way of going, who no longer sees what. A camera is
+ * place together, each way of going, what ended with the place. A camera is
  * named only where it goes away - one that stays is part of where its device went.
  */
 export const gathered = (fates: readonly Fate[]): { how: 'stands' | Fate['fate']; place: string | null; ids: string[]; count: number }[] => {
   const groups = new Map<string, ReturnType<typeof gathered>[number]>();
 
   for (const fate of fates) {
-    const people = fate.what === 'people';
-    if (!people && (!fate.step || (fate.what === 'camera' && fate.place !== null))) continue;
-    const how = fate.place === null || people ? fate.fate : 'stands';
+    const ends = fate.what === 'ends';
+    if (!ends && (!fate.step || (fate.what === 'camera' && fate.place !== null))) continue;
+    const how = fate.place === null || ends ? fate.fate : 'stands';
     const key = `${how}:${fate.place ?? ''}`;
     const group = groups.get(key);
     groups.set(key, { how, place: fate.place, ids: [...(group?.ids ?? []), fate.id], count: (group?.count ?? 0) + fate.count });

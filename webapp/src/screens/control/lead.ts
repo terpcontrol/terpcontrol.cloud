@@ -1,18 +1,18 @@
 import type { Device } from '@fg2/shared-types/v1';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useSpaceOverview } from '@/api/spaces';
 import { climateDeviceOf } from '@/screens/start/place';
 import { usePlaceDevices } from '@/ui/place-devices';
 
 /**
  * The device Steuerung's top is about: the place's climate as the server names
- * it, which is the device Start's readings and targets are read from too. A
- * place is one climate; whatever else stands there holds its own settings on
- * its own page.
+ * it, which Start's readings and targets are read from too. Where no device has
+ * reported yet none states targets: a controller or a fridge module leads then.
  */
 export const leadOf = (devices: Device[], climates: readonly { deviceId: string | null }[] | undefined): Device | null =>
   devices.find(device => device.id === climates?.[0]?.deviceId) ??
   climateDeviceOf(
-    devices,
+    [...devices].sort((one, other) => Number(OWN_CLIMATE_TYPES.includes(other.type)) - Number(OWN_CLIMATE_TYPES.includes(one.type))),
     devices.map(device => device.id),
   );
 

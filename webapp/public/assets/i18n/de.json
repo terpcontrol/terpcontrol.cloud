@@ -4131,7 +4131,7 @@
       "newRoomName": "Name des Raums",
       "told": {
         "named": "{{was}} heißt jetzt {{name}}",
-        "kind": "Art von {{name}}: {{kind}}",
+        "kind": "Art: {{kind}}",
         "room": "{{name}} steht jetzt in {{room}}",
         "noRoom": "{{name}} steht in keinem Raum mehr",
         "sees_one": "{{people}} sieht es jetzt mit",
@@ -4198,6 +4198,8 @@
         "with": "{{name}} zieht mit an den neuen Ort von {{beside}}",
         "nowhere": "{{name}} steht dann an keinem festen Ort",
         "end": "{{name}} wird beendet",
+        "reminders_one": "{{count}} Erinnerung endet",
+        "reminders_other": "{{count}} Erinnerungen enden",
         "unseen_one": "{{name}} sieht {{place}} dann nicht mehr",
         "unseen_other": "{{name}} sehen {{place}} dann nicht mehr",
         "roomEnds_one": "Raum {{place}} endet – {{name}} sieht ihn dann nicht mehr",
@@ -4212,6 +4214,8 @@
         "uncouple": "{{names}} entkoppelt.",
         "remove": "{{names}} entfernt.",
         "end": "{{names}} beendet.",
+        "reminders_one": "{{count}} Erinnerung beendet.",
+        "reminders_other": "{{count}} Erinnerungen beendet.",
         "unseen_one": "{{names}} sieht {{place}} nicht mehr.",
         "unseen_other": "{{names}} sehen {{place}} nicht mehr.",
         "roomEnds_one": "Raum {{place}} ist beendet – {{names}} sieht ihn nicht mehr.",
@@ -4220,7 +4224,7 @@
       "half": {
         "still": "{{name}} ist noch nicht entfernt.",
         "done": "Schon erledigt: {{what}}",
-        "left": "Noch hier: {{names}}."
+        "left": "Noch offen: {{names}}."
       },
       "told": "{{name}} entfernt.",
       "last": "{{name}} ist dein einziger Ort und lässt sich deshalb nicht entfernen."

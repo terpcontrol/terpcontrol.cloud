@@ -4121,7 +4121,7 @@
       "newRoomName": "Name of the room",
       "told": {
         "named": "{{was}} is now called {{name}}",
-        "kind": "Kind of {{name}}: {{kind}}",
+        "kind": "Kind: {{kind}}",
         "room": "{{name}} now stands in {{room}}",
         "noRoom": "{{name}} no longer stands in a room",
         "sees_one": "{{people}} now sees it too",
@@ -4165,7 +4165,7 @@
         "remove": "remove"
       },
       "grow": {
-        "ask": "Where do the plants stand now?",
+        "ask": "Where are the plants now?",
         "with": "at the new place of {{device}}",
         "move": "in {{place}}",
         "nowhere": "in no fixed place",
@@ -4188,6 +4188,8 @@
         "with": "{{name}} moves along to the new place of {{beside}}",
         "nowhere": "{{name}} then stands in no fixed place",
         "end": "{{name}} is ended",
+        "reminders_one": "{{count}} reminder ends",
+        "reminders_other": "{{count}} reminders end",
         "unseen_one": "{{name}} then no longer sees {{place}}",
         "unseen_other": "{{name}} then no longer see {{place}}",
         "roomEnds_one": "The room {{place}} ends – {{name}} then no longer sees it",
@@ -4202,6 +4204,8 @@
         "uncouple": "{{names}} unpaired.",
         "remove": "{{names}} removed.",
         "end": "{{names}} ended.",
+        "reminders_one": "{{count}} reminder ended.",
+        "reminders_other": "{{count}} reminders ended.",
         "unseen_one": "{{names}} no longer sees {{place}}.",
         "unseen_other": "{{names}} no longer see {{place}}.",
         "roomEnds_one": "The room {{place}} has ended – {{names}} no longer sees it.",
@@ -4210,7 +4214,7 @@
       "half": {
         "still": "{{name}} is not removed yet.",
         "done": "Already done: {{what}}",
-        "left": "Still here: {{names}}."
+        "left": "Still open: {{names}}."
       },
       "told": "{{name}} removed.",
       "last": "{{name}} is your only place, so it cannot be removed."
