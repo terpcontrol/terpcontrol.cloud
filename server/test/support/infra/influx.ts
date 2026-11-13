@@ -66,11 +66,11 @@ const csvValue = (value: number | null): string => {
  * (`countsQuery`), each window's first and last sample (`edgesQuery`). Every other script is answered as one result, as it always
  * was.
  */
-const EXTREMES = /\|>\s*yield\(name:\s*"(min|max|mean|count|heard|on|first|last)"\)/g;
+const EXTREMES = /\|>\s*yield\(name:\s*"(min|max|mean|count|heard|on)"\)/g;
 
 const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string => {
   const names = [...query.matchAll(EXTREMES)].map(match => match[1]);
-  // A union of several stretches (`samplesInQuery`) is the rows of each, one after the other.
+  // A union of several reads (`samplesInQuery`, `edgesQuery`) is the rows of each, one after the other.
   const reads =
     names.length === 2
       ? query.split(EXTREMES).filter(part => part.includes('from(bucket:'))

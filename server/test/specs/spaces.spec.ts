@@ -617,7 +617,15 @@ describe('applying a climate preset', () => {
     const times = Array.from({ length: 960 }, (_, index) => base + index * 30_000 + 12_000).filter(
       time => time < base + 78 * 60_000 || time >= base + 318 * 60_000,
     );
-    await seedMeasurements(times.map(time => ({ time, device_id: deviceId, fields: { temperature: 24, humidity: 55, out_light: 70 } })));
+    // The heater is reported only from ten minutes after the device came back: a device is heard when any of its
+    // fields reports, and the lamp's edges are its own samples', not the heater's.
+    await seedMeasurements(
+      times.map(time => ({
+        time,
+        device_id: deviceId,
+        fields: { temperature: 24, humidity: 55, out_light: 70, ...(time >= base + 328 * 60_000 ? { out_heater: 0.4 } : {}) },
+      })),
+    );
     const [fell, back] = [times.filter(time => time < base + 78 * 60_000).at(-1)!, times.find(time => time >= base + 318 * 60_000)!];
 
     const lit = async (range: string) => {
@@ -634,6 +642,12 @@ describe('applying a climate preset', () => {
 
     expect(await lit('24h')).toEqual(stretches);
     expect(await lit('7d')).toEqual(stretches);
+    // The heater's own lane begins where the heater was first heard, to the window of its first point.
+    const heater = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&metrics=temperature`).expect(200)).body.outputs.find(
+      (one: { output: string }) => one.output === 'heater',
+    );
+    expect(Date.parse(heater.spans[0].startsAt)).toBeGreaterThan(base + 325 * 60_000);
+    expect(Date.parse(heater.spans[0].startsAt)).toBeLessThan(base + 329 * 60_000);
   });
 
   // Read over a grow, a point is hours wide and no multiple of a day, so a window held a different share of

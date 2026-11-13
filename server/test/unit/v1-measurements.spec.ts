@@ -11,7 +11,8 @@ import {
   latestByField,
   countsByField,
   countsQuery,
-  edgesByWindow,
+  edgesAround,
+  edgesOf,
   edgesQuery,
   switchedGrains,
   liveQuery,
@@ -253,26 +254,55 @@ describe('the grains a change of day and night fell into', () => {
   });
 });
 
-describe('each window`s first and last sample', () => {
-  it('are asked for by their own instants, of one field', () => {
-    const query = edgesQuery(BUCKET, DEVICE, 'temperature', window(60 * 24, 180));
-    const [first, last] = query.split('yield(name: "first")');
+describe('the edges of a silence', () => {
+  const read = { startsAt: new Date('2026-01-20T10:01:00Z'), endsAt: new Date('2026-01-20T10:20:30Z'), stepSeconds: 180 };
+  const stamp = (clock: string) => Date.parse(`2026-01-20T${clock}Z`);
+  const said = (asked: ReturnType<typeof edgesAround>) =>
+    asked.map(one => [one.startsAt.toISOString().slice(11, 19), one.endsAt.toISOString().slice(11, 19), one.end]);
 
-    expect(first).toContain('r["_field"] == "temperature"');
-    expect(first).toContain('aggregateWindow(every: 180s, fn: first, createEmpty: false, timeSrc: "_time")');
-    expect(last).toContain('aggregateWindow(every: 180s, fn: last, createEmpty: false, timeSrc: "_time")');
-    expect(last).toContain('yield(name: "last")');
-    expect(() => edgesQuery(BUCKET, DEVICE, 'x" or r["device_id"] == "other', window(60, 60))).toThrow();
+  it('are asked about only where the windows heard leave one: the window a stretch begins in and the one it ends in', () => {
+    // Heard from the read's first window on, silent from 10:09 to 10:15, and on to its end: one silence, two windows.
+    const stamps = ['10:03:00', '10:06:00', '10:09:00', '10:18:00', '10:20:30'].map(stamp);
+    expect(said(edgesAround(stamps, read))).toEqual([
+      ['10:06:00', '10:09:00', 'last'],
+      ['10:15:00', '10:18:00', 'first'],
+    ]);
+    // No silence, nothing to ask - the first window is cut where the read begins, the last where it ends.
+    expect(edgesAround(['10:03:00', '10:06:00', '10:09:00'].map(stamp), read)).toEqual([]);
+    // A device whose first reading comes later begins there, and a single window between two silences is asked both ways.
+    expect(said(edgesAround(['10:09:00', '10:20:30'].map(stamp), read))).toEqual([
+      ['10:06:00', '10:09:00', 'first'],
+      ['10:06:00', '10:09:00', 'last'],
+      ['10:18:00', '10:20:30', 'first'],
+    ]);
   });
 
-  it('are gathered by the instant their window is stamped with, the last window cut where the read ends', () => {
-    const read = { startsAt: new Date('2026-01-20T10:00:00Z'), endsAt: new Date('2026-01-20T10:10:00Z'), stepSeconds: 180 };
-    const rows = ['10:00:02', '10:02:32', '10:03:02', '10:09:32'].map(time => ({ _time: `2026-01-20T${time}Z`, _field: 'temperature' }));
+  it('are read as the first or the last sample of each such window, of whichever field', () => {
+    const asked = edgesAround(['10:03:00', '10:06:00', '10:09:00', '10:18:00'].map(stamp), read);
+    const query = edgesQuery(BUCKET, DEVICE, asked);
 
-    expect([...edgesByWindow(rows, read)].map(([stamp, one]) => [new Date(stamp).toISOString().slice(11, 19), one.last - one.first])).toEqual([
-      ['10:03:00', 150_000],
-      ['10:06:00', 0],
-      ['10:10:00', 0],
+    expect(query).toContain('union(tables: [');
+    expect(query).toContain('range(start: 2026-01-20T10:06:00.000Z, stop: 2026-01-20T10:09:00.000Z)');
+    expect(query.match(/\|> last\(\)/g)).toHaveLength(1);
+    expect(query.match(/\|> first\(\)/g)).toHaveLength(1);
+    // No field is named: a device is heard when any of its fields reports.
+    expect(query).not.toContain('_field"] ==');
+    expect(edgesQuery(BUCKET, DEVICE, asked.slice(0, 1))).not.toContain('union(');
+  });
+
+  it('are the earliest of a window`s first samples and the latest of its last, whatever field they are of', () => {
+    const asked = edgesAround(['10:03:00', '10:06:00', '10:09:00', '10:18:00'].map(stamp), read);
+    const rows = [
+      // The heater's last sample of the window is older than the lamp's, and its first after the silence later.
+      { _time: '2026-01-20T10:07:32Z', _field: 'out_heater' },
+      { _time: '2026-01-20T10:08:02Z', _field: 'out_light' },
+      { _time: '2026-01-20T10:15:32Z', _field: 'out_light' },
+      { _time: '2026-01-20T10:17:02Z', _field: 'out_heater' },
+    ];
+
+    expect([...edgesOf(rows, asked)]).toEqual([
+      [stamp('10:09:00'), { last: stamp('10:08:02') }],
+      [stamp('10:18:00'), { first: stamp('10:15:32') }],
     ]);
   });
 });

@@ -508,48 +508,75 @@ export const countsByField = (rows: (FluxRow & { result?: string })[]): Map<stri
   return byField;
 };
 
-/** When the first and the last sample of one drawn window were written. */
+/** When the first or the last sample of one drawn window was written - whichever of them was asked for. */
 export interface SampleEdges {
-  first: number;
-  last: number;
+  first?: number;
+  last?: number;
+}
+
+/** A window whose first or last sample is asked for, by the instant the window is stamped with. */
+export interface EdgeAsked extends TimeWindow {
+  end: 'first' | 'last';
 }
 
 /**
- * The first and the last sample of every drawn window of one field, by their
- * own instants (`timeSrc: "_time"` keeps a selector's own time where a window
- * is otherwise stamped at its stop). A window says that something was heard in
- * it, not when: a device back at 16:00 has a point at 16:03 at three minutes
- * to the point and at 16:30 at an hour and a half, and one that fell silent at
- * 16:18 a last point at 17:00 at an hour. With these a stretch of what was
- * heard begins and ends where the samples do, the same at every step. Pushed
- * down like a count: 18 and 43 ms on four months of one field.
+ * When the first or the last sample of some windows was written, of whichever
+ * field: a device is heard when any of its fields reports, so the read names
+ * none - asked of one field, a heater that began reporting later than its
+ * controller moved a lamp's edges by up to a step.
+ *
+ * A window says that something was heard in it, not when: a device back at
+ * 16:00 has a point at 16:03 at three minutes to the point and at 16:30 at an
+ * hour and a half, and one that fell silent at 16:18 a last point at 17:00 at
+ * an hour. Only the windows either side of a silence are asked about, each a
+ * `first()` or a `last()` over one step, so a device without silences costs
+ * nothing and one with them about a millisecond an edge.
  */
-export const edgesQuery = (bucket: string, deviceId: string, field: string, window: FluxWindow): string =>
-  ['first', 'last']
-    .map(
-      fn => `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${anyField([field])})
-    |> aggregateWindow(every: ${Math.max(1, Math.trunc(window.stepSeconds))}s, fn: ${fn}, createEmpty: false, timeSrc: "_time")
-    |> keep(columns: ["_time", "_field"])
-    |> limit(n: ${MAX_POINTS})
-    |> yield(name: "${fn}")`,
-    )
-    .join('\n');
+export const edgesQuery = (bucket: string, deviceId: string, asked: readonly EdgeAsked[]): string => {
+  const reads = asked.map(
+    one => `${head(bucket, deviceId, rangeOf(one))}
+    |> ${one.end}()
+    |> keep(columns: ["_time", "_field"])`,
+  );
+  return reads.length === 1 ? reads[0] : `union(tables: [${reads.join(',')}])`;
+};
 
-/** The rows of that read by the instant each sample's window is stamped with, as `workedOutBy` stamps one. */
-export const edgesByWindow = (rows: readonly FluxRow[], window: FluxWindow): Map<number, SampleEdges> => {
-  const [step, stop] = [Math.max(1, Math.trunc(window.stepSeconds)) * 1000, window.endsAt.getTime()];
+/** The rows of that read by the instant each asked window is stamped with: the earliest of its `first` rows, the latest of its `last`. */
+export const edgesOf = (rows: readonly FluxRow[], asked: readonly EdgeAsked[]): Map<number, SampleEdges> => {
+  const times = rows.flatMap(row => (row._time ? [Date.parse(row._time)] : [])).filter(time => !Number.isNaN(time));
   const edges = new Map<number, SampleEdges>();
 
-  for (const row of rows) {
-    const time = row._time ? Date.parse(row._time) : NaN;
-    if (Number.isNaN(time)) continue;
-    const stamp = Math.min(Math.floor(time / step) * step + step, stop);
-    const known = edges.get(stamp);
-    edges.set(stamp, { first: Math.min(known?.first ?? time, time), last: Math.max(known?.last ?? time, time) });
+  for (const one of asked) {
+    const [from, to] = [one.startsAt.getTime(), one.endsAt.getTime()];
+    const inside = times.filter(time => time >= from && time <= to);
+    if (inside.length === 0) continue;
+    edges.set(to, { ...edges.get(to), [one.end]: one.end === 'first' ? Math.min(...inside) : Math.max(...inside) });
   }
 
   return edges;
+};
+
+/**
+ * The windows either side of every silence in a row of stamps: the one a
+ * stretch of what was heard begins in (its first sample) and the one it ends
+ * in (its last). The first stretch begins in the read's first window only if
+ * that is not the first there is, and the last ends at the device's newest
+ * sample, which the read knows without this.
+ */
+export const edgesAround = (stamps: readonly number[], window: FluxWindow): EdgeAsked[] => {
+  const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
+  const [starts, stop] = [window.startsAt.getTime(), window.endsAt.getTime()];
+  // A window is cut on the step from the epoch and stamped at its end, the last one where the read ends.
+  const asked = (stamp: number, end: EdgeAsked['end']): EdgeAsked => ({
+    startsAt: new Date(Math.max(starts, stamp === stop && stamp % step !== 0 ? stamp - (stamp % step) : stamp - step)),
+    endsAt: new Date(stamp),
+    end,
+  });
+
+  return stamps.flatMap((stamp, index) => [
+    ...((index === 0 ? stamp - step > starts : stamp - stamps[index - 1] > step) ? [asked(stamp, 'first')] : []),
+    ...(index < stamps.length - 1 && stamps[index + 1] - stamp > step ? [asked(stamp, 'last')] : []),
+  ]);
 };
 
 /** One drawn window of one output, counted from its samples. */

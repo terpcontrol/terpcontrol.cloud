@@ -32,7 +32,8 @@ import {
   DailySummary,
   dailyMeanQuery,
   dailySummariesOf,
-  edgesByWindow,
+  edgesAround,
+  edgesOf,
   edgesQuery,
   Extremes,
   extremesByField,
@@ -214,8 +215,8 @@ export interface DeviceHistory {
    */
   lastSampleAt: string | null;
   /**
-   * When the first and the last sample of each drawn window were written, by the instant the window is stamped
-   * with: where a stretch of what was heard begins and ends. Only where the read counted the outputs' samples.
+   * When the first or the last sample of a window beside a silence was written, by the instant the window is
+   * stamped with: where a stretch of what was heard begins and ends. Only where the read counted the outputs' samples.
    */
   edges?: ReadonlyMap<number, SampleEdges>;
   /**
@@ -516,14 +517,19 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
     const switchings = new Map([...coarse, ...sampled]);
-    // Of one field the device was heard in - a sample carries all of them -, once the series says which that is.
-    const stored = [
-      ...series.outputs.map(row => ({ field: fieldOfOutputMetric(row.output) as string | null, points: row.points })),
-      ...series.metrics.map(row => ({ field: fieldOfMetric(row.metric), points: row.points })),
-    ];
-    const field = stored.find(row => row.field !== null && row.points.some(point => point.value !== null))?.field ?? null;
+    // A device is heard in a window any of its fields has a point in. Where those windows leave a silence, the
+    // samples either side of it say when it began and ended (`edgesAround`); a device without one is asked nothing.
     const window = { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds };
-    const edges = figures && field ? edgesByWindow(await this.read(edgesQuery(this.bucket, deviceId, field, window)), window) : null;
+    const heard = new Set(
+      [...series.metrics, ...series.outputs].flatMap(row => row.points.flatMap(point => (point.value === null ? [] : [point.measuredAt]))),
+    );
+    const asked = figures
+      ? edgesAround(
+          [...heard].map(instant => Date.parse(instant)).sort((one, other) => one - other),
+          window,
+        )
+      : [];
+    const edges = asked.length === 0 || asked.length > MAX_EDGES ? null : edgesOf(await this.read(edgesQuery(this.bucket, deviceId, asked)), asked);
     const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
@@ -872,6 +878,9 @@ const saidOf = (value: number | null): boolean | null => (value === null ? null 
  * seconds, were read in 232 ms - after the grains' own 200 ms, since they say which those are.
  */
 const STRETCHES_A_SCRIPT = 60;
+
+/** As many edges of silences as one script asks about; a device slower than its step, silent between any two points, is asked none. */
+const MAX_EDGES = 120;
 
 /** A safety net: a flag flapping all season must not become a read of everything; such a read keeps its grains whole. */
 const MAX_SWITCHED_GRAINS = 1500;
