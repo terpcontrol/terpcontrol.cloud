@@ -207,7 +207,8 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
                 highlighted={rule.id === highlighted || rule.id === made}
                 busy={update.isPending}
                 now={now}
-                twin={group.rules.some(other => other.id !== rule.id && ruleTitle(t, other) === ruleTitle(t, rule))}
+                // Among all the device's rules, whatever group each stands in.
+                twin={rules.data.items.some(other => other.id !== rule.id && ruleTitle(t, other) === ruleTitle(t, rule))}
                 onOpen={() => setOpen(rule)}
                 onToggle={enabled => toggle(rule, enabled)}
               />
