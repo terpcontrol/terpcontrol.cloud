@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -156,6 +156,28 @@ to where it belongs.
 - Known and left: the 120-day read is 852-939 ms once the server has settled and up to 1.3 s right after it
   comes up; a slow network is a waterfall of three to four round trips; a silence about a step long depends on
   how it falls into the windows.
+
+The second critic walked the grower's day and found one blocker and five majors; decided likewise:
+- **A phase without a preset never writes the device** ("Lassen, wie sie sind" with Trocknung put the tent into
+  drying), and a phase taken back does not leave the tent in a state the page denies: the question says what the
+  tent is set to, and gives back what the phase replaced where the settings' history can. Start says the work
+  mode in its status rather than "Alles im Ziel" over a tent that dries.
+- "Regelung aus" is never hidden or contradicted on Start: it stands before anything about maintenance, and an
+  offline banner does not say a device with regulation off goes on regulating.
+- "von allein" is what the device or the plan did by itself; a phase the grower set with a climate is his.
+- A feeding scheme chosen is saved at once, with a toast and its undo; the unsaved bar is for cells edited by hand.
+- The owner reaches a line's pictures from the line (the count opens the viewer; the correction sheet shows them).
+  A line about some plants of several names them.
+- Litres are "L" in both languages: Albert Sans's small "l" reads as a capital "I".
+- Digits of one width only where figures stand under one another or change in place (a table's column, an axis,
+  a list's time column, a stepper's value, a countdown, Verlauf's cursor line); a sentence, a date, a chip, a
+  title and a figure alone take the face's own digits. This widens the rule in the list above.
+- Every figure in the account's number format; a value a form cannot read is refused with a word; every write
+  answers; a harvested plant is counted as harvested; an alert that is over says so in the diary.
+- After a status that is not an alert's own sentence, what is open is said in words ("3 Meldungen offen"), not a
+  lone "+5". Lines the device wrote in a row carry "von allein" once. A grow's bar is days of a scheme, or the
+  stages as segments - never a fill by stage. One state is said once on a screen.
+- A plant can be added and removed after a grow's start (the routes exist, the screens did not offer it).
 
 **The run**
 - One branch and one pull request for the whole redesign.
