@@ -127,7 +127,7 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     once where it hangs, the place that exists first for a fan, a socket or a lamp
     ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
   - Round 7 (Ich and Meldungen), state of 2026-11-13 (the redesign session; rules in
-    [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built, not yet walked by its critic:
+    [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built:
     Ich as one card of rows with a page per subject - the zone moved to Konto, the diary's answers to a page of
     their own, the public grows into "Privatsphäre und Profil" -, every save of the account answered by a toast
     with the way back, the screens of whoever runs the install as tabs behind "Verwaltung"; Meldungen as "Offen",
@@ -136,6 +136,23 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     before the layout. No change to the server or the contract. Left for Chris: whether an alert that got better
     stays under "Offen" until somebody ticks it, as the prototype draws it - it needs a stored field -, and
     whether the rows Premium and Über keep the summary line they had (the prototype shows none; none is drawn).
+    The critic's walk (2026-11-13) found no blocker, four majors and some twenty minors, and every function that
+    belongs under Ich, Meldungen and Verwaltung reachable; decided by the redesign session, not built yet, and
+    not Chris's word:
+      - "Erledigt" stands in the order of its label - what ended last, first (it was sorted by when an alert
+        began, so a night's long event sat behind "Früher"); a row says where and when, and flapping folds as
+        Start's "Zuletzt" folds it.
+      - A wrong current password says so at the field.
+      - A card says about delivery only what is true: what will happen, with the account's quiet hours and mute,
+        by the function `/control/alarms` uses; what did happen only from what the server recorded - never
+        today's grid read backwards.
+      - The units' choice stays stored and says in a line of its own that the views show °C, grams and litres
+        for now. Left for Chris: whether the views should follow or the choice should go.
+      - One silence per place on the page (the account's in the head, a rule's behind a card's ⋯); every write
+        answers - quiet hours, the two ways to switch e-mail on (which become one), language, a changed
+        reminder, a deleted account; the bell and the inbox count the tasks `/tasks` shows as mine, in every
+        tab.
+      Stays: maintenance is started from Start and a device's card, not from an alert's card.
   - Round 6 (place and room), state of 2026-11-12 (the redesign session; the data-model part is the amendment to
     [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood), **awaiting Chris's
     confirmation with the pull request**). Built: devices keep where they stood and the reads about the past use
