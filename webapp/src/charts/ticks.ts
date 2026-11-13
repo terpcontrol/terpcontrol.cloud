@@ -100,15 +100,20 @@ const labelOf = (time: DateTime, step: Step, span: number, dayInYear: string): s
     if (time.second !== 0) return time.toFormat(`${CLOCK}:ss`);
     if (time.hour !== 0 || time.minute !== 0) return time.toFormat(CLOCK);
     // Midnight is the day turning over, which is what the line is there to show.
-    return span <= 7 * DAY_MS ? time.toFormat('ccc') : time.toFormat(dayInYear);
+    return span <= BY_CLOCK ? time.toFormat('ccc') : dayLabel(time, span, dayInYear);
   }
-  // A week of days is read by weekday, and the day of the month beside it in the reader's own way ("So 27.", "Sun 27").
-  if (step.unit === 'day')
-    return step.count === 1 && span <= 8 * DAY_MS ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
+  if (step.unit === 'day') return step.count === 1 ? dayLabel(time, span, dayInYear) : time.toFormat(dayInYear);
   if (step.unit === 'month') return time.month === 1 ? time.toFormat('yyyy') : time.toFormat('LLL');
 
   return time.toFormat('yyyy');
 };
+
+/** Up to this width a window is read by the clock, and a midnight in it by its weekday alone; past it by its days. */
+export const BY_CLOCK = 36 * HOUR_MS;
+
+/** A day on an axis, on every line and both ends alike: up to eight days "So 27." in the reader's own way, past that its date. */
+export const dayLabel = (time: DateTime, span: number, dayInYear: string): string =>
+  span <= 8 * DAY_MS ? `${time.toFormat('ccc')} ${time.toFormat(dayInYear.split(' ')[0])}` : time.toFormat(dayInYear);
 
 /**
  * The lines of a window between two instants, at most `most` of them.

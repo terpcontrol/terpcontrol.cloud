@@ -2128,7 +2128,9 @@
     "stretchAfter": "Zeitraum danach",
     "lightFrom": "ab {{from}}",
     "lightUntil": "bis {{to}}",
-    "partlyOn": "{{share}} % an"
+    "partlyOn": "{{share}} % an",
+    "lightSpanQuiet": "{{from}} bis letzter Wert {{to}}",
+    "lightUntilQuiet": "bis letzter Wert {{to}}"
   },
   "camera": {
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",

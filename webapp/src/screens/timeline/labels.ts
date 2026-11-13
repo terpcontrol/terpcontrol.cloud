@@ -3,6 +3,7 @@ import type { Translate } from '@/i18n/i18n';
 import { DAY_MS, HOUR_MS } from '@/ui/days';
 import { looseFigure } from '@/ui/figures';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, zonedAt } from '@/ui/zone';
+import { BY_CLOCK, dayLabel } from '@/charts/ticks';
 import type { Span } from './view';
 
 /**
@@ -11,8 +12,6 @@ import type { Span } from './view';
  * width of the window lets it be and still say which moment it is.
  */
 
-/** Up to this width a window is read by the clock; past it by its days. */
-const BY_CLOCK = 36 * HOUR_MS;
 const BY_WEEKDAY = 10 * DAY_MS;
 
 /** The day an instant falls on: today, yesterday, the weekday within a week, else the date. `then` is the word inside a sentence. */
@@ -77,8 +76,9 @@ export const meanStamp = (t: Translate, middle: number, window: Span, stepSecond
 /** Both ends of the window as the axis writes them; one that ends now says so. */
 export const axisEnds = (t: Translate, window: Span, live: boolean, zone: string | null): [string, string] => {
   const span = window.to - window.from;
-  const format = span <= BY_CLOCK ? CLOCK : span <= BY_WEEKDAY ? 'ccc' : DAY_IN_YEAR;
-  return [zonedAt(window.from, zone).toFormat(format), live ? t('timeline.now') : zonedAt(window.to, zone).toFormat(format)];
+  // By the clock up to a day and a half, past that as the lines between them name a day.
+  const end = (time: number) => (span <= BY_CLOCK ? zonedAt(time, zone).toFormat(CLOCK) : dayLabel(zonedAt(time, zone), span, DAY_IN_YEAR));
+  return [end(window.from), live ? t('timeline.now') : end(window.to)];
 };
 
 /** "alle 3 Min", "alle 4,5 Std", "alle 2,3 Tage": how far apart the points drawn are, in the unit that fits. */

@@ -103,27 +103,20 @@ export const shownOf = (keys: string[] | null, offered: Offered, focus: string |
 export type StripPoint = readonly [end: number, heard: number, on: number, level: number | null];
 
 /**
- * One output across the devices that drive it. Everything said about it is
- * counted from `points`, the samples of each drawn window - what it did at the
- * cursor, the share of the time it ran, the table's column and how its strip is
- * filled. `runs` say only when, for the lamp's stretches by the clock: a run is
- * rounded out to the grain it was found at, and no figure is taken from one.
+ * One output across the devices that drive it. Everything said about it is counted from `points`, the samples of
+ * each drawn window; `runs` say only when, for the lamp's stretches by the clock - a run is rounded out to the
+ * grain it was found at, and no figure is taken from one.
  */
 export interface Strip {
   output: OutputMetric;
   name: string;
   /** When any of them ran, joined, in order. */
   runs: PlotSpan[];
-  /** Whether a level is said of it: a share of full output, where a switch only runs or does not. */
-  levelled: boolean;
   points: StripPoint[];
 }
 
 /** What an output did over one drawn point or at one reading: the share of the samples it ran in, and its level in per cent where it has one. */
-export interface OutputFigure {
-  share: number;
-  level: number | null;
-}
+export type OutputFigure = { share: number; level: number | null };
 
 /** What an output is called: a fridge's name for it where every lane of it is a fridge's. */
 const outputTitle = (t: Translate, output: OutputMetric, lanes: readonly TimelineOutputLane[]): string =>
@@ -161,18 +154,16 @@ export const stripsOf = (t: Translate, data: SpaceTimeline): Strip[] =>
       output,
       name: outputTitle(t, output, lanes),
       runs: joined(lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) })))),
-      levelled: [...points.values()].some(([, , level]) => level !== null),
       points: [...points].sort(([one], [other]) => one - other).map(([end, [heard, on, level]]) => [end, heard, on, level] as const),
     };
   });
 
-/** The drawn point an instant falls into: a point closes its window, and stands for the step before it. */
-const pointAt = (strip: Pick<Strip, 'points'>, time: number, stepMs: number): StripPoint | null =>
-  strip.points.find(([end]) => end - stepMs <= time && time < end) ?? (strip.points.at(-1)?.[0] === time ? (strip.points.at(-1) ?? null) : null);
-
-/** What an output did over the drawn point an instant falls into, and null where nothing was heard of it there - which is not "off". */
+/**
+ * What an output did over the drawn point an instant falls into - a point closes its window, and stands for the
+ * step before it - and null where nothing was heard of it there, which is not "off".
+ */
 export const figureAt = (strip: Pick<Strip, 'points'>, time: number, stepMs: number): OutputFigure | null => {
-  const point = pointAt(strip, time, stepMs);
+  const point = strip.points.find(([end]) => end - stepMs <= time && time < end) ?? strip.points.findLast(([end]) => end === time);
   return point ? { share: point[2] / point[1], level: point[3] } : null;
 };
 
@@ -182,19 +173,12 @@ export const shareOf = (strip: Pick<Strip, 'points'>): number | null => {
   return heard > 0 ? strip.points.reduce((sum, point) => sum + point[2], 0) / heard : null;
 };
 
-/** One stretch of a strip that is drawn alike: the share of its samples the output ran in, and how hard. */
-export interface StripBlock {
-  /** As fractions of the window. */
-  from: number;
-  to: number;
-  share: number;
-  level: number | null;
-}
+/** One stretch of a strip that is drawn alike, its ends as fractions of the window. */
+export type StripBlock = { from: number; to: number } & OutputFigure;
 
 /**
- * A strip as it is drawn: each point over the step it stands for, neighbours that say the same joined into one
- * block, so a lamp on all day is one bar and not a row of seams. Where no point stands nothing was heard, and
- * nothing is drawn - not even "off".
+ * A strip as it is drawn: each point over the step it stands for, neighbours that say the same as one block.
+ * Where no point stands nothing was heard, and nothing is drawn - not even "off".
  */
 export const blocksOf = (strip: Pick<Strip, 'points'>, from: number, to: number, stepMs: number): StripBlock[] => {
   const width = to - from;
@@ -206,7 +190,7 @@ export const blocksOf = (strip: Pick<Strip, 'points'>, from: number, to: number,
     const block = { from: (starts - from) / width, to: (Math.min(to, end) - from) / width, share: on / heard, level };
     const last = kept.at(-1);
     if (block.to <= block.from) return kept;
-    if (last && Math.abs(last.to - block.from) < 1e-9 && last.share === block.share && last.level === block.level) last.to = block.to;
+    if (last && last.to === block.from && last.share === block.share && last.level === block.level) last.to = block.to;
     else kept.push(block);
     return kept;
   }, []);
@@ -518,6 +502,20 @@ export const nearestPoint = (points: readonly PlotPoint[], time: number, reach: 
 export const reachOf = (data: Pick<SpaceTimeline, 'stepSeconds' | 'startsAt' | 'endsAt'>, curve: Pick<Curve, 'line'>): number =>
   curve.line.shape === 'points' ? (at(data.endsAt) - at(data.startsAt)) / 100 : Math.max(data.stepSeconds, 1) * 1500;
 
+/**
+ * Where the cursor rests while nobody set it, which is what the card and every head then say: the last thing that
+ * was heard. The device's last reading where the window holds it - the curves end on it -, else the window's last
+ * drawn point: left at the window's end it stood past the reach of that point, and the card read "—" over a curve.
+ */
+export const restOf = (panels: readonly PanelModel[], strips: readonly Strip[], to: number, stepMs: number): number => {
+  const curves = panels.flatMap(panel => panel.curves).filter(curve => curve.line.shape === 'line');
+  const drawn = curves.flatMap(curve => curve.points.findLast(point => point[1] !== null)?.[0] ?? []);
+  // A place of outputs alone rests where the last of them was heard: on its point, as a curve's would be drawn.
+  const heard = strips.flatMap(strip => strip.points.at(-1)?.[0] ?? []).map(end => end - drawnBefore(stepMs / 1000));
+  const last = drawn.length > 0 ? Math.max(...drawn) : heard.length > 0 ? Math.max(...heard) : to;
+  return curves.find(curve => curve.lastAt !== null)?.lastAt ?? last;
+};
+
 /** When the place last measured, where it has been quiet since; null while it is still heard. */
 export const quietSince = (data: SpaceTimeline): number | null => {
   if (data.panels.length === 0 || !data.panels.every(panel => panel.points.at(-1)?.value === null)) return null;
@@ -536,8 +534,9 @@ export const csvFor = (
   panels: readonly PanelModel[],
   strips: readonly Strip[],
   stepMs: number,
-  /** The device's last reading where it closes the curves, which is then the table's last row. */
-  reading: { at: number; outputs: ReadonlyMap<OutputMetric, OutputFigure> } | null,
+  /** Where the device's last reading closes the curves - the table's last row - and what it says of every output. */
+  readingAt: number | null,
+  said: ReadonlyMap<OutputMetric, OutputFigure>,
   zone: string | null,
   decimalComma: boolean,
 ): string => {
@@ -586,8 +585,8 @@ export const csvFor = (
       label: t('timeline.csvLevel', { output: strip.name }),
       decimals: 0,
       points: rows.flatMap(time => {
-        const said = reading !== null && time === reading.at ? (reading.outputs.get(strip.output) ?? null) : figureAt(strip, time, stepMs);
-        return said ? [[time, said.level ?? said.share * 100] as [number, number | null]] : [];
+        const one = time === readingAt ? (said.get(strip.output) ?? null) : figureAt(strip, time, stepMs);
+        return one ? [[time, one.level ?? one.share * 100] as [number, number | null]] : [];
       }),
     })),
   ];

@@ -127,6 +127,24 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
   };
 };
 
+/** The device as it reads a few seconds ago: what the page says at rest, where a test names no other reading. */
+const reads = (): NonNullable<SpaceTimeline['reading']> => ({
+  measuredAt: iso(NOW - 6000),
+  values: (
+    [
+      ['temperature', 25.2],
+      ['humidity', 58],
+      ['vpd', 1.4],
+      ['co2', 820],
+    ] as const
+  ).map(([metric, value]) => ({ metric, value, measuredAt: iso(NOW - 6000), state: 'live' as const })),
+  outputs: [
+    { output: 'light', on: true, level: 65 },
+    { output: 'heater', on: false, level: 0 },
+    { output: 'dehumidifier', on: false, level: null },
+  ],
+});
+
 const server = {
   youMay: 'own' as AccessNeed,
   over: {} as Partial<SpaceTimeline>,
@@ -246,7 +264,7 @@ beforeEach(() => {
     holds: false,
     asked: [],
     askedFor: [],
-    reading: null,
+    reading: reads(),
     views: [],
     wrote: [],
     elsewhere: false,
@@ -331,6 +349,34 @@ describe('Verlauf as it opens', () => {
     expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
     // One form per output: one driven at a level reads in per cent, also at 0; a switch reads on or off.
     expect(card).toHaveTextContent('Light 65 % · Heater 0 % · Dehumidifier off');
+  });
+
+  it('names a lamp`s stretch that ended in a silence by its last reading, and one that was switched off by when', async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    const hour = (index: number) => iso(NOW - (24 - index) * HOUR);
+    const lamp = (heard: number[], lit: (index: number) => boolean) => ({
+      output: 'light' as const,
+      deviceId: 'device-1',
+      spans: [{ startsAt: hour(2), endsAt: hour(10) }],
+      heardUntil: hour(Math.max(...heard)),
+      points: heard.map(index => ({ measuredAt: hour(index), heard: 12, on: lit(index) ? 12 : 0, level: lit(index) ? 65 : 0 })),
+    });
+    const hours = Array.from({ length: 24 }, (_, index) => index + 1);
+
+    // Heard for ten hours and then no more: the lamp was lit when the device fell silent.
+    server.over = { outputs: [lamp(hours.slice(0, 10), index => index > 2)] };
+    const first = draw();
+    await settled();
+    expect(screen.getByRole('heading', { name: 'Light' }).closest('section')).toHaveTextContent(/\d\d:\d\d to last reading \d\d:\d\d · 65 %/);
+    first.unmount();
+
+    // Heard all day: it was switched off, and the stretch has two ends.
+    server.over = { outputs: [lamp(hours, index => index > 2 && index <= 10)] };
+    draw();
+    await settled();
+    const card = screen.getByRole('heading', { name: 'Light' }).closest('section')!;
+    expect(card).toHaveTextContent(/\d\d:\d\d to \d\d:\d\d · 65 %/);
+    expect(card).not.toHaveTextContent('last reading');
   });
 
   it('lists what was written in the window, oldest first, a device`s line marked as its own', async () => {
@@ -436,7 +482,13 @@ describe('the view in the address', () => {
 
 describe('what the place reads now', () => {
   const value = (metric: CardValue['metric'], figure: number, minutesAgo: number): CardValue =>
-    ({ metric, value: figure, measuredAt: iso(NOW - minutesAgo * 60_000), state: minutesAgo > 10 ? 'offline' : 'live' }) as CardValue;
+    ({
+      metric,
+      value: figure,
+      measuredAt: iso(NOW - minutesAgo * 60_000),
+      // The server's own mark: stale from two minutes, offline from ten.
+      state: minutesAgo >= 10 ? 'offline' : minutesAgo >= 2 ? 'stale' : 'live',
+    }) as CardValue;
   const read = (minutesAgo: number, values: CardValue[], outputs: NonNullable<SpaceTimeline['reading']>['outputs'] = []) => ({
     measuredAt: iso(NOW - minutesAgo * 60_000),
     values,
@@ -479,6 +531,47 @@ describe('what the place reads now', () => {
     expect(server.askedFor.filter(path => path.endsWith('/live'))).toEqual([]);
   });
 
+  // A reading five to ten minutes old stood past the reach of a cursor left at the end of a day's window: the card
+  // was blank under "now", the heads were blank, and the outputs were the lanes', which contradicted the reading.
+  it.each(['/timeline', '/timeline?range=7d'])(
+    'is "last reading" from the moment the server calls it stale, with its figures and its outputs: %s',
+    async path => {
+      server.reading = read(
+        6,
+        [value('temperature', 20.5, 6), value('humidity', 55.9, 6), value('vpd', 1.03, 6)],
+        [
+          { output: 'light', on: false, level: 0 },
+          { output: 'heater', on: true, level: 46 },
+          { output: 'dehumidifier', on: false, level: null },
+        ],
+      );
+      draw(path);
+      await settled();
+
+      const card = screen.getByRole('region', { name: 'Cursor' });
+      await waitFor(() => expect(card).toHaveTextContent(/Cursor · last reading · /));
+      expect(card).not.toHaveTextContent('now');
+      expect(card).toHaveTextContent('20.5 °C · 55.9 % · 1.03 kPa');
+      expect(card).toHaveTextContent('Light 0 % · Heater 46 % · Dehumidifier off');
+      expect(within(panel('Temperature')).getByText('20.5 °C')).toBeInTheDocument();
+      expect(within(panel('Humidity')).getByText('55.9 %')).toBeInTheDocument();
+    },
+  );
+
+  it('rests a window that ended in the past on its last drawn point: never a blank card over a curve', async () => {
+    const [from, to] = [iso(NOW - 30 * HOUR), iso(NOW - 6 * HOUR)];
+    draw(`/timeline?from=${from}&to=${to}`);
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    // The last point is the mean of the window's last hour, and says so.
+    await waitFor(() => expect(card).toHaveTextContent(/Cursor · mean \d\d:\d\d–\d\d:\d\d/));
+    expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
+    // What the outputs did over that point, counted from its samples.
+    expect(card).toHaveTextContent('Light 65 % · Heater 0 % · Dehumidifier off');
+    expect(within(panel('Temperature')).getByText('25.2 °C')).toBeInTheDocument();
+  });
+
   it('is "last reading" with its own time once the device has stopped reporting by the offline rule, on a month as on a day', async () => {
     server.reading = read(95, [value('temperature', 24.1, 95), value('humidity', 55, 95)]);
     // The curve's last mean closes two hours ago; nothing was measured after the device went quiet.
@@ -517,6 +610,26 @@ describe('the cursor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Grow' }));
     expect(await screen.findByRole('button', { name: 'The stretch before' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'The stretch after' })).toBeInTheDocument();
+  });
+
+  it('names the arrows of a stretch no chip names by its whole days, and of any other width as the stretch before', async () => {
+    draw('/timeline?last=259200');
+    await settled();
+    expect(screen.getByRole('button', { name: '3 days earlier' })).toBeInTheDocument();
+
+    // Seventy-two hours and a minute are nobody's unit: never "4321 min earlier".
+    draw(`/timeline?from=${iso(NOW - 80 * HOUR)}&to=${iso(NOW - 8 * HOUR + 60_000)}`);
+    await settled();
+    expect(await screen.findByRole('button', { name: 'The stretch before' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /min earlier/ })).not.toBeInTheDocument();
+  });
+
+  it('drops a cursor the address sets in the future, and rests where it would without one', async () => {
+    draw(`/timeline?at=${iso(NOW + HOUR)}`);
+    await settled();
+
+    await waitFor(() => expect(address().searchParams.has('at')).toBe(false));
+    expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
   });
 });
 
@@ -785,6 +898,8 @@ describe('Verlauf with nothing to draw', () => {
       { measuredAt: iso(NOW - 8 * HOUR + 1), value: null },
     ];
     server.over = { panels: [{ metric: 'temperature', points, targets: [] }], outputs: [], cameras: [] };
+    // An answer that carries no reading at all - the device has been gone for longer than a reading is kept.
+    server.reading = null;
     draw();
     await settled();
 

@@ -2,14 +2,14 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useTranslation } from 'react-i18next';
 import { Chart } from '@/charts/Chart';
 import type { Selection } from '@/charts/scrub';
-import { plotOption } from '@/charts/series';
+import { plotOption, type PlotPoint } from '@/charts/series';
 import { CLOCK_ROOM_PX, TICK_ROOM_PX, ticksFor, timeTicks } from '@/charts/ticks';
 import type { ChartPalette } from '@/charts/tokens';
 import { HOUR_MS } from '@/ui/days';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { DAY_IN_YEAR, useZone } from '@/ui/zone';
-import { nearestPoint, type PanelModel } from './model';
+import type { PanelModel } from './model';
 import { Strips } from './Strips';
 import { fractionOf } from './window';
 import styles from './Timeline.module.css';
@@ -20,8 +20,8 @@ const WHEEL_STEP = 60;
 interface PanelProps {
   panel: PanelModel;
   cursor: number;
-  /** How near the cursor a point has to stand to be read at it. */
-  reach: (panel: PanelModel['curves'][number]) => number;
+  /** What the cursor reads of each curve: the page reads it once, for the card and for every head. */
+  read: { curve: PanelModel['curves'][number]; point: PlotPoint | null }[];
   /** Both ends of the window as the axis writes them. */
   ends: readonly [string, string];
   /** What the cursor is called to a screen reader: its instant. */
@@ -53,7 +53,7 @@ interface PanelProps {
 export function Panel({
   panel,
   cursor,
-  reach,
+  read,
   ends,
   stamp,
   scrub,
@@ -70,7 +70,6 @@ export function Panel({
   const { from, to } = panel.plot;
   const option = useMemo(() => (palette: ChartPalette) => plotOption(palette, panel.plot), [panel.plot]);
   const left = `${fractionOf(cursor, from, to) * 100}%`;
-  const read = panel.curves.map(curve => ({ curve, point: nearestPoint(curve.points, cursor, reach(curve)) }));
   const [first] = panel.curves;
   const alone = panel.curves.length === 1;
   const compared = alone && comparedAt ? comparedAt(first.key) : null;

@@ -21,6 +21,10 @@ describe('the gridlines of a chart over time', () => {
     expect(labels('2026-10-01T14:51', '2026-10-02T14:51', 4)).toEqual(['18:00', 'Fr', '06:00', '12:00']);
   });
 
+  it('names a midnight of three days as a week names a day: by weekday and day, on every line alike', () => {
+    expect(labels('2026-09-29T06:57', '2026-10-02T06:57', 8)).toEqual(['12:00', 'Mi 30.', '12:00', 'Do 1.', '12:00', 'Fr 2.']);
+  });
+
   it('counts a week by its days on a wide plot and by every other date on a narrow one', () => {
     expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 8)).toEqual(['Sa 26.', 'So 27.', 'Mo 28.', 'Di 29.', 'Mi 30.', 'Do 1.', 'Fr 2.']);
     expect(labels('2026-09-25T14:52', '2026-10-02T14:52', 4)).toEqual(['26. Sep', '28. Sep', '30. Sep', '2. Okt']);

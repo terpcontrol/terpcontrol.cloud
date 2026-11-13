@@ -13,13 +13,14 @@ import {
   offeredOf,
   panelsOf,
   quietSince,
+  restOf,
   shareOf,
   shownOf,
   stripsOf,
   type Shown,
 } from '@/screens/timeline/model';
 import { DateTime } from 'luxon';
-import { meanStamp, stepWords, windowLabel } from '@/screens/timeline/labels';
+import { axisEnds, meanStamp, stepWords, windowLabel } from '@/screens/timeline/labels';
 import { translate } from './translations';
 
 /**
@@ -374,7 +375,6 @@ describe('the strips', () => {
       [12, 20, 1, 65],
     ]);
     expect(shareOf(light)).toBeCloseTo(14 / 20, 6);
-    expect(light.levelled).toBe(true);
   });
 
   it('draws a run of nine minutes in a day as the share of its point, and a switch with no level', () => {
@@ -382,7 +382,6 @@ describe('the strips', () => {
     const ran = blocksOf(dehumidifier, FROM, FROM + 24 * HOUR, HOUR).filter(block => block.share > 0);
 
     expect(ran).toEqual([{ from: 12 / 24, to: 13 / 24, share: 0.15, level: null }]);
-    expect(dehumidifier.levelled).toBe(false);
   });
 
   it('counts a valve that pulses five seconds every two minutes as open in one sample of twenty-four, not all day', () => {
@@ -452,6 +451,26 @@ describe('the cursor', () => {
     [3000, null],
     [9000, 25],
   ] as const;
+
+  it('rests on the last thing that was heard: the device`s reading, else the last drawn point, else the window`s end', () => {
+    const TO = FROM + 24 * HOUR;
+    const reading: CardValue = { metric: 'temperature', value: 20.5, measuredAt: at(23.9), state: 'stale' };
+    const now = { values: [reading], silentSince: FROM + 23.9 * HOUR };
+
+    // A window that holds the reading ends its curves on it, six minutes old or six seconds.
+    const live = drawn(answer(), ['temperature'], { now });
+    expect(restOf(live.panels, live.strips, TO, HOUR)).toBe(FROM + 23.9 * HOUR);
+    // One that ended in the past rests on its last point, drawn in the middle of the hour it is the mean of.
+    const past = drawn(answer(), ['temperature']);
+    expect(restOf(past.panels, past.strips, TO, HOUR)).toBe(FROM + 23.5 * HOUR);
+    // A curve that broke off earlier rests where it broke off, not at the end of the window.
+    const broke = answer({ panels: [{ metric: 'temperature', points: [1, 2, 3].map(hour => ({ measuredAt: at(hour), value: 24 })), targets: [] }] });
+    expect(restOf(drawn(broke, ['temperature']).panels, [], TO, HOUR)).toBe(FROM + 2.5 * HOUR);
+    // Outputs alone: where the last of them was heard - the lamp fell silent at 20:00, the others did not.
+    const outputs = drawn(answer({ panels: [] }), ['outputs', 'light']);
+    expect(restOf(outputs.panels, outputs.strips, TO, HOUR)).toBe(FROM + 23.5 * HOUR);
+    expect(restOf([], [], TO, HOUR)).toBe(TO);
+  });
 
   it('reads the point nearest to it, which is where its dot sits on the line', () => {
     expect(nearestPoint(points, 1400, 1500)).toEqual([1000, 20]);
@@ -544,7 +563,7 @@ describe('the picture a plot comes to', () => {
 describe('the table', () => {
   it('holds every curve drawn with its lowest and highest, and every output as the state it held', () => {
     const { panels, strips } = drawn(answer(), ['temperature', 'outputs']);
-    const table = csvFor(t, panels, strips, HOUR, null, 'UTC', false);
+    const table = csvFor(t, panels, strips, HOUR, null, new Map(), 'UTC', false);
     const [head, ...rows] = table.slice(1).split('\n');
 
     // The mark a spreadsheet reads the encoding by, so "°C" arrives as that.
@@ -564,13 +583,34 @@ describe('the table', () => {
     expect(rows.at(-1)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,100');
   });
 
+  it('ends on the device`s last reading, with what that reading says of every output - as the card does', () => {
+    const reading: CardValue = { metric: 'temperature', value: 20.3, measuredAt: at(23.9), state: 'live' };
+    const { panels, strips } = drawn(answer(), ['temperature', 'outputs', 'light'], { now: { values: [reading], silentSince: null } });
+    // The heater at 59 % and the fan running in that one sample; the lamp dark, the dehumidifier off.
+    const said = new Map([
+      ['light', { share: 0, level: 0 }],
+      ['heater', { share: 1, level: 59 }],
+      ['dehumidifier', { share: 0, level: null }],
+      ['fan', { share: 1, level: null }],
+    ] as const);
+    const rows = csvFor(t, panels, strips, HOUR, FROM + 23.9 * HOUR, said, 'UTC', false)
+      .slice(1)
+      .split('\n')
+      .slice(1);
+
+    // The last row is the reading's own instant, and its outputs are the reading's.
+    expect(rows.at(-1)).toBe('2026-11-12T14:24:00.000Z,20.3,20.3,20.3,0,59,0,100');
+    // The row before it is a mean, and its outputs are what the samples of its hour came to.
+    expect(rows.at(-2)).toBe('2026-11-12T14:00:00.000Z,24.8,24.8,24.8,,0,0,100');
+  });
+
   it('writes no row after the last reading: an output nobody measured is not "0" there', () => {
     // The curve ends at 20:30; the strips are answered to the window's end.
     const quiet = answer({
       panels: [{ metric: 'temperature', points: [1, 2, 3, 4, 5, 6].map(hour => ({ measuredAt: at(hour), value: 24.8 })), targets: [] }],
     });
     const { panels, strips } = drawn(quiet, ['temperature', 'outputs', 'light']);
-    const rows = csvFor(t, panels, strips, HOUR, null, 'UTC', false).slice(1).split('\n').slice(1);
+    const rows = csvFor(t, panels, strips, HOUR, null, new Map(), 'UTC', false).slice(1).split('\n').slice(1);
 
     expect(rows).toHaveLength(6);
     expect(rows.at(-1)!.startsWith('2026-11-11T20:00:00')).toBe(true);
@@ -578,7 +618,7 @@ describe('the table', () => {
 
   it('says of the deficit`s column that it is worked out', () => {
     const { panels } = drawn(answer(), ['vpd']);
-    expect(csvFor(t, panels, [], HOUR, null, 'UTC', false).slice(1).split('\n')[0]).toBe(
+    expect(csvFor(t, panels, [], HOUR, null, new Map(), 'UTC', false).slice(1).split('\n')[0]).toBe(
       '"Time","VPD, worked out from temperature and humidity (kPa)"',
     );
   });
@@ -611,6 +651,15 @@ describe('how the page says when', () => {
     expect(windowLabel(t, { from: Date.parse('2026-11-12T03:00:00Z'), to: Date.parse('2026-11-12T03:20:00Z') }, false, now, 'UTC')).toBe(
       'Today 03:00 to 03:20',
     );
+  });
+
+  it('names both ends of an axis as the lines between them name a day', () => {
+    const from = Date.parse('2026-11-10T06:57:00Z');
+    // By the clock up to a day and a half, by weekday and day up to eight days, by the date past that.
+    expect(axisEnds(t, { from, to: from + 24 * HOUR }, false, 'UTC')).toEqual(['06:57', '06:57']);
+    expect(axisEnds(t, { from, to: from + 72 * HOUR }, false, 'UTC')).toEqual(['Tue 10', 'Fri 13']);
+    expect(axisEnds(t, { from, to: from + 72 * HOUR }, true, 'UTC')).toEqual(['Tue 10', 'now']);
+    expect(axisEnds(t, { from, to: from + 30 * 24 * HOUR }, false, 'UTC')).toEqual(['10 Nov', '10 Dec']);
   });
 
   it('says of a mean that it is one, and over which stretch', () => {
