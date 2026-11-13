@@ -312,7 +312,7 @@ const levelOf = (output: OutputHistory): Pick<TimelineOutputLane, 'level'> => {
 /** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
 const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): string => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
-  const heard = heardStretches(points, window, series.stepSeconds, sampled);
+  const heard = heardStretches(points, readOf(series, window), series.stepSeconds, sampled);
 
   return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
 };
@@ -329,6 +329,18 @@ interface SeriesWindow {
   startsAt: Date;
   endsAt: Date;
 }
+
+/**
+ * The part of the window one device was read over. A device is read over its
+ * stay in the place, so that is where its edges are: a device that came an
+ * hour ago ran nothing here before it came, however wide the window its first
+ * point stands for, and one that has left is not "still reporting" by the
+ * window's end.
+ */
+const readOf = (series: DeviceSeries, window: SeriesWindow): SeriesWindow => ({
+  startsAt: new Date(Math.max(window.startsAt.getTime(), millis(series.startsAt))),
+  endsAt: new Date(Math.min(window.endsAt.getTime(), millis(series.endsAt))),
+});
 
 /** How many of a device's usual gaps in a row count as it having stopped, rather than as its having been slow once. */
 const SILENT_AFTER = 4;
@@ -387,10 +399,12 @@ const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number
 const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: number | null): TimelineSpan[] => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
 
-  return overlapping(stateStretches(output.switchings, on), heardStretches(points, window, series.stepSeconds, sampled)).map(stretch => ({
-    startsAt: new Date(stretch.from).toISOString(),
-    endsAt: new Date(stretch.to).toISOString(),
-  }));
+  return overlapping(stateStretches(output.switchings, on), heardStretches(points, readOf(series, window), series.stepSeconds, sampled)).map(
+    stretch => ({
+      startsAt: new Date(stretch.from).toISOString(),
+      endsAt: new Date(stretch.to).toISOString(),
+    }),
+  );
 };
 
 /** A stretch of the window in instants, before it is written as a span. */
@@ -559,7 +573,7 @@ const halfOf = (metric: Metric, setpoint: number | null): TimelineTarget | null 
 };
 
 /** What the sensor can say, and no more: the mean of two readings is otherwise seventeen digits of which one is a measurement. */
-const rounded = (value: number, metric: Metric): number => {
+export const rounded = (value: number, metric: Metric): number => {
   const factor = 10 ** METRIC_DECIMALS[metric];
 
   return Math.round(value * factor) / factor;

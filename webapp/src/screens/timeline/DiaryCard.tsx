@@ -30,7 +30,8 @@ interface DiaryCardProps {
 
 /**
  * What was written in the window, as the diary tells it - a run of the same
- * device line folded, an alarm by its rule - oldest first, the way the curves
+ * device line folded, an alarm by its rule, the moment another device took
+ * over the measuring - oldest first, the way the curves
  * above run. A line's stamp sets the cursor on its moment; its words open its
  * correction, as everywhere a line is read.
  */
@@ -40,7 +41,8 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
   const [all, setAll] = useKept('timeline-lines', false);
   const window = { from: at(data.startsAt), to: at(data.endsAt) };
   const entries = data.events.filter(entry => (entry.source === 'human' ? shown.diary : shown.machine));
-  const lines = dayLines(t, i18n, { entries, events: [], endsAt: data.endsAt }, zone).reverse();
+  // A change of the device the curves are of is a line the devices' own tick shows, as in the grow's diary.
+  const lines = dayLines(t, i18n, { entries, events: shown.machine ? data.deviceChanges : [], endsAt: data.endsAt }, zone).reverse();
   const listed = all ? lines : lines.slice(-SHOWN);
 
   return (

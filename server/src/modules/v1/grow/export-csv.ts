@@ -12,8 +12,10 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import { MediaTally } from '@modules/v1/camera/media.service';
 import { readingsIn } from '../diary/diary-entries';
+import { rounded } from '../timeline/timeline-series';
 
 /**
  * What an export's CSVs say.
@@ -147,6 +149,12 @@ export const measurementsCsv = (
  * construction and an instant a device said nothing at is an empty cell rather
  * than a missing row. A whole grow is read a stretch at a time, so this answers
  * rows rather than a file and the caller writes them as they come.
+ *
+ * The rows of a stretch are in the order of their instants, whichever device
+ * they are of: where one controller replaced another, the file runs from the
+ * one into the other and not through each in turn. A figure is written to the
+ * digits the app writes it with - a mean of a minute is otherwise seventeen
+ * digits of which one is a measurement.
  */
 export const climateColumns = (metrics: readonly Metric[], outputs: readonly OutputMetric[]): string[] => [
   'measuredAt',
@@ -155,15 +163,33 @@ export const climateColumns = (metrics: readonly Metric[], outputs: readonly Out
   ...outputs.map(output => `out_${output}`),
 ];
 
-export const climateRows = (series: readonly DeviceSeries[], metrics: readonly Metric[], outputs: readonly OutputMetric[]): unknown[][] =>
-  series.flatMap(one =>
-    (one.metrics[0]?.points ?? one.outputs[0]?.points ?? []).map((point, index) => [
-      point.measuredAt,
-      one.deviceId,
-      ...metrics.map(metric => one.metrics.find(row => row.metric === metric)?.points[index]?.value ?? null),
-      ...outputs.map(output => one.outputs.find(row => row.output === output)?.points[index]?.value ?? null),
-    ]),
-  );
+export const climateRows = (series: readonly DeviceSeries[], metrics: readonly Metric[], outputs: readonly OutputMetric[]): unknown[][] => {
+  const figure = (value: number | null | undefined, write: (value: number) => number): number | null => (value == null ? null : write(value));
+
+  return series
+    .flatMap(one =>
+      (one.metrics[0]?.points ?? one.outputs[0]?.points ?? []).map((point, index) => [
+        point.measuredAt,
+        one.deviceId,
+        ...metrics.map(metric => figure(one.metrics.find(row => row.metric === metric)?.points[index]?.value, value => rounded(value, metric))),
+        ...outputs.map(output => figure(one.outputs.find(row => row.output === output)?.points[index]?.value, value => outputFigure(value, output))),
+      ]),
+    )
+    .sort((one, other) => Date.parse(one[0] as string) - Date.parse(other[0] as string));
+};
+
+/**
+ * An output in the unit it is stored in, to the whole per cent of full output
+ * a strip's level is said in (`levelOf`, `timeline-series.ts`): 0.46 of a
+ * heater, 60 of a lamp. A switch is the share of the minute it was on, to the
+ * same hundredth.
+ */
+const outputFigure = (value: number, output: OutputMetric): number => {
+  const level = OUTPUT_LEVEL[output];
+  const scale = level?.unit === 'percent' ? level.scale : 100;
+
+  return Math.round(value * scale) / scale;
+};
 
 /** The plants of a grow, with the weights they came off at - which nobody but their owner ever exports. */
 export const plantsCsv = (plants: readonly PlantDocument[]): Buffer =>

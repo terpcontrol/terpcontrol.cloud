@@ -1,4 +1,5 @@
 import { Model } from 'mongoose';
+import type { GrowDayEvent } from '@fg2/shared-types/v1';
 import { Stood } from '@common/v1/device-placements';
 import { notFound } from '@common/v1/problem';
 import { Span } from '@common/v1/range';
@@ -65,15 +66,56 @@ export const predecessorsOf = (stood: readonly Stood[], leadingId: string | null
   return chain;
 };
 
-/** The leading device's history with its predecessors' readings in front of it, each over the stretch it held. */
+/** A change of the device that measures, as a day of the diary and a window of Verlauf tell it. */
+export type DeviceChange = Extract<GrowDayEvent, { kind: 'device' }>;
+
+/**
+ * When the place's climate passed to another device, oldest first: who took
+ * over, at the moment it was put there. Read off the chain and so off the
+ * placements - a move taken back within its five minutes leaves no placement,
+ * and no change to tell.
+ */
+export const changesOf = (stood: readonly Stood[], leadingId: string | null, chain: readonly Predecessor[]): DeviceChange[] =>
+  chain
+    .flatMap((_link, index): DeviceChange[] => {
+      const next = stood.find(({ device }) => device.id === (index === 0 ? leadingId : chain[index - 1].deviceId));
+      const at = index === 0 ? next?.since : chain[index - 1].held.startsAt;
+      return next && at ? [{ kind: 'device', at: at.toISOString(), name: next.device.name ?? null, type: next.device.type }] : [];
+    })
+    .reverse();
+
+/**
+ * What the leading device said from the hand-over on. What it measured and
+ * switched while another device held the place was not this place's air: a
+ * first placement is read from before it began, and a controller fresh out of
+ * its box had been running on a desk for the hour before it replaced the old
+ * one.
+ */
+export const fromHandover = (leading: DeviceHistory, chain: readonly Predecessor[]): DeviceHistory => {
+  if (chain.length === 0) return leading;
+
+  const handedOver = Math.max(...chain.map(link => link.held.endsAt.getTime()));
+  const since = <T extends { measuredAt: string }>(points: readonly T[]): T[] => points.filter(point => Date.parse(point.measuredAt) > handedOver);
+
+  return {
+    ...leading,
+    series: {
+      ...leading.series,
+      startsAt: new Date(Math.max(handedOver, Date.parse(leading.series.startsAt))).toISOString(),
+      metrics: leading.series.metrics.map(row => ({ ...row, points: since(row.points) })),
+      outputs: leading.series.outputs.map(row => ({ ...row, points: since(row.points) })),
+    },
+    outputs: leading.outputs.map(output => (output.levels ? { ...output, levels: since(output.levels) } : output)),
+  };
+};
+
+/** The leading device's history - from the hand-over on - with its predecessors' readings in front of it, each over the stretch it held. */
 export const withPredecessors = (leading: DeviceHistory, chain: readonly Predecessor[], histories: readonly DeviceHistory[]): DeviceHistory => {
   const earlier = [...chain].reverse().flatMap(link => {
     const history = histories.find(one => one.series.deviceId === link.deviceId);
     return history ? [{ history, until: link.held.endsAt.getTime() }] : [];
   });
   if (earlier.length === 0) return leading;
-  // What the leading device measured while another held the place was not this place's air.
-  const handedOver = Math.max(...earlier.map(one => one.until));
 
   return {
     ...leading,
@@ -86,7 +128,7 @@ export const withPredecessors = (leading: DeviceHistory, chain: readonly Predece
           ...earlier.flatMap(({ history, until }) =>
             (history.series.metrics.find(one => one.metric === row.metric)?.points ?? []).filter(point => Date.parse(point.measuredAt) <= until),
           ),
-          ...row.points.filter(point => Date.parse(point.measuredAt) > handedOver),
+          ...row.points,
         ],
       })),
     },

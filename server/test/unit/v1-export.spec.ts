@@ -619,6 +619,41 @@ describe('what is in the zip', () => {
     expect(readme).toContain('out_dehumidifier of 0.67');
   });
 
+  it('writes the climate in the order it was measured across a change of the device, in the digits the app writes', async () => {
+    const { climateRows } = await import('@modules/v1/grow/export-csv');
+    const series = (deviceId: string, at: string[], temperature: number, vpd: number, heater: number, light: number): DeviceSeries => ({
+      deviceId,
+      startsAt: at[0],
+      endsAt: at[at.length - 1],
+      stepSeconds: 60,
+      metrics: [
+        { metric: 'temperature', points: at.map(measuredAt => ({ measuredAt, value: temperature })) },
+        { metric: 'co2', points: at.map(measuredAt => ({ measuredAt, value: null })) },
+        { metric: 'vpd', points: at.map(measuredAt => ({ measuredAt, value: vpd })) },
+      ],
+      outputs: [
+        { output: 'heater', points: at.map(measuredAt => ({ measuredAt, value: heater })) },
+        { output: 'light', points: at.map(measuredAt => ({ measuredAt, value: light })) },
+      ],
+    });
+    // The device standing there now is read first; the one it replaced measured before it, to an instant with milliseconds.
+    const rows = climateRows(
+      [
+        series('device-new', ['2026-11-12T22:10:00Z', '2026-11-12T22:11:00Z'], 28.04, 0.2, 0.5449999999999999, 59.6),
+        series('device-old', ['2026-11-12T22:09:00Z', '2026-11-12T22:09:16.502Z'], 18.240000000000002, 0.9349, 0.31999999999999995, 0),
+      ],
+      ['temperature', 'co2', 'vpd'],
+      ['heater', 'light'],
+    );
+
+    expect(rows).toEqual([
+      ['2026-11-12T22:09:00Z', 'device-old', 18.2, null, 0.93, 0.32, 0],
+      ['2026-11-12T22:09:16.502Z', 'device-old', 18.2, null, 0.93, 0.32, 0],
+      ['2026-11-12T22:10:00Z', 'device-new', 28, null, 0.2, 0.54, 60],
+      ['2026-11-12T22:11:00Z', 'device-new', 28, null, 0.2, 0.54, 60],
+    ]);
+  });
+
   it('holds nothing of anybody else´s, however much of it sits in the same database', async () => {
     const asked = await exports.ask(OWNER, 'account', null, NOW);
     await exports.drain();

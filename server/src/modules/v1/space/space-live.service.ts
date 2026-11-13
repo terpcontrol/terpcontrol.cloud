@@ -48,7 +48,7 @@ export class SpaceLiveService {
    * where `devicesIn` is what a read about now is made of.
    */
   public stoodIn(spaceIds: string[], span: Span): Promise<Stood[]> {
-    return stoodIn(this.devices, spaceIds, span, { type: 1, configuration: 1, 'state.hardware': 1 });
+    return stoodIn(this.devices, spaceIds, span, { type: 1, name: 1, configuration: 1, 'state.hardware': 1 });
   }
 
   /**

@@ -99,6 +99,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
       },
     ],
     events: [restart, watered],
+    deviceChanges: [],
     machineEvents: { shown: 1, total: 1 },
     grows: [{ growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null }],
     readingNames: [],
@@ -132,6 +133,8 @@ const server = {
   values: null as CardValue[] | null,
   views: [] as { id: string; name: string; definition: unknown }[],
   wrote: [] as string[],
+  /** Whether the account has a second place with a controller of its own standing in it. */
+  elsewhere: false,
 };
 
 const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -141,16 +144,26 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (method !== 'GET') server.wrote.push(`${method} ${path}`);
   else server.askedFor.push(path);
 
-  if (path === '/home') return json(homeOf([cardOf({ name: 'Tent 1', kind: 'tent' })], true));
-  if (path === '/spaces') return json(spacePage(spaceWhere(server.youMay)));
-  if (path === '/devices') return json({ items: [fridge()], nextCursor: null });
+  const second = server.elsewhere;
+  if (path === '/home') {
+    const cards = [
+      cardOf({ name: 'Tent 1', kind: 'tent' }),
+      ...(second ? [cardOf({ spaceId: 'space-2', name: 'Tent 2', kind: 'tent', deviceIds: ['device-2'] })] : []),
+    ];
+    return json(homeOf(cards, true));
+  }
+  if (path === '/spaces')
+    return json(spacePage(spaceWhere(server.youMay), ...(second ? [spaceWhere('own', { id: 'space-2', name: 'Tent 2' })] : [])));
+  if (path === '/devices') {
+    return json({
+      items: [fridge(), ...(second ? [fridge({ id: 'device-2', type: 'controller', name: 'Controller B', spaceId: 'space-2' })] : [])],
+      nextCursor: null,
+    });
+  }
   if (path === '/me') return json(meWith({ preferences: { ...meWith().preferences, timezone: 'UTC' } }));
   if (path === '/spaces/space-1/live' && server.values) return json({ spaceId: 'space-1', values: server.values, setpoints: [], devices: [] });
-  if (path === '/spaces/space-1/timeline') {
+  if (path === '/spaces/space-1/timeline' || (second && path === '/spaces/space-2/timeline')) {
     server.asked.push(url.searchParams);
-    if (url.searchParams.get('deviceId') === 'device-gone') {
-      return json({ status: 404, code: 'device_not_here', title: 'That device does not stand in this space.', detail: '', errors: [] }, 404);
-    }
     if (server.holds) {
       server.holds = false;
       await new Promise<void>(resolve => (server.release = resolve));
@@ -214,7 +227,18 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   who.is = 'you';
-  Object.assign(server, { youMay: 'own', over: {}, fails: false, holds: false, asked: [], askedFor: [], values: null, views: [], wrote: [] });
+  Object.assign(server, {
+    youMay: 'own',
+    over: {},
+    fails: false,
+    holds: false,
+    asked: [],
+    askedFor: [],
+    values: null,
+    views: [],
+    wrote: [],
+    elsewhere: false,
+  });
   opened.length = 0;
   told.length = 0;
   localStorage.clear();
@@ -302,6 +326,19 @@ describe('Verlauf as it opens', () => {
 
     const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
     expect(lines.map(line => line.textContent)).toEqual([expect.stringMatching(/Device rebooted.*by itself/), expect.stringMatching(/You watered/)]);
+  });
+
+  it('says in that list when another device took over the measuring, as a line nobody wrote', async () => {
+    server.over = { deviceChanges: [{ kind: 'device', at: ago(4), name: 'Controller B', type: 'controller' }] };
+    draw();
+    await settled();
+
+    const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
+    expect(lines.map(line => line.textContent)).toEqual([
+      expect.stringMatching(/Device rebooted/),
+      expect.stringMatching(/Controller B measures from \d\d:\d\d.*by itself/),
+      expect.stringMatching(/You watered/),
+    ]);
   });
 });
 
@@ -446,19 +483,26 @@ describe('a window that is not what the address asked for', () => {
     expect(screen.getByRole('button', { name: '7 d', pressed: true })).toBeInTheDocument();
   });
 
-  it('draws the place`s own device where the address names one that does not stand here, says so, and drops it', async () => {
-    draw('/timeline?device=device-gone');
-
-    expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
-    expect(await settled()).toBeInTheDocument();
-    expect(address().searchParams.has('device')).toBe(false);
-  });
-
-  it('asks the server nothing it can only refuse: an unknown device and a grow without a place are told from what the account holds', async () => {
+  it('draws the place`s own device where the address names one that does not stand here, says so and drops it - without asking the server what it can only refuse', async () => {
     draw('/timeline?device=device-nobody-has');
     expect(await screen.findByText(/The device in the address does not stand in this place/)).toBeInTheDocument();
     await settled();
+    expect(address().searchParams.has('device')).toBe(false);
     expect(server.asked.every(query => !query.has('deviceId'))).toBe(true);
+    expect(server.askedFor.some(path => path.includes('device-nobody-has'))).toBe(false);
+  });
+
+  it('reads a device the address names in the place it stands in, whichever place was chosen, and the choice follows', async () => {
+    server.elsewhere = true;
+    localStorage.setItem('terp.place', 'space-1');
+    draw('/timeline?device=device-2&range=7d');
+
+    await settled();
+    // The address names the device's place, which is what chooses it; the rest of the view stays.
+    expect(Object.fromEntries(address().searchParams)).toEqual({ device: 'device-2', range: '7d', space: 'space-2' });
+    expect(server.asked.map(query => query.get('deviceId'))).toEqual(['device-2']);
+    expect(server.askedFor.filter(path => path.endsWith('/timeline'))).toEqual(['/spaces/space-2/timeline']);
+    await waitFor(() => expect(localStorage.getItem('terp.place')).toBe('space-2'));
   });
 
   it('sends a grow that stands in no place to its page of measurements, without asking for its curves here', async () => {
@@ -533,6 +577,7 @@ describe('the sheet "Adjust"', () => {
   });
 
   it('takes the device`s lines out of the diary and leaves what people wrote', async () => {
+    server.over = { deviceChanges: [{ kind: 'device', at: ago(4), name: null, type: 'controller' }] };
     const sheet = await adjust();
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Device messages' }));
 

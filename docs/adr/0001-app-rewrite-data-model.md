@@ -381,11 +381,21 @@ like a place.
      and a device that came draws nothing from where it stood before - until now a device moved from one tent to
      another brought a month of the other tent's air along. `?deviceId=` may name a device that has left. The hour
      after a device came is its climate settling, as after any change of targets. `GET /spaces/{id}/series` reads
-     each device over its stay as well, without joining a curve across a change.
+     each device over its stay as well, without joining a curve across a change. **The change is said and is
+     exact** (the redesign session of 2026-11-12, after its critic swapped two controllers): the answer lists
+     when another device took over the place's climate inside the window (`deviceChanges`: when, and the device's
+     name and type), read off the placements on every read and stored nowhere, so a move taken back inside its
+     five minutes leaves none; not to a reader from outside, and not where one device was asked for. The leading
+     device's curve *and* its output strips begin at the hand-over, a strip is bounded by its device's own read
+     rather than by the window, and an alert counts for the place it was raised in - one that names no place by
+     its device, inside the device's stay - so a device's offline alarm raised where it went does not stand in
+     the Verlauf of the place it left.
    - *A grow's diary and report* (`GET /grows/{id}/diary`, `/report`): a day's climate, its share inside the targets
      and what the lamp did are of the devices standing where the plants stood on that day, each for the hours it
-     stood there. *A grow's series* (`GET /grows/{id}/series`) and *the exports* (`climate.csv` of a grow) the same:
-     the devices of the grow's places over the grow, each for its days there.
+     stood there. A change of the measuring device is an event of that day (`GrowDayEvent`, kind `device`),
+     derived as Verlauf's is, and an excursion is dated no earlier than its device was read from. *A grow's series* (`GET /grows/{id}/series`) and *the exports* (`climate.csv` of a grow) the same:
+     the devices of the grow's places over the grow, each for its days there; `climate.csv` is in time order across
+     the devices.
    - *Lines* are not joined through the history: a line a device writes has carried the place it was written in
      since the rewrite, so it already stays where it was written.
    - *Pictures* are a camera's and are untouched: a camera follows the device it is paired at, as before.

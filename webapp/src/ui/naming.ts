@@ -12,7 +12,7 @@ import type { Translate } from '@/i18n/i18n';
  * Devices page, under a stream address and beside a camera that has just been
  * paired.
  */
-export const givenName = (device: Device): string | null => (device.name && device.name !== device.type ? device.name : null);
+export const givenName = (device: Pick<Device, 'name' | 'type'>): string | null => (device.name && device.name !== device.type ? device.name : null);
 
 /** The tail of the id, which is as much of it as anybody reads off a screen or a label. */
 const deviceTag = (device: Device): string => device.id.slice(-6).toUpperCase();
@@ -28,7 +28,7 @@ export const placeKindOf = (type: string): SpaceKind => (type === 'fridge' ? 'fr
 export const typeName = (type: string, t: Translate): string => t(`devices.type.${type}`, { defaultValue: type });
 
 /** What to call a device inside a sentence, where the sentence already says which one is meant. */
-export const deviceName = (device: Device, t: Translate): string => givenName(device) ?? typeName(device.type, t);
+export const deviceName = (device: Pick<Device, 'name' | 'type'>, t: Translate): string => givenName(device) ?? typeName(device.type, t);
 
 /**
  * What to call a device where the name is the whole of its row. A list of six

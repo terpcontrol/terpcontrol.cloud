@@ -11538,7 +11538,7 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-            "description": "When the reading left its band, or the start of the day where it was already outside."
+            "description": "When the reading left its band; the start of the day, or the moment its device was put there, where it was already outside."
           },
           "endedAt": {
             "anyOf": [
@@ -11607,6 +11607,38 @@
           "kind",
           "at",
           "endedAt"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "device"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the device was put there: from here on the curves and the figures of the place are its own."
+          },
+          "name": {
+            "description": "What the device is called, as `Device.name`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "name",
+          "type"
         ]
       }
     ]
@@ -13331,6 +13363,42 @@
         },
         "description": "The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
       },
+      "deviceChanges": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "device"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "description": "When the device was put there: from here on the curves and the figures of the place are its own."
+            },
+            "name": {
+              "description": "What the device is called, as `Device.name`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+            }
+          },
+          "required": [
+            "kind",
+            "at",
+            "name",
+            "type"
+          ]
+        },
+        "description": "When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read."
+      },
       "machineEvents": {
         "$ref": "#/components/schemas/TimelineMachineEvents"
       },
@@ -13381,6 +13449,7 @@
       "alarms",
       "outputs",
       "events",
+      "deviceChanges",
       "machineEvents",
       "grows",
       "readingNames",

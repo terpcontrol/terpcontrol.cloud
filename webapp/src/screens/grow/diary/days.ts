@@ -6,6 +6,7 @@ import type { Translate } from '@/i18n/i18n';
 import { spanLabel } from '@/ui/age';
 import { foldRepeats } from '@/ui/entries';
 import { decimalFigure } from '@/ui/figures';
+import { deviceName } from '@/ui/naming';
 import { stageLabel } from '@/ui/presets';
 import { DAY_IN_YEAR, WEEKDAY_DAY, clock } from '@/ui/zone';
 
@@ -96,7 +97,7 @@ export interface DayLine {
     | { kind: 'entry'; entry: Entry; count: number; since: string }
     /** An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. */
     | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean }
-    /** Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance. */
+    /** Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance, another device measuring. */
     | { kind: 'said'; words: string; metric: Metric | null };
 }
 
@@ -109,7 +110,8 @@ export interface DayLine {
  * targets as one line however often it left them, an alarm as its rule with
  * how often it fired - a reading hovering at its threshold fires and clears a
  * hundred times a night. So a climate that swung all night is a sentence and
- * not a column.
+ * not a column. A controller replaced by another is one line at the moment the
+ * new one came.
  */
 export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>, zone: string | null): DayLine[] => {
   const alarms = alarmLines(i18n, day.entries);
@@ -171,7 +173,14 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
     return said(`outside-${metric}`, runs[0].at, words, {}, metric);
   });
 
-  return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside].sort((one, other) => other.at.localeCompare(one.at));
+  // The place's climate passed to another device: from then on the day's figures are that one's.
+  const measuring = day.events.flatMap(event =>
+    event.kind === 'device'
+      ? [said(`device-${event.at}`, event.at, t('grow.diary.measuredBy', { at: clock(event.at, zone), name: deviceName(event, t) }))]
+      : [],
+  );
+
+  return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside, ...measuring].sort((one, other) => other.at.localeCompare(one.at));
 };
 
 /** An entry as a line of the diary, standing for `count` of its kind since `since` where a list folded them. */

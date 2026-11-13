@@ -1487,7 +1487,8 @@
       "lightOnSince": "Licht an seit {{at}}",
       "lightAgainAt": "wieder an um {{at}}",
       "lightAgainSince": "wieder an seit {{at}}",
-      "openCurves": "Kurven zu diesem Tag"
+      "openCurves": "Kurven zu diesem Tag",
+      "measuredBy": "Ab {{at}} misst {{name}}"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",

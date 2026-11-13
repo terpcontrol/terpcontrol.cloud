@@ -2,6 +2,7 @@ import type { DeviceLive, DeviceSeries, Metric, OutputMetric, TimelineRange, Tim
 import { spaceTimeline } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
+import { movedTo } from '@common/v1/device-placements';
 import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { FluxRow, switchingsByField } from '@modules/data/flux';
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
@@ -1785,5 +1786,83 @@ describe('a place whose devices changed', () => {
     expect(aimed.filter(stretch => stretch.from >= SWAPPED.getTime()).map(stretch => stretch.setpoint)).toEqual([27, 27]);
     // The new device was put in at the change: the hour after it is its climate settling, as after any change.
     expect(page.panels[0].targets.find(stretch => stretch.startsAt === SWAPPED.toISOString())?.settling).toBe(true);
+  });
+
+  it('says when the device that measures changed - not beside one device asked for, and not to a reader from outside', async () => {
+    await db.devices.updateOne({ id: NEW }, { $set: { name: 'Controller B' } });
+    await db.shareLinks.create({
+      id: 'link-bare',
+      token: 'bare-token',
+      kind: 'view',
+      subject: { type: 'space', id: BARE },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).deviceChanges).toEqual([
+      { kind: 'device', at: SWAPPED.toISOString(), name: 'Controller B', type: 'controller' },
+    ]);
+    expect((await readAs(session(OWNER), { range: '24h', deviceId: NEW }, BARE)).deviceChanges).toEqual([]);
+    expect((await readAs(visitor('bare-token'), { range: '24h' }, BARE)).deviceChanges).toEqual([]);
+  });
+
+  it('tells no change where the move was taken back inside five minutes: no placement is left of it', async () => {
+    const back = new Date(SWAPPED.getTime() + 2 * 60 * 1000);
+    const old = movedTo(movedTo([{ spaceId: BARE, startedAt: new Date(0), endedAt: null }], null, SWAPPED), BARE, back);
+    const tried = movedTo(movedTo([], BARE, SWAPPED), null, back);
+    await db.devices.updateOne({ id: OLD }, { $set: { spaceId: BARE, placements: old } });
+    await db.devices.updateOne({ id: NEW }, { $set: { spaceId: null, placements: tried } });
+    const page = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] }, BARE);
+
+    expect(tried).toEqual([]);
+    expect(page.deviceChanges).toEqual([]);
+    expect(page.deviceId).toBe(OLD);
+  });
+
+  it('runs each device`s strip over its own stay: none before it came, none after it left', async () => {
+    const page = await readAs(session(OWNER), { range: '24h' }, BARE);
+    const heater = (deviceId: string) => page.outputs.find(lane => lane.output === 'heater' && lane.deviceId === deviceId)!;
+
+    // The new one is in its first placement and so is read from before it came; while the old one held the place
+    // its heater was no part of this place.
+    expect(heater(NEW).spans).toEqual([{ startsAt: SWAPPED.toISOString(), endsAt: NOW.toISOString() }]);
+    expect(heater(OLD).spans.at(-1)!.endsAt).toBe(SWAPPED.toISOString());
+    expect(heater(OLD).heardUntil).toBe(SWAPPED.toISOString());
+  });
+
+  it('does not begin a strip a step early: the one point of a device that just came stands for a month`s hour and a half', () => {
+    const window = { startsAt: new Date(NOW.getTime() - 30 * 24 * 3600 * 1000), endsAt: NOW };
+    const came = new Date(NOW.getTime() - 20 * 60 * 1000);
+    const point = { measuredAt: NOW.toISOString(), value: 1 };
+    const history: DeviceHistory = {
+      series: {
+        deviceId: NEW,
+        startsAt: came.toISOString(),
+        endsAt: NOW.toISOString(),
+        stepSeconds: 5400,
+        metrics: [],
+        outputs: [{ output: 'heater', points: [point] }],
+      },
+      outputs: [{ output: 'heater', switchings: [{ at: came.toISOString(), on: true }] }],
+      lastSampleAt: new Date(NOW.getTime() - 5000).toISOString(),
+    };
+
+    expect(lanesOf([history], window)[0].spans).toEqual([{ startsAt: came.toISOString(), endsAt: NOW.toISOString() }]);
+  });
+
+  it('counts an alarm for the place it was raised in, not for wherever its device stands since', async () => {
+    await db.alerts.create([
+      // Raised by the old controller in the tent it went to, after it left here.
+      { id: 'alert-elsewhere', deviceId: OLD, spaceId: TENT, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 3600_000) },
+      // Raised here by the new one.
+      { id: 'alert-here', deviceId: NEW, spaceId: BARE, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 1800_000) },
+      // Naming no place: by the device, inside its stay - the old one's after it left is not this place's.
+      { id: 'alert-unplaced', deviceId: OLD, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 900_000) },
+    ]);
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['alert-here']);
   });
 });

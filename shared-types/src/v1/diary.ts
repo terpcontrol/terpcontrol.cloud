@@ -1199,12 +1199,26 @@ export const growCard = named(
 );
 
 /**
- * Something that happened and is nobody's diary line: the lamp switching and a
- * stretch the climate spent outside what the devices were aiming at, which a
- * device did by itself, and maintenance, which a person switched - on and off
- * are one event. Lamp and stretches are read from the measurements on every
- * read of a day and stored nowhere, so a day that has left the store's raw
- * samples has none. A reader from outside is answered none of them.
+ * Another device took over the climate of a place - a controller replaced by
+ * a new one. It is read from where the devices stood (`devices.placements`)
+ * and stored nowhere, so a move taken back within its five minutes leaves
+ * none.
+ */
+const deviceChange = z.object({
+  kind: z.literal('device'),
+  at: instant().describe('When the device was put there: from here on the curves and the figures of the place are its own.'),
+  name: z.string().nullable().describe('What the device is called, as `Device.name`.'),
+  type: z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
+});
+
+/**
+ * Something that happened and is nobody's diary line: the lamp switching, a
+ * stretch the climate spent outside what the devices were aiming at and a
+ * change of the device that measures, which happened by themselves, and
+ * maintenance, which a person switched - on and off are one event. Lamp and
+ * stretches are read from the measurements on every read of a day and stored
+ * nowhere, so a day that has left the store's raw samples has none. A reader
+ * from outside is answered none of them.
  */
 export const growDayEvent = named(
   'GrowDayEvent',
@@ -1221,7 +1235,9 @@ export const growDayEvent = named(
     }),
     z.object({
       kind: z.literal('excursion'),
-      at: instant().describe('When the reading left its band, or the start of the day where it was already outside.'),
+      at: instant().describe(
+        'When the reading left its band; the start of the day, or the moment its device was put there, where it was already outside.',
+      ),
       endedAt: instant().nullable().describe('Null for a run still going when the day, or the reading of it, ended.'),
       metric: metric,
       above: z.boolean().describe('Which edge it left over: true is above the band.'),
@@ -1232,6 +1248,7 @@ export const growDayEvent = named(
       at: instant().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
       endedAt: instant().nullable().describe('Null while it is still on, or where the day ended first.'),
     }),
+    deviceChange,
   ]),
 );
 
@@ -1833,6 +1850,11 @@ export const spaceTimeline = named(
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),
     events: z.array(entry).describe('The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    deviceChanges: z
+      .array(deviceChange)
+      .describe(
+        'When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.',
+      ),
     machineEvents: timelineMachineEvents,
     grows: z
       .array(timelineGrow)

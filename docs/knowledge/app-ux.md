@@ -909,6 +909,10 @@ Verlauf is the one page of curves (Chris chose it on 2026-11-11, decision 6, and
 less precise and less intuitive than the old app's charts; what follows answers that. Where a rule is not Chris's
 it was decided by the redesign session of 2026-11-12 while building it, or after its critic walked the built
 page the same day ("after the walk" below) - none of those is Chris's.
+- **`/timeline?device=<id>` is about that device** (`screens/Timeline.tsx`; the redesign session of 2026-11-12,
+  after a device that had left drew its old curve under the chosen place's name beside the new device's live
+  value): the page writes the place the device stands in into the address, the chosen place follows, and a device
+  that does not stand in the place shown is said in a sentence and dropped, without asking the server.
 - **One page, its whole view in the address** (`screens/timeline/view.ts`): which stretch of time, where the cursor
   stands, which curves are ticked, one picture or several, the step, what is laid over, one climate of several. A
   reload, a bookmark and a link sent to somebody open on the same picture, and the page changes its view only by
@@ -1013,7 +1017,13 @@ page the same day ("after the walk" below) - none of those is Chris's.
   of the same device line folded - standing at its first, "3× bis 01:03" -, an alarm by its rule. A line's
   stamp sets the cursor on its moment; its words
   open its correction for whoever may correct it. Once the cursor was set down, "Notiz zu 03:10 schreiben"
-  writes a note dated to it.
+  writes a note dated to it. **A change of the measuring device is a line** (the redesign session of
+  2026-11-12): where another device took over the place's climate inside the window, the list says "Ab 23:09
+  misst Controller B", marked "von allein", and the grow's diary says the same on that day (`changesOf`,
+  `server/src/modules/v1/timeline/place-history.ts`; `dayLines`, `screens/grow/diary/days.ts`; `DiaryCard`).
+  An unnamed device is called by its type. It stands with the devices' own lines and is not told to a reader
+  from outside; a move taken back inside five minutes leaves none (ADR 0001, "Places, rooms and where a device
+  stood").
 - **Every link into Verlauf names its moment or its day and lands on it, however old**: a diary line, an alert and
   a reading outside its targets open the day around their moment with the cursor on it; a day card's climate line
   and the camera page's "Kurven zu diesem Tag" open that day of the calendar - today up to now, live -, the

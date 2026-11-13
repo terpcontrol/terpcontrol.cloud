@@ -24,6 +24,7 @@ import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, toldOf, writtenFor 
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService, RecordedController } from './grow-climate.service';
+import type { DeviceChange } from '../timeline/place-history';
 
 /**
  * A grow's diary as it writes itself: a card per day, a week of them at a time.
@@ -79,6 +80,8 @@ interface PageWorld {
   lines: EntryDocument[];
   /** When the devices of the place were in maintenance; none for a reader from outside. */
   maintenance: Span[];
+  /** When another device took over the climate where the grow stood; none for a reader from outside. */
+  changes: DeviceChange[];
   stills: Map<number, DayStill>;
   films: WeekFilm[];
 }
@@ -119,12 +122,13 @@ export class GrowDiaryService {
     const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
     const days = page.items.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
 
-    const [hide, { lines, maintenance }, earlier, controllers, films, stills] = await Promise.all([
+    const [hide, { lines, maintenance }, earlier, controllers, changes, films, stills] = await Promise.all([
       this.grows.redaction(grant),
       this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
       page.nextCursor === null ? this.earlierThan(grow, grant, dateStartOf(origin, zone), range) : Promise.resolve([]),
       this.climate.controllersIn(spaceIds, life),
+      isOutsider(grant) ? [] : this.climate.deviceChanges(grow.placements, life),
       weekFilmsOf(this.media, cameraIds, seen, range),
       stillsOfDays(
         this.media,
@@ -144,7 +148,7 @@ export class GrowDiaryService {
       page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, stills, films };
+    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, changes, stills, films };
     const weeks = page.items.map(week => this.weekOf(week, world, recordedOf.get(week.weekNumber) ?? []));
 
     const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
@@ -222,7 +226,7 @@ export class GrowDiaryService {
       endsAt: seen.endsAt.toISOString(),
       still: still?.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null,
       climate: climate && outsider ? { ...climate, inBandFraction: null } : climate,
-      events: outsider ? [] : [...events, ...switched].sort((one, other) => one.at.localeCompare(other.at)),
+      events: outsider ? [] : [...events, ...switched, ...world.changes.filter(change => within(seen, new Date(change.at)))].sort(byInstant),
       entries: world.lines
         .filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt)
         .map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
@@ -317,5 +321,8 @@ const endOf = (film: WeekFilm, horizon: Date): Date => laterOf(film.endsAt ?? fi
 const middleOf = (film: WeekFilm, horizon: Date): Date => new Date((film.capturedAt.getTime() + endOf(film, horizon).getTime()) / 2);
 
 const within = (span: Span, at: Date): boolean => at >= span.startsAt && at < span.endsAt;
+
+/** In the order things happened. The instants are compared and not their spelling: one with milliseconds sorts before its own whole second as text. */
+const byInstant = (one: { at: string }, other: { at: string }): number => Date.parse(one.at) - Date.parse(other.at);
 
 const limitOf = (limit?: number): number => (!limit || limit < 1 ? DEFAULT_WEEKS : Math.min(Math.trunc(limit), MAX_WEEKS));

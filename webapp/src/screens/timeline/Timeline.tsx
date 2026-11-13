@@ -135,15 +135,16 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
   const { user } = useSession();
   const devices = useDevices();
   // What the address names is looked up in what the account already holds before the place is asked about it: a
-  // device the account has not got, a grow that stands in no place or in another, are told from here, and the
-  // server is not asked a question it can only refuse.
+  // device the account has not got or that stands elsewhere, a grow that stands in no place or in another, are
+  // told from here, and the server is not asked a question it can only refuse. A device's curves are drawn under
+  // the place it stands in (`screens/Timeline.tsx` leads there), never under one it has left.
   const [params] = useSearchParams();
   const named = { deviceId: params.get('device'), growId: params.get('grow') };
   const namedGrow = useGrow(named.growId);
   const vain: Vain | 'checking' | null =
     named.deviceId && !devices.data
       ? 'checking'
-      : named.deviceId && !devices.data?.items.some(one => one.id === named.deviceId)
+      : named.deviceId && !devices.data?.items.some(one => one.id === named.deviceId && one.spaceId === spaceId)
         ? { what: 'device', id: named.deviceId }
         : named.growId && namedGrow.isPending
           ? 'checking'
@@ -169,7 +170,7 @@ function OwnTimeline({ spaceId, title, place: placeName }: TimelineProps) {
   );
   // The read Start lays over its readings every half minute: one `last()`, under the same key.
   const reads = useSpaceLive(spaceId, true).data;
-  const deviceLive = useDeviceLive(page.view.deviceId ?? page.data?.deviceId ?? null).data;
+  const deviceLive = useDeviceLive(vain === null ? (page.view.deviceId ?? page.data?.deviceId ?? null) : null).data;
   const lost = useGrow(page.dropped?.what === 'grow' ? page.dropped.id : null).data;
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
@@ -310,15 +311,9 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
   // A device or a grow the address names and the place does not have: the place's own Verlauf, and a sentence.
   const [dropped, setDropped] = useState<Vain | null>(null);
   const refused = failed && refusal.error instanceof ApiError ? refusal.error.problem.code : null;
-  // Known beforehand, or - a device of the account that never stood here - by the server's refusal.
+  // Known beforehand, or - a grow the account could not be asked about - by the server's refusal.
   const gone: Vain | null =
-    vain !== null && vain !== 'checking'
-      ? vain
-      : refused === 'device_not_here' && view.deviceId
-        ? { what: 'device', id: view.deviceId }
-        : refused === 'grow_not_found' && view.growId
-          ? { what: 'grow', id: view.growId }
-          : null;
+    vain !== null && vain !== 'checking' ? vain : refused === 'grow_not_found' && view.growId ? { what: 'grow', id: view.growId } : null;
   if (gone && gone.id !== dropped?.id) setDropped(gone);
   useEffect(() => {
     if (gone?.what === 'device') change({ deviceId: null });

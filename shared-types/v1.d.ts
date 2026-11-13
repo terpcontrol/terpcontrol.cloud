@@ -261,7 +261,7 @@ export type GrowDayEvent =
   | {
       kind: 'excursion';
       /**
-       * When the reading left its band, or the start of the day where it was already outside.
+       * When the reading left its band; the start of the day, or the moment its device was put there, where it was already outside.
        */
       at: string;
       /**
@@ -285,6 +285,21 @@ export type GrowDayEvent =
        * Null while it is still on, or where the day ended first.
        */
       endedAt: string | null;
+    }
+  | {
+      kind: 'device';
+      /**
+       * When the device was put there: from here on the curves and the figures of the place are its own.
+       */
+      at: string;
+      /**
+       * What the device is called, as `Device.name`.
+       */
+      name: string | null;
+      /**
+       * Its type, as `Device.type`, which is what an unnamed device is called by.
+       */
+      type: string;
     };
 
 export type VerdictRating = 'good' | 'watch' | 'poor';
@@ -4182,6 +4197,24 @@ export interface SpaceTimeline {
    * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
    */
   events: Entry[];
+  /**
+   * When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.
+   */
+  deviceChanges: {
+    kind: 'device';
+    /**
+     * When the device was put there: from here on the curves and the figures of the place are its own.
+     */
+    at: string;
+    /**
+     * What the device is called, as `Device.name`.
+     */
+    name: string | null;
+    /**
+     * Its type, as `Device.type`, which is what an unnamed device is called by.
+     */
+    type: string;
+  }[];
   machineEvents: TimelineMachineEvents;
   /**
    * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.

@@ -11,6 +11,8 @@ import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { DataService } from '@modules/data/data.service';
 import { targetsOf } from '../phase/phase-targets';
 import { climateOf, cyclesOf, recordOf } from '../phase/target-record';
+import { DeviceChange, changesOf, predecessorsOf } from '../timeline/place-history';
+import { steeringOf } from '../timeline/timeline-window';
 import { DayDevice } from './day-climate';
 import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climate';
 
@@ -96,6 +98,33 @@ export class GrowClimateService {
       .map(one => one.device)
       .filter(device => targetsOf(device.configuration) !== null || device.type === LIGHT_TYPE)
       .map(device => ({ deviceId: device.id, placements: device.placements ?? [], hardware: device.state?.hardware ?? {} }));
+  }
+
+  /**
+   * When another device took over the climate where the grow stood, over the
+   * part of a stretch it stood in each place - as the place's own Verlauf
+   * tells it (`changesOf`). The grow moving to another tent is no such change:
+   * that is a line somebody wrote. One read of the devices per place.
+   */
+  public async deviceChanges(
+    placements: readonly { spaceId: string | null; startedAt: Date; endedAt: Date | null }[],
+    span: Span,
+  ): Promise<DeviceChange[]> {
+    const changes = await Promise.all(
+      placements.map(async ({ spaceId, startedAt, endedAt }) => {
+        const there = {
+          startsAt: startedAt > span.startsAt ? startedAt : span.startsAt,
+          endsAt: endedAt && endedAt < span.endsAt ? endedAt : span.endsAt,
+        };
+        if (spaceId === null || there.endsAt <= there.startsAt) return [];
+
+        const stood = await stoodIn(this.devices, [spaceId], there, { type: 1, name: 1, configuration: 1 });
+        const leadingId = steeringOf(stood.map(one => one.device))?.id ?? null;
+        return changesOf(stood, leadingId, predecessorsOf(stood, leadingId, [spaceId]));
+      }),
+    );
+
+    return changes.flat();
   }
 
   /**

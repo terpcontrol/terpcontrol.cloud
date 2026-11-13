@@ -4,10 +4,11 @@ import { FilterQuery, Model } from 'mongoose';
 import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant, isOutsider } from '@common/v1/access.types';
+import { Stood } from '@common/v1/device-placements';
 import { badRequest, notFound } from '@common/v1/problem';
 import { zoneOfOwner } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
-import { storyEndsAt, withinRange } from '@common/v1/range';
+import { Span, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -20,13 +21,12 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
-import { alertsRaisedIn } from '../home/open-alerts';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
+import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
@@ -131,7 +131,7 @@ export class TimelineService {
     const before = asked.deviceId ? [] : predecessorsOf(present, steering?.id ?? null, [spaceId]);
     const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
 
-    const [series, alerts, recorded, cameras, aimed] = await Promise.all([
+    const [read, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
         present.map(({ device, stay }) =>
           this.data.history(
@@ -153,14 +153,7 @@ export class TimelineService {
       ),
       this.alerts
         .find({
-          $and: [
-            alertsRaisedIn(
-              [spaceId],
-              devices.map(device => device.id),
-            ),
-            { startedAt: { $lte: window.endsAt } },
-            openInto(window.startsAt),
-          ],
+          $and: [raisedHere(spaceId, present, window), { startedAt: { $lte: window.endsAt } }, openInto(window.startsAt)],
         })
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
@@ -175,6 +168,8 @@ export class TimelineService {
       grantRedaction(this.users, grant),
     ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
+    // The curve and the strips of the leading device begin where it took the place over.
+    const series = read.map(one => (one.series.deviceId === steering?.id ? fromHandover(one, before) : one));
     const leading = ownOf(devices, series);
     const own = leading && leading.series.deviceId === steering?.id ? withPredecessors(leading, before, series) : leading;
     const panels = panelsOf(own?.series ?? null, stretchesOf(grow, devices, window, at, aimed), metrics);
@@ -216,6 +211,8 @@ export class TimelineService {
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       events: told,
+      // Which device measured when is the hardware in the tent as well.
+      deviceChanges: isOutsider(grant) ? [] : changesOf(present, steering?.id ?? null, before),
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood
       // in the room, so the chips they have not got are answered as none.
@@ -355,6 +352,23 @@ interface TimelineQuery {
  * moving its start to the edge would say it began there.
  */
 const openInto = (startsAt: Date): FilterQuery<StoredAlert> => ({ $or: [{ resolvedAt: null }, { resolvedAt: { $gte: startsAt } }] });
+
+/**
+ * An alert of this place: raised here. An alert stores the place its device
+ * stood in then, so what a device raised where it stood before it came, or
+ * raises where it has gone since, is that place's and not this one's. One that
+ * names no place counts by its device, inside the device's stay.
+ */
+const raisedHere = (spaceId: string, present: readonly Stood[], window: Span): FilterQuery<StoredAlert> => ({
+  $or: [
+    { spaceId },
+    ...present.map(({ device, stay }) => ({
+      spaceId: null,
+      deviceId: device.id,
+      startedAt: { $lt: stay.endsAt, ...(stay.startsAt > window.startsAt ? { $gte: stay.startsAt } : {}) },
+    })),
+  ],
+});
 
 /** Whether the grow's plants stood in this space at any point in the window; an open end reaches as far as it likes. */
 const stoodDuring = (grow: GrowDocument, spaceId: string, window: { startsAt: Date | null; endsAt: Date | null }): boolean =>

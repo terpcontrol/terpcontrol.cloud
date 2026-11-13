@@ -1478,7 +1478,8 @@
       "lightOnSince": "Light on since {{at}}",
       "lightAgainAt": "on again at {{at}}",
       "lightAgainSince": "on again since {{at}}",
-      "openCurves": "Curves of this day"
+      "openCurves": "Curves of this day",
+      "measuredBy": "{{name}} measures from {{at}}"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",

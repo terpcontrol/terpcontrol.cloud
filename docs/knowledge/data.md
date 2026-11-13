@@ -1,6 +1,6 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-11-12
+updated: 2026-11-13
 source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12)
 paths:
   - server/src/database/**
@@ -203,4 +203,8 @@ at a time and re-queues a build left in `rendering`.
   alarm's custom webhook is exported as `custom · webhook` only.
 - **A device is exported for the days it stood there:** a grow's `climate.csv` takes every device that stood in the
   spaces the grow stood in (`spacesDuring`, `modules/v1/grow/grow-places.ts`) while it stood there, each over its own
-  stay (`stoodIn`, `common/v1/device-placements.ts`; ADR 0001, "Places, rooms and where a device stood").
+  stay (`stoodIn`, `common/v1/device-placements.ts`; ADR 0001, "Places, rooms and where a device stood"). The rows
+  are in time order across the devices, and the figures are rounded as the page rounds them: a metric by
+  `METRIC_DECIMALS`, an output to a whole per cent of full output in its stored unit (`climateRows`,
+  `modules/v1/grow/export-csv.ts`; the redesign session of 2026-11-12 - a swap of two controllers had written one
+  device's twelve hours after the other's, and a minute's mean stood there with every digit it has).

@@ -509,6 +509,51 @@ describe('what a day says about its climate', () => {
     expect(dayOf(page, 8).climate).toBeNull();
     expect(dayOf(page, 9).climate).toMatchObject({ temperature: 22.5, humidity: 55 });
   });
+
+  describe('where one controller replaced another', () => {
+    const CAME = berlin(10, '20:07');
+
+    beforeEach(async () => {
+      await db.devices.updateOne(
+        { id: CONTROLLER },
+        { $set: { spaceId: null, placements: [{ spaceId: TENT, startedAt: new Date(0), endedAt: CAME }] } },
+      );
+      await db.devices.updateOne(
+        { id: SPARE_CONTROLLER },
+        {
+          $set: {
+            name: 'Controller B',
+            spaceId: TENT,
+            placements: [
+              { spaceId: SPARE_TENT, startedAt: new Date(0), endedAt: CAME },
+              { spaceId: TENT, startedAt: CAME, endedAt: null },
+            ],
+          },
+        },
+      );
+      await db.targetChanges.create({ id: 'change-spare', deviceId: SPARE_CONTROLLER, at: new Date(0), targets: TARGETS, cycle: null });
+    });
+
+    it('says so on the day it happened, with the device that took over - and to nobody from outside', async () => {
+      await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
+      const page = await read();
+      const changes = (day: GrowDiaryDay) => day.events.filter(event => event.kind === 'device');
+
+      expect(changes(dayOf(page, 9))).toEqual([{ kind: 'device', at: CAME.toISOString(), name: 'Controller B', type: 'controller' }]);
+      expect(page.items.flatMap(week => week.days).flatMap(changes)).toHaveLength(1);
+      expect((await read(anonymous)).items.flatMap(week => week.days).flatMap(day => day.events)).toEqual([]);
+    });
+
+    it('dates a stretch outside the band no earlier than its device came', async () => {
+      // Too humid from two minutes before the new controller came: its first window began before it stood here.
+      await db.devices.deleteOne({ id: CONTROLLER });
+      measured = at => ({ temperature: lit(at.getTime()) ? 25 : 20, humidity: at >= berlin(10, '20:05') && at < berlin(10, '20:35') ? 70 : 55 });
+
+      expect(dayOf(await read(), 9).events.filter(event => event.kind === 'excursion')).toMatchObject([
+        { at: CAME.toISOString(), endedAt: berlin(10, '20:35').toISOString(), metric: 'humidity' },
+      ]);
+    });
+  });
 });
 
 describe('what the devices did', () => {

@@ -2422,12 +2422,13 @@ export declare const growCard: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
- * Something that happened and is nobody's diary line: the lamp switching and a
- * stretch the climate spent outside what the devices were aiming at, which a
- * device did by itself, and maintenance, which a person switched - on and off
- * are one event. Lamp and stretches are read from the measurements on every
- * read of a day and stored nowhere, so a day that has left the store's raw
- * samples has none. A reader from outside is answered none of them.
+ * Something that happened and is nobody's diary line: the lamp switching, a
+ * stretch the climate spent outside what the devices were aiming at and a
+ * change of the device that measures, which happened by themselves, and
+ * maintenance, which a person switched - on and off are one event. Lamp and
+ * stretches are read from the measurements on every read of a day and stored
+ * nowhere, so a day that has left the store's raw samples has none. A reader
+ * from outside is answered none of them.
  */
 export declare const growDayEvent: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"light">;
@@ -2454,6 +2455,11 @@ export declare const growDayEvent: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"maintenance">;
     at: z.ZodISODateTime;
     endedAt: z.ZodNullable<z.ZodISODateTime>;
+}, z.core.$strip>, z.ZodObject<{
+    kind: z.ZodLiteral<"device">;
+    at: z.ZodISODateTime;
+    name: z.ZodNullable<z.ZodString>;
+    type: z.ZodString;
 }, z.core.$strip>], "kind">;
 /**
  * One space, with everything the home screen shows about it - or, where the
@@ -2829,6 +2835,11 @@ export declare const homeSpaceCard: z.ZodObject<{
         kind: z.ZodLiteral<"maintenance">;
         at: z.ZodISODateTime;
         endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"device">;
+        at: z.ZodISODateTime;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
     }, z.core.$strip>], "kind">>;
     latestStill: z.ZodNullable<z.ZodObject<{
         mediaId: z.ZodString;
@@ -3214,6 +3225,11 @@ export declare const homeAnswer: z.ZodObject<{
             kind: z.ZodLiteral<"maintenance">;
             at: z.ZodISODateTime;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"device">;
+            at: z.ZodISODateTime;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
         }, z.core.$strip>], "kind">>;
         latestStill: z.ZodNullable<z.ZodObject<{
             mediaId: z.ZodString;
@@ -4402,6 +4418,11 @@ export declare const spaceOverview: z.ZodObject<{
         kind: z.ZodLiteral<"maintenance">;
         at: z.ZodISODateTime;
         endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"device">;
+        at: z.ZodISODateTime;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
     }, z.core.$strip>], "kind">>;
     readingNames: z.ZodArray<z.ZodObject<{
         growId: z.ZodString;
@@ -5203,6 +5224,12 @@ export declare const spaceTimeline: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    deviceChanges: z.ZodArray<z.ZodObject<{
+        kind: z.ZodLiteral<"device">;
+        at: z.ZodISODateTime;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
+    }, z.core.$strip>>;
     machineEvents: z.ZodObject<{
         shown: z.ZodNumber;
         total: z.ZodNumber;
@@ -5322,6 +5349,11 @@ export declare const growDiaryDay: z.ZodObject<{
         kind: z.ZodLiteral<"maintenance">;
         at: z.ZodISODateTime;
         endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"device">;
+        at: z.ZodISODateTime;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
     }, z.core.$strip>], "kind">>;
     entries: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -5512,6 +5544,11 @@ export declare const growDiaryWeek: z.ZodObject<{
             kind: z.ZodLiteral<"maintenance">;
             at: z.ZodISODateTime;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"device">;
+            at: z.ZodISODateTime;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
         }, z.core.$strip>], "kind">>;
         entries: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -5704,6 +5741,11 @@ export declare const growDiaryPage: z.ZodObject<{
                 kind: z.ZodLiteral<"maintenance">;
                 at: z.ZodISODateTime;
                 endedAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"device">;
+                at: z.ZodISODateTime;
+                name: z.ZodNullable<z.ZodString>;
+                type: z.ZodString;
             }, z.core.$strip>], "kind">>;
             entries: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -6859,6 +6901,11 @@ export declare const publicGrowPage: z.ZodObject<{
                 kind: z.ZodLiteral<"maintenance">;
                 at: z.ZodISODateTime;
                 endedAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"device">;
+                at: z.ZodISODateTime;
+                name: z.ZodNullable<z.ZodString>;
+                type: z.ZodString;
             }, z.core.$strip>], "kind">>;
             entries: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -7067,6 +7114,11 @@ export declare const publicWeekPage: z.ZodObject<{
                 kind: z.ZodLiteral<"maintenance">;
                 at: z.ZodISODateTime;
                 endedAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"device">;
+                at: z.ZodISODateTime;
+                name: z.ZodNullable<z.ZodString>;
+                type: z.ZodString;
             }, z.core.$strip>], "kind">>;
             entries: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;
@@ -7329,6 +7381,11 @@ export declare const sharedGrow: z.ZodObject<{
                     kind: z.ZodLiteral<"maintenance">;
                     at: z.ZodISODateTime;
                     endedAt: z.ZodNullable<z.ZodISODateTime>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"device">;
+                    at: z.ZodISODateTime;
+                    name: z.ZodNullable<z.ZodString>;
+                    type: z.ZodString;
                 }, z.core.$strip>], "kind">>;
                 entries: z.ZodArray<z.ZodObject<{
                     id: z.ZodString;
@@ -8058,6 +8115,11 @@ export declare const sharedSpace: z.ZodObject<{
             kind: z.ZodLiteral<"maintenance">;
             at: z.ZodISODateTime;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"device">;
+            at: z.ZodISODateTime;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
         }, z.core.$strip>], "kind">>;
         readingNames: z.ZodArray<z.ZodObject<{
             growId: z.ZodString;
@@ -8222,6 +8284,11 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"maintenance">;
                     at: z.ZodISODateTime;
                     endedAt: z.ZodNullable<z.ZodISODateTime>;
+                }, z.core.$strip>, z.ZodObject<{
+                    kind: z.ZodLiteral<"device">;
+                    at: z.ZodISODateTime;
+                    name: z.ZodNullable<z.ZodString>;
+                    type: z.ZodString;
                 }, z.core.$strip>], "kind">>;
                 entries: z.ZodArray<z.ZodObject<{
                     id: z.ZodString;
@@ -8945,6 +9012,11 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"maintenance">;
             at: z.ZodISODateTime;
             endedAt: z.ZodNullable<z.ZodISODateTime>;
+        }, z.core.$strip>, z.ZodObject<{
+            kind: z.ZodLiteral<"device">;
+            at: z.ZodISODateTime;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
         }, z.core.$strip>], "kind">>;
         readingNames: z.ZodArray<z.ZodObject<{
             growId: z.ZodString;
@@ -9126,6 +9198,11 @@ export declare const sharedResolution: z.ZodObject<{
                         kind: z.ZodLiteral<"maintenance">;
                         at: z.ZodISODateTime;
                         endedAt: z.ZodNullable<z.ZodISODateTime>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        kind: z.ZodLiteral<"device">;
+                        at: z.ZodISODateTime;
+                        name: z.ZodNullable<z.ZodString>;
+                        type: z.ZodString;
                     }, z.core.$strip>], "kind">>;
                     entries: z.ZodArray<z.ZodObject<{
                         id: z.ZodString;
@@ -9849,6 +9926,11 @@ export declare const sharedResolution: z.ZodObject<{
                 kind: z.ZodLiteral<"maintenance">;
                 at: z.ZodISODateTime;
                 endedAt: z.ZodNullable<z.ZodISODateTime>;
+            }, z.core.$strip>, z.ZodObject<{
+                kind: z.ZodLiteral<"device">;
+                at: z.ZodISODateTime;
+                name: z.ZodNullable<z.ZodString>;
+                type: z.ZodString;
             }, z.core.$strip>], "kind">>;
             readingNames: z.ZodArray<z.ZodObject<{
                 growId: z.ZodString;

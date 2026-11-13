@@ -106,6 +106,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
     { output: 'fan', deviceId: 'device-1', spans: [{ startsAt: at(0), endsAt: at(24) }], heardUntil: at(24) },
   ],
   events: [],
+  deviceChanges: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],

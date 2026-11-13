@@ -547,6 +547,16 @@ describe('a day of the diary', () => {
     expect(linesOf()).toEqual(['18:00Light off at 00:00 · on again at 18:00by itself']);
   });
 
+  it('says when another device took over the measuring, by its name or else by its kind, as a line nobody wrote', () => {
+    drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'Controller B', type: 'controller' }] }));
+    expect(linesOf()).toEqual(['23:00Controller B measures from 23:00by itself']);
+    cleanup();
+
+    // A claim stores the type where nobody said a name, and a type is a key, not a word.
+    drawDay(day(1, { events: [{ kind: 'device', at: at(1, 23), name: 'controller', type: 'controller' }] }));
+    expect(linesOf()).toEqual(['23:00Controller measures from 23:00by itself']);
+  });
+
   it('says a reading that left its targets as one line however often and on whichever side, and leads to the curve of that moment', () => {
     const { unmount } = drawDay(day(1, { events: [out(20, 22), out(22, 18)] }));
 

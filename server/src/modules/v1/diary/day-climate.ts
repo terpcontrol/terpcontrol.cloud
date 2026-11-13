@@ -51,7 +51,13 @@ export const dayClimateOf = (
     // Before its first row the record says nothing, so the day is judged from there on.
     const since = Math.max(from, known[0].at);
     const window = { startsAt: new Date(since), endsAt: day.endsAt };
-    return [verdictOf(since > from ? sliceOf(slice.series, since, to) : slice.series, null, window, null, known, slice.hardware)];
+    return [
+      {
+        ...verdictOf(since > from ? sliceOf(slice.series, since, to) : slice.series, null, window, null, known, slice.hardware),
+        // A device is read from where its stay began: nothing it measured before it came is this day's.
+        readFrom: Math.max(from, Date.parse(slice.history.series.startsAt)),
+      },
+    ];
   });
   const judged = verdicts.flatMap(verdict => {
     const seconds = Math.max(0, ...verdict.metrics.map(row => row.inBandSeconds + row.outOfBandSeconds));
@@ -67,8 +73,9 @@ export const dayClimateOf = (
       verdict.metrics.flatMap(row =>
         row.excursions.map(excursion => ({
           kind: 'excursion' as const,
-          // The verdict stamps a run at the end of its first window; it began where that window did.
-          at: new Date(Math.max(from, Date.parse(excursion.startedAt) - verdict.stepSeconds * 1000)).toISOString(),
+          // The verdict stamps a run at the end of its first window; it began where that window did, and no
+          // earlier than its device was read from.
+          at: new Date(Math.max(verdict.readFrom, Date.parse(excursion.startedAt) - verdict.stepSeconds * 1000)).toISOString(),
           endedAt: excursion.endedAt,
           metric: row.metric,
           above: excursion.above,
