@@ -229,6 +229,12 @@ export const samplesQuery = (bucket: string, deviceId: string, fields: readonly 
     |> filter(fn: (r) => ${anyField(fields)})
     |> keep(columns: ["_time", "_value", "_field"])`;
 
+/** The same over several stretches in one script: the samples of the few grains a wide read has to look into (`switchedGrains`). */
+export const samplesInQuery = (bucket: string, deviceId: string, fields: readonly string[], stretches: readonly TimeWindow[]): string => {
+  const reads = stretches.map(stretch => samplesQuery(bucket, deviceId, fields, stretch));
+  return reads.length === 1 ? reads[0] : `union(tables: [${reads.join(',')}])`;
+};
+
 /**
  * The same fields as means over a grain, for a window too wide to read sample
  * by sample. A grain of five minutes lies in one half of the day or the other
@@ -277,6 +283,61 @@ export const coveredGrains = (rows: readonly (FluxRow & { result?: string })[], 
   return rows.filter(row => row.result !== GRAIN_COUNT && !(row._field === field && row._time && of(field, row._time) * 2 < of(beside, row._time)));
 };
 
+/** The rows of a read as readings: every instant with the value each field had at it. */
+const readingsByInstant = (rows: readonly FluxRow[]): Map<string, Record<string, number>> => {
+  const readings = new Map<string, Record<string, number>>();
+
+  for (const row of rows) {
+    const value = finiteOrNull(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const reading = readings.get(row._time) ?? {};
+    reading[row._field] = value;
+    readings.set(row._time, reading);
+  }
+
+  return readings;
+};
+
+/**
+ * The grains a change between day and night fell into, as the stretches to
+ * read sample by sample: of two grains that follow one another and lie in
+ * different halves, the lit one - the one a lamp switched in is lit by its
+ * mean level, and its neighbour is dark throughout - or both, where the half
+ * is not the lamp's to say (`both`: a fan's flag, a plug's schedule).
+ *
+ * A grain is judged day or night as a whole, and the one the lamp switched in
+ * is neither: lit in six samples of ten it took the day's leaf offset for the
+ * air of all ten, and a week's lowest deficit read 0.80 kPa where no sample
+ * of it was below 0.90. So that grain is worked out as its lit and its dark
+ * part, each from its own readings - two grains a day, and not a second read
+ * of every one. A grain whose leaf temperature was measured is left alone:
+ * the half decides the offset a missing leaf reading is replaced by, and
+ * nothing else.
+ */
+export const switchedGrains = (
+  rows: readonly FluxRow[],
+  grainSeconds: number,
+  dayOf: (at: (field: string) => number | null, time: number) => boolean | null,
+  both: boolean,
+): TimeWindow[] => {
+  const grain = grainSeconds * 1000;
+  const leaf = fieldOfMetric('leafTemperature') as string;
+  const grains = [...readingsByInstant(rows)]
+    .map(([instant, reading]) => {
+      const stamp = Date.parse(instant);
+      return { stamp, day: dayOf(field => reading[field] ?? null, stamp - grain / 2), measured: reading[leaf] !== undefined };
+    })
+    .sort((one, other) => one.stamp - other.stamp);
+
+  return grains.flatMap((one, index) => {
+    const before = grains[index - 1];
+    if (!before || one.stamp - before.stamp !== grain || one.day === null || before.day === null || one.day === before.day) return [];
+    const read = (both ? [before, one] : [one.day ? one : before]).filter(each => !each.measured);
+
+    return read.length === 0 ? [] : [{ startsAt: new Date(read[0].stamp - grain), endsAt: new Date(read[read.length - 1].stamp) }];
+  });
+};
+
 /** What a window's readings came to once each was worked out by itself: their mean, the lowest and the highest. */
 export interface WorkedOut extends Extremes {
   mean: number;
@@ -298,16 +359,7 @@ export const workedOutBy = (
   valueOf: (at: (field: string) => number | null, time: number) => number | null,
   grainSeconds = 0,
 ): Map<number, WorkedOut> => {
-  const readings = new Map<string, Record<string, number>>();
-
-  for (const row of rows) {
-    const value = finiteOrNull(row._value);
-    if (!row._field || !row._time || value === null) continue;
-    const reading = readings.get(row._time) ?? {};
-    reading[row._field] = value;
-    readings.set(row._time, reading);
-  }
-
+  const readings = readingsByInstant(rows);
   const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
   const stop = window.endsAt.getTime();
   const gathered = new Map<number, { sum: number; count: number } & Extremes>();
@@ -794,15 +846,18 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
  * The curve is the contract's, because the targets screen works out the VPD of
  * a setpoint from the same one, and the figure is rounded as every VPD goes out.
  */
+/**
+ * Which half of the cycle a reading lies in. One whose own lamp level is zero
+ * was taken in the dark, whatever the caller's cycle says; else the caller's
+ * word, and the lamp's level where the caller has none.
+ */
+export const litOf = (readings: Pick<Readings, 'light' | 'isDay'>): boolean =>
+  readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
+
 export const vpdOf = (readings: Readings, factors: DeviceSettings): number | null => {
   if (readings.temperature === null || readings.humidity === null) return null;
 
-  // A reading whose own lamp level is zero was taken in the dark, whatever the
-  // five-minute grain the caller's cycle is read from says: that grain counts a
-  // lamp on for the whole of it once any sample in it was lit, and a dark
-  // minute took the day offset beside a VPD the device itself gave as night.
-  const isDay = readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
-  const leaf = readings.leafTemperature ?? readings.temperature + (isDay ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
+  const leaf = readings.leafTemperature ?? readings.temperature + (litOf(readings) ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
 
   return parseFloat(vapourPressureDeficit(readings.temperature, leaf, readings.humidity).toFixed(METRIC_DECIMALS.vpd));
 };

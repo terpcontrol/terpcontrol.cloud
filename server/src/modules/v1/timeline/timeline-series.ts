@@ -162,16 +162,24 @@ const rowsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTa
  * not a night, and a drying room is one long night.
  *
  * Where the record says nothing - before it began, or before it recorded
- * cycles - the night is read off the lamp, as it always was.
+ * cycles - the night is read off the lamp, as it always was. Either way a
+ * night is shaded only through hours a device reported in.
  */
 export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow, cycles: readonly CycleStretch[] = []): TimelineSpan[] => {
   if (!cycles.some(stretch => stretch.cycle)) return lampNightsOf(histories, window);
 
   const lamp = cycles.some(stretch => !stretch.cycle) ? lampNightsOf(histories, window).map(spanOf) : [];
+  // A schedule knows nothing of a silence: its nights are shaded only where somebody reported through them, as
+  // the lamp's are - not across a morning the device was gone for, nor on to the window's end after its last word.
+  const heard = histories.flatMap(one => {
+    const rows = [...one.series.metrics, ...one.series.outputs];
+    const points = rows.find(row => row.points.some(point => point.value !== null))?.points ?? [];
+    return heardStretches(points, readOf(one.series, window), one.series.stepSeconds, heardAt(one));
+  });
   return asTimelineSpans(
     cycles.flatMap(stretch =>
       stretch.cycle
-        ? nightsIn(stretch.cycle, stretch)
+        ? overlapping(nightsIn(stretch.cycle, stretch), heard)
         : lamp.flatMap(span => {
             const from = Math.max(span.from, stretch.from);
             const to = Math.min(span.to, stretch.to);
@@ -388,16 +396,24 @@ const SILENT_AFTER = 4;
  * Not one number. Firmware reports every five seconds, a backfilled history
  * every hour, and a whole grow is read in windows wider than either, so what
  * counts as a silence is measured against the rhythm this device actually kept
- * over this window. Read at a minute or more to the window it never falls
- * below the threshold the rest of the app calls a device gone by. Read finer -
- * somebody zoomed in - a restart of a minute is the very thing looked for, and
- * the line breaks after three windows without a sample, half a minute at least.
+ * over this window. A device that fills every window it is read in has left a
+ * silence wherever one stands empty - at three minutes to the point as at an
+ * hour and a half: four of a month's windows were six hours, and a month drew
+ * its line straight through a morning nobody reported, which a week broke at.
+ * One that reports more slowly than it is read - an hourly history in windows
+ * of three minutes - is silent after four of its own gaps. Never less than the
+ * two minutes after which the rest of the app calls a reading stale, so a
+ * sample that falls a second late into the next window of a minute breaks
+ * nothing. Read finer than a minute - somebody zoomed in - a restart is the
+ * very thing looked for, and the line breaks after three windows without a
+ * sample, half a minute at least.
  */
-const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number =>
-  Math.max(
-    stepSeconds < FINE_STEP_SECONDS ? Math.max(FINE_SILENCE_MS, 3 * stepSeconds * 1000) : VALUE_AGE.staleSeconds * 1000,
-    SILENT_AFTER * usualGapOf(points, stepSeconds),
-  );
+const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
+  const usual = usualGapOf(points, stepSeconds);
+  if (stepSeconds < FINE_STEP_SECONDS) return Math.max(FINE_SILENCE_MS, 3 * stepSeconds * 1000, SILENT_AFTER * usual);
+
+  return Math.max(VALUE_AGE.liveSeconds * 1000, usual > stepSeconds * 1000 ? SILENT_AFTER * usual : stepSeconds * 1000);
+};
 
 /** Below this step a window is somebody looking closely. */
 const FINE_STEP_SECONDS = 60;

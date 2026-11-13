@@ -44,6 +44,7 @@ import {
   gridOf,
   instantsOf,
   latestByField,
+  litOf,
   countsByField,
   countsQuery,
   liveQuery,
@@ -58,10 +59,12 @@ import {
   rawSamplePredicate,
   readingsOf,
   SAMPLE_MEASUREMENT,
+  samplesInQuery,
   samplesQuery,
   seriesQuery,
   stepFor,
   summaryQuery,
+  switchedGrains,
   switchingGrainFor,
   SUMMARY_MEASUREMENT,
   switchingsByField,
@@ -69,6 +72,7 @@ import {
   TimeWindow,
   valveOpeningsQuery,
   vpdOf,
+  WorkedOut,
   workedOutBy,
 } from './flux';
 
@@ -395,7 +399,18 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       device.reportsDay ? saidOf(at(DAY_FIELD)) : (plugDay?.(time) ?? null);
     // A grain's leaf temperature counts only where leaf readings cover the grain as the air's do.
     const covered = grainSeconds === 0 ? readings : coveredGrains(readings, LEAF_FIELD, TEMPERATURE_FIELD);
-    const worked = workedOutBy(covered, window, (at, time) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors), grainSeconds);
+    const deficitOf = (at: (field: string) => number | null, time: number) => vpdOf(readingsOf(at, halfOf(at, time)), device.factors);
+    // A grain the lamp switched in is neither day nor night: it is worked out from its own samples, each by itself
+    // (`switchedGrains`), which is what its lit and its dark part come to, weighted by their readings.
+    const switched =
+      grainSeconds === 0
+        ? []
+        : switchedGrains(covered, grainSeconds, (at, time) => litOf(readingsOf(at, halfOf(at, time))), device.reportsDay || plugDay !== null);
+    const split =
+      switched.length === 0 || switched.length > MAX_SWITCHED_GRAINS
+        ? new Map<number, WorkedOut>()
+        : workedOutBy(await this.samplesIn(deviceId, inputs, switched), { ...window, stepSeconds: grainSeconds }, deficitOf);
+    const worked = workedOutBy(covered, window, (at, time) => split.get(time + grainSeconds * 500)?.mean ?? deficitOf(at, time), grainSeconds);
     const extremesAt = (name: Metric, instant: string): Extremes | null => {
       const field = fieldOfMetric(name);
       if (field !== null) return extremes.get(field)?.get(instant) ?? null;
@@ -473,12 +488,26 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
     // At the step the series settles on, so an output's figures stand under the reading of the same window.
     const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
-    const [series, switchings, lastSampleAt, counts] = await Promise.all([
+    // Within three days the lamp's switchings - and an AIR's own day - are read at the device's own rhythm, so a
+    // lamp's stretch is its samples' to the minute and the same on every zoom: read at the step, a day said
+    // "06:00 bis 18:03" and a week "06:00 bis 18:05" of a lamp that ran from 06:02 to 18:02. A read of its own
+    // beside the others, of one field or two: 25 ms over a day and 67 ms over three, at a sample every 5 s.
+    const fine = request.endsAt.getTime() - request.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000;
+    const lamp = outputs.filter(output => fine && output === 'light');
+    const [series, coarse, sampled, lastSampleAt, counts] = await Promise.all([
       this.series(deviceId, request),
-      this.switchingsOf(deviceId, outputs, request, extra, switchingGrainFor(stepSeconds)),
+      this.switchingsOf(
+        deviceId,
+        outputs.filter(output => !lamp.includes(output)),
+        request,
+        fine ? [] : extra,
+        switchingGrainFor(stepSeconds),
+      ),
+      this.switchingsOf(deviceId, lamp, request, fine ? extra : [], MIN_STEP_SECONDS),
       this.newestSampleIn(deviceId, outputs, request),
       figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
+    const switchings = new Map([...coarse, ...sampled]);
     const days = switchings.get(DAY_FIELD) ?? [];
 
     return {
@@ -753,10 +782,18 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     extra: readonly string[] = [],
     grainSeconds?: number,
   ): Promise<Map<string, OutputSwitching[]>> {
-    if (outputs.length === 0 || window.endsAt <= window.startsAt) return new Map();
-
     const fields = [...new Set([...outputs.map(fieldOfOutputMetric), ...extra])];
+    if (fields.length === 0 || window.endsAt <= window.startsAt) return new Map();
+
     return switchingsByField(await this.read(switchingsQuery(this.bucket, deviceId, fields, window, grainSeconds)));
+  }
+
+  /** Every sample of some fields over several stretches, a few scripts of them side by side. */
+  private async samplesIn(deviceId: string, fields: readonly string[], stretches: readonly TimeWindow[]): Promise<FluxRow[]> {
+    const scripts = Array.from({ length: Math.ceil(stretches.length / STRETCHES_A_SCRIPT) }, (_, index) =>
+      stretches.slice(index * STRETCHES_A_SCRIPT, (index + 1) * STRETCHES_A_SCRIPT),
+    );
+    return (await Promise.all(scripts.map(some => this.read(samplesInQuery(this.bucket, deviceId, fields, some))))).flat();
   }
 
   /** A device's own VPD offsets, lux factor and hardware report, and a plug's day; the defaults for a device that is no longer there. */
@@ -811,6 +848,16 @@ const computedAt = (name: 'vpd' | 'ppfd', latest: Map<string, { measuredAt: Date
 
 /** What a reading's own flag says, where it carries one: a sample's is 0 or 1, a grain's the share of it that was day. */
 const saidOf = (value: number | null): boolean | null => (value === null ? null : value > 0.5);
+
+/**
+ * How many stretches of samples one script reads, the scripts side by side. It costs about a millisecond a
+ * stretch however they are bundled: the 238 grains a lamp switched in over four months, at a sample every five
+ * seconds, were read in 232 ms - after the grains' own 200 ms, since they say which those are.
+ */
+const STRETCHES_A_SCRIPT = 60;
+
+/** A safety net: a flag flapping all season must not become a read of everything; such a read keeps its grains whole. */
+const MAX_SWITCHED_GRAINS = 1500;
 
 /** A computed figure as it goes out: what the sensors behind it can say, and no more. */
 const rounded = (value: number, name: Metric): number => Number(value.toFixed(METRIC_DECIMALS[name]));

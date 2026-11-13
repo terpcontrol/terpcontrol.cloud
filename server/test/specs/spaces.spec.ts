@@ -507,6 +507,76 @@ describe('applying a climate preset', () => {
     expect(points('temperature')[0]).toMatchObject({ min: 20.7, max: 31.5 });
   });
 
+  // A grain is judged day or night as a whole, and the one the lamp switched in is neither: lit in six samples
+  // of ten it took the day's leaf offset for the air of all ten - a week's lowest deficit read 0.80 kPa where no
+  // sample of it was below 0.90.
+  it('works a grain the lamp switched in out as its lit and its dark part, each from its own readings', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    // Two days back, on a grain's edge: the lamp comes on two minutes into the grain that follows it.
+    const edge = Math.floor((Date.now() - 2 * 86_400_000) / 300_000) * 300_000;
+    const dark = { temperature: 21, humidity: 55, out_light: 0 };
+    const lit = { temperature: 26, humidity: 60, out_light: 100 };
+    await seedMeasurements(
+      Array.from({ length: 60 }, (_, index) => {
+        const time = edge - 600_000 + index * 30_000 + 2000;
+        return { time, device_id: deviceId, fields: time < edge + 120_000 ? dark : lit };
+      }),
+    );
+
+    const week = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=7d&stepSeconds=300&metrics=vpd`).expect(200)).body;
+    const points: { measuredAt: string; value: number | null }[] = week.panels[0].points;
+    const at = (stamp: number) => points.find(point => Date.parse(point.measuredAt) === stamp)?.value;
+    const [byDay, byNight] = [deficit(26, 24, 60), deficit(21, 21, 55)];
+
+    expect(week.stepSeconds).toBe(300);
+    expect(at(edge)).toBe(byNight);
+    // Four dark samples and six lit ones, each worked out by itself: not the day's offset over the mean of all ten.
+    expect(at(edge + 300_000)).toBe(parseFloat(((4 * byNight + 6 * byDay) / 10).toFixed(2)));
+    expect(at(edge + 300_000)).not.toBe(deficit((4 * 21 + 6 * 26) / 10, (4 * 21 + 6 * 26) / 10 - 2, (4 * 55 + 6 * 60) / 10));
+    expect(at(edge + 600_000)).toBe(byDay);
+    // Nothing the week says lies outside what its samples held.
+    for (const point of points.filter(one => one.value !== null)) {
+      expect(point.value).toBeGreaterThanOrEqual(Math.min(byDay, byNight));
+      expect(point.value).toBeLessThanOrEqual(Math.max(byDay, byNight));
+    }
+  });
+
+  // Read at the step, a lamp that ran from 06:02 to 18:02 was lit "06:00 bis 18:03" over a day and "06:00 bis
+  // 18:05" over a week; within three days its stretch is its samples', and the night begins where it ends.
+  it('names the lamp´s stretch by its samples within three days, the same on every zoom, and begins the night where it ends', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const base = Math.floor((Date.now() - 10 * 3600_000) / 300_000) * 300_000;
+    // A sample every thirty seconds for four hours; lit from the one at 62 minutes and 12 seconds to the last before 182 minutes.
+    const [on, off] = [base + 62 * 60_000 + 12_000, base + 182 * 60_000 + 12_000];
+    await seedMeasurements(
+      Array.from({ length: 480 }, (_, index) => {
+        const time = base + index * 30_000 + 12_000;
+        return { time, device_id: deviceId, fields: { temperature: 24, humidity: 55, out_light: time >= on && time < off ? 70 : 0 } };
+      }),
+    );
+
+    const read = async (query: string) => {
+      const body = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?${query}&metrics=temperature`).expect(200)).body;
+      return {
+        step: body.stepSeconds as number,
+        lit: body.outputs.find((one: { output: string }) => one.output === 'light').spans as { startsAt: string; endsAt: string }[],
+        nights: body.nights as { startsAt: string; endsAt: string }[],
+      };
+    };
+    const day = await read('range=24h');
+    const zoomed = await read(`range=24h&from=${new Date(base + 3_600_000).toISOString()}&to=${new Date(base + 4 * 3_600_000).toISOString()}`);
+    // The five seconds the first lit sample was written in, and those of the first dark one after it.
+    const stretch = [{ startsAt: new Date(on - 2000).toISOString(), endsAt: new Date(off - 2000).toISOString() }];
+
+    expect(day.step).toBe(180);
+    expect(day.lit).toEqual(stretch);
+    expect(zoomed.lit).toEqual(stretch);
+    expect(day.nights.map(night => night.startsAt)).toContain(stretch[0].endsAt);
+    expect(day.nights.map(night => night.endsAt)).toContain(stretch[0].startsAt);
+  });
+
   // Read over a grow, a point is hours wide and no multiple of a day, so a window held a different share of
   // day and night every time. Worked out from the window's own means with one leaf offset, the same climate
   // read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another - a bow-tie no tent ever drew.

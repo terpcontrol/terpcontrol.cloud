@@ -503,14 +503,49 @@ describe('the nights a chart is shaded by', () => {
     lastSampleAt: null,
   };
 
+  /** A device that reported a temperature every five minutes from one instant to another, but for one silence. */
+  const heard = (from: Date, to: Date, silent: [Date, Date] | [] = []) => {
+    const points = [];
+    for (let time = from.getTime() + 300_000; time <= to.getTime(); time += 300_000) {
+      if (silent.length === 0 || time <= silent[0].getTime() || time > silent[1].getTime())
+        points.push({ measuredAt: new Date(time).toISOString(), value: 24 });
+    }
+    return {
+      series: {
+        deviceId: 'fridge-1',
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        stepSeconds: 300,
+        metrics: [{ metric: 'temperature' as const, points }],
+        outputs: [],
+      },
+      outputs: [],
+      lastSampleAt: to.toISOString(),
+    };
+  };
+
   it('are the schedule´s, and move with it the night the clocks go back', () => {
     // Berlin 08:00-20:00: 06:00-18:00 UTC in summer, moved at 01:00 UTC on 25 October.
     const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle()), row('2026-10-25T01:00:30Z', cycle({ day: 7 * HOUR, night: 19 * HOUR }))], window);
 
-    expect(nightsOf([], window, cycles)).toEqual([
+    expect(nightsOf([heard(window.startsAt, window.endsAt)], window, cycles)).toEqual([
       { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-25T07:00:00.000Z' },
       { startsAt: '2026-10-25T19:00:00.000Z', endsAt: '2026-10-26T07:00:00.000Z' },
     ]);
+  });
+
+  it('are shaded only through hours somebody reported in: a schedule knows nothing of a silence', () => {
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], window);
+    // Gone from 22:00 to 03:00 in the first night, and for good at 21:00 in the second.
+    const reported = heard(window.startsAt, at('2026-10-25T21:00:00Z'), [at('2026-10-24T22:00:00Z'), at('2026-10-25T03:00:00Z')]);
+
+    expect(nightsOf([reported], window, cycles)).toEqual([
+      { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-24T22:00:00.000Z' },
+      { startsAt: '2026-10-25T03:05:00.000Z', endsAt: '2026-10-25T06:00:00.000Z' },
+      { startsAt: '2026-10-25T18:00:00.000Z', endsAt: '2026-10-25T21:00:00.000Z' },
+    ]);
+    // Nobody heard at all: nothing to shade.
+    expect(nightsOf([], window, cycles)).toEqual([]);
   });
 
   it('are none while drying or germinating, nor with 24 or 0 hours of light, and the lamp´s where the record does not say', () => {

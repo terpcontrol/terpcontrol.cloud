@@ -661,6 +661,19 @@ describe('the stacked panels', () => {
     expect(points.at(-1)!.value).toBeNull();
   });
 
+  it('breaks a month at six hours nobody reported, as a week does: a window with no reading is a silence at every width', async () => {
+    quietFrom = new Date(NOW.getTime() - 54 * 3600 * 1000);
+    quietUntil = new Date(NOW.getTime() - 48 * 3600 * 1000);
+
+    for (const range of ['7d', '30d'] as const) {
+      const points = (await readAs(session(OWNER), { range })).panels[0].points;
+      const breaks = points.filter(point => point.value === null);
+      // Four of a month's windows are six hours, and held to those the month drew its line through the morning.
+      expect(breaks).toHaveLength(1);
+      expect(new Date(breaks[0].measuredAt).getTime()).toBeLessThan(quietUntil.getTime());
+    }
+  });
+
   it('carries a month to the edge of the window where the tent is still reporting', async () => {
     const points = (await readAs(session(OWNER), { range: '30d' })).panels[0].points;
 

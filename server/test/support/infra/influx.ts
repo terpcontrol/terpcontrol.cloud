@@ -70,7 +70,13 @@ const EXTREMES = /\|>\s*yield\(name:\s*"(min|max|mean|count|heard|on)"\)/g;
 
 const toAnnotatedCsv = (query: string, store: InfluxStore, now: number): string => {
   const names = [...query.matchAll(EXTREMES)].map(match => match[1]);
-  const reads = names.length === 2 ? query.split(EXTREMES).filter(part => part.includes('from(bucket:')) : [query];
+  // A union of several stretches (`samplesInQuery`) is the rows of each, one after the other.
+  const reads =
+    names.length === 2
+      ? query.split(EXTREMES).filter(part => part.includes('from(bucket:'))
+      : /union\(tables:/.test(query)
+        ? query.split(/(?=from\(bucket:)/).filter(part => part.includes('from(bucket:'))
+        : [query];
 
   return reads
     .map((read, index) => {

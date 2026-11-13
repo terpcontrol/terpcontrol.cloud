@@ -11,6 +11,7 @@ import {
   latestByField,
   countsByField,
   countsQuery,
+  switchedGrains,
   liveQuery,
   OutputSwitching,
   readingsOf,
@@ -215,6 +216,38 @@ describe('the extremes of a window', () => {
 
     expect([...worked.keys()].map(time => new Date(time).toISOString())).toEqual(['2026-08-11T10:05:00.000Z', '2026-08-11T10:10:00.000Z']);
     expect(times.map(time => new Date(time).toISOString())).toEqual(['2026-08-11T10:02:30.000Z', '2026-08-11T10:07:30.000Z']);
+  });
+});
+
+describe('the grains a change of day and night fell into', () => {
+  const stamp = (minutes: number) => new Date(Date.parse('2026-08-11T10:00:00.000Z') + minutes * 60_000).toISOString();
+  const grain = (minutes: number, light: number, leaf?: number) => [
+    { _time: stamp(minutes), _field: 'temperature', _value: 25 },
+    { _time: stamp(minutes), _field: 'out_light', _value: light },
+    ...(leaf === undefined ? [] : [{ _time: stamp(minutes), _field: 'leaf_temperature', _value: leaf }]),
+  ];
+  const lit = (at: (field: string) => number | null) => (at('out_light') ?? 0) > 0.5;
+  const stretches = (rows: Parameters<typeof switchedGrains>[0], both = false) =>
+    switchedGrains(rows, 300, lit, both).map(one => [one.startsAt.toISOString(), one.endsAt.toISOString()]);
+
+  it('are the lit one of two neighbours in different halves: the lamp switched in it, and the dark one is dark throughout', () => {
+    const rows = [...grain(5, 0), ...grain(10, 60), ...grain(15, 100), ...grain(20, 40), ...grain(25, 0)];
+    expect(stretches(rows)).toEqual([
+      [stamp(5), stamp(10)],
+      [stamp(15), stamp(20)],
+    ]);
+  });
+
+  it('are both where the half is not the lamp`s to say, in one stretch', () => {
+    expect(stretches([...grain(5, 0), ...grain(10, 100)], true)).toEqual([[stamp(0), stamp(10)]]);
+  });
+
+  it('are none across a silence, none where the leaf was measured, and none where nothing switched', () => {
+    // Two grains an hour apart are no neighbours: nothing says the lamp switched in either.
+    expect(stretches([...grain(5, 0), ...grain(65, 100)])).toEqual([]);
+    // A measured leaf needs no offset, and the half decides nothing else.
+    expect(stretches([...grain(5, 0), ...grain(10, 60, 23.1)])).toEqual([]);
+    expect(stretches([...grain(5, 100), ...grain(10, 100)])).toEqual([]);
   });
 });
 
@@ -511,7 +544,46 @@ describe('the deficit of a window', () => {
     expect(new Set(answer.metrics[0].points.map(point => point.value))).toEqual(new Set([Number(((NIGHT + DAY) / 2).toFixed(2))]));
     expect(answer.metrics[0].points[3]).toMatchObject({ min: DAY, max: NIGHT });
     expect(data.asked.filter(query => query.includes('every: 300s'))).toHaveLength(1);
-    expect(data.asked.some(isRaw)).toBe(false);
+    // Sample by sample only the grains the lamp switched in are read - the lit one of each pair, five minutes
+    // each, in one script -, never the window.
+    const raw = data.asked.filter(isRaw);
+    expect(raw).toHaveLength(1);
+    const stretches = [...raw[0].matchAll(/range\(start: (\S+), stop: (\S+)\)/g)].map(([, start, stop]) => Date.parse(stop) - Date.parse(start));
+    expect(stretches).toHaveLength(days * 8 - 1);
+    expect(new Set(stretches)).toEqual(new Set([5 * MINUTE]));
+  });
+
+  it('works a grain the lamp switched in out from its own samples: its lit and its dark part, weighted by their readings', async () => {
+    const from = Date.parse('2026-01-20T10:00:00.000Z');
+    const endsAt = new Date(from + 4 * 24 * 60 * MINUTE);
+    // An hour of grains; the lamp comes on at 10:57, three minutes before the grain stamped 11:00 closes.
+    const grains = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70].flatMap(minutes => [
+      { _time: new Date(from + minutes * MINUTE).toISOString(), _field: 'temperature', _value: 25 },
+      { _time: new Date(from + minutes * MINUTE).toISOString(), _field: 'humidity', _value: 60 },
+      { _time: new Date(from + minutes * MINUTE).toISOString(), _field: 'out_light', _value: minutes < 60 ? 0 : minutes === 60 ? 60 : 100 },
+    ]);
+    const data = reading(query =>
+      query.includes('every: 300s')
+        ? grains
+        : query.includes('status_daily')
+          ? []
+          : isRaw(query)
+            ? readings(MINUTE, 5 * MINUTE, undefined, from + 55 * MINUTE)
+            : means([from + 300 * MINUTE], 50),
+    );
+    const answer = await data.series(DEVICE, { metrics: ['vpd'], startsAt: new Date(from), endsAt, stepSeconds: 300, extremes: true });
+    const at = (minutes: number) => answer.metrics[0].points.find(point => Date.parse(point.measuredAt) === from + minutes * MINUTE)?.value;
+
+    expect(answer.stepSeconds).toBe(300);
+    expect(at(55)).toBe(NIGHT);
+    // Judged lit as a whole - its lamp "at 60 %" - the grain read as day, 0.91, with two dark minutes in it.
+    expect(at(60)).toBe(Number(((2 * NIGHT + 3 * DAY) / 5).toFixed(2)));
+    expect(at(65)).toBe(DAY);
+    // The one grain was read sample by sample, and no other.
+    const raw = data.asked.filter(isRaw);
+    expect(raw).toHaveLength(1);
+    expect(raw[0]).toContain(`range(start: ${new Date(from + 55 * MINUTE).toISOString()}, stop: ${new Date(from + 60 * MINUTE).toISOString()})`);
+    expect(raw[0]).not.toContain('union(');
   });
 
   it('says no lowest and highest to a read that asked for none, and still the same deficit', async () => {
