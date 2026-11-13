@@ -73,6 +73,7 @@ const alert = (over: Partial<Alert>): Alert => ({
   deviceId: 'device-1',
   cameraId: null,
   spaceId: 'space-1',
+  spaceName: 'Tent',
   kind: 'threshold',
   severity: 'critical',
   startedAt: iso(NOW.minus({ hours: 2, minutes: 20 })),

@@ -30,11 +30,24 @@ describe('claiming a device', () => {
     expect(claimed.body.device.spaceId).toEqual(expect.any(String));
     expect(claimed.body.device.state.claimedAt).toEqual(expect.any(String));
 
-    // The place is not called after the hardware: a space named "fridge" is
-    // what a grower would read on their first home card, in every language.
+    // The place is not called after the hardware - neither its type nor a scrap
+    // of its id: without a name from the claim it is the server's word for it.
     const place = (await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body;
-    expect(place.name).not.toBe('fridge');
-    expect(place.name).toBe(device.deviceId.slice(-6).toUpperCase());
+    expect(place.name).toBe('Fridge');
+  });
+
+  it('calls the place it makes what the claim says, and counts on where the name is taken', async () => {
+    const names = [];
+    for (const type of ['fridge', 'fridge'] as const) {
+      const device = await registerDevice(type);
+      const claimed = await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(device.deviceId), spaceNames: { fridge: 'Kühlschrank', tent: 'Zelt' } })
+        .expect(201);
+      names.push((await owner.client.get(`/v1/spaces/${claimed.body.device.spaceId}`).expect(200)).body.name);
+    }
+
+    expect(names).toEqual(['Kühlschrank', 'Kühlschrank 2']);
   });
 
   it('takes the name the claim gives the place instead of inventing one', async () => {

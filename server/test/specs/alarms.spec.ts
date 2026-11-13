@@ -379,6 +379,139 @@ describe('a device given up', () => {
 });
 
 /**
+ * An open alert stands where its device stands: the move takes it along, and
+ * the inbox, Start, a place's page and its Verlauf all name the place the
+ * device stands in now - to whoever sees that place, and to nobody who only
+ * saw the one it left. An alert that is over keeps the place it happened in,
+ * under its name, also after that place has ended.
+ */
+describe('an open alert after its device moved', () => {
+  let host: Session;
+  let ofTheOld: Session;
+  let ofTheNew: Session;
+  let moved: string;
+  let from: string;
+  let to: string;
+  let movedSimulator: DeviceSimulator;
+  let over: string;
+  let open: string;
+
+  const inbox = async (session: Session, state: 'true' | 'false') =>
+    (await session.client.get(`/v1/alerts?open=${state}`).expect(200)).body.items.map((alert: { id: string; spaceId: string; spaceName: string }) => [
+      alert.id,
+      alert.spaceId,
+      alert.spaceName,
+    ]);
+
+  /** The first alert of the rule in that state, once the engine has written it. */
+  const episode = async (ruleId: string, state: 'true' | 'false'): Promise<string> => {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const page = await host.client.get(`/v1/alerts?deviceId=${moved}&open=${state}`).expect(200);
+      const found = page.body.items.find((alert: { ruleId: string }) => alert.ruleId === ruleId);
+      if (found) return found.id;
+      await settle(250);
+    }
+    throw new Error(`Timed out waiting for an alert of rule ${ruleId}`);
+  };
+
+  const openOn = async (session: Session, path: string): Promise<string[]> =>
+    (await session.client.get(path).expect(200)).body.openAlerts.map((alert: { alertId: string }) => alert.alertId);
+
+  const cardOf = async (session: Session, spaceId: string): Promise<string[]> => {
+    const home = await session.client.get('/v1/home').expect(200);
+    const card = home.body.spaces.find((one: { spaceId: string }) => one.spaceId === spaceId);
+    return card.openAlerts.map((alert: { alertId: string }) => alert.alertId);
+  };
+
+  const verlaufOf = async (spaceId: string): Promise<string[]> =>
+    (await host.client.get(`/v1/spaces/${spaceId}/timeline?range=24h`).expect(200)).body.alarms.map((alarm: { alertId: string }) => alarm.alertId);
+
+  beforeAll(async () => {
+    host = await createAccount('alarms-host');
+    ofTheOld = await createAccount('alarms-of-the-old');
+    ofTheNew = await createAccount('alarms-of-the-new');
+
+    const claimed = await provisionDevice(host, 'controller');
+    moved = claimed.deviceId;
+    from = (await host.client.get(`/v1/devices/${moved}`).expect(200)).body.spaceId;
+    await host.client.patch(`/v1/spaces/${from}`).send({ name: 'Where it stood' }).expect(200);
+    to = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Where it went' }).expect(201)).body.id;
+    await joinSpace(host, from, ofTheOld, 'can_manage');
+    await joinSpace(host, to, ofTheNew, 'can_manage');
+
+    movedSimulator = await startSimulator(claimed);
+    await settle();
+
+    // One episode that is over, then one that is still open, both raised where it stood.
+    const rule = await createRule(host, moved, aRule({ name: unique('Moved') }));
+    await movedSimulator.reportStatus({ temperature: 34 });
+    await episode(rule.id, 'true');
+    await movedSimulator.reportStatus({ temperature: 21 });
+    over = await episode(rule.id, 'false');
+    await movedSimulator.reportStatus({ temperature: 35 });
+    open = await episode(rule.id, 'true');
+  });
+
+  afterAll(async () => {
+    await movedSimulator?.close();
+  });
+
+  it('stands in the new place on every read, for the owner and for a manager of the new place', async () => {
+    expect(await inbox(ofTheOld, 'true')).toEqual([[open, from, 'Where it stood']]);
+
+    await host.client.patch(`/v1/devices/${moved}`).send({ spaceId: to }).expect(200);
+
+    for (const reader of [host, ofTheNew]) {
+      expect(await inbox(reader, 'true')).toEqual([[open, to, 'Where it went']]);
+      expect(await openOn(reader, `/v1/spaces/${to}/overview`)).toEqual([open]);
+      expect(await cardOf(reader, to)).toEqual([open]);
+    }
+    expect(await openOn(host, `/v1/spaces/${from}/overview`)).toEqual([]);
+    expect(await cardOf(host, from)).toEqual([]);
+    expect(await verlaufOf(to)).toEqual([open]);
+    expect(await verlaufOf(from)).toEqual([over]);
+
+    // The past stays where it happened: the owner's, and not the new place's manager's.
+    expect(await inbox(host, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect(await inbox(ofTheNew, 'false')).toEqual([]);
+    await ofTheNew.client.get(`/v1/alerts/${over}`).expect(404);
+    // A manager of the place it stands in has what a manager has: refused as an open alert is, not as a stranger.
+    expect((await ofTheNew.client.delete(`/v1/alerts/${open}`).expect(409)).body.code).toBe('alert_open');
+  });
+
+  it('is gone for a guest of the old place, who keeps that place`s past', async () => {
+    expect(await inbox(ofTheOld, 'true')).toEqual([]);
+    await ofTheOld.client.get(`/v1/alerts/${open}`).expect(404);
+    expect(await openOn(ofTheOld, `/v1/spaces/${from}/overview`)).toEqual([]);
+    expect(await cardOf(ofTheOld, from)).toEqual([]);
+    expect(await inbox(ofTheOld, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect((await ofTheOld.client.get(`/v1/alerts/${over}`).expect(200)).body.spaceName).toBe('Where it stood');
+  });
+
+  it('keeps the past alert under the name of the place once that place has ended', async () => {
+    await host.client.delete(`/v1/spaces/${from}`).expect(204);
+
+    expect(await inbox(host, 'true')).toEqual([[open, to, 'Where it went']]);
+    expect(await inbox(host, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect(await inbox(ofTheNew, 'true')).toEqual([[open, to, 'Where it went']]);
+    expect(await inbox(ofTheOld, 'true')).toEqual([]);
+    expect(await inbox(ofTheOld, 'false')).toEqual([]);
+    await ofTheOld.client.get(`/v1/alerts/${over}`).expect(404);
+  });
+
+  it('ends with the device when it is given up, for everybody', async () => {
+    await host.client.delete(`/v1/devices/${moved}/claim`).expect(204);
+
+    for (const reader of [host, ofTheNew, ofTheOld]) {
+      expect(await inbox(reader, 'true')).toEqual([]);
+      await reader.client.get(`/v1/alerts/${open}`).expect(404);
+    }
+    expect(await openOn(host, `/v1/spaces/${to}/overview`)).toEqual([]);
+  });
+});
+
+/**
  * The warning that a camera has stopped sending pictures is opted out of, never
  * into: a camera arrives with it on and somebody who does not want it turns it
  * off. Nobody should have to go and switch it on, on a fresh install or on one

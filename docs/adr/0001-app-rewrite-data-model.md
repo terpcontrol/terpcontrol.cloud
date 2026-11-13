@@ -380,7 +380,22 @@ like a place.
      joins it and no place is made; a controller or a fridge module is given its own place as before. It is
      checked like `spaceId` - the caller manages the place, and it is a place of the claimer's that has not ended -
      before the device is taken, so a refused claim does not spend its code; both fields together are 422
-     `two_places`.
+     `two_places`. `spaceNames` carries what to call a place the claim makes - a word for a tent and one for a
+     fridge, in the claimer's language, the server choosing by the type and numbering where the name is taken -
+     so the place is named in the claim's own write; without it the place is called what the device was named,
+     else "Tent", "Fridge" or "Place", never part of an id (the redesign session of 2026-11-13).
+   - **An open alert stands where its device stands** (the redesign session of 2026-11-13, after its critics
+     found a card headed by a removed place's id, Start marking two places for one alert, and a guest of the old
+     place keeping a moved device's alerts; it replaces, for open alerts, "an alarm counts for the place it was
+     raised in"). `DevicesService.place` writes the new `spaceId` onto the device's open alerts
+     (`resolvedAt: null`) in the same call - a move, a move taken back, a claim, and `null` for a device taken
+     out of every place; a camera moved by itself takes its own along. Start, a place's page, the inbox, the bell
+     and Verlauf read an alert by the place it names, so one write is enough: whoever sees the place the device
+     stands in now sees the alert and may do to it what they may do to the device, and whoever only saw the place
+     it left sees nothing of it. An alert that is over keeps the place it happened in and is read by whoever sees
+     that place, also after the device has gone; `Alert.spaceName` carries that place's name as it is now, an
+     ended place's included, so no screen shows an id. An open alert that names no place is in its owner's inbox
+     alone. Giving a device up deletes its alerts, as before.
    - **A stay of less than five minutes is a mistake put right, not a stay**: a move away from a place the device
      came to less than five minutes ago drops that placement, and where the device goes back to the place it had
      left, the placement there is opened again as if nothing had happened. The move sheet's "undo" is that case; five
@@ -402,9 +417,9 @@ like a place.
      name and type), read off the placements on every read and stored nowhere, so a move taken back inside its
      five minutes leaves none; not to a reader from outside, and not where one device was asked for. The leading
      device's curve *and* its output strips begin at the hand-over, a strip is bounded by its device's own read
-     rather than by the window, and an alert counts for the place it was raised in - one that names no place by
-     its device, inside the device's stay - so a device's offline alarm raised where it went does not stand in
-     the Verlauf of the place it left.
+     rather than by the window, and an alert that is over counts for the place it happened in - one that names no
+     place by its device, inside the device's stay - so what a device raised where it went does not stand in the
+     Verlauf of the place it left. An open alert stands where its device stands (point 1).
    - *A grow's diary and report* (`GET /grows/{id}/diary`, `/report`): a day's climate, its share inside the targets
      and what the lamp did are of the devices standing where the plants stood on that day, each for the hours it
      stood there. A change of the measuring device is an event of that day (`GrowDayEvent`, kind `device`),
@@ -441,7 +456,10 @@ like a place.
    - **A place ends with every way into it, as a room does** (changed after the second walk, 2026-11-13, by the
      redesign session; it replaces "A space with members is not deleted" above). `DELETE /v1/spaces/{id}` is no
      longer refused for the people in the place: the write that ends it deletes the place's own memberships, its
-     invites and its share links - one function for a place and a room (`SpacesService.closeWaysInto`). What the
+     invites and its share links - one function for a place and a room (`SpacesService.closeWaysInto`). The
+     reminders kept for it end in the same function (the redesign session of 2026-11-13): work cannot fall due in
+     a place that is gone, and a reminder naming one was left listed with nothing to change it by. A grow's
+     reminders are the grow's and go where it goes. What the
      old rule was for - nobody should learn they were let go by a tent disappearing - is answered in the app:
      "Ort entfernen" names every guest who loses sight, and the room and its members where the place is the
      room's last, in the one question it asks. Letting each person go first was a second errand that said nothing
@@ -450,8 +468,8 @@ like a place.
      destination; a person needs none. A membership held on the room is the room's: it stays while another place
      stands in the room. Nothing of it can be taken back. No migration step is touched: under the old rule an
      ended place could hold no member.
-   - **An ended room takes nothing**: `PATCH /spaces/{id}` on one, a `roomId` that names one, an invite and a
-     member by handle for one answer 409 `room_ended` with the rule in a sentence; a code cut for one is the 404
+   - **An ended room takes nothing**: `PATCH /spaces/{id}` on one, a `roomId` that names one, an invite, a
+     member by handle and a share link for one answer 409 `room_ended` with the rule in a sentence; a code cut for one is the 404
      every dead code gets. **Which room a place stands in is its owner's to say** - `roomName`, or a `roomId`
      other than the one it has, `null` included - because it decides who is let in and can end a room with its
      members; a member who may manage still changes the name and the kind (403 otherwise; both after the second
@@ -470,7 +488,7 @@ like a place.
    - No route is added for removing a place with what stands in it: the app sends each device, camera and grow to the
      destination chosen for it by the routes that exist, and ends the place last.
 
-**The migration** is three steps on the new collections, each idempotent, each a no-op on a fresh install, none
+**The migration** is five steps on the new collections, each idempotent, each a no-op on a fresh install, none
 moving anything aside (production never ran a server with the model before this amendment; installs that did - a
 test stack, a self-hosted one on master - are what the second and third are for):
 
@@ -479,6 +497,8 @@ test stack, a self-hosted one on master - are what the second and third are for)
 | `026-device-placements` | gives every device without the field its `placements` | a device standing in a place gets one open placement there, from `state.claimedAt`, or from its `createdAt` where nothing recorded the claim (every device carried over from the old database: step 005 left `claimedAt` null); being its first, it is read back past that instant, so nothing a screen shows changes with the step - every read assumed until now that a device has always stood where it stands; an unclaimed device, and a claimed one without a place (a repair by hand left such rows), gets an empty list; a device whose place has since ended is given the placement all the same and counted |
 | `027-empty-rooms` | ends the rooms nothing is left in | a room with no place that has not ended and nothing standing in it directly is ended as point 4 says - its members' rows deleted with it and counted (`memberships.endedWithARoom`) -, and the ended places still naming it are taken out of it; a room with a place, or holding something itself, is left |
 | `028-unique-place-names` | renames what collides | per owner, among the places that have not ended and among the rooms that have not: the oldest of a name keeps it, each later one takes the next free number ("Tent", "Tent 2"); ended places are not touched. Step 004 numbered the places it named itself, so on a database from the old cloud only places named after devices that share a name can collide |
+| `029-reminders-of-ended-places` | deletes the reminders of ended places | a reminder about a place or a room that has ended, or that is gone, is deleted and counted; a grow's reminders are not looked at. Any database that ran the rewrite can hold them: `DELETE /spaces/{id}` left a place's reminders behind until 2026-11-13 |
+| `030-open-alerts-where-the-device-stands` | moves open alerts to their devices | every open alert gets the place its device stands in now - a camera's alone the camera's, no place where that is none; an alert that is over is not touched |
 
 ### Diary, tasks, pictures
 

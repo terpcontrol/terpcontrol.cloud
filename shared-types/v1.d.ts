@@ -1247,6 +1247,13 @@ export interface DeviceClaimCreate {
   name?: string;
   spaceId?: string;
   /**
+   * What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.
+   */
+  spaceNames?: {
+    tent?: string;
+    fridge?: string;
+  };
+  /**
    * Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.
    */
   joinSpaceId?: string;
@@ -1715,7 +1722,14 @@ export interface Alert {
   ruleId: string | null;
   deviceId: string | null;
   cameraId: string | null;
+  /**
+   * The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.
+   */
   spaceId: string | null;
+  /**
+   * What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.
+   */
+  spaceName: string | null;
   kind: AlertKind;
   severity: Severity;
   startedAt: string;

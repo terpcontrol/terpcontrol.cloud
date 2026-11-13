@@ -193,15 +193,66 @@ describe('claiming a device with a place to join', () => {
     });
     // An ended place takes nothing, whichever field names it.
     expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, joinSpaceId: 'space-ended' }))).toMatchObject({ code: 'space_archived' });
+    // The sentence states the fact and asks for nothing the app cannot do.
     expect(await refusal(() => devices.claim(session(OWNER), { code: CODE, spaceId: 'space-ended' }))).toMatchObject({
       status: 409,
       code: 'space_archived',
+      detail: 'That place has ended, and nothing is put into an ended place.',
     });
     // A place the caller has nothing to do with is not there, as for `spaceId`.
     expect(await refusal(() => devices.claim(session(MEMBER), { code: CODE, joinSpaceId: BALCONY }))).toMatchObject({ status: 404 });
     expect(await db.devices.findOne({ id: NEW }).lean()).toMatchObject({ ownerId: null, spaceId: null });
 
     expect((await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT })).device.spaceId).toBe(TENT);
+  });
+
+  /**
+   * The place a claim makes is called what the claim says - the word for it in
+   * the claimer's language, which only the client knows - and numbered where
+   * that name is taken. Without it the server has a word of its own, never a
+   * scrap of the device's id.
+   */
+  it('calls the place it makes what the claim says, counting on where the name is taken', async () => {
+    await db.spaces.create({ id: 'space-zelt', ownerId: OWNER, kind: 'tent', name: 'Zelt', roomId: null });
+    await unclaimed('controller');
+
+    const claimed = await devices.claim(session(OWNER), { code: CODE, spaceNames: { tent: ' Zelt ', fridge: 'Kühlschrank' } });
+
+    expect(claimed.spaceCreated).toBe(true);
+    expect(await db.spaces.findOne({ id: claimed.device.spaceId }).lean()).toMatchObject({ name: 'Zelt 2', kind: 'tent' });
+  });
+
+  it.each([
+    ['fridge', 'Kühlschrank', 'fridge'],
+    ['fan', 'Zelt', 'other'],
+  ])('calls the place a %s gets "%s": the type is known to the server alone', async (type, name, kind) => {
+    await db.spaces.deleteMany({});
+    await unclaimed(type);
+
+    const claimed = await devices.claim(session(OWNER), { code: CODE, spaceNames: { tent: 'Zelt', fridge: 'Kühlschrank' } });
+
+    expect(await db.spaces.findOne({ id: claimed.device.spaceId }).lean()).toMatchObject({ name, kind });
+  });
+
+  it.each([
+    ['controller', 'Tent'],
+    ['fridge', 'Fridge'],
+    ['plug', 'Place'],
+  ])('calls the place of a %s claimed without a name "%s"', async (type, word) => {
+    await unclaimed(type);
+
+    const claimed = await devices.claim(session(OWNER), { code: CODE });
+
+    expect((await db.spaces.findOne({ id: claimed.device.spaceId }).lean())?.name).toBe(word);
+  });
+
+  it('leaves the name of the place a device joins alone', async () => {
+    await unclaimed('fan');
+
+    await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT, spaceNames: { tent: 'Zelt' } });
+
+    expect((await db.spaces.findOne({ id: TENT }).lean())?.name).toBe('Tent 1');
+    expect(await db.spaces.countDocuments({})).toBe(3);
   });
 
   it('refuses both fields together: two statements about one place', async () => {

@@ -209,6 +209,8 @@ export class CamerasService {
     const { username, password, ...rest } = body;
     const url = changesTheStream(body) ? streamUrl(stored, { url: body.url, username, password }) : undefined;
     const changes = Object.fromEntries(Object.entries({ ...rest, url }).filter(([, value]) => value !== undefined));
+    // Its open alert stands where the camera stands, as a device's does.
+    if (body.spaceId !== undefined) await this.alerts.updateMany({ cameraId: id, resolvedAt: null }, { $set: { spaceId: body.spaceId } });
     return this.cameras.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<CameraDocument>();
   }
 

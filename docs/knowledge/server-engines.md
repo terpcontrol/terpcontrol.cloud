@@ -51,7 +51,16 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   of the rule's name and watch (`watched`); deleting or disabling a rule, and removing a camera, closes its open alert
   quietly and keeps the rest - nothing would ever close it otherwise, since the engine skips disabled rules and the
   health loop listed cameras only. Giving a device up deletes its alerts and its camera's: the previous owner's bell
-  would keep the open one for good, and the next owner would inherit the history. A person deletes an alert that is
+  would keep the open one for good, and the next owner would inherit the history. **An open alert stands where its
+  device stands** (the redesign session of 2026-11-13; ADR 0001, "Places, rooms and where a device stood"): the
+  engine raises it with the device's `spaceId`, and `DevicesService.place` - the one writer of where a device
+  stands - moves the device's open alerts along (`CamerasService.update` for a camera moved by itself), so the
+  inbox, Start, a place's page and Verlauf, which read by `spaceId`, need no second rule, and a repeat or an
+  all-clear goes to the people of the place it stands in now. One that is over keeps its `spaceId`. Access follows
+  (`AlertInboxService.subjectOf`): an open alert is its device's or camera's, one that is over is the place's it
+  happened in; `GET /alerts?deviceId=` holds a member to the places they see; the unfiltered inbox adds the
+  alerts without a place of the caller's own devices and cameras. `Alert.spaceName` is the place's name as it
+  is now, an ended place's too. A person deletes an alert that is
   over (`DELETE /v1/alerts/{id}`, `manage` on its subject); an open one is refused (409 `alert_open`). Migration
   `024-orphaned-alerts` cleared what the old paths had left.
 - A rule either carries its own e-mail or webhook (`delivery.custom`: `{{placeholder}}` templates in

@@ -46,6 +46,9 @@ import { accountOf } from '../caller';
  */
 const SPACE_KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
 
+/** What a place a claim makes is called where the claim brings no name: English, as the server has no catalogue. */
+const UNNAMED: Readonly<Partial<Record<SpaceKind, string>>> = { tent: 'Tent', fridge: 'Fridge' };
+
 @Injectable()
 export class DevicesService {
   constructor(
@@ -127,6 +130,10 @@ export class DevicesService {
    * The one writer of where a device stands: `spaceId` and the placement that
    * says since when, in one update, so the two cannot say two things. `null`
    * takes it out of every place.
+   *
+   * An open alert stands where its device stands, so it moves with it: the
+   * inbox, Start and Verlauf read an alert by the place it names, and whoever
+   * sees that place sees the alert. One that is over keeps where it happened.
    */
   public async place(id: string, spaceId: string | null, at: Date = new Date()): Promise<StoredDevice> {
     const device = await this.devices.findOne({ id }, { placements: 1 }).lean<Pick<StoredDevice, 'placements'> | null>();
@@ -134,6 +141,7 @@ export class DevicesService {
       .findOneAndUpdate({ id }, { $set: { spaceId, placements: movedTo(device?.placements ?? [], spaceId, at) } }, { new: true })
       .lean<StoredDevice>();
     if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
+    await this.alerts.updateMany({ deviceId: id, resolvedAt: null }, { $set: { spaceId } });
 
     return placed;
   }
@@ -163,7 +171,7 @@ export class DevicesService {
         },
       ]);
     }
-    if (space && space.archivedAt !== null) throw conflict('space_archived', 'That space has ended. Bring it back before putting anything in it.');
+    if (space && space.archivedAt !== null) throw conflict('space_archived', 'That place has ended, and nothing is put into an ended place.');
   }
 
   /**
@@ -239,7 +247,9 @@ export class DevicesService {
     // The code is spent; the display shows a fresh one when the device is asked.
     await this.claimCodes.deleteOne({ id: claimCode.id });
 
-    const made = named ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, given));
+    // The type is the server's to know: the claim brought a word for each kind of place it may make.
+    const said = body.spaceNames?.[claimed.type === 'fridge' ? 'fridge' : 'tent']?.trim() || given;
+    const made = named ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, said));
     const spaceId = named ?? made?.id ?? null;
 
     const { placements } = await this.place(device.id, spaceId);
@@ -332,11 +342,9 @@ export class DevicesService {
    * device to stand in.
    *
    * A place is not a piece of hardware, so its name is never the hardware's
-   * type: "controller" would head the first card of a grower's home, in lower
-   * case and in English whatever language they read. A claim that brings no
-   * name leaves the tail of the id the device has printed on it, which belongs
-   * to no language and to no second device, and stands there until the person
-   * who plugged the device in says what the place is called.
+   * type or id: the claim says what to call it (`spaceNames`, in the claimer's
+   * language), else it is called what the device was named, else the word for
+   * what it is - never a scrap of an id on the first card of a grower's home.
    */
   private async spaceFor(ownerId: string, device: StoredDevice, name: string | null): Promise<SpaceDocument> {
     const kind = SPACE_KIND[device.type] ?? 'other';
@@ -346,7 +354,7 @@ export class DevicesService {
       ownerId,
       kind,
       // A claim is never refused for a name: a second "Zelt" is "Zelt 2".
-      name: await freeNameFor(this.spaces, ownerId, kind, name ?? device.id.slice(-6).toUpperCase()),
+      name: await freeNameFor(this.spaces, ownerId, kind, name ?? UNNAMED[kind] ?? 'Place'),
       roomId: null,
       presetPrompt: 'ask',
       retention: { climateDays: null },

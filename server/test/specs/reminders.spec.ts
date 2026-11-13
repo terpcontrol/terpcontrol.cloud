@@ -82,6 +82,30 @@ describe('writing a reminder', () => {
     expect(written.defaults).toEqual({ kind: 'feed', litres: 4 });
   });
 
+  /**
+   * What a reminder prefills is what its tick writes into the diary. Values
+   * of a kind no entry has would be refused by every tick, and the task would
+   * stay due for good - so the reminder is refused, and so is a change to one.
+   */
+  it('refuses to prefill with values no entry takes, and names the field', async () => {
+    const refused = await owner.client
+      .post('/v1/reminders')
+      .send(aReminder({ kind: 'chore', defaults: { kind: 'chore' } }))
+      .expect(422);
+
+    expect(refused.body).toMatchObject({ code: 'defaults_not_entry_values', errors: [{ field: 'defaults', code: 'invalid' }] });
+
+    const kept = await create(owner, aReminder({ kind: 'chore', defaults: { kind: 'note' } }));
+    expect(
+      (
+        await owner.client
+          .patch(`/v1/reminders/${kept.id}`)
+          .send({ defaults: { kind: 'chore' } })
+          .expect(422)
+      ).body.code,
+    ).toBe('defaults_not_entry_values');
+  });
+
   it('refuses a reminder that is both a rhythm and a date, and one that is neither', async () => {
     const both = await owner.client
       .post('/v1/reminders')
@@ -161,6 +185,35 @@ describe('changing and ending one', () => {
     await owner.client.get(`/v1/reminders?spaceId=${tent}`).expect(200);
     const lines = await owner.client.get(`/v1/entries?spaceId=${tent}`).expect(200);
     expect(lines.body.items.some((entry: { taskId: string }) => entry.taskId === task.id)).toBe(true);
+  });
+});
+
+/**
+ * A place's reminders end with the place. The page that removes a place counts
+ * them beforehand by `GET /reminders?spaceId=`; afterwards none is left on the
+ * list of everything kept, where it would name no place anybody can open.
+ */
+describe('a place that ends', () => {
+  it('takes its reminders with it, and leaves a grow´s alone', async () => {
+    const mine = await createAccount('reminders-ender');
+    const place = (await mine.client.post('/v1/spaces').send({ kind: 'tent', name: 'Ends soon' }).expect(201)).body;
+    const stays = (await mine.client.post('/v1/spaces').send({ kind: 'tent', name: 'Stays' }).expect(201)).body;
+    const grow = (
+      await mine.client.post('/v1/grows').send({ name: 'Keeps its rhythm', type: 'photoperiod', spaceId: stays.id, plants: [] }).expect(201)
+    ).body;
+    const about = (subject: { type: string; id: string }) => ({ subject, kind: 'chore', label: unique('Chore'), everyDays: 7, onceAt: null });
+    await create(mine, about({ type: 'space', id: place.id }));
+    await create(mine, about({ type: 'space', id: place.id }));
+    const ofTheGrow = await create(mine, about({ type: 'grow', id: grow.id }));
+    const nextDoor = await create(mine, about({ type: 'space', id: stays.id }));
+
+    expect((await mine.client.get(`/v1/reminders?spaceId=${place.id}`).expect(200)).body.items).toHaveLength(2);
+
+    await mine.client.delete(`/v1/spaces/${place.id}`).expect(204);
+
+    const left = (await mine.client.get('/v1/reminders').expect(200)).body.items.map((one: { id: string }) => one.id);
+    expect(left.sort()).toEqual([ofTheGrow.id, nextDoor.id].sort());
+    expect((await mine.client.get(`/v1/reminders?spaceId=${place.id}`).expect(200)).body.items).toEqual([]);
   });
 });
 

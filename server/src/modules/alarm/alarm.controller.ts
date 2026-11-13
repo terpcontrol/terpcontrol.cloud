@@ -134,14 +134,17 @@ export class AlertsController {
     const where = await this.inbox.scope(caller, { deviceId: query.deviceId, spaceId: query.spaceId, open: openOf(query) });
     if (!where) return { items: [], nextCursor: null };
 
-    return mapPage(await this.inbox.list(where, query), alertOf);
+    const page = await this.inbox.list(where, query);
+    const nameOf = await this.inbox.placeNames(page.items);
+    return mapPage(page, alert => alertOf(alert, nameOf(alert)));
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'One alert, from what raised it to what ended it' })
   @V1Answer(alert)
   public async read(@Param('id') id: string, @Caller() caller: AccessContext): Promise<Alert> {
-    return alertOf(await this.reachable(caller, id, 'view'));
+    const alert = await this.reachable(caller, id, 'view');
+    return alertOf(alert, (await this.inbox.placeNames([alert]))(alert));
   }
 
   @Delete(':id')
@@ -153,7 +156,7 @@ export class AlertsController {
     await this.inbox.remove(await this.reachable(caller, id, 'manage'));
   }
 
-  /** An alert is what may be done to what it is about; one about nothing that still exists is nobody's but an admin's. */
+  /** An alert is what may be done to what it is about (`subjectOf`); one about nothing that still exists is nobody's but an admin's. */
   private async reachable(caller: AccessContext, id: string, need: 'view' | 'manage'): Promise<StoredAlert> {
     const alert = await this.inbox.byId(id);
     const subject = this.inbox.subjectOf(alert);

@@ -21,7 +21,7 @@ export const devicesOn = (db: V1TestDatabase, access: AccessService, hardware: H
   new DevicesService(db.devices, db.claimCodes, db.spaces, db.memberships, db.cameras, db.plans, db.alarmRules, db.alerts, access, null, hardware);
 
 export const spacesOn = (db: V1TestDatabase, access: AccessService, devices = devicesOn(db, access)): SpacesService =>
-  new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.devices, db.cameras, db.grows, devices, access);
+  new SpacesService(db.spaces, db.memberships, db.invites, db.shareLinks, db.reminders, db.devices, db.cameras, db.grows, devices, access);
 
 export const growsOn = (
   db: V1TestDatabase,

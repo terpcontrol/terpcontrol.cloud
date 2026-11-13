@@ -27,6 +27,8 @@ import { demoPlaces } from './025-demo-places';
 import { devicePlacements } from './026-device-placements';
 import { emptyRooms } from './027-empty-rooms';
 import { uniquePlaceNames } from './028-unique-place-names';
+import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
+import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
 
 /**
  * In order, and the order matters in eight places:
@@ -53,6 +55,8 @@ import { uniquePlaceNames } from './028-unique-place-names';
  *   step carries after the work modes have cleared `small` and `full` away;
  * - the rooms nothing is left in are ended before the names are made unique,
  *   so that an ended room takes no name from one that stays.
+ * - the reminders of ended places go after the empty rooms have ended, so that
+ *   a room ended by that step loses its own too.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -86,4 +90,6 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   devicePlacements,
   emptyRooms,
   uniquePlaceNames,
+  remindersOfEndedPlaces,
+  openAlertsWhereTheDeviceStands,
 ];

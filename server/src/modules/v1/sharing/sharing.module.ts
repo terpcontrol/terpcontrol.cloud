@@ -5,6 +5,7 @@ import { CameraModule } from '@modules/v1/camera/camera.module';
 import { DiaryModule } from '../diary/diary.module';
 import { GrowModule } from '../grow/grow.module';
 import { OverviewModule } from '../overview/overview.module';
+import { SpaceModule } from '../space/space.module';
 import { FollowsController } from './follows.controller';
 import { FollowsService } from './follows.service';
 import { CardCache } from './link-card';
@@ -27,7 +28,7 @@ import { ShareLinksService } from './share-links.service';
  * is drawn as.
  */
 @Module({
-  imports: [ModelsModule, V1CommonModule, CameraModule, DiaryModule, GrowModule, OverviewModule],
+  imports: [ModelsModule, V1CommonModule, CameraModule, DiaryModule, GrowModule, OverviewModule, SpaceModule],
   controllers: [ShareLinksController, FollowsController, PublicController, LinkShellController],
   providers: [ShareLinksService, FollowsService, PublicPagesService, CardCache],
 })

@@ -65,7 +65,11 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   registered, which is what every read assumed before. On a restored copy of a migrated database (2026-11-12,
   by the runbook, on a stack of its own) the three steps took 10 ms of a run of under 0.1 s: every device with a
   place got one open placement, the unclaimed ones an empty list, no room was found, one place was renamed, and
-  the second run and the boot after it said "nothing to do". Its reads are empty over "the last 24 hours" for a
+  the second run and the boot after it said "nothing to do". Two more of the same kind follow (the redesign
+  session of 2026-11-13; run in unit tests, not yet on a restored copy): `029-reminders-of-ended-places` deletes
+  the reminders about a place or room that has ended - ending a place left them behind until then, so any
+  database that ran the rewrite can hold some (the session's test stack held four) - and
+  `030-open-alerts-where-the-device-stands` gives every open alert the place its device stands in now. Its reads are empty over "the last 24 hours" for a
   reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
   there with `?at=` on that day, and a grow's diary on its older pages.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of

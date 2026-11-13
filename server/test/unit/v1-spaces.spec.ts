@@ -83,6 +83,9 @@ const seed = async (): Promise<void> => {
   await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, ...standingIn(OTHER_SPACE, new Date('2026-01-03T00:00:00.000Z')) });
 };
 
+/** A rhythm, without what it is about. */
+const RHYTHM = { kind: 'chore', label: 'Clean the filter', everyDays: 7, onceAt: null, createdBy: OWNER } as const;
+
 const refusal = async (action: () => unknown): Promise<ProblemException> => {
   try {
     await action();
@@ -303,12 +306,14 @@ describe('a room that empties', () => {
     const { roomId, tentId } = await attic();
     await db.invites.create({ id: 'invite-attic', code: 'ATTIC234', spaceId: roomId, role: 'can_log', createdBy: OWNER });
     await db.shareLinks.create({ id: 'link-attic', token: 'token-attic', kind: 'view', subject: { type: 'space', id: roomId }, createdBy: OWNER });
+    await db.reminders.create({ ...RHYTHM, id: 'reminder-attic', subject: { type: 'space', id: roomId } });
 
     await spaces.update(session(OWNER), tentId, { roomId: null });
 
     expect((await spaces.require(roomId)).archivedAt).not.toBeNull();
     expect(await db.invites.countDocuments({ spaceId: roomId })).toBe(0);
     expect(await db.shareLinks.countDocuments({ 'subject.id': roomId })).toBe(0);
+    expect(await db.reminders.countDocuments({})).toBe(0);
   });
 
   it('ends when its last place ends or is put away, and that place stands in no room when it is brought back', async () => {
@@ -578,6 +583,24 @@ describe('ending one', () => {
     // Neither guest reaches it any more, and the one who could log has no place left.
     expect(await access.access(session(STRANGER), { type: 'space', id: SPACE }, 'view')).toBeNull();
     expect((await spaces.list(session(MEMBER), {}, { archived: true })).items).toEqual([]);
+  });
+
+  /**
+   * A rhythm kept for the place ends with it: work cannot fall due in a place
+   * that is gone, and a reminder naming one could not be changed by anybody.
+   * A grow's reminders are the grow's, and another place's are that place's.
+   */
+  it('ends the reminders kept for it, and no grow´s and no other place´s', async () => {
+    await db.reminders.create([
+      { ...RHYTHM, id: 'reminder-here', subject: { type: 'space', id: SPACE } },
+      { ...RHYTHM, id: 'reminder-next-door', subject: { type: 'space', id: OTHER_SPACE } },
+      // A grow's, though its id is the place's: the kind of subject decides.
+      { ...RHYTHM, id: 'reminder-of-a-grow', subject: { type: 'grow', id: SPACE } },
+    ]);
+
+    await spaces.remove(SPACE);
+
+    expect((await db.reminders.find({}).lean()).map(reminder => reminder.id).sort()).toEqual(['reminder-next-door', 'reminder-of-a-grow']);
   });
 
   /**

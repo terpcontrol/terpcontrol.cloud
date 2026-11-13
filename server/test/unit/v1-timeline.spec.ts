@@ -1954,4 +1954,16 @@ describe('a place whose devices changed', () => {
 
     expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['alert-here']);
   });
+
+  it('keeps an alert without a place that ended in a device`s stay, and not one still open of a device that has left', async () => {
+    const inItsStay = new Date(SWAPPED.getTime() - 3600_000);
+    await db.alerts.create([
+      { id: 'over-in-its-stay', deviceId: OLD, kind: 'threshold', severity: 'warning', startedAt: inItsStay, resolvedAt: SWAPPED },
+      // An open alert stands where its device stands, and this device stands here no more.
+      { id: 'open-and-gone', deviceId: OLD, kind: 'offline', severity: 'critical', startedAt: inItsStay },
+      { id: 'open-and-here', deviceId: NEW, kind: 'offline', severity: 'critical', startedAt: new Date(NOW.getTime() - 600_000) },
+    ]);
+
+    expect((await readAs(session(OWNER), { range: '24h' }, BARE)).alarms.map(alarm => alarm.alertId)).toEqual(['over-in-its-stay', 'open-and-here']);
+  });
 });

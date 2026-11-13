@@ -15,6 +15,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { accountOf } from '../caller';
+import { SpacesService } from '../space/spaces.service';
 
 /**
  * The `shareLinks` collection: an address somebody can hand out, and the window
@@ -62,6 +63,7 @@ export class ShareLinksService {
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     private readonly access: AccessService,
+    private readonly places: SpacesService,
   ) {}
 
   /** Newest first: a list of links is what somebody made last, and the sharing sheet opens on it. */
@@ -101,6 +103,8 @@ export class ShareLinksService {
   public async create(ctx: AccessContext, body: ShareLinkCreate): Promise<ShareLink> {
     const createdBy = accountOf(ctx);
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'own');
+    // An ended room takes nothing, a key to it included.
+    if (body.subject.type === 'space') await this.places.requireOpen(body.subject.id);
 
     const range = dateRange(body.range ?? { startsAt: null, endsAt: null });
     const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;

@@ -653,6 +653,10 @@ export declare const deviceClaimCreate: z.ZodObject<{
     code: z.ZodString;
     name: z.ZodOptional<z.ZodString>;
     spaceId: z.ZodOptional<z.ZodString>;
+    spaceNames: z.ZodOptional<z.ZodObject<{
+        tent: z.ZodOptional<z.ZodString>;
+        fridge: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
     joinSpaceId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
@@ -2217,6 +2221,7 @@ export declare const alert: z.ZodObject<{
     deviceId: z.ZodNullable<z.ZodString>;
     cameraId: z.ZodNullable<z.ZodString>;
     spaceId: z.ZodNullable<z.ZodString>;
+    spaceName: z.ZodNullable<z.ZodString>;
     kind: z.ZodEnum<{
         threshold: "threshold";
         offline: "offline";
@@ -2287,6 +2292,7 @@ export declare const alertPage: z.ZodObject<{
         deviceId: z.ZodNullable<z.ZodString>;
         cameraId: z.ZodNullable<z.ZodString>;
         spaceId: z.ZodNullable<z.ZodString>;
+        spaceName: z.ZodNullable<z.ZodString>;
         kind: z.ZodEnum<{
             threshold: "threshold";
             offline: "offline";

@@ -15,6 +15,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { DevicesService } from '../device/devices.service';
@@ -56,6 +57,7 @@ export class SpacesService {
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
     @InjectModel(MODEL_V1.invite) private readonly invites: Model<InviteDocument>,
     @InjectModel(MODEL_V1.shareLink) private readonly shareLinks: Model<ShareLinkDocument>,
+    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     // Read, never written, and each is the collection that carries the pointer:
     // a device and a camera name the space they stand in, a grow names it in a
     // placement. What may be deleted is decided from the pointers themselves.
@@ -257,11 +259,14 @@ export class SpacesService {
   /**
    * Every way into a place or a room goes with it: each is a key to somebody's history that nothing would turn
    * again. The app names the people before the write that ends it; the write itself is not refused for them.
+   * The rhythms kept for it go too: work cannot fall due in a place that is gone, and nobody could change them.
+   * A grow's reminders are the grow's and go where it goes.
    */
   private async closeWaysInto(spaceId: string): Promise<void> {
     await this.memberships.deleteMany({ spaceId });
     await this.invites.deleteMany({ spaceId });
     await this.shareLinks.deleteMany({ 'subject.type': 'space', 'subject.id': spaceId });
+    await this.reminders.deleteMany({ 'subject.type': 'space', 'subject.id': spaceId });
   }
 
   /**

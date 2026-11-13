@@ -132,13 +132,13 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - **Ending a place ends every way into it** (the redesign session of 2026-11-13, awaiting Chris's confirmation
   with the ADR's amendment). `SpacesService.remove` refuses for a device, a camera and a running grow (409
   `space_in_use`: `device_here`, `camera_here`, `grow_here`) and no longer for members - `member_here` is gone. It
-  then deletes the place's memberships, invites and share links through `closeWaysInto`, the function
+  then deletes the place's memberships, invites, share links and the reminders about it through `closeWaysInto`, the function
   `endRoomIfEmpty` ends a room with. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) are another act and
   were left alone: they need only `manage`, refuse nothing that stands in the place, keep people, invites and
   links, and can be undone; the web app calls neither.
 - **An ended room takes nothing.** `SpacesService.requireOpen` answers 409 `room_ended` to `PATCH /spaces/{id}` on
   an ended room, to a `roomId` naming one in `POST`/`PATCH /spaces`, to `POST /spaces/{id}/invites` and to
-  `POST /spaces/{id}/members`. Redeeming a code cut for one stays the 404 `invite_not_found` every dead code
+  `POST /spaces/{id}/members`, and to `POST /share-links` with it as the subject. Redeeming a code cut for one stays the 404 `invite_not_found` every dead code
   gets, because that route is reachable by anybody with an account.
 - **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
   which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in
@@ -149,7 +149,11 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   between the owner's places.
 - **A claim may say what the device joins.** `joinSpaceId` in `POST /devices/claims` is read as `spaceId` for a
   type outside `OWN_CLIMATE_TYPES` (fan, plug, light) and ignored for a controller or a fridge module, which gets
-  its own place; both fields together are 422 `two_places`.
+  its own place; both fields together are 422 `two_places`. `spaceNames` (`tent`, `fridge`) is what a place the
+  claim makes is called, in the claimer's language; the server picks by the device's type, numbers the name where
+  it is taken, and falls back to the device's name, then to "Tent" / "Fridge" / "Place" - never part of an id.
+- `POST` and `PATCH /reminders` refuse `defaults` that are not entry values (422 `defaults_not_entry_values`,
+  field `defaults`): a tick writes them into the diary, and values no entry takes made a task nobody could tick.
 - **A device stands only in a place of its owner** (the redesign session of 2026-11-12, awaiting Chris's
   confirmation with the ADR's amendment): `DevicesService.requireAPlaceOf` refuses a claim or a move into a place of
   another account (409 `place_of_another_account`), into a room (409 `room_by_itself`) and into a place that has

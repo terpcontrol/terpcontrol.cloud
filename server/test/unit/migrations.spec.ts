@@ -40,6 +40,8 @@ import { demoPlaces } from '@/migrations/steps/025-demo-places';
 import { devicePlacements } from '@/migrations/steps/026-device-placements';
 import { emptyRooms } from '@/migrations/steps/027-empty-rooms';
 import { uniquePlaceNames } from '@/migrations/steps/028-unique-place-names';
+import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ended-places';
+import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -840,6 +842,84 @@ describe('one name, one place', () => {
 
     expect(context.stats).toEqual({ rejected: 0 });
     expect((await collection('spaces').find({}).toArray()).map(row => row.name)).toEqual(before);
+  });
+});
+
+describe('what a place took with it', () => {
+  it('deletes the reminders of ended and vanished places and rooms, and no grow`s', async () => {
+    await collection('spaces').insertMany([
+      { id: 'tent', kind: 'tent', archivedAt: null },
+      { id: 'ended-tent', kind: 'tent', archivedAt: new Date(AT - DAY) },
+      { id: 'ended-room', kind: 'room', archivedAt: new Date(AT - DAY) },
+    ]);
+    await collection('reminders').insertMany([
+      { id: 'kept', subject: { type: 'space', id: 'tent' } },
+      { id: 'of-an-ended-tent', subject: { type: 'space', id: 'ended-tent' } },
+      { id: 'of-an-ended-room', subject: { type: 'space', id: 'ended-room' } },
+      { id: 'of-a-place-that-is-gone', subject: { type: 'space', id: 'gone' } },
+      // A grow's reminder is the grow's, whatever the grow's id happens to be.
+      { id: 'of-a-grow', subject: { type: 'grow', id: 'ended-tent' } },
+    ]);
+    const left = async () => (await collection('reminders').find({}).toArray()).map(row => row.id).sort();
+
+    await remindersOfEndedPlaces.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await left()).toHaveLength(5);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await remindersOfEndedPlaces.run(context);
+    expect(await left()).toEqual(['kept', 'of-a-grow']);
+    expect(context.stats).toEqual({ 'reminders.endedWithAPlace': 3, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await remindersOfEndedPlaces.run(again);
+    expect(again.stats).toEqual({ 'reminders.endedWithAPlace': 0, rejected: 0 });
+  });
+
+  it('puts an open alert where its device or its camera stands, and leaves one that is over where it happened', async () => {
+    await collection('devices').insertMany([
+      { id: 'moved', spaceId: 'new' },
+      { id: 'stayed', spaceId: 'old' },
+      { id: 'taken-out', spaceId: null },
+    ]);
+    await collection('cameras').insertMany([{ id: 'cam-moved', spaceId: 'new' }]);
+    const alert = (id: string, fields: Record<string, unknown>) => ({
+      id,
+      deviceId: null,
+      cameraId: null,
+      spaceId: 'old',
+      resolvedAt: null,
+      ...fields,
+    });
+    await collection('alerts').insertMany([
+      alert('open-of-moved', { deviceId: 'moved' }),
+      alert('over-of-moved', { deviceId: 'moved', resolvedAt: new Date(AT - DAY) }),
+      alert('open-of-stayed', { deviceId: 'stayed' }),
+      alert('open-of-taken-out', { deviceId: 'taken-out' }),
+      alert('open-of-a-camera', { cameraId: 'cam-moved' }),
+      // Its controller is what it follows; a device that is gone is another step's.
+      alert('open-of-a-gone-device', { deviceId: 'gone', cameraId: 'cam-moved' }),
+    ]);
+    const places = async () => Object.fromEntries((await collection('alerts').find({}).toArray()).map(row => [row.id, row.spaceId]));
+    const before = await places();
+
+    await openAlertsWhereTheDeviceStands.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await places()).toEqual(before);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await openAlertsWhereTheDeviceStands.run(context);
+    expect(await places()).toEqual({
+      'open-of-moved': 'new',
+      'over-of-moved': 'old',
+      'open-of-stayed': 'old',
+      'open-of-taken-out': null,
+      'open-of-a-camera': 'new',
+      'open-of-a-gone-device': 'old',
+    });
+    expect(context.stats).toEqual({ 'alerts.movedToTheirDevice': 3, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await openAlertsWhereTheDeviceStands.run(again);
+    expect(again.stats).toEqual({ 'alerts.movedToTheirDevice': 0, rejected: 0 });
   });
 });
 

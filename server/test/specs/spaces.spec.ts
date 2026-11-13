@@ -188,7 +188,7 @@ describe('what stands in a space', () => {
    * tombstone: its owner is refused a new name for it, a place in it and
    * anybody let into it, each with the rule in a sentence.
    */
-  it('refuses an ended room a name, a place, an invite and a member', async () => {
+  it('refuses an ended room a name, a place, an invite, a member and a share link', async () => {
     const tent = (await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent of a short room', roomName: 'A short room' }).expect(201))
       .body;
     const room = tent.roomId;
@@ -203,6 +203,8 @@ describe('what stands in a space', () => {
     expect((await owner.client.patch(`/v1/spaces/${tent.id}`).send({ roomId: room }).expect(409)).body).toMatchObject(ended);
     expect((await owner.client.post('/v1/spaces').send({ kind: 'tent', name: 'Late tent', roomId: room }).expect(409)).body).toMatchObject(ended);
     expect((await owner.client.post(`/v1/spaces/${room}/invites`).send({ role: 'can_log' }).expect(409)).body).toMatchObject(ended);
+    const link = { kind: 'view', subject: { type: 'space', id: room } };
+    expect((await owner.client.post('/v1/share-links').send(link).expect(409)).body).toMatchObject(ended);
     expect((await owner.client.post(`/v1/spaces/${room}/members`).send({ handle: stranger.handle, role: 'can_log' }).expect(409)).body).toMatchObject(
       ended,
     );

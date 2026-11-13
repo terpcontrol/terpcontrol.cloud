@@ -358,10 +358,11 @@ interface TimelineQuery {
 const openInto = (startsAt: Date): FilterQuery<StoredAlert> => ({ $or: [{ resolvedAt: null }, { resolvedAt: { $gte: startsAt } }] });
 
 /**
- * An alert of this place: raised here. An alert stores the place its device
- * stood in then, so what a device raised where it stood before it came, or
- * raises where it has gone since, is that place's and not this one's. One that
- * names no place counts by its device, inside the device's stay.
+ * An alert of this place: one that is over happened here, an open one stands
+ * here - it moves with its device, so what a device raised where it stood
+ * before it came, or raises where it has gone since, is that place's and not
+ * this one's. One that names no place counts by its device, inside the
+ * device's stay; while it is open, only for a device still standing here.
  */
 const raisedHere = (spaceId: string, present: readonly Stood[], window: Span): FilterQuery<StoredAlert> => ({
   $or: [
@@ -369,6 +370,7 @@ const raisedHere = (spaceId: string, present: readonly Stood[], window: Span): F
     ...present.map(({ device, stay }) => ({
       spaceId: null,
       deviceId: device.id,
+      ...(device.spaceId === spaceId ? {} : { resolvedAt: { $ne: null } }),
       startedAt: { $lt: stay.endsAt, ...(stay.startsAt > window.startsAt ? { $gte: stay.startsAt } : {}) },
     })),
   ],

@@ -53,6 +53,7 @@ const quietTent = (id: string, ended: DateTime): Alert => ({
   deviceId: 'device-1',
   cameraId: null,
   spaceId: 'space-1',
+  spaceName: 'Tent',
   kind: 'offline',
   severity: 'critical',
   startedAt: iso(ended.minus({ hours: 2 })),

@@ -325,6 +325,11 @@ exports.claimCode = (0, common_js_1.named)('ClaimCode', zod_1.z.object({ id: (0,
 exports.deviceClaimCreate = (0, common_js_1.named)('DeviceClaimCreate', exports.claimCode.pick({ code: true }).extend({
     name: zod_1.z.string().optional().describe('Absent names the device after its type.'),
     spaceId: (0, common_js_1.id)().optional(),
+    spaceNames: zod_1.z
+        .object({ tent: zod_1.z.string(), fridge: zod_1.z.string() })
+        .partial()
+        .optional()
+        .describe('What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.'),
     joinSpaceId: (0, common_js_1.id)()
         .optional()
         .describe('Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.'),
@@ -783,7 +788,13 @@ exports.alert = (0, common_js_1.named)('Alert', zod_1.z.object({
     ruleId: (0, common_js_1.id)().nullable().describe('null for an alert the health loop raised without a rule.'),
     deviceId: (0, common_js_1.id)().nullable(),
     cameraId: (0, common_js_1.id)().nullable(),
-    spaceId: (0, common_js_1.id)().nullable(),
+    spaceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.'),
+    spaceName: zod_1.z
+        .string()
+        .nullable()
+        .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
     kind: common_js_1.alertKind,
     severity: common_js_1.severity,
     startedAt: (0, common_js_1.instant)(),

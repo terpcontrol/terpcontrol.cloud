@@ -10,8 +10,11 @@ import { alertKind, severity } from '@fg2/shared-types/v1-schemas';
  * sweep that deletes the alerts of gone devices does so by `$in` over a list of
  * ids, and a `$in` carrying a null would otherwise take every alert that names
  * no device with it.
+ *
+ * The place is stored by id alone; what it is called is read when the alert is
+ * answered, so a renamed place is never quoted by its old name.
  */
-export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested'> {
+export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested' | 'spaceName'> {
   createdAt: Date;
   startedAt: Date;
   resolvedAt: Date | null;

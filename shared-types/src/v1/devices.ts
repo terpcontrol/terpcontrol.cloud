@@ -454,6 +454,13 @@ export const deviceClaimCreate = named(
   claimCode.pick({ code: true }).extend({
     name: z.string().optional().describe('Absent names the device after its type.'),
     spaceId: id().optional(),
+    spaceNames: z
+      .object({ tent: z.string(), fridge: z.string() })
+      .partial()
+      .optional()
+      .describe(
+        'What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.',
+      ),
     joinSpaceId: id()
       .optional()
       .describe(
@@ -1064,7 +1071,15 @@ export const alert = named(
     ruleId: id().nullable().describe('null for an alert the health loop raised without a rule.'),
     deviceId: id().nullable(),
     cameraId: id().nullable(),
-    spaceId: id().nullable(),
+    spaceId: id()
+      .nullable()
+      .describe(
+        'The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.',
+      ),
+    spaceName: z
+      .string()
+      .nullable()
+      .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
     kind: alertKind,
     severity: severity,
     startedAt: instant(),
