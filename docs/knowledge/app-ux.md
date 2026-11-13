@@ -1234,7 +1234,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
   cursor reads no value and no output, the card says "keine Messung" and under it between which two readings
   ("10:36 bis 13:11", the minute the lamp's line names: both are the answer's `silences`, the last sample
   before and the first after, since the eighth walk - read off the drawn windows it said "03:00 bis 03:09" of
-  02:59:55 to 03:10:00). Inside a silence wider than two steps the cursor snaps to no neighbour's mean - a wall of named dashes grew the card by a line on a
+  02:59:55 to 03:10:00). Inside a silence wider than two steps the cursor snaps to no neighbour's mean, and
+  the point of a window a silence begins or ends in stands in the middle of what was heard of it, never
+  inside the silence (`pointsOf`) - a wall of named dashes grew the card by a line on a
   phone and moved every plot. A named dash is for one value missing among present ones. Each row of the card,
   and each head's figure, keeps the room of what it says at rest (`data-rest`, set unseen under it), so a
   value, a value with its own time and a silence are one height: measured at 320, 360 and 390 px with the
