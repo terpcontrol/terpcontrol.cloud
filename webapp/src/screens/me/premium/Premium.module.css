@@ -56,8 +56,7 @@
   color: var(--muted);
 }
 
-/* The tier chip, drawn as the devices list draws it: amber is the one colour
-   Premium wears anywhere in the app. It is drawn only where the install
+/* The tier chip: amber is the one colour Premium wears anywhere in the app. It is drawn only where the install
    gates something, because only there is a tier a fact about the camera. */
 .chip {
   padding: 0 var(--space-2);

@@ -5,6 +5,7 @@ import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { schemeVersionLabel, useDeleteScheme, useOwnSchemes, useScheme, useSchemes, useUpdateScheme, type SchemeSummary } from '@/api/schemes';
 import { useSession } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
@@ -224,23 +225,16 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
         <p className={ui.note}>{t('me.schemes.copyNote')}</p>
 
         {asking ? (
-          <div className={ui.asking}>
-            <p className={ui.note}>{t('me.schemes.deleteAsk', { name: scheme.name })}</p>
-            <div className={ui.askingActions}>
-              <button
-                type="button"
-                className={ui.dangerOutline}
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(scheme.id, { onSuccess: onClose })}
-              >
-                {t('me.schemes.deleteYes')}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-                {t('me.schemes.cancel')}
-              </button>
-            </div>
+          <Asking
+            note={t('me.schemes.deleteAsk', { name: scheme.name })}
+            yes={t('me.schemes.deleteYes')}
+            danger
+            busy={remove.isPending}
+            onYes={() => remove.mutate(scheme.id, { onSuccess: onClose })}
+            onCancel={() => setAsking(false)}
+          >
             <Refused error={remove.error} />
-          </div>
+          </Asking>
         ) : (
           <div>
             <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>

@@ -513,11 +513,6 @@
     "waiting": "loading",
     "retry": "Try again",
     "refreshFailed": "Could not refresh · showing what was known {{age}} ago",
-    "liveness": {
-      "live": "online",
-      "stale": "stale",
-      "offline": "offline"
-    },
     "reading": {
       "live": "online",
       "stale": "stale",
@@ -914,7 +909,6 @@
       "delete": "Delete",
       "deleteAsk": "Delete {{name}}? Grows already fed by it keep their own grid. The copy on your shelf goes for good; a grow that still has the grid can put one back from its Feeding tab.",
       "deleteYes": "Delete it",
-      "cancel": "Cancel",
       "demo": "The demo has no shelf of its own, so only the shipped schemes are here."
     },
     "account": {
@@ -2786,7 +2780,6 @@
       "delete": "Delete this reminder",
       "deleteAsk": "The rhythm stops and its open tasks go with it. Diary lines already written stay.",
       "deleteYes": "Yes, delete it",
-      "cancel": "Cancel",
       "grows": "Grows",
       "places": "Places",
       "reaches": "When it falls due, it says so by {{channels}}.",
@@ -3666,7 +3659,7 @@
     },
     "muteAll": {
       "title": "Mute all",
-      "text": "For an hour nothing is sent to you, critical alarms included, and alarm messages from that hour are not sent later. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."
+      "text": "For an hour nothing is sent to you, critical alarms included. What would have been sent in that hour is not sent later either - only a rule that repeats reports again afterwards, as long as its alarm is still open. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."
     },
     "maintenance": {
       "title": "Maintenance",

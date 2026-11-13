@@ -18,6 +18,12 @@
   text-align: left;
 }
 
+/* The handle to type is printed as it is written: in the label's capitals it would be another name. */
+span.asWritten {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .when {
   display: flex;
   align-items: center;

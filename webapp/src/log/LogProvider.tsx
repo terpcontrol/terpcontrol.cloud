@@ -61,7 +61,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
   const nextKey = useRef(1);
   // Where the sheet was pointed last time. It outlives the sheet, which is why it is not the sheet's.
   const [lastTarget, setLastTarget] = useState<string | null>(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const dismiss = useCallback((key: number) => setLines(current => current.filter(line => line.key !== key)), []);
 
@@ -82,11 +82,11 @@ export function LogProvider({ children }: { children: ReactNode }) {
       }
       change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
       void (revert?.() ?? takeEntryBack(entry!.id).then(() => diaryChanged(client))).then(
-        () => change(key, line => saying(`${t('log.undone')}${line.undone ? ` · ${line.undone}` : `: ${line.label}`}`)),
+        () => change(key, line => saying(`${i18n.t('log.undone')}${line.undone ? ` · ${line.undone}` : `: ${line.label}`}`)),
         error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
       );
     },
-    [change, client, t],
+    [change, client, i18n],
   );
 
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */

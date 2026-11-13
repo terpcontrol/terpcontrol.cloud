@@ -18,7 +18,7 @@ import styles from './Notifications.module.css';
  * it is what the channel carries as soon as it has an address - and the help
  * beside the grid's heading says so (`routingGrid`).
  *
- * The weekly film's row is there only for an account that has a camera, and
+ * The weekly film's row is there only for an account that has a camera of its own, and
  * the due tasks' - the diary's reminders - only for one that keeps a diary.
  * The plan's questions are Steuerung's and stay.
  */
@@ -28,7 +28,8 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const subscription = usePushSubscription();
   const { routing } = me.notifications;
   const cameras = useCameras();
-  const filmed = cameras.data !== undefined && ownsCamera(cameras.data.items);
+  // A host's camera films for the host: the film of a place one is a guest in is not sent to the guest.
+  const filmed = ownsCamera(cameras.data?.items.filter(camera => camera.ownerId === me.id) ?? []);
   // Until a server says otherwise the diary is there, which is the app as it has always been.
   const diary = me.layers?.diary !== false;
   const categories = CATEGORIES.filter(category => (category !== 'weekly_timelapse' || filmed) && (category !== 'tasks' || diary));

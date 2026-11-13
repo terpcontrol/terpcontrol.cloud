@@ -231,6 +231,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
   const { t } = useTranslation();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
+  const end = dead ? remove : revoke;
   const address = linkAddress(link);
 
   return (
@@ -239,25 +240,14 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
       onClose={onClose}
       actions={
         <div className={styles.actions}>
-          {dead ? (
-            <button
-              type="button"
-              className={`${ui.button} ${ui.danger}`}
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(link.id, { onSuccess: onClose })}
-            >
-              {t('sharing.forget')}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={`${ui.button} ${ui.danger}`}
-              disabled={revoke.isPending}
-              onClick={() => revoke.mutate(link.id, { onSuccess: onClose })}
-            >
-              {t('sharing.revoke')}
-            </button>
-          )}
+          <button
+            type="button"
+            className={`${ui.button} ${ui.danger}`}
+            disabled={end.isPending}
+            onClick={() => end.mutate(link.id, { onSuccess: onClose })}
+          >
+            {t(dead ? 'sharing.forget' : 'sharing.revoke')}
+          </button>
           <button type="button" className={ui.button} onClick={onClose}>
             {t('sharing.cancel')}
           </button>
@@ -278,7 +268,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           <Line parts={parts} />
         </p>
         <p className={styles.sentence}>{t(dead ? 'me.shareLinks.forgetNote' : 'me.shareLinks.revokeNote')}</p>
-        <Refused error={revoke.error ?? remove.error} />
+        <Refused error={end.error} />
       </div>
     </Sheet>
   );

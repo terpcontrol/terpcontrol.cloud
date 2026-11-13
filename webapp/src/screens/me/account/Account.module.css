@@ -88,12 +88,6 @@
   line-height: var(--line-body);
 }
 
-/* The handle to type is printed as it is written: in the label's capitals it would be another name. */
-.asked :global(.label) {
-  letter-spacing: normal;
-  text-transform: none;
-}
-
 /* The zone menu holds four hundred place names, and a native select is as wide
    as its longest option: left alone, "America/Argentina/Rio_Gallegos" decides
    the row and squeezes the words beside it into a column one syllable wide on a

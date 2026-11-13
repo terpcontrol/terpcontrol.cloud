@@ -101,7 +101,7 @@ export function ResolvedRow(props: AlertProps & { fold: string[]; since: string;
 
   return (
     <>
-      <Row title={count > 1 ? titleOf(t, alert, rule, names, null) : title} line={<Facts facts={line} />} onOpen={() => setOpen(true)} />
+      <Row title={count > 1 ? titleOf(t, alert, rule, names, '') : title} line={<Facts facts={line} />} onOpen={() => setOpen(true)} />
       {open ? (
         <Sheet title={title} onClose={() => setOpen(false)}>
           <div className={styles.whole}>

@@ -7,6 +7,7 @@ import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
 import { useLog, type Told } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
@@ -231,23 +232,16 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
         {reminder ? (
           <div className={styles.asking}>
             {askingDelete ? (
-              <>
-                <p className={ui.note}>{t('tasks.sheet.deleteAsk')}</p>
+              <Asking
+                note={t('tasks.sheet.deleteAsk')}
+                yes={t('tasks.sheet.deleteYes')}
+                danger
+                busy={busy}
+                onYes={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label, null) })}
+                onCancel={() => setAskingDelete(false)}
+              >
                 <Refused error={remove.error} />
-                <div className={ui.askingActions}>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.dangerFilled}`}
-                    disabled={busy}
-                    onClick={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label, null) })}
-                  >
-                    {t('tasks.sheet.deleteYes')}
-                  </button>
-                  <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                    {t('tasks.sheet.cancel')}
-                  </button>
-                </div>
-              </>
+              </Asking>
             ) : (
               <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
                 {t('tasks.sheet.delete')}

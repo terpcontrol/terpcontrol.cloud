@@ -175,6 +175,8 @@ describe('the language', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'de' } });
     await waitFor(() => expect(told.map(one => one.label)).toEqual(['Sprache: Deutsch']));
 
+    // Taken back, the toast answers in the language gone back to, not with the German line under an English word.
+    expect(told[0].undone).toBe('Language: English');
     await told[0].undo!();
 
     expect(document.documentElement.lang).toBe('en');

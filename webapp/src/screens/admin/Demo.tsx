@@ -10,7 +10,7 @@ import { AdminHead, AdminNotLoaded, Label, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
-import { typeName } from '@/ui/naming';
+import { deviceName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
 /**
@@ -73,9 +73,9 @@ export function Demo() {
             return (
               <li key={device.id} className={styles.row}>
                 <span className="mono">{device.id}</span>
-                <span>{device.name ?? typeName(device.type, t)}</span>
+                <span>{deviceName(device, t)}</span>
                 <Liveness state={liveness}>
-                  {t(`home.liveness.${liveness}`)}
+                  {t(`home.reading.${liveness}`)}
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
                 </Liveness>
                 {device.spaceId ? (

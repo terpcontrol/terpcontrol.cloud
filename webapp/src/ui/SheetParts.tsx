@@ -119,7 +119,8 @@ export function Block({
 /**
  * The handle typed out by hand before something that cannot be taken back, in
  * a field that is told not to capitalise or correct it; `matchesHandle` says
- * whether it is the one asked for.
+ * whether it is the one asked for. The label names the handle and prints it
+ * as it is written.
  */
 export function HandleField({
   className,
@@ -134,7 +135,7 @@ export function HandleField({
 }) {
   return (
     <label className={className}>
-      <span className="label">{label}</span>
+      <span className={`label ${styles.asWritten}`}>{label}</span>
       <input
         className={`mono ${ui.input}`}
         value={value}

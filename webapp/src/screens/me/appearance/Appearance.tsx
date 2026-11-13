@@ -40,13 +40,13 @@ export function Appearance() {
   const language = (i18n.resolvedLanguage ?? i18n.language) as Language;
   const speak = (next: Language) =>
     void setLanguage(next).then(() => {
-      // In the language just chosen: this render's `t` still speaks the one before.
-      const said = i18n.getFixedT(next);
-      tell({
-        label: said('me.saved.setting', { what: said('me.appearance.language'), value: languageName(said, next) }),
-        from: 'me:language',
-        undo: () => setLanguage(language),
-      });
+      // Each answer in the language that holds when it is read: the change in the one just chosen - this render's
+      // `t` still speaks the one before -, the way back in the one gone back to.
+      const said = (speaks: Language) => {
+        const words = i18n.getFixedT(speaks);
+        return words('me.saved.setting', { what: words('me.appearance.language'), value: languageName(words, speaks) });
+      };
+      tell({ label: said(next), from: 'me:language', undo: () => setLanguage(language), undone: said(language) });
     });
 
   return (

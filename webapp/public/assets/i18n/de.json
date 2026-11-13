@@ -513,11 +513,6 @@
     "waiting": "lädt",
     "retry": "Noch einmal versuchen",
     "refreshFailed": "Konnte nicht aktualisieren · Stand von vor {{age}}",
-    "liveness": {
-      "live": "online",
-      "stale": "veraltet",
-      "offline": "offline"
-    },
     "reading": {
       "live": "online",
       "stale": "veraltet",
@@ -924,7 +919,6 @@
       "delete": "Löschen",
       "deleteAsk": "{{name}} löschen? Grows, die schon danach gedüngt werden, behalten ihr eigenes Raster. Die Kopie in deinem Regal ist endgültig weg; aus einem Grow, der das Raster noch hat, lässt sich im Reiter Düngung ein neues anlegen.",
       "deleteYes": "Ja, löschen",
-      "cancel": "Abbrechen",
       "demo": "Die Demo hat kein eigenes Regal, hier stehen also nur die mitgelieferten Schemata."
     },
     "account": {
@@ -2796,7 +2790,6 @@
       "delete": "Diese Erinnerung löschen",
       "deleteAsk": "Der Rhythmus endet, und seine offenen Aufgaben verschwinden mit ihm. Bereits geschriebene Tagebuchzeilen bleiben.",
       "deleteYes": "Ja, löschen",
-      "cancel": "Abbrechen",
       "grows": "Grows",
       "places": "Orte",
       "reaches": "Wenn sie fällig wird, meldet sie sich per {{channels}}.",
@@ -3676,7 +3669,7 @@
     },
     "muteAll": {
       "title": "Alles stumm",
-      "text": "Eine Stunde lang wird dir nichts geschickt, auch keine kritischen Alarme, und Alarmmeldungen aus dieser Stunde kommen auch später nicht. Stumm bist nur du: Die anderen, mit denen du deine Orte teilst, bekommen weiter Bescheid, und eine Regel mit eigener E-Mail oder eigenem Webhook sendet weiter."
+      "text": "Eine Stunde lang wird dir nichts geschickt, auch keine kritischen Alarme. Was in dieser Stunde gemeldet worden wäre, kommt auch später nicht – nur eine Regel, die sich wiederholt, meldet sich danach wieder, solange ihr Alarm noch offen ist. Stumm bist nur du: Die anderen, mit denen du deine Orte teilst, bekommen weiter Bescheid, und eine Regel mit eigener E-Mail oder eigenem Webhook sendet weiter."
     },
     "maintenance": {
       "title": "Wartung",

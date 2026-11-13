@@ -407,6 +407,21 @@ describe('the inbox', () => {
     await waitFor(() => expect(overRows()).toEqual([['Humidity too low for 1 h', stamp(NOW.minus({ hours: 4 }))]]));
   });
 
+  /** What is over is not said to be running: the one title with a verb in it changes its tense in a folded row too. */
+  it('says of an output that ran again and again that it ran', async () => {
+    const ran = (id: string, minutes: number) =>
+      alert({ id, startedAt: iso(NOW.minus({ minutes: minutes + 4 })), resolvedAt: iso(NOW.minus({ minutes })) });
+    server.alerts = [ran('second', 30), ran('first', 50)];
+    server.rules = [rule({ watch: { kind: 'output_running', output: 'dehumidifier' } })];
+    draw();
+
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Dehumidifier ran too long without a pause', `${stamp(NOW.minus({ minutes: 30 }))} · 2× since ${clock(NOW.minus({ minutes: 54 }))}`],
+      ]),
+    );
+  });
+
   it('says what happened, since when, where and how far out, then which rule raised it and how it will go on', async () => {
     server.alerts = [alert({})];
     server.rules = [rule()];

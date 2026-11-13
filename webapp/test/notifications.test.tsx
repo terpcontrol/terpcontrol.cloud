@@ -62,7 +62,7 @@ const server = {
   mailed: [] as (NotificationCategory[] | null)[],
   hold: null as Promise<void> | null,
   /** The account's cameras, which decide whether the weekly film has a row at all. */
-  cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
+  cameras: [] as { id: string; ownerId: string; removedAt: string | null; isDemo: boolean }[],
 };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -150,7 +150,14 @@ describe('an account with nothing configured', () => {
     await expect(screen.findByRole('rowheader', { name: 'Week film' }, { timeout: 400 })).rejects.toThrow();
     first.unmount();
 
-    server.cameras = [{ id: 'camera-1', removedAt: null, isDemo: false }];
+    // A host's camera, seen as a guest, films for the host.
+    server.cameras = [{ id: 'camera-2', ownerId: 'host', removedAt: null, isDemo: false }];
+    const guest = draw();
+    await screen.findByRole('switch', { name: 'Push' });
+    await expect(screen.findByRole('rowheader', { name: 'Week film' }, { timeout: 400 })).rejects.toThrow();
+    guest.unmount();
+
+    server.cameras = [{ id: 'camera-1', ownerId: server.me.id, removedAt: null, isDemo: false }];
     await drawLoaded();
     expect(await screen.findByRole('rowheader', { name: 'Week film' })).toBeInTheDocument();
   });

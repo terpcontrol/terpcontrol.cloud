@@ -106,11 +106,15 @@ export const spanOf = (t: Translate, alert: Alert): string => (lastedSeconds(ale
  * camera without pictures by their names. Which way a reading left its band
  * is said where the episode's own band - or, without one, the rule as it
  * stands - names the edge it crossed; otherwise the rule's name stands in.
+ * Several episodes folded into one row are over without one length (an empty
+ * `span`): only the title with a verb in it changes its tense for that.
  */
 export const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, span: string | null): string => {
   // A reading or an output is a lower-case word in a language that has them; the sentence starts with it.
-  const said = (key: string, what: string) =>
-    t(`alerts.title.${key}${span ? 'Was' : ''}`, { what: what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
+  const said = (key: string, what: string) => {
+    const over = span || (span === '' && key === 'running') ? 'Was' : '';
+    return t(`alerts.title.${key}${over}`, { what: what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
+  };
 
   if (alert.kind === 'offline') {
     const device = alert.deviceId ? names.devices.get(alert.deviceId) : undefined;

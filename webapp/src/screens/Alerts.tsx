@@ -2,14 +2,13 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Alert, Me } from '@fg2/shared-types/v1';
-import { notificationsWith, useAccountMe, useUpdateMe } from '@/api/account';
+import { useAccountMe } from '@/api/account';
 import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
 import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import { devicePath } from '@/app/places';
-import { useLog } from '@/log/log-context';
 import { buildName, useOfferedUpdates } from '@/screens/devices/firmware-builds';
 import { useDue } from '@/screens/start/due';
 import { DueList } from '@/screens/start/Today';
@@ -28,6 +27,7 @@ import { clock, zoned, zoneOf } from '@/ui/zone';
 import { AlertCard, ResolvedRow } from './alerts/AlertCard';
 import { beganAt, heardOf, lastEndedFirst, openAgain, silentDevices, titleOf, worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
+import { useWriteNotifications } from './notifications/write';
 import styles from './alerts/Alerts.module.css';
 
 /** How long "Alles 1 Std stumm" holds. */
@@ -243,29 +243,22 @@ const emptyKey = (isDemo: boolean, watching: boolean): string =>
  * The one switch that reaches every channel at once: an hour of nothing, for
  * this person only. The settings travel whole, so the rest of them go back as
  * they were read; while the mute holds, the head says until when and offers
- * the way out. Either tap is answered by a toast, and taken back there.
+ * the way out. Either tap is answered as every notification setting is.
  */
 function Mute({ account, now }: { account: Me; now: DateTime }) {
   const { t } = useTranslation();
-  const { tell } = useLog();
-  const update = useUpdateMe();
-  const { notifications } = account;
-  const until = isAhead(notifications.mutedUntil, now) ? notifications.mutedUntil : null;
+  const { write, error, pending } = useWriteNotifications(account);
+  const until = isAhead(account.notifications.mutedUntil, now) ? account.notifications.mutedUntil : null;
   const time = (instant: string) => clock(instant, zoneOf(account));
-  const set = (mutedUntil: string | null) => update.mutateAsync({ notifications: notificationsWith(notifications, { mutedUntil }) });
   const toggle = () => {
     const next = until ? null : instantOf(now.plus({ seconds: MUTE_SECONDS }));
-    void set(next).then(
-      () => tell({ label: next ? t('alerts.told.muted', { time: time(next) }) : t('alerts.told.loud'), undo: () => set(until), from: 'mute-all' }),
-      // Said under the head, from the write that was refused.
-      () => undefined,
-    );
+    write({ mutedUntil: next }, next ? t('alerts.told.muted', { time: time(next) }) : t('alerts.told.loud'), () => ({ mutedUntil: until }));
   };
 
   return (
     <>
       <div className={styles.muting}>
-        <button type="button" className={styles.mute} disabled={update.isPending} onClick={toggle}>
+        <button type="button" className={styles.mute} disabled={pending} onClick={toggle}>
           {t(until ? 'alerts.unmute' : 'alerts.mute')}
         </button>
         <Help topic="muteAll" />
@@ -275,7 +268,7 @@ function Mute({ account, now }: { account: Me; now: DateTime }) {
           {t('alerts.mutedUntil', { time: time(until) })}
         </p>
       ) : null}
-      <Refused error={update.error} />
+      <Refused error={error} />
     </>
   );
 }
