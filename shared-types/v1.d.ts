@@ -246,7 +246,7 @@ export type ChartViewSpan =
       kind: 'grow';
     };
 
-export type ChartViewLayout = 'stacked' | 'overlay' | 'day_of_grow';
+export type ChartViewLayout = 'stacked' | 'overlay';
 
 export type GrowDayEvent =
   | {
@@ -2092,7 +2092,7 @@ export interface Space {
   retention: SpaceRetention;
   isDemo: boolean;
   /**
-   * A tombstone: history still names the space, so it is kept and no longer listed.
+   * When the place ended: a tombstone, since history still names it, so it is kept and no longer listed.
    */
   archivedAt: string | null;
   createdAt: string;
@@ -3637,15 +3637,6 @@ export interface CardTrend {
   points: (number | null)[];
 }
 
-export interface DueTask {
-  id: string;
-  kind: ReminderKind;
-  label: string;
-  dueAt: string;
-  subject: GrowOrSpaceRef;
-  assigneeId: string | null;
-}
-
 export interface OpenAlert {
   alertId: string;
   kind: AlertKind;
@@ -3749,7 +3740,6 @@ export interface HomeSpaceCard {
    */
   events: GrowDayEvent[];
   latestStill: LatestStill | null;
-  dueTasks: DueTask[];
   openAlerts: OpenAlert[];
 }
 
@@ -3913,19 +3903,6 @@ export interface OverviewGrow {
   placedOnDay: number | null;
 }
 
-export interface OverviewTask {
-  id: string;
-  kind: ReminderKind;
-  label: string;
-  dueAt: string;
-  subject: GrowOrSpaceRef;
-  assigneeId: string | null;
-  /**
-   * Prefilled entry values for the completion; null when the task prefills nothing.
-   */
-  defaults: any;
-}
-
 export interface OverviewTargets {
   day: CardSetpoint[];
   night: CardSetpoint[];
@@ -3995,7 +3972,6 @@ export interface SpaceOverview {
    * The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.
    */
   plants: PlantLabel[];
-  dueTasks: OverviewTask[];
   openAlerts: OpenAlert[];
   /**
    * Everyone the answer names, so an entry can say who wrote it without another read.
@@ -4568,70 +4544,12 @@ export interface GrowSeries {
   startsAt: string;
   endsAt: string;
   /**
-   * The window each climate and output point summarises; 0 where no device was read at all.
-   */
-  stepSeconds: number;
-  /**
    * The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from.
    */
   originAt: string;
   dayFrom: number | null;
   dayTo: number | null;
-  /**
-   * The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
-   */
-  deviceIds: string[] | null;
-  climate: TimelinePanel[];
-  /**
-   * When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.
-   */
-  lastReadingAt: string | null;
-  outputs: TimelineOutputLane[];
-  /**
-   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
-   */
-  nights: TimelineSpan[];
-  /**
-   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
-   */
-  transitions?: TimelineSpan[];
   measurements: GrowMeasurementSeries[];
-  /**
-   * The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.
-   */
-  cameras: TimelineCamera[];
-}
-
-export interface SpaceSeries {
-  spaceId: string;
-  startsAt: string;
-  endsAt: string;
-  /**
-   * The window each point summarises, as the server settled it; 0 where no device was read at all.
-   */
-  stepSeconds: number;
-  /**
-   * The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it.
-   */
-  deviceIds: string[] | null;
-  climate: TimelinePanel[];
-  /**
-   * When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline.
-   */
-  lastReadingAt: string | null;
-  outputs: TimelineOutputLane[];
-  /**
-   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
-   */
-  nights: TimelineSpan[];
-  /**
-   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
-   */
-  transitions?: TimelineSpan[];
-  /**
-   * The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.
-   */
-  cameras: TimelineCamera[];
 }
 
 export interface PublicAuthor {

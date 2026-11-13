@@ -229,26 +229,18 @@ describe('which place needs a person first', () => {
     metric: 'temperature' as const,
     name: 'Too warm',
   };
-  const task = {
-    id: 'task-1',
-    kind: 'water' as const,
-    label: 'Water',
-    dueAt: ago(5),
-    subject: { type: 'space' as const, id: 'b' },
-    assigneeId: null,
-  };
 
   it('orders the cards by an alarm, then something due, then silence, and keeps the rest in the order given', () => {
     const cards = [
       cardOf({ spaceId: 'a', name: 'Fine' }),
-      cardOf({ spaceId: 'b', name: 'Due', dueTasks: [task] }),
+      cardOf({ spaceId: 'b', name: 'Due' }),
       cardOf({ spaceId: 'c', name: 'Silent', values: values(30) }),
       cardOf({ spaceId: 'd', name: 'Alarm', openAlerts: [alert] }),
       cardOf({ spaceId: 'e', name: 'Fine too' }),
     ];
 
     expect(sortedByAttention(cards, new Set(['b'])).map(card => card.name)).toEqual(['Alarm', 'Due', 'Silent', 'Fine', 'Fine too']);
-    // What the home says is due somewhere moves nothing: the card's own count is the reader's list, and so is its rank.
+    // What is due is the reader's list alone: without it nothing is due anywhere, and nothing moves.
     expect(sortedByAttention(cards).map(card => card.name)).toEqual(['Alarm', 'Silent', 'Fine', 'Due', 'Fine too']);
   });
 

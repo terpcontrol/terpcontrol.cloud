@@ -126,7 +126,8 @@ const chartViewOf = (view: ChartViewDocument): ChartView => ({
     outputs: view.definition.outputs,
     measurements: view.definition.measurements,
     span: spanOf(view.definition.span),
-    layout: view.definition.layout,
+    // A view counted in days of the grow was a layout no client ever drew; one stored so reads as stacked.
+    layout: view.definition.layout === 'overlay' ? 'overlay' : 'stacked',
     intervalSeconds: view.definition.intervalSeconds,
   },
 });

@@ -57,7 +57,6 @@ const card: HomeSpaceCard = {
   entries: [],
   events: [],
   latestStill: null,
-  dueTasks: [{ id: 'task-1', kind: 'water', label: 'Water', dueAt: NOW.toISO()!, assigneeId: null, subject: { type: 'grow', id: 'grow-1' } }],
   openAlerts: [],
 };
 

@@ -173,17 +173,6 @@ const overview: SpaceOverview = {
       undoUntil: null,
     },
   ],
-  dueTasks: [
-    {
-      id: 'reminder-1:2026-09-18',
-      kind: 'water',
-      label: 'Water',
-      dueAt: at(0),
-      subject: { type: 'grow', id: 'grow-1' },
-      assigneeId: null,
-      defaults: { kind: 'water', readings: [{ key: 'water_l', value: 2, plantId: null }] },
-    },
-  ],
   openAlerts: [],
   readingNames: [{ growId: 'grow-1', readings: [{ key: 'water_l', name: 'Water', unit: 'l' }] }],
   plants: [],

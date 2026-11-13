@@ -338,7 +338,7 @@ describe('the tasks a reminder derives', () => {
     });
   });
 
-  it('lists the week ahead, where the home card shows only the next two days', async () => {
+  it('lists the week ahead', async () => {
     const reminder = await create(
       owner,
       aReminder({ everyDays: null, onceAt: new Date(Date.now() + 5 * DAY_MS).toISOString(), label: unique('Friday') }),
@@ -346,10 +346,6 @@ describe('the tasks a reminder derives', () => {
 
     // Five days out sorts behind everything this spec has put on the list, so the page is asked for whole.
     expect((await tasksOf(owner, '?limit=200')).map((one: { id: string }) => one.id)).toContain(reminder.id);
-
-    const cards = (await owner.client.get('/v1/home').expect(200)).body.spaces;
-    const card = cards.find((one: { spaceId: string }) => one.spaceId === tent);
-    expect(card.dueTasks.map((one: { id: string }) => one.id)).not.toContain(reminder.id);
   });
 
   it('refuses to tick the same task off twice', async () => {

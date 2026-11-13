@@ -1823,15 +1823,10 @@ export declare const chartViewSpan: z.ZodDiscriminatedUnion<[z.ZodObject<{
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"grow">;
 }, z.core.$strip>], "kind">;
-/**
- * How the panels are drawn: one per series, all on shared axes, or counted in
- * days since the grow began rather than in dates, which is what makes two runs
- * of the same tent comparable.
- */
+/** How the panels are drawn: one per series, or all on shared axes. */
 export declare const chartViewLayout: z.ZodEnum<{
     overlay: "overlay";
     stacked: "stacked";
-    day_of_grow: "day_of_grow";
 }>;
 /**
  * What a saved chart draws, structured rather than the query string the old app
@@ -1884,7 +1879,6 @@ export declare const chartViewDefinition: z.ZodObject<{
     layout: z.ZodEnum<{
         overlay: "overlay";
         stacked: "stacked";
-        day_of_grow: "day_of_grow";
     }>;
     intervalSeconds: z.ZodNumber;
 }, z.core.$strip>;
@@ -1935,7 +1929,6 @@ export declare const chartView: z.ZodObject<{
         layout: z.ZodEnum<{
             overlay: "overlay";
             stacked: "stacked";
-            day_of_grow: "day_of_grow";
         }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>;
@@ -1988,7 +1981,6 @@ export declare const chartViewPage: z.ZodObject<{
             layout: z.ZodEnum<{
                 overlay: "overlay";
                 stacked: "stacked";
-                day_of_grow: "day_of_grow";
             }>;
             intervalSeconds: z.ZodNumber;
         }, z.core.$strip>;
@@ -2040,7 +2032,6 @@ export declare const chartViewCreate: z.ZodObject<{
         layout: z.ZodEnum<{
             overlay: "overlay";
             stacked: "stacked";
-            day_of_grow: "day_of_grow";
         }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>;
@@ -2090,7 +2081,6 @@ export declare const chartViewUpdate: z.ZodObject<{
         layout: z.ZodEnum<{
             overlay: "overlay";
             stacked: "stacked";
-            day_of_grow: "day_of_grow";
         }>;
         intervalSeconds: z.ZodNumber;
     }, z.core.$strip>>;
@@ -2326,33 +2316,6 @@ export declare const cardTrend: z.ZodObject<{
     stepSeconds: z.ZodNumber;
     endsAt: z.ZodISODateTime;
     points: z.ZodArray<z.ZodNullable<z.ZodNumber>>;
-}, z.core.$strip>;
-/**
- * A task as a card lists it. Tasks are derived from reminders, the scheme grid
- * and the plan rather than stored, and their ids are deterministic - which is
- * how completing one, an entry carrying that `taskId`, keeps it from coming back.
- *
- * What it is about is the same reference `Task` carries, so a card and the task
- * list say it one way.
- */
-export declare const dueTask: z.ZodObject<{
-    id: z.ZodString;
-    kind: z.ZodEnum<{
-        custom: "custom";
-        water: "water";
-        feed: "feed";
-        chore: "chore";
-    }>;
-    label: z.ZodString;
-    dueAt: z.ZodISODateTime;
-    subject: z.ZodObject<{
-        type: z.ZodEnum<{
-            grow: "grow";
-            space: "space";
-        }>;
-        id: z.ZodString;
-    }, z.core.$strip>;
-    assigneeId: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /** An alert as a card lists it; `GET /alerts` answers the alert itself. */
 export declare const openAlert: z.ZodObject<{
@@ -2879,25 +2842,6 @@ export declare const homeSpaceCard: z.ZodObject<{
         capturedAt: z.ZodISODateTime;
         lightOff: z.ZodBoolean;
     }, z.core.$strip>>;
-    dueTasks: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        kind: z.ZodEnum<{
-            custom: "custom";
-            water: "water";
-            feed: "feed";
-            chore: "chore";
-        }>;
-        label: z.ZodString;
-        dueAt: z.ZodISODateTime;
-        subject: z.ZodObject<{
-            type: z.ZodEnum<{
-                grow: "grow";
-                space: "space";
-            }>;
-            id: z.ZodString;
-        }, z.core.$strip>;
-        assigneeId: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>>;
     openAlerts: z.ZodArray<z.ZodObject<{
         alertId: z.ZodString;
         kind: z.ZodEnum<{
@@ -3275,25 +3219,6 @@ export declare const homeAnswer: z.ZodObject<{
             capturedAt: z.ZodISODateTime;
             lightOff: z.ZodBoolean;
         }, z.core.$strip>>;
-        dueTasks: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            kind: z.ZodEnum<{
-                custom: "custom";
-                water: "water";
-                feed: "feed";
-                chore: "chore";
-            }>;
-            label: z.ZodString;
-            dueAt: z.ZodISODateTime;
-            subject: z.ZodObject<{
-                type: z.ZodEnum<{
-                    grow: "grow";
-                    space: "space";
-                }>;
-                id: z.ZodString;
-            }, z.core.$strip>;
-            assigneeId: z.ZodNullable<z.ZodString>;
-        }, z.core.$strip>>;
         openAlerts: z.ZodArray<z.ZodObject<{
             alertId: z.ZodString;
             kind: z.ZodEnum<{
@@ -3589,32 +3514,6 @@ export declare const overviewGrow: z.ZodObject<{
     placedOnDay: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
 /**
- * A due task with what its completion would be written with, so the Done button
- * on the card needs nothing else read and can say what it is about to log.
- * `POST /tasks/{id}/completions` takes these same values, and a completion that
- * names none takes them from the task.
- */
-export declare const overviewTask: z.ZodObject<{
-    id: z.ZodString;
-    kind: z.ZodEnum<{
-        custom: "custom";
-        water: "water";
-        feed: "feed";
-        chore: "chore";
-    }>;
-    label: z.ZodString;
-    dueAt: z.ZodISODateTime;
-    subject: z.ZodObject<{
-        type: z.ZodEnum<{
-            grow: "grow";
-            space: "space";
-        }>;
-        id: z.ZodString;
-    }, z.core.$strip>;
-    assigneeId: z.ZodNullable<z.ZodString>;
-    defaults: z.ZodAny;
-}, z.core.$strip>;
-/**
  * What the space's controller is aiming at in both halves of the cycle.
  * `SpaceOverview.setpoints` is the half it is in right now, which is what a
  * value is drawn against; this is the pair the header states, and the bands the
@@ -3866,12 +3765,12 @@ export declare const overviewClimate: z.ZodObject<{
 }, z.core.$strip>;
 /**
  * `GET /spaces/{id}/overview`, Start of one place: what is true here
- * now, what needs a human, what grows here, what the cameras saw today, how the
- * last 24 hours went and what was last written.
+ * now, what is alarming, what grows here, what the cameras saw today, how the
+ * last 24 hours went and what was last written. What is due is `GET /tasks`.
  *
- * It is the home card of that space with the four things a page has room for
- * that a card does not - the verdict, the day's pictures, every grow rather
- * than the headline one, and enough of a due task to tick it off.
+ * It is the home card of that space with the three things a page has room for
+ * that a card does not - the verdict, the day's pictures and every grow rather
+ * than the headline one.
  */
 export declare const spaceOverview: z.ZodObject<{
     spaceId: z.ZodString;
@@ -4480,26 +4379,6 @@ export declare const spaceOverview: z.ZodObject<{
         id: z.ZodString;
         growId: z.ZodString;
         label: z.ZodString;
-    }, z.core.$strip>>;
-    dueTasks: z.ZodArray<z.ZodObject<{
-        id: z.ZodString;
-        kind: z.ZodEnum<{
-            custom: "custom";
-            water: "water";
-            feed: "feed";
-            chore: "chore";
-        }>;
-        label: z.ZodString;
-        dueAt: z.ZodISODateTime;
-        subject: z.ZodObject<{
-            type: z.ZodEnum<{
-                grow: "grow";
-                space: "space";
-            }>;
-            id: z.ZodString;
-        }, z.core.$strip>;
-        assigneeId: z.ZodNullable<z.ZodString>;
-        defaults: z.ZodAny;
     }, z.core.$strip>>;
     openAlerts: z.ZodArray<z.ZodObject<{
         alertId: z.ZodString;
@@ -6664,21 +6543,13 @@ export declare const growSeriesRange: z.ZodEnum<{
     "7d": "7d";
 }>;
 /**
- * `GET /grows/{id}/series`: every line of a grow over one range, in
- * one answer, because a screen that asked for them separately would draw
- * windows that disagree at their edges.
+ * `GET /grows/{id}/series`: a grow's own measurements over one range, each
+ * reading as it was taken, at no step at all. The window is the one the
+ * Timeline's chip of the same name means for the same grow; the climate of a
+ * window is the Timeline's answer.
  *
- * Three kinds of line, and they are apart here because they are not the same
- * kind of thing. `climate` and `outputs` are bucketed at `stepSeconds`, which
- * the range decides, and are the same panels and lanes the Timeline draws -
- * with the same band, so a client draws one the same way in both places.
- * `measurements` are events somebody wrote down and are answered as they were
- * taken, at no step at all.
- *
- * The third mode of the view - two grows plotted by day rather than by date -
- * is arithmetic on `originAt`, which is the instant day 1 began: nothing about
- * the answer changes, and two grows are two reads the client lays over each
- * other.
+ * Two grows plotted by day rather than by date is arithmetic on `originAt`,
+ * which is the instant day 1 began.
  */
 export declare const growSeries: z.ZodObject<{
     growId: z.ZodString;
@@ -6691,100 +6562,9 @@ export declare const growSeries: z.ZodObject<{
     }>;
     startsAt: z.ZodISODateTime;
     endsAt: z.ZodISODateTime;
-    stepSeconds: z.ZodNumber;
     originAt: z.ZodISODateTime;
     dayFrom: z.ZodNullable<z.ZodNumber>;
     dayTo: z.ZodNullable<z.ZodNumber>;
-    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
-    climate: z.ZodArray<z.ZodObject<{
-        metric: z.ZodEnum<{
-            offline: "offline";
-            co2: "co2";
-            temperature: "temperature";
-            humidity: "humidity";
-            leafTemperature: "leafTemperature";
-            lux: "lux";
-            vpd: "vpd";
-            ppfd: "ppfd";
-        }>;
-        points: z.ZodArray<z.ZodObject<{
-            measuredAt: z.ZodISODateTime;
-            value: z.ZodNullable<z.ZodNumber>;
-            min: z.ZodOptional<z.ZodNumber>;
-            max: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>>;
-        targets: z.ZodArray<z.ZodObject<{
-            startsAt: z.ZodISODateTime;
-            endsAt: z.ZodISODateTime;
-            phaseId: z.ZodNullable<z.ZodString>;
-            stage: z.ZodNullable<z.ZodEnum<{
-                germination: "germination";
-                seedling: "seedling";
-                vegetative: "vegetative";
-                flowering: "flowering";
-                drying: "drying";
-                curing: "curing";
-            }>>;
-            day: z.ZodNullable<z.ZodObject<{
-                setpoint: z.ZodNumber;
-                band: z.ZodObject<{
-                    low: z.ZodNumber;
-                    high: z.ZodNumber;
-                }, z.core.$strip>;
-            }, z.core.$strip>>;
-            night: z.ZodNullable<z.ZodObject<{
-                setpoint: z.ZodNumber;
-                band: z.ZodObject<{
-                    low: z.ZodNumber;
-                    high: z.ZodNumber;
-                }, z.core.$strip>;
-            }, z.core.$strip>>;
-            held: z.ZodOptional<z.ZodEnum<{
-                germination: "germination";
-                drying: "drying";
-                schedule: "schedule";
-                always_day: "always_day";
-                always_night: "always_night";
-            }>>;
-            settling: z.ZodOptional<z.ZodBoolean>;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
-    lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
-    outputs: z.ZodArray<z.ZodObject<{
-        output: z.ZodEnum<{
-            dehumidifier: "dehumidifier";
-            heater: "heater";
-            light: "light";
-            co2: "co2";
-            fan: "fan";
-            relais: "relais";
-            fanInternal: "fanInternal";
-            fanExternal: "fanExternal";
-            fanBackwall: "fanBackwall";
-        }>;
-        deviceId: z.ZodNullable<z.ZodString>;
-        spans: z.ZodArray<z.ZodObject<{
-            startsAt: z.ZodISODateTime;
-            endsAt: z.ZodISODateTime;
-        }, z.core.$strip>>;
-        heardUntil: z.ZodISODateTime;
-        fridge: z.ZodOptional<z.ZodLiteral<true>>;
-        points: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            measuredAt: z.ZodISODateTime;
-            heard: z.ZodNumber;
-            on: z.ZodNumber;
-            level: z.ZodNullable<z.ZodNumber>;
-            resumed: z.ZodOptional<z.ZodBoolean>;
-        }, z.core.$strip>>>;
-    }, z.core.$strip>>;
-    nights: z.ZodArray<z.ZodObject<{
-        startsAt: z.ZodISODateTime;
-        endsAt: z.ZodISODateTime;
-    }, z.core.$strip>>;
-    transitions: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        startsAt: z.ZodISODateTime;
-        endsAt: z.ZodISODateTime;
-    }, z.core.$strip>>>;
     measurements: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         points: z.ZodArray<z.ZodObject<{
@@ -6792,128 +6572,6 @@ export declare const growSeries: z.ZodObject<{
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
             entryId: z.ZodString;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
-    cameras: z.ZodArray<z.ZodObject<{
-        cameraId: z.ZodString;
-        name: z.ZodString;
-        frames: z.ZodArray<z.ZodObject<{
-            mediaId: z.ZodString;
-            capturedAt: z.ZodISODateTime;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
-}, z.core.$strip>;
-/**
- * `GET /spaces/{id}/series`: the series of a place, which is how a place
- * without a grow - and a window no chip of a grow's can name - is charted.
- *
- * The same panels, lanes and nights as a grow's answer, read from whatever
- * stands in the place, over the two instants asked for and at the step asked
- * for where one is: a day at twenty seconds or three years at a week. What
- * belongs to a grow alone - its day counter and its own measurements - is not
- * here.
- */
-export declare const spaceSeries: z.ZodObject<{
-    spaceId: z.ZodString;
-    startsAt: z.ZodISODateTime;
-    endsAt: z.ZodISODateTime;
-    stepSeconds: z.ZodNumber;
-    deviceIds: z.ZodNullable<z.ZodArray<z.ZodString>>;
-    climate: z.ZodArray<z.ZodObject<{
-        metric: z.ZodEnum<{
-            offline: "offline";
-            co2: "co2";
-            temperature: "temperature";
-            humidity: "humidity";
-            leafTemperature: "leafTemperature";
-            lux: "lux";
-            vpd: "vpd";
-            ppfd: "ppfd";
-        }>;
-        points: z.ZodArray<z.ZodObject<{
-            measuredAt: z.ZodISODateTime;
-            value: z.ZodNullable<z.ZodNumber>;
-            min: z.ZodOptional<z.ZodNumber>;
-            max: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>>;
-        targets: z.ZodArray<z.ZodObject<{
-            startsAt: z.ZodISODateTime;
-            endsAt: z.ZodISODateTime;
-            phaseId: z.ZodNullable<z.ZodString>;
-            stage: z.ZodNullable<z.ZodEnum<{
-                germination: "germination";
-                seedling: "seedling";
-                vegetative: "vegetative";
-                flowering: "flowering";
-                drying: "drying";
-                curing: "curing";
-            }>>;
-            day: z.ZodNullable<z.ZodObject<{
-                setpoint: z.ZodNumber;
-                band: z.ZodObject<{
-                    low: z.ZodNumber;
-                    high: z.ZodNumber;
-                }, z.core.$strip>;
-            }, z.core.$strip>>;
-            night: z.ZodNullable<z.ZodObject<{
-                setpoint: z.ZodNumber;
-                band: z.ZodObject<{
-                    low: z.ZodNumber;
-                    high: z.ZodNumber;
-                }, z.core.$strip>;
-            }, z.core.$strip>>;
-            held: z.ZodOptional<z.ZodEnum<{
-                germination: "germination";
-                drying: "drying";
-                schedule: "schedule";
-                always_day: "always_day";
-                always_night: "always_night";
-            }>>;
-            settling: z.ZodOptional<z.ZodBoolean>;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
-    lastReadingAt: z.ZodNullable<z.ZodISODateTime>;
-    outputs: z.ZodArray<z.ZodObject<{
-        output: z.ZodEnum<{
-            dehumidifier: "dehumidifier";
-            heater: "heater";
-            light: "light";
-            co2: "co2";
-            fan: "fan";
-            relais: "relais";
-            fanInternal: "fanInternal";
-            fanExternal: "fanExternal";
-            fanBackwall: "fanBackwall";
-        }>;
-        deviceId: z.ZodNullable<z.ZodString>;
-        spans: z.ZodArray<z.ZodObject<{
-            startsAt: z.ZodISODateTime;
-            endsAt: z.ZodISODateTime;
-        }, z.core.$strip>>;
-        heardUntil: z.ZodISODateTime;
-        fridge: z.ZodOptional<z.ZodLiteral<true>>;
-        points: z.ZodOptional<z.ZodArray<z.ZodObject<{
-            measuredAt: z.ZodISODateTime;
-            heard: z.ZodNumber;
-            on: z.ZodNumber;
-            level: z.ZodNullable<z.ZodNumber>;
-            resumed: z.ZodOptional<z.ZodBoolean>;
-        }, z.core.$strip>>>;
-    }, z.core.$strip>>;
-    nights: z.ZodArray<z.ZodObject<{
-        startsAt: z.ZodISODateTime;
-        endsAt: z.ZodISODateTime;
-    }, z.core.$strip>>;
-    transitions: z.ZodOptional<z.ZodArray<z.ZodObject<{
-        startsAt: z.ZodISODateTime;
-        endsAt: z.ZodISODateTime;
-    }, z.core.$strip>>>;
-    cameras: z.ZodArray<z.ZodObject<{
-        cameraId: z.ZodString;
-        name: z.ZodString;
-        frames: z.ZodArray<z.ZodObject<{
-            mediaId: z.ZodString;
-            capturedAt: z.ZodISODateTime;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
@@ -8299,26 +7957,6 @@ export declare const sharedSpace: z.ZodObject<{
             growId: z.ZodString;
             label: z.ZodString;
         }, z.core.$strip>>;
-        dueTasks: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            kind: z.ZodEnum<{
-                custom: "custom";
-                water: "water";
-                feed: "feed";
-                chore: "chore";
-            }>;
-            label: z.ZodString;
-            dueAt: z.ZodISODateTime;
-            subject: z.ZodObject<{
-                type: z.ZodEnum<{
-                    grow: "grow";
-                    space: "space";
-                }>;
-                id: z.ZodString;
-            }, z.core.$strip>;
-            assigneeId: z.ZodNullable<z.ZodString>;
-            defaults: z.ZodAny;
-        }, z.core.$strip>>;
         openAlerts: z.ZodArray<z.ZodObject<{
             alertId: z.ZodString;
             kind: z.ZodEnum<{
@@ -9217,26 +8855,6 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             id: z.ZodString;
             growId: z.ZodString;
             label: z.ZodString;
-        }, z.core.$strip>>;
-        dueTasks: z.ZodArray<z.ZodObject<{
-            id: z.ZodString;
-            kind: z.ZodEnum<{
-                custom: "custom";
-                water: "water";
-                feed: "feed";
-                chore: "chore";
-            }>;
-            label: z.ZodString;
-            dueAt: z.ZodISODateTime;
-            subject: z.ZodObject<{
-                type: z.ZodEnum<{
-                    grow: "grow";
-                    space: "space";
-                }>;
-                id: z.ZodString;
-            }, z.core.$strip>;
-            assigneeId: z.ZodNullable<z.ZodString>;
-            defaults: z.ZodAny;
         }, z.core.$strip>>;
         openAlerts: z.ZodArray<z.ZodObject<{
             alertId: z.ZodString;
@@ -10153,26 +9771,6 @@ export declare const sharedResolution: z.ZodObject<{
                 id: z.ZodString;
                 growId: z.ZodString;
                 label: z.ZodString;
-            }, z.core.$strip>>;
-            dueTasks: z.ZodArray<z.ZodObject<{
-                id: z.ZodString;
-                kind: z.ZodEnum<{
-                    custom: "custom";
-                    water: "water";
-                    feed: "feed";
-                    chore: "chore";
-                }>;
-                label: z.ZodString;
-                dueAt: z.ZodISODateTime;
-                subject: z.ZodObject<{
-                    type: z.ZodEnum<{
-                        grow: "grow";
-                        space: "space";
-                    }>;
-                    id: z.ZodString;
-                }, z.core.$strip>;
-                assigneeId: z.ZodNullable<z.ZodString>;
-                defaults: z.ZodAny;
             }, z.core.$strip>>;
             openAlerts: z.ZodArray<z.ZodObject<{
                 alertId: z.ZodString;

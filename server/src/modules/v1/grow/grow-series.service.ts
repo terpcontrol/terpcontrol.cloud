@@ -1,55 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { GrowMeasurementSeries, GrowSeries, GrowSeriesPoint, GrowSeriesRange, Metric, OutputMetric } from '@fg2/shared-types/v1';
+import type { GrowMeasurementSeries, GrowSeries, GrowSeriesPoint, GrowSeriesRange } from '@fg2/shared-types/v1';
 import { growOriginOf } from '@fg2/shared-types/v1-schemas';
 import { localOf } from '@common/v1/local-time';
 import { Grant } from '@common/v1/access.types';
 import { badRequest } from '@common/v1/problem';
 import { withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
-import { CameraDocument } from '@database/schemas/v1/cameras.schema';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
-import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
-import { DataService } from '@modules/data/data.service';
 import { READING_KINDS, readingsIn } from '../diary/diary-entries';
 import { horizonOf } from '../diary/grow-calendar';
-import { chartSeriesOf } from '../timeline/chart-series';
-import { shownCameras } from '../timeline/frames';
 import { TimelineWindow, narrowedTo, windowOf } from '../timeline/timeline-window';
-import { spacesDuring } from './grow-places';
 import { Redaction } from './grow-serialiser';
-import { stoodIn } from '@common/v1/device-placements';
 import { GrowsService } from './grows.service';
-
-/**
- * A grow's series, as one answer.
- *
- * A grow is not a device and not a tent: where it stood is what its placements
- * say, so the climate of a range is whatever the controllers of those places
- * measured, pooled into one line per metric the same way the Timeline pools
- * them. That is deliberate to the point of being the reason this reads through
- * the timeline's own arithmetic rather than its own: a band drawn here and a
- * band drawn there are the same band, and a grower comparing the two screens
- * must not find them disagreeing about what was being aimed at.
- *
- * What is new here is that the client chooses the lines. The timeline stacks
- * the panels it decides on; this read answers what was ticked - VPD among
- * them, which the timeline leaves out on purpose - beside the outputs and the
- * grow's own measurements, which come from the diary rather than from the
- * measurement store.
- *
- * **What the whole answer costs.** One read of the grow, one of the devices
- * standing where it stood, one of the diary over the window, two or three of
- * the target record of the device the band is drawn from, and two
- * time-series reads per device - the windowed curve, and the switchings of the
- * outputs that were ticked. A long range costs no more than a short one,
- * because the step follows from the width of the window and the switchings are
- * as many as the tent really switched.
- */
 
 /**
  * A safety net, not a page size. A season of hand-logged readings is hundreds of
@@ -62,26 +27,26 @@ const MAX_READING_ENTRIES = 2000;
 /** What the route was asked for, after the query string has been checked against the contract. */
 export interface GrowSeriesQuery {
   range: GrowSeriesRange;
-  metrics?: readonly Metric[];
-  outputs?: readonly OutputMetric[];
   measurements?: readonly string[];
   /** The two ends of a `custom` range, and what a rolling range counts back from. */
   from?: Date;
   to?: Date;
-  /** The step somebody chose; left out, the width of the window decides it. */
-  stepSeconds?: number;
 }
 
+/**
+ * A grow's own measurements over one range, as one answer: the readings
+ * somebody wrote into its diary, each as it was taken, at no step at all. The
+ * window is the Timeline's for the same chip, worked out from the same grow, so
+ * a reading drawn on the grow's Messwerte and on the tent's Verlauf is dated the
+ * same; the climate of that window is Verlauf's read.
+ *
+ * **What it costs.** One read of the grow and one of the diary over the window.
+ */
 @Injectable()
 export class GrowSeriesService {
   constructor(
-    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
-    @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
-    @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
-    @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     private readonly grows: GrowsService,
-    private readonly data: DataService,
   ) {}
 
   public async read(grant: Grant, growId: string, asked: GrowSeriesQuery, hide: Redaction, now: Date = new Date()): Promise<GrowSeries> {
@@ -90,31 +55,7 @@ export class GrowSeriesService {
     const window = this.windowFor(grow, zone, grant, asked, now);
     const keys = this.keysOf(grow, asked.measurements ?? []);
 
-    const metrics = asked.metrics ?? [];
-    const outputs = asked.outputs ?? [];
-    // Wherever the grow stood over the window: a grow that moved between tents
-    // is read from the devices and cameras of both, because the chart draws what
-    // its plants lived through and not what one tent did - each device for the
-    // days it stood there, as the diary's days read them.
-    const spaceIds = spacesDuring(grow, window.startsAt, window.endsAt).filter((id): id is string => id !== null);
-
-    const [devices, cameras] = await Promise.all([
-      metrics.length > 0 || outputs.length > 0 ? stoodIn(this.devices, spaceIds, window) : Promise.resolve([]),
-      shownCameras(this.cameras, spaceIds, grant.includeCameras),
-    ]);
-    const [charts, readings] = await Promise.all([
-      chartSeriesOf(
-        { data: this.data, targetRecord: this.targetRecord, media: this.media },
-        grant,
-        grow,
-        devices,
-        cameras,
-        window,
-        { metrics, outputs },
-        now,
-      ),
-      keys.length > 0 ? this.readingEntriesIn(grow.id, window) : Promise.resolve([]),
-    ]);
+    const readings = keys.length > 0 ? await this.readingEntriesIn(grow.id, window) : [];
 
     return {
       growId: grow.id,
@@ -122,8 +63,9 @@ export class GrowSeriesService {
       originAt: localOf(growOriginOf(grow), zone).startOf('day').toJSDate().toISOString(),
       dayFrom: window.dayFrom,
       dayTo: window.dayTo,
+      startsAt: window.startsAt.toISOString(),
+      endsAt: window.endsAt.toISOString(),
       measurements: measurementsOf(keys, readings, hide),
-      ...charts,
     };
   }
 
@@ -144,14 +86,7 @@ export class GrowSeriesService {
    */
   private windowFor(grow: GrowDocument, zone: string | null, grant: Grant, asked: GrowSeriesQuery, now: Date): TimelineWindow {
     if (asked.range !== 'custom') {
-      return windowOf(
-        asked.range,
-        grant,
-        grow,
-        zone,
-        asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())),
-        asked.stepSeconds,
-      );
+      return windowOf(asked.range, grant, grow, zone, asked.to ?? new Date(Math.min(horizonOf(grow, now).getTime(), now.getTime())));
     }
 
     // A range whose end comes before its start never gets here: the query is
@@ -171,7 +106,7 @@ export class GrowSeriesService {
       ]);
     }
 
-    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, zone, now, asked.stepSeconds);
+    return narrowedTo({ startsAt: asked.from, endsAt: asked.to }, grant, grow, zone, now);
   }
 
   /**

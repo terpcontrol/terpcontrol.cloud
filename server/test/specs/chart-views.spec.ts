@@ -1,6 +1,6 @@
 import { anonymous, createAccount, demoSession, loginAsAdmin, Session, unique } from '../support/api';
 import { claimCodeOf, registerDevice } from '../support/device';
-import { shareLinkOnGrow } from '../support/fixtures';
+import { setRow, shareLinkOnGrow } from '../support/fixtures';
 
 /**
  * The charts somebody saved to come back to.
@@ -91,11 +91,16 @@ describe('saving a chart', () => {
     }
   });
 
-  it('keeps each of the three layouts', async () => {
-    for (const layout of ['stacked', 'overlay', 'day_of_grow']) {
+  it('keeps each of the two layouts, and reads one it no longer has as stacked', async () => {
+    for (const layout of ['stacked', 'overlay']) {
       const saved = await create(owner, aView({ definition: aDefinition({ layout }) }));
       expect(saved.definition.layout).toBe(layout);
     }
+
+    const counted = await create(owner, aView({ definition: aDefinition({ layout: 'overlay' }) }));
+    await setRow('chartViews', { id: counted.id }, { 'definition.layout': 'day_of_grow' });
+    const listed = (await owner.client.get('/v1/chart-views').expect(200)).body.items;
+    expect(listed.find((view: { id: string }) => view.id === counted.id).definition.layout).toBe('stacked');
   });
 
   it('refuses a span that names no kind, one whose seconds are not a span, and a layout the charts cannot draw', async () => {

@@ -4,18 +4,10 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 
 /**
- * How many stills a series read answers per camera, whatever the window:
- * twice the Timeline's, because it was made for a cursor moving across a whole
- * screen's width of curve rather than a strip.
- */
-export const CHART_FRAME_SLOTS = 240;
-
-/**
  * The frames a cursor steps through: at most one per slot, per camera, and all
  * of them in one aggregation. The slot a picture falls in is grouped in the
  * database, because the alternative is reading a day of stills out to keep a
- * hundred of them. The Timeline draws the picture at its cursor from this, and
- * a series read answers the same frames.
+ * hundred of them. The Timeline draws the picture at its cursor from this.
  *
  * The one a slot answers with is its newest, which is the picture the app
  * promises: the Timeline draws the newest still taken by the cursor, and the cursor

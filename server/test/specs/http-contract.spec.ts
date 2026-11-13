@@ -406,7 +406,7 @@ describe('a range that ends before it begins', () => {
       [`/v1/entries?growId=${grow.id}&startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
       [`/v1/cameras/${camera}/frames?startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
       [`/v1/cameras/${camera}/timelapses?startsAt=${LATER}&endsAt=${EARLIER}`, 'endsAt'],
-      [`/v1/grows/${grow.id}/series?range=custom&metrics=temperature&from=${LATER}&to=${EARLIER}`, 'to'],
+      [`/v1/grows/${grow.id}/series?range=custom&from=${LATER}&to=${EARLIER}`, 'to'],
     ];
 
     for (const [path, end] of asked) {

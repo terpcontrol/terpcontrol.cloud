@@ -84,7 +84,6 @@ const build = (): OverviewService => {
     db.media,
     db.alerts,
     db.alarmRules,
-    db.reminders,
     db.users,
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
@@ -247,19 +246,6 @@ const world = async (): Promise<void> => {
       occurredAt: new Date('2026-06-10T06:00:00.000Z'),
     }),
   ]);
-
-  await db.reminders.create({
-    id: 'reminder-water',
-    subject: { type: 'grow', id: GROW },
-    kind: 'water',
-    label: 'Water Spring run #3',
-    everyDays: 2,
-    onceAt: null,
-    assigneeId: MEMBER,
-    defaults: { kind: 'water', readings: [{ key: 'volume', value: 2, plantId: null }] },
-    createdBy: OWNER,
-    createdAt: new Date('2026-06-08T09:00:00.000Z'),
-  });
 };
 
 beforeEach(async () => {
@@ -476,32 +462,12 @@ describe('what grows here', () => {
    * demo place on Start had no hardware, while the device list - which
    * the tour reads anyway - showed it.
    */
-  it('names the devices and the work here to the demo tour', async () => {
+  it('names the devices here to the demo tour', async () => {
     await db.spaces.updateOne({ id: TENT }, { $set: { isDemo: true } });
 
     const page = await readAs(demo(null));
     expect(page).toMatchObject({ roomId: ROOM, deviceIds: [CONTROLLER, PLUG] });
     expect(page.climates.map(climate => climate.deviceId)).toEqual([CONTROLLER]);
-    expect(page.dueTasks).toHaveLength(1);
-  });
-});
-
-describe('what is due', () => {
-  it('carries what a completion would be written with, so Done needs nothing else read', async () => {
-    const page = await readAs(session(OWNER));
-
-    expect(page.dueTasks).toEqual([
-      {
-        id: `reminder-water:${Date.parse('2026-06-10T09:00:00.000Z')}`,
-        kind: 'water',
-        label: 'Water Spring run #3',
-        dueAt: '2026-06-10T09:00:00.000Z',
-        subject: { type: 'grow', id: GROW },
-        assigneeId: MEMBER,
-        defaults: { kind: 'water', readings: [{ key: 'volume', value: 2, plantId: null }] },
-      },
-    ]);
-    expect(page.people).toEqual(expect.arrayContaining([{ id: MEMBER, handle: 'mia' }]));
   });
 });
 
@@ -792,11 +758,10 @@ describe('who may read it', () => {
     const unknown = await readAs(visitor(token));
     expect(unknown.grows.every(grow => grow.plantCount === null)).toBe(true);
     expect(unknown.grows.every(grow => grow.stageGroups.every(group => group.plantCount === null))).toBe(true);
-    expect(unknown.plants).toEqual([]);
   });
 
   /** A line about some plants names them on a link too - by the names the grow gives them, which are the count stated by name. */
-  it('names the grows´ plants to whoever keeps the tent, and to a link only where the owner shows the counts', async () => {
+  it('names the grows´ plants to whoever keeps the tent, and to a link whatever the counts switch says', async () => {
     const labels = [
       { id: 'plant-1', growId: GROW, label: 'Amnesia 1' },
       { id: 'plant-2', growId: GROW, label: 'Amnesia 2' },
@@ -805,11 +770,9 @@ describe('who may read it', () => {
     expect((await readAs(session(OWNER))).plants).toEqual(labels);
 
     const token = await linkFor({});
-    // Hidden by default: privacy is where an account starts.
-    expect((await readAs(visitor(token))).plants).toEqual([]);
-
-    await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: false } } });
+    // The counts are hidden by default, and the switch hides how many there are, not their names.
     expect((await readAs(visitor(token))).plants).toEqual(labels);
+    expect((await readAs(visitor(token))).grows.every(grow => grow.plantCount === null)).toBe(true);
   });
 });
 

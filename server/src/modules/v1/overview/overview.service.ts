@@ -18,14 +18,12 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
-import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { setpointsOf } from '../device/setpoints';
 import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
 import { diaryTail, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
-import { completionsOf, dueTasksOf, reminderOfTask, remindersAbout } from '../diary/due-tasks';
 import { standingIn } from '../grow/grow-places';
 import { Redaction, growCardOf, growUpTo, labelOf, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
@@ -44,16 +42,14 @@ import { verdictOf } from './climate-verdict';
  * It is the home card of that space read at the depth a page has room for, so
  * the live half is the one `/live` answers - the same devices, through the same
  * two functions - and only the four things a card has no room for are worked out
- * here: the verdict, the day's pictures, every grow standing here rather than
- * the headline one, and enough of a due task to tick it off without a second
- * read.
+ * here: the verdict, the day's pictures and every grow standing here rather
+ * than the headline one.
  *
  * Every read is clamped to what the caller was granted, because this is a route
  * a share link reaches: the window is the link's, and a grow read by somebody
  * who is neither its owner nor a member is served through its owner's privacy.
- * The working half of the page goes with it - what is due and what is alarming
- * is for whoever keeps the tent, and a reader who arrived on a link is not one
- * of them.
+ * The working half of the page goes with it - what is alarming is for whoever
+ * keeps the tent, and a reader who arrived on a link is not one of them.
  */
 
 /** How many lines of the diary a page opens with. */
@@ -88,7 +84,6 @@ export class OverviewService {
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
-    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
@@ -159,12 +154,11 @@ export class OverviewService {
     const steering = climates[0] ?? null;
     const window = seenOf({ startsAt: new Date(until.getTime() - VERDICT_HOURS * 3600 * 1000), endsAt: until }, range);
 
-    const [plants, reminders, tail, stills, lit, hide, zone, settling, verdicts] = await Promise.all([
+    const [plants, tail, stills, lit, hide, zone, settling, verdicts] = await Promise.all([
       this.plants
         .find({ growId: { $in: growIds } })
         .sort({ createdAt: 1, _id: 1 })
         .lean<PlantDocument[]>(),
-      this.reminders.find(remindersAbout([spaceId], growIds)).lean<ReminderDocument[]>(),
       diaryTail(this.entries, { $or: [{ spaceId }, { growId: { $in: growIds } }] }, grant, range, ENTRIES_ON_THE_PAGE, until),
       this.stillsToday(cameras, owner?.preferences.timezone ?? null, range, until),
       this.litStills(cameras, range, until),
@@ -181,22 +175,18 @@ export class OverviewService {
       Promise.all(climates.map(climate => this.judged(climate, devices, window, closed))),
     ]);
 
-    const [completions, openAlertOf] = await Promise.all([completionsOf(this.entries, reminders), openAlertReader(this.rules, alerts)]);
+    const openAlertOf = await openAlertReader(this.rules, alerts);
     const verdict = verdicts[0] ?? verdictOf(null, null, window, null, [], {});
     const lives = readings.map(reading => liveOfDevice(reading, now, settling.get(reading.device.id) ?? null));
 
     /**
-     * What is due here and what is alarming are the working half of the page,
-     * and they belong to the people who keep the tent. A stranger who opened a
-     * link, and anybody reading a public grow, gets the diary and the climate
-     * and neither of these - which is what the contract means by a shared tent
-     * page whose tasks and alerts are empty.
+     * What is alarming is the working half of the page, and it belongs to the
+     * people who keep the tent. A stranger who opened a link, and anybody
+     * reading a public grow, gets the diary and the climate and not this -
+     * which is what the contract means by a shared tent page whose alerts are
+     * empty.
      */
     const outsider = isOutsider(grant);
-    const forKeepers = !outsider;
-    const dueTasks = forKeepers
-      ? dueTasksOf(reminders, completions, now).map(task => ({ ...task, defaults: reminderOfTask(reminders, task.id)?.defaults ?? null }))
-      : [];
     // The lines themselves are served through the same privacy as the grows
     // above them: a harvest entry carries the weights the card is already
     // hiding, and a photo line names the camera a link may not have been made
@@ -240,11 +230,13 @@ export class OverviewService {
       entries: told,
       events: tail.events,
       readingNames: readingNamesOf(grows),
-      // A list of names is the count stated the long way round: none of a grow whose counts this reader is not told.
-      plants: grows.flatMap(grow => (hide(grow.ownerId).counts ? [] : plants.filter(plant => plant.growId === grow.id).map(labelOf))),
-      dueTasks,
-      openAlerts: forKeepers ? alerts.map(openAlertOf) : [],
-      people: await peopleNamed(this.users, [...told.map(entry => entry.authorId), ...dueTasks.map(task => task.assigneeId)]),
+      // By name whatever the counts switch says: it hides how many there are, and a line about some of them says which.
+      plants: grows.flatMap(grow => plants.filter(plant => plant.growId === grow.id).map(labelOf)),
+      openAlerts: outsider ? [] : alerts.map(openAlertOf),
+      people: await peopleNamed(
+        this.users,
+        told.map(entry => entry.authorId),
+      ),
     };
   }
 

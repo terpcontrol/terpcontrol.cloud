@@ -5761,7 +5761,7 @@
             "type": "null"
           }
         ],
-        "description": "A tombstone: history still names the space, so it is kept and no longer listed."
+        "description": "When the place ended: a tombstone, since history still names it, so it is kept and no longer listed."
       },
       "createdAt": {
         "type": "string",
@@ -10782,8 +10782,7 @@
     "type": "string",
     "enum": [
       "stacked",
-      "overlay",
-      "day_of_grow"
+      "overlay"
     ]
   },
   "ChartViewDefinition": {
@@ -11334,48 +11333,6 @@
       "points"
     ]
   },
-  "DueTask": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1
-      },
-      "kind": {
-        "$ref": "#/components/schemas/ReminderKind"
-      },
-      "label": {
-        "type": "string"
-      },
-      "dueAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "subject": {
-        "$ref": "#/components/schemas/GrowOrSpaceRef"
-      },
-      "assigneeId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
-      }
-    },
-    "required": [
-      "id",
-      "kind",
-      "label",
-      "dueAt",
-      "subject",
-      "assigneeId"
-    ]
-  },
   "OpenAlert": {
     "type": "object",
     "properties": {
@@ -11904,12 +11861,6 @@
           }
         ]
       },
-      "dueTasks": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/DueTask"
-        }
-      },
       "openAlerts": {
         "type": "array",
         "items": {
@@ -11931,7 +11882,6 @@
       "entries",
       "events",
       "latestStill",
-      "dueTasks",
       "openAlerts"
     ]
   },
@@ -12528,52 +12478,6 @@
       "placedOnDay"
     ]
   },
-  "OverviewTask": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1
-      },
-      "kind": {
-        "$ref": "#/components/schemas/ReminderKind"
-      },
-      "label": {
-        "type": "string"
-      },
-      "dueAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "subject": {
-        "$ref": "#/components/schemas/GrowOrSpaceRef"
-      },
-      "assigneeId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "defaults": {
-        "description": "Prefilled entry values for the completion; null when the task prefills nothing."
-      }
-    },
-    "required": [
-      "id",
-      "kind",
-      "label",
-      "dueAt",
-      "subject",
-      "assigneeId",
-      "defaults"
-    ]
-  },
   "OverviewTargets": {
     "type": "object",
     "properties": {
@@ -12762,12 +12666,6 @@
         },
         "description": "The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader."
       },
-      "dueTasks": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/OverviewTask"
-        }
-      },
       "openAlerts": {
         "type": "array",
         "items": {
@@ -12799,7 +12697,6 @@
       "events",
       "readingNames",
       "plants",
-      "dueTasks",
       "openAlerts",
       "people"
     ]
@@ -14623,12 +14520,6 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
-      "stepSeconds": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The window each climate and output point summarises; 0 where no device was read at all."
-      },
       "originAt": {
         "type": "string",
         "format": "date-time",
@@ -14659,72 +14550,11 @@
           }
         ]
       },
-      "deviceIds": {
-        "anyOf": [
-          {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
-      },
-      "climate": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelinePanel"
-        }
-      },
-      "lastReadingAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves."
-      },
-      "outputs": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineOutputLane"
-        }
-      },
-      "nights": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        },
-        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
-      },
-      "transitions": {
-        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        }
-      },
       "measurements": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowMeasurementSeries"
         }
-      },
-      "cameras": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineCamera"
-        },
-        "description": "The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras."
       }
     },
     "required": [
@@ -14732,115 +14562,10 @@
       "range",
       "startsAt",
       "endsAt",
-      "stepSeconds",
       "originAt",
       "dayFrom",
       "dayTo",
-      "deviceIds",
-      "climate",
-      "lastReadingAt",
-      "outputs",
-      "nights",
-      "measurements",
-      "cameras"
-    ]
-  },
-  "SpaceSeries": {
-    "type": "object",
-    "properties": {
-      "spaceId": {
-        "type": "string",
-        "minLength": 1
-      },
-      "startsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "endsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "stepSeconds": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The window each point summarises, as the server settled it; 0 where no device was read at all."
-      },
-      "deviceIds": {
-        "anyOf": [
-          {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it."
-      },
-      "climate": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelinePanel"
-        }
-      },
-      "lastReadingAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline."
-      },
-      "outputs": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineOutputLane"
-        }
-      },
-      "nights": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        },
-        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
-      },
-      "transitions": {
-        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        }
-      },
-      "cameras": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineCamera"
-        },
-        "description": "The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras."
-      }
-    },
-    "required": [
-      "spaceId",
-      "startsAt",
-      "endsAt",
-      "stepSeconds",
-      "deviceIds",
-      "climate",
-      "lastReadingAt",
-      "outputs",
-      "nights",
-      "cameras"
+      "measurements"
     ]
   },
   "PublicAuthor": {

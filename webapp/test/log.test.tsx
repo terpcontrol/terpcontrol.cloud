@@ -65,7 +65,6 @@ const home: HomeAnswer = {
       entries: [],
       events: [],
       latestStill: null,
-      dueTasks: [],
       openAlerts: [],
     },
   ],

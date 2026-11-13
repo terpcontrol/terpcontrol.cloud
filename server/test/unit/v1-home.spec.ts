@@ -78,7 +78,6 @@ const build = (): HomeService => {
     db.media,
     db.alerts,
     db.alarmRules,
-    db.reminders,
     db.follows,
     db.users,
     db.memberships,
@@ -292,18 +291,6 @@ describe('the cards', () => {
       startedAt: STARTED_AT,
       endedAt: null,
     });
-    await db.reminders.create({
-      id: 'reminder-basil',
-      subject: { type: 'grow', id: 'grow-nowhere' },
-      kind: 'water',
-      label: 'Water',
-      everyDays: 2,
-      onceAt: null,
-      assigneeId: null,
-      createdBy: OWNER,
-      createdAt: STARTED_AT,
-    });
-
     const answer = await home.read(session(OWNER), NOW);
     const nowhere = answer.spaces.find(card => card.spaceId === null)!;
 
@@ -317,8 +304,6 @@ describe('the cards', () => {
     expect(nowhere.trend).toBeNull();
     expect(nowhere.latestStill).toBeNull();
     expect(nowhere.openAlerts).toEqual([]);
-    // The widened grow ids are what carry its reminders into the task list.
-    expect(nowhere.dueTasks.map(task => task.label)).toEqual(['Water']);
   });
 
   it('is empty for somebody with nothing, rather than a refusal', async () => {
@@ -549,53 +534,6 @@ describe('what needs a human', () => {
     const [tent] = (await home.read(session(OWNER), NOW)).spaces;
 
     expect(tent.openAlerts).toEqual([expect.objectContaining({ alertId: 'alert-open', metric: 'humidity', name: 'Mould watch' })]);
-  });
-
-  it('lists what is due from the reminders of the space and of its grow', async () => {
-    await db.reminders.create([
-      {
-        id: 'reminder-water',
-        subject: { type: 'grow', id: GROW },
-        kind: 'water',
-        label: 'Water',
-        everyDays: 2,
-        onceAt: null,
-        assigneeId: MEMBER,
-        createdBy: OWNER,
-        createdAt: STARTED_AT,
-      },
-      {
-        id: 'reminder-clean',
-        subject: { type: 'space', id: FRIDGE },
-        kind: 'chore',
-        label: 'Clean the fridge',
-        everyDays: null,
-        onceAt: new Date('2026-07-01T00:00:00.000Z'),
-        assigneeId: null,
-        createdBy: OWNER,
-        createdAt: STARTED_AT,
-      },
-    ]);
-    // Watered on the 9th, so the next watering falls on the 11th: due, and the assignee is named.
-    await db.entries.create(
-      entry({ id: 'entry-watered', growId: GROW, taskId: 'reminder-water:2026-06-09', occurredAt: new Date('2026-06-09T12:00:00.000Z') }),
-    );
-
-    const answer = await home.read(session(OWNER), NOW);
-    const [tent, fridge] = answer.spaces;
-
-    expect(tent.dueTasks).toEqual([
-      {
-        id: `reminder-water:${Date.parse('2026-06-11T12:00:00.000Z')}`,
-        kind: 'water',
-        label: 'Water',
-        dueAt: '2026-06-11T12:00:00.000Z',
-        subject: { type: 'grow', id: GROW },
-        assigneeId: MEMBER,
-      },
-    ]);
-    expect(fridge.dueTasks).toEqual([]);
-    expect(answer.people).toEqual(expect.arrayContaining([{ id: MEMBER, handle: 'mia' }]));
   });
 });
 

@@ -30,8 +30,6 @@ import {
   growUpdate,
   harvestCreate,
   harvestResult,
-  metric,
-  outputMetric,
   phase as phaseShape,
   phaseCreate,
   phaseUpdate,
@@ -89,19 +87,9 @@ const growListQuery = pageQuery.extend({
 const growSeriesQuery = inOrder(
   z.object({
     range: growSeriesRange,
-    metrics: repeated(metric).optional(),
-    outputs: repeated(outputMetric).optional(),
     measurements: repeated(z.string()).optional().describe("Keys of the grow's own `measurements[]`."),
     from: instantQuery().optional().describe('The start of a `custom` range.'),
     to: instantQuery().optional().describe('The end of a `custom` range, and the instant a rolling one counts back from.'),
-    stepSeconds: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe(
-        'The window each point summarises, where somebody chose one; left out, the width of the range decides it. Widened where it would build more points than one read holds.',
-      ),
   }),
   'from',
   'to',
@@ -181,15 +169,15 @@ export class GrowsController {
   }
 
   /**
-   * Every line of a grow's series, over one range. It takes a session if
-   * there is one and nobody if there is not, like the grow's other reads: a
-   * link reaches it clamped to its own window, and a public diary answers it
-   * for as long as the grow ran.
+   * A grow's own measurements over one range. It takes a session if there is
+   * one and nobody if there is not, like the grow's other reads: a link reaches
+   * it clamped to its own window, and a public diary answers it for as long as
+   * the grow ran.
    */
   @Get(':id/series')
   @UseGuards(OptionalSessionGuard, AccessGuard)
   @Requires('view', 'grow')
-  @ApiOperation({ summary: "Climate, outputs and the grow's own measurements over one range", ...SHARED_READ_OPERATION })
+  @ApiOperation({ summary: "The grow's own measurements over one range", ...SHARED_READ_OPERATION })
   @V1Answer(growSeries)
   public async seriesOf(
     @CurrentGrant() grant: Grant,

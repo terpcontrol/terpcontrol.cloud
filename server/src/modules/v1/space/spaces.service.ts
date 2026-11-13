@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { AccessNeed, Device, ProblemError, Space, SpaceCreate, SpaceUpdate } from '@fg2/shared-types/v1';
+import { AccessNeed, ProblemError, Space, SpaceCreate, SpaceUpdate } from '@fg2/shared-types/v1';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
@@ -28,8 +28,8 @@ import { accountOf } from '../caller';
  * A space is little more than a kind, a name and the room it hangs in, but it is
  * what everything else is grouped by - a card on the home screen, a membership,
  * a share link and the place a grow stands in all address a space - so a space
- * outlives what it held: history names it, and it is archived rather than
- * removed.
+ * outlives what it held: history names it, and ending one leaves a tombstone
+ * rather than removing it.
  *
  * A room is a space of kind `room` and not a second collection, because a
  * membership and an invite on it cover the places in it. The grouping is one
@@ -47,7 +47,7 @@ const roomByItself = (detail: string) =>
 /** What a list of spaces narrows by. Neither is a page of its own, so both are query parameters. */
 interface SpaceFilter {
   roomId?: string;
-  /** Archived spaces are their own list: a tombstone is never mixed into the places somebody is growing in. */
+  /** Ended spaces are their own list: a tombstone is never mixed into the places somebody is growing in. */
   archived?: boolean;
 }
 
@@ -255,7 +255,7 @@ export class SpacesService {
     if (kept) return;
 
     await this.spaces.updateOne({ id: roomId }, { $set: { archivedAt: new Date() } });
-    // The ended places still naming it stand in no room: brought back, they must not hang in one that is gone.
+    // The ended places still naming it stand in no room: none of them hangs in one that is gone.
     await this.spaces.updateMany({ roomId }, { $set: { roomId: null } });
     await this.closeWaysInto(roomId);
   }
@@ -294,27 +294,6 @@ export class SpacesService {
     refuseEnded(room);
 
     return room;
-  }
-
-  /**
-   * Archiving is what happens to a place somebody has stopped using: it leaves
-   * every list and stays readable wherever history names it. The route is
-   * idempotent, so archiving twice does not move the instant it carries.
-   */
-  public async archive(ctx: AccessContext, id: string, archived: boolean): Promise<Space> {
-    const space = await this.require(id);
-    if (space.kind === 'room') throw roomByItself('A room ends with the last place standing in it, and is not put away or brought back.');
-    if (archived === (space.archivedAt !== null)) return this.serialise(space, await this.mayIn1(ctx, space));
-    // A place that comes back is one of the owner's places again, and may not take a name another carries by now.
-    if (!archived) await refuseTakenName(this.spaces, space.ownerId, space.kind, space.name, id);
-
-    const changed = await this.spaces
-      .findOneAndUpdate({ id }, { $set: { archivedAt: archived ? new Date() : null } }, { new: true })
-      .lean<SpaceDocument>();
-    if (!changed) throw notFound('space_not_found', 'There is no space with that id.');
-    if (archived) await this.endRoomIfEmpty(space.roomId);
-
-    return this.serialise(changed, await this.mayIn1(ctx, changed));
   }
 
   /**
@@ -358,15 +337,6 @@ export class SpacesService {
     // emptying a tent is a round of errands, and being sent back for the next
     // one each time is how somebody gives up half way.
     if (errors.length > 0) throw conflict('space_in_use', 'This space is not ready to be ended.', errors);
-  }
-
-  /**
-   * Putting a device somewhere, from the space's side. The move itself belongs
-   * to the device module, which takes the cameras a controller answers for
-   * along with it.
-   */
-  public async placeDevice(spaceId: string, deviceId: string, redacted: boolean): Promise<Device> {
-    return this.devices.serialise(await this.devices.update(deviceId, { spaceId }), redacted);
   }
 
   /** Taking a device out. It belongs to nowhere until it is put somewhere, which is a state of its own and not a deletion. */

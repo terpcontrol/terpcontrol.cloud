@@ -120,7 +120,6 @@ export const overviewOf = (over: Partial<SpaceOverview> = {}): SpaceOverview => 
   events: [],
   readingNames: [],
   plants: [],
-  dueTasks: [],
   openAlerts: [],
   people: [{ id: 'user-1', handle: 'you' }],
   ...over,
@@ -226,7 +225,6 @@ export const cardOf = (over: Partial<HomeSpaceCard> = {}): HomeSpaceCard => ({
   entries: [],
   events: [],
   latestStill: null,
-  dueTasks: [],
   openAlerts: [],
   ...over,
 });

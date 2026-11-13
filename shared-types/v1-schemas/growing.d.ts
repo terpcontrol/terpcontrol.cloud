@@ -714,8 +714,8 @@ export declare const spaceCreate: z.ZodObject<{
 }, z.core.$strip>;
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
- * is not among them - archiving is a route of its own, so that ending a space's
- * life is never something a settings form does in passing.
+ * is not among them - a place ends by `DELETE /spaces/{id}`, so that ending a
+ * space's life is never something a settings form does in passing.
  */
 export declare const spaceUpdate: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;

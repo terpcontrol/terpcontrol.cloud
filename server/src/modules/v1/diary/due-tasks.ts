@@ -1,11 +1,14 @@
 import { FilterQuery, Model } from 'mongoose';
-import type { DueTask } from '@fg2/shared-types/v1';
+import type { Task } from '@fg2/shared-types/v1';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { reminderIdOf } from './task-ids';
 
+/** An occurrence of a reminder that is due: what the task list, an entry that closes it and the announcement read. */
+export type DueTask = Pick<Task, 'id' | 'kind' | 'label' | 'dueAt' | 'subject' | 'assigneeId'>;
+
 /**
- * The tasks a reminder puts on a card, worked out at read time.
+ * The tasks a reminder puts on the task list, worked out at read time.
  *
  * Tasks are never stored. A reminder that happens once is one task, and its id
  * is the reminder's; a rhythm is a task per occurrence, whose id names the
@@ -16,7 +19,7 @@ import { reminderIdOf } from './task-ids';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How far ahead a card looks. Anything overdue is due; tomorrow is close enough to prepare for. */
+/** How far ahead a reminder is due by default. Anything overdue is due; tomorrow is close enough to prepare for. */
 const DUE_HORIZON_MS = 2 * DAY_MS;
 
 /** How far ahead the task list looks: its board has a column for the rest of the week. */

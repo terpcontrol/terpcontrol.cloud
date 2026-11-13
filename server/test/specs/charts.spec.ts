@@ -2,11 +2,11 @@ import { anonymous, createAccount, demoSession, Session } from '../support/api';
 import { provisionDevice } from '../support/device';
 
 /**
- * The Charts view and the export, over HTTP.
+ * A grow's measurements and the export, over HTTP.
  *
  * The unit suite has the arithmetic and the access matrix against a database;
  * what is checked here is the rest of the way - that the repeated query
- * parameters the chips send arrive as lists, that the export really answers a
+ * parameters arrive as lists, that the export really answers a
  * job and really finishes, that its file comes back through the route that
  * serves any other file, and that nobody but the person who asked for it can
  * see any of it.
@@ -69,18 +69,17 @@ beforeAll(async () => {
 });
 
 describe('GET /v1/grows/{id}/series', () => {
-  it('draws whatever was ticked, in one answer', async () => {
-    const answer = (
-      await owner.client.get(`/v1/grows/${grow.id}/series?range=24h&metrics=temperature&metrics=vpd&outputs=light&measurements=height`).expect(200)
-    ).body;
+  it('answers the grow´s own measurements, as they were taken', async () => {
+    const answer = (await owner.client.get(`/v1/grows/${grow.id}/series?range=24h&measurements=height`).expect(200)).body;
 
     expect(answer).toMatchObject({ growId: grow.id, range: '24h' });
     expect(answer.originAt).toEqual(expect.any(String));
-    expect(answer.deviceIds).toHaveLength(1);
     expect(answer.measurements).toHaveLength(1);
     expect(answer.measurements[0].points).toEqual([
       { measuredAt: expect.any(String), value: 21, plantId: expect.any(String), entryId: expect.any(String) },
     ]);
+    // The climate of the window is the Timeline's read.
+    expect(answer).not.toHaveProperty('climate');
   });
 
   it('refuses a measurement the grow does not define', async () => {
@@ -113,38 +112,6 @@ describe('GET /v1/grows/{id}/series', () => {
     expect(answer.endsAt).toBe(week.endsAt);
     // The reading was written today, which is outside the week the link opens.
     expect(answer.measurements[0].points).toEqual([]);
-  });
-});
-
-describe('GET /v1/spaces/{id}/series', () => {
-  const from = () => new Date(Date.now() - 6 * 3600_000).toISOString();
-  const to = () => new Date().toISOString();
-
-  it('charts a place over two instants at the step asked for, the lines it names arriving as lists', async () => {
-    const answer = (
-      await owner.client
-        .get(`/v1/spaces/${tent}/series?from=${from()}&to=${to()}&stepSeconds=20&metrics=temperature&metrics=leafTemperature&outputs=light`)
-        .expect(200)
-    ).body;
-
-    expect(answer).toMatchObject({ spaceId: tent, stepSeconds: 20, cameras: [] });
-    expect(answer.deviceIds).toHaveLength(1);
-  });
-
-  it('takes a grow´s step on its own route as well', async () => {
-    const answer = (await owner.client.get(`/v1/grows/${grow.id}/series?range=24h&metrics=temperature&stepSeconds=30`).expect(200)).body;
-
-    expect(answer.stepSeconds).toBe(30);
-    expect(answer.cameras).toEqual([]);
-  });
-
-  it('refuses a range that ends before it begins, and one missing an end', async () => {
-    await owner.client.get(`/v1/spaces/${tent}/series?from=${to()}&to=${from()}&metrics=temperature`).expect(400);
-    await owner.client.get(`/v1/spaces/${tent}/series?from=${from()}&metrics=temperature`).expect(400);
-  });
-
-  it('is not there for a stranger', async () => {
-    await stranger.client.get(`/v1/spaces/${tent}/series?from=${from()}&to=${to()}&metrics=temperature`).expect(404);
   });
 });
 

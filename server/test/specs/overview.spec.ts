@@ -74,7 +74,7 @@ it('answers one aggregation of the last day as a verdict on it', async () => {
 
   const page = (await owner.client.get(`/v1/spaces/${spaceId}/overview`).expect(200)).body;
 
-  expect(page).toMatchObject({ spaceId, deviceIds: [device.deviceId], grows: [], cameras: [], dueTasks: [] });
+  expect(page).toMatchObject({ spaceId, deviceIds: [device.deviceId], grows: [], cameras: [] });
   // Each target carries the band around it, so the figure beside a value and the
   // verdict's "in band" are one judgement and no client keeps a width of its own.
   expect(page.targets).toEqual({

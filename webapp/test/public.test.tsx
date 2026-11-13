@@ -410,7 +410,6 @@ describe('a tent behind a link', () => {
     events: [],
     readingNames: [],
     plants: [],
-    dueTasks: [],
     openAlerts: [],
     people: [],
   });

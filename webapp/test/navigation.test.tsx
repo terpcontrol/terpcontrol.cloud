@@ -81,7 +81,6 @@ const card = (spaceId: string, name: string): HomeSpaceCard => ({
   entries: [],
   events: [],
   latestStill: null,
-  dueTasks: [],
   openAlerts:
     server.alerting === spaceId
       ? [{ alertId: 'alert-1', kind: 'threshold', severity: 'warning', startedAt: ago(30), value: 38, metric: 'humidity', name: 'Too dry' }]

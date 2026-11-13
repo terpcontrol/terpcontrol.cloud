@@ -137,7 +137,6 @@ export function PlantPage() {
             plantId={plant.id}
             label={plant.label}
             others={all.filter(one => one.id !== plant.id)}
-            nights={series.data?.nights ?? []}
             from={new Date(series.data!.startsAt).getTime()}
             to={new Date(series.data!.endsAt).getTime()}
           />

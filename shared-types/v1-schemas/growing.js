@@ -42,7 +42,7 @@ exports.space = (0, common_js_1.named)('Space', zod_1.z.object({
     presetPrompt: exports.presetPrompt,
     retention: exports.spaceRetention,
     isDemo: zod_1.z.boolean(),
-    archivedAt: (0, common_js_1.instant)().nullable().describe('A tombstone: history still names the space, so it is kept and no longer listed.'),
+    archivedAt: (0, common_js_1.instant)().nullable().describe('When the place ended: a tombstone, since history still names it, so it is kept and no longer listed.'),
     createdAt: (0, common_js_1.instant)(),
 }));
 /**
@@ -345,15 +345,10 @@ exports.spaceCreate = (0, common_js_1.named)('SpaceCreate', exports.space
 }));
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
- * is not among them - archiving is a route of its own, so that ending a space's
- * life is never something a settings form does in passing.
+ * is not among them - a place ends by `DELETE /spaces/{id}`, so that ending a
+ * space's life is never something a settings form does in passing.
  */
 exports.spaceUpdate = (0, common_js_1.named)('SpaceUpdate', exports.spaceCreate.partial());
-/*
- * `PUT /spaces/{id}/archive` and the `DELETE` that undoes it carry no body: the
- * method is the whole statement and there is nothing to archive a space *with*.
- * Both answer the space, whose `archivedAt` is what changed.
- */
 /**
  * What a client may do about the grow when a preset is applied to a space that
  * has no open grow: start one here, move an existing one here, or leave grows

@@ -1,30 +1,21 @@
-import type { DeviceSeries } from '@fg2/shared-types/v1';
 import { growSeries } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { DataService, DeviceHistory, SeriesRequest } from '@modules/data/data.service';
 import { GrowSeriesQuery, GrowSeriesService } from '@modules/v1/grow/grow-series.service';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { demo, session, visitor } from './support/callers';
-import { isLit, lastSampleOf, seriesOf, switchingsOf } from './support/fake-data';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 import { standingIn } from './support/placed';
 
 /**
- * The Charts view: what a line is drawn from, and who is allowed to be told.
- *
- * The climate half is the timeline's arithmetic read through a grow instead of
- * through a tent, so what is asserted here is the part that is this route's
- * own: that a grow that moved is read from both tents, that the band follows
- * the phase, that VPD - which the timeline leaves out on purpose - is
- * answerable, and that the grow's own readings come back as the events they
- * are, with the plant and the line they were written on.
+ * A grow's own measurements: the readings come back as the events they are,
+ * with the plant and the line they were written on, over the window the
+ * Timeline's chip of the same name means.
  *
  * The rest is who may look. A link is given a week of a four-week grow, and the
- * assertion is that nothing outside that week reaches it - not a climate point,
- * and not a reading.
+ * assertion is that no reading outside that week reaches it.
  */
 
 const OWNER = 'user-owner';
@@ -49,42 +40,6 @@ const LINK_TO = new Date('2026-05-27T00:00:00.000Z');
 const db = useV1TestDatabase();
 let access: AccessService;
 let series: GrowSeriesService;
-let reads: SeriesRequest[];
-
-/**
- * The newest thing the store holds about a device, whenever it was measured,
- * which is what a window with no curves in it has to be told apart by. Empty
- * stands for a place that measures none of these metrics at all.
- */
-let lastReading: Record<string, string | null>;
-
-/** Set to have the devices report nothing over the window asked for, which is a tent that has fallen quiet. */
-let silent = false;
-
-/** Both devices report; only the controller drives a lamp. */
-const fakeData = {
-  history: async (deviceId: string, request: SeriesRequest): Promise<DeviceHistory> => {
-    const series = await fakeData.series(deviceId, request);
-    const outputs = switchingsOf(request, (output, at) => (deviceId === CONTROLLER && output === 'light' ? isLit(at) : null));
-
-    return { series, outputs, lastSampleAt: lastSampleOf(series) };
-  },
-  series: async (deviceId: string, request: SeriesRequest): Promise<DeviceSeries> => {
-    reads.push(request);
-
-    return seriesOf(deviceId, request, {
-      metric: (name, at) =>
-        silent ? null : name === 'vpd' ? (isLit(at) ? 1.2 : 0.8) : name === 'humidity' ? 55 : name === 'co2' ? 900 : isLit(at) ? 24.8 : 20,
-      output: (output, at) => (!silent && deviceId === CONTROLLER && output === 'light' ? (isLit(at) ? 1 : 0) : null),
-    });
-  },
-  live: async (deviceId: string) => ({
-    metrics: lastReading[deviceId] ? { temperature: { value: 24, measuredAt: lastReading[deviceId], state: 'offline' } } : {},
-    outputs: {},
-    isDay: null,
-    lightOn: null,
-  }),
-} as unknown as DataService;
 
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
 const readAs = async (ctx: AccessContext, asked: GrowSeriesQuery) => {
@@ -207,159 +162,16 @@ const world = async (): Promise<void> => {
 
 beforeEach(async () => {
   await db.reset();
-  reads = [];
-  silent = false;
-  lastReading = {};
   access = accessOn(db);
-  series = new GrowSeriesService(db.devices, db.entries, db.targetChanges, db.cameras, db.media, growsService(), fakeData);
+  series = new GrowSeriesService(db.entries, growsService());
   await world();
 });
 
-describe('the step and the pictures', () => {
-  it('keeps a step somebody chose, down to five seconds, and widens it only past five thousand windows', async () => {
-    const day = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], stepSeconds: 20 });
-    const fine = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'], stepSeconds: 1 });
-    const chosen = await readAs(session(OWNER), { range: '7d', metrics: ['temperature'], stepSeconds: 60 });
-
-    expect(day.stepSeconds).toBe(20);
-    expect(fine.stepSeconds).toBe(18);
-    // Beyond three days a step is a whole number of five minutes, which is the grain the deficit is worked out at.
-    expect(chosen.stepSeconds).toBe(300);
-    expect((await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).stepSeconds).toBe(180);
-  });
-
-  it('carries the stills of the tent´s camera over the window, and none to a link that leaves cameras out', async () => {
-    await db.cameras.create({ id: 'camera-1', ownerId: OWNER, kind: 'terpcam_controller', name: 'Tent cam', deviceId: CONTROLLER, spaceId: TENT });
-    await db.media.create(
-      [0, 1, 2].map(hour => ({
-        id: `still-${hour}`,
-        kind: 'still',
-        mime: 'image/jpeg',
-        bytes: 1,
-        cameraId: 'camera-1',
-        capturedAt: new Date(NOW.getTime() - (hour + 1) * 3600 * 1000),
-      })),
-    );
-
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
-    const shared = await readAs(visitor('a-week-of-it'), { range: 'grow', metrics: ['temperature'] });
-
-    expect(growSeries.parse(answer)).toBeTruthy();
-    expect(answer.cameras).toEqual([
-      {
-        cameraId: 'camera-1',
-        name: 'Tent cam',
-        frames: ['still-2', 'still-1', 'still-0'].map((mediaId, index) => ({
-          mediaId,
-          capturedAt: new Date(NOW.getTime() - (3 - index) * 3600 * 1000).toISOString(),
-        })),
-      },
-    ]);
-    expect(shared.cameras).toEqual([]);
-  });
-});
-
 describe('what a chart is drawn from', () => {
-  it('answers a panel per metric asked for, VPD included', async () => {
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature', 'vpd'] });
-
-    expect(growSeries.parse(answer)).toBeTruthy();
-    expect(answer.climate.map(panel => panel.metric)).toEqual(['temperature', 'vpd']);
-    expect(answer.climate[0].points.length).toBeGreaterThan(100);
-    // The timeline stacks three panels and leaves VPD out; the Charts view does not.
-    expect(answer.climate[1].points.some(point => point.value === 1.2)).toBe(true);
-  });
-
-  it('carries the band of every phase the window spans, and none for a metric nothing aims at', async () => {
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature', 'vpd'] });
-
-    const bands = answer.climate[0].targets;
-    expect(bands.map(band => band.stage)).toEqual(['vegetative', 'flowering']);
-    expect(bands[1].day).toEqual({ setpoint: 26, band: { low: 25, high: 27 } });
-    // Nothing aims a controller at a VPD, so its panel carries no band at all.
-    expect(answer.climate[1].targets).toEqual([]);
-  });
-
-  it('draws the band the tent´s Timeline draws, from what the controller´s record says it aimed at', async () => {
-    const moved = new Date(FLOWERING_FROM.getTime() + 6 * 3600 * 1000);
-    await db.targetChanges.create({
-      id: 'change-1',
-      deviceId: CONTROLLER,
-      at: moved,
-      targets: { day: { temperature: 27, humidity: 40 }, night: { temperature: 22, humidity: 45 }, co2: 1100 },
-    });
-
-    const bands = (await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).climate[0].targets;
-
-    expect(bands.map(band => [band.startsAt, band.stage, band.day?.setpoint])).toEqual([
-      [bands[0].startsAt, 'vegetative', 24],
-      [FLOWERING_FROM.toISOString(), 'flowering', 26],
-      [moved.toISOString(), 'flowering', 27],
-    ]);
-  });
-
-  /**
-   * A metric every point of which is null has no panel, so an empty answer is
-   * what a grow standing among plugs and fans gets and what a grow whose tent
-   * fell quiet on Saturday gets. The window holds nothing that could tell them
-   * apart - the fact that decides it lies outside the window - and the tent's
-   * own Timeline, one tap away, already asks the store outright. Two screens
-   * about one silence must not give two accounts of it.
-   */
-  it('dates a silence the window cannot date for itself, and pays for the read only then', async () => {
-    silent = true;
-    lastReading = { [CONTROLLER]: '2026-06-06T14:07:09.000Z' };
-
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature', 'humidity'] });
-    expect(answer.climate).toEqual([]);
-    expect(answer.lastReadingAt).toBe('2026-06-06T14:07:09.000Z');
-  });
-
-  it('blames nothing on hardware where the places the grow stood in measure none of this', async () => {
-    silent = true;
-
-    expect((await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] })).lastReadingAt).toBeNull();
-  });
-
-  it('does not pay the read where the window already has curves to draw', async () => {
-    lastReading = { [CONTROLLER]: '2026-06-06T14:07:09.000Z' };
-
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
-    expect(answer.climate.length).toBeGreaterThan(0);
-    expect(answer.lastReadingAt).toBeNull();
-  });
-
-  it('shades the night from the lamp and lanes the outputs that were asked for', async () => {
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: [], outputs: ['light'] });
-
-    expect(answer.outputs.map(lane => lane.output)).toEqual(['light']);
-    expect(answer.nights.length).toBeGreaterThan(0);
-    expect(answer.climate).toEqual([]);
-  });
-
-  it('reads the tents the grow stood in, and reads nothing at all when no line wants a device', async () => {
-    await db.grows.updateOne(
-      { id: GROW },
-      { $set: { placements: [{ id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: null, plantIds: null }] } },
-    );
-    const yesterday = new Date(NOW.getTime() - 24 * 60 * 60 * 1000);
-    await db.grows.updateOne(
-      { id: GROW },
-      { $push: { placements: { id: 'placement-2', spaceId: FRIDGE, startedAt: yesterday, endedAt: null, plantIds: ['plant-2'] } } },
-    );
-
-    const both = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
-    expect(both.deviceIds).toEqual([CONTROLLER, CHILLER]);
-
-    const nothing = await readAs(session(OWNER), { range: '24h', measurements: ['height'] });
-    expect(nothing.deviceIds).toEqual([]);
-    expect(nothing.stepSeconds).toBe(0);
-    expect(reads).toHaveLength(2);
-  });
-
   it('answers a measurement as the readings it is, with the plant and the entry each was written on', async () => {
     const answer = await readAs(session(OWNER), { range: 'grow', measurements: ['height', 'ec_in'] });
 
+    expect(growSeries.parse(answer)).toBeTruthy();
     expect(answer.measurements.map(one => one.key)).toEqual(['height', 'ec_in']);
     expect(answer.measurements[0].points.map(point => point.value)).toEqual([12, 21, 19, 64]);
     expect(answer.measurements[0].points[1]).toMatchObject({ plantId: 'plant-1', entryId: expect.any(String) });
@@ -368,7 +180,7 @@ describe('what a chart is drawn from', () => {
   });
 
   it('counts the days of the grow and says where day one was, which is what day-of-grow is plotted from', async () => {
-    const answer = await readAs(session(OWNER), { range: 'grow', metrics: ['temperature'] });
+    const answer = await readAs(session(OWNER), { range: 'grow' });
 
     // Day one is the date the grow began on, from its midnight on the owner's calendar.
     expect(answer.originAt).toBe('2026-05-13T00:00:00.000Z');
@@ -381,7 +193,7 @@ describe('what a chart is drawn from', () => {
     const ended = new Date('2026-06-03T12:00:00.000Z');
     await db.grows.updateOne({ id: GROW }, { $set: { endedAt: ended } });
 
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+    const answer = await readAs(session(OWNER), { range: '24h' });
 
     // A week after the harvest, "the last 24 hours" of this grow is still its
     // last day. Counting back from now would print a day number past the one
@@ -390,14 +202,10 @@ describe('what a chart is drawn from', () => {
     // Noon to noon is two dates, the last two of the grow; without the clamp it
     // read day 28-29 of a 22-day grow.
     expect([answer.dayFrom, answer.dayTo]).toEqual([21, 22]);
-    // And the panel has something in it, which is the other half of the fault:
-    // a window wholly after the harvest could only ever be empty.
-    expect(answer.deviceIds).toEqual([CONTROLLER]);
-    expect(answer.climate[0].points.length).toBeGreaterThan(0);
   });
 
   it('counts a rolling chip back from now while the grow is still running', async () => {
-    const answer = await readAs(session(OWNER), { range: '24h', metrics: ['temperature'] });
+    const answer = await readAs(session(OWNER), { range: '24h' });
 
     expect(answer.endsAt).toBe(NOW.toISOString());
   });
@@ -412,7 +220,7 @@ describe('what a chart is drawn from', () => {
   });
 
   it('answers a custom range as the two instants it names', async () => {
-    const answer = await readAs(session(OWNER), { range: 'custom', from: LINK_FROM, to: LINK_TO, metrics: ['temperature'] });
+    const answer = await readAs(session(OWNER), { range: 'custom', from: LINK_FROM, to: LINK_TO });
 
     expect(answer.startsAt).toBe(LINK_FROM.toISOString());
     expect(answer.endsAt).toBe(LINK_TO.toISOString());
@@ -427,7 +235,6 @@ describe('what a chart is drawn from', () => {
       range: 'custom',
       from: new Date('2026-05-01T00:00:00.000Z'),
       to: new Date('2026-05-15T00:00:00.000Z'),
-      metrics: ['temperature'],
     });
     expect([before.dayFrom, before.dayTo]).toEqual([1, 2]);
 
@@ -438,7 +245,6 @@ describe('what a chart is drawn from', () => {
       range: 'custom',
       from: new Date('2026-06-01T00:00:00.000Z'),
       to: new Date('2026-06-20T00:00:00.000Z'),
-      metrics: ['temperature'],
     });
     expect([after.dayFrom, after.dayTo]).toEqual([20, 22]);
   });
@@ -450,7 +256,6 @@ describe('what a chart is drawn from', () => {
       range: 'custom',
       from: new Date('2026-10-01T00:00:00.000Z'),
       to: new Date('2026-10-05T00:00:00.000Z'),
-      metrics: ['temperature'],
     });
     expect([long.dayFrom, long.dayTo]).toEqual([null, null]);
 
@@ -458,7 +263,6 @@ describe('what a chart is drawn from', () => {
       range: 'custom',
       from: new Date('2026-02-01T00:00:00.000Z'),
       to: new Date('2026-02-05T00:00:00.000Z'),
-      metrics: ['temperature'],
     });
     expect([early.dayFrom, early.dayTo]).toEqual([null, null]);
   });
@@ -470,7 +274,6 @@ describe('what a chart is drawn from', () => {
       range: 'custom',
       from: new Date('2026-06-09T00:00:00.000Z'),
       to: new Date('2026-06-24T00:00:00.000Z'),
-      metrics: ['temperature'],
     });
 
     expect([ahead.dayFrom, ahead.dayTo]).toEqual([28, 29]);
@@ -486,36 +289,14 @@ describe('who is told', () => {
   });
 
   it('clamps a link to its own week and lets nothing outside it through', async () => {
-    const answer = await readAs(visitor('a-week-of-it'), { range: 'grow', metrics: ['temperature'], measurements: ['height', 'ec_in'] });
+    const answer = await readAs(visitor('a-week-of-it'), { range: 'grow', measurements: ['height', 'ec_in'] });
 
     expect(answer.startsAt).toBe(LINK_FROM.toISOString());
     expect(answer.endsAt).toBe(LINK_TO.toISOString());
     // The reading of 15 May and the one of 9 June are both outside the week;
-    // neither is in the answer, and neither is a climate point from outside it.
+    // neither is in the answer.
     expect(answer.measurements[0].points.map(point => point.value)).toEqual([21, 19]);
     expect(answer.measurements[0].points.some(point => point.value === 12 || point.value === 64)).toBe(false);
-    for (const point of answer.climate[0].points) {
-      expect(new Date(point.measuredAt).getTime()).toBeGreaterThanOrEqual(LINK_FROM.getTime());
-      expect(new Date(point.measuredAt).getTime()).toBeLessThanOrEqual(LINK_TO.getTime());
-    }
-  });
-
-  /**
-   * What a reader is shown is the tent, not the hardware in it - the week
-   * cards, the overview and the timeline all withhold the ids - so the chart
-   * of the same grow does not hand them back, neither as the list of devices
-   * it was read from nor on each output's lane.
-   */
-  it('tells a link holder nothing about which controller the climate and the outputs came from', async () => {
-    const answer = await readAs(visitor('a-week-of-it'), { range: 'grow', metrics: ['temperature'], outputs: ['light'] });
-
-    expect(answer.deviceIds).toBeNull();
-    expect(answer.outputs.length).toBeGreaterThan(0);
-    expect(answer.outputs.every(lane => lane.deviceId === null)).toBe(true);
-
-    const own = await readAs(session(MEMBER), { range: 'grow', metrics: ['temperature'], outputs: ['light'] });
-    expect(own.deviceIds).not.toBeNull();
-    expect(own.outputs.every(lane => lane.deviceId !== null)).toBe(true);
   });
 
   it('tells a link holder nothing about which plant a reading was taken on', async () => {
