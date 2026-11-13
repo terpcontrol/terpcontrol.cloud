@@ -794,6 +794,24 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
     expect(screen.getByText('A channel still points at this build. Point it elsewhere first.')).toBeInTheDocument();
   });
+
+  /** A build's name is a label over its version: put right in the sheet every name is, and taken away by an empty one. */
+  it('relabels a build, and takes its name away where the field is left empty', async () => {
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Spring build');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    const sheet = screen.getByRole('dialog', { name: 'Rename the build' });
+    expect(sheet).toHaveTextContent(BUILD.version);
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Name' }), { target: { value: '  ' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(server.wrote).toEqual([{ method: 'PATCH', path: '/admin/firmwares/build-1', body: { name: null } }]));
+  });
 });
 
 describe('the accounts', () => {

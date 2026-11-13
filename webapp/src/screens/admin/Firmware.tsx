@@ -12,6 +12,7 @@ import {
   useUploadBinary,
 } from '@/api/admin';
 import { itemsOf, useFollowCursor } from '@/api/pages';
+import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Label } from './parts';
@@ -279,34 +280,23 @@ function UploadSheet({ build, onClose }: { build: Firmware; onClose: () => void 
   );
 }
 
-/** Relabelling. The version stays what the container stamped; only the name a person reads changes. */
+/** Relabelling. The version stays what the container stamped; only the name a person reads changes, and an empty one takes it away. */
 function RenameSheet({ build, onClose }: { build: Firmware; onClose: () => void }) {
   const { t } = useTranslation();
   const rename = useUpdateFirmware();
-  const [name, setName] = useState(build.name ?? '');
 
   return (
-    <Sheet
+    <NameSheet
       title={t('admin.firmware.renameTitle')}
       aside={build.version}
+      fields={{ name: { label: t('admin.firmware.buildName'), value: build.name ?? '' } }}
+      error={rename.error}
+      busy={rename.isPending}
+      save={t('admin.firmware.renameIt')}
+      ready={() => true}
+      onSave={({ name }) => rename.mutate({ firmwareId: build.id, body: { name: name || null } }, { onSuccess: onClose })}
       onClose={onClose}
-      actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={rename.isPending}
-          onClick={() => rename.mutate({ firmwareId: build.id, body: { name: name.trim() || null } }, { onSuccess: onClose })}
-        >
-          {t('admin.firmware.renameIt')}
-        </button>
-      }
-    >
-      <label className={styles.field}>
-        <span className="label">{t('admin.firmware.buildName')}</span>
-        <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
-      </label>
-      <Refused error={rename.error} />
-    </Sheet>
+    />
   );
 }
 
