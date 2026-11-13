@@ -40,7 +40,10 @@
   gap: 2px;
 }
 
+/* Above its line, which may be a row of facts cut on the left: the (i) keeps its whole reach. */
 .rowTitle {
+  position: relative;
+  z-index: 1;
   font-weight: var(--weight-semibold);
   line-height: 1.35;
 }
@@ -59,8 +62,20 @@
 .rowControl {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  max-width: 100%;
+}
+
+/* A switch is at the right edge of its row: alone it stays beside the text at
+   any width, with company the control keeps right where it drops under. */
+.rowHead:has([role='switch']:only-child) {
+  flex-wrap: nowrap;
+}
+
+.rowControl:has([role='switch']) {
+  margin-left: auto;
 }
 
 /* The export's state while the zip is being written: a figure's line, under the row. */
@@ -76,7 +91,7 @@
   min-height: var(--control-height);
 }
 
-.page :is(button, select)[class*='chip'] {
+.page :is(button, select):is([class*='chip'], [class*='segment']) {
   min-width: var(--control-height);
   justify-content: center;
 }

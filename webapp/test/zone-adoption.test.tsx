@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import i18next from 'i18next';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ZoneAdoption } from '@/app/shell/ZoneAdoption';
 import { translate } from './translations';
 
@@ -41,7 +42,8 @@ const draw = () =>
     </MemoryRouter>,
   );
 
-beforeAll(() => translate());
+// Both catalogues: following the account's language fetches none that is already here.
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
   state.preferences = { units, locale: 'en', timezone: 'UTC', timezoneChosen: false };
@@ -88,15 +90,44 @@ describe('an account whose zone somebody picked', () => {
 });
 
 /**
- * What the server writes itself - the day counter burnt into a film - is in the
- * language the account was last used in, so the account is told it.
+ * The account keeps the language chosen in a browser - what the server writes
+ * itself, the day counter burnt into a film, is in it - and a browser nobody
+ * chose one in follows the account instead of overwriting it.
  */
 describe('the language the app is used in', () => {
-  it('is told to an account that last heard another, without a word on screen', () => {
-    state.preferences = { units, locale: 'de', timezone: 'UTC', timezoneChosen: true };
+  const picked = { units, locale: 'de', timezone: 'UTC', timezoneChosen: true };
+
+  afterEach(async () => {
+    // Taken down first: a page still up would follow its account back.
+    cleanup();
+    localStorage.clear();
+    await i18next.changeLanguage('en');
+  });
+
+  it('is told to the account by a browser it was chosen in, without a word on screen', () => {
+    localStorage.setItem('terp.language', 'en');
+    state.preferences = picked;
     draw();
 
     expect(state.sent).toEqual([{ preferences: { locale: 'en' } }]);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it("is the account's in a browser that chose none, kept for its next first frame and not as its choice", async () => {
+    state.preferences = picked;
+    draw();
+
+    await waitFor(() => expect(i18next.language).toBe('de'));
+    expect(state.sent).toEqual([]);
+    expect(localStorage.getItem('terp.language')).toBeNull();
+    expect(localStorage.getItem('terp.language.account')).toBe('de');
+  });
+
+  it("is this browser's for an account no browser was signed in to yet, which knows none", () => {
+    state.preferences = { units, locale: 'de', timezone: 'UTC', timezoneChosen: false };
+    draw();
+
+    expect(state.sent).toContainEqual({ preferences: { locale: 'en' } });
+    expect(i18next.language).toBe('en');
   });
 });

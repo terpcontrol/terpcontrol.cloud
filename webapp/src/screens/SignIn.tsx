@@ -36,14 +36,14 @@ export function SignIn() {
   // Where the guard said this person was going, and a whole address rather than
   // a path: the query is what a deep link is about, so it is replayed untouched
   // and never rebuilt from its parts.
-  const arrival = location.state as { from?: string; ended?: boolean; recovered?: boolean; activated?: boolean } | null;
+  const arrival = location.state as { from?: string; ended?: boolean; recovered?: boolean; activated?: boolean; deleted?: boolean } | null;
   const destination = arrival?.from ?? '/';
   // Sent here because the server refused the session in use, not because
   // nobody had signed in: said, so the form is not read as the app failing.
   const ended = arrival?.ended === true;
-  // Sent here from setting a new password or activating the account: the next
-  // step is this form, and it says so.
-  const welcome = arrival?.recovered ? 'login.recovered' : arrival?.activated ? 'login.activated' : null;
+  // Sent here from setting a new password or activating the account - the next
+  // step is this form, and it says so - or from deleting it, which is said once.
+  const welcome = arrival?.recovered ? 'login.recovered' : arrival?.activated ? 'login.activated' : arrival?.deleted ? 'login.deleted' : null;
   const [inactive, setInactive] = useState(false);
   // Opened at its own address - a bookmark on the old /login - this page is the
   // first thing to run, so a session kept in this browser is read here too and

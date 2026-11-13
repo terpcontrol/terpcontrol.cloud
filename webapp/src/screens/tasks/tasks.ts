@@ -101,28 +101,15 @@ export const storedScope = (): Scope => (readStored(SCOPE_KEY) === 'all' ? 'all'
 export const storeScope = (scope: Scope): void => writeStored(SCOPE_KEY, scope);
 
 /**
- * "Tue 16 Sep": the words in the language the app is being read in, so a German
- * screen does not carry an English weekday, and the order the app's one date
- * shape gives them.
- *
- * The language chooses the words and nothing else. Asked for the shape as well,
- * through `toLocaleString`, it answered "Wed, Sep 16" in English - the American
- * order - and "Mi., 16. Sept." in German, while the archive and the account's
- * sessions two taps away wrote "24 Aug 2026" in both; a reader had one screen
- * putting the month first and another putting the day first with nothing to say
- * why.
+ * "Tue 16 Sep": the words in the language the app is being read in, in the
+ * order the app's one date shape gives them - the language chooses the words
+ * and nothing else, so every screen puts the day before the month.
  */
 export const dateLabel = (at: DateTime, language: string): string => at.setLocale(language).toFormat(WEEKDAY_DAY);
 
 /**
  * "30 Sep 2026": the one day a one-off rhythm falls on, read where the account
- * is.
- *
- * It is the same day the card above it counts to, and it has to be read in the
- * same zone to stay that day: the rhythm line wrote the instant on whatever
- * calendar the browser was in, so a reader west of their account was told
- * "in 7 d" on one row and the day before that one on the next - one reminder,
- * one read of one screen, two days.
+ * is - the zone the card above it counts its days in, so both name one day.
  */
 export const onceLabel = (instant: string, language: string, zone: string | null): string => zoned(instant, zone).setLocale(language).toFormat(DAY);
 

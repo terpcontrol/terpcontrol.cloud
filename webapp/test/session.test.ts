@@ -364,6 +364,16 @@ describe('the query cache across accounts', () => {
     expect(session.snapshot().user).toBeNull();
   });
 
+  it('only forgets a session the server ended itself, with its account: nobody is left to ask', async () => {
+    const { session } = await signedIn([{}]);
+    const before = vi.mocked(fetch).mock.calls.length;
+
+    await session.logOut(true);
+
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(before);
+    expect(session.snapshot().user).toBeNull();
+  });
+
   it('is emptied when the demo replaces the session, which passes no sign-in page', async () => {
     const { session, queryClient } = await signedIn([{ ...triple('demo', 30 * DAY_MS), sessionId: 'session-demo', user: DEMO }]);
 

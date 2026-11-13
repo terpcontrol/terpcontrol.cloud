@@ -2,23 +2,25 @@ import { type QueryClient } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
+import { Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Me, MeUpdate, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import { session as store } from '@/api/session';
 import type { Told } from '@/log/log-context';
 import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith } from './session';
 import { Toast } from './toast';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Me › Account: the address, the password, the time zone, the sessions, the
  * export and the way out.
  *
  * The password is checked on the wire - that both the current and the new one
- * travel, and that a wrong current one is said under the form and ends
+ * travel, and that a wrong current one is said at its field and ends
  * nothing. The zone is checked for travelling alone, and for the toast that
  * takes it back. The sessions are checked for the one row that must not carry
  * a Sign out, and the export for being the same job as a grow's: asked once,
@@ -70,6 +72,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
     kind: 'export',
     mime: 'application/zip',
     bytes: server.exportBytes,
+    createdAt: server.builtAt ?? DateTime.now().toISO(),
     exportJob: { status, scope: 'account', growId: null, startedAt: null, endedAt: status === 'ready' ? server.builtAt : null, error: null },
   }) as unknown as Media;
 
@@ -174,7 +177,11 @@ beforeEach(() => {
   server.builtAt = null;
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  // The export a browser keeps by account would be the next test's standing file.
+  localStorage.clear();
+});
 
 describe('how this person signs in', () => {
   it('shows the address and says it cannot be changed here, rather than offering a field the server has no route for', async () => {
@@ -212,7 +219,7 @@ describe('how this person signs in', () => {
     expect(server.passwords).toEqual([]);
   });
 
-  it('says under the form when the current password was wrong, and keeps the form open', async () => {
+  it('says at its field that the current password was wrong, in the reader’s language, and keeps the form open', async () => {
     server.wrongPassword = true;
     await drawLoaded();
 
@@ -222,9 +229,18 @@ describe('how this person signs in', () => {
     fireEvent.change(screen.getByLabelText('New password again'), { target: { value: 'new-one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("That is not this account's current password.");
-    expect(screen.getByLabelText('Current password')).toBeInTheDocument();
+    const said = await screen.findByRole('alert');
+    expect(said).toHaveTextContent("That is not this account's current password.");
+    // Between the field it is about and the next one, not under the buttons.
+    expect(said.previousElementSibling).toContainElement(screen.getByLabelText('Current password'));
+    expect(screen.getByLabelText('Current password')).toBeInvalid();
     expect(told).toEqual([]);
+
+    // Not the sentence of a refusal nobody named: "you may not do that here".
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await i18next.changeLanguage('de');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Das aktuelle Passwort stimmt nicht.');
+    await i18next.changeLanguage('en');
   });
 });
 
@@ -436,6 +452,39 @@ describe('taking everything away', () => {
     expect(server.exportsAsked).toBe(1);
   });
 
+  it('finds it after a reload too, from what this browser kept, without asking for a new one', async () => {
+    const first = draw();
+    await screen.findByText('login@example.org');
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+    await screen.findByRole('button', { name: /Download · 12\.4 MB/ });
+    first.unmount();
+
+    // A reload: nothing of the cache is left.
+    await drawLoaded();
+
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Build the zip' })).not.toBeInTheDocument();
+    expect(server.exportsAsked).toBe(1);
+  });
+
+  it('offers a new one beside a file older than the hour the route answers it for', async () => {
+    server.builtAt = DateTime.now().minus({ hours: 3 }).toISO();
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 3 h ago/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Build the zip' })).toBeEnabled();
+  });
+
+  it('takes a kept file that is no longer there as no file, not as a refusal', async () => {
+    localStorage.setItem('terp.export.undefined', 'media-gone');
+    await drawLoaded();
+
+    expect(await screen.findByRole('button', { name: 'Build the zip' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('dates the file it hands over, because the route answers a standing one for an hour', async () => {
     server.builtAt = DateTime.now().minus({ minutes: 40 }).toISO();
     await drawLoaded();
@@ -481,13 +530,14 @@ describe('taking everything away', () => {
   it('will not delete anything until the handle has been typed', async () => {
     await drawLoaded();
 
-    expect(screen.getByText('really deleted, not hidden · devices stay claimable')).toBeInTheDocument();
-    // The button is drawn as an ellipsis and has to be named after the row it ends.
-    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    expect(screen.getByText(reading('really deleted, not hidden · devices stay claimable'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account …' }));
 
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });
     expect(confirm).toBeDisabled();
     expect(screen.getByText(/deleted rather than hidden, and there is no way back/)).toBeInTheDocument();
+    // Whom else it reaches is said where the deed is confirmed.
+    expect(screen.getByText(/Whoever sees your places loses them, and whoever follows your grows loses those too/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'yo' } });
     expect(confirm).toBeDisabled();
@@ -496,6 +546,27 @@ describe('taking everything away', () => {
     fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'you' } });
     fireEvent.click(confirm);
     await waitFor(() => expect(server.deleted).toBe(1));
+  });
+
+  it('ends on the sign-in page, told that the account is gone, and asks the server to end no session it has forgotten', async () => {
+    const forgets = vi.spyOn(store, 'logOut');
+    const SignInPage = () => <p>sign-in {JSON.stringify(useLocation().state)}</p>;
+    drawAt(
+      <Toast told={told}>
+        <Routes>
+          <Route path="/me/account" element={<Account />} />
+          <Route path="/sign-in" element={<SignInPage />} />
+        </Routes>
+      </Toast>,
+      { at: '/me/account' },
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account …' }));
+    fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'you' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' }));
+
+    expect(await screen.findByText('sign-in {"deleted":true}')).toBeInTheDocument();
+    expect(forgets).toHaveBeenCalledWith(true);
+    expect(server.revoked).toEqual([]);
   });
 
   /**
@@ -507,7 +578,7 @@ describe('taking everything away', () => {
    */
   it('takes the handle as the sheet prints it, whatever the keyboard did to the case', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account …' }));
 
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });
     const field = screen.getByLabelText('Type you to confirm');

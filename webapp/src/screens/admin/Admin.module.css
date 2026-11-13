@@ -67,6 +67,9 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  animation: more step-end both;
+  animation-timeline: scroll(self inline);
+  animation-range: 0% calc(100% - var(--space-2));
 }
 
 /* Wide enough that no cell wraps a line under another in a narrow window, and
@@ -134,20 +137,35 @@
 }
 
 /* The last column is the way into a row - the chevron, the actions - and it
-   is pinned to the scroller's right edge. Between the rail's breakpoint and
-   the width at which a table fits its card, the table scrolls sideways, and a
-   column that rode off with the rest would be off-screen with nothing to say
-   the row goes on; a device an administrator cannot open is the one thing
-   this screen must not produce. The pinned cell carries its own background so
-   what scrolls under it stays under it, a rule on its left so the pin reads as
-   one, and the same hover as the rest of its row. Where the table fits, the
-   rule is simply the last column's divider. The row a filter empties spans
-   every column, so it is not pinned to anything. */
+   is pinned to the scroller's right edge: between the rail's breakpoint and
+   the width at which a table fits its card the table scrolls sideways, and a
+   device an administrator cannot open is the one thing this screen must not
+   produce. The pinned cell carries its own background, so what scrolls under
+   it stays under it, the hover of its row, and a shade on its left edge while
+   the table has more to scroll to: `--shade` is set by the card's scroll
+   timeline - which a card its table fits does not have - and drawn by a box
+   of its own, because a cell of a collapsed table keeps no rule when it is
+   pinned and no shadow at all. The row a filter empties is not pinned. */
+@keyframes more {
+  from {
+    --shade: 0.4;
+  }
+}
+
 .table thead th:last-child,
 .table tbody td:last-child:not([colspan]) {
   position: sticky;
   right: 0;
-  border-left: var(--rule-solid);
+}
+
+.table thead th:last-child::before,
+.table tbody td:last-child:not([colspan])::before {
+  content: '';
+  position: absolute;
+  inset: 0 100% 0 calc(-1 * var(--space-2));
+  background: linear-gradient(to left, var(--scrim), transparent);
+  opacity: var(--shade, 0);
+  pointer-events: none;
 }
 
 .table tbody td:last-child:not([colspan]) {

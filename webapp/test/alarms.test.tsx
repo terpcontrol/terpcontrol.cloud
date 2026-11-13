@@ -8,7 +8,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, repeatsEvery, scaleNote, watchLabel, willTell } from '@/screens/control/alarms/rules';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import type { Told } from '@/log/log-context';
@@ -256,19 +256,19 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText('above 30 °C')).toBeInTheDocument();
-    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
 
     const offline = await card('Device offline');
     expect(within(offline).getByText('built in · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('longer than 2 h')).toBeInTheDocument();
-    expect(within(running).getByText('device · warning · goes to you by push · announced once')).toBeInTheDocument();
+    expect(within(running).getByText('device · warning · goes to you by push · does not repeat')).toBeInTheDocument();
     expect(within(running).getByRole('img', { name: 'triggered right now' })).toBeInTheDocument();
 
     const hook = await card('Pump watchdog');
     expect(within(hook).getByText('above 0.5')).toBeInTheDocument();
-    expect(within(hook).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
+    expect(within(hook).getByText('custom · for 5 min · warning · webhook · does not repeat')).toBeInTheDocument();
   });
 
   /**
@@ -288,11 +288,11 @@ describe('the alarm rules page', () => {
 
     const until = mutedUntil.setZone('Europe/Berlin').toFormat('HH:mm');
     const offline = await card('Device offline');
-    expect(within(offline).getByText(`built in · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
+    expect(within(offline).getByText(`built in · for 10 min · critical · muted until ${until}`)).toBeInTheDocument();
     expect(offline.textContent).not.toMatch(/goes to you|repeats every/);
 
     // Its own webhook is not the account's channel, and is not held back with them.
-    expect(within(await card('Pump watchdog')).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
+    expect(within(await card('Pump watchdog')).getByText('custom · for 5 min · warning · webhook · does not repeat')).toBeInTheDocument();
   });
 
   it('holds a warning back inside the account’s quiet hours and lets a critical rule through, as the server does', async () => {
@@ -307,7 +307,9 @@ describe('the alarm rules page', () => {
     const until = `${String(Math.floor(quietHours.toMinute / 60)).padStart(2, '0')}:${String(quietHours.toMinute % 60).padStart(2, '0')}`;
     expect(within(await card('Dehumidifier running non-stop')).getByText(`device · warning · your quiet hours until ${until}`)).toBeInTheDocument();
     expect(
-      within(await card('Too hot')).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once'),
+      within(await card('Too hot')).getByText(
+        'climate preset · for 10 min · critical · goes to you by push + Telegram · comes through despite quiet hours · does not repeat',
+      ),
     ).toBeInTheDocument();
   });
 
@@ -330,7 +332,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(
-      within(await card('Too hot')).getByText('climate preset · for 10 min · critical · goes to you by push (off) + Telegram · announced once'),
+      within(await card('Too hot')).getByText('climate preset · for 10 min · critical · goes to you by push (off) + Telegram · does not repeat'),
     ).toBeInTheDocument();
   });
 
@@ -359,9 +361,9 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? warningsLost : answers(path)) as never);
     draw();
 
-    // Named on the row but set up nowhere is a dead end, and gets the way out on the card.
+    // Named on the row but set up nowhere is a dead end: the line promises no channel, and the card has the way out.
     const running = await card('Dehumidifier running non-stop');
-    expect(within(running).getByText('device · warning · goes to you by push (off) · announced once')).toBeInTheDocument();
+    expect(within(running).getByText('device · warning')).toBeInTheDocument();
     expect(within(running).getByRole('link', { name: 'does not reach you · set up ›' })).toBeInTheDocument();
 
     // A rule with a target of its own goes out whatever the account set.
@@ -372,7 +374,7 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => (path === '/me' ? new Promise(() => {}) : Promise.resolve(answers(path))) as never);
     draw();
 
-    expect(within(await card('Too hot')).getByText('climate preset · for 10 min · critical · announced once')).toBeInTheDocument();
+    expect(within(await card('Too hot')).getByText('climate preset · for 10 min · critical · does not repeat')).toBeInTheDocument();
     expect(screen.queryByText(/does not reach you/)).not.toBeInTheDocument();
   });
 
@@ -428,7 +430,12 @@ describe('the alarm rules page', () => {
     draw();
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`)).toBeInTheDocument();
+    // A silenced rule tells nobody, so the line promises no channel and no repeat.
+    expect(
+      within(hot).getByText(
+        `climate preset · for 10 min · critical · silenced for everyone until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`,
+      ),
+    ).toBeInTheDocument();
     fireEvent.click(within(hot).getByRole('button', { name: 'Unsilence' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));
@@ -644,7 +651,7 @@ describe('the alarm rules page', () => {
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('climate preset · for 10 min · critical · announced once')).toHaveLength(1);
+    expect(screen.getAllByText('climate preset · for 10 min · critical · does not repeat')).toHaveLength(1);
     expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
   });
 
@@ -661,10 +668,10 @@ describe('the alarm rules page', () => {
     const co2 = await card('CO₂ too high');
     expect(within(co2).getByText('climate preset · for 10 min · critical · switched off')).toBeInTheDocument();
     expect(within(co2).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    expect(co2.textContent).not.toMatch(/goes to you|announced once|repeats every/);
+    expect(co2.textContent).not.toMatch(/goes to you|does not repeat|repeats every/);
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate preset · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
   });
 
   /**
@@ -1421,6 +1428,30 @@ describe('what a rule is called', () => {
     expect(repeatsEvery(rule({ repeatSeconds: 3600, delivery: { mode: 'custom', custom: mail } }))).toBe(3600);
     // A rule routed through the account's grid is not a mail of its own, whatever delivery it kept from before.
     expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'routing', custom: mail } }))).toBe(60);
+  });
+
+  /**
+   * What was held back is not sent later, so only a rule that repeats is
+   * promised to say itself after the night - and of a rule that says itself
+   * once, the line says no more than until when the night lasts.
+   */
+  it('promises a held-back alarm after quiet hours only where its rule repeats, and nothing of a silenced rule but its silence', () => {
+    const here = NOW.setZone('Europe/Berlin');
+    const minute = here.hour * 60 + here.minute;
+    const quiet = { ...me, notifications: { ...me.notifications, quietHours: { fromMinute: minute, toMinute: (minute + 60) % 1440 } } };
+    const until = here.plus({ hours: 1 }).toFormat('HH:mm');
+    const t = i18next.t.bind(i18next) as Translate;
+
+    expect(willTell(t, 'warning', rule({ repeatSeconds: 1800 }), quiet, NOW).said).toEqual([`repeats after your quiet hours, from ${until}`]);
+    expect(willTell(t, 'warning', rule({ repeatSeconds: 0 }), quiet, NOW).said).toEqual([`your quiet hours until ${until}`]);
+    // What the health loop raises without a rule is routed like any other, and never repeats.
+    expect(willTell(t, 'warning', null, me, NOW)).toEqual({ said: ['goes to you by push', 'does not repeat'], unreached: false });
+    expect(willTell(t, 'info', rule({}), me, NOW).said).toEqual(['is not announced']);
+    expect(willTell(t, 'critical', rule({ silencedUntil: NOW.plus({ minutes: 5 }).toISO() }), quiet, NOW).said).toEqual([
+      `silenced for everyone until ${here.plus({ minutes: 5 }).toFormat('HH:mm')}`,
+    ]);
+    const nowhere = { ...me, notifications: { ...me.notifications, routing: { alerts: [], warnings: [] } } } as unknown as Me;
+    expect(willTell(t, 'critical', rule({}), nowhere, NOW)).toEqual({ said: [], unreached: true });
   });
 
   it('reads headers off their lines and drops what is not one', () => {

@@ -46,7 +46,8 @@
     "acceptPrivacyNeeded": "Bitte akzeptiere die Datenschutzbedingungen, um ein Konto anzulegen.",
     "recovered": "Dein Passwort ist geändert. Melde dich jetzt damit an.",
     "activated": "Dein Konto ist aktiv. Melde dich jetzt an.",
-    "notActivated": "Dieses Konto ist noch nicht aktiviert. Der Code ist eben noch einmal an {{email}} gegangen – öffne den Link in der Mail oder gib den Code ein."
+    "notActivated": "Dieses Konto ist noch nicht aktiviert. Der Code ist eben noch einmal an {{email}} gegangen – öffne den Link in der Mail oder gib den Code ein.",
+    "deleted": "Dein Konto ist gelöscht."
   },
   "growPresets": {
     "stages": {
@@ -540,7 +541,10 @@
       "temperature": "Temperatur",
       "humidity": "Luftfeuchte",
       "co2": "CO₂",
-      "vpd": "VPD"
+      "vpd": "VPD",
+      "leafTemperature": "Blatttemperatur",
+      "lux": "Lux",
+      "ppfd": "PPFD"
     },
     "stage": {
       "germination": "Keimung",
@@ -637,9 +641,9 @@
     "title": "Ich",
     "appearance": {
       "title": "Darstellung",
-      "themeLine": "folgt dem System, bis du wählst",
+      "themeLine": "nur in diesem Browser",
       "language": "Sprache",
-      "languageLine": "in diesem Browser gemerkt",
+      "languageLine": "hier und in jedem Browser ohne eigene Wahl",
       "languageNames": {
         "en": "English",
         "de": "Deutsch"
@@ -655,7 +659,8 @@
         "ounces": "oz",
         "liters": "l",
         "gallons": "gal"
-      }
+      },
+      "unitsLine": "Die Ansichten zeigen vorerst °C, Gramm und Liter."
     },
     "theme": {
       "label": "Design",
@@ -841,8 +846,8 @@
     "premium": {
       "title": "Premium",
       "demo": "Die Demo hat kein eigenes Konto, hier gibt es also kein Premium anzusehen.",
-      "ungated": "Diese Installation schaltet nichts ab: jede Kamera hier hat alles, was Premium umfasst, nichts läuft ab und nichts ist zu verlängern.",
-      "noCameras": "Noch keine Kamera. Premium gilt pro Kamera, hier steht also nichts, bis eine gekoppelt oder hinzugefügt ist.",
+      "ungated": "Diese Installation schaltet nichts ab: Jede Kamera hier hat alles, was Premium umfasst.",
+      "noCameras": "Noch keine eigene Kamera.",
       "kind": {
         "terpcam_controller": "Terp Cam",
         "terpcam_standalone": "Terp Cam · eigenständig",
@@ -887,7 +892,6 @@
         "whole": "ganz",
         "perInstall": "je Installation"
       },
-      "perCamera": "Pro Kamera, nicht pro Konto. Eine Terp Cam bringt 12 Monate mit; eine RTSP-Kamera läuft auch ohne, wie jede Kamera ohne Premium, und hat Premium nur, wenn es für sie gekauft wird. Das Angebot zur Verlängerung steht auf der Karte der Kamera ab {{days}} Tage, bevor ihr Jahr endet; nichts verlängert sich von selbst. Selbst gehostete Installationen haben gar kein Premium.",
       "extend": "Premium verlängern",
       "missing": {
         "widthAndDays_one": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
@@ -968,17 +972,16 @@
         "again": "Erneut versuchen",
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
-        "download": "Herunterladen · {{size}}",
-        "downloadAged": "Herunterladen · {{size}} · erstellt vor {{age}}",
+        "download": "Herunterladen · {{size}} · vor {{age}}",
         "failedPlain": "Die Datei konnte nicht erstellt werden.",
         "line": "JSON, CSV, Tagebuchfotos und Filme in einem Zip"
       },
       "delete": {
         "title": "Mein Konto löschen",
         "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu beanspruchen",
-        "open": "…",
+        "open": "Mein Konto löschen …",
         "what": "Alles, was diesem Konto gehört, ist weg: die Orte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
-        "grows": "Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat. Einen einzelnen Grow löschst du auf seiner eigenen Seite.",
+        "grows": "Wer deine Orte sieht, verliert sie, und wer deinen Grows folgt, verliert sie auch. Geräte, die du beansprucht hast, kann danach wieder beanspruchen, wer sie in der Hand hat.",
         "typeHandle": "Tippe {{handle}} zur Bestätigung",
         "notHandle": "Das ist nicht dein Handle.",
         "yes": "Mein Konto löschen"
@@ -1010,7 +1013,8 @@
       "line": {
         "auto": "an, sobald du einen Grow startest oder etwas einträgst",
         "on": "Grow und Eintrag stehen in der Leiste",
-        "off": "die App zeigt nur Klima und Geräte"
+        "off": "die App zeigt nur Klima und Geräte",
+        "autoOn": "an, seit du einen Grow gestartet oder etwas eingetragen hast"
       },
       "told": {
         "auto": "Grow-Tagebuch: automatisch",
@@ -2575,19 +2579,11 @@
     "enable": "{{name}} an oder aus",
     "meta": {
       "for": "für {{length}}",
-      "notAnnounced": "erreicht dich nicht",
       "reachesNobody": "erreicht dich nicht · einrichten ›",
-      "ownTarget": "eigenes Ziel",
-      "repeatsEvery": "wiederholt sich alle {{length}}",
-      "silencedUntil": "stumm bis {{time}}",
-      "mutedUntil": "deine Kanäle stumm bis {{time}}",
-      "quietUntil": "deine Ruhezeit bis {{time}}",
       "switchedOff": "ausgeschaltet",
       "restsInGermination": "ruht während der Keimung",
       "restsInGerminationChange": "ruht während der Keimung · unter Steuerung ändern ›",
-      "germinationLine": "gilt in der Keimung · danach wieder {{bound}}",
-      "announcedOnce": "wird einmal gemeldet",
-      "toYou": "geht an dich per {{channels}}"
+      "germinationLine": "gilt in der Keimung · danach wieder {{bound}}"
     },
     "severity": {
       "critical": "Kritisch",
@@ -2710,6 +2706,19 @@
       "made": "Alarm „{{name}}“ angelegt",
       "silenced": "„{{name}}“ 1 Std stumm",
       "loud": "„{{name}}“ wieder laut"
+    },
+    "tell": {
+      "silenced": "für alle stumm bis {{time}}",
+      "ownTarget": "eigenes Ziel",
+      "repeats": "wiederholt sich alle {{length}}",
+      "once": "ohne Wiederholung",
+      "nowhere": "wird nicht gemeldet",
+      "nobody": "erreicht dich nicht",
+      "muted": "stumm bis {{time}}",
+      "quiet": "deine Ruhezeit bis {{time}}",
+      "afterQuiet": "meldet sich nach deiner Ruhezeit, ab {{time}}",
+      "toYou": "geht an dich per {{channels}}",
+      "through": "kommt trotz Ruhezeit durch"
     }
   },
   "tasks": {
@@ -2748,12 +2757,6 @@
       "feed": "düngen",
       "chore": "Routine"
     },
-    "due": {
-      "overdue": "{{count}} T überfällig",
-      "today": "heute",
-      "tomorrow": "morgen",
-      "inDays": "in {{count}} T"
-    },
     "assignedToYou": "dir zugeteilt",
     "assignedToSomeone": "jemand anderem zugeteilt",
     "ticked": {
@@ -2764,7 +2767,6 @@
     },
     "edit": "Ändern",
     "add": "+ Erinnerung",
-    "sources": "Hier stehen deine Erinnerungen und die Schritte des Grow-Plans, die auf dich warten. Was du hier abhakst, steht danach auch im Tagebuch.",
     "sheet": {
       "newTitle": "Neue Erinnerung",
       "editTitle": "Erinnerung",
@@ -2805,7 +2807,12 @@
     "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an den Controller. Das kann nur, wer den Ort steuert.",
     "every_one": "jeden Tag",
     "every_other": "alle {{count}} Tage",
-    "tickedOff": "Erledigt · {{label}}"
+    "tickedOff": "Erledigt · {{label}}",
+    "told": {
+      "created": "Erinnerung angelegt · {{label}}",
+      "changed": "Erinnerung geändert · {{label}}",
+      "deleted": "Erinnerung gelöscht · {{label}}"
+    }
   },
   "targets": {
     "title": "Zielwerte",
@@ -2978,8 +2985,7 @@
       "unlink": "Trennen"
     },
     "email": {
-      "address": "Adresse",
-      "addressNeeded": "Adresse eintragen, um einzuschalten"
+      "address": "Adresse"
     },
     "webhook": {
       "url": "URL",
@@ -2990,9 +2996,7 @@
       "json": "JSON"
     },
     "grid": {
-      "cell": "{{category}} per {{channel}}",
-      "note": "Ein Kanal ist aus, bis er eingerichtet ist, und seine Spalte lässt sich bis dahin nicht schalten.",
-      "kept": "Zu einem Kanal, der nicht eingerichtet ist, wird noch etwas geleitet. Diese Zuordnung bleibt erhalten und greift, sobald der Kanal ein Ziel hat."
+      "cell": "{{category}} per {{channel}}"
     },
     "quiet": {
       "window": "{{from}} – {{to}}",
@@ -3001,7 +3005,8 @@
       "from": "Von",
       "to": "Bis",
       "zone": "in deiner Zeitzone ({{zone}})",
-      "offTitle": "Aus"
+      "offTitle": "Aus",
+      "empty": "Von und Bis sind gleich: Diese Ruhezeit hätte keine Länge und wird nicht gespeichert."
     },
     "demo": "Die Demo hat keine Kontoeinstellungen.",
     "edit": "Bearbeiten",
@@ -3045,16 +3050,8 @@
       "threshold": "Alarm"
     },
     "meta": {
-      "since": "seit {{time}} · schon {{age}}",
-      "repeats": "meldet sich alle {{every}}, bis es behoben ist",
-      "once": "meldet sich einmal",
-      "silenced": "für alle stumm bis {{time}}",
       "inMaintenance": "Gerät in Wartung, bis {{time}} wird nichts ausgelöst",
       "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
-      "resolved": "behoben {{time}} · dauerte {{age}}",
-      "rested": "ruht in der Keimung · seit {{time}} · nicht behoben · dauerte {{age}}",
-      "notAnnounced": "nicht gemeldet",
-      "unheard": "hat dich nicht erreicht",
       "ruleNow": "die Regel sagt inzwischen {{severity}}",
       "until": "bis {{time}}"
     },
@@ -3066,7 +3063,9 @@
       "checkCam": "Cam prüfen",
       "remove": "Löschen",
       "device": "Zum Gerät",
-      "notify": "Benachrichtigungen einrichten"
+      "silenceRule": "Diese Regel 1 Std stumm",
+      "unsilenceRule": "Diese Regel wieder laut",
+      "forAll": "gilt für alle, die den Ort sehen"
     },
     "remove": {
       "ask": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt."
@@ -3084,19 +3083,10 @@
       "fanBackwall": "Rückwandlüfter",
       "compressor": "Kompressor"
     },
-    "metric": {
-      "leafTemperature": "Blatt",
-      "lux": "Lux",
-      "ppfd": "PPFD",
-      "offline": "offline",
-      "temperature": "Temperatur",
-      "humidity": "Luftfeuchte",
-      "co2": "CO₂"
-    },
     "bellMore_one": "Meldungen · mehr als {{count}} offen",
     "bellMore_other": "Meldungen · mehr als {{count}} offen",
     "earlier": "Früher",
-    "nothingWatching": "Hier landen Alarme, sobald ein Gerät misst oder eine Cam filmt. Was im Tagebuch fällig ist, steht unter Aufgaben.",
+    "nothingWatching": "Hier landen Alarme, sobald ein Gerät misst oder eine Cam filmt.",
     "demoNoInbox": "Die Demo hat keinen Posteingang; öffne einen Ort, um seine Alarme zu sehen.",
     "severity": {
       "critical": "Kritisch",
@@ -3108,12 +3098,11 @@
     "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig",
     "back": "Zurück zu Meldungen",
     "open": "Offen",
-    "over": "Erledigt",
+    "over": "Vorbei",
     "allTasks": "Alle Aufgaben und Erinnerungen",
     "settings": "Benachrichtigungen einstellen",
-    "ago": "vor {{age}}",
     "since": "seit {{time}}",
-    "mute": "1 Std stumm",
+    "mute": "Alles 1 Std stumm",
     "update": "Firmware {{build}} ist da",
     "told": {
       "muted": "Alles stumm bis {{time}}",
@@ -3138,7 +3127,9 @@
       "offline": "seitdem wieder online",
       "camera_stale": "liefert wieder Bilder",
       "rested": "ruht in der Keimung · nicht behoben"
-    }
+    },
+    "brief": "kurz",
+    "last": "zuletzt {{time}}"
   },
   "claim": {
     "title": "Gerät hinzufügen",
@@ -3349,7 +3340,6 @@
       "title": "Firmware-Ausrollung",
       "upload": "Build hochladen",
       "channels": "Kanäle und Stufen",
-      "how": "Eine Klasse gibt ihren Build über stable, beta und alpha aus. Eine Stufe erreicht jeweils einen Anteil der Klasse, und der Anteil wird aus der Geräte-ID gezogen - ein Gerät, das drin ist, bleibt drin, wenn die Stufe wächst. Ein Gerät meldet den installierten Build wenige Minuten später.",
       "nothing": "Keine Klasse hat bisher ein Gerät.",
       "stand": "{{build}} · {{running}} · {{devices}} auf diesem Kanal",
       "noBuild": "zeigt auf keinen Build",
@@ -3385,7 +3375,6 @@
     "firmware": {
       "title": "Firmware",
       "classes": "Geräteklassen",
-      "classesHow": "Ein Kanal zeigt auf einen Build, und jedes Gerät der Klasse, das diesem Kanal folgt, wird zur Installation aufgefordert. Bis auf Übernehmen wird hier nichts geschrieben, und was die Änderung erreichen würde, steht unter den Bedienelementen.",
       "noBuild": "kein Build",
       "stage": "Gestufte Ausrollung",
       "stageReach": "{{percent}} % · etwa {{reach}} {{ofDevices}}",
@@ -3401,7 +3390,6 @@
       "confirmBody": "Das erreicht innerhalb von Minuten Hardware, die bei jemandem an einem Ort steht:",
       "confirmYes": "Änderung übernehmen",
       "register": "Build anlegen",
-      "registerHow": "Ein Build wird angelegt, bevor er Bytes hat; seine Dateien werden danach dazu hochgeladen. Die Version ist die UUID, die der Build-Container gestempelt hat, und wird nie mit einer anderen verglichen.",
       "buildName": "Name",
       "version": "Version (UUID)",
       "registerIt": "Anlegen",
@@ -3437,7 +3425,6 @@
       "search": "Suchen",
       "create": "+ Konto",
       "noMatch": "Kein Konto passt zu „{{search}}“. Die Suche liest Handles und Adressen.",
-      "privacy": "Eine Adresse steht auf dieser Seite und auf keiner anderen in der App. Die Suche liest nur, was schon geladen ist - hier Getipptes wird nirgendwohin geschickt.",
       "showing": "{{shown}} von {{loaded}} geladenen gezeigt",
       "active": "aktiv",
       "notActivated": "nicht aktiviert",
@@ -3482,7 +3469,6 @@
     },
     "demo": {
       "title": "Demo-Gerät",
-      "what": "Was ein Demo-Besucher sieht: jeder Ort, jedes Gerät, jede Kamera und jeder Grow, die als Demo-Objekt markiert sind. Diese Seite schreibt nichts - die Markierung ist eine Eigenschaft der Datenbank ohne Route dahinter und wird beim Aufsetzen der Demo gesetzt.",
       "empty": "Auf dieser Installation ist nichts als Demo-Objekt markiert, die Demo-Tour hat also nichts zu zeigen.",
       "devices": "Geräte",
       "deviceCount": "{{devices}} in der Demo",
@@ -3562,7 +3548,8 @@
       "camera_here": "Hier schaut noch eine Kamera hinein.",
       "grow_here": "Hier läuft noch ein Grow.",
       "space_here": "In diesem Raum stehen noch Orte.",
-      "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort."
+      "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
+      "current_password_wrong": "Das aktuelle Passwort stimmt nicht."
     }
   },
   "alarmLine": {
@@ -3693,10 +3680,6 @@
       "title": "Alles stumm",
       "text": "Eine Stunde lang wird dir nichts geschickt, auch keine kritischen Alarme, und Alarmmeldungen aus dieser Stunde kommen auch später nicht. Stumm bist nur du: Die anderen, mit denen du deine Orte teilst, bekommen weiter Bescheid, und eine Regel mit eigener E-Mail oder eigenem Webhook sendet weiter."
     },
-    "silence": {
-      "title": "1 Std stumm",
-      "text": "Diese eine Regel sagt eine Stunde lang niemandem Bescheid – keinem Mitglied, auf keinem Kanal, auch nicht per eigener E-Mail oder eigenem Webhook. Sie beobachtet weiter: Die Meldung erscheint trotzdem unter Meldungen."
-    },
     "maintenance": {
       "title": "Wartung",
       "text": "Für die Arbeit im Zelt oder Schrank: Eine Viertelstunde lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht; „Verlängern“ hängt eine weitere an. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
@@ -3731,7 +3714,7 @@
     },
     "routingGrid": {
       "title": "Was wohin geht",
-      "text": "Jede Zeile ist eine Art Nachricht, jede Spalte ein Weg zu dir; gesendet wird erst, wenn du ein Feld einschaltest. Das Raster gilt nur für dich – alle, mit denen du Orte teilst, stellen ihr eigenes ein –, und eine Alarmregel mit eigener E-Mail oder eigenem Webhook läuft nicht darüber."
+      "text": "Jede Zeile ist eine Art Nachricht, jede Spalte ein Weg zu dir; gesendet wird erst, wenn du ein Feld einschaltest. Ein Kanal ist aus, bis er eingerichtet ist, und seine Spalte lässt sich bis dahin nicht schalten; was ihm schon zugeordnet ist, bleibt erhalten und greift, sobald er ein Ziel hat. Das Raster gilt nur für dich – alle, mit denen du Orte teilst, stellen ihr eigenes ein –, und eine Alarmregel mit eigener E-Mail oder eigenem Webhook läuft nicht darüber."
     },
     "emailAlarms": {
       "title": "Alarme per E-Mail",
@@ -3783,7 +3766,7 @@
     },
     "premiumCamera": {
       "title": "Premium",
-      "text": "Premium gehört zu einer Kamera, nicht zum Konto, und verlängert sich nie von selbst; eine Terp Cam bringt beim ersten Koppeln 12 Monate mit. Ohne Premium sind Filme SD mit Wasserzeichen, und HD- und Ganzer-Grow-Filme werden nicht erstellt."
+      "text": "Premium gehört zu einer Kamera, nicht zum Konto, und verlängert sich nie von selbst: Das Angebot dazu steht unter Ich › Premium auf der Karte der Kamera, sobald ihr Jahr zu Ende geht. Eine Terp Cam bringt beim ersten Koppeln 12 Monate mit; eine RTSP-Kamera hat Premium nur, wenn es für sie gekauft wird. Ohne Premium sind Filme SD mit Wasserzeichen, und HD- und Ganzer-Grow-Filme werden nicht erstellt. Selbst gehostete Installationen haben kein Premium und schalten nichts ab."
     },
     "timelapses": {
       "title": "Zeitraffer",
@@ -3835,11 +3818,11 @@
     },
     "publicProfile": {
       "title": "Öffentliches Profil",
-      "text": "Deine Profilseite zeigt deine öffentlichen Grows mit Bio und Bild. Ausgeschaltet ist die Seite weg, dein Benutzername steht aber weiterhin auf jedem öffentlichen Grow."
+      "text": "Deine Profilseite zeigt deinen Benutzernamen und deine öffentlichen Grows. Ausgeschaltet ist die Seite weg, dein Benutzername steht aber weiterhin auf jedem öffentlichen Grow."
     },
     "deleteAccount": {
       "title": "Das Konto löschen",
-      "text": "Alle, die du zu deinen Orten eingeladen hast, verlieren den Zugang, und wer deinen Grows folgt, verliert sie. Zeilen, die du an fremden Orten geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu beanspruchen lassen."
+      "text": "Zeilen, die du an fremden Orten geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu beanspruchen lassen. Einen einzelnen Grow löschst du auf seiner eigenen Seite."
     },
     "passwordChange": {
       "title": "Das Passwort ändern",
@@ -4083,10 +4066,6 @@
       "title": "Öffentliche Grows",
       "text": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die Live-Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
     },
-    "units": {
-      "title": "Einheiten",
-      "text": "Die Einheiten sind beim Konto gespeichert. Die Ansichten zeigen vorerst noch °C, Gramm und Liter."
-    },
     "timezone": {
       "title": "Zeitzone",
       "text": "Die Zeitzone ist beim Konto gespeichert. Jede Uhrzeit, die die App zeigt, und die Ruhezeiten werden darin gelesen – auf jedem Gerät gleich, wo immer es gerade steht."
@@ -4094,6 +4073,30 @@
     "sessions": {
       "title": "Sitzungen",
       "text": "Jeder Browser und jedes Skript, das als du angemeldet ist. Eine beendete Sitzung muss sich neu anmelden."
+    },
+    "tasks": {
+      "title": "Aufgaben",
+      "text": "Hier stehen deine Erinnerungen und die Schritte des Grow-Plans, die auf dich warten. Was du hier abhakst, steht danach auch im Tagebuch."
+    },
+    "firmwareClasses": {
+      "title": "Geräteklassen",
+      "text": "Ein Kanal zeigt auf einen Build, und jedes Gerät der Klasse, das diesem Kanal folgt, wird zur Installation aufgefordert. Bis auf Übernehmen wird hier nichts geschrieben, und was die Änderung erreichen würde, steht unter den Bedienelementen."
+    },
+    "firmwareRegister": {
+      "title": "Build anlegen",
+      "text": "Ein Build wird angelegt, bevor er Bytes hat; seine Dateien werden danach dazu hochgeladen. Die Version ist die UUID, die der Build-Container gestempelt hat, und wird nie mit einer anderen verglichen."
+    },
+    "demoObjects": {
+      "title": "Was die Demo zeigt",
+      "text": "Was ein Demo-Besucher sieht: jeder Ort, jedes Gerät, jede Kamera und jeder Grow, die als Demo-Objekt markiert sind. Diese Seite schreibt nichts - die Markierung ist eine Eigenschaft der Datenbank ohne Route dahinter und wird beim Aufsetzen der Demo gesetzt."
+    },
+    "adminAddresses": {
+      "title": "Adressen",
+      "text": "Eine Adresse steht auf dieser Seite und auf keiner anderen in der App. Die Suche liest nur, was schon geladen ist - hier Getipptes wird nirgendwohin geschickt."
+    },
+    "rolloutStages": {
+      "title": "Firmware-Ausrollung",
+      "text": "Eine Klasse gibt ihren Build über stable, beta und alpha aus. Eine Stufe erreicht jeweils einen Anteil der Klasse, und der Anteil wird aus der Geräte-ID gezogen - ein Gerät, das drin ist, bleibt drin, wenn die Stufe wächst. Ein Gerät meldet den installierten Build wenige Minuten später."
     }
   },
   "place": {

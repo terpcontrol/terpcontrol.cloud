@@ -6,7 +6,7 @@ import { useGrows } from '@/api/grows';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { AdminHead, AdminNotLoaded, Liveness } from './parts';
+import { AdminHead, AdminNotLoaded, Label, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
@@ -57,15 +57,13 @@ export function Demo() {
     <section className={styles.page}>
       {header}
 
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.demo.what')}</p>
-
       {shownDevices.length === 0 && shownSpaces.length === 0 && shownGrows.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('admin.demo.empty')}</p>
       ) : null}
 
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <span className="label">{t('admin.demo.devices')}</span>
+          <Label text={t('admin.demo.devices')} help="demoObjects" />
           <span className={`mono ${styles.consequence}`}>{t('admin.demo.deviceCount', { devices: shownDevices.length })}</span>
         </div>
         <ul className={styles.lines}>

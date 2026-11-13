@@ -13,8 +13,7 @@ import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { targetWithUnit } from '@/ui/units';
-import { channelsLabel, routedChannels, severityReaches } from '@/screens/notifications/reach';
-import { timeOf } from '@/screens/notifications/settings';
+import { severityReaches } from '@/screens/notifications/reach';
 import { durationLabel } from '@/ui/age';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
@@ -28,10 +27,9 @@ import { clock, zoneOf } from '@/ui/zone';
 import { ByDevice, NothingHere } from '../ByDevice';
 import { alarmsLine } from '../rows';
 import { RuleSheet } from './RuleSheet';
-import { SilenceChip } from './Silence';
 import { useSilence } from './use-silence';
 import { ruleFor, templateBody, templateName, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
-import { boundLabel, groupRules, heldBackBy, missingSensor, repeatsEvery, ruleTitle, watchable, watchLabel } from './rules';
+import { boundLabel, groupRules, missingSensor, ruleTitle, watchable, watchLabel, willTell } from './rules';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
 import { serverNow } from '@/api/clock';
@@ -389,7 +387,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
   }, [highlighted]);
 
   const missing = missingSensor(rule.watch, device);
-  const silenced = silence.silenced;
+  const told = willTell(t, rule.severity, rule, me, now);
   // The stage's "too humid" rests while the device germinates, unless the grower asked to be warned there too,
   // and warns at germination's own line where they did - which is the line the card shows while it lasts.
   const workmode = device.configuration?.workmode;
@@ -416,10 +414,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
         {watching ? <span className={styles.watching}>{watching}</span> : null}
         {bound ? <span className={`mono ${styles.bound}`}>{bound}</span> : null}
       </span>
-      <span className={`mono ${styles.meta}`}>{metaLine(t, rule, me, now)}</span>
-      {silenced ? (
-        <span className={`mono ${styles.meta}`}>{t('alarms.meta.silencedUntil', { time: clock(rule.silencedUntil!, zoneOf(me)) })}</span>
-      ) : null}
+      <span className={`mono ${styles.meta}`}>{metaLine(t, rule, told.said)}</span>
       {missing ? <span className={`mono ${styles.reason}`}>{t(`alarms.needs.${missing}`)}</span> : null}
       {resting && !(mayManage && device.spaceId) ? <span className={`mono ${styles.reason}`}>{t('alarms.meta.restsInGermination')}</span> : null}
       {ownLine ? <span className={`mono ${styles.meta}`}>{t('alarms.meta.germinationLine', { bound: ownLine })}</span> : null}
@@ -450,7 +445,11 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
         ) : (
           <span className={`mono ${styles.state}`}>{t(rule.enabled ? 'misc.on' : 'misc.off')}</span>
         )}
-        {mayManage && (silenced || rule.state.triggered) ? <SilenceChip silence={silence} /> : null}
+        {mayManage && (silence.silenced || rule.state.triggered) ? (
+          <button type="button" className={ui.chip} disabled={silence.busy} onClick={silence.toggle}>
+            {t(silence.silenced ? 'alerts.action.unsilence' : 'alerts.action.silence')}
+          </button>
+        ) : null}
       </span>
       {silence.error ? (
         <span className={styles.refused}>
@@ -464,7 +463,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
           {t('alarms.meta.restsInGerminationChange')}
         </Link>
       ) : null}
-      {!toldAbove && reachesNobody(rule, me, now) ? (
+      {!toldAbove && rule.enabled && told.unreached ? (
         <Link to="/me/notifications" className={`mono ${styles.fix}`}>
           {t('alarms.meta.reachesNobody')}
         </Link>
@@ -476,50 +475,13 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
 /**
  * "custom · for 10 min · critical · goes to you by push + Telegram · repeats
  * every 30 min": where the rule came from, how long it has to last, how loud
- * it is, where it goes and how often it says so again.
- *
- * A routed rule goes where the account's grid sends that severity, said as the
- * reader's own once the account has answered; a rule with a delivery of its
- * own names the channel. The line ends at the state for a rule that is off,
- * and at the silence for an account that has muted itself or is inside its
- * quiet hours - a rule with a target of its own still sends then.
+ * it is, and what it will do to reach the reader (`willTell`). A rule that is
+ * off says that instead.
  */
-const metaLine = (t: Translate, rule: AlarmRule, me: Me | undefined, now: DateTime): string => {
+const metaLine = (t: Translate, rule: AlarmRule, told: string[]): string => {
   const parts: string[] = [t(`alarms.origin.${rule.origin}`)];
   if (rule.forSeconds > 0 && rule.watch.kind !== 'output_running') parts.push(t('alarms.meta.for', { length: durationLabel(rule.forSeconds) }));
-  parts.push(t(`alarms.severity.${rule.severity}`));
-
-  const routed = rule.delivery.mode === 'routing' ? routedChannels(me, rule.severity) : null;
-  const held = routed === null ? null : heldBackBy(me, rule.severity, now);
-  const announced = routed === null || me === undefined || routed.length > 0;
-
-  if (routed === null) parts.push(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.meta.ownTarget'));
-  else if (me && rule.enabled && held === 'muted') parts.push(t('alarms.meta.mutedUntil', { time: clock(me.notifications.mutedUntil!, zoneOf(me)) }));
-  else if (me && rule.enabled && held === 'quiet') parts.push(t('alarms.meta.quietUntil', { time: timeOf(me.notifications.quietHours!.toMinute) }));
-  else if (me && rule.enabled && announced) parts.push(t('alarms.meta.toYou', { channels: channelsLabel(t, routed) }));
-  // A rule nobody hears is said under the card, as the way to change that.
-  else if (me && rule.enabled && !reachesNobody(rule, me, now)) parts.push(t('alarms.meta.notAnnounced'));
-
-  if (!rule.enabled) parts.push(t('alarms.meta.switchedOff'));
-  else if (announced && held === null) {
-    parts.push(
-      rule.repeatSeconds > 0 ? t('alarms.meta.repeatsEvery', { length: durationLabel(repeatsEvery(rule)) }) : t('alarms.meta.announcedOnce'),
-    );
-  }
+  parts.push(t(`alarms.severity.${rule.severity}`), ...(rule.enabled ? told : [t('alarms.meta.switchedOff')]));
 
   return parts.join(' · ');
 };
-
-/**
- * Whether a rule that is on would tell nobody, for a reason the account can
- * fix: it goes by the account's grid, the account is not keeping itself quiet,
- * and no channel its row names is set up. An info rule is announced nowhere by
- * design and is left out; so is one with a target of its own.
- */
-const reachesNobody = (rule: AlarmRule, me: Me | undefined, now: DateTime): boolean =>
-  me !== undefined &&
-  rule.enabled &&
-  rule.delivery.mode === 'routing' &&
-  rule.severity !== 'info' &&
-  heldBackBy(me, rule.severity, now) === null &&
-  !severityReaches(me, rule.severity);

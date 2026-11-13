@@ -17,6 +17,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import {
   CRITICAL_REPEAT_SECONDS,
+  alertCategory,
   inQuietWindow,
   mailFloorSecondsOf,
   repeatSecondsOf,
@@ -25,8 +26,10 @@ import {
 import { UNIT, targetFigure } from '@/ui/units';
 import { CO2_HOLDERS, hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
-import { isAhead } from '@/ui/age';
-import { zoneOf } from '@/ui/zone';
+import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
+import { timeOf } from '@/screens/notifications/settings';
+import { durationLabel, isAhead } from '@/ui/age';
+import { clock, zoneOf } from '@/ui/zone';
 
 /**
  * What the alarm screen knows about a rule that the contract does not say in so
@@ -51,13 +54,14 @@ export const groupRules = (rules: AlarmRule[]): { origin: AlarmOrigin; rules: Al
   ORIGINS.map(origin => ({ origin, rules: rules.filter(rule => rule.origin === origin) })).filter(group => group.rules.length > 0);
 
 /** How often a rule really repeats: its own interval, or the mail floor for a rule that e-mails. */
-export const repeatsEvery = (rule: AlarmRule): number => Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
+export const repeatsEvery = (rule: Pick<AlarmRule, 'repeatSeconds' | 'delivery'>): number =>
+  Math.max(rule.repeatSeconds, mailFloorSecondsOf(rule.delivery));
 
 /** The always-on watch: the health loop decides it, so it has no line to cross and cannot be pointed at anything else. */
 export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean => watch.kind === 'reading' && watch.metric === 'offline';
 
 /** What a rule is called, here and wherever else it is named. */
-export { ruleTitle } from '@/i18n/alarm-line';
+export { metricName, ruleTitle } from '@/i18n/alarm-line';
 
 /**
  * The outputs each kind of hardware drives, from the list of what every type
@@ -204,24 +208,48 @@ export const boundLabel = (t: Translate, watch: AlarmWatch): string => {
 };
 
 /**
- * Why nothing at all would be said right now, or null while the account is
- * being listened to. Routing is only half of what decides whether a rule
- * reaches anybody: the server holds every message back while the account is
- * muted and everything short of critical during quiet hours, by the
- * contract's `silenceOf`.
+ * What an alarm will do to reach this account from now on, in the words every
+ * screen says it in: a rule under Steuerung › Alarme and an open alert's card.
+ * It is asked of the grade the alarm is announced at and of the rule that
+ * addresses it - null for what the health loop raises without one, which is
+ * routed and never repeats.
  *
- * Quiet hours are read in the account's own zone, the one the window was set
- * in and the server reads it in. Only a rule routed through the account's
- * grid is subject to it: a rule delivering to a target of its own is
- * unaffected by either.
+ * It decides in the server's order. A silenced rule tells nobody. A rule with
+ * a target of its own sends whatever the account has set. An info alarm is on
+ * no row of the grid. A row none of whose channels is set up reaches nobody:
+ * `unreached`, said by whoever offers the way to change that. A mute holds
+ * everything back and quiet hours everything short of critical (`silenceOf`),
+ * read in the account's zone; what was held back is not sent later, so only a
+ * rule that repeats is promised to say itself once the night is over.
  */
-export const heldBackBy = (me: Me | undefined, severity: Severity, now: DateTime): 'muted' | 'quiet' | null => {
-  if (!me) return null;
+export const willTell = (
+  t: Translate,
+  severity: Severity,
+  rule: Pick<AlarmRule, 'delivery' | 'repeatSeconds' | 'silencedUntil'> | null,
+  me: Me | undefined,
+  now: DateTime,
+): { said: string[]; unreached: boolean } => {
   const zone = zoneOf(me);
+  const said = (...parts: (string | null)[]) => ({ said: parts.filter(part => part !== null), unreached: false });
+  const repeats = rule !== null && rule.repeatSeconds > 0;
+  const again = repeats ? t('alarms.tell.repeats', { length: durationLabel(repeatsEvery(rule)) }) : t('alarms.tell.once');
+
+  if (rule && isAhead(rule.silencedUntil, now)) return said(t('alarms.tell.silenced', { time: clock(rule.silencedUntil!, zone) }));
+  if (rule?.delivery.mode === 'custom')
+    return said(rule.delivery.custom ? t(`alarms.channel.${rule.delivery.custom.channel}`) : t('alarms.tell.ownTarget'), again);
+  if (!me) return said(again);
+  if (alertCategory(severity) === null) return said(t('alarms.tell.nowhere'));
+
+  const routed = routedChannels(me, severity);
+  if (!routed.some(channel => channel.configured)) return { said: [], unreached: true };
+
   const local = zone ? now.setZone(zone) : now;
   const quiet = inQuietWindow(me.notifications.quietHours, local.hour * 60 + local.minute);
+  const held = silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
+  if (held === 'muted') return said(t('alarms.tell.muted', { time: clock(me.notifications.mutedUntil!, zone) }));
+  if (held === 'quiet') return said(t(`alarms.tell.${repeats ? 'afterQuiet' : 'quiet'}`, { time: timeOf(me.notifications.quietHours!.toMinute) }));
 
-  return silenceOf(severity, isAhead(me.notifications.mutedUntil ?? null, now), quiet);
+  return said(t('alarms.tell.toYou', { channels: channelsLabel(t, routed) }), quiet ? t('alarms.tell.through') : null, again);
 };
 
 /**

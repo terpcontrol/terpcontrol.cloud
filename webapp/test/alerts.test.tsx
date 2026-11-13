@@ -7,7 +7,8 @@ import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
-import { crossedBound, worstFirst } from '@/screens/alerts/inbox';
+import { crossedBound, lastEndedFirst, worstFirst } from '@/screens/alerts/inbox';
+import { forgetKept } from '@/ui/kept';
 import { alertLabel } from '@/ui/units';
 import { deviceWith } from './fixtures';
 import { drawAt, json, reading } from './harness';
@@ -157,6 +158,7 @@ const server = {
   /** The page behind the cursor: an empty one is a list with no `nextCursor`. */
   older: [] as Alert[],
   rules: [] as AlarmRule[],
+  places: [{ id: 'space-1', name: 'Flower room B' }],
   devices: [deviceRow()],
   cameras: [{ id: 'cam-2', name: 'Cam 2' }] as Record<string, unknown>[],
   /** The builds a device is offered, by its id. */
@@ -184,7 +186,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
   }
   // What a card offers - silencing the rule - is `manage` where the alert happened, so the space list carries the standing.
   if (method === 'GET' && path === '/v1/spaces')
-    return json({ items: [spaceWhere(state.youMay, { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
+    return json({ items: server.places.map(place => spaceWhere(state.youMay, place)), nextCursor: null });
   if (method === 'GET' && path === '/v1/devices') return json({ items: server.devices, nextCursor: null });
   const builds = /^\/v1\/devices\/([^/]+)\/firmwares$/.exec(path);
   if (method === 'GET' && builds) return json({ items: server.builds[builds[1]] ?? [], nextCursor: null });
@@ -217,6 +219,7 @@ const readsOf = (path: string) => server.sent.filter(one => one.method === 'GET'
 beforeAll(() => translate());
 
 beforeEach(() => {
+  forgetKept();
   state.who = 'you';
   state.youMay = 'own';
   state.refuse = null;
@@ -224,6 +227,7 @@ beforeEach(() => {
   server.alerts = [];
   server.older = [];
   server.rules = [];
+  server.places = [{ id: 'space-1', name: 'Flower room B' }];
   server.devices = [deviceRow()];
   server.cameras = [{ id: 'cam-2', name: 'Cam 2' }];
   server.builds = {};
@@ -252,13 +256,28 @@ afterEach(() => {
 /** The cards under "Open", in the order they are drawn. */
 const openCards = () => within(screen.getByRole('region', { name: 'Open' })).getAllByRole('listitem');
 
-/** The rows under "Over", each as its title and the line under it. */
+/** The ⋯ of a card, opened: what it holds is then drawn in the card. */
+const more = (card: HTMLElement): HTMLElement => {
+  fireEvent.click(within(card).getByRole('button', { name: /^More about/ }));
+
+  return card;
+};
+
+/** How a row dates an instant: the hour today, the day before that. */
+const stamp = (at: DateTime) => {
+  const there = at.setZone(ACCOUNT_ZONE);
+  const days = Math.floor(NOW.setZone(ACCOUNT_ZONE).startOf('day').diff(there.startOf('day'), 'days').days);
+
+  return days === 0 ? there.toFormat('HH:mm') : days === 1 ? 'yesterday' : there.toFormat('cccc');
+};
+
+/** The rows under "Resolved", each as its title and the line under it. */
 const overRows = () =>
-  within(screen.getByRole('region', { name: 'Over' }))
+  within(screen.getByRole('region', { name: 'Resolved' }))
     .getAllByRole('button')
     .map(row => [...row.querySelector('span')!.childNodes].map(node => node.textContent?.replace(/\u00a0/g, ' ')));
 
-/** Opens what a row under "Over" holds, and hands back its sheet. */
+/** Opens what a row under "Resolved" holds, and hands back its sheet. */
 const openRow = async (name: string | RegExp) => {
   fireEvent.click(await screen.findByRole('button', { name }));
 
@@ -281,15 +300,15 @@ describe('the inbox', () => {
     server.cameras = [];
     draw();
 
-    expect(
-      await screen.findByText('Alarms land here once a device measures or a cam films. What is due in the diary is under Tasks.'),
-    ).toBeInTheDocument();
+    // The account keeps no diary, so nothing here points to tasks it has not got.
+    expect(await screen.findByText('Alarms land here once a device measures or a cam films.')).toBeInTheDocument();
+    expect(screen.queryByText(/Tasks/)).not.toBeInTheDocument();
     expect(screen.queryByText('Nothing is open right now.')).not.toBeInTheDocument();
     // Nothing here can raise an alarm, so there is nothing to mute.
-    expect(screen.queryByRole('button', { name: 'Mute 1 h' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mute all 1 h' })).not.toBeInTheDocument();
   });
 
-  it('draws what is open as cards and what is over as rows, each saying how long ago it ended', async () => {
+  it('draws what is open as cards and what is over as rows, each saying when it ended', async () => {
     server.alerts = [
       alert({ id: 'open' }),
       alert({
@@ -307,15 +326,62 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    await screen.findByRole('heading', { level: 2, name: 'Over' });
-    expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Open', 'Over']);
+    await screen.findByRole('heading', { level: 2, name: 'Resolved' });
+    expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(['Open', 'Resolved']);
     expect(openCards()).toHaveLength(1);
     // A night the tent ran hot is still worth reading in the morning: nothing is dropped for being old.
     expect(overRows()).toEqual([
-      ['Blue Dream tent offline for 6 min', '3 h ago'],
-      ['Humidity too high for 40 min', '1 d ago'],
-      ['Humidity too high for 1 h', '5 d ago'],
+      ['Blue Dream tent offline for 6 min', stamp(NOW.minus({ hours: 3 }))],
+      ['Humidity too high for 40 min', 'yesterday'],
+      ['Humidity too high for 1 h', stamp(NOW.minus({ days: 5 }))],
     ]);
+  });
+
+  /** The server lists what is over by when it began; the page is headed by when it ended, and stands in that order. */
+  it('stands what is over in the order it ended, and says where once the account sees a second place', async () => {
+    server.places = [...server.places, { id: 'space-2', name: 'Cellar' }];
+    server.alerts = [
+      alert({
+        id: 'blip',
+        spaceId: 'space-2',
+        startedAt: iso(NOW.minus({ hours: 2 })),
+        resolvedAt: iso(NOW.minus({ hours: 2 }).plus({ seconds: 20 })),
+      }),
+      alert({ id: 'night', startedAt: iso(NOW.minus({ hours: 9 })), resolvedAt: iso(NOW.minus({ hours: 1 })), extremeValue: 74 }),
+    ];
+    server.rules = [rule()];
+    draw();
+
+    await screen.findByRole('heading', { level: 2, name: 'Resolved' });
+    // Under a minute is "a moment": a blip has no length worth a figure.
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Humidity too high for 8 h', `Flower room B · ${stamp(NOW.minus({ hours: 1 }))}`],
+        ['Humidity too high for a moment', `Cellar · ${stamp(NOW.minus({ hours: 2 }))}`],
+      ]),
+    );
+    expect(screen.queryByText(/\d s\b/)).not.toBeInTheDocument();
+  });
+
+  it('folds a reading that came and went all morning into one row, which opens the newest of it', async () => {
+    const flap = (id: string, minutes: number) =>
+      alert({ id, startedAt: iso(NOW.minus({ minutes: minutes + 4 })), resolvedAt: iso(NOW.minus({ minutes })) });
+    server.alerts = [
+      flap('third', 10),
+      flap('second', 30),
+      flap('first', 50),
+      alert({ id: 'low', value: 30, startedAt: iso(NOW.minus({ hours: 5 })), resolvedAt: iso(NOW.minus({ hours: 4 })) }),
+    ];
+    server.rules = [rule({ watch: { kind: 'reading', metric: 'humidity', upper: 60, lower: 40 } })];
+    draw();
+
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Humidity too high', `${stamp(NOW.minus({ minutes: 10 }))} · 3× since ${clock(NOW.minus({ minutes: 54 }))}`],
+        ['Humidity too low for 1 h', stamp(NOW.minus({ hours: 4 }))],
+      ]),
+    );
+    expect(await openRow(/^Humidity too high/)).toHaveAccessibleName('Humidity too high for 4 min');
   });
 
   it('says what happened, since when, where and how far out, then which rule raised it and how it will go on', async () => {
@@ -325,8 +391,27 @@ describe('the inbox', () => {
 
     expect(await screen.findByText('Humidity too high')).toBeInTheDocument();
     expect(screen.getByText(reading(`${since} · Flower room B · 68 % · above 60 %`))).toBeInTheDocument();
-    expect(screen.getByText(reading('Humidity high · critical · repeats every 30 min until resolved'))).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
+    expect(screen.getByText(reading('Humidity high · critical · goes to you by e-mail · repeats every 30 min'))).toBeInTheDocument();
+  });
+
+  /** What an alert offers is one row: its curves, and behind ⋯ what is done now and then. */
+  it('keeps the actions of a card to one row: its curves and a ⋯ holding the rule´s silence, which says whom it holds for, and the rule', async () => {
+    server.alerts = [alert({})];
+    server.rules = [rule()];
+    draw();
+
+    const [card] = await waitFor(() => openCards());
+    await within(card).findByRole('button', { name: 'More about Humidity too high' });
+    expect(
+      within(card)
+        .getAllByRole('link')
+        .map(link => link.textContent),
+    ).toEqual(['Open timeline']);
+    expect(within(card).getAllByRole('button')).toHaveLength(1);
+
+    more(card);
+    expect(within(card).getByRole('button', { name: /^Silence this rule 1 h/ })).toHaveTextContent('holds for everyone who sees the place');
+    expect(within(card).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
   });
 
   /** A place may hold a second climate, so the curves an alert opens are those of the device it came from. */
@@ -368,7 +453,7 @@ describe('the inbox', () => {
 
     const running = await screen.findByLabelText('critical · Dehumidifier runs without a pause');
     expect(within(running).getByText(reading(`${since} · Flower room B · longer than 2 h`))).toBeInTheDocument();
-    expect(within(running).getByText(reading('Humidity high · critical · announced once'))).toBeInTheDocument();
+    expect(within(running).getByText(reading('Humidity high · critical · goes to you by e-mail · does not repeat'))).toBeInTheDocument();
     // A rule that trips the moment the output starts has no span worth drawing.
     const instant = screen.getByLabelText('critical · Heater runs without a pause');
     expect(within(instant).getByText(reading(`${since} · Flower room B`))).toBeInTheDocument();
@@ -408,13 +493,13 @@ describe('the inbox', () => {
     draw();
 
     expect(
-      await screen.findByText(reading('Humidity high · warning · the rule now says critical · repeats every 30 min until resolved')),
+      await screen.findByText(reading('Humidity high · warning · the rule now says critical · goes to you by e-mail · repeats every 30 min')),
     ).toBeInTheDocument();
     // The coloured edge is the same one decision, not the rule's.
     expect(screen.getByRole('listitem')).toHaveAttribute('data-severity', 'warning');
   });
 
-  it('announces an info alarm nowhere, and says of a routed one that it reached nobody, with the way to change that', async () => {
+  it('announces an info alarm nowhere, and says of a routed one that it does not reach the reader, with the way to change that', async () => {
     server.me = {
       ...me,
       notifications: { ...me.notifications, routing: { ...me.notifications.routing, warnings: ['push'] } },
@@ -426,15 +511,17 @@ describe('the inbox', () => {
     server.rules = [rule({ severity: 'warning' }), rule({ id: 'rule-2', name: 'Leaf cool', severity: 'info', repeatSeconds: 0 })];
     draw();
 
-    expect(await screen.findByText(reading('Leaf cool · info · not announced'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('Leaf cool · info · is not announced'))).toBeInTheDocument();
     // A row of the grid that names only a channel this account cannot be
-    // reached on is a rule nobody would hear.
+    // reached on is a rule nobody will hear - said of what will happen, never
+    // of what did: nothing the page reads records a delivery.
     const [unheard, quiet] = openCards();
-    expect(within(unheard).getByText(reading('Humidity high · warning · did not reach you'))).toBeInTheDocument();
+    expect(within(unheard).getByText(reading('Humidity high · warning · does not reach you'))).toBeInTheDocument();
+    expect(screen.queryByText(/did not reach/)).not.toBeInTheDocument();
     // It is the account's own settings that decide it, so the card leads there - and only that card.
-    expect(within(unheard).getByRole('link', { name: 'Set up notifications' })).toHaveAttribute('href', '/me/notifications');
-    expect(within(quiet).queryByRole('link', { name: 'Set up notifications' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/announced once/)).not.toBeInTheDocument();
+    expect(within(more(unheard)).getByRole('link', { name: 'Set up notifications' })).toHaveAttribute('href', '/me/notifications');
+    expect(within(more(quiet)).queryByRole('link', { name: 'Set up notifications' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not repeat|repeats every/)).not.toBeInTheDocument();
   });
 
   /**
@@ -443,7 +530,7 @@ describe('the inbox', () => {
    * loop raised said nothing, which is the shape of a card that did reach
    * somebody.
    */
-  it('says of a camera no rule raised that nobody heard it either', async () => {
+  it('says of a camera no rule raised that it reaches nobody either', async () => {
     server.me = {
       ...me,
       notifications: { ...me.notifications, routing: { ...me.notifications.routing, alerts: ['email'], warnings: ['push'] } },
@@ -466,13 +553,13 @@ describe('the inbox', () => {
     server.rules = [rule({ name: 'Device offline' })];
     draw();
 
-    expect(await screen.findByText(reading('warning · did not reach you'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('warning · does not reach you'))).toBeInTheDocument();
     // The account can be reached for a critical alarm, so the card beside it
-    // says what it will go on doing rather than that it reached nobody.
-    expect(screen.getByText(reading('Device offline · critical · repeats every 30 min until resolved'))).toBeInTheDocument();
+    // says what it will go on doing rather than that it reaches nobody.
+    expect(screen.getByText(reading('Device offline · critical · goes to you by e-mail · repeats every 30 min'))).toBeInTheDocument();
   });
 
-  it('says a camera nobody could have missed is announced once, because the health loop never repeats one', async () => {
+  it('says a camera´s alert goes out and is not repeated, because the health loop never repeats one', async () => {
     server.alerts = [
       alert({
         id: 'cam',
@@ -488,7 +575,7 @@ describe('the inbox', () => {
     ];
     draw();
 
-    expect(await screen.findByText(reading('warning · announced once'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('warning · goes to you by e-mail · does not repeat'))).toBeInTheDocument();
   });
 
   /** Not having a rule is one thing; naming one the page has not got is another, and only the first is a delivery this screen can read. */
@@ -499,7 +586,7 @@ describe('the inbox', () => {
 
     const orphan = await screen.findByLabelText('critical · alarm');
     expect(within(orphan).getByText(reading('critical'))).toBeInTheDocument();
-    expect(screen.queryByText(/announced once|did not reach you|not announced|repeats every/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not repeat|does not reach you|not announced|repeats every|goes to you/)).not.toBeInTheDocument();
   });
 
   /** Owner's decision G2: an episode the stage's "too humid" stopped watching in germination did not get better, and is not said to have. */
@@ -507,7 +594,7 @@ describe('the inbox', () => {
     server.alerts = [alert({ id: 'humid', severity: 'warning', resolvedAt: iso(NOW.minus({ minutes: 5 })), rested: true })];
     draw();
 
-    const sheet = await openRow(/5 min ago$/);
+    const sheet = await openRow(/^alarm/);
     expect(
       within(sheet).getByText(reading(`${clock(NOW.minus({ hours: 2, minutes: 20 }))} · Flower room B · rests in germination · not resolved`)),
     ).toBeInTheDocument();
@@ -534,7 +621,7 @@ describe('the inbox', () => {
     const sheet = await openRow(/^Cam 2 without a picture for/);
     expect(within(sheet).getByText(reading(`warning · until ${clock(NOW.minus({ minutes: 5 }))}`))).toBeInTheDocument();
     expect(within(sheet).getByText(/delivers pictures again$/)).toBeInTheDocument();
-    expect(screen.queryByText(/announced once|did not reach you|not announced/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/does not repeat|does not reach you|not announced|goes to you/)).not.toBeInTheDocument();
   });
 
   it('puts the worst first and lets the clock decide only between equals', async () => {
@@ -627,8 +714,24 @@ describe('the inbox', () => {
     fireEvent.click(within(quiet).getByRole('button', { name: 'What you can do ›' }));
     expect(within(quiet).getByText(/^Power: is the adapter plugged in/)).toBeInTheDocument();
     expect(within(quiet).getByText(/^Unplug the device, wait 10 seconds/)).toBeInTheDocument();
-    expect(within(quiet).getByRole('link', { name: 'To the device' })).toHaveAttribute('href', '/devices/device-1');
-    expect(within(quiet).queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
+    expect(within(more(quiet)).getByRole('link', { name: 'To the device' })).toHaveAttribute('href', '/devices/device-1');
+    expect(within(quiet).queryByRole('button', { name: /^Silence this rule/ })).not.toBeInTheDocument();
+  });
+
+  /** A reading of a device that has gone silent since is an old one: it says so, and stands under what is about now. */
+  it('says how old the reading of a silent device is, and stands its card under the one that says the device is offline', async () => {
+    server.alerts = [
+      alert({ id: 'reading', startedAt: iso(NOW.minus({ hours: 2, minutes: 20 })) }),
+      alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: 1500, startedAt: iso(NOW.minus({ minutes: 10 })) }),
+    ];
+    server.rules = [rule()];
+    draw();
+
+    await screen.findByText('Humidity too high');
+    expect(openCards().map(one => one.getAttribute('aria-label'))).toEqual(['warning · Blue Dream tent offline', 'critical · Humidity too high']);
+    expect(
+      screen.getByText(reading(`${since} · Flower room B · 68 % · last heard ${clock(NOW.minus({ minutes: 35 }))} · above 60 %`)),
+    ).toBeInTheDocument();
   });
 
   /**
@@ -716,7 +819,8 @@ describe('the inbox', () => {
     expect(await screen.findByText('Cam 2 without a picture')).toBeInTheDocument();
     expect(screen.getByText(reading(`since ${clock(raised)}`))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Check cam' })).toHaveAttribute('href', '/cameras/cam-2');
-    expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
+    // No rule to silence or to edit, and nothing else to do now and then: no ⋯.
+    expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
   });
 
   it('silences the rule for an hour on its own route', async () => {
@@ -724,23 +828,12 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Silence 1 h' }));
+    fireEvent.click(
+      within(more(await screen.findByLabelText('critical · Humidity too high'))).getByRole('button', { name: /^Silence this rule 1 h/ }),
+    );
 
     await waitFor(() => expect(sentTo('PUT', '/v1/alarm-rules/rule-1/silence')).toHaveLength(1));
     expect(sentTo('PUT', '/v1/alarm-rules/rule-1/silence')[0].body).toEqual({ forSeconds: 3600 });
-  });
-
-  it('says what silencing does once, beside the first Silence the page offers', async () => {
-    server.alerts = [alert({ id: 'cam', kind: 'camera_stale', ruleId: null, deviceId: null, cameraId: 'cam-2' }), alert({}), alert({ id: 'second' })];
-    server.rules = [rule()];
-    draw();
-
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Silence 1 h' })).toHaveLength(2));
-    expect(screen.getAllByRole('button', { name: 'About Silence 1 h' })).toHaveLength(1);
-    // The camera's card leads the list and offers no silence, so the help stands on the card after it.
-    expect(within(openCards()[1]).getByRole('button', { name: 'About Silence 1 h' })).toHaveAccessibleDescription(
-      /^Stops this one rule telling anybody/,
-    );
   });
 
   it('offers the way out of a silence, and says until when it holds', async () => {
@@ -748,8 +841,11 @@ describe('the inbox', () => {
     server.rules = [rule({ silencedUntil: iso(NOW.plus({ minutes: 40 })) })];
     draw();
 
-    expect(await screen.findByText(reading(new RegExp(` · silenced for everyone until ${clock(NOW.plus({ minutes: 40 }))}$`)))).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Unsilence' }));
+    // A silenced rule tells nobody, so the line promises no channel and no repeat.
+    expect(
+      await screen.findByText(reading(`Humidity high · critical · silenced for everyone until ${clock(NOW.plus({ minutes: 40 }))}`)),
+    ).toBeInTheDocument();
+    fireEvent.click(within(more(openCards()[0])).getByRole('button', { name: /^Unsilence this rule/ }));
 
     await waitFor(() => expect(sentTo('DELETE', '/v1/alarm-rules/rule-1/silence')).toHaveLength(1));
   });
@@ -764,7 +860,7 @@ describe('the inbox', () => {
     expect(
       await screen.findByText(new RegExp(`device in maintenance, nothing raised until ${clock(NOW.plus({ minutes: 18 }))}`)),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
+    expect(within(more(openCards()[0])).getByRole('button', { name: /^Silence this rule 1 h/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /maintenance/i })).not.toBeInTheDocument();
     expect(sentTo('POST', '/v1/devices/device-1/commands')).toHaveLength(0);
   });
@@ -798,12 +894,14 @@ describe('the inbox', () => {
     };
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Silence 1 h' }));
+    fireEvent.click(
+      within(more(await screen.findByLabelText('critical · Humidity too high'))).getByRole('button', { name: /^Silence this rule 1 h/ }),
+    );
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This rule is switched off.');
   });
 
-  it('opens the whole of an episode that is over from its row: when, where, the rule, and its curves', async () => {
+  it('opens the whole of an episode that is over from its row: when, where, how far it went, the rule, and its curves', async () => {
     const began = NOW.minus({ hours: 2, minutes: 20 });
     server.alerts = [alert({ id: 'over-1', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
     server.rules = [rule()];
@@ -811,15 +909,16 @@ describe('the inbox', () => {
 
     const sheet = await openRow(/^Humidity too high for 1 h/);
     expect(sheet).toHaveAccessibleName('Humidity too high for 1 h');
-    expect(within(sheet).getByText(reading(`${clock(began)} · Flower room B · back in range since then`))).toBeInTheDocument();
+    expect(
+      within(sheet).getByText(reading(`${clock(began)} · Flower room B · worst 71 % · above 60 % · back in range since then`)),
+    ).toBeInTheDocument();
     expect(within(sheet).getByText(reading(`Humidity high · critical · until ${clock(NOW.minus({ hours: 1 }))}`))).toBeInTheDocument();
     expect(within(sheet).getByRole('link', { name: 'Open timeline' })).toHaveAttribute(
       'href',
       `/timeline?space=space-1&device=device-1&focus=humidity&at=${encodeURIComponent(iso(began))}`,
     );
     // What is over can no longer be silenced, and its rule is edited where the rule is.
-    expect(within(sheet).queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
-    expect(within(sheet).queryByRole('link', { name: 'Edit rule' })).not.toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
   });
 
   it('deletes an episode that is over once asked and says so, and offers no delete on one still open', async () => {
@@ -840,7 +939,7 @@ describe('the inbox', () => {
     expect(await screen.findByText('Alert deleted')).toBeInTheDocument();
     // The sheet goes with what it was about, and so does the row.
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByRole('heading', { level: 2, name: 'Over' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('heading', { level: 2, name: 'Resolved' })).not.toBeInTheDocument());
     expect(openCards()).toHaveLength(1);
   });
 
@@ -861,7 +960,7 @@ describe('the inbox', () => {
   it('mutes everything for an hour by handing the whole notification object back, and says until when', async () => {
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Mute 1 h' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mute all 1 h' }));
 
     await waitFor(() => expect(sentTo('PATCH', '/v1/me')).toHaveLength(1));
     const { notifications } = sentTo('PATCH', '/v1/me')[0].body as Me;
@@ -882,13 +981,13 @@ describe('the inbox', () => {
   it('takes a mute back from the toast that answered it', async () => {
     draw();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Mute 1 h' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mute all 1 h' }));
     await screen.findByText(/^Everything muted until/);
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
 
     await waitFor(() => expect(sentTo('PATCH', '/v1/me')).toHaveLength(2));
     expect((sentTo('PATCH', '/v1/me')[1].body as Me).notifications.mutedUntil).toBeNull();
-    expect(await screen.findByRole('button', { name: 'Mute 1 h' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Mute all 1 h' })).toBeInTheDocument();
   });
 
   it('says beside the mute what it does and whom it spares', async () => {
@@ -926,7 +1025,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByRole('button', { name: 'Mute 1 h' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Mute all 1 h' })).toBeInTheDocument();
     expect(readsOf('/v1/me')).toHaveLength(1);
   });
 
@@ -947,20 +1046,20 @@ describe('the inbox', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Earlier' }));
 
     await waitFor(() => expect(overRows()).toHaveLength(2));
-    expect(overRows()[1][1]).toBe('4 d ago');
+    expect(overRows()[1][1]).toBe(stamp(NOW.minus({ days: 4 })));
     // The rules of a device the older page brings with it must not blank the page.
     expect(screen.getByText(reading(`${since} · Flower room B · 68 % · above 60 %`))).toBeInTheDocument();
     expect(sentTo('GET', '/v1/alerts').some(one => one.path.includes('cursor=cursor-1'))).toBe(true);
     expect(screen.queryByRole('button', { name: 'Earlier' })).not.toBeInTheDocument();
   });
 
-  it('lists the newest five of what is over, and the rest of the page it holds once asked - without another read', async () => {
+  it('lists the five that ended last of what is over, and the rest of the page it holds once asked - without another read', async () => {
     server.alerts = Array.from({ length: 7 }, (_, index) =>
-      alert({ id: `over-${index}`, startedAt: iso(NOW.minus({ hours: index + 2 })), resolvedAt: iso(NOW.minus({ hours: index + 1 })) }),
+      alert({ id: `over-${index}`, startedAt: iso(NOW.minus({ days: index, hours: 2 })), resolvedAt: iso(NOW.minus({ days: index, hours: 1 })) }),
     );
     draw();
 
-    const rows = () => within(screen.getByRole('region', { name: 'Over' })).getAllByRole('listitem');
+    const rows = () => within(screen.getByRole('region', { name: 'Resolved' })).getAllByRole('listitem');
     await waitFor(() => expect(rows()).toHaveLength(5));
     const reads = sentTo('GET', '/v1/alerts').length;
     fireEvent.click(screen.getByRole('button', { name: 'Earlier' }));
@@ -968,6 +1067,22 @@ describe('the inbox', () => {
     expect(rows()).toHaveLength(7);
     expect(sentTo('GET', '/v1/alerts')).toHaveLength(reads);
     expect(screen.queryByRole('button', { name: 'Earlier' })).not.toBeInTheDocument();
+  });
+
+  it('finds the list as it was left when the reader comes back to it: as far unfolded, and the sheet that was open', async () => {
+    server.alerts = Array.from({ length: 7 }, (_, index) =>
+      alert({ id: `over-${index}`, startedAt: iso(NOW.minus({ days: index, hours: 2 })), resolvedAt: iso(NOW.minus({ days: index, hours: 1 })) }),
+    );
+    const rows = () => within(screen.getByRole('region', { name: 'Resolved' })).getAllByRole('listitem');
+    const { unmount } = draw();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Earlier' }));
+    fireEvent.click(within(rows()[6]).getByRole('button'));
+    unmount();
+    draw();
+
+    await waitFor(() => expect(rows()).toHaveLength(7));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('reads a name once and a rule only for the devices something went wrong on', async () => {
@@ -1050,18 +1165,17 @@ describe('a member who may only log', () => {
       `/timeline?space=space-1&device=device-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
     );
     expect(within(openCards()[0]).getAllByRole('link')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'About Silence 1 h' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Edit rule' })).not.toBeInTheDocument();
+    // Neither the silence nor the rule is theirs, and the alert reaches them: no ⋯ at all.
+    expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     // The mute is their own account's and stands above every place.
-    expect(screen.getByRole('button', { name: 'Mute 1 h' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mute all 1 h' })).toBeInTheDocument();
   });
 
   it('may not delete an episode that is over either', async () => {
     server.alerts = [alert({ resolvedAt: iso(NOW.minus({ hours: 1 })) })];
     draw();
 
-    const sheet = await openRow(/1 h ago$/);
+    const sheet = await openRow(/^alarm/);
     expect(within(sheet).getByRole('link', { name: 'Open timeline' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
@@ -1072,7 +1186,9 @@ describe('a member who may only log', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByRole('button', { name: 'Silence 1 h' })).toBeInTheDocument();
+    expect(
+      within(more(await screen.findByLabelText('critical · Humidity too high'))).getByRole('button', { name: /^Silence this rule 1 h/ }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -1208,33 +1324,33 @@ describe('the bell', () => {
 /**
  * Tasks have no tab of their own: whoever keeps a diary finds what is due
  * behind the bell, beside everything else that is waiting on them, with the
- * way to the whole list under it. The rows are the ones Start lists under
- * "Today", counted from the same read, so the bell and the two lists agree.
- * An account that keeps no diary is not asked for a list, and the demo, which
+ * way to the whole list under it. The rows are Start's rows, and they and the
+ * bell's count are one read - the task list, as `/tasks` filters it under
+ * "Mine" - so the two agree and neither counts somebody else's task. An
+ * account that keeps no diary is not asked for a list, and the demo, which
  * may settle nothing, is offered none.
  */
 describe('what is due', () => {
   const due = (id: string, label: string, dueAt: DateTime, over: Record<string, unknown> = {}) =>
     ({ id, kind: 'water', label, dueAt: iso(dueAt), subject: { type: 'grow', id: 'grow-1' }, assigneeId: null, defaults: null, ...over }) as Task;
   const growing = { growId: 'grow-1', name: 'Spring run' } as HomeSpaceCard['grow'];
+  const step = due('step-1', 'Week 3', NOW.minus({ minutes: 30 }), { source: 'plan_step', subject: { type: 'space', id: 'space-1' } });
   const tasks = () => screen.getByRole('region', { name: 'Tasks' });
 
   beforeEach(() => {
     server.me = keepsDiary;
+    server.home = [card({ grow: growing })];
   });
 
-  it('lists what is due with the tap that settles each, and leads to the whole list', async () => {
-    server.home = [
-      card({
-        grow: growing,
-        dueTasks: [
-          due('t1', 'Water', NOW.minus({ hours: 2 })),
-          due('t2', 'Clean the filter', NOW.minus({ hours: 1 }), { kind: 'chore', subject: { type: 'space', id: 'space-1' } }),
-          due('t3', 'Feed', NOW.plus({ days: 3 }), { kind: 'feed' }),
-        ],
-      }),
+  it('lists what is due for the reader with the tap that settles each, and leads to the whole list', async () => {
+    server.tasks = [
+      // Somebody else's, and one of next week: neither is the reader's work today.
+      due('t0', 'Feed', NOW.minus({ hours: 3 }), { kind: 'feed', assigneeId: 'user-mia' }),
+      due('t1', 'Water', NOW.minus({ hours: 2 })),
+      due('t2', 'Clean the filter', NOW.minus({ hours: 1 }), { kind: 'chore', subject: { type: 'space', id: 'space-1' } }),
+      step,
+      due('t3', 'Flush', NOW.plus({ days: 3 })),
     ];
-    server.tasks = [due('step-1', 'Week 3', NOW.minus({ minutes: 30 }), { source: 'plan_step', subject: { type: 'space', id: 'space-1' } })];
     draw();
 
     await waitFor(() => expect(within(tasks()).getAllByRole('listitem')).toHaveLength(3));
@@ -1242,16 +1358,27 @@ describe('what is due', () => {
       within(tasks())
         .getAllByRole('button')
         .map(button => button.getAttribute('aria-label')),
-    ).toEqual(['Enter: Water', 'Done: Clean the filter', 'Confirm: Week 3']);
-    // The inbox stands above every place, so a row says where it is due.
-    expect(within(tasks()).getAllByText(reading('Spring run · Flower room B'))).toHaveLength(2);
-    expect(within(tasks()).getByText(reading('grow plan · Flower room B'))).toBeInTheDocument();
+    ).toEqual(['Log: Water', 'Done: Clean the filter', 'Confirm: Week 3']);
+    // Start's row says since when; with one place there is no where to say.
+    expect(within(tasks()).getAllByRole('listitem')[0]).toHaveTextContent(/^Waterdue since \d\d:\d\dLog$/);
+    expect(within(tasks()).getByText(reading(/^grow plan · due since \d\d:\d\d$/))).toBeInTheDocument();
     expect(within(tasks()).getByRole('link', { name: 'All tasks and reminders ›' })).toHaveAttribute('href', '/tasks');
     // With nothing wrong the page still says so above what is due.
     expect(screen.getByText('Nothing is open right now.')).toBeInTheDocument();
 
     fireEvent.click(within(tasks()).getByRole('button', { name: 'Done: Clean the filter' }));
     await waitFor(() => expect(sentTo('POST', '/v1/tasks/t2/completions')).toHaveLength(1));
+  });
+
+  it('says where a task is due, before since when, once there are several places', async () => {
+    server.home = [card({ grow: growing }), card({ spaceId: 'space-2', name: 'Mother tent' })];
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 })), step];
+    draw();
+
+    expect(
+      await within(await screen.findByRole('region', { name: 'Tasks' })).findByText(reading(/^Spring run · Flower room B · due since \d\d:\d\d$/)),
+    ).toBeInTheDocument();
+    expect(within(tasks()).getByText(reading(/^grow plan · Flower room B · due since \d\d:\d\d$/))).toBeInTheDocument();
   });
 
   it('keeps the way to the list where nothing is due', async () => {
@@ -1263,7 +1390,7 @@ describe('what is due', () => {
 
   it('offers the demo no tasks, which it could not settle', async () => {
     state.who = 'demo';
-    server.home = [card({ grow: growing, dueTasks: [due('t1', 'Water', NOW.minus({ hours: 2 }))] })];
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 }))];
     draw(
       <>
         <TopBar />
@@ -1280,9 +1407,13 @@ describe('what is due', () => {
     expect(readsOf('/v1/tasks')).toHaveLength(0);
   });
 
-  it('counts what is due on the bell, in blue, where no alarm is open: the reminders and a plan step waiting', async () => {
-    server.home = [card({ grow: growing, dueTasks: [due('t1', 'Water', NOW.minus({ hours: 2 })), due('t2', 'Feed', NOW.plus({ days: 3 }))] })];
-    server.tasks = [due('step-1', 'Week 3', NOW.minus({ minutes: 30 }), { source: 'plan_step', subject: { type: 'space', id: 'space-1' } })];
+  it('counts what is due for the reader on the bell, in blue, where no alarm is open: the reminders and a plan step waiting', async () => {
+    server.tasks = [
+      due('t1', 'Water', NOW.minus({ hours: 2 })),
+      due('t2', 'Feed', NOW.minus({ hours: 1 }), { kind: 'feed', assigneeId: 'user-mia' }),
+      step,
+      due('t3', 'Flush', NOW.plus({ days: 3 })),
+    ];
     draw(
       <>
         <TopBar />
@@ -1298,7 +1429,7 @@ describe('what is due', () => {
 
   it('counts what is open before what is due', async () => {
     server.alerts = [alert({})];
-    server.home = [card({ grow: growing, dueTasks: [due('t1', 'Water', NOW.minus({ hours: 2 })), due('t2', 'Water', NOW.minus({ hours: 1 }))] })];
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 })), due('t2', 'Water', NOW.minus({ hours: 1 }))];
     draw(<Rail />);
 
     const bell = await screen.findByRole('link', { name: 'Alerts · 1 open' });
@@ -1307,7 +1438,7 @@ describe('what is due', () => {
 
   it('offers an account that keeps no diary no tasks, and asks it for no list', async () => {
     server.me = me;
-    server.home = [card({ dueTasks: [due('t1', 'Water', NOW.minus({ hours: 2 }), { subject: { type: 'space', id: 'space-1' } })] })];
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 }), { subject: { type: 'space', id: 'space-1' } })];
     draw(
       <>
         <TopBar />
@@ -1432,5 +1563,14 @@ describe('the arithmetic behind the cards', () => {
 
     expect(worstFirst(open).map(one => one.id)).toEqual(['new-critical', 'old-critical', 'warn', 'info']);
     expect(open.map(one => one.id)).toEqual(['warn', 'info', 'old-critical', 'new-critical']);
+  });
+
+  it('orders what is over by when it ended, whatever order it began in', () => {
+    const over = [
+      alert({ id: 'blip', startedAt: iso(NOW.minus({ hours: 1 })), resolvedAt: iso(NOW.minus({ minutes: 59 })) }),
+      alert({ id: 'night', startedAt: iso(NOW.minus({ hours: 9 })), resolvedAt: iso(NOW.minus({ minutes: 5 })) }),
+    ];
+
+    expect(lastEndedFirst(over).map(one => one.id)).toEqual(['night', 'blip']);
   });
 });

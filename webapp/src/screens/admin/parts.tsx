@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fetchedAt } from '@/api/clock';
 import { ageLabel, deviceLiveness } from '@/ui/age';
+import type { HelpTopic } from '@/ui/explain';
+import { Help } from '@/ui/Help';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { Tabs } from '@/ui/Tabs';
@@ -49,6 +51,16 @@ export function AdminHead({
       {of ? null : <Tabs label={t('admin.section')} items={SCREENS.map(key => ({ key, label: t(`admin.${key}.title`), to: `/admin/${key}` }))} />}
       {children ? <div className={styles.head}>{children}</div> : null}
     </>
+  );
+}
+
+/** A card's heading with the (i) that says what a paragraph over its controls would. */
+export function Label({ text, help }: { text: string; help: HelpTopic }) {
+  return (
+    <span className="label">
+      {text}
+      <Help topic={help} />
+    </span>
   );
 }
 

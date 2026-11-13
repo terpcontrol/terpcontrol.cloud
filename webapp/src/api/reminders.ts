@@ -39,7 +39,9 @@ const reminderChanged = (client: QueryClient): void => void invalidate(client, [
 
 export const useCreateReminder = () => useWrite((body: ReminderCreate) => api.post<Reminder>('/reminders', body), reminderChanged);
 
-export const useUpdateReminder = (id: string) => useWrite((body: ReminderUpdate) => api.patch<Reminder>(`/reminders/${id}`, body), reminderChanged);
+/** A change is written to the rhythm it names: the toast that takes one back outlives the sheet that made it. */
+export const useUpdateReminder = () =>
+  useWrite(({ id, ...body }: ReminderUpdate & { id: string }) => api.patch<Reminder>(`/reminders/${id}`, body), reminderChanged);
 
 /** The rhythm stops. The diary lines it produced stay, so nothing but the lists above is read again. */
-export const useDeleteReminder = (id: string) => useWrite(() => api.delete(`/reminders/${id}`), reminderChanged);
+export const useDeleteReminder = () => useWrite((id: string) => api.delete(`/reminders/${id}`), reminderChanged);

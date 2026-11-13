@@ -194,9 +194,9 @@ describe('Start of one place with a camera and a grow', () => {
       within(today)
         .getAllByRole('listitem')
         .map(row => row.textContent),
-    ).toEqual([`Waterdue since ${hhmm(ago(30))}Enter`, `Clean the filterdue since ${hhmm(ago(30))}Done`]);
+    ).toEqual([`Waterdue since ${hhmm(ago(30))}Log`, `Clean the filterdue since ${hhmm(ago(30))}Done`]);
 
-    fireEvent.click(within(today).getByRole('button', { name: 'Enter: Water' }));
+    fireEvent.click(within(today).getByRole('button', { name: 'Log: Water' }));
     expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: 'space-1', kind: 'water' });
     expect(log.complete).not.toHaveBeenCalled();
 
@@ -825,7 +825,7 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     // What a member may do is there: the watering is theirs to enter.
-    expect(screen.getByRole('button', { name: 'Enter: Water' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Log: Water' })).toBeInTheDocument();
     // What they may not is absent rather than refused: the targets are read, not opened.
     const targets = screen.getByRole('heading', { name: 'Targets' }).closest('section')!;
     expect(targets).toHaveTextContent('Day 25 °C · 60 % · CO₂ 900 ppm · Night 21 °C · 55 %');
@@ -936,7 +936,7 @@ describe('the states of Start', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Windowsill' })).toBeInTheDocument();
     expect(screen.getByText('Flower · week 3').closest('a')).toHaveAttribute('href', '/grow');
     expect(screen.getByRole('heading', { name: 'Latest' }).closest('section')).toHaveTextContent('Repotted');
-    fireEvent.click(screen.getByRole('button', { name: 'Enter: Water' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Log: Water' }));
     expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: null, kind: 'water' });
   });
 
@@ -1050,12 +1050,12 @@ describe('Start with several places', () => {
     expect(server.calls).not.toContain('GET /spaces/room-1/overview');
   });
 
-  it('gathers what is due today across the places, each saying where', async () => {
+  it('gathers what is due today across the places, each saying where and since when', async () => {
     draw();
 
     const today = (await screen.findByRole('heading', { name: 'Today' })).closest('section')!;
-    fireEvent.click(await within(today).findByRole('button', { name: 'Enter: Water' }));
-    expect(within(today).getByRole('listitem')).toHaveTextContent('WaterAutumn cuttings · Tent 2Enter');
+    fireEvent.click(await within(today).findByRole('button', { name: 'Log: Water' }));
+    expect(within(today).getByRole('listitem')).toHaveTextContent(`WaterAutumn cuttings · Tent 2 · due since ${hhmm(ago(30))}Log`);
     expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-2', spaceId: 'space-2', kind: 'water' });
   });
 

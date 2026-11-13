@@ -33,15 +33,19 @@ vi.mock('@/api/session', async importOriginal => {
   };
 });
 
-/** The server's own clock, which every fixture below is dated from and every answer is stamped with. */
-const SERVER_NOW = DateTime.fromISO('2026-09-23T00:35:00.000Z', { zone: 'utc' });
+/**
+ * The server's own clock, which every fixture below is dated from and every
+ * answer is stamped with: late in the account's evening, so a browser an hour
+ * fast is already in tomorrow and would call this evening "yesterday".
+ */
+const SERVER_NOW = DateTime.fromISO('2026-09-23T23:35:00.000Z', { zone: 'utc' });
 
 /** How far this browser's clock is out in the second half of each pair. */
 const SKEW_MS = 3600_000;
 
 const iso = (at: DateTime) => at.toISO()!;
 
-/** An alert about a device that stopped speaking and was heard again: the inbox says how long ago that was. */
+/** An alert about a device that stopped speaking and was heard again: the inbox says when that was. */
 const quietTent = (id: string, ended: DateTime): Alert => ({
   id,
   createdAt: iso(ended.minus({ hours: 2 })),
@@ -59,11 +63,7 @@ const quietTent = (id: string, ended: DateTime): Alert => ({
   watched: null,
 });
 
-const over = [
-  quietTent('alert-1', SERVER_NOW.minus({ minutes: 27 })),
-  // Three days and all but an hour: an hour added to it is a fourth day, which is what a browser an hour fast would draw.
-  quietTent('alert-2', SERVER_NOW.minus({ days: 3, hours: 23 })),
-];
+const over = [quietTent('alert-1', SERVER_NOW.minus({ minutes: 27 })), quietTent('alert-2', SERVER_NOW.minus({ days: 3, hours: 23 }))];
 
 const device = deviceWith({ name: 'Blue Dream tent', state: { lastSeenAt: iso(SERVER_NOW.minus({ minutes: 1 })) } });
 
@@ -90,6 +90,7 @@ const answer = (path: string): Response => {
     return json({
       id: 'user-1',
       handle: 'you',
+      preferences: { timezone: 'UTC' },
       notifications: {
         mutedUntil: null,
         channels: { email: null, push: false, telegram: null, webhook: null },
@@ -111,7 +112,7 @@ const draw = () =>
 /** The rows of what is over, once the reads behind them have landed: the whole of what a reader is told about the quiet tent. */
 const inbox = async (): Promise<string[]> => {
   await screen.findAllByText(/^Blue Dream tent offline for/);
-  return within(screen.getByRole('region', { name: 'Over' }))
+  return within(screen.getByRole('region', { name: 'Resolved' }))
     .getAllByRole('button')
     .map(row => row.textContent.replace(/\u00a0/g, ' '));
 };
@@ -195,10 +196,13 @@ describe('the clock an age is measured against', () => {
 });
 
 describe('the inbox on a browser whose clock is out', () => {
-  it('draws the same ages as one whose clock is right', async () => {
+  it('dates what is over as one whose clock is right does', async () => {
     const onTime = draw();
     const right = await inbox();
-    expect(right).toEqual(['Blue Dream tent offline for 2 h27 min ago', 'Blue Dream tent offline for 2 h3 d ago']);
+    expect(right).toEqual([
+      'Blue Dream tent offline for 2 h23:08',
+      `Blue Dream tent offline for 2 h${SERVER_NOW.minus({ days: 3 }).toFormat('cccc')}`,
+    ]);
     onTime.unmount();
 
     forgetServerClock();

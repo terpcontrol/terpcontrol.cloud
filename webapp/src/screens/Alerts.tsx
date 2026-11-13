@@ -1,5 +1,4 @@
 import type { DateTime } from 'luxon';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Alert, Me } from '@fg2/shared-types/v1';
@@ -13,8 +12,10 @@ import { useLog } from '@/log/log-context';
 import { buildName, useOfferedUpdates } from '@/screens/devices/firmware-builds';
 import { useDueEverywhere } from '@/screens/start/due';
 import { DueList } from '@/screens/start/Today';
+import { foldSame } from '@/screens/grow/diary/days';
 import { instantOf, isAhead } from '@/ui/age';
 import { Help } from '@/ui/Help';
+import { useKept, useKeptScroll } from '@/ui/kept';
 import { deviceName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
@@ -22,13 +23,13 @@ import { Rows } from '@/ui/Rows';
 import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { clock, zoneOf } from '@/ui/zone';
+import { clock, zoned, zoneOf } from '@/ui/zone';
 import { AlertCard, ResolvedRow } from './alerts/AlertCard';
-import { worstFirst } from './alerts/inbox';
+import { beganAt, heardOf, lastEndedFirst, silentDevices, titleOf, worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import styles from './alerts/Alerts.module.css';
 
-/** How long "1 Std stumm" holds. */
+/** How long "Alles 1 Std stumm" holds. */
 const MUTE_SECONDS = 3600;
 
 /**
@@ -45,50 +46,51 @@ const OVER_MORE = 20;
 /**
  * Meldungen, behind the bell: what is open - the alerts still standing, worst
  * first, and an update waiting for somebody's word -, what is due in the
- * diary, and what is over - the newest few, more behind "Früher" - as rows
- * that open the whole of it. The bell counts
- * what the first two list (`app/shell/bell.ts`).
+ * diary, and what is over - what ended last first, a few of it, more behind
+ * "Früher" - as rows that open the whole of it. The bell counts what the
+ * first two list (`app/shell/bell.ts`).
  *
  * The list is the alarm engine's own record, read on the beat live values age
  * on, and it is drawn the moment it arrives. What a name and a rule add to a
- * card - which tent this is, what the rule watched, whether it repeats - lands
- * as it comes and never holds the alerts back: those reads are slower, they
- * fail on their own, and a reader kept in front of skeletons while the answer
- * sits in the browser has been told nothing at all. Where a name has not
- * arrived the card falls back to the id and a failed read is said out loud, so
- * a card is never quietly about nowhere.
+ * card lands as it comes and never holds the alerts back: where a name has
+ * not arrived the card falls back to the id, and a failed read is said out
+ * loud.
  */
 export function Alerts() {
   const { t } = useTranslation();
   const now = useNow();
-  // The mute is the account's own and stands above every place; silencing a
-  // rule is `manage` on the place the card is about, which is why the two are
-  // asked separately.
+  // The mute is the account's own and stands above every place; silencing a rule is `manage` on the place the card is about.
   const mayWriteAtAll = useMayManage();
   const mayManageIn = useMayInEach();
-  // An alert that names no place is about something standing nowhere, which
-  // nobody but its owner can be shown at all - so there the session's own half
-  // is the whole answer, and everywhere else the place decides.
+  // An alert that names no place is shown to nobody but its owner, so there the session's own half is the whole answer.
   const mayActOn = (alert: Alert): boolean => (alert.spaceId === null ? mayWriteAtAll : enough(mayManageIn(alert.spaceId), 'manage'));
   const { user } = useSession();
-  // The demo has no account of its own, so it is not asked for one; what the
-  // account would have given this screen - the zone its clock times are drawn
-  // in, the channels its cards promise - the demo has no answer to anyway.
+  // The demo has no account of its own and is not asked for one.
   const me = useAccountMe();
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
   const updates = useOfferedUpdates();
-  const due = useDueEverywhere(now, true);
+  const due = useDueEverywhere(now);
   const { names, watching } = useInboxNames();
-  const [shown, setShown] = useState(OVER_FIRST);
+  // Back from an alert's curves finds the list as it was left: as far unfolded, as far down.
+  const [shown, setShown] = useKept('over', OVER_FIRST);
+  useKeptScroll(open.data !== undefined && !resolved.isPending);
 
-  const standing = worstFirst(itemsOf(open.data));
-  const over = itemsOf(resolved.data);
+  const silent = silentDevices(itemsOf(open.data));
+  const standing = worstFirst(itemsOf(open.data), silent);
+  const ended = lastEndedFirst(itemsOf(resolved.data));
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
-  const ruleDevices = [...new Set([...standing, ...over].filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
+  const ruleDevices = [...new Set([...standing, ...ended].filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
   const rules = useAlarmRulesOf(ruleDevices, { refetchIntervalMs: RULES_BEAT_MS });
   const ruleOf = (alert: Alert) => (alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null);
+  // A reading that came and went all morning is one row: the same sentence about the same device on the same day.
+  const day = (alert: Alert) => zoned(alert.resolvedAt ?? alert.startedAt, zoneOf(me.data)).toISODate();
+  const over = foldSame(
+    ended,
+    alert => [day(alert), alert.spaceId, alert.deviceId, titleOf(t, alert, ruleOf(alert), names, null)].join('|'),
+    beganAt,
+  );
 
   const head = (
     <PageHead back={{ to: '/', label: t('me.back') }} title={t('shell.alerts')}>
@@ -123,9 +125,6 @@ export function Alerts() {
     );
   }
 
-  // What silencing does is said once, beside the first Silence the page offers.
-  const silenceTeacher =
-    standing.find(alert => alert.kind !== 'camera_stale' && alert.deviceId !== null && ruleOf(alert) !== null && mayActOn(alert)) ?? null;
   // What is on screen is as old as its older half, whichever half failed.
   const readAt = Math.min(open.dataUpdatedAt || Infinity, resolved.dataUpdatedAt || Infinity);
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
@@ -148,7 +147,7 @@ export function Alerts() {
           <h2 id="alerts-open">{t('alerts.open')}</h2>
           <ul className={styles.list}>
             {standing.map(alert => (
-              <AlertCard key={alert.id} {...card(alert)} explainSilence={alert === silenceTeacher} />
+              <AlertCard key={alert.id} {...card(alert)} heardAt={heardOf(alert, silent)} />
             ))}
             {updates.map(({ device, build }) => (
               <li key={device.id} className={`${styles.card} ${styles.beside}`}>
@@ -171,7 +170,7 @@ export function Alerts() {
         <section className={styles.section} aria-labelledby="alerts-tasks">
           <h2 id="alerts-tasks">{t('tasks.title')}</h2>
           <div className={styles.card}>
-            {due.rows.length + due.steps.length > 0 ? <DueList rows={due.rows} steps={due.steps} across now={now} /> : null}
+            {due.rows.length + due.steps.length > 0 ? <DueList {...due} now={now} /> : null}
             <Link to="/tasks" className={styles.onward}>
               {t('alerts.allTasks')} ›
             </Link>
@@ -184,8 +183,8 @@ export function Alerts() {
         <section className={styles.section} aria-labelledby="alerts-over">
           <h2 id="alerts-over">{t('alerts.over')}</h2>
           <Rows>
-            {over.slice(0, shown).map(alert => (
-              <ResolvedRow key={alert.id} {...card(alert)} />
+            {over.slice(0, shown).map(({ newest, count, since }) => (
+              <ResolvedRow key={newest.id} {...card(newest)} count={count} since={since} />
             ))}
           </Rows>
           {over.length > shown || more ? (
@@ -216,11 +215,10 @@ export function Alerts() {
 }
 
 /**
- * What a page with nothing open says, which is three different things. The
- * demo account is answered an empty page whatever its tents hold, so it is
- * told where the alarms it can see are instead; an account with neither a
- * device nor a cam has nothing that could raise an alert, and saying nothing
- * has gone wrong there would be a promise nothing is keeping.
+ * What a page with nothing open says. The demo is answered an empty page
+ * whatever its tents hold, so it is told where the alarms it can see are; an
+ * account with neither a device nor a cam has nothing that could raise an
+ * alert, and is not told that nothing has gone wrong.
  */
 const emptyKey = (isDemo: boolean, watching: boolean): string =>
   isDemo ? 'alerts.demoNoInbox' : watching ? 'alerts.nothing' : 'alerts.nothingWatching';
@@ -250,10 +248,12 @@ function Mute({ account, now }: { account: Me; now: DateTime }) {
 
   return (
     <>
-      <button type="button" className={styles.mute} disabled={update.isPending} onClick={toggle}>
-        {t(until ? 'alerts.unmute' : 'alerts.mute')}
-      </button>
-      <Help topic="muteAll" />
+      <div className={styles.muting}>
+        <button type="button" className={styles.mute} disabled={update.isPending} onClick={toggle}>
+          {t(until ? 'alerts.unmute' : 'alerts.mute')}
+        </button>
+        <Help topic="muteAll" />
+      </div>
       {until ? (
         <p className={styles.muted} role="status">
           {t('alerts.mutedUntil', { time: time(until) })}

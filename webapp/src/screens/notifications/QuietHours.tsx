@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me, QuietHours } from '@fg2/shared-types/v1';
 import { Refused } from '@/ui/PageState';
@@ -18,43 +18,67 @@ const sameWindow = (one: QuietHours | null, other: QuietHours | null): boolean =
  * browser happens to be in - and a window across midnight simply runs from a
  * later minute to an earlier one.
  *
- * Both ends are one window and are written as one. Somebody setting quiet
- * hours moves both of them, one straight after the other, and a settings write
- * carries the whole account: a second write built on what the account still
- * says would carry the old value of the end that was already moved and put it
- * back, so the first of two quick edits would simply vanish. The card
- * therefore holds the window it means rather than reading it back off the
- * account between edits, and every write carries both ends as the card has
- * them. The draft is dropped once the account agrees; a window the server
- * refused stays in the fields beside the refusal.
+ * Both ends are one window and are written as one: a settings write carries
+ * the whole account, so a second write built on what the account still says
+ * would put back the end that was moved first. The card therefore holds the
+ * window it means - its title says it as it is typed - and writes it whole: a
+ * moment after the last change, at once when a field is left, and when the
+ * page is, so a time typed before Back is not lost. A time field hands over a
+ * whole time after every keystroke - the "2" of 23:00 makes it 02:00 - so no
+ * change is written as it arrives, and the fields are never held still while
+ * a write is on its way. The draft is dropped once the account agrees; a
+ * refused window stays beside the refusal, and one of no length is not sent.
  */
 export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; locked: boolean }) {
   const { t } = useTranslation();
   const { write, error } = useWriteNotifications(me);
   const quiet = me.notifications.quietHours;
   const [wanted, setWanted] = useState<QuietHours | null>(null);
+  /** The draft a write was made of, so that leaving a field after the pause does not send it twice. */
+  const [sent, setSent] = useState<QuietHours | null>(null);
 
   // The account has caught up with what was asked for, so there is nothing left to hold.
-  if (wanted && sameWindow(wanted, quiet)) setWanted(null);
+  if (wanted && sameWindow(wanted, quiet)) {
+    setWanted(null);
+    setSent(null);
+  }
 
   const shown = wanted ?? quiet;
+  const empty = wanted !== null && wanted.fromMinute === wanted.toMinute;
 
-  const set = (field: 'fromMinute' | 'toMinute', minute: number) => {
-    if (!shown) return;
-    const next = { ...shown, [field]: minute };
-    setWanted(next);
-    write({ quietHours: next }, t('notifications.told.quiet', { from: timeOf(next.fromMinute), to: timeOf(next.toMinute) }));
+  const answer = (window: QuietHours | null) => {
+    const said = window ? { from: timeOf(window.fromMinute), to: timeOf(window.toMinute) } : { what: t('notifications.quietHours') };
+    write({ quietHours: window }, t(`notifications.told.${window ? 'quiet' : 'off'}`, said));
   };
-
+  const save = () => {
+    if (!wanted || empty || sameWindow(wanted, sent)) return;
+    setSent(wanted);
+    answer(wanted);
+  };
   const toggle = () => {
     setWanted(null);
-    write(
-      { quietHours: shown ? null : DEFAULT_QUIET },
-      shown
-        ? t('notifications.told.off', { what: t('notifications.quietHours') })
-        : t('notifications.told.quiet', { from: timeOf(DEFAULT_QUIET.fromMinute), to: timeOf(DEFAULT_QUIET.toMinute) }),
-    );
+    setSent(null);
+    answer(shown ? null : DEFAULT_QUIET);
   };
+  const saveAsItStands = useEffectEvent(save);
+
+  // Another write on its way would be carried back by this one, so the pause starts once that has landed.
+  useEffect(() => {
+    if (!wanted || held) return;
+    const timer = window.setTimeout(saveAsItStands, 1200);
+    return () => window.clearTimeout(timer);
+  }, [wanted, held]);
+  useEffect(() => () => saveAsItStands(), []);
+
+  const field = (end: 'fromMinute' | 'toMinute', label: string) => (
+    <TimeField
+      label={label}
+      value={timeOf(shown![end])}
+      locked={locked}
+      onChange={minute => setWanted({ ...shown!, [end]: minute })}
+      onLeave={() => (held ? undefined : save())}
+    />
+  );
 
   return (
     <Row
@@ -66,19 +90,14 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
         <>
           {shown ? (
             <div className={styles.times}>
-              <TimeField
-                label={t('notifications.quiet.from')}
-                value={timeOf(shown.fromMinute)}
-                locked={locked}
-                onCommit={minute => set('fromMinute', minute)}
-              />
-              <TimeField
-                label={t('notifications.quiet.to')}
-                value={timeOf(shown.toMinute)}
-                locked={locked}
-                onCommit={minute => set('toMinute', minute)}
-              />
+              {field('fromMinute', t('notifications.quiet.from'))}
+              {field('toMinute', t('notifications.quiet.to'))}
             </div>
+          ) : null}
+          {empty ? (
+            <p className={ui.problem} role="alert">
+              {t('notifications.quiet.empty')}
+            </p>
           ) : null}
           <p className={ui.note}>{t('notifications.quiet.zone', { zone: me.preferences.timezone })}</p>
           <Refused error={error} />
@@ -90,35 +109,18 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
   );
 }
 
-/**
- * One end of the window, held as text while it is being typed.
- *
- * A time field hands over a whole time after every keystroke - typing the "2"
- * of 23:00 makes it 02:00 - so writing on each change would send a window
- * nobody asked for and, with the field held still while that write is on its
- * way, would lock the person out halfway through their own time. So the field
- * keeps what is in it, and the window is written when the field is left, or
- * when a change arrives while it is not focused, which is the picker handing
- * over a time rather than somebody typing one.
- */
-function TimeField({ label, value, locked, onCommit }: { label: string; value: string; locked: boolean; onCommit: (minute: number) => void }) {
-  const [text, setText] = useState(value);
-  const [written, setWritten] = useState(value);
+type Field = { label: string; value: string; locked: boolean; onChange: (minute: number) => void; onLeave: () => void };
 
-  // What the account says has moved - a write landed, or was refused - so the field says it again.
-  if (written !== value) {
-    setWritten(value);
+/** One end of the window, held as text: while it is typed into it can hold no time at all, and left so it says the window's again. */
+function TimeField({ label, value, locked, onChange, onLeave }: Field) {
+  const [text, setText] = useState(value);
+  const [said, setSaid] = useState(value);
+
+  // The window has moved - typed here, landed, taken back - so the field says it again.
+  if (said !== value) {
+    setSaid(value);
     setText(value);
   }
-
-  const commit = (typed: string) => {
-    const minute = minuteOf(typed);
-    if (minute === null) {
-      setText(value);
-      return;
-    }
-    if (typed !== value) onCommit(minute);
-  };
 
   return (
     <label className={styles.field}>
@@ -129,10 +131,14 @@ function TimeField({ label, value, locked, onCommit }: { label: string; value: s
         value={text}
         disabled={locked}
         onChange={event => {
+          const minute = minuteOf(event.target.value);
           setText(event.target.value);
-          if (document.activeElement !== event.target) commit(event.target.value);
+          if (minute !== null) onChange(minute);
         }}
-        onBlur={event => commit(event.target.value)}
+        onBlur={() => {
+          setText(value);
+          onLeave();
+        }}
       />
     </label>
   );

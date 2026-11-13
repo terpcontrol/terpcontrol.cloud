@@ -3,13 +3,13 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
-import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas/entitlement.js';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { Help } from '@/ui/Help';
 import { cameraTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -79,7 +79,6 @@ export function Premium() {
       <MePage title={title}>
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.demo')}</p>
         <Covers free={null} />
-        <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
       </MePage>
     );
   }
@@ -99,29 +98,15 @@ function Account({ title }: { title: string }) {
   // which of them is about to run out.
   const spaces = useSpaces();
 
-  if (me.isPending || cameras.isPending) {
-    return (
-      <MePage title={title}>
-        <Waiting lines={4} />
-      </MePage>
-    );
-  }
-
   if (!me.data || !cameras.data) {
-    return (
-      <MePage title={title}>
-        <LoadFailed
-          retry={() => {
-            void me.refetch();
-            void cameras.refetch();
-          }}
-        />
-      </MePage>
-    );
+    const retry = () => void Promise.all([me.refetch(), cameras.refetch()]);
+
+    return <MePage title={title}>{me.isPending || cameras.isPending ? <Waiting lines={4} /> : <LoadFailed retry={retry} />}</MePage>;
   }
 
   const premium = me.data.premium;
-  const list = cameras.data.items;
+  // Premium is the camera owner's to see and to extend: a host's camera is not listed to whoever was let into its place.
+  const list = cameras.data.items.filter(camera => camera.ownerId === me.data.id);
   const failedAt = me.isError ? me.dataUpdatedAt : cameras.isError ? cameras.dataUpdatedAt : null;
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
 
@@ -129,7 +114,7 @@ function Account({ title }: { title: string }) {
     <MePage title={title}>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      {!premium.enforced ? <p className={`${ui.card} ${styles.lead}`}>{t('me.premium.ungated')}</p> : null}
+      {!premium.enforced ? <p className={ui.note}>{t('me.premium.ungated')}</p> : null}
 
       {list.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.noCameras')}</p>
@@ -153,7 +138,6 @@ function Account({ title }: { title: string }) {
       )}
 
       <Covers free={premium.free} />
-      <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
     </MePage>
   );
 }
@@ -261,7 +245,10 @@ function Covers({ free }: { free: PremiumFree | null }) {
   return (
     <section className={styles.covers}>
       <header className={styles.coversHead}>
-        <span className="label">{t('me.premium.covers')}</span>
+        <span className="label">
+          {t('me.premium.covers')}
+          <Help topic="premiumCamera" />
+        </span>
         <span className={`mono ${styles.only}`}>{t('me.premium.camerasOnly')}</span>
       </header>
       <div className={ui.tableCard}>

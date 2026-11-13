@@ -15,8 +15,8 @@ import styles from './Start.module.css';
 
 /**
  * "Heute": what is due today or overdue, each with the one tap that settles
- * it. Nothing is drawn while nothing is due. `across` is Start with several
- * places, where a row says where it is due rather than since when.
+ * it. Nothing is drawn while nothing is due. `across` is a list over several
+ * places, where a row says where before it says since when.
  */
 export function Today({ due, places, across = false, now }: { due: Due[]; places: Place[]; across?: boolean; now: DateTime }) {
   const { t } = useTranslation();
@@ -59,7 +59,7 @@ export function DueList({ rows, steps, across, now }: DueNow & { across: boolean
             <span className={styles.dueText}>
               {task.label}
               <span className={styles.dueNote}>
-                {across ? <Facts facts={[grow?.name, place]} /> : dueLabel(t, task.dueAt, now, zone, { since: true })}
+                <Facts facts={[across && grow?.name, across && place, dueLabel(t, task.dueAt, now, zone, { since: true })]} />
               </span>
             </span>
             {mayLog ? (
@@ -107,7 +107,7 @@ function Step({ task, place, across, now }: { task: Task; place: string; across:
       <span className={styles.dueText}>
         {task.label}
         <span className={styles.dueNote}>
-          <Facts facts={[t('tasks.planStep'), across ? place : dueLabel(t, task.dueAt, now, zone, { since: true })]} />
+          <Facts facts={[t('tasks.planStep'), across && place, dueLabel(t, task.dueAt, now, zone, { since: true })]} />
         </span>
       </span>
       {asking ? null : (

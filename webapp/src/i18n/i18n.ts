@@ -20,16 +20,18 @@ const FALLBACK_LANGUAGE: Language = 'en';
 /** The translate function as the helpers outside a component take it: `t` from `useTranslation`, or i18next's own. */
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
+/** The language chosen in this browser, and the account's as this browser last read it - for the first frame of one that chose none. */
 const STORAGE_KEY = 'terp.language';
+const ACCOUNT_KEY = 'terp.language.account';
+
+const known = (tag: string | null): Language | null => ((LANGUAGES as readonly unknown[]).includes(tag) ? (tag as Language) : null);
 
 /**
- * Dates follow the language, not the browser. Luxon formats with the browser's
- * locale unless told otherwise, and the app's language is chosen on the
- * Appearance page rather than read from the browser - so without this a German
- * grower on an English phone reads German prose with English month names, and
- * the other way round. Every `toFormat` and `toLocaleString` in the app picks
- * the default up, so it is set in the two places the language is decided and
- * nowhere else.
+ * Dates follow the language, not the browser: Luxon formats with the browser's
+ * locale unless told otherwise, and a German grower on an English phone would
+ * read German prose with English month names. Every `toFormat` and
+ * `toLocaleString` picks the default up, so it is set in the two places the
+ * language is decided and nowhere else.
  */
 const followLanguage = (language: Language): void => {
   Settings.defaultLocale = language;
@@ -41,12 +43,12 @@ const catalogue = async (language: Language): Promise<Record<string, unknown>> =
   return (await response.json()) as Record<string, unknown>;
 };
 
-const preferredLanguage = (): Language => {
-  const stored = readStored(STORAGE_KEY);
-  if (stored && (LANGUAGES as readonly string[]).includes(stored)) return stored as Language;
-  const fromBrowser = navigator.languages.map(tag => tag.split('-')[0]).find(tag => (LANGUAGES as readonly string[]).includes(tag));
-  return (fromBrowser as Language) ?? FALLBACK_LANGUAGE;
-};
+/** A choice made in this browser, else the account's, else what the browser itself speaks. */
+const preferredLanguage = (): Language =>
+  known(readStored(STORAGE_KEY)) ??
+  known(readStored(ACCOUNT_KEY)) ??
+  navigator.languages.map(tag => known(tag.split('-')[0])).find(tag => tag !== null) ??
+  FALLBACK_LANGUAGE;
 
 /** Fetches the catalogues the session does not hold yet: every language, or the one named. */
 export const loadCatalogues = async (languages: readonly Language[] = LANGUAGES): Promise<void> => {
@@ -54,14 +56,22 @@ export const loadCatalogues = async (languages: readonly Language[] = LANGUAGES)
   await Promise.all(missing.map(async language => i18next.addResourceBundle(language, 'translation', await catalogue(language))));
 };
 
-export const setLanguage = async (language: Language): Promise<void> => {
-  writeStored(STORAGE_KEY, language);
+export const setLanguage = async (language: Language, key = STORAGE_KEY): Promise<void> => {
+  writeStored(key, language);
   // Fetched before the switch, so no screen renders a moment of missing keys.
   await loadCatalogues([language]);
   // Before the switch, so the render the switch triggers already formats its dates in the new language.
   followLanguage(language);
   await i18next.changeLanguage(language);
   document.documentElement.lang = language;
+};
+
+/** The account's language, taken by a browser nobody chose one in; whether it was, which leaves the caller nothing to tell the account. */
+export const followAccount = (language: string): boolean => {
+  const kept = known(language);
+  if (!kept || known(readStored(STORAGE_KEY))) return false;
+  void setLanguage(kept, ACCOUNT_KEY);
+  return true;
 };
 
 export const initI18n = async (): Promise<typeof i18next> => {

@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { usePageTitle } from '@/app/shell/page-title';
+import { PageHead } from '@/ui/PageHead';
 
 function Shell() {
   const main = useRef<HTMLElement>(null);
@@ -16,6 +17,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<h1>Home</h1>} />
           <Route path="/tent" element={<h1>Blue Dream tent</h1>} />
+          <Route path="/advanced" element={<PageHead back={{ to: '/', label: 'Back' }} title="Advanced" of="Controller" />} />
         </Routes>
       </main>
     </>
@@ -36,5 +38,15 @@ describe('the page a screen reader arrives on', () => {
     await act(async () => screen.getByRole('link', { name: 'Tent' }).click());
     expect(document.title).toBe('Blue Dream tent – Terp Control');
     expect(screen.getByRole('heading', { name: 'Blue Dream tent' })).toHaveFocus();
+  });
+
+  it('names a page under somebody´s by both parts, where its head says whose it is', () => {
+    render(
+      <MemoryRouter initialEntries={['/advanced']}>
+        <Shell />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Advanced');
+    expect(document.title).toBe('Advanced · Controller – Terp Control');
   });
 });

@@ -48,6 +48,9 @@ export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule,
   return title ? t(`alarms.presetRule.${title}`) : name;
 };
 
+/** What a reading is called wherever an alarm names it, in full: "Blatttemperatur zu hoch". */
+export const metricName = (t: Translate, metric: Metric): string => t(`alarms.metric.${metric}`, { defaultValue: metric });
+
 /**
  * An alarm's diary line, in the reader's language.
  *
@@ -118,7 +121,7 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine
     return { rule: ruleName(i18n, name), said: [i18n.t(value > 0 ? 'alarmLine.outputOn' : 'alarmLine.outputOff', { output })], limit: null };
   }
 
-  const metric = i18n.t(`alerts.metric.${watched}`, { defaultValue: i18n.t(`home.metric.${watched}`, { defaultValue: watched }) });
+  const metric = metricName((key, options) => i18n.t(key, options ?? {}), watched);
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);

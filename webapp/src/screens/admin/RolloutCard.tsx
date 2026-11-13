@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import type { Device, DeviceClass, Firmware, Fleet } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Refused } from '@/ui/PageState';
+import { Label } from './parts';
 import ui from '@/ui/ui.module.css';
 import { channelStands, classSize, staged } from './rollout';
 import styles from './Admin.module.css';
@@ -48,7 +49,7 @@ export function RolloutCard({
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <span className="label">{t('admin.rollout.title')}</span>
+        <Label text={t('admin.rollout.title')} help="rolloutStages" />
         <span className={styles.actions}>
           <Link className={ui.chip} to="/admin/firmware">
             {t('admin.rollout.upload')}
@@ -58,8 +59,6 @@ export function RolloutCard({
           </Link>
         </span>
       </div>
-
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.rollout.how')}</p>
 
       {populated.length === 0 ? <p className={ui.note}>{t('admin.rollout.nothing')}</p> : null}
 

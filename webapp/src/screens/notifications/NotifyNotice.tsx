@@ -3,7 +3,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Me, NotificationCategory } from '@fg2/shared-types/v1';
-import { useMailAlarms, useMe, useUpdateMe } from '@/api/account';
+import { useMe, useUpdateMe } from '@/api/account';
 import { instantOf } from '@/ui/age';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
@@ -13,6 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { rowsInWords, useCallingRows } from './calling';
 import { alarmsReach, callsReach, channelsLabel, LATER_DAYS, mailAddressOf, putAway, reachedBy } from './reach';
+import { useWriteNotifications } from './write';
 import styles from './NotifyNotice.module.css';
 
 const SETTINGS = '/me/notifications';
@@ -22,26 +23,17 @@ const SETTINGS = '/me/notifications';
  * will be read, with the one tap that fixes it.
  *
  * A new account has no channel at all, so every alarm - the device-offline one
- * the cloud keeps included - is raised for nobody, and the grower believes
- * they are watched over. The fix offered is mail to the address they sign in
- * with, named on the button's line, because that is the one channel that needs
- * nothing installed; the other ways are a link away. It is drawn only once the
- * account has answered and only to somebody who has an account to change.
+ * the cloud keeps included - is raised for nobody. The fix offered is mail to
+ * the address the account signs in with, named beside the button, because that
+ * channel needs nothing installed. What it is about is what can call on the
+ * account (`useCallingRows`): a device's alarms, and without a device the
+ * reminders of a diary and a camera's warning that it stopped. It is drawn only
+ * once the account has answered and only to somebody who has one to change.
  *
- * `later` offers "Later", which puts the notice away for a week on every
- * browser of the account. Where somebody came to fix exactly this - the
- * notification settings - there is no "Later", nothing put away is honoured,
- * and there is no link to the page they are already on.
- *
- * Over the readings it is drawn compact, two rows: what is wrong with "Later"
- * at its end, then the tap with the address it writes to beside it. The
- * notice stands on Start, and at three rows it took the room of a whole card
- * from it.
- *
- * What it is about is what can call on the account: a device's alarms, and
- * without a device the reminders of a diary and a camera's warning that it
- * stopped - the one thing that calls on somebody who keeps a diary without
- * hardware was never mentioned, and the tap left it where it was.
+ * `later` is the notice over the readings: compact, two rows, with "Later",
+ * which puts it away for a week on every browser of the account. Where
+ * somebody came to fix exactly this - the notification settings - there is no
+ * "Later", nothing put away is honoured, and no link to the page they are on.
  */
 export function NotifyNotice({ later = false }: { later?: boolean }) {
   const { t } = useTranslation();
@@ -54,8 +46,8 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
   const titleId = useId();
 
   if (!mayManage || !me.data || rows.length === 0) return null;
-  if (done) return <Done address={done} rows={rows} />;
-  if (callsReach(me.data, rows)) return null;
+  // What the tap did is said while it holds: mail switched off again brings the notice back.
+  if (callsReach(me.data, rows)) return done ? <Done address={done} rows={rows} /> : null;
   if (later && (putOff.isPending || putOff.isSuccess || putAway(me.data, now))) return null;
 
   const account = me.data;
@@ -81,6 +73,21 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
   );
 }
 
+/** What holds, said in the place it was asked about, with the way to change it. */
+function Said({ className, role, children }: { className: string; role?: 'status'; children: string }) {
+  const { t } = useTranslation();
+
+  return (
+    <p className={className} role={role}>
+      <Check size={16} strokeWidth={2} aria-hidden />
+      <span className={styles.doneText}>{children}</span>
+      <Link to={SETTINGS} className={ui.headLink}>
+        {t('notify.change')} ›
+      </Link>
+    </p>
+  );
+}
+
 /**
  * The last question of adding a device: how its alarms will reach anybody. An
  * account that is already reached is told how, and one that is not is offered
@@ -92,17 +99,7 @@ export function NotifyStep({ me }: { me: Me | undefined }) {
 
   if (!me) return null;
   if (done) return <Done address={done} />;
-  if (alarmsReach(me)) {
-    return (
-      <p className={styles.reached}>
-        <Check size={16} strokeWidth={2} aria-hidden />
-        <span className={styles.doneText}>{t('notify.reaches', { channels: channelsLabel(t, reachedBy(me)) })}</span>
-        <Link to={SETTINGS} className={ui.headLink}>
-          {t('notify.change')} ›
-        </Link>
-      </p>
-    );
-  }
+  if (alarmsReach(me)) return <Said className={styles.reached}>{t('notify.reaches', { channels: channelsLabel(t, reachedBy(me)) })}</Said>;
 
   return <EmailAlarmsOffer me={me} others onDone={setDone} />;
 }
@@ -124,29 +121,19 @@ export function EmailAlarmsOffer({
   rows?: NotificationCategory[];
   /** Whether the line carries the link to the other channels, which the notification settings page is itself. */
   others?: boolean;
-  /**
-   * One row rather than two: "Per E-Mail" with the address it goes to beside
-   * it, which reads as the one sentence it is - "Per E-Mail an …" - in the
-   * room the notice has on Start.
-   */
+  /** One row rather than two: "Per E-Mail" with the address beside it, in the room the notice has on Start. */
   compact?: boolean;
   onDone?: (address: string) => void;
 }) {
   const { t } = useTranslation();
-  const mail = useMailAlarms();
-  const address = mailAddressOf(me);
+  const { mailOn, error, pending } = useWriteNotifications(me);
 
   return (
     <div className={styles.offer} data-compact={compact || undefined}>
       <div className={styles.actions}>
-        <button
-          type="button"
-          className={`${ui.button} ${styles.button}`}
-          disabled={mail.isPending}
-          onClick={() => mail.mutate(rows, { onSuccess: () => onDone?.(address) })}
-        >
+        <button type="button" className={`${ui.button} ${styles.button}`} disabled={pending} onClick={() => mailOn(rows, onDone)}>
           <Mail size={16} strokeWidth={1.75} aria-hidden />
-          {t(mail.isPending ? 'notify.sending' : compact ? 'notify.emailShort' : 'notify.email')}
+          {t(pending ? 'notify.sending' : compact ? 'notify.emailShort' : 'notify.email')}
         </button>
       </div>
       <p className={styles.address}>
@@ -154,7 +141,7 @@ export function EmailAlarmsOffer({
         <Facts
           facts={[
             <span key="to" className={`mono ${styles.to}`}>
-              {t('notify.to', { email: address })}
+              {t('notify.to', { email: mailAddressOf(me) })}
             </span>,
             others ? (
               <Link key="other" to={SETTINGS} className={ui.headLink}>
@@ -164,26 +151,19 @@ export function EmailAlarmsOffer({
           ]}
         />
       </p>
-      <Refused error={mail.error} />
+      <Refused error={error} />
     </div>
   );
 }
 
-/** What the tap did, in the place it was tapped, and the way to change it. */
+/** What the tap did, in the place it was tapped. */
 function Done({ address, rows }: { address: string; rows?: NotificationCategory[] }) {
   const { t } = useTranslation();
-  const said =
-    rows && !(rows.length === 1 && rows[0] === 'alerts')
-      ? t('notify.doneRows', { what: rowsInWords(t, rows), email: address })
-      : t('notify.done', { email: address });
+  const critical = !rows || (rows.length === 1 && rows[0] === 'alerts');
 
   return (
-    <p className={styles.done} role="status">
-      <Check size={16} strokeWidth={2} aria-hidden />
-      <span className={styles.doneText}>{said}</span>
-      <Link to={SETTINGS} className={ui.headLink}>
-        {t('notify.change')} ›
-      </Link>
-    </p>
+    <Said className={styles.done} role="status">
+      {critical ? t('notify.done', { email: address }) : t('notify.doneRows', { what: rowsInWords(t, rows), email: address })}
+    </Said>
   );
 }

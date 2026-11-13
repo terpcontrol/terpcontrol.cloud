@@ -7,26 +7,14 @@ import { spacesQuery } from '@/api/spaces';
 
 /**
  * Where an alert happened and what it happened to, read once for the whole
- * inbox.
+ * inbox. A name changes when somebody renames something and never on its own,
+ * so the three lists are followed rather than read on the live beat - what has
+ * to be current here is the list of alerts. The device is kept whole: a card
+ * reads its maintenance window, and a place of two devices says which.
  *
- * A name is not a reading: it changes when somebody renames something, and
- * never on its own. The inbox therefore reads these three lists at a walk
- * rather than on the half minute the screens that watch hardware use - what has
- * to be current here is the list of alerts, and three names re-read every beat
- * were most of the traffic this screen made. The keys are the ones those
- * screens use, so whichever is opened first fills the cache for the other.
- *
- * The device is kept whole rather than reduced to its name: an offline alert
- * has to say how long the device has been quiet and its own start is only when
- * the cloud noticed, a card names the rule that raised it in the words that
- * rule's origin is read in, and a tent with two devices in it has to say which
- * of them the alert came from.
- *
- * Nothing here holds the cards up and nothing here is guessed. A list still on
- * its way and a list that was refused both leave a name unknown, the card falls
- * back to the id, and a read that actually failed is said out loud - names are
- * how a person knows which tent this is about, and quietly dropping them turns
- * seven cards into seven readings of nothing in particular.
+ * Nothing here holds the cards up and nothing is guessed: a list still on its
+ * way and one that was refused both leave a name unknown, the card falls back
+ * to the id, and a read that failed is said out loud.
  */
 
 export interface AlertNames {

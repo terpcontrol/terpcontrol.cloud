@@ -22,6 +22,7 @@ import {
   emptyDraft,
   firstWatch,
   hasBound,
+  metricName,
   outputName,
   outputsOf,
   readingsOf,
@@ -400,14 +401,6 @@ const routingNote = (t: Translate, draft: RuleDraft, me: Me | undefined): string
     ? t('alarms.sheet.routingNote', { channels: channelsLabel(t, channels) })
     : t('alarms.sheet.routingNone', { severity: t(`alarms.severity.${draft.severity}`) });
 };
-
-/**
- * What a reading is called, written out: the home card abbreviates to fit four
- * figures across, and a chip somebody is choosing what to watch from has room
- * for the whole word.
- */
-const metricName = (t: Translate, metric: Metric): string =>
-  t(`alarms.metric.${metric}`, { defaultValue: t(`home.metric.${metric}`, { defaultValue: metric }) });
 
 /** Whether an output is watched for how hard it runs or for running at all. */
 function OutputHow({

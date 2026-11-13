@@ -234,23 +234,36 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
     const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
     return parts ? [{ entry, parts, fired: key === FIRED }] : [];
   });
-  const lines = [...new Set(read.map(one => one.parts.rule))].flatMap(rule => {
-    const ofRule = read.filter(one => one.parts.rule === rule);
-    const firings = ofRule.filter(one => one.fired);
-    const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean): DayLine => ({
-      key: entry.id,
-      at: entry.occurredAt,
-      own: false,
-      routine: false,
-      what: { kind: 'alarm', entry, rule, count, since, limit: over ? null : parts.limit, over },
-    });
-
-    if (firings.length > 1) return [line(firings[0], firings.length, firings[firings.length - 1].entry.occurredAt, false)];
-    return ofRule.map(one => line(one, 1, one.entry.occurredAt, !one.fired));
+  const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean): DayLine => ({
+    key: entry.id,
+    at: entry.occurredAt,
+    own: false,
+    routine: false,
+    what: { kind: 'alarm', entry, rule: parts.rule, count, since, limit: over ? null : parts.limit, over },
   });
+  const often = foldSame(
+    read.filter(one => one.fired),
+    one => one.parts.rule,
+    one => one.entry.occurredAt,
+  ).filter(run => run.count > 1);
+  const lines = [
+    ...often.map(run => line(run.newest, run.count, run.since, false)),
+    ...read.filter(one => !often.some(run => run.newest.parts.rule === one.parts.rule)).map(one => line(one, 1, one.entry.occurredAt, !one.fired)),
+  ];
 
   return { lines, told: new Set(read.map(one => one.entry.id)) };
 };
+
+/**
+ * What happened again and again, said once - an alarm's firings of a day, the
+ * episodes of one alert: the newest of each kind, how many there were and
+ * since when. Newest first, as the list it is handed.
+ */
+export const foldSame = <T>(things: T[], kindOf: (thing: T) => string, atOf: (thing: T) => string): { newest: T; count: number; since: string }[] =>
+  [...new Set(things.map(kindOf))].map(kind => {
+    const same = things.filter(thing => kindOf(thing) === kind);
+    return { newest: same[0], count: same.length, since: atOf(same[same.length - 1]) };
+  });
 
 /** Whether a day has anything to show: a picture, a climate, or a line. */
 export const hasSomething = (day: GrowDiaryDay): boolean =>

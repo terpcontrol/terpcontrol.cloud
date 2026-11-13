@@ -52,7 +52,7 @@ function Frame({ children, note = false }: { children?: ReactNode; note?: boolea
             key="appearance"
             to="/me/appearance"
             title={t('me.appearance.title')}
-            line={appearanceLine(t, choice, null, i18n.resolvedLanguage ?? i18n.language)}
+            line={appearanceLine(t, choice, i18n.resolvedLanguage ?? i18n.language)}
           />,
           <Row key="about" to="/me/about" title={t('me.about.title')} />,
         ]}
@@ -75,7 +75,7 @@ function AccountRows() {
   const me = useAccountMe();
   const grows = useGrows();
   const mine = useMyGrows();
-  const cameras = useCameras();
+  const ownCameras = useCameras().data?.items.filter(camera => camera.ownerId === user?.id) ?? [];
   const diary = useDiaryLayer();
   const language = i18n.resolvedLanguage ?? i18n.language;
   const line = (reads: Read[], text: () => string) => lineOnce(t, reads, text);
@@ -84,16 +84,12 @@ function AccountRows() {
     <Frame>
       <Row to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now, language))} />
       <Row to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
-      <Row
-        to="/me/appearance"
-        title={t('me.appearance.title')}
-        line={line([me], () => appearanceLine(t, choice, me.data!.preferences.units, language))}
-      />
+      <Row to="/me/appearance" title={t('me.appearance.title')} line={appearanceLine(t, choice, language)} />
       <Row to="/me/diary" title={t('me.diary.title')} line={line([me], () => diaryLine(t, me.data!))} />
       {!diary && (mine.data?.items.length ?? 0) > 0 ? <Row to={ALL_GROWS} title={t('grow.all.pill')} line={growsLine(t, mine.data!.items)} /> : null}
       <Row to="/me/privacy" title={t('me.privacy.title')} line={line([grows, me], () => profileLine(t, grows.data!.items, me.data!))} />
-      {/* Premium is what a camera can do beyond its free tier, so it is a row only for an account that has one. */}
-      {cameras.data && ownsCamera(cameras.data.items) ? <Row to="/me/premium" title={t('me.premium.title')} /> : null}
+      {/* Premium is what a camera can do beyond its free tier, so it is a row only for an account that has one of its own - a host's is the host's. */}
+      {ownsCamera(ownCameras) ? <Row to="/me/premium" title={t('me.premium.title')} /> : null}
       <Row to="/me/about" title={t('me.about.title')} />
       {user?.isAdmin ? (
         <Row

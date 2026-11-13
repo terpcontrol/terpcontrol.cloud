@@ -21,9 +21,9 @@ const MANY_OPEN = 99;
  * standing, and an update that waits for somebody's word. A count taken from
  * one page of alerts would understate an account with more than fits on it,
  * so that one says "99+" and means it. Where the diary is kept and nothing is
- * open, what is due is counted instead, in a quieter colour. Nothing at all
- * while there is nothing, so a quiet account reads as quiet rather than as a
- * zero.
+ * open, the reader's own due tasks are counted instead, in a quieter colour.
+ * Nothing at all while there is nothing, so a quiet account reads as quiet
+ * rather than as a zero.
  */
 export const useBell = (): Bell | null => {
   const alerts = useOpenAlerts();

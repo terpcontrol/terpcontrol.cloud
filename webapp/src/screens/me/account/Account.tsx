@@ -1,11 +1,14 @@
 import { type DateTime } from 'luxon';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChangePassword, useRevokeOtherSessions, useRevokeSession, useSessions } from '@/api/account';
 import { itemsOf } from '@/api/pages';
+import { refusalCode } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -44,11 +47,7 @@ export function Account() {
         <>
           <Row
             title={t('me.account.email.title')}
-            line={
-              <>
-                <span className="mono">{account.email}</span> · {t('me.account.email.line')}
-              </>
-            }
+            line={<Facts facts={[<span className="mono">{account.email}</span>, ...factsOf(t('me.account.email.line'))]} />}
           />
           <PasswordRow held={held} />
           <ZoneRow kept={account.preferences.timezone} held={held} />
@@ -121,30 +120,30 @@ function ZoneRow({ kept, held }: { kept: string; held: boolean }) {
   );
 }
 
+const FIELDS = ['current', 'new', 'repeat'] as const;
+const UNTYPED = { current: '', new: '', repeat: '' };
+
 /**
  * The password, changed in place. The form checks only what keeps a pointless
  * request from being sent - the new password typed the same way twice - and
- * whether the current one is right is the server's answer, said under the
- * form where the tap was. A change that landed is said in a toast; it cannot
- * be taken back.
+ * whether the current one is right is the server's answer, said at its field;
+ * any other refusal is said under the form. A change that landed is said in a
+ * toast; it cannot be taken back.
  */
 function PasswordRow({ held }: { held: boolean }) {
   const { t } = useTranslation();
   const change = useChangePassword();
   const { tell } = useLog();
   const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState('');
-  const [next, setNext] = useState('');
-  const [again, setAgain] = useState('');
+  const [typed, setTyped] = useState(UNTYPED);
 
-  const mismatch = again !== '' && next !== again;
-  const ready = current !== '' && next !== '' && next === again && !change.isPending;
+  const mismatch = typed.repeat !== '' && typed.new !== typed.repeat;
+  const ready = typed.current !== '' && typed.new !== '' && typed.new === typed.repeat && !change.isPending;
+  const wrong = refusalCode(change.error) === 'current_password_wrong';
 
   const close = () => {
     setOpen(false);
-    setCurrent('');
-    setNext('');
-    setAgain('');
+    setTyped(UNTYPED);
     change.reset();
   };
 
@@ -161,7 +160,7 @@ function PasswordRow({ held }: { held: boolean }) {
               event.preventDefault();
               if (!ready) return;
               change.mutate(
-                { currentPassword: current, newPassword: next },
+                { currentPassword: typed.current, newPassword: typed.new },
                 {
                   onSuccess: () => {
                     close();
@@ -171,30 +170,22 @@ function PasswordRow({ held }: { held: boolean }) {
               );
             }}
           >
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.current')}</span>
-              <input
-                className={ui.input}
-                type="password"
-                autoComplete="current-password"
-                value={current}
-                onChange={event => setCurrent(event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.new')}</span>
-              <input className={ui.input} type="password" autoComplete="new-password" value={next} onChange={event => setNext(event.target.value)} />
-            </label>
-            <label className={styles.field}>
-              <span className="label">{t('me.account.password.repeat')}</span>
-              <input
-                className={ui.input}
-                type="password"
-                autoComplete="new-password"
-                value={again}
-                onChange={event => setAgain(event.target.value)}
-              />
-            </label>
+            {FIELDS.map(key => (
+              <Fragment key={key}>
+                <label className={styles.field}>
+                  <span className="label">{t(`me.account.password.${key}`)}</span>
+                  <input
+                    className={ui.input}
+                    type="password"
+                    autoComplete={key === 'current' ? 'current-password' : 'new-password'}
+                    aria-invalid={(key === 'current' && wrong) || undefined}
+                    value={typed[key]}
+                    onChange={event => setTyped({ ...typed, [key]: event.target.value })}
+                  />
+                </label>
+                {key === 'current' && wrong ? <Refused error={change.error} /> : null}
+              </Fragment>
+            ))}
             {mismatch ? <p className={ui.problem}>{t('me.account.password.mismatch')}</p> : null}
             <div className={styles.actions}>
               <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!ready}>
@@ -204,7 +195,7 @@ function PasswordRow({ held }: { held: boolean }) {
                 {t('me.account.password.cancel')}
               </button>
             </div>
-            <Refused error={change.error} />
+            {wrong ? null : <Refused error={change.error} />}
           </form>
         ) : null
       }
@@ -219,12 +210,10 @@ function PasswordRow({ held }: { held: boolean }) {
 }
 
 /**
- * How many sessions stand on the page before it offers the rest: this device,
- * which is always first, and a handful of the browsers used most recently.
- * Every agent run and every script signs in, so an account that is worked on
- * accumulates rows nobody will ever tap, and the two irreversible controls
- * below - the export and the deletion - are what somebody came to this page
- * for. They must not sit under a screen and a half of scrolling.
+ * How many sessions stand on the page before it offers the rest: this device
+ * and a handful of the browsers used most recently. Every script signs in, so
+ * an account that is worked on gathers rows nobody will tap, and the export
+ * and the deletion below must not sit under a screen and a half of them.
  */
 const SESSIONS_SHOWN = 6;
 
@@ -264,10 +253,13 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
           <li key={row.id} className={styles.session}>
             <div className={styles.sessionText}>
               <span className={styles.sessionDevice}>{deviceLabel(row.userAgent) ?? t('me.account.sessions.unknownDevice')}</span>
-              <span className={`mono ${styles.sessionMeta}`}>
-                {t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) })} ·{' '}
-                {t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) })}
-              </span>
+              <Facts
+                className={`mono ${styles.sessionMeta}`}
+                facts={[
+                  t('me.account.sessions.lastSeen', { age: ageLabel(row.lastSeenAt, now) }),
+                  t('me.account.sessions.until', { date: calendarDay(row.expiresAt, zone) }),
+                ]}
+              />
             </div>
             {row.id === currentId ? (
               <span className={`${ui.chip} ${styles.thisDevice}`}>{t('me.account.sessions.thisDevice')}</span>
@@ -303,15 +295,10 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
         </button>
       ) : null}
       {/*
-        One act rather than a row at a time, because the sessions worth ending
-        are the ones nobody can see from here: a browser left signed in
-        somewhere is not on the first page of anything. It spares this one.
-
-        It asks first. Every other control on this card ends the one row it
-        sits on, and this one sits among them while reaching every device the
-        account is signed in on - a tap meant for the row above it would sign
-        somebody's phone, their partner's tablet and whatever script they run
-        out at once, and nothing about that can be taken back from here.
+        One act rather than a row at a time: the sessions worth ending are the
+        ones nobody can see from here. It spares this one, and it asks first -
+        every other control on this card ends its own row, and this one
+        reaches every device the account is signed in on, with no way back.
       */}
       {rows.length > 1 ? (
         <button
@@ -340,18 +327,11 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
 
 /**
  * The question in front of the sweep: what it ends, whom it reaches, and what
- * it leaves standing.
- *
- * It says the effect and not a number. What this browser has loaded is not
- * what the account has - the list is paged and the cursor may still have
- * pages behind it - so a figure here would be an answer to a different
- * question, and one that reads as a promise about how much is being ended.
- *
- * A tap is the whole gate, without the typed word the account's deletion asks
- * for: what is lost here is convenience rather than anything of the grower's,
- * and every session ended this way can be signed back in with the password
- * they already have. The sheet closes only once the server has answered, so a
- * refusal is read where the tap was rather than on the card behind it.
+ * it leaves standing - the effect and not a number, for the reason the list
+ * states none. A tap is the whole gate, without the typed word the account's
+ * deletion asks for: what is lost is convenience, and every session ended can
+ * be signed back in. The sheet closes only once the server has answered, so a
+ * refusal is read where the tap was.
  */
 function SweepSheet({ sweep, onClose, onDone }: { sweep: ReturnType<typeof useRevokeOtherSessions>; onClose: () => void; onDone: () => void }) {
   const { t } = useTranslation();

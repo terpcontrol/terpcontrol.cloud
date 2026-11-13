@@ -5,7 +5,7 @@ import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } fro
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
-import { Help } from '@/ui/Help';
+import { Label } from './parts';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { channelStands, classSize, staged } from './rollout';
@@ -203,10 +203,7 @@ export function ClassRollout({
           />
         </label>
         <label className={styles.field} htmlFor={failuresId}>
-          <span className="label">
-            {t('admin.firmware.maxFailures')}
-            <Help topic="rolloutFailures" />
-          </span>
+          <Label text={t('admin.firmware.maxFailures')} help="rolloutFailures" />
           <input
             className={`mono ${ui.input}`}
             type="number"

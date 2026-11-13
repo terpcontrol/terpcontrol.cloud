@@ -11,7 +11,7 @@
 
 /* Whose tasks, beside the title: two answers, each a finger high. */
 .scope button {
-  height: 40px;
+  height: var(--control-height);
   min-width: var(--control-height);
 }
 

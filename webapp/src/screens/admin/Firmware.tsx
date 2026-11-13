@@ -14,7 +14,7 @@ import {
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminNotLoaded } from './parts';
+import { AdminHead, AdminNotLoaded, Label } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
@@ -64,9 +64,8 @@ export function FirmwareScreen() {
 
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <span className="label">{t('admin.firmware.classes')}</span>
+          <Label text={t('admin.firmware.classes')} help="firmwareClasses" />
         </div>
-        <p className={`${ui.note} ${styles.consequence}`}>{t('admin.firmware.classesHow')}</p>
         {known.map(deviceClass => (
           <ClassRollout
             key={deviceClass.id}
@@ -119,9 +118,8 @@ function Register({ classes }: { classes: DeviceClass[] }) {
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <span className="label">{t('admin.firmware.register')}</span>
+        <Label text={t('admin.firmware.register')} help="firmwareRegister" />
       </div>
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.firmware.registerHow')}</p>
 
       <div className={styles.fields}>
         <label className={styles.field}>

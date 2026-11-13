@@ -263,7 +263,7 @@ describe('who is signed in', () => {
   it('says every line is loading until its answer is there, rather than guessing a figure', () => {
     draw();
 
-    for (const name of ['Notifications', 'Appearance', 'Grow diary', 'Privacy and profile']) {
+    for (const name of ['Notifications', 'Grow diary', 'Privacy and profile']) {
       expect(screen.getByRole('link', { name: new RegExp(`^${name}`) })).toHaveTextContent(`${name}loading`);
     }
     expect(screen.queryByText(/0 /)).not.toBeInTheDocument();
@@ -327,11 +327,11 @@ describe('what each door says', () => {
     expect(await lineUnder('Notifications')).toBe('Telegram and E-mail · quiet 23:00–07:00');
   });
 
-  it('states the language, the theme and the units', async () => {
+  it('states the language and the theme, and not the units the views do not show yet', async () => {
     server.me = me({ preferences: { ...me().preferences, units: { temperature: 'fahrenheit', weight: 'grams', volume: 'gallons' } } });
     draw();
 
-    expect(await lineUnder('Appearance')).toBe('English · as the system · °F, g, gal');
+    expect(await lineUnder('Appearance')).toBe('English · as the system');
   });
 
   it('says whether the diary is kept, and that the account left that to its use', async () => {
@@ -366,7 +366,7 @@ describe('one read that fails', () => {
   const DOORS = ['Notifications', 'Account', 'Appearance', 'Grow diary', 'Privacy and profile', 'About'];
 
   it.each([
-    ['/v1/me', ['Notifications', 'Appearance', 'Grow diary', 'Privacy and profile']],
+    ['/v1/me', ['Notifications', 'Grow diary', 'Privacy and profile']],
     ['/v1/grows', ['Privacy and profile']],
     ['/v1/home/grows', []],
     ['/v1/cameras', []],
@@ -490,6 +490,12 @@ describe('what is empty', () => {
     await neverPremium();
     removed.unmount();
 
+    // A camera in a place the account was let into is its host's.
+    server.cameras = [camera({ ownerId: 'user-9' })];
+    const guest = draw();
+    await neverPremium();
+    guest.unmount();
+
     server.cameras = [camera({})];
     server.failing = ['/v1/cameras'];
     draw();
@@ -601,6 +607,16 @@ describe('the grow diary', () => {
     expect(chosen()).toEqual(['false', 'false', 'true']);
     await waitFor(() => expect(screen.queryByText('Grow is in the bar')).not.toBeInTheDocument());
     expect(server.asked.filter(path => path === '/v1/home')).toHaveLength(2);
+  });
+
+  it('says under "Automatic" what is true of the diary: on since it was used, or on once it is', async () => {
+    const used = drawDiary();
+    expect(await screen.findByText('on since you started a grow or logged something')).toBeInTheDocument();
+    used.unmount();
+
+    server.me = me({ layers: { diary: false } });
+    drawDiary();
+    expect(await screen.findByText('on once you start a grow or log something')).toBeInTheDocument();
   });
 
   it('takes the answer back from the toast, to what the account held before', async () => {

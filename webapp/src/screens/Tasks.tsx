@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
+import { useRoomsMembers } from '@/api/members';
 import { useReminders } from '@/api/reminders';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -76,12 +77,17 @@ export function Tasks() {
   return <List tasks={waiting.data.items} failedAt={waiting.isError ? waiting.dataUpdatedAt : null} now={now} />;
 }
 
-/** The title, with the way back to Meldungen, where the list is reached: no item of the bar is this page's own. */
+/**
+ * The title, with the way back to Meldungen, where the list is reached: no item of the bar is this page's own.
+ * What the list holds is behind the help button - not for the demo, which is answered no list.
+ */
 function Head({ scope, onScope }: { scope?: Scope; onScope?: (scope: Scope) => void }) {
   const { t } = useTranslation();
+  const { user } = useSession();
 
   return (
     <PageHead back={{ to: '/alerts', label: t('alerts.back') }} title={t('tasks.title')}>
+      {user?.isDemo ? null : <Help topic="tasks" />}
       {scope && onScope ? (
         <div className={`${ui.segments} ${styles.scope}`} role="radiogroup" aria-label={t('tasks.scopeLabel')}>
           {SCOPES.map(one => (
@@ -196,6 +202,12 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
     return standing !== null && enough(mayWith(standing), need);
   };
 
+  // Who ticked what somebody else did, by the people of the place it was done in: read only where there is such a tick.
+  const byOthers = ticked.filter(task => task.completion?.authorId && task.completion.authorId !== myId);
+  const members = useRoomsMembers([...new Set(byOthers.flatMap(task => standingOf(task.subject)?.spaceId ?? []))]);
+  const tickedBy = (task: Task): string | null =>
+    [...members.values()].flatMap(page => page?.people ?? []).find(person => person.id === task.completion?.authorId)?.handle ?? null;
+
   /**
    * What ticking one off really needs. Almost every task is a diary line and
    * wants `log`, but a plan step is not a line: it moves the plan on and sends
@@ -290,18 +302,14 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
           </header>
           <ul className={ui.group}>
             {ticked.map(task => (
-              <DoneCard key={task.id} task={task} name={nameOf(task)} me={user} now={now} />
+              <DoneCard key={task.id} task={task} name={nameOf(task)} by={tickedBy(task)} me={user} now={now} />
             ))}
           </ul>
         </section>
       ) : null}
 
-      {/* The rhythms themselves, and not only the turns of them that fall
-          inside the week the list looks over. A reminder set to every thirty
-          days produced no task for twenty-three of them and was on no screen
-          at all in between: it could not be read, corrected or stopped, and
-          the sheet that exists to correct one was reachable only through a
-          card the rhythm was not producing. */}
+      {/* The rhythms themselves, and not only their turns inside the week the list looks over:
+          one that comes round every thirty days can be read, corrected and stopped in between. */}
       {rhythms.length > 0 ? (
         <section className={styles.group} aria-label={t('tasks.group.rhythms')}>
           <header className={styles.groupHead}>
@@ -324,8 +332,6 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
           </ul>
         </section>
       ) : null}
-
-      <p className={ui.note}>{t('tasks.sources')}</p>
 
       {/* A rhythm has to hang on a grow or a place this account manages; with
           none of either there is nothing the sheet could write. */}

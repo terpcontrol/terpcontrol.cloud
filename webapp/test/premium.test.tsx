@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
@@ -125,7 +125,6 @@ const draw = () => drawAt(<Premium />, { at: '/me/premium' });
 const drawLoaded = async () => {
   draw();
   await screen.findByText('What Premium covers');
-  await screen.findByText(/Per camera, not per account/);
 };
 
 const card = (name: string) => within(screen.getByText(name).closest('li')!);
@@ -291,13 +290,27 @@ describe('an install that enforces Premium', () => {
     expect(screen.getAllByRole('link', { name: /Extend Premium|Get Premium/ })).toHaveLength(2);
   });
 
-  it('offers nothing while no camera is due, and the closing line says from when it will', async () => {
+  it('offers nothing while no camera is due', async () => {
     server.cameras = [included, bought];
     await drawLoaded();
 
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
     expect(screen.queryByText(/€ 29/)).toBeNull();
-    expect(screen.getByText(/from 60 days before its year ends/)).toBeInTheDocument();
+  });
+
+  it("lists the account's own cameras alone: a host's camera is not a guest's to extend", async () => {
+    server.cameras = [included, { ...migrated, name: 'Host cam', ownerId: 'user-9' }];
+    await drawLoaded();
+
+    expect(screen.getByText('Terp Cam 1')).toBeInTheDocument();
+    expect(screen.queryByText('Host cam')).toBeNull();
+
+    cleanup();
+    server.cameras = [{ ...migrated, name: 'Host cam', ownerId: 'user-9' }];
+    await drawLoaded();
+
+    expect(screen.getByText('No camera of your own yet.')).toBeInTheDocument();
+    expect(screen.queryByText('Host cam')).toBeNull();
   });
 
   it('draws no price the install has not given, even once a camera is due', async () => {
@@ -396,14 +409,13 @@ describe('what Premium covers', () => {
     expect(tableSays()).toEqual([FIXED[0], ['whole', 'whole'], ['whole grow', 'whole grow'], ...FIXED.slice(1)]);
   });
 
-  it('closes with the rule: per camera, the offer on the card ahead of the end, nothing automatic, nothing self-hosted', async () => {
+  it('keeps the rule behind the help button at the table: per camera, the offer on the card, nothing automatic', async () => {
     await drawLoaded();
 
-    expect(
-      screen.getByText(
-        "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from 60 days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Premium' })).toHaveAccessibleDescription(
+      /belongs to one camera, not to the account, and never renews by itself: the offer stands under Me › Premium on the camera's card/,
+    );
+    expect(screen.queryByText(/Per camera, not per account/)).toBeNull();
   });
 
   it("is told, as the demo, that there is no account to look at, asks for nothing, and says the figures are the install's", async () => {

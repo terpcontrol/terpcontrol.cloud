@@ -4,7 +4,6 @@ import { useCameras } from '@/api/cameras';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { Refused } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
-import ui from '@/ui/ui.module.css';
 import { usePushSubscription } from './push';
 import { useWriteNotifications } from './write';
 import { isConfigured } from './reach';
@@ -14,18 +13,14 @@ import styles from './Notifications.module.css';
 /**
  * What goes where: a row per category, a column per channel, a switch in each
  * cell. A column whose channel is not configured is drawn off and cannot be
- * moved, because a category routed to a channel with no address goes nowhere,
- * and a switch that reads on above nothing would be a promise the screen
- * cannot keep. What is stored for such a channel is not written away over it,
- * though - it is what the channel will carry as soon as it has an address -
- * and the line under the grid says so, so that a column of grey switches is
- * not read as work the person has to do again.
+ * moved: a switch that reads on above nothing would be a promise the screen
+ * cannot keep. What is stored for such a channel is not written away over it -
+ * it is what the channel carries as soon as it has an address - and the help
+ * beside the grid's heading says so (`routingGrid`).
  *
- * The weekly film is made from a camera's stills, so its row is there only for
- * an account that has a camera; without one it was a switch for something that
- * could never arrive. Due tasks are the diary's reminders - watering, feeding,
- * a chore of the grow - so their row is there only for an account that keeps
- * one. The plan's questions are Steuerung's and stay.
+ * The weekly film's row is there only for an account that has a camera, and
+ * the due tasks' - the diary's reminders - only for one that keeps a diary.
+ * The plan's questions are Steuerung's and stay.
  */
 export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
   const { t } = useTranslation();
@@ -40,8 +35,6 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
 
   // Push goes somewhere as soon as any browser of the account is subscribed, not only this one.
   const configured = (channel: NotificationChannel): boolean => isConfigured(me, channel) || (channel === 'push' && subscription.data != null);
-
-  const keptSomewhere = CHANNELS.some(channel => !configured(channel) && categories.some(category => routes(routing, category, channel)));
 
   return (
     <div className={styles.gridBlock}>
@@ -91,8 +84,6 @@ export function RoutingGrid({ me, held }: { me: Me; held: boolean }) {
           ))}
         </tbody>
       </table>
-      <p className={ui.note}>{t('notifications.grid.note')}</p>
-      {keptSomewhere ? <p className={ui.note}>{t('notifications.grid.kept')}</p> : null}
       <Refused error={error} />
     </div>
   );

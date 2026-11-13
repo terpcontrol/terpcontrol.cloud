@@ -12,16 +12,16 @@ import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
- * Me › Appearance: the theme and the language stay the browser's, the units
- * go to the account.
+ * Me › Appearance: the theme is the browser's, the language the browser's
+ * choice, the units go to the account - and each line says where it holds.
  *
  * The units are the thing to check on the wire: `PATCH /me` keeps every
  * preference a body leaves out, so one menu moved sends that one preference
  * and nothing it might send back stale - the units whole, as they are one -
  * and the toast that answers it takes back that one unit and no other. The
- * theme and the language are checked to land where they have always lived -
- * one attribute on <html>, one key in local storage - and nowhere near a
- * request.
+ * theme and the language are checked to land where they live - one attribute
+ * on <html>, one key in local storage - and nowhere near a request of this
+ * page: the account hears the language from the shell.
  */
 
 const session = vi.hoisted(() => ({ demo: false }));
@@ -47,7 +47,11 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json(server.me);
   }
   // The German catalogue, as the language switch fetches it before switching.
-  if (pathname === '/assets/i18n/de.json') return json({ me: { appearance: { title: 'Darstellung' } } });
+  if (pathname === '/assets/i18n/de.json') {
+    return json({
+      me: { appearance: { title: 'Darstellung', language: 'Sprache', languageNames: { de: 'Deutsch' } }, saved: { setting: '{{what}}: {{value}}' } },
+    });
+  }
   return json(NOT_FOUND, 404);
 });
 
@@ -83,9 +87,10 @@ afterEach(async () => {
 });
 
 describe('the theme', () => {
-  it('is three segments that write one attribute on <html> and touch no request', () => {
+  it('is three segments that write one attribute on <html> and touch no request, and says it holds in this browser', () => {
     draw();
 
+    expect(screen.getByText('in this browser only')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
 
@@ -104,7 +109,9 @@ describe('the units', () => {
     expect(screen.getByRole('combobox', { name: 'Volume' })).toHaveValue('liters');
     expect(screen.getByRole('option', { name: '°F' })).toBeInTheDocument();
     expect(screen.getByText('Units')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'About Units' })).toHaveAccessibleDescription(/kept with your account/);
+    // What the choice does not do yet is said on the page, not behind a button.
+    expect(screen.getByText('The screens show °C, grams and litres for now.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'About Units' })).not.toBeInTheDocument();
   });
 
   it('sends the units with one changed and nothing else, so no other preference is turned back', async () => {
@@ -146,12 +153,13 @@ describe('the units', () => {
 });
 
 describe('the language', () => {
-  it('offers each language in its own name and switches the catalogue, remembering the choice in this browser', async () => {
+  it('offers each language in its own name, switches the catalogue, and keeps the choice in this browser', async () => {
     draw();
 
     const menu = screen.getByRole('combobox', { name: 'Language' });
     expect(menu).toHaveValue('en');
     expect(screen.getByRole('option', { name: 'Deutsch' })).toBeInTheDocument();
+    expect(screen.getByText('here and in any browser without a choice of its own')).toBeInTheDocument();
 
     fireEvent.change(menu, { target: { value: 'de' } });
 
@@ -159,5 +167,18 @@ describe('the language', () => {
     expect(localStorage.getItem('terp.language')).toBe('de');
     expect(await screen.findByRole('heading', { name: 'Darstellung' })).toBeInTheDocument();
     expect(server.asked.filter(call => call.startsWith('PATCH'))).toEqual([]);
+  });
+
+  it('answers the change in the language chosen, with the way back to the one before', async () => {
+    draw();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), { target: { value: 'de' } });
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Sprache: Deutsch']));
+
+    await told[0].undo!();
+
+    expect(document.documentElement.lang).toBe('en');
+    expect(localStorage.getItem('terp.language')).toBe('en');
+    expect(await screen.findByRole('heading', { name: 'Appearance' })).toBeInTheDocument();
   });
 });

@@ -39,7 +39,7 @@ export function DiarySetting() {
 
         return (
           <>
-            <Row title={t('me.diary.label')} help="diaryLayer" line={t(`me.diary.line.${kept ?? 'auto'}`)}>
+            <Row title={t('me.diary.label')} help="diaryLayer" line={t(`me.diary.line.${kept ?? (account.layers?.diary ? 'autoOn' : 'auto')}`)}>
               <div className={ui.segments} role="radiogroup" aria-label={t('me.diary.label')}>
                 {CHOICES.map(({ key, choice }) => (
                   <button

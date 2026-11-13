@@ -3,3 +3,21 @@
   font-size: var(--text-sm);
   line-height: var(--line-body);
 }
+
+/* A public address under its row: the link a finger high, "Kopieren" beside it. */
+.address,
+.address > a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--control-height);
+}
+
+.address > a {
+  flex: 1;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}

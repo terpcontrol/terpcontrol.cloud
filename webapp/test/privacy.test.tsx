@@ -5,7 +5,7 @@ import type { GrowListItem, GrowUpdate, Me, MeUpdate, ShareLink } from '@fg2/sha
 import type { Told } from '@/log/log-context';
 import { cutoffDay, narrows } from '@/screens/me/privacy/climate';
 import { Privacy } from '@/screens/me/privacy/Privacy';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith } from './session';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -143,16 +143,25 @@ describe('what a stranger finds', () => {
 
     expect(screen.getByRole('heading', { name: 'Privacy and profile' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Public profile' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByText('@chrisgrows · lists only grows you set public')).toBeInTheDocument();
+    expect(screen.getByText(reading('@chrisgrows · lists only grows you set public'))).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Copy the profile address' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /\/@chrisgrows$/ })).not.toBeInTheDocument();
   });
 
-  it('shows the profile’s address with Copy once it is public', async () => {
+  it('shows the profile’s address as the link that opens it, with Copy beside it, once it is public', async () => {
     await drawLoaded({ publicProfile: true });
 
     expect(screen.getByRole('switch', { name: 'Public profile' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByText(/\/@chrisgrows$/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /\/@chrisgrows$/ })).toHaveAttribute('href', '/@chrisgrows');
     expect(screen.getByRole('button', { name: 'Copy the profile address' })).toBeInTheDocument();
+  });
+
+  it('promises of the profile only what the app can set: the username and the public grows', async () => {
+    await drawLoaded();
+
+    const help = screen.getByRole('button', { name: 'About Public profile' });
+    expect(help).toHaveAccessibleDescription(/shows your username and your public grows/);
+    expect(help).not.toHaveAccessibleDescription(/bio|picture/);
   });
 
   it('publishes the profile on its own, which is not part of the privacy object, and takes it back the same way', async () => {
@@ -172,7 +181,8 @@ describe('what a stranger finds', () => {
 
     expect(await screen.findByRole('switch', { name: 'Public page of Spring run #3' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText('Public grows')).toBeInTheDocument();
-    expect(screen.getByText(/\/g\/spring-run-3$/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /\/g\/spring-run-3$/ })).toHaveAttribute('href', '/g/spring-run-3');
+    expect(screen.getByRole('button', { name: 'Copy the public address' })).toBeInTheDocument();
 
     expect(screen.getByRole('switch', { name: 'Public page of Balcony tomatoes' })).toHaveAttribute('aria-checked', 'false');
     expect(await screen.findByText('private · 1 link opens it')).toBeInTheDocument();
@@ -190,7 +200,8 @@ describe('what a stranger finds', () => {
     expect(server.growsPatched).toEqual([{ id: 'grow-2', body: { visibility: 'public' } }]);
     await waitFor(() => expect(screen.getByRole('switch', { name: 'Public page of Balcony tomatoes' })).toHaveAttribute('aria-checked', 'true'));
     // Public, its own address opens it too.
-    expect(await screen.findByText(/\/g\/balcony-tomatoes · 2 links open it$/)).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /\/g\/balcony-tomatoes$/ })).toBeInTheDocument();
+    expect(screen.getByText('2 links open it')).toBeInTheDocument();
     expect(server.patched).toEqual([]);
 
     await told[0].undo!();

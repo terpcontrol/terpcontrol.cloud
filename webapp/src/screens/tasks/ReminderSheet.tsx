@@ -6,12 +6,14 @@ import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
+import { useLog, type Told } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
+import { litresOf } from './tasks';
 import styles from './Tasks.module.css';
 
 const KINDS: ReminderKind[] = ['water', 'feed', 'chore', 'custom'];
@@ -68,13 +70,18 @@ interface ReminderSheetProps {
  *
  * Deleting stops the rhythm and nothing else: the diary lines it produced stay,
  * because what was done does not stop having happened. It asks first, in the
- * place the tap was, because it cannot be taken back.
+ * place the tap was, because it cannot be taken back: a rhythm made again
+ * would count from that day, not from its last tick.
+ *
+ * Every write is answered by a toast that names the reminder. A change is
+ * taken back by writing what stood before, a new one by deleting it.
  */
 export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: ReminderSheetProps) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const create = useCreateReminder();
-  const update = useUpdateReminder(reminder?.id ?? '');
-  const remove = useDeleteReminder(reminder?.id ?? '');
+  const update = useUpdateReminder();
+  const remove = useDeleteReminder();
   const [draft, setDraft] = useState<Draft>(() => draftOf(reminder, userId));
   const zone = useZone();
   const [askingDelete, setAskingDelete] = useState(false);
@@ -90,10 +97,16 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const complete = draft.label.trim().length > 0 && draft.subject !== null && (draft.rhythm === 'every' ? draft.everyDays >= 1 : onceOn !== '');
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
 
+  const told = (what: 'created' | 'changed' | 'deleted', label: string, undo: Told['undo']) => {
+    tell({ label: t(`tasks.told.${what}`, { label }), undo });
+    onClose();
+  };
   const save = () => {
     const body = bodyOf(draft, onceOn, userId, reminder?.assigneeId ?? null, zone);
-    if (reminder) update.mutate(body, { onSuccess: onClose });
-    else create.mutate(body, { onSuccess: onClose });
+    if (!reminder) return create.mutate(body, { onSuccess: made => told('created', made.label, () => remove.mutateAsync(made.id)) });
+    const { id, kind, label, everyDays, onceAt, assigneeId, defaults } = reminder;
+    const before = { id, kind, label, everyDays, onceAt, assigneeId, defaults };
+    update.mutate({ id, ...body }, { onSuccess: () => told('changed', body.label, () => update.mutateAsync(before)) });
   };
 
   return (
@@ -174,15 +187,9 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               />
             </label>
           ) : (
-            // Its own date field rather than the sheets' shared one: that one
-            // records what has already been done and refuses the future, and a
-            // reminder is for nothing else. The floor is today where the
-            // account is, because that is the day the field's own value means:
-            // a reminder falls due at the start of its day in the account's
-            // zone, so a floor taken from the reader's calendar refuses the
-            // account's own today to anybody east of it and offers a day the
-            // account has already spent to anybody west - and, west of it,
-            // opened on a stored reminder below its own floor.
+            // Its own date field rather than the sheets' shared one, which
+            // refuses the future. The floor is today where the account is: a
+            // reminder falls due at the start of its day in the account's zone.
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.onceOn')}</span>
               <input
@@ -232,7 +239,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
                     type="button"
                     className={`${ui.button} ${ui.dangerFilled}`}
                     disabled={busy}
-                    onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
+                    onClick={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label, null) })}
                   >
                     {t('tasks.sheet.deleteYes')}
                   </button>
@@ -302,7 +309,7 @@ const isSubject = (subject: GrowOrSpaceRef | null, type: GrowOrSpaceRef['type'],
  * undo; Save waits for it instead.
  */
 const draftOf = (reminder: Reminder | null, userId: string): Draft => {
-  const litres = reminder ? litresIn(reminder.defaults) : null;
+  const litres = litresOf(reminder?.defaults);
 
   return {
     label: reminder?.label ?? '',
@@ -322,32 +329,18 @@ const draftOf = (reminder: Reminder | null, userId: string): Draft => {
  * yet.
  *
  * Which day that instant is read as is the caller's to say, and it says the
- * account's - which is the half this sheet used to get wrong. The stored
- * instant is the start of a day where the account is, `bodyOf` writes it back
- * as the start of a day where the account is, and a read of it on the reader's
- * own calendar in between made those two different days for anybody behind
- * their account: the field opened on the day before, and Save - a Save that
- * changed nothing - filed the reminder there. Done again it moved again, so a
- * reminder walked backwards through the calendar one day per save.
+ * account's: the stored instant is the start of a day there and `bodyOf`
+ * writes it back as one, so a Save that changed nothing must not move it.
  */
 const dueOn = (reminder: Reminder | null): Date => (reminder?.onceAt ? new Date(reminder.onceAt) : serverNow().toJSDate());
-
-const litresIn = (defaults: unknown): number | null => {
-  const values = defaults as { litres?: unknown } | null;
-  return values && typeof values.litres === 'number' ? values.litres : null;
-};
 
 /**
  * What goes on the wire. Exactly one of the two rhythms is set, which is the
  * contract's rule; a one-off falls due at the start of its day in the account's
- * zone, so it is today's task from the morning on - and it is the account's
- * because that is the zone the Tasks tab sorts what is waiting into days by. A
- * day picked on a browser two zones east of the account began there the
- * evening before, and the task turned up a day early. It starts that day
- * through `ui/days`, which is where the day it is handed was read, so that the
- * two can only ever be told the same zone. The can is the entry's default of
- * the same shape the Log sheet writes, so a tick records it the way a tap on
- * the Water tile would.
+ * zone, the one the task list sorts what is waiting into days by, so it is
+ * today's task from the morning on. The can is the entry's default of the
+ * shape the Log sheet writes, so a tick records it the way a tap on the Water
+ * tile would.
  *
  * A reminder that is somebody else's is sent back with that person still on it:
  * whoever is editing it can only have come to change something else.

@@ -378,6 +378,24 @@ describe('the head of an admin screen', () => {
     expect(await screen.findByRole('heading', { name: 'Demo device' })).toBeInTheDocument();
   });
 
+  it('explains a screen behind the help button beside its heading, with no paragraph over its controls', async () => {
+    drawScreens('/admin/users');
+    await screen.findByText('@mo');
+    expect(
+      within(screen.getByRole('columnheader', { name: /^Address/ })).getByRole('button', { name: 'About Addresses' }),
+    ).toHaveAccessibleDescription(/^An address is on this screen and on no other in the app\./);
+
+    fireEvent.click(strip().getByRole('link', { name: 'Firmware' }));
+    expect(await screen.findByRole('button', { name: 'About Device classes' })).toHaveAccessibleDescription(/^A channel points at a build/);
+    expect(screen.getByRole('button', { name: 'About Register a build' })).toHaveAccessibleDescription(
+      /^A build is registered before it has any bytes/,
+    );
+
+    fireEvent.click(strip().getByRole('link', { name: 'Fleet' }));
+    expect(await screen.findByRole('button', { name: 'About Firmware rollout' })).toHaveAccessibleDescription(/^A class hands its build out/);
+    expect(screen.queryByText(/A class hands its build out/, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
   it('leads back to Ich by its arrow', async () => {
     drawScreens('/admin/firmware');
 
@@ -568,6 +586,8 @@ describe('support for a customer', () => {
     expect(await screen.findByText('day.temperature')).toBeInTheDocument();
     // One device of the fleet's: it leads back there, and is none of the four tabs.
     expect(screen.getByRole('link', { name: 'Back to the fleet' })).toHaveAttribute('href', '/admin/fleet');
+    // What the window is titled from: the view and whose it is, as two parts.
+    expect(screen.getByRole('heading', { level: 1, name: 'Support view' })).toHaveAttribute('data-title', 'Support view · tc-7f3a');
     expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
     expect(screen.getByText('26')).toBeInTheDocument();
     expect(screen.getByText('workmode')).toBeInTheDocument();

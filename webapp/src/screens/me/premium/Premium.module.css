@@ -3,15 +3,6 @@
    one every page below Me shares; what is here is only the cards and the
    table. */
 
-/* The one paragraph an install that gates nothing puts before its cameras. */
-.lead {
-  background: var(--brand-wash);
-  border-color: transparent;
-  box-shadow: none;
-  font-size: var(--text-sm);
-  line-height: var(--line-body);
-}
-
 /* ---------------------------------------------------------------- cameras */
 
 .camera {

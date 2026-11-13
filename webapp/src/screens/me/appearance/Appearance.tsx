@@ -2,8 +2,8 @@ import { useTranslation } from 'react-i18next';
 import type { UnitPreference } from '@fg2/shared-types/v1';
 import { useSession } from '@/api/session';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
 import { useTheme, type ThemeChoice } from '@/theme/theme-context';
-import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { languageName } from '../doors';
@@ -22,22 +22,32 @@ const UNITS: { kind: keyof UnitPreference; choices: string[] }[] = [
 
 /**
  * Ich › Darstellung: the theme, the language, the app on the home screen, and
- * the units.
+ * the units; each line says where its setting holds.
  *
- * The first two are the browser's and stay where they have always lived - the
- * theme is one attribute on <html> and the language one key in local storage -
- * because both have to be known before the first frame, long before any
- * account has answered; the whole app shows either the moment it is chosen.
- * The units are the account's, so that a phone and a laptop agree on what a
- * weight is; each goes to `PATCH /me` as the one preference it changes and is
- * answered as every setting of the account is. The demo has no account to
- * keep them on and is shown the two settings it can change.
+ * The theme is this browser's alone. The language chosen here is this
+ * browser's and is told to the account, which a browser nobody chose one in
+ * follows (`followAccount`); the change is answered by the toast, in the
+ * language it changed to. The units are the account's and go to `PATCH /me`
+ * as the one preference changed - stored, and not yet what the views show,
+ * which their line says. The demo has no account and is shown the two
+ * settings it can change.
  */
 export function Appearance() {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
+  const { tell } = useLog();
   const { choice, setChoice } = useTheme();
-  const language = i18n.resolvedLanguage ?? i18n.language;
+  const language = (i18n.resolvedLanguage ?? i18n.language) as Language;
+  const speak = (next: Language) =>
+    void setLanguage(next).then(() => {
+      // In the language just chosen: this render's `t` still speaks the one before.
+      const said = i18n.getFixedT(next);
+      tell({
+        label: said('me.saved.setting', { what: said('me.appearance.language'), value: languageName(said, next) }),
+        from: 'me:language',
+        undo: () => setLanguage(language),
+      });
+    });
 
   return (
     <MePage title={t('me.appearance.title')}>
@@ -52,7 +62,7 @@ export function Appearance() {
       </Row>
 
       <Row title={t('me.appearance.language')} line={t('me.appearance.languageLine')}>
-        <Menu name={t('me.appearance.language')} value={language} onChange={value => void setLanguage(value as Language)}>
+        <Menu name={t('me.appearance.language')} value={language} onChange={value => speak(value as Language)}>
           {LANGUAGES.map(code => (
             <option key={code} value={code}>
               {languageName(t, code)}
@@ -80,10 +90,8 @@ function Units() {
 
         return (
           <>
-            <span className="label">
-              {t('me.appearance.units')}
-              <Help topic="units" />
-            </span>
+            <span className="label">{t('me.appearance.units')}</span>
+            <p className={ui.note}>{t('me.appearance.unitsLine')}</p>
             {UNITS.map(({ kind, choices }) => (
               <Row key={kind} title={t(`me.appearance.${kind}`)} line={null}>
                 <Menu

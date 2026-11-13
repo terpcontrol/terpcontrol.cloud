@@ -2,6 +2,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type { ExportAccepted, Media } from '@fg2/shared-types/v1';
 import { api, apiBlob } from './client';
 import { saveFile } from '@/ui/download';
+import { readStored, writeStored } from '@/ui/stored';
+import { session } from './session';
 import { useWrite } from './write';
 
 /**
@@ -24,42 +26,36 @@ export const useAskExport = (growId: string) =>
   );
 
 /**
- * Which export of the whole account is going, or has gone, in this session.
- *
- * The id lives here rather than in the row that asked for it because the job
- * outlives the screen: a season of readings takes a while to write, and
- * somebody who walks to another page and back should find their file rather
- * than a button offering to build one the server has already built. Nothing
- * fetches this key - it is written by the ask below and read by every row that
- * draws the export - and it is never collected, because the screen it belongs
- * to is unmounted for exactly as long as the wait is worth remembering.
- *
- * It is not carried across a reload. The route that would find a standing
- * export again is the one that starts a new one, so asking it on the way in
- * would build a zip nobody asked for.
+ * Which export of the whole account is going, or has gone. The id lives in
+ * the cache rather than in the row that asked, because the job outlives the
+ * screen, and in this browser by account, because the server lists no exports
+ * and the route that would find a standing one is the one that starts one: so
+ * a walk away and back, or a reload, finds the file instead of a button
+ * offering to build what is built. Nothing fetches the key - the ask below
+ * writes it.
  */
 const ASKED_KEY = ['export', 'asked'];
+const askedStore = () => `terp.export.${session.snapshot().user?.id}`;
+
+/** How long the route answers a standing export unchanged; a file older than this is one a new one may be asked beside. */
+export const EXPORT_FRESH_MS = 60 * 60 * 1000;
 
 export const useAskedExport = (): string | null =>
   useQuery<string | null>({
     queryKey: ASKED_KEY,
     queryFn: () => null,
     enabled: false,
-    initialData: null,
+    initialData: () => readStored(askedStore()),
     staleTime: Infinity,
     gcTime: Infinity,
   }).data;
 
 /**
  * The same job for everything the account has - every grow, every photo, and
- * the climate a row a minute - which is the export the privacy screen
- * promises. It answers the same row and is polled the same way; only the route
- * differs, and with it who may ask: a demo session owns nothing and is refused.
- *
- * The climate is the one thing here that is not what the store holds. A device
- * sends a reading every five seconds and the zip carries the mean of each
- * minute, which the card beside this button says and the zip's own README says
- * again; both used to say "every reading", which was a twelfth of the truth.
+ * the climate as the mean of each minute, which the row's help and the zip's
+ * README say. It answers the same row and is polled the same way; only the
+ * route differs, and with it who may ask: a demo session owns nothing and is
+ * refused.
  */
 export const useAskAccountExport = () =>
   useWrite(
@@ -67,6 +63,7 @@ export const useAskAccountExport = () =>
     (client, accepted) => {
       client.setQueryData(['media', accepted.media.id], accepted.media);
       client.setQueryData(ASKED_KEY, accepted.media.id);
+      writeStored(askedStore(), accepted.media.id);
     },
   );
 

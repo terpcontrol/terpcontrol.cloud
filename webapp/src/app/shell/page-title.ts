@@ -29,7 +29,8 @@ export function usePageTitle(main: React.RefObject<HTMLElement | null>) {
     let focused = !arriving || root.contains(document.activeElement);
     const name = () => {
       const heading = root.querySelector('h1');
-      const text = heading?.textContent?.trim();
+      // A head that names whose page this is (`PageHead`'s `of`) says both parts for the window.
+      const text = (heading?.dataset.title ?? heading?.textContent)?.trim();
       document.title = text ? `${text} – ${APP}` : APP;
       if (heading && !focused) {
         focused = true;

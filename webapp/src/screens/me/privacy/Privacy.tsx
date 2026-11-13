@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { GrowListItem, Me } from '@fg2/shared-types/v1';
 import { useGrows, useUpdateGrow } from '@/api/grows';
 import { useShareLinks } from '@/api/sharing';
 import { useLog } from '@/log/log-context';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
@@ -15,6 +18,7 @@ import { useSaveAccount } from '../save';
 import { isDead } from '../sharing/links';
 import { ClimateRow } from './ClimateRow';
 import { retentionLabel } from './climate';
+import styles from './Privacy.module.css';
 
 /**
  * Ich › Privatsphäre und Profil: what a stranger finds, what other people are
@@ -48,7 +52,6 @@ export function Privacy() {
     <AccountPage title={t('me.privacy.title')} demo={t('me.demo')}>
       {(account, held) => {
         const { privacy, handle } = account;
-        const profile = appUrl(`/@${handle}`);
         const hides = (key: 'hideWeights' | 'hideCounts') => (hidden: boolean) =>
           save({ privacy: { ...privacy, [key]: hidden } }, t(`me.saved.${key}.${hidden ? 'on' : 'off'}`), now => ({
             privacy: { ...now.privacy, [key]: !hidden },
@@ -59,9 +62,9 @@ export function Privacy() {
             <Row
               title={t('me.privacy.profile.title')}
               help="publicProfile"
-              line={account.publicProfile ? <span className="mono">{profile}</span> : t('me.privacy.profile.line', { handle })}
+              line={<Facts facts={factsOf(t('me.privacy.profile.line', { handle }))} />}
+              below={account.publicProfile ? <Address path={`/@${handle}`} copy={t('me.privacy.profile.copy')} /> : null}
             >
-              {account.publicProfile ? <CopyButton value={profile} label={t('me.privacy.profile.copy')} /> : null}
               <Switch
                 label={t('me.privacy.profile.title')}
                 on={account.publicProfile}
@@ -125,6 +128,18 @@ export function Privacy() {
   );
 }
 
+/** A public address: the link that opens the page, and the copy beside it. */
+function Address({ path, copy }: { path: string; copy: string }) {
+  return (
+    <div className={styles.address}>
+      <Link to={path} className="mono">
+        {appUrl(path)}
+      </Link>
+      <CopyButton value={appUrl(path)} label={copy} />
+    </div>
+  );
+}
+
 /**
  * The account's own grows, each with the switch that gives it a page anybody
  * can open. Under each stands its address, or that it is private, and how
@@ -136,30 +151,6 @@ function OwnGrows({ account, held }: { account: Me; held: boolean }) {
   const now = useNow();
   const grows = useGrows();
   const links = useShareLinks();
-  const label = (
-    <span className="label">
-      {t('me.privacy.grows')}
-      <Help topic="publicGrow" />
-    </span>
-  );
-
-  if (grows.isPending) {
-    return (
-      <>
-        {label}
-        <Waiting lines={2} />
-      </>
-    );
-  }
-  if (!grows.data) {
-    return (
-      <>
-        {label}
-        <LoadFailed retry={() => void grows.refetch()} />
-      </>
-    );
-  }
-
   /**
    * How many live links open a grow, which is a second read and lands later.
    * Until it does the answer is not nought: the row says that the count is
@@ -177,12 +168,19 @@ function OwnGrows({ account, held }: { account: Me; held: boolean }) {
 
     return open > 0 ? t('me.privacy.links', { count: open }) : null;
   };
-  const own = grows.data.items.filter(grow => grow.ownerId === account.id && !grow.isDemo);
+  const own = grows.data?.items.filter(grow => grow.ownerId === account.id && !grow.isDemo) ?? [];
 
   return (
     <>
-      {label}
-      {own.length === 0 ? (
+      <span className="label">
+        {t('me.privacy.grows')}
+        <Help topic="publicGrow" />
+      </span>
+      {grows.isPending ? (
+        <Waiting lines={2} />
+      ) : !grows.data ? (
+        <LoadFailed retry={() => void grows.refetch()} />
+      ) : own.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.privacy.noGrows')}</p>
       ) : (
         own.map(grow => <GrowRow key={grow.id} grow={grow} links={linksOpening(grow)} held={held} />)
@@ -201,13 +199,13 @@ function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | nu
   const { tell } = useLog();
   const update = useUpdateGrow(grow.id);
   const isPublic = grow.visibility === 'public';
-  const line = [isPublic ? appUrl(`/g/${grow.slug}`) : t('me.privacy.private'), links].filter(Boolean).join(' · ');
+  const line = [isPublic ? null : t('me.privacy.private'), links].filter(Boolean).join(' · ') || null;
   const set = (visibility: 'public' | 'private') =>
     update.mutateAsync({ visibility }).then(() => t(`me.saved.grow.${visibility}`, { name: grow.name }));
 
   return (
     <>
-      <Row title={grow.name} line={<span className="mono">{line}</span>}>
+      <Row title={grow.name} line={line} below={isPublic ? <Address path={`/g/${grow.slug}`} copy={t('sharing.copyAddress')} /> : null}>
         <Switch
           label={t('me.privacy.switch', { name: grow.name })}
           on={isPublic}

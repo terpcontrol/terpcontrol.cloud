@@ -3,8 +3,9 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Me } from '@fg2/shared-types/v1';
 import { useAccountMe, useUpdatingMe } from '@/api/account';
-import { exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
+import { EXPORT_FRESH_MS, exportFilename, useAskAccountExport, useAskedExport, useDownloadExport } from '@/api/exports';
 import { isBuilding, useMedia } from '@/api/media';
+import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { ageLabel } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
@@ -156,18 +157,16 @@ export function Menu({
 
 /**
  * Everything the account has, as a file. The zip is built in the background,
- * so this is a button and then a job: the row it is asked for is polled until
- * it is ready or has failed, and a failure says what went wrong rather than
- * sitting at "building" for ever - the same shape, and the same polling, as
- * the export at the end of a grow's report. What the file holds is behind the
- * help button. The control turns green once there is a file.
+ * so this is a button and then a job: its row is polled until it is ready or
+ * has failed, and a failure says what went wrong - the same shape as the
+ * export at the end of a grow's report. What the file holds is behind the
+ * help button.
  *
- * Which job it is drawing comes from the cache rather than from this
- * component, so that walking away and back finds the file instead of a button
- * offering to build one the server has already built; and the chip carries the
- * file's age, because the route answers a standing export unchanged while it is
- * under an hour old and a zip from before this morning's entry must not be
- * handed over as the thing that was just asked for.
+ * Which job it draws comes from the cache and from what this browser kept
+ * (`useAskedExport`). The chip carries the file's age, and a new one is
+ * offered beside a file older than the hour the route answers it unchanged
+ * for: a zip from before this morning's entry must not be the only thing to
+ * take. A kept file that is no longer there is no file, and not a refusal.
  */
 export function ExportRow() {
   const { t } = useTranslation();
@@ -180,7 +179,8 @@ export function ExportRow() {
   const row = job.data;
   const status = row?.exportJob?.status ?? null;
   const ready = row && status === 'ready' ? row : null;
-  const built = ready?.exportJob?.endedAt ?? null;
+  const built = ready ? (ready.exportJob?.endedAt ?? ready.createdAt) : null;
+  const fresh = built !== null && now.toMillis() - Date.parse(built) < EXPORT_FRESH_MS;
 
   return (
     <Row
@@ -201,7 +201,7 @@ export function ExportRow() {
           ) : null}
           <Refused error={request.error} />
           {/* A poll that stopped answering leaves the last row in place, so it has to say so rather than sit at "building the file…" for ever. */}
-          <Refused error={job.error} />
+          <Refused error={noLongerThere(job.error) ? null : job.error} />
           <Refused error={download.error} />
         </>
       }
@@ -214,11 +214,10 @@ export function ExportRow() {
           onClick={() => download.mutate({ mediaId: ready.id, filename: exportFilename(ready) })}
         >
           <Download size={14} strokeWidth={1.75} aria-hidden />
-          {built
-            ? t('me.account.export.downloadAged', { size: fileSize(ready.bytes), age: ageLabel(built, now) })
-            : t('me.account.export.download', { size: fileSize(ready.bytes) })}
+          {t('me.account.export.download', { size: fileSize(ready.bytes), age: ageLabel(built!, now) })}
         </button>
-      ) : (
+      ) : null}
+      {fresh ? null : (
         <button type="button" className={ui.chip} disabled={request.isPending || isBuilding(row)} onClick={() => request.mutate()}>
           {status === 'failed' ? t('me.account.export.again') : t('me.account.export.ask')}
         </button>

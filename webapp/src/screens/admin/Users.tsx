@@ -9,6 +9,7 @@ import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded } from './parts';
 import { HandleField } from '@/ui/SheetParts';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
@@ -88,14 +89,15 @@ export function Users() {
         </span>
       </AdminHead>
 
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.privacy')}</p>
-
       <div className={styles.tableCard}>
         <table className={styles.table} data-empty={shown.length === 0 ? '' : undefined}>
           <thead>
             <tr>
               <th>{t('admin.users.column.handle')}</th>
-              <th>{t('admin.users.column.address')}</th>
+              <th>
+                {t('admin.users.column.address')}
+                <Help topic="adminAddresses" />
+              </th>
               <th>{t('admin.users.column.state')}</th>
               <th>{t('admin.users.column.created')}</th>
               <th>{t('admin.users.column.actions')}</th>

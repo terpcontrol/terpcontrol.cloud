@@ -71,7 +71,9 @@
 
 /* A finger high where they are tapped, without the notice growing by it: each reaches into the air of its own row. */
 .later,
-.address a {
+.address a,
+.done a,
+.reached a {
   min-width: var(--control-height);
   min-height: var(--control-height);
   justify-content: center;

@@ -1,6 +1,6 @@
 import type { Translate } from '@/i18n/i18n';
 import { type DateTime } from 'luxon';
-import type { GrowListItem, Me, MyGrowCard, Scheme, ShareLink, UnitPreference } from '@fg2/shared-types/v1';
+import type { GrowListItem, Me, MyGrowCard, Scheme, ShareLink } from '@fg2/shared-types/v1';
 import { growSchemeLabel, type SchemeSummary } from '@/api/schemes';
 import { isAhead } from '@/ui/age';
 import type { ThemeChoice } from '@/theme/theme-context';
@@ -82,13 +82,9 @@ export const notificationsLine = (t: Translate, me: Me, now: DateTime, language:
   ]);
 };
 
-/** "°C, g, l": the three unit choices as their symbols, in the order the page asks them. */
-const unitsLabel = (t: Translate, units: UnitPreference): string =>
-  [units.temperature, units.weight, units.volume].map(unit => t(`me.appearance.unit.${unit}`)).join(', ');
-
-/** "Deutsch · hell · °C, g, l": the language, the theme and the units where an account states them; the demo has none to state. */
-export const appearanceLine = (t: Translate, theme: ThemeChoice, units: UnitPreference | null, language: string): string =>
-  joined([languageName(t, language), t(`me.door.theme.${theme}`), units ? unitsLabel(t, units) : null]);
+/** "Deutsch · hell": the language and the theme - what the views show; the units are stored and not shown yet, so they are not said. */
+export const appearanceLine = (t: Translate, theme: ThemeChoice, language: string): string =>
+  joined([languageName(t, language), t(`me.door.theme.${theme}`)]);
 
 /** Whether the diary is kept, and where the account left that to its own use, that it did. */
 export const diaryLine = (t: Translate, me: Me): string =>

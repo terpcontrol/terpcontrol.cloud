@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useDeleteAccount } from '@/api/account';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
@@ -18,10 +20,9 @@ import styles from './Account.module.css';
  * repeated: a confirmation that is one more tap is answered by the same
  * reflex that opened it, and this is the only control in the app where being
  * wrong costs everything. What it says it will do is what the server does -
- * the rows are deleted rather than hidden, and the hardware goes back to being
- * claimable by whoever holds it. The button that opens it is drawn as the
- * board's ellipsis, which read aloud is nothing at all, so it borrows the
- * row's title for its name: the one control that ends an account has to say so.
+ * the rows are deleted rather than hidden, whoever was let into the account's
+ * places loses them, and the hardware goes back to being claimable by whoever
+ * holds it. The sign-in page it ends on says that the account is gone.
  */
 export function DeleteRow({ handle, disabled }: { handle: string; disabled: boolean }) {
   const { t } = useTranslation();
@@ -29,14 +30,8 @@ export function DeleteRow({ handle, disabled }: { handle: string; disabled: bool
 
   return (
     <>
-      <Row title={t('me.account.delete.title')} line={t('me.account.delete.line')} danger help="deleteAccount">
-        <button
-          type="button"
-          className={`${ui.chip} ${ui.danger}`}
-          aria-label={t('me.account.delete.title')}
-          disabled={disabled}
-          onClick={() => setAsking(true)}
-        >
+      <Row title={t('me.account.delete.title')} line={<Facts facts={factsOf(t('me.account.delete.line'))} />} danger help="deleteAccount">
+        <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={disabled} onClick={() => setAsking(true)}>
           {t('me.account.delete.open')}
         </button>
       </Row>
@@ -56,6 +51,8 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
   const remove = useDeleteAccount();
   const [typed, setTyped] = useState('');
   const sure = matchesHandle(typed, handle);
+  // The session ends with the answer and takes this sheet with it, so the way on hangs on the write itself.
+  const gone = () => navigate('/sign-in', { replace: true, state: { deleted: true } });
 
   return (
     <Sheet
@@ -66,7 +63,7 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
           type="button"
           className={ui.dangerOutline}
           disabled={!sure || remove.isPending}
-          onClick={() => remove.mutate(undefined, { onSuccess: () => void navigate('/sign-in', { replace: true }) })}
+          onClick={() => void remove.mutateAsync().then(gone, () => undefined)}
         >
           {t('me.account.delete.yes')}
         </button>

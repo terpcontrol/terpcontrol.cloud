@@ -1,8 +1,16 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Me, MeUpdate, NotificationChannels, NotificationRouting, NotificationSettings, Problem } from '@fg2/shared-types/v1';
+import type {
+  Me,
+  MeUpdate,
+  NotificationCategory,
+  NotificationChannels,
+  NotificationRouting,
+  NotificationSettings,
+  Problem,
+} from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { LogProvider } from '@/log/LogProvider';
 import { Me as MeScreen } from '@/screens/Me';
@@ -12,7 +20,7 @@ import { pathOf, payloadOf } from '@/screens/notifications/push-route';
 import { minuteOf, routingWith, timeOf } from '@/screens/notifications/settings';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { headersOf, headersText } from '@/ui/headers';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith } from './session';
 import { translate } from './translations';
 
@@ -50,6 +58,8 @@ const server = {
   refuse: null as Problem | null,
   patched: [] as MeUpdate[],
   posted: [] as string[],
+  /** The rows each tap for mail named; null where it named none. */
+  mailed: [] as (NotificationCategory[] | null)[],
   hold: null as Promise<void> | null,
   /** The account's cameras, which decide whether the weekly film has a row at all. */
   cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
@@ -70,13 +80,14 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (url.endsWith('/v1/me/email-alarms') && method === 'POST') {
     server.posted.push(url);
+    const rows = init?.body ? (JSON.parse(String(init.body)) as { categories: NotificationCategory[] }).categories : null;
+    server.mailed.push(rows);
     if (server.refuse) return json(server.refuse, server.refuse.status);
     const { channels, routing } = server.me.notifications;
-    const alerts = routing.alerts ?? [];
     server.me = me({
       ...server.me.notifications,
       channels: { ...channels, email: channels.email ?? server.me.email },
-      routing: { ...routing, alerts: alerts.includes('email') ? alerts : [...alerts, 'email'] },
+      routing: (rows ?? ['alerts']).reduce((grid, row) => routingWith(grid, row, 'email', true), routing),
     });
     return json(server.me);
   }
@@ -115,6 +126,8 @@ beforeEach(() => {
   server.refuse = null;
   server.patched = [];
   server.posted = [];
+  server.mailed = [];
+  localStorage.clear();
   server.hold = null;
   server.cameras = [];
 });
@@ -156,11 +169,15 @@ describe('an account with nothing configured', () => {
   it('says every channel is off and offers no routing to any of them', async () => {
     await drawLoaded();
 
-    expect(screen.getAllByText('off · not configured')).toHaveLength(2);
-    expect(screen.getByText('off · not linked')).toBeInTheDocument();
+    expect(screen.getAllByText(reading('off · not configured'))).toHaveLength(2);
+    expect(screen.getByText(reading('off · not linked'))).toBeInTheDocument();
     for (const name of ['Telegram', 'E-mail', 'Webhook']) expect(screen.getByRole('switch', { name })).toHaveAttribute('aria-checked', 'false');
     for (const cell of screen.getAllByRole('switch', { name: / by / })) expect(cell).toBeDisabled();
-    expect(screen.getByText(/A channel is off until it is configured, and its column/)).toBeInTheDocument();
+    // Why a column cannot be moved, and that what it was given is kept, is the help's to say and not a paragraph's.
+    expect(screen.getByRole('button', { name: 'About What goes where' })).toHaveAccessibleDescription(
+      /A channel is off until it is configured, and its column cannot be moved until then; what is already routed to it is kept/,
+    );
+    expect(screen.queryByText(/A channel is off until/, { selector: 'p' })).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Quiet hours' })).toHaveAttribute('aria-checked', 'false');
   });
 
@@ -191,7 +208,7 @@ describe('an account with an address', () => {
     server.me = me(WITH_MAIL);
     await drawLoaded();
 
-    expect(screen.getByText('you@example.org · critical and tasks due')).toBeInTheDocument();
+    expect(screen.getByText(reading('you@example.org · critical and tasks due'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'E-mail' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Critical alarms by E-mail' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toHaveAttribute('aria-checked', 'false');
@@ -228,7 +245,7 @@ describe('an account with an address', () => {
 
     expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
     expect(server.patched).toHaveLength(0);
-    expect(screen.getByText('you@example.org · critical and tasks due')).toBeInTheDocument();
+    expect(screen.getByText(reading('you@example.org · critical and tasks due'))).toBeInTheDocument();
   });
 
   it('routes one more category to it and sends everything else back unchanged', async () => {
@@ -280,24 +297,16 @@ describe('an account with an address', () => {
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeDisabled();
   });
 
-  it('draws a cell of a channel that can deliver nothing as off, keeps the routing, and says it is kept', async () => {
+  it('draws a cell of a channel that can deliver nothing as off, and keeps the routing', async () => {
     server.me = me({ ...WITH_MAIL, routing: { alerts: ['email', 'push'], warnings: [], tasks: ['email'], plan: [], weekly_timelapse: [] } });
     await drawLoaded();
 
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByText(/That routing is kept/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('switch', { name: 'Warnings by E-mail' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().routing.alerts).toEqual(['email', 'push']);
-  });
-
-  it('says nothing about kept routing where every routed channel can deliver', async () => {
-    server.me = me(WITH_MAIL);
-    await drawLoaded();
-
-    expect(screen.queryByText(/That routing is kept/)).not.toBeInTheDocument();
   });
 
   it('switches e-mail off by writing null, and leaves the routing as it was', async () => {
@@ -325,31 +334,68 @@ describe('an account with an address', () => {
   });
 });
 
-describe('the address field', () => {
-  it('starts on the address the account signs in with, and saving that first address carries critical alarms with it', async () => {
+/**
+ * E-mail is switched on one way. The card's switch and the notice's tap ask the
+ * server for the same thing - mail to the login address for what can call on
+ * the account - and each is answered by the toast that takes it back.
+ */
+describe('switching e-mail on', () => {
+  /** An account with a device and a diary: critical alarms and due tasks can call on it. */
+  const withDiary = () =>
+    localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: true, places: 1, steering: true, managed: true, cameras: 0 }));
+
+  it('mails what can call on the account to the login address from the switch, with no form in between', async () => {
+    withDiary();
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
-    expect(screen.getByLabelText('Address')).toHaveValue('login@example.org');
+
+    await waitFor(() => expect(server.mailed).toEqual([['alerts', 'tasks']]));
     expect(server.patched).toHaveLength(0);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(lastPatch().channels.email).toBe('login@example.org');
-    expect(lastPatch().routing).toEqual({ ...NOTHING.routing, alerts: ['email'] });
+    expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
+    expect(await screen.findByText(reading('login@example.org · critical and tasks due'))).toBeInTheDocument();
+    expect(toasts()).toEqual(['E-mail to login@example.org']);
   });
 
-  it('routes nothing more where critical alarms already reach the account another way', async () => {
-    const linked = { chatId: '42', linkedAt: '2026-01-02T00:00:00.000Z' };
-    server.me = me({ channels: { ...NOTHING.channels, telegram: linked }, routing: { ...NOTHING.routing, alerts: ['telegram'] } });
+  it('writes the same from the notice, and says what the tap did only while it holds', async () => {
+    withDiary();
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
+
+    await waitFor(() => expect(server.mailed).toEqual([['alerts', 'tasks']]));
+    expect(await screen.findByText('Critical alarms and task reminders now come by e-mail to login@example.org.')).toBeInTheDocument();
+    expect(toasts()).toEqual(['E-mail to login@example.org']);
+
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'E-mail' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
+
+    expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
+    expect(screen.queryByText(/now come by e-mail/)).not.toBeInTheDocument();
+  });
+
+  it('takes the tap back as far as the tap went: the address, and the rows it routed', async () => {
+    withDiary();
+    // Tasks were routed to mail before there was an address; that is the account's and stays.
+    server.me = me({ routing: { ...NOTHING.routing, tasks: ['email'], plan: ['email'] } });
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(toasts()).toEqual(['E-mail to login@example.org']));
+    fireEvent.click(within(toastHost()!).getByRole('button', { name: 'Undo' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
-    expect(lastPatch().routing.alerts).toEqual(['telegram']);
+    expect(lastPatch().channels.email).toBeNull();
+    expect(lastPatch().routing).toEqual({ ...NOTHING.routing, tasks: ['email'], plan: ['email'] });
+  });
+
+  it('names no rows where nothing calls on the account, which the server reads as the critical alarms', async () => {
+    localStorage.setItem('terp.shape.user-1', JSON.stringify({ diary: false, places: 1, steering: false, managed: false, cameras: 0 }));
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
+
+    await waitFor(() => expect(server.mailed).toEqual([null]));
   });
 });
 
@@ -386,6 +432,8 @@ describe('the notice that alarms reach nobody', () => {
     expect(await screen.findByText('Critical alarms now come by e-mail to login@example.org.')).toBeInTheDocument();
     expect(server.posted).toEqual([expect.stringMatching(/\/v1\/me\/email-alarms$/)]);
     expect(server.patched).toHaveLength(0);
+    expect(toasts()).toEqual(['E-mail to login@example.org']);
+    expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
   });
 
   it('offers an address the account already set rather than the login one', async () => {
@@ -473,14 +521,19 @@ describe('quiet hours', () => {
     expect(screen.getByText('Off')).toBeInTheDocument();
   });
 
-  it('take a new end from the time field', async () => {
+  it('say a new end in the title as it is typed, and write it when the field is left', async () => {
     server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
     await drawLoaded();
 
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '06:30' } });
+    expect(screen.getByText('23:00 – 06:30')).toBeInTheDocument();
+    expect(server.patched).toHaveLength(0);
+
+    fireEvent.blur(screen.getByLabelText('To'));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 390 });
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours 23:00–06:30']));
   });
 
   it('write nothing while a time is being typed, and the whole time once the field is left', async () => {
@@ -502,6 +555,75 @@ describe('quiet hours', () => {
     expect(lastPatch().quietHours).toEqual({ fromMinute: 1350, toMinute: 420 });
   });
 
+  /** A phone's picker hands over a time and leaves the field focused: nothing but the pause says the person is done. */
+  it('write a changed time a moment after the last change, also while the field keeps the focus', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await drawLoaded();
+
+    const to = screen.getByLabelText('To');
+    to.focus();
+    fireEvent.change(to, { target: { value: '06:30' } });
+    expect(server.patched).toHaveLength(0);
+
+    await waitFor(() => expect(server.patched).toHaveLength(1), { timeout: 3000 });
+    expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 390 });
+    expect(to).toBeEnabled();
+    // Leaving the field afterwards does not send the same window again.
+    fireEvent.blur(to);
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours 23:00–06:30']));
+    expect(server.patched).toHaveLength(1);
+  });
+
+  /** Back in the browser takes the page away with the focus still in the field. */
+  it('write a time typed just before the page is left, and answer it where the person is by then', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    function Leaving() {
+      const [there, setThere] = useState(true);
+      return there ? (
+        <>
+          <Notifications />
+          <button onClick={() => setThere(false)}>leave</button>
+        </>
+      ) : null;
+    }
+    wrapped(<Leaving />);
+
+    fireEvent.change(await screen.findByLabelText('To'), { target: { value: '05:05' } });
+    fireEvent.click(screen.getByRole('button', { name: 'leave' }));
+
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+    expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 305 });
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours 23:00–05:05']));
+
+    fireEvent.click(within(toastHost()!).getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 420 }));
+  });
+
+  it('refuse a window of no length with a sentence, and write nothing of it', async () => {
+    server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
+    await drawLoaded();
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '07:00' } });
+    fireEvent.blur(screen.getByLabelText('From'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('From and To are the same: these quiet hours would have no length and are not saved.');
+    expect(screen.getByText('07:00 – 07:00')).toBeInTheDocument();
+    // Longer than the pause a changed time waits for.
+    await act(() => new Promise(resolve => setTimeout(resolve, 1500)));
+    expect(server.patched).toHaveLength(0);
+  });
+
+  it('answer with one toast for the card, the latest window', async () => {
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Quiet hours' }));
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours 23:00–07:00']));
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '06:30' } });
+    fireEvent.blur(screen.getByLabelText('To'));
+
+    await waitFor(() => expect(toasts()).toEqual(['Quiet hours 23:00–06:30']));
+  });
+
   it('lose neither end when both are moved before the first write has landed', async () => {
     server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
     await drawLoaded();
@@ -510,18 +632,19 @@ describe('quiet hours', () => {
     server.hold = new Promise<void>(resolve => (land = resolve));
 
     fireEvent.change(screen.getByLabelText('From'), { target: { value: '22:00' } });
+    fireEvent.blur(screen.getByLabelText('From'));
     await waitFor(() => expect(server.patched).toHaveLength(1));
 
+    // The other end is moved while the first write is on its way; it waits for that one rather than crossing it.
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '06:30' } });
-    await waitFor(() => expect(server.patched).toHaveLength(2));
-
-    // The second write carries the end the first one moved, rather than the one the account still says.
-    expect(server.patched[1].notifications!.quietHours).toEqual({ fromMinute: 1320, toMinute: 390 });
+    fireEvent.blur(screen.getByLabelText('To'));
+    expect(server.patched).toHaveLength(1);
 
     server.hold = null;
     land();
 
-    await waitFor(() => expect(lastPatch().quietHours).toEqual({ fromMinute: 1320, toMinute: 390 }));
+    await waitFor(() => expect(server.patched).toHaveLength(2), { timeout: 3000 });
+    expect(lastPatch().quietHours).toEqual({ fromMinute: 1320, toMinute: 390 });
     expect(screen.getByLabelText('From')).toHaveValue('22:00');
     expect(screen.getByLabelText('To')).toHaveValue('06:30');
   });
@@ -626,7 +749,7 @@ describe('linking Telegram', () => {
     });
     await drawLoaded();
 
-    expect(screen.getByText(/^linked .* · critical and week film · a reply to an alarm or a task goes into the diary$/)).toBeInTheDocument();
+    expect(screen.getByText(reading(/^linked .* · critical and week film · a reply to an alarm or a task goes into the diary$/))).toBeInTheDocument();
   });
 
   it('promises no logging by reply where nothing sent there can take one', async () => {
@@ -636,14 +759,14 @@ describe('linking Telegram', () => {
     });
     await drawLoaded();
 
-    expect(screen.getByText(/^linked .* · plan asks$/)).toBeInTheDocument();
+    expect(screen.getByText(reading(/^linked .* · plan asks$/))).toBeInTheDocument();
   });
 
   it('asks before unlinking a chat, and only then writes null', async () => {
     server.me = me({ channels: { email: null, telegram: { chatId: '42', linkedAt: '2026-09-01T10:00:00.000Z' }, webhook: null } });
     await drawLoaded();
 
-    expect(screen.getByText(/^linked .* · nothing routed here yet$/)).toBeInTheDocument();
+    expect(screen.getByText(reading(/^linked .* · nothing routed here yet$/))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('switch', { name: 'Telegram' }));
     expect(server.patched).toHaveLength(0);
 
@@ -667,7 +790,7 @@ describe('the webhook', () => {
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
     expect(lastPatch().channels.webhook).toEqual({ url: 'https://ha.local/api/webhook/terp', method: 'PUT', headers: { Authorization: 'Bearer x' } });
-    expect(await screen.findByText('ha.local · JSON')).toBeInTheDocument();
+    expect(await screen.findByText(reading('ha.local · JSON'))).toBeInTheDocument();
     expect(toasts()).toEqual(['Webhook to ha.local']);
   });
 
@@ -685,7 +808,7 @@ describe('the webhook', () => {
     server.me = me({ channels: { email: null, telegram: null, webhook: headerless } });
     await drawLoaded();
 
-    expect(screen.getByText('ha.local · JSON')).toBeInTheDocument();
+    expect(screen.getByText(reading('ha.local · JSON'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Webhook' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Quiet hours' })).toBeInTheDocument();
 
@@ -739,7 +862,7 @@ describe('the push card', () => {
     server.me = me({ routing: { ...NOTHING.routing, alerts: ['push'] } }, { pushSubscribed: true });
     await drawLoaded();
 
-    expect(screen.getByText('subscribed on another device · critical')).toBeInTheDocument();
+    expect(screen.getByText(reading('subscribed on another device · critical'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Push' })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeEnabled();
   });
@@ -747,7 +870,7 @@ describe('the push card', () => {
   it('is off when no browser of the account is subscribed, and its column with it', async () => {
     await drawLoaded();
 
-    expect(screen.getByText('off · this browser is not subscribed')).toBeInTheDocument();
+    expect(screen.getByText(reading('off · this browser is not subscribed'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeDisabled();
   });
 });
