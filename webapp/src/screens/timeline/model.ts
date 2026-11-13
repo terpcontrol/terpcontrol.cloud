@@ -308,18 +308,19 @@ export const drawnBefore = (stepSeconds: number): number => (stepSeconds <= SAMP
 export const SAMPLE_SECONDS = 5;
 
 /**
- * Each point where it belongs: a mean at the middle of its window, a single sample at its own time. The last window
- * is cut short where the read ends: its point stands in the middle of what is left of it - of what was heard of it,
- * where a silence ends in it -, at a whole second.
+ * Each point where it belongs: a mean at the middle of its window, a single sample at its own time. Where the read's
+ * end cuts a window short, or a silence ends or begins in it, its point stands in the middle of what was heard of it,
+ * at a whole second - never inside the silence beside it. The grid is read off the first point, which closes a window.
  */
 const pointsOf = (points: SpaceTimeline['panels'][number]['points'], stepSeconds: number, silences: readonly TimelineSpan[]): PlotPoint[] => {
-  // The grid is read off the first point, which closes a whole window or the window's first.
-  const grid = at(points.find(point => point.value !== null)?.measuredAt ?? points[0]?.measuredAt ?? '');
+  const [grid, step] = [at(points.find(point => point.value !== null)?.measuredAt ?? points[0]?.measuredAt ?? ''), stepSeconds * 1000];
+  const [ends, begins] = [silences.map(span => at(span.endsAt)), silences.map(span => at(span.startsAt))];
   return points.map(point => {
     const stamp = at(point.measuredAt);
-    const left = point.value === null || stepSeconds <= SAMPLE_SECONDS ? 0 : (stamp - grid) % (stepSeconds * 1000);
-    const heard = Math.max(stamp - left, ...silences.map(span => at(span.endsAt)).filter(end => end < stamp));
-    const time = left > 0 ? Math.round((stamp + heard) / 2000) * 1000 : stamp - drawnBefore(stepSeconds);
+    const opens = stamp - ((stamp - grid) % step || step);
+    const [from, to] = [Math.max(opens, ...ends.filter(end => end < stamp)), Math.min(stamp, ...begins.filter(begin => begin > opens))];
+    const whole = point.value === null || stepSeconds <= SAMPLE_SECONDS || to <= from || to - from === step;
+    const time = whole ? stamp - drawnBefore(stepSeconds) : Math.round((from + to) / 2000) * 1000;
     return point.min !== undefined && point.max !== undefined ? ([time, point.value, point.min, point.max] as const) : ([time, point.value] as const);
   });
 };

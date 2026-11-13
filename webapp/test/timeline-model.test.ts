@@ -652,7 +652,7 @@ describe('the cursor', () => {
     // which the answer names, to its close - never half a step before the first sample it holds.
     const back = answer({
       stepSeconds: 5400,
-      silences: [{ startsAt: at(1.5), endsAt: new Date(FROM + 22 * HOUR + 33_000).toISOString() }],
+      silences: [{ startsAt: at(1.25), endsAt: new Date(FROM + 22 * HOUR + 33_000).toISOString() }],
       panels: [
         {
           metric: 'temperature',
@@ -666,6 +666,9 @@ describe('the cursor', () => {
       ],
     });
     expect(drawn(back, ['temperature']).panels[0].curves[0].points.at(-1)![0]).toBe(FROM + 22 * HOUR + 43_000);
+    // The window the silence begins in likewise: its point stands in what was heard of it, the hour and a quarter
+    // up to the last sample - not a quarter of an hour inside a silence the card says nothing was measured in.
+    expect(drawn(back, ['temperature']).panels[0].curves[0].points[0][0]).toBe(FROM + 0.625 * HOUR);
     // So it stands before the reading that closes the curve, and the table has a row for it as for every point.
     const reading: CardValue = { metric: 'temperature', value: 24.3, measuredAt: new Date(FROM + 22 * HOUR + 52_000).toISOString(), state: 'live' };
     const closed = drawn({ ...back, endsAt: new Date(FROM + 22 * HOUR + 53_423).toISOString() }, ['temperature'], {
