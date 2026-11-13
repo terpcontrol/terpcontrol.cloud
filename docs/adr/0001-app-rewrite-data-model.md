@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-13
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation
+source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -488,6 +488,21 @@ like a place.
    - No route is added for removing a place with what stands in it: the app sends each device, camera and grow to the
      destination chosen for it by the routes that exist, and ends the place last.
 
+**Added while clearing up** (the redesign session of 2026-11-13, awaiting Chris's confirmation with the rest; each
+can be refused by itself):
+- **An ended place takes nothing, as an ended room does.** An invitation, a member by handle and a share link for
+  a place that has ended answer 409 `space_archived`, the code a device put there already got; one helper says
+  both kinds (`refuseEnded`). Until then its owner could still let somebody into a place that is on no screen.
+  "Ended" is `archivedAt` set, which a removal and the archive route both write.
+- **Putting a place away and bringing it back are its owner's** (`PUT`/`DELETE /spaces/{id}/archive` ask `own`,
+  no longer `manage`): they write the instant a removal writes, and a guest who steers a place could put the
+  host's place away. The web app calls neither route, and whether "put away" stays an act of its own beside
+  removing - it keeps people, invites and links, and can be undone - is open for Chris
+  ([handover](../app-rewrite-handover.md#open-for-chris)).
+- **What is over is listed by when it ended**: `GET /alerts?open=false` sorts and pages by `resolvedAt`, with an
+  index for it declared on the schema (`{ spaceId, resolvedAt: -1, id: -1 }`, built at boot, no migration step);
+  an open list and one without the filter stay by `startedAt`. Nothing stored changes.
+
 **The migration** is five steps on the new collections, each idempotent, each a no-op on a fresh install, none
 moving anything aside (production never ran a server with the model before this amendment; installs that did - a
 test stack, a self-hosted one on master - are what the second and third are for):
@@ -688,7 +703,7 @@ stays. Giving a device up now deletes its alerts, as it already deleted its rule
   setpoints); the flat `values`, `setpoints`, `targets` and `verdict` stay, as the place merged and its first
   climate. `GET /spaces/{id}/timeline?deviceId=` and `GET /spaces/{id}/series?deviceId=` narrow panels, bands,
   nights and lanes to one device (404 `device_not_here` for one that does not stand there), which is how Verlauf
-  and Graphen offer "Alle Geräte" or one device. Still pooled or of the first climate: what Start says of a place,
+  offers "Alle Geräte" or one device. Still pooled or of the first climate: what Start says of a place,
   a week's climate and report, the phase snapshot's one `deviceId`, and the shared tent page. *Amended 2026-11-12:* the
   redesign asks for one climate per place when a device is added, and leaves the places that hold several exactly
   as they are ("Places, rooms and where a device stood", point 6).

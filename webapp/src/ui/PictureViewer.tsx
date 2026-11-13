@@ -28,7 +28,7 @@ interface PictureViewerProps {
  * A row has space for four thumbnails and no more - one migrated phase line
  * carries seventeen - so the strip says how many more there are and this is
  * where they are. It is a dialog rather than a screen of its own because the
- * pictures hang on the line: a reader is in the middle of a week card, and a
+ * pictures hang on the line: a reader is in the middle of a day's card, and a
  * route would cost them their place in it.
  *
  * What it steps through is what the surface handed over, which on a share link

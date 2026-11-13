@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-13
-source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+source: Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/**
   - shared-types/**
@@ -133,13 +133,21 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   with the ADR's amendment). `SpacesService.remove` refuses for a device, a camera and a running grow (409
   `space_in_use`: `device_here`, `camera_here`, `grow_here`) and no longer for members - `member_here` is gone. It
   then deletes the place's memberships, invites, share links and the reminders about it through `closeWaysInto`, the function
-  `endRoomIfEmpty` ends a room with. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) are another act and
-  were left alone: they need only `manage`, refuse nothing that stands in the place, keep people, invites and
-  links, and can be undone; the web app calls neither.
-- **An ended room takes nothing.** `SpacesService.requireOpen` answers 409 `room_ended` to `PATCH /spaces/{id}` on
-  an ended room, to a `roomId` naming one in `POST`/`PATCH /spaces`, to `POST /spaces/{id}/invites` and to
-  `POST /spaces/{id}/members`, and to `POST /share-links` with it as the subject. Redeeming a code cut for one stays the 404 `invite_not_found` every dead code
-  gets, because that route is reachable by anybody with an account.
+  `endRoomIfEmpty` ends a room with. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) are another act:
+  they refuse nothing that stands in the place, keep people, invites and links, and can be undone; the web app
+  calls neither. **They ask `own`** (the redesign session of 2026-11-13, awaiting Chris's confirmation): they
+  write the `archivedAt` a removal writes, and with `manage` a guest who steers a place could put the host's
+  place away. Whether the routes stay at all is Chris's to say.
+- **An ended room takes nothing, and neither does an ended place.** One helper says both refusals
+  (`refuseEnded`, `common/v1/rooms.ts`): 409 `room_ended` for a room, 409 `space_archived` for a place.
+  `SpacesService.requireOpen` refuses an ended room in `PATCH /spaces/{id}` and as the `roomId` of
+  `POST`/`PATCH /spaces`; `SpacesService.requireStanding` refuses any ended space - room or place - in
+  `POST /spaces/{id}/invites`, `POST /spaces/{id}/members` and `POST /share-links` with it as the subject (the
+  place's part: the redesign session of 2026-11-13, awaiting Chris's confirmation), and the device move and the
+  claim refuse an ended place through the same helper. "Ended" is `archivedAt` set, so it holds for a place that
+  was removed and for one put away - the data cannot tell them apart. An ended place can still be renamed
+  through `PATCH`. Redeeming a code cut for an ended room stays the 404 `invite_not_found` every dead code gets,
+  because that route is reachable by anybody with an account.
 - **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
   which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in
   `PATCH /spaces/{id}` - and takes a device out of every place (`DELETE /spaces/{id}/devices/{deviceId}`,
@@ -200,7 +208,7 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   forget it.
 - The demo grant is `redacted` (the owner's privacy applies: weights, counts) but not an outsider (`isOutsider` in
   `common/v1/access.types.ts`): only a link or a public page loses device ids, room id, tasks and alerts. Gating
-  those on `redacted` left the demo place on Start without its device while Geräte listed it.
+  those on `redacted` left the demo place on Start without its device while the device list of that time listed it.
 - There is deliberately no UI or API to put a device into the demo (Chris, 2026-08-19). `./simulate-device.sh demo on
   -d <device-id>` sets `isDemo` in MongoDB on the device, its space and its cameras - any device of that stack, not
   only simulated ones. A grow standing in a demo place now is read as a demo one (`standsInTheDemo` in
@@ -208,7 +216,7 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   is private again, and `grows.isDemo` still flags one by hand.
 - The tour lists flagged spaces, the device list flagged devices. Moving a demo device (`DevicesService.update`)
   therefore flags the place it moves into and unflags the one it leaves once no demo device stands there; before,
-  a demo device moved into a place of its own showed under Geräte and not on Start. `025-demo-places` repaired the
+  a demo device moved into a place of its own showed in the device list of that time and not on Start. `025-demo-places` repaired the
   moves made before.
 
 ## Share links and public pages

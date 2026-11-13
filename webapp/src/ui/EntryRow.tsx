@@ -119,8 +119,8 @@ interface EntryRowProps {
 
 /**
  * One line of a diary: when, what kind of thing, what it said, who said it and
- * what they photographed. It is the same row wherever a diary is shown, so a
- * week card and a tent's latest lines read alike.
+ * what they photographed: the row of a shared place's latest lines and of the
+ * lines support reads on a device's diagnosis.
  *
  * The pictures hang on the line rather than on a screen of their own: 653 of
  * them came over with the old diaries, and until a row drew them the only place

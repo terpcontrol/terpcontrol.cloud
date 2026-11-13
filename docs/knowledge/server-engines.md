@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-13
-source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12)
+source: Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -60,7 +60,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   (`AlertInboxService.subjectOf`): an open alert is its device's or camera's, one that is over is the place's it
   happened in; `GET /alerts?deviceId=` holds a member to the places they see; the unfiltered inbox adds the
   alerts without a place of the caller's own devices and cameras. `Alert.spaceName` is the place's name as it
-  is now, an ended place's too. A person deletes an alert that is
+  is now, an ended place's too. **What is over is listed by when it ended** (the redesign session of
+  2026-11-13): `GET /v1/alerts?open=false` sorts and pages by `resolvedAt`, then `id`, so the inbox's "Vorbei"
+  is in the order of its label beyond the first page; `open=true` and a list without `open` stay by `startedAt`
+  (`AlertInboxService.list`; the cursor keeps its shape). A person deletes an alert that is
   over (`DELETE /v1/alerts/{id}`, `manage` on its subject); an open one is refused (409 `alert_open`). Migration
   `024-orphaned-alerts` cleared what the old paths had left.
 - A rule either carries its own e-mail or webhook (`delivery.custom`: `{{placeholder}}` templates in

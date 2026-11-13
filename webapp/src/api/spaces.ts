@@ -6,7 +6,7 @@ import { readEvery } from './pages';
 import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
- * The tent page reads its overview once a minute and its live values on the
+ * Start of a place reads its overview once a minute and its live values on the
  * live beat: the overview costs a day of series for the verdict, the live
  * read costs one `last()`, and it is the values that age. A refresh that fails
  * leaves the last answer in place with its ages, which is what the ages are for.

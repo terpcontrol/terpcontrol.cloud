@@ -34,7 +34,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Testing](knowledge/testing.md) - the suites and their pitfalls, the simulator beyond `CLAUDE.md`, test stacks, browser checks
 - [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, connection-loss tests, the development devices, copies of production data
 - [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word, /pr-merge
-- [The app rewrite](app-rewrite-handover.md) - the rewrite is complete: where its knowledge lives and what it left open
+- [The app rewrite and the navigation redesign](app-rewrite-handover.md) - both are built: where their knowledge lives, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk saw
 
 ## Runbooks (`runbooks/`)
 - [Backup and restore](runbooks/backup-and-restore.md) - a backup or restore beyond the README's commands

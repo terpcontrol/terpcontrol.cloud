@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-11-12
-source: Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08)
+updated: 2026-11-13
+source: Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
 paths:
   - .claude/**
   - .worktreeinclude
@@ -79,7 +79,7 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **Few sub-agents, few variants** (Chris, 2026-11-11): sub-agents are fine, but the app is not that big, and too many
   of them produce clutter. He puts the weight the rewrite left behind down to heavy orchestration and many design
   rounds with many variants; the audit of that day found it as one idea built in three to nine places, not as dead
-  code ([what the rewrite left open](../app-rewrite-handover.md#left-open)). One read-only fan-out to understand a
+  code ([the navigation redesign](../app-rewrite-handover.md#the-navigation-redesign)). One read-only fan-out to understand a
   question is enough; designing, deciding and writing stay with the session.
 - **A redesign is built in rounds, each judged by a harsh critic** (Chris, 2026-11-12, for the navigation redesign):
   after every round a critic who built nothing walks the running app and says whether it works without faults and
@@ -189,9 +189,25 @@ A round is one pass of building or fixing with its checks, ending in a short rep
   you are editing and match how it comments.
 - What goes into `README.md` and what into comments: [CLAUDE.md](../../CLAUDE.md), Documentation.
 - **Dead code:** `npx knip@5` in `server/`, `webapp/` and `shared-types/` lists leads, each checked by grep before it
-  goes. In use although it reports them: the webapp's `*.advanced.tsx` (found by `import.meta.glob`) and `src/sw.ts`
-  (built by vite-plugin-pwa), the server's `src/migrations/cli.ts` (run from `package.json`), NestJS providers, and
-  `@fg2/shared-types` (imported by subpath).
+  goes. In use although it reports them:
+  - webapp: `*.advanced.tsx` (found by `import.meta.glob`) and what only they import (`ChoiceSheet`, `SheetValues`);
+    `src/sw.ts` with the `workbox-*` packages (built by vite-plugin-pwa); `scripts/derive-logo.mjs` and
+    `scripts/tabular-digits.py` (run by hand);
+  - server: `src/migrations/cli.ts` (run from `package.json`) and what only it imports (`registerV1Models`,
+    `documentsCopied`, `migrationFailureText`, `MigrationRunReport`); NestJS providers; `scripts/install-fonts.mjs`
+    and `@fontsource/inter` (the server image unpacks the face for the film overlays); `ts-node` and
+    `tsconfig-paths` (`nodemon.json` and the integration harness);
+  - `@fg2/shared-types` everywhere (imported by subpath). knip cannot read `shared-types/` at all: an export there
+    is dead when no file of `server/`, `webapp/` or the package itself names it, which a script over the three
+    answers. A shape whose route was never built (`AdminLogPage`) is the contract's to keep until Chris says.
+- **Unused catalogue keys and dead CSS classes are found by script, not by a test**: `python3 scripts/unused.py`
+  in `webapp/` (`webapp/test/i18n.test.ts` checks date formats only). It also lists a class the source names and
+  no module defines, which renders as "undefined". A key counts as used when its full name stands in the source, and also when the
+  source builds it: from a prefix (`` t(`home.metric.${metric}`) ``), with a suffix (`` `${side}Often` ``, `…Was`,
+  `…Note`, `…Keeps`), as a plural (`_one`, `_other`) or through an i18next context (`_you`); every `message-*`
+  key is the firmware's and is looked up by the key a device sends. A class of a CSS module counts as used when
+  the binding the module is imported under names it, or indexes by an expression; a class inside `:global(...)`
+  belongs to no module.
 
 ## Worktrees and parallel agents
 - **Agent worktrees are created in the repository of the launching session's working directory.** Launch cloud work

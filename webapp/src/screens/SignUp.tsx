@@ -27,7 +27,7 @@ interface SentFrom {
  * been asked into a tent, not sold an account, so the page keeps the
  * invitation's words at the top, and once the account is made it signs them
  * in and goes back to the invitation with the word that it may now be taken
- * up - the tent is where they were going, and a home screen with nothing on
+ * up - the tent is where they were going, and a Start with nothing on
  * it is not.
  *
  * Whether an account may sign in at once is the server's answer, not an

@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-13
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12)
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -71,6 +71,9 @@ Pitfalls, each met at least once:
   checks that matter count rows (the migration preflight does).
 - **Mongoose never changes a built index:** new options under existing data need a step that drops the old index
   (`014-one-line-per-task`); the schema builds the new one at the next boot, and cannot while duplicates exist.
+- **A new index outside `users` and `devices` needs no migration step:** it is declared on the schema and built
+  at the next boot. `alerts` got `{ spaceId: 1, resolvedAt: -1, id: -1 }` that way (2026-11-13), for the read of
+  what is over by when it ended, beside `{ spaceId: 1, resolvedAt: 1, startedAt: -1 }` for what is open.
 - **Two `$or` in one object overwrite each other.** `afterCursor()` (`common/v1/pages.ts`) and the visibility filters
   both answer `$or`; spread into one query, page two of a list held what its filter excluded - other people's rows
   three times, firmware builds never offered to the device once. Combine with `{ $and: [visibility, filter, cursor] }`

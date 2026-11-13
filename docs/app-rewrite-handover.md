@@ -1,7 +1,7 @@
 ---
-summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
+summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -14,8 +14,9 @@ paths:
 
 The rewrite replaced the Angular web app with the React app in `webapp/`, the server's app-facing routes with the
 `/v1` API whose contract is `shared-types/src/v1/`, and the old database shapes with the model of ADR 0001; the
-device-facing routes stayed as they were. It was merged on 2026-10-04 as #104 and is complete. Internal notes on its
-product side exist outside this repository.
+device-facing routes stayed as they were. It was merged on 2026-10-04 as #104 and is complete. The navigation
+redesign of November 2026 was built on top of it and is described below. Internal notes on the product side of
+both exist outside this repository.
 
 ## Where its knowledge lives
 
@@ -32,455 +33,347 @@ product side exist outside this repository.
   [development-workflow](knowledge/development-workflow.md). How it was verified on copies of production data:
   [verification passes](knowledge/testing-real-devices-and-data.md#verification-passes).
 
+## The navigation redesign
+
+Chris asked for it on 2026-11-11 - the diary was hard to find, places and rooms were inconsistent, the charts less
+precise and less intuitive than the old app's -, chose the direction the same day and accepted a click prototype
+on 2026-11-12, which is the specification. New routes need no redirects from addresses that never reached
+production, and a change to the data model comes as a migration step (Chris, 2026-11-11). It was built in rounds
+by one session, each round walked by a critic who had built nothing
+([development-workflow.md](knowledge/development-workflow.md#long-runs-and-rounds)); the briefs, the list of every
+function with its new place and the decisions on each critic's findings are internal notes. **Everything in the
+second list below is that session's decision, not Chris's word, until he confirms it with the pull request.**
+
+### What was built
+
+- **The frame and Start**: the bar Start · Grow · Eintrag · Verlauf · Steuerung drawn from what the account has,
+  one choice of place for Grow, Verlauf and Steuerung, the addresses, Start leading with the picture
+  ([app-ux.md §1, §2](knowledge/app-ux.md#2-navigation-and-the-place-page); [webapp.md](knowledge/webapp.md)).
+- **Grow, Bilder, Eintrag**: the grow page with a diary that writes itself by the day, the pictures, all grows,
+  the entry sheet, the public page and the share link on the same day cards; one form starts a grow
+  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page); the diary read in
+  [server-engines.md](knowledge/server-engines.md#read-models); the day count in
+  [app-wording.md](knowledge/app-wording.md#grow-time)).
+- **Steuerung, devices, camera**: Steuerung by place with a page per device and the camera page; the list
+  `/devices` and the tab "Geräte" are gone; an offline device locks nothing and the page says what it has not been
+  handed ([app-ux.md §2, §3, §5, §8](knowledge/app-ux.md); `pending` in
+  [server-engines.md](knowledge/server-engines.md#read-models); [ADR 0007](adr/0007-germination-in-the-dark.md)).
+- **Verlauf**: one page of curves with its whole view in the address, points from 5 s with each window's lowest
+  and highest, outputs counted from their samples; `/charts` and the page "Graphen" are gone
+  ([app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night); [data.md](knowledge/data.md#influxdb);
+  [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** five walks' lists are built; the
+  fifth walk's list was walked a sixth time on the session's stack and held against the samples, and that walk
+  left six things decided and not built - they stand in the second list. The Verlauf builder builds them next,
+  so `webapp/src/screens/timeline/` and the timeline's server reads were left alone by the clearing-up round.
+- **Place and room**: a device keeps where it stood, names are unique, a room is a field of the place, "Ort
+  bearbeiten" and "Ort entfernen" as pages, the claim outside the bar asking once where a device hangs, five
+  migration steps `026` to `030` (the amendment to
+  [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood);
+  [server.md](knowledge/server.md); [data-operations.md](knowledge/data-operations.md#migrations-in-operation)).
+- **Ich and Meldungen**: Ich as one card of rows with a page per subject and Verwaltung behind it; Meldungen as
+  what is open, what is due and what is over; one list of what is due for the reader
+  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page);
+  [server-engines.md](knowledge/server-engines.md#alarms-and-notifications)).
+- **Clearing up** (2026-11-13): unused exports, one unused catalogue key and the words of screens that are gone
+  went from the web app, the server and the contract; what was built twice between the rounds was merged - the
+  list is [webapp.md, "What exists once"](knowledge/webapp.md); the leftovers of the walks were built or are named
+  below; one wording pass ([app-wording.md](knowledge/app-wording.md)). The server changed in three ways: what is
+  over is listed and paged by when it ended, the archive routes ask `own`, and an ended place refuses an
+  invitation, a member and a share link ([server.md](knowledge/server.md),
+  [server-engines.md](knowledge/server-engines.md#alarms-and-notifications), [data.md](knowledge/data.md#mongodb)).
+  How dead code, unused keys and dead classes are found is in
+  [development-workflow.md](knowledge/development-workflow.md#code-and-documentation).
+- **The weight.** The audit of 2026-11-11 found the app's weight to be live duplication, not dead code: 22 ideas
+  each built in three to nine places, against one unused export. `webapp/src` held 74,461 lines (`.ts`, `.tsx`,
+  `.css`) when the run began, 71,732 when the clearing-up round began and 71,207 at its end;
+  `webapp/test` grew from 33,865 to 39,693, since every rule a walk decided got a test. Some of the 22 are still built more
+  than once; the round's report lists each with where. The biggest: a device card's status line against the
+  liveness pill, the maintenance banner under Alarme against the shared maintenance control, the two controls
+  that switch regulation back on, `ui/EntryRow` against the diary's line, the shared place's page as a second
+  place page, a plant's chart beside the shared plot, and the fold-away blocks made by hand.
+- **A round for type and colour follows** (Chris, 2026-11-13); its choice is the owner's. Nothing of the look
+  changes before it, and [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)
+  is amended in the same commits as `webapp/src/theme/tokens.css`. That a name typed with "x" between figures is
+  drawn with "×" outside the place pages is a feature of the typeface and goes to that round.
+
+### Decided by the redesign session, not yet confirmed by Chris
+
+Each is built unless it says otherwise, and each can be refused by itself.
+
+**The run**
+- One branch and one pull request for the whole redesign.
+
+**Start and Grow**
+- A grow's day is a date on its owner's calendar everywhere; it replaced the count of 24 hours from the hour the
+  grow began ([app-wording.md](knowledge/app-wording.md#grow-time)).
+- A day card shows the grower's lines and what the devices did, folded by fixed rules; the week cards left the
+  contract. "Zuletzt" on Start is the tail of that diary.
+- The public page and a share link draw the day cards; a reader from outside gets no device lines, no alarm
+  lines (a rule's name is the owner's own words) and no share of the day inside its targets. A member let into
+  a place still sees device lines and alarms.
+- The doors Düngepläne, Freigabelinks and Abonniert live under `/grows/`; the row "Gerät hinzufügen" under Ich
+  went - the way is Start ("+ Ort hinzufügen") and a place's ⋯.
+- "Wartung · 15 Min" starts with one tap, from Start and a device's card and from nowhere else - not from an
+  alert's card.
+- The read-only demo has no Steuerung.
+- One form starts a grow ("Was wächst hier?"); what the second form offered is in the open list. Germination's
+  two humidity choices travel with every way germination is set ([ADR 0007](adr/0007-germination-in-the-dark.md)).
+- Start ranks its cards by the one list of what is due for the reader, which is what a card counts too.
+
+**Steuerung and devices**
+- A setting is changed one way - a sheet with "Speichern" for a figure, a write on the tap for a switch -,
+  answered by a toast with the way back; one save path for every setting of a device.
+- What an offline device has not been handed is said from `pending` of the live read, no new stored field; a
+  save to it answers that it is stored and not with the device yet.
+- A page behind a row leads with the place's own device and folds the others; a place led by a Plantalytix
+  Socket, a LIGHT or an AIR fan is built from the controller's parts.
+- A stage's alarm rule has one name in the reader's language wherever it is named; the cloud's own rule is
+  "Eingebaut"; a socket the device does not report leads to the device's page; a build is named by its day, and
+  by its hour where two share a day.
+- Not drawn, because the app has no such data: the prototype's "meldet sich alle 5 s · WLAN gut". Three of
+  Erweitert's fields did not fit the value sheet as it was and kept forms of their own (the Lux-to-PPFD factor,
+  the AIR fan a socket slows, the CO₂ cylinder's report).
+- A work mode has one word on the row, in Steuerung's head and on Start; a device's page is headed as its card
+  names it.
+
+**Verlauf** (rules in [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night))
+- A figure of VPD is a VPD that occurred: within three days the deficit of single samples, beyond that from
+  means over five minutes, each judged day or night by its own time; every step there is a whole number of five
+  minutes, and VPD's head says so. Temperature and humidity keep the samples' extremes on every range. A grain in
+  which the lamp switched is worked out from its own samples.
+- A leaf temperature counts only where the same reading carries one, and for a grain only where leaf readings
+  cover at least half of it.
+- At rest the card says the last thing that was heard - "jetzt" while the server calls it fresh, "letzter
+  Wert · …" once it is stale -, and one card is one point. No `at` in the address means rest.
+- Humidity is read to a tenth on Verlauf and whole on Start.
+- An output's figures are counted from its samples; a point where nothing was heard says "—"; an output at
+  level 0 is "aus". A window without a reading is a gap, with no night and no target band through it.
+- A place with two climates is about one device on every page; a share link shows the place's own climate
+  only. A night belongs to the device that stood there, over its own stay.
+- The table and the CSV are one row per drawn point with each output's mean level.
+- An alarm of the past counts for the place it happened in.
+- "Zeitraum abspielen" plays the window from its first picture; the night as a film needs a zoom first. Beyond
+  three days a lamp's times are to five minutes.
+- A chosen step is bounded at 5,000 windows; Ctrl and the wheel zoom while the plain wheel scrolls the page; the
+  names of the strips stand above them; the ticks of "Anpassen" are kept by the browser, and CO₂ starts unticked.
+- **Decided after the sixth walk and not built yet:**
+  1. A window that reaches now rests on the reading at every zoom - a window given relative to now never rests
+     on a cursor clamped to its end (major).
+  2. Verlauf never scrolls sideways on a desktop; between about 1590 and 1795 px the page was wider than the
+     window (major).
+  3. "an seit" names a switch that lies in the window; a lamp lit through all of it is "durchgehend an".
+  4. A device is heard when any of its fields reports: the edges of a silence come from the device's samples,
+     read only around the gaps the series read found, so the 120-day read of a place with two devices is under
+     a second again.
+  5. At rest the card shows every value the reading carries, an older one with its own time, and no dash
+     without its name.
+  6. The lamp's and the outputs' labels read as one line of words, and an output with a level adds how hard it
+     ran.
+
+**Place and room** (the amendment to [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood))
+- `devices.placements[]` beside `devices.spaceId`; a stay under five minutes leaves no trace; a device's first
+  placement is read back past its beginning.
+- Names are unique per owner among places and among rooms; a room may be called what a place is called.
+- A room is a field of the place and exists only while a place stands in it; taking the last place out ends the
+  room and its members' access, after asking. A room is renamed from the room field of "Ort bearbeiten".
+- A device stands only in a place of its owner. Which room a place stands in, and taking a device out of every
+  place, are the owner's alone.
+- A place ends with every way into it - memberships, invitations, share links, its reminders -, and "Ort
+  entfernen" names everybody who loses sight in its one confirmation; guests no longer block a removal.
+- An ended room and an ended place take nothing: no invitation, member or share link. The archive routes ask
+  `own`.
+- A place that already holds two devices with a climate of their own is left as it is.
+- A joining device (fan, socket, light) is claimed in one write that carries its place and is done after "Wo
+  hängt …?"; a claim names the place it makes in its own write; a place the app names by itself is "Zelt",
+  "Zelt 2". The claim no longer asks for a place's name and kind.
+- "Ort entfernen" keeps a tent together by default, never guesses where the plants stand, asks once with every
+  line it will write and keeps every answer across a refusal.
+- An open alert stands where its device stands and moves with it; one that is over keeps its place, by name.
+  Giving a device up deletes its alerts.
+- A move's diary line keeps the names the two places had then.
+- A guest whose access ends while the app is open is told once.
+- Verlauf and Steuerung say that a place has ended instead of drawing another; a sheet that leaves its page for
+  good leaves no page under it in the history.
+- A stream camera's form says under its field that a home-network address will not answer, only at a place
+  without a device.
+
+**Meldungen and Ich**
+- An alert that is over is "Vorbei", so that "Erledigt" is the tasks' word; the list is in the order of its
+  label, five rows with more behind "Früher", and the server lists it by when an alert ended.
+- A card says about delivery only what the alarm will do; a notification held back by quiet hours or a mute is
+  dropped, so "after your quiet hours" is promised only of a rule that repeats.
+- Start's "Heute", a place card's count, the inbox and the bell read one list of what is due for me; a task with
+  somebody else's name is on `/tasks` under "Alle" only, and a reader who may only look is offered no row.
+- A waiting firmware update is a card under "Offen" and counts in the bell.
+- Every setting of the account is saved on the tap and answered by its own toast, whose way back writes only
+  that field; "Widerrufen" answers in the toast it stood in.
+- A channel that is switched on routes critical alarms, warnings and due tasks; e-mail says what it carries in
+  one wording.
+- An account "from before the layout" is one that was never shown a shape and owns a device.
+- The units' choice stays stored and says in a line that the views show °C, grams and litres for now.
+- A deleted reminder has no way back.
+- At 320 px three open cards do not fit one screen; the page is laid out for 390.
+
+**Wording** ([app-wording.md](knowledge/app-wording.md))
+- What reports is "online"; a stage's climate is a "Klima-Preset" and never a "Vorlage"; what a device or a
+  plan did without a person is "von allein"; the English page and the regulation are "Control".
+- A place's name stands by itself, never glued behind a preposition; a device or a camera nobody named is
+  called by its kind, with a scrap of its id only where two alike share a list.
+
+### Open for Chris
+
+Each with what stands until he answers, and the session's recommendation where it has one.
+
+**The contract**
+1. **Remove what nothing asks?** The web app no longer calls `GET /v1/spaces/{id}/series`, the climate half of
+   `GET /v1/grows/{id}/series` (a grow's own measurements are still read there),
+   `PUT /v1/spaces/{id}/devices/{deviceId}` (a move is `PATCH /v1/devices/{id}`), or the archive routes
+   (`PUT`/`DELETE /v1/spaces/{id}/archive`); nothing writes `ChartView.definition.layout: 'day_of_grow'`; nothing
+   reads `dueTasks` on the home card and the overview; `AdminLogPage` is the shape of a route that was never
+   built. All stay, because ADR 0001 freezes the contract. The two series routes also bound a device by its
+   stay without the hand-over cut Verlauf makes. Recommendation: remove all of them but `AdminLogPage`, which
+   waits for the decision about its route.
+2. **What does "put away" mean?** The archive routes write the `archivedAt` a removal writes and keep people,
+   invitations and links; an ended place and one put away are one state in the data, so migration step 029
+   cannot tell them apart either. They ask `own` now. Recommendation: remove the routes with question 1.
+3. **The amendment to ADR 0001**, point by point - in particular that `devices.spaceId` stays beside the
+   placements (stored twice, sparing a search in an array on every read about now), that a stay under five
+   minutes leaves no trace, that a first placement is read back past its beginning (a device taken over
+   unclaimed shows its old readings to whoever claims it first, as today), and everything under "Place and
+   room" above.
+4. **Migration steps 029 and 030** ran in unit tests only, not yet on a copy of production data.
+5. **`POST /v1/spaces` with a `roomId`** by somebody who manages the room makes a place that belongs to the
+   room's owner. Documented and tested; it stays.
+6. **A guest who may manage** may rename the owner's place and change its kind; only the owner moves a device,
+   sets the room and ends the place. The last place of an account cannot be removed.
+7. **The server copies a device's name onto the camera it pairs**; the app treats such a name as none, but
+   cannot tell once the device is renamed. Recommendation: the server names a paired camera "Terp Cam".
+8. **The names of the four stage alarm rules** are written in the server and in the web app, with no shared
+   constant. A rule made by one tap before the redesign is stored under its translated name; no migration
+   renames it.
+9. **The timeline's server code and the contract's descriptions** still say "rail" and "the charts page". Left,
+   because Verlauf's pass is not closed.
+
+**Place and room**
+10. **The kinds of a place.** The model has tent, fridge, balcony and other; the prototype's select reads Zelt,
+    Kühlschrank, Trockenbox, Gewächshaus, Raum. The page offers the model's four. Recommendation: stay at four.
+11. **May the owner read an ended place's curves?** Today Verlauf and Steuerung say that the place has ended,
+    Grow still corrects such an address silently, and a past alert of an ended place offers no "Verlauf öffnen".
+    Recommendation: yes, as a small step of its own.
+12. **Removing a place is several writes**: a refusal half-way leaves what was done before it done, and the
+    page says what is done and what is open; a reload then forgets what is still open. Recommendation: leave.
+13. **The owner's ⋯ on Start** is a list of two rows and reads "Mehr" on a desktop: editing a place is two taps
+    for the owner, adding a device to it three.
+14. **A past alert of a device that has since moved** opens Verlauf of the old place with a device that no
+    longer stands there.
+
+**Meldungen and Ich**
+15. **"Erledigt" on an open alert.** The prototype keeps an alert that got better under "Offen" until somebody
+    ticks it; the server knows open and over, so it stands under "Vorbei" at once. It needs a stored field and a
+    migration step. Recommendation: yes, as a small round of its own.
+16. **Should an alert keep what was delivered?** Nothing is recorded per alert, so a card says nothing about the
+    past. Recommendation: a small field written when the alert is raised.
+17. **The units** (°F, oz, gal) are stored and no view follows. Convert the views, or remove the choice?
+    Recommendation: remove the choice until the views follow.
+18. **A minimum length for a password.** Today one character, in the forms and on the server alike.
+    Recommendation: eight characters where a password is set, sign-in unchanged.
+19. **The e-mail switch** routes what can call on the account to mail also where critical alarms already arrive
+    another way. Recommendation: leave.
+20. **Nothing in the app or the server**, and so no place in the redesign: testing a notification channel,
+    feedback or support, editing handle, bio and avatar. The rows Premium and Über carry no summary line, as
+    the prototype shows none.
+
+**Start and Grow**
+21. **A day's picture beyond the camera's retention.** Only a still that a diary line or a grow's cover names is
+    spared; one still per grow day would touch what a plan keeps.
+22. **What went with the tab "Wochen"**, against the rule that no old capability disappears silently - each
+    comes back or is decided away: how many of a scheme week's feedings are logged ("n / m erledigt"; it needs
+    two reads the tab Düngung does not make); the day/night strip and the light hours per week (the report has
+    them per phase); a reading with its change from the week before (the Messwerte page has the curves); the
+    days of each stage in the head's bar; strains and plant count in the head (the tab Pflanzen and the cards of
+    "Alle Grows" have them); the entry tiles' captions with the last value (the watering detail says when and
+    how much).
+23. **What went with the second grow form**: several strains at creation (the tab Pflanzen names them
+    afterwards); a feeding scheme at creation (the tab Düngung chooses one); making a new place in the form;
+    the autoflower choice at creation, which moved to the grow's menu, "Name und Art".
+24. **The climate sentences** in the phase, harvest and feed sheets became a line of figures or moved behind
+    the help; they were written for the germination and drying rules and want one look.
+
+**Steuerung, devices and the camera**
+25. Maintenance, a restart and an update stand on the card of the place's own device and on every device's
+    page, one component - against "every setting has one place" read strictly; they are done to the hardware.
+26. Regulation is switched off only on the device's page, and on wherever a page says that it is off.
+27. Scrubbing through one day's stills left the camera page for Verlauf's cursor.
+28. "Update vom …" is offered only to a device without automatic updates; a "now" for a device on a channel
+    needs a server route. Installing a build picked by hand waits for the device to be heard.
+29. Keimung and Trocknung are chosen as a climate preset only, and a spell is ended in the same sheet.
+    "Trocknung beenden" returns a fridge to the mode it ran before, "Keimung beenden" always to Standard.
+30. Moving a device is asked and can be taken back - except into a place made in the same sheet.
+31. An output is held by choosing its length: two taps where one tap held for an hour.
+32. A light output's hold is known only to the browser that sent it. For every browser to say it, the server
+    remembers the last light override, or the firmware reports it in the table it already sends
+    (recommended) - and may it then report on every override, so a hold sent again with another length is seen?
+33. A paused plan keeps no instant of its pause, so its row says why and not since when (a stored `pausedAt`
+    would give the hour); its reason is stored as words in the language of whoever paused, so only the app's
+    own three reasons read in the reader's language (a reason code needs the server).
+34. A stand-alone LIGHT stops at 23.5 h of light: it holds two times of day, and two equal ones are no day.
+35. The day in the camera's address (`?day=`) is the grow's day number, not a date.
+36. "Manuell" is the off state of the switch "Automatisch aktualisieren", not an option of the channel select.
+37. A Plantalytix Socket's and an AIR fan's mode, and a stream camera's Erweitert, are saved from a sheet with
+    "Speichern" and not on the tap; a pump's or a timer's cycle is set only in the socket's sheet.
+38. Whoever may not manage a device is not shown how many sockets it has.
+39. The light limit's toast follows its last step by the 1.5 s a stepped figure rests before it is written.
+40. "Jetzt ein Bild" is answered by a toast; a picture that could not be taken is said under the button.
+41. A grow started with a stage writes that stage's climate to every device of the place that states targets,
+    while the form asks germination's choices of the place's lead alone.
+
+**Verlauf**
+42. No free panning (the old Ctrl-drag, a two-finger pan), and Back leaves Verlauf rather than taking a zoom
+    step back.
+43. What went with the page "Graphen": a range typed as two dates ("Zu einem Tag springen" with zoom and step
+    reaches any window), renaming a saved view (it is deleted and saved again), the four kinds a line was
+    filtered by (two ticks now), and the curves of hand measurements for a grow without a place.
+44. Humidity to a tenth on Verlauf and whole on Start: two figures for one reading, on purpose.
+45. VPD's true extremes exist up to three days of window; storing VPD per sample would make them cheap
+    everywhere and is a new stored field.
+46. Not built, of the walks' trifles, because Verlauf is still being walked: a place whose history is part
+    sparse, part dense still draws band and night in stripes over the sparse part; a curve of few points as a
+    line with its points; the band's help popover at 320 and 390 px; the English temperature row at 390 px and
+    "last logged".
+
+**Left by the clearing-up round**
+47. The firmware screen's rename sheet is not on the shared name sheet, and the ideas still built twice named
+    under "The weight" above.
+
+### What the walks could not see
+
+- **No such data on the session's stack**: a firmware update card and a firmware version, a camera alert, a leaf
+  alert, a notification by Push or Telegram, three weeks of camera stills (so week cards and the week's film
+  before the first full week), readings that follow a grow's phases, a place with two devices on a device's
+  page (the rows there are covered by tests only).
+- **Seen in tests only, on no running server**: removing a place with guests and a room's members going
+  through, `joinSpaceId`, `room_ended`, the `own` refusals, migration steps 029 and 030; and of the clearing-up
+  round, the ended place's refusals, the archive routes' `own` and the alerts paged by when they ended - the
+  session's stack ran the server from before them.
+- **Not walked again after it was built**: where the rounds of place and room and of Meldungen meet (an alert's
+  place, the one list of what is due, a guest told that access ended); the fix pass of Ich and Meldungen; the
+  second fix pass of place and room; everything the clearing-up round changed, beyond one walk of every screen
+  compared with the walk before it.
+- **Verlauf**: the CSV download was opened in no browser; the widths between 900 and 1200 px; whose lamp is read
+  across a change of device with different schedules; a device change older than a day; a plug's schedule in a
+  grain in which it switched; the lamp's line in English; "Kein Bild um diese Zeit" at 320 px; an unknown grow
+  "asked once" has no test. The integration fake windows `(start, stop]` where the store windows
+  `[start, stop)` ([data.md](knowledge/data.md#influxdb)).
+- **Of the clearing-up round, by tests alone**: a folded alert of an output that ran too long, the scheme's and
+  the measurement's delete questions, the plant's rename sheet, a wrong current password's answer, a guest's
+  notification grid, the lines that say a room ends, leaving a place and Back, giving a device up, a claim
+  whose places cannot be read, the answer of a save to an offline device, a germinating device's pill, Start's
+  order with a task due.
+- English "Log" as the verb for "Eintragen", and two toasts in a sheet's foot, were looked for and not met.
+
 ## Left open
 
-Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take an item out once it is done.
-
-- **The navigation is to be reordered** (Chris, 2026-11-11: the diary is hard to find, places and rooms are
-  inconsistent, the charts are less precise and less intuitive than the old app's). The direction is chosen (Chris,
-  2026-11-11; internal notes exist) and a click prototype outside the app comes before any change to it. The new
-  routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
-  2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start, the grow page
-  with its diary by the day, the public page on the same day cards, Steuerung with a page per device and the
-  camera page, Verlauf as the one page of curves, the pages of a place - editing it, ending it, adding a device
-  to it - and Ich and Meldungen are in since 2026-11-13
-  ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page),
-  [§7](knowledge/app-ux.md#7-verlauf-day-and-night)), the other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
-  settle:
-  - Settled on 2026-11-12: Verlauf and Graphen were two screens over one engine, and a curve was a mean of at
-    least a minute. Verlauf is one page now, with its view in the address, and a point is read from 5 s with its
-    window's lowest and highest ([app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night),
-    [server-engines.md](knowledge/server-engines.md#read-models)). Left of the page before it: the routes
-    `GET /v1/spaces/{id}/series` and the climate half of `GET /v1/grows/{id}/series`, which the web app no longer
-    asks - only a grow's own measurements are still read there - and `ChartView.definition.layout: 'day_of_grow'`,
-    which nothing writes any more. They wait for the round that clears up.
-  - Round 5 (Verlauf), state of 2026-11-12 (the redesign session; rules in
-    [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night)). Built, walked by the session's critic - one
-    blocker, five larger points, nineteen smaller - and what the walk found is built: a figure of VPD is a VPD
-    that occurred (the deficit of single samples, for a window of three days at the most; no envelope beyond);
-    "jetzt" is the device's last reading and only while it reports; no chip hidden; a night begins where it
-    begins; a failed window keeps the last picture; a grow's hand measurements have their curves on its page
-    Messwerte; one figure for one thing; a marked way back to now; a place's own device and never a mean of two;
-    an output's level drawn. The critic's second walk (2026-11-12) found VPD true up to three days and still
-    wrong beyond; what it found is built as the redesign session decided it - decided by the redesign session,
-    not Chris's word:
-      - Beyond three days VPD is worked out from pushed-down means over five minutes, each judged day or night
-        by its own time; a drawn point is the mean of those, its low and high their lowest and highest. Every
-        range has line, envelope and "Tief · Hoch" again and "Mittel … bis …" is gone; the help says once what
-        low and high are there. Five minutes hold for a four-month grow (182 ms on a tent of 120 days at 5 s),
-        so fifteen was not needed ([data.md](knowledge/data.md#influxdb)).
-      - A reading's VPD uses a leaf temperature only if that reading carries one, the live reading included;
-        inside three days a point is the mean of its samples' VPD.
-      - A silent device's "letzter Wert" is its last reading on every range, never the last window's mean; the
-        "jetzt" card's outputs are the live levels.
-      - Humidity on Verlauf is read to a tenth (cursor, Tief/Hoch, table), Start's tiles stay whole - against
-        what the first fix pass did, until Chris says otherwise (question 2 below).
-      - A place with two climates is about one device on every page: "Zum letzten Wert", a share link's tiles
-        and Steuerung's pill are of the device whose curves are drawn.
-      - A failed window's notice stays through a retry and goes when a read succeeds; what an address names in
-        vain is told without a refused read; a rule made by one tap is named like a stage's.
-    Not built of that walk: a place whose history is part sparse, part dense - fifteen-minute samples before a
-    device that now reports every five seconds - still draws its band and night in stripes over the sparse
-    part, because one rhythm is taken for the whole window (`silenceOf`, `timeline-series.ts`).
-    The third walk (2026-11-13) checked VPD against the raw samples of a 120-day tent: no line outside its
-    envelope on any range, the same climate reads the same from July to November, and the whole read costs what
-    it did (about 0.9 s for 120 days). It left one major and eleven minors; what the redesign session decided
-    about them - not Chris's word - is built (2026-11-13) and was checked on the session's stack by a fourth
-    walk, against the samples:
-      - No `at` in the address means the card rests on "jetzt"; a cursor is what the address says and nothing
-        else remembers it. (Tapping "Verlauf" in the bar with a cursor set blanked a live tent's card.)
-      - Beyond three days every step is a whole number of five minutes, so a point holds whole grains; no finer
-        step is offered there, and VPD's head says its "Tief · Hoch" are "aus 5-Min-Mitteln". Temperature and
-        humidity keep the samples' extremes on every range.
-      - A grain uses a leaf temperature only where leaf readings cover it as the air readings do; the count
-        costs 26 ms on the 120-day read (149 to 175 ms for the grains).
-      - A night belongs to the device that stood there: the lamp is read from each device over its own stay.
-      - The table is one row per drawn point with each output's mean level; "x % der Zeit an" is of the time
-        the device reported; the answer carries the drawn device's last reading (`reading`), so at rest every
-        reader, a share link's too, sees the same figures and output levels, and the page asks no `/live`.
-      - The arrows are named as a person says it; two rules of one title are told apart whatever group each
-        is in; an unknown grow is asked once; the device-change line of a grow's diary leads to Verlauf.
-    Not built of that walk: a curve of few points as a line with its points, the help on the band at 320 and
-    390, the English head at 390 and "last logged", and an unknown `space=` corrected in the address. The two
-    older series routes (`/spaces/{id}/series`, a grow's) still bound a device by its stay without the
-    hand-over cut Verlauf makes (`fromHandover`): they are assembled apart and nothing of the web app asks them.
-    The fourth walk (2026-11-13) found those rules holding and the cost unchanged, and two majors and four
-    minors in what no walk had computed before - the card at rest and the outputs' figures. What the redesign
-    session decided about them - not Chris's word - is built (2026-11-13; rules in
-    [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night), the reads in
-    [data.md](knowledge/data.md#influxdb) and [server-engines.md](knowledge/server-engines.md#read-models));
-    a fifth walk checked the server's part on the real route, against the samples:
-      - At rest the card says the last thing that was heard: the answer's last reading, as "jetzt" while the
-        server calls it fresh and as "letzter Wert · …" once it is stale, on every range, for the owner and
-        through a link; in a past window the window's last drawn point. (A reading five to ten minutes old
-        gave a blank card labelled "jetzt" at 24 Std, with outputs that contradicted the reading.)
-      - An output's figure is counted from its samples: per drawn point the samples heard, those it ran in
-        and its mean level (`points` on a lane; `level` and `heardSeconds` left the contract). The card, the
-        table, "x % der Zeit an" and the strip come from these, not from runs rounded out to the step (a
-        valve open 3 % of the time read as 75 %); a point where nothing was heard says "—", never "aus".
-        One count read replaces the read of levels: 183 for 158 ms on the 120-day window.
-      - A five-minute grain in which the lamp switched is worked out from its own samples (the fifth walk
-        measured 35 to 50 ms on the whole 120-day read of a tent without a leaf sensor); within three days the lamp's
-        switch times are the samples', to the minute, and the night begins where its stretch ends.
-      - A window without a reading is a gap at every range, and no night is shaded through hours nobody
-        reported; the table's last row is the last reading; the arrows of a stretch no chip names say whole
-        days or "Zeitraum davor"; an axis names a day one way; a cursor in the future leaves the address.
-    Not built of that walk: nothing of its list. Left as they were: the leaf coverage threshold at one half,
-    and what the walk did not check (the widths between 900 and 1200, whose lamp is read across a change of
-    device with different schedules).
-    The fifth walk (2026-11-13) found the server's part holding at every range - the outputs' figures, the
-    split grain, the lamp's times, silences, each lamp over its own stay, the cost (0.93 s at most) - and one
-    major and seven minors in the web app. What the redesign session decided about them - not Chris's word -
-    is built (2026-11-13; rules in [app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night)). The web
-    app's part was seen in a browser against the real route; the server's - exact edges of what was heard,
-    what a reading holds - in tests and against the store, since the stack's server is older:
-      - "Zeitraum abspielen" from rest plays the window from its first picture. (Rest is the reading's instant
-        now, so a picture newer than the reading stopped play at once.)
-      - One card is one point (`readAt`): every figure and every output under one stamp are of the same
-        instant, near a silence and with a sparse curve too; at rest that point is the reading whatever is
-        ticked, also for a place of outputs alone.
-      - A lamp's stretch that ends because the device fell silent says "bis letzter Wert …" with the last
-        sample's own time at every step (the read now asks each window's first and last sample); "an seit"
-        only under a fresh reading; an output at level 0 is "aus", as on Start; "x % der Zeit an" is written
-        in each output's lane, and the lamp's line is that label on a desktop too.
-      - No target band where nobody reported; beside the rail the diary takes a third of a page that is 200 px
-        wider from 1200 px on, and its mark never lies over its words.
-      - The trifles: what was heard begins with a device's first sample; a phone's week names every tick one
-        way; VPD's "Tief · Hoch" take the reading in; a cut window stands at its own middle, in the table
-        too; a device reporting every five minutes has a continuous lane; an output the reading did not hear
-        is "—".
-    Not built of that walk: nothing of its list. Its reading of "the table's last drawn point is stamped like
-    the others" is the builder's: the point stands at the middle of what is left of its cut window.
-    Open, for Chris:
-      1. No free panning (the old Ctrl-drag, a two-finger pan), and the three things that went with "Graphen":
-         a range typed as two dates, renaming a saved view, the four kinds a line was filtered by.
-      2. Humidity to a tenth on Verlauf and whole on Start: two figures for one reading, on purpose.
-      3. A rule made by one tap before this is stored under its translated name and stays so; no migration
-         renames it.
-  - Settled on 2026-11-12 (round 6): a claim no longer offers "ein neuer Ort" first to every device. A device asks
-    once where it hangs, the place that exists first for a fan, a socket or a lamp
-    ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
-  - A round for type and colour, asked for by Chris on 2026-11-13: the app's typography and colours are to look
-    more modern while staying with the brand ([ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-the-brand)).
-    It comes after the navigation rounds and before the last fix pass. Chris is shown visual proposals first and
-    chooses; nothing of the look is changed before that, and ADR 0002's section on the look is amended with what
-    he chose, in the same commits as `src/theme/tokens.css`. His word on the first three proposals (2026-11-13),
-    which holds for whatever is built: the colours must be tuned to each other and softer - a palette, not
-    brand colours beside signal colours -, and the type must not be bold everywhere: hierarchy from size and
-    ink, fine weights where the size carries them, and still easy to read.
-  - Where rounds 6 and 7 meet, state of 2026-11-13 (the redesign session). Both rounds' fix passes were walked
-    together on the session's stack: both lists are built and the server's rules for place and room hold under
-    direct attack, with one gap (an ended room still took a share link). No blocker, three majors and ten
-    minors, all in what an alert, a task and a guest are told after a move or a removal; decided by the redesign
-    session, not Chris's word. Both parts are built (2026-11-13) and not yet walked: the server's and the place
-    pages', and the inbox's, Start's tasks' and Ich's:
-      - An open alert stands where its device stands: it moves with the device in the same write
-        (`DevicesService.place`), and giving a device up deletes its alerts as before; an alert that is over
-        keeps the place it happened in, and every alert read names that place (`Alert.spaceName`, an ended
-        place's too). The cards, rows and sheets of Meldungen read that name and never an id, a card's actions go
-        by the place its device stands in, and "Löschen" on an alert of an ended place by the account's ended
-        places; "Verlauf öffnen" is not offered for a place that has ended. For open alerts this replaces "an alarm counts for the place it was raised in"; for
-        Verlauf's past that stays. Migration step 030 moves the open alerts earlier moves left behind.
-      - "Ort entfernen" keeps every answer across a refusal - a camera's "entkoppeln" was dropped by the re-read
-        and never sent - and a place's reminders end with the place, said in the confirmation (built; step 029
-        deletes those an ended place left behind, which any database that ran the rewrite can hold).
-      - A guest whose access ended while the app is open is told so, and bell and tasks follow (built).
-      - An ended room takes no share link; a claim names the place it makes in its own write; the cross of
-        the claim says where the device hangs (built).
-      - Start's "Heute", a place card's count, the inbox and the bell read one list of what is due for me - the
-        task list's "Heute" under "Meine", less what the reader may not settle; a task with somebody else's name
-        is on `/tasks` under "Alle" only, and a reader who may only look is offered no row. Deleting a folded
-        "Vorbei" row deletes the fold, asked by its number. Every "Widerrufen" answers in the toast it stood in.
-        E-mail says what it carries in one wording, read off the grid.
-      - Left by this part: Start still ranks its cards by the home's `dueTasks` (`screens/start/attention.ts`),
-        which nothing else in the app reads any more - once it follows the one list, `dueTasks` on the home and
-        the overview are contract fields to remove, which is Chris's to say; a past alert of a device that has
-        since moved opens Verlauf of the old place with a device that no longer stands there; and whether an
-        ended place's Verlauf should stay readable is open.
-  - Round 7 (Ich and Meldungen), state of 2026-11-13 (the redesign session; rules in
-    [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built:
-    Ich as one card of rows with a page per subject - the zone moved to Konto, the diary's answers to a page of
-    their own, the public grows into "Privatsphäre und Profil" -, every save of the account answered by a toast
-    with the way back, the screens of whoever runs the install as tabs behind "Verwaltung"; Meldungen as "Offen",
-    "Aufgaben" and "Erledigt", an alert as a sentence, its curves opened on its device, the bell counting what
-    the page lists, an update that waits for somebody's word as a card; the once-only notice for an account from
-    before the layout. No change to the server or the contract. Left for Chris: whether an alert that got better
-    stays under "Offen" until somebody ticks it, as the prototype draws it - it needs a stored field -, and
-    whether the rows Premium and Über keep the summary line they had (the prototype shows none; none is drawn).
-    The critic's walk (2026-11-13) found no blocker, four majors and some twenty minors, and every function that
-    belongs under Ich, Meldungen and Verwaltung reachable. What the redesign session decided about them - not
-    Chris's word - is built (2026-11-13, rules in [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page));
-    not yet walked a second time:
-      - "Vorbei" (the resolved alerts, so that "Erledigt" is the tasks' word) stands in the order of its label -
-        what ended last, first; a row says where and when, and flapping folds as Start's "Zuletzt" folds it. The
-        order holds over what has been read: the server sorts and pages `GET /v1/alerts` by when an alert began,
-        also for the resolved ones.
-      - A wrong current password says so at the field.
-      - A card says about delivery only what is true: what the alarm will do, with the account's grid, quiet
-        hours and mute, by the one function `/control/alarms` uses too. Nothing is said about the past: an alert
-        records no delivery (the notification log holds a row per message sent, for 30 days, behind no route),
-        and a message held back by a mute or quiet hours is dropped, not sent later.
-      - The units' choice stays stored and says in a line of its own that the views show °C, grams and litres
-        for now.
-      - One silence of each kind on the page (the account's in the head, a rule's behind a card's ⋯); every write
-        answers - quiet hours, e-mail (switched on one way), language, a reminder, a deleted account; the bell
-        and the inbox count the tasks `/tasks` shows as mine, in every tab.
-      - Not built: a minimum length for a password on the server. The forms ask for nothing but a non-empty
-        one, which is what the contract's `password()` enforces, so form and server already hold one rule.
-      Stays: maintenance is started from Start and a device's card, not from an alert's card.
-      Left for Chris, beside the two questions above: whether the views should follow the units or the choice
-      should go; whether the server should order and page resolved alerts by when they ended; whether an alert
-      should record what was delivered; whether a password should have a minimum length at all; and whether the
-      e-mail switch should route what can call on the account to mail also where critical alarms already arrive
-      another way.
-  - Round 6 (place and room), state of 2026-11-12 (the redesign session; the data-model part is the amendment to
-    [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood), **awaiting Chris's
-    confirmation with the pull request**). Built: devices keep where they stood and the reads about the past use
-    it, names are unique, a room is a field the server makes and ends, three migration steps (run on a restored
-    copy, [data-operations.md](knowledge/data-operations.md#migrations-in-operation)); "Ort bearbeiten" and "Ort
-    entfernen" as pages, the question where a device hangs, the claim outside the bar, "von @…" for a guest.
-    The critic's walk (2026-11-12) found one blocker and seven majors. What the redesign session decided about
-    them - not Chris's word - is built (2026-11-13) and was walked a second time on the session's stack:
-      - A device stands only in a place of its owner: the server refuses a move or a claim into anybody else's
-        place (409 `place_of_another_account`), and the app offers a move, and "+ Gerät hierher holen", only to
-        the device's and the place's owner. (A guest who may manage could take the owner's fan into a place of
-        his own, where neither of them reached it.)
-      - A room exists only while a place stands in it. Taking the last place out of a room with members asks
-        first and ends their access with the room; the amendment's "and its last member have left" went. A room
-        option and the save toast say who sees the place through it.
-      - A fan, socket or light that joins a place which already regulates is done after "Wo hängt …?", and a claim
-        never writes targets to a device other than the one being claimed.
-      - The claim puts the device where the place question's first answer says, so a flow left there leaves no
-        stray place; a place the app names by itself is "Zelt", "Zelt 2", …. Its steps are worked out once and
-        kept in the address, and Back goes one step.
-      - "Ort entfernen" keeps a tent together by default, asks once with every line it will write, makes a new
-        place only in the step that fills it, and says after a refusal what is done and what is still here. The
-        move it writes into a grow's diary names from where to where.
-      - "Wer … sieht" is one list of everybody who sees the place; every write there is answered; a guest who
-        leaves lands on Start. "Ort bearbeiten" and "Ort entfernen" stand outside the bar as the claim does.
-      - A change of the measuring device is a line in Verlauf and in the diary; a device's events, strips and
-        samples count for a place only inside its stay; `climate.csv` is in time order;
-        `/timeline?device=<id>` is about that device and the chosen place follows.
-      - At 320 px nothing leaves its card, and what a finger is offered is 44 px high, on the pages the walk
-        named.
-      The second walk (2026-11-13) found no blocker, one major and a dozen minors. What the redesign session
-      decided about them - its rules, not Chris's word - is built (2026-11-13), the server's part seen in tests
-      only, the pages on the session's stack against a server that did not hold it yet; a third walk has not
-      looked:
-      - "Ort entfernen" names everybody who loses sight - a guest of the place, and the room with its members
-        where the place is its room's last - in the one confirmation and in the toast, and the removal ends
-        their access: the server ends a place's memberships, invitations and share links with it, as it does a
-        room's (the amendment to ADR 0001 says so, still awaiting Chris). Guests no longer block a removal.
-      - A joining device is claimed in one write that carries its place (`joinSpaceId`); the server makes no
-        place for it. The step count is said once the place question is answered, and no step is ticked that
-        was not asked. A place's ⋯ on Start offers its owner "Gerät hinzufügen", preset to that place.
-      - The server refuses an ended room as a place's room and as an invitation's target, and keeps to the
-        owner what the app already kept to the owner: taking a device out of every place, and a place's room.
-      - Every write answers: undoing a device move, and "Zurückziehen" of an invitation link - which asks
-        first, because the server cannot take a revocation back.
-      - No sentence glues a preposition to a place's name ("Was wächst hier?"), no scrap of an id stands
-        beside a kind (the last four of the id, and only where two of a kind without a name share a list), a
-        camera is called by its own name.
-      - After a refusal half-way the remove page reads its data again before it says what is still here.
-    Left for Chris, each with what is built meanwhile:
-      1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
-         that a stay under five minutes leaves no trace, and that a device's first placement is read back past its
-         beginning.
-      2. The kinds of a place. The prototype's select reads Zelt, Kühlschrank, Trockenbox, Gewächshaus, Raum; the
-         model has tent, fridge, balcony and other, and "room" is the grouping. The page offers the model's four.
-      3. A room cannot be renamed in the app (the server allows it): it is a name typed on a place. Typing the name
-         of a room that exists chooses that room.
-      4. A place cannot be renamed or given a kind while a device is added; it is called "Zelt 2" and edited
-         afterwards. The old step asked for both.
-      5. Removing a place is not one write: a refusal half-way leaves what was done before it done, and the page
-         says what is done and what is still here.
-      6. A guest who may manage may rename the owner's place and change its kind (the server allows it); only the
-         owner moves a device, sets the room and ends the place.
-      7. The last place of an account cannot be removed, as before the round.
-      8. An alarm that is over counts for the place it happened in, in Verlauf and in the inbox; an open one
-         stands where its device stands and moves with it (the redesign session of 2026-11-13, replacing
-         "Verlauf counts an alarm for the place it was raised in" for open alerts).
-      9. A move's diary line keeps the names the two places had then; renaming a place later does not rewrite it.
-      10. A stream camera at a place without a device: that a home-network address will not answer there is now
-          only behind the help button, so it is learnt from the failed test.
-      11. The archive routes (`PUT`/`DELETE /spaces/{id}/archive`) need only `manage`, keep people and links, and
-          write the same `archivedAt` a removal writes; the app calls neither. A guest who manages could put a
-          host's place away through the API, and with a room's last place that ends the room and its members.
-          They are left as they are; asking `own`, or removing them, is a decision about what "put away" means.
-      12. An ended place still takes an invitation, a member by handle and a share link from its owner through
-          the API (only rooms refuse); it hinges on 11, because "ended" and "put away" are one state.
-      13. The owner's ⋯ on Start is a list of two rows now and reads "Mehr" on a desktop; editing a place is
-          two taps for the owner, adding a device to it three.
-      14. The server copies a device's name onto the camera it pairs; the app treats such a name as none ("Terp
-          Cam"), but cannot tell once the device is renamed. Naming a paired camera "Terp Cam" on the server
-          would settle it.
-  - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
-    preset, light limit, ...) are each built in three to nine places, against one unused export.
-  - Round 4 (Steuerung, devices, camera), state of 2026-11-12 (the redesign session; rules in
-    [app-ux.md §2, §3, §5, §8](knowledge/app-ux.md)). Built and walked twice by the session's critics: the first
-    walk found two blockers and ten larger points, the second - of the fixes - no blocker and four larger ones.
-    What both found is built; checks green. The rules of both fix passes are the redesign session's, not Chris's.
-    - *Steuerung with "Geräte in …"*: built (`screens/control/Control.tsx`, `PageRows.tsx`, `ByDevice.tsx`,
-      `climate/`, `rows.ts`, `Mode.tsx`, `Outputs.tsx`, `DevicesHere.tsx`). Nothing is a draft, and a setting is
-      changed one way: a sheet with "Speichern" for a figure, a write on the tap for a switch, each answered by a
-      toast with undo (`climate/saved.ts`). The fix passes: a page behind a row leads with the place's own device
-      and folds the others, and choosing another place keeps the page; a place led by a Plantalytix Socket, a
-      LIGHT or an AIR fan is built from the controller's parts, and the draft bar with its leave question is
-      gone; Keimung and Trocknung are chosen as a climate preset only
-      ([ADR 0007](adr/0007-germination-in-the-dark.md): the stage decides the work mode); an output held by hand
-      is said wherever its state is said, Start included; a paused plan is continued and stopped on the plan page
-      alone; an hour of silence for a rule that has raised is back under Alarme; toasts are held to two, and
-      none lies on an open sheet. A row that sums up a setting dates what the device reported and says what is
-      stored and not yet taken as stored, in amber, by one rule (`rows.ts`); a fan's place offers a grow plan
-      only where the fan can follow one, and no row to a page that repeats its card; a drying or a germination
-      spell is ended in the preset sheet it was started in; a stage's alarm rule has one name in the reader's
-      language wherever it is named (`ruleTitle`, `i18n/alarm-line.ts`); "Widerrufen" on a target writes back
-      only the figures that save moved, into the device's document as it stands then; the three rows of a
-      controller's place leave no hole in the grid beside the rail.
-    - *The device's own page*: built (`/devices/:id` with `advanced`, `details`, and
-      `/devices/:id/sockets/:socket`; `screens/devices/`). The fix pass: a socket is switched by saying which way
-      (`HandHold.tsx`, the control Ausgänge has); the list of a device's sockets under its page went, since they
-      stand under Steuerung and under Ausgänge; a device is moved by a button, after the sheet said what goes
-      with it, and the move can be taken back; a second device's page leads to its own part of Steuerung's pages
-      (the rows Steuerung draws, `PageRows`); the head's arrow steps back; every write is answered by a toast;
-      regulation switched off for a device nobody heard is said as Steuerung says it; a build is named by one
-      function on the page and on Steuerung's card (`madeOn`, `firmware-builds.ts`), with its hour where two
-      builds share a day.
-      The prototype's "meldet sich alle 5 s · WLAN gut" is not drawn: the app has no such data. "Update vom …" is
-      offered only to a device whose automatic updates are off (a newer stable build than the one the cloud knows
-      it runs); a device on a channel reads "kommt von selbst" - a "now" for those needs a server route. Picking
-      a build by hand was shown on a stack with a registered build
-      ([firmware.md](knowledge/firmware.md#ota-and-update-channels)).
-    - *Offline does not lock*: built, and since the fix pass true of every panel that writes a setting -
-      Plantalytix Socket, LIGHT, AIR fan, Erweitert, the work mode, regulation switched off. Proven with the
-      simulator: a save is stored at once and published once on the device's `configuration` topic, which a
-      silent device misses; on its next connect its `fetch` is answered with the stored document, and it
-      acknowledges nothing. So the page says what the cloud stored since the device was last heard and what it
-      had stored by then - `pending` of `GET /v1/devices/{id}/live`
-      ([server-engines.md](knowledge/server-engines.md#read-models)), computed from the target record and the
-      diary line of a person's save, no new stored field. Its limits: nothing is said in the first ten minutes of
-      silence; a figure outside the target record that a plan or a preset moved meanwhile, and one past the twelve
-      a long diary line names, are not known.
-    - *The camera page*: built (`screens/camera/CameraPage.tsx`, `days.ts`, `Films.tsx`, `CameraSettings.tsx`).
-      The slider runs over the days of the grow running in the camera's place and is not drawn without one, or
-      for a second camera of one place: the diary names one still per day. The fix pass: the day stands in the
-      address, "Im Tagebuch zeigen" opens the diary on it, a film asked for is followed until the button plays
-      it, the settings are one sheet with one Save, and a stream camera's address notes stand behind its help.
-      Scrubbing through one day's stills went with the
-      prototype's design; the day's film and Verlauf's cursor are to show them (round 5).
-    - *Several devices in one place*: built as far as the app goes - Steuerung's top is the device the server
-      names as the place's climate (`screens/control/lead.ts`), its pages list the others folded, and every other
-      device draws its own settings on its page with the way to its curves and its part of those pages. What
-      becomes of a place with two climates stays the data model's question.
-    - *The list `/devices`*: gone, with its panels, the second Erweitert under the targets, the maintenance
-      sheet, `/control/targets` and the light limit's second slider; the address is the not-found page inside the
-      shell. Erweitert lost the work mode, a fridge's fans, continuing a plan, the update channel, pairing a
-      socket and giving a device up to places of their own, and its fields are lines that open the sheets
-      Steuerung has.
-    - *The freshness pill*: a device's and a camera's page date themselves in their head; the fleet screens say
-      "Stand vor …" beside their title (`AdminHead`). What reports is "online" on every pill, card and row.
-    - *Tests only*: the rows on the page of a second device of a place, as the shared part draws them - no place
-      of the accounts the fix pass was walked with holds two devices.
-    - *Not built, and why*: a held light on another browser - the device reports no hold of its own lamp and the
-      server keeps none, so the hold is what this browser sent; since when a plan is paused - its state keeps no
-      instant of the pause; a hold sent again the same way with another length - the firmware reports a hold only
-      when its way changes; a pause reason in the reader's language beyond the three the app writes itself -
-      the server stores words, not a code; a moment's camera picture in Verlauf's cursor,
-      reached from the camera page (round 5). Three of
-      Erweitert's fields did not fit the value sheet as it was: the Lux-to-PPFD factor took a finer step and the
-      two known lamps as chips, the AIR fan a socket slows is a choice with a write of its own, and the CO₂
-      cylinder is a report with a refill form and stayed as it was. Left for the wording pass:
-      `climateControl.back` still says "ein Preset anwendest", `home.liveness.*` repeats `home.reading.*` for one
-      fleet screen, English `alerts.action.unsilence` is "Unsilence", and the arrow's name "Zurück" lives under
-      `device.back`. Ich's doors are `ui/Rows`; Start's are not - they are cards of a look of their own
-      (`screens/start/AddPlace.tsx`).
-    - *The line count*: `webapp/src` stands at 70,787 lines (`.ts`, `.tsx`, `.css`) against 74,461 when the run
-      began - the first fix pass removed a second and a third way to save a setting, the second began at 70,822
-      and ended under it: the Erweitert section no page drew and the fold its CO₂ report waited for went, Ich's
-      doors and Steuerung's folded rows became `ui/Rows` -, and `webapp/test` at 34,800 against 33,865.
-    - *Chris's to answer*, collected and not yet asked:
-      1. Maintenance, a restart and an update stand on the card of the place's own device and on every device's
-         page, one component - against "every setting has one place" read strictly; they are done to the
-         hardware and are no settings.
-      2. Regulation is switched off only on the device's page, and on wherever a page says that it is off.
-      3. Scrubbing through one day's stills left the camera page for Verlauf's cursor (round 5).
-      4. "Update vom …" is offered only to a device without automatic updates; a "now" for a device on a channel
-         needs a server route.
-      5. Keimung and Trocknung are chosen as a climate preset only, no longer under Betriebsart as well, and a
-         spell that runs is ended in the same sheet. "Trocknung beenden" returns a fridge to the mode it ran
-         before; "Keimung beenden" always to Standard.
-      6. Moving a device is asked and can be taken back - except into a place made in the same sheet, which has
-         no undo: taking it back would leave the new place behind empty.
-      7. An output is held by choosing its length - An or Aus, then how long: two taps where one tap held for an
-         hour.
-      8. A light output's hold is known only to the browser that sent it. For every browser to say it, the live
-         read has to carry the hold: either the server remembers the last light override it published, or the
-         firmware reports it in the table it already sends (the session's recommendation). With it: may the
-         firmware report its table on every override, so that a hold sent again with another length is seen?
-      9. A paused plan keeps no instant it was paused at, so its row says why and not since when; a stored
-         `pausedAt` on the plan's state would give the hour.
-      10. A stand-alone LIGHT stops at 23.5 h of light: it holds two times of day, and two equal ones are no day.
-      11. The day in the camera's address (`?day=`) is the grow's day number, not a date.
-      12. "Manuell" is the off state of the switch "Automatisch aktualisieren", not an option of the channel
-          select.
-      13. Installing a build picked by hand waits for the device to be heard, as every update does.
-      14. A Plantalytix Socket's and an AIR fan's mode are saved from a sheet with "Speichern" and not on the tap,
-          and a stream camera's Erweitert with its sheet's Save.
-      15. A pump's or a timer's cycle is set only in the socket's sheet ("Zeitschaltung, Adresse, Rolle").
-      16. Whoever may not manage a device is not shown how many sockets it has: the count stands on the row that
-          pairs one.
-      17. The light limit's toast follows its last step by the 1.5 s a stepped figure rests before it is written
-          ([app-ux.md §12](knowledge/app-ux.md#12-screen-readers)); the second critic read that as a late toast.
-      18. A plan's pause reason is stored as words, in the language of whoever paused, so only the app's own
-          three reasons read in the reader's language. A reason code needs the server.
-      19. "Jetzt ein Bild" is answered by a toast; a picture that could not be taken is said under the button.
-      20. The four names a stage's alarm rules are stored under are written in the server and in the web app,
-          with no shared constant.
-      21. A grow started with a stage writes that stage's climate to every device of the place that states
-          targets, while the form reads the stage and asks germination's choices of the place's lead alone.
-  - A line of the diary opens Verlauf on its moment however old; today one from more than 30 days back opens the
-    grow's whole stretch, the only window that holds it, because Verlauf's windows all end now (round 5: Verlauf's
-    address carries its window).
-  - Where the run stands (2026-11-12). Built, walked by a critic and fixed: the frame, Start, the grow pages.
-    Round 4 is built and walked twice, and what both walks found is built (above). The second walk of
-    Start and the grow pages found one blocker - a device's alarms reached outside readers, closed - and eight
-    larger points, built: their rules stand in [app-ux.md](knowledge/app-ux.md) and
-    [server-engines.md](knowledge/server-engines.md#read-models), each marked as the redesign session's. Then, one round after another, each followed by its critic
-    ([development-workflow.md](knowledge/development-workflow.md), Long runs and rounds):
-    Verlauf as one page with the server's finer step, place and room with the data model's migration steps, Ich
-    and Meldungen, and the clearing up (unused code, one wording pass, these documents, the line counts against
-    74,461 in `webapp/src` and 33,865 in `webapp/test` when the run began). The briefs of the rounds, the list of
-    every function with its new place and the decisions on each critic's findings are internal notes; the target
-    pictures come from the click prototype.
-  - Waiting for Chris's word (asked on 2026-11-12, no answer yet). The rules the redesign session set itself after
-    its critics' walks - the calendar's day count, which lines a day card shows, the week cards' removal from the
-    contract - are marked as such where they stand and are his to confirm with the redesign's pull request. And
-    six things went with the grow page's tab "Wochen" that no page shows any more, against the rule that no old
-    capability disappears silently ([app-ux.md](knowledge/app-ux.md)); each comes back or is decided away:
-    - how many of a scheme week's feedings are logged ("n / m erledigt") - the week's feed lines and the rhythm
-      behind "m" were reads of the removed week cards, the tab Düngung makes neither;
-    - the day/night strip and the light hours per week (the report has them per phase);
-    - a reading with its change from the week before (the Messwerte page has the curves);
-    - the days of each stage in the head's bar;
-    - strains and plant count in the head (the tab Pflanzen and the cards of "Alle Grows" have them);
-    - the entry tiles' captions with the last value (the watering detail says when and how much the last was).
-    And four things went with the second grow form, since "Was wächst hier?" is the one form a grow starts with:
-    - several strains at creation (the tab Pflanzen names them afterwards);
-    - a feeding scheme at creation (the tab Düngung chooses one);
-    - making a new place in the form (a grow starts in a place that exists or without a fixed one);
-    - the autoflower choice at creation - it moved to the grow's menu, "Name und Art".
-    Germination's two humidity choices went with it too and are back in the form, asked where it writes
-    germination's climate ([ADR 0007](adr/0007-germination-in-the-dark.md), G2: they travel with every way
-    germination is set).
-    And four things went with the page "Graphen" that Verlauf does not do (round 5):
-    - a free range between two dates ("Zu einem Tag springen" with zoom and step reaches any window);
-    - renaming a saved view (it is deleted and saved again);
-    - the filter of message lines by four kinds (two ticks now: the diary, the devices' messages);
-    - the curves of hand measurements for a grow without a place.
-    Removing the routes Verlauf no longer asks (above, "Settled on 2026-11-12") changes the frozen contract of
-    [ADR 0001](adr/0001-app-rewrite-data-model.md) and is his to say as well.
-    Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
-    line or a grow's cover names is spared.
+Checked against the code on 2026-10-08. Take an item out once it is done.
 
 - **Unit preferences are saved, not applied.** Ich › Darstellung stores °C/°F, g/oz and l/gal
   (`preferences.units`), but every figure is still drawn in °C, g and l, as the help beside "Einheiten" tells the

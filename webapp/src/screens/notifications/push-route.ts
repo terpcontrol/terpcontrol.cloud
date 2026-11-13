@@ -28,7 +28,7 @@ export const payloadOf = (data: { json: () => unknown } | null | undefined): Pus
  *
  * A week's film is watched on the page of the camera that shot it, so the push
  * names that camera; one that does not - a push an older server sent - lands on
- * the home screen, which is where anything unrecognised goes.
+ * Start, which is where anything unrecognised goes.
  */
 export const pathOf = ({ subject, cameraId }: PushPayload): string => {
   if (subject?.type === 'alert') return '/alerts';
