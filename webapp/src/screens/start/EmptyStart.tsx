@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { session, useSession } from '@/api/session';
+import { useLostSight } from '@/app/places';
 import { useLeave } from '@/ui/leave';
 import ui from '@/ui/ui.module.css';
 import { Door, PlaceDoors } from './AddPlace';
@@ -22,6 +23,8 @@ export function EmptyStart() {
   const { user } = useSession();
   const navigate = useNavigate();
   const [demo, setDemo] = useState<'idle' | 'asking' | 'opening' | 'failed'>('idle');
+  // Somebody whose last place was taken away a moment ago is not asked what to begin with.
+  const lost = useLostSight();
 
   if (user?.isDemo === true) return <NothingInTheDemo />;
 
@@ -37,7 +40,7 @@ export function EmptyStart() {
 
   return (
     <section className={`${styles.page} ${styles.empty}`} data-single>
-      <h1>{t('start.empty.title')}</h1>
+      <h1>{t(lost ? 'start.empty.lost' : 'start.empty.title')}</h1>
       <PlaceDoors />
       <Door title={t('start.empty.demo')} note={t('start.empty.demoNote')} onClick={() => setDemo('asking')} />
       {demo === 'asking' ? (

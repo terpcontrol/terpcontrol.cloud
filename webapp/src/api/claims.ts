@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { Device, DeviceClaimCreate, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
+import type { Device, DeviceClaimCreate, DeviceClaimResult } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { deviceQuery } from './devices';
 import { ApiError } from './problem';
@@ -51,15 +51,6 @@ export const useClaimedDevice = (deviceId: string | null) =>
     enabled: deviceId !== null,
     refetchInterval: query => (query.state.error ? false : CLAIM_REFRESH_MS),
   });
-
-/**
- * Naming the place a claim has just made, which is named in the call: when a
- * claim answers there is no space on the screen to bind a hook to. The word is
- * the app's to choose: a name has to be in the language the grower reads, and
- * the server has no language.
- */
-export const useNameNewPlace = () =>
-  useWrite(({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }), claimChanged);
 
 /**
  * Putting a claimed device in another of the account's places, where the

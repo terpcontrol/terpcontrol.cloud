@@ -38,6 +38,7 @@ export function GrowStep({
   headingRef,
   onStarting,
   onLeave,
+  onClose,
 }: {
   device: Device;
   space: Space;
@@ -49,6 +50,8 @@ export function GrowStep({
   /** The form was sent, so the page stays until it has been answered - whatever the grows of the place say meanwhile. */
   onStarting: () => void;
   onLeave: () => void;
+  /** The cross, which leaves like "Jetzt nicht" and says where the device hangs. */
+  onClose: () => void;
 }) {
   const { t } = useTranslation();
   const overview = useSpaceOverview(space.id).data;
@@ -66,14 +69,14 @@ export function GrowStep({
     expectLayout({ diary: true });
     return unsaid;
   }, []);
-  const skip = () => {
+  const skip = (leave = onLeave) => {
     unsaid();
-    onLeave();
+    leave();
   };
 
   return (
     <section className={styles.screen}>
-      <FlowHead type={device.type} step={step} of={of} onClose={skip} />
+      <FlowHead type={device.type} step={step} of={of} onClose={() => skip(onClose)} />
       {still ? (
         <img
           className={styles.growPicture}
@@ -100,7 +103,7 @@ export function GrowStep({
           {t('claim.grow.move')}
         </button>
       ) : null}
-      <button type="button" className={styles.growSkip} onClick={skip}>
+      <button type="button" className={styles.growSkip} onClick={() => skip()}>
         {t('claim.grow.skip')}
       </button>
       {moving ? <MoveHereSheet spaceId={space.id} spaceName={space.name} onClose={() => setMoving(false)} /> : null}

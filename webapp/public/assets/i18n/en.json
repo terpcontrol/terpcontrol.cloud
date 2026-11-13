@@ -485,7 +485,8 @@
         "wide": "The app has a new layout. The bar on the left holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and Me are at its foot."
       }
     },
-    "skipToContent": "Skip to the page"
+    "skipToContent": "Skip to the page",
+    "lostSight": "You no longer see {{places}}"
   },
   "home": {
     "entryRepeats": "{{count}}× since {{since}}",
@@ -1824,7 +1825,7 @@
         "revokeAsk": "Nobody joins {{name}} with this link any more; it cannot be taken back."
       },
       "sheet": {
-        "title": "Invite to {{name}}",
+        "title": "Invite",
         "role": "Role",
         "roleNote": {
           "can_log": "sees the place and its grows, logs entries, ticks tasks",
@@ -3224,7 +3225,8 @@
         "fan": "{{place}}: {{device}} now hangs here",
         "plug": "{{place}}: {{device}} is now plugged in here",
         "light": "{{place}}: {{device}} now hangs here",
-        "other": "{{place}}: {{device}} now hangs here"
+        "other": "{{place}}: {{device}} now hangs here",
+        "fridge": "{{place}}: {{device}} now works here"
       },
       "hereNote": "{{devices}}: one climate, one camera, one maintenance window.",
       "hereEmpty": "No device stands there yet.",
@@ -4859,7 +4861,8 @@
       "demoNote": "a place set up to look around in",
       "invited": "I have an invitation",
       "camera": "Add a camera without a controller",
-      "cameraNote": "an RTSP stream that shows a place"
+      "cameraNote": "an RTSP stream that shows a place",
+      "lost": "You see no place right now"
     },
     "failed": {
       "title": "No connection to the server",

@@ -45,7 +45,7 @@ export function CodeStep({
   /** The place the flow was opened from, which is said under the field. */
   into: Space | null;
   /** What the claim carries about the place, read when the code is sent. */
-  where: () => Promise<Pick<DeviceClaimCreate, 'spaceId' | 'joinSpaceId'>>;
+  where: () => Promise<Pick<DeviceClaimCreate, 'spaceId' | 'joinSpaceId' | 'spaceNames'>>;
   /** What follows a claim - where the device hangs, what will be asked - which the form waits for as it waits for the claim. */
   onClaimed: (result: DeviceClaimResult) => Promise<void>;
 }) {

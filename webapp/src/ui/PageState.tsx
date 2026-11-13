@@ -26,14 +26,14 @@ export function Refused({ error, fallback, className }: { error: unknown; fallba
   );
 }
 
-/** What went wrong when a page has nothing to show yet - or why a write it could not do without was refused (`error`) - with the way to try again. */
-export function LoadFailed({ retry, error }: { retry: () => void; error?: unknown }) {
+/** What went wrong when a page has nothing to show yet, with the way to try again. */
+export function LoadFailed({ retry }: { retry: () => void }) {
   const { t } = useTranslation();
 
   return (
     <section className={styles.failed}>
       <p className={ui.problem} role="alert">
-        {error ? refusalText(error) : t('shell.loadFailed')}
+        {t('shell.loadFailed')}
       </p>
       <button type="button" className={ui.button} onClick={retry}>
         {t('home.retry')}

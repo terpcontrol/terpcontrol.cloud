@@ -497,7 +497,9 @@ describe('who sees a place, as its owner', () => {
     expect(wrote()).toMatchObject({ method: 'POST', path: '/spaces/room-1/members', body: { handle: 'mara', role: 'can_log' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Make a link' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Invite to Grow room' })).getByRole('button', { name: 'Make the link' }));
+    const sheet = screen.getByRole('dialog', { name: 'Invite' });
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent('Grow room');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Make the link' }));
     await waitFor(() => expect(server.wrote).toHaveLength(2));
     expect(wrote(1)).toMatchObject({ method: 'POST', path: '/spaces/room-1/invites' });
   });
@@ -756,6 +758,8 @@ describe('an invitation somebody was sent', () => {
 
     expect(await screen.findByText('This invitation leads nowhere')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Join/ })).not.toBeInTheDocument();
+    // The window says it too: outside the app's shell nothing else names it.
+    expect(document.title).toBe('This invitation leads nowhere · Terp Control');
   });
 
   it('tells a stranger what they would and would not see, and carries the address to the sign-in', async () => {

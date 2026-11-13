@@ -485,7 +485,8 @@
         "wide": "Die App ist neu aufgebaut. Links in der Leiste stehen {{items}}: Verlauf zeigt die Kurven, unter Steuerung findest du Zielwerte, Alarme und Geräte. Meldungen und Ich stehen an ihrem Fuß."
       }
     },
-    "skipToContent": "Zum Seiteninhalt springen"
+    "skipToContent": "Zum Seiteninhalt springen",
+    "lostSight": "Du siehst {{places}} nicht mehr"
   },
   "home": {
     "entryRepeats": "{{count}}× seit {{since}}",
@@ -1834,7 +1835,7 @@
         "revokeAsk": "Mit diesem Link tritt dann niemand mehr {{name}} bei; es lässt sich nicht zurücknehmen."
       },
       "sheet": {
-        "title": "Einladen in {{name}}",
+        "title": "Einladen",
         "role": "Rolle",
         "roleNote": {
           "can_log": "sieht den Ort und seine Grows, loggt Einträge, hakt Aufgaben ab",
@@ -3234,7 +3235,8 @@
         "fan": "{{place}}: {{device}} hängt jetzt hier",
         "plug": "{{place}}: {{device}} steckt jetzt hier",
         "light": "{{place}}: {{device}} hängt jetzt hier",
-        "other": "{{place}}: {{device}} hängt jetzt hier"
+        "other": "{{place}}: {{device}} hängt jetzt hier",
+        "fridge": "{{place}}: {{device}} arbeitet jetzt hier"
       },
       "hereNote": "{{devices}}: ein Klima, eine Kamera, eine Wartung.",
       "hereEmpty": "Dort steht noch kein Gerät.",
@@ -4869,7 +4871,8 @@
       "demoNote": "ein eingerichteter Ort zum Umsehen",
       "invited": "Ich habe eine Einladung",
       "camera": "Kamera ohne Controller hinzufügen",
-      "cameraNote": "ein RTSP-Stream, der einen Ort zeigt"
+      "cameraNote": "ein RTSP-Stream, der einen Ort zeigt",
+      "lost": "Du siehst gerade keinen Ort"
     },
     "failed": {
       "title": "Keine Verbindung zum Server",

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { placePath } from '@/app/places';
 import type { Device, DeviceClaimResult, Space } from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES, SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useMe } from '@/api/account';
-import { useClaimedDevice, useEndInvented, useNameNewPlace, usePlaceDevice } from '@/api/claims';
+import { useClaimedDevice, useEndInvented, usePlaceDevice } from '@/api/claims';
 import { useDevices, useSocketTables } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
@@ -98,11 +98,13 @@ export function Claim() {
   const [furthest, setFurthest] = useState(-1);
   // The first question's address, handed from the claim to the entry it has just given to the device.
   const entering = useRef<Record<string, string> | null>(null);
+  // How many entries of the history this one stands over the device's own, and where a leave on its way back there goes.
+  const steps = (useLocation().state as { steps?: number } | null)?.steps ?? 0;
+  const out = useRef<{ to: string; from: number } | null>(null);
 
   const device = useClaimedDevice(deviceId);
   const spaces = useSpaces();
   const devices = useDevices();
-  const namePlace = useNameNewPlace();
   const makePlace = useCreateSpace();
   const move = usePlaceDevice();
   const end = useEndInvented();
@@ -145,15 +147,22 @@ export function Claim() {
   if (here > furthest) setFurthest(here);
 
   // Before the first question - where the claim has just put the address, or Back has led - and past the last one:
-  // the claim goes on to its first question from here, anything else leaves for the place.
+  // the claim goes on to its first question from here, anything else leaves for the place. A flow that is left steps
+  // back onto this entry first, so the place takes it and Back from there finds no question, but where the flow came from.
   const outside = deviceId !== null && !lost && (plan === null || (ready && open === null));
   useEffect(() => {
-    if (!outside) return;
-    const first = entering.current;
-    entering.current = null;
-    if (first) setParams(first);
-    else if (spaceId) void navigate(placePath(spaceId), { replace: true });
-  }, [outside, spaceId, setParams, navigate]);
+    const first = outside ? entering.current : null;
+    const leaving = out.current;
+    const to = leaving?.to ?? (outside ? spaceId : null);
+    if (outside) entering.current = null;
+    if (first) setParams(first, { state: { steps: 1 } });
+    else if (leaving && steps > 0) {
+      // A step back that came down short of the device's entry - a sheet left one of its own on the way - goes on from there.
+      if (leaving.from === steps) return;
+      leaving.from = steps;
+      void navigate(-steps);
+    } else if (to) void navigate(placePath(to), { replace: true });
+  }, [outside, steps, spaceId, setParams, navigate]);
 
   // The keyboard and the screen reader go to the question that opens: the form that was focused is off the page.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -163,30 +172,38 @@ export function Claim() {
 
   if (!mayManage) return <OnlyLooking />;
 
-  const leaveTo = (to: string | null) => void navigate(to ? placePath(to) : '/', { replace: true });
+  const leaveTo = (to: string | null) => {
+    if (to && steps > 0) {
+      out.current = { to, from: steps };
+      void navigate(-steps);
+    } else void navigate(to ? placePath(to) : '/', { replace: true });
+  };
   const leave = () => leaveTo(spaceId);
-  const go = (step: Asked, madeId = made, asking = plan!) => setParams(addressOf(deviceId!, asking, step, madeId));
+  const go = (step: Asked, madeId = made, asking = plan!) => setParams(addressOf(deviceId!, asking, step, madeId), { state: { steps: steps + 1 } });
 
   // A device that joined a climate is done: it is said where it hangs now, on the Start of that place.
   const joined = (which: Device, where: Space) => {
     tell({ label: hangWords(t, 'joined', which.type, { device: deviceName(which, t), place: where.name }), undo: null });
     leaveTo(where.id);
   };
+  // The cross after the code was taken says the same: the device hangs somewhere, whatever was left unanswered.
+  const close = () => (claimed && space ? joined(claimed, space) : leave());
 
   // Where the claim puts the device, in its one write: the place the flow was opened from, else - for a fan, a socket
-  // or a lamp, which the server tells apart - the first answer the question of where it hangs will give.
+  // or a lamp, which the server tells apart - the first answer the question of where it hangs will give; and what a
+  // place it makes is called, in the reader's language, which the server has none of.
   const whereTo = async () => {
     const join = joinOrder(own((await known(spaces))?.items ?? []), (await known(devices))?.items ?? [])[0];
-    return opened ? { spaceId: opened.id } : join ? { joinSpaceId: join.id } : {};
+    const spaceNames = { tent: t('claim.place.newName.tent'), fridge: t('claim.place.newName.fridge') };
+    return opened ? { spaceId: opened.id } : { spaceNames, ...(join ? { joinSpaceId: join.id } : {}) };
   };
 
-  // What a claim sets in motion before anything is asked: a place it made - for a controller or a fridge module,
-  // or in an account that had none - is named, and what will be asked is decided.
+  // What a claim sets in motion before anything is asked: the place it made - for a controller or a fridge module,
+  // or in an account that had none, called by the words sent with it - is kept in mind, and what will be asked is decided.
   const entered = async ({ device: got, spaceCreated }: DeviceClaimResult) => {
     const madeId = spaceCreated ? got.spaceId : null;
     const others = own((await known(spaces))?.items ?? []).filter(one => one.id !== madeId);
     const beside = climateIn((await known(devices))?.items ?? [], got.spaceId, got.id);
-    if (madeId) namePlace.mutate({ spaceId: madeId, name: newPlaceName(got.type, others, t) });
     setMade(madeId);
 
     if (opened && beside && !OWN_CLIMATE_TYPES.includes(got.type)) return joined(got, opened);
@@ -201,7 +218,7 @@ export function Claim() {
   if (before || !claimed || !plan || !open || (open === 'grow' && (!space || growsHere.isPending))) {
     return (
       <section className={styles.screen}>
-        {before || (!claimed && device.isError) ? <FlowHead type={null} onClose={leave} /> : null}
+        {before || (!claimed && device.isError) ? <FlowHead type={null} onClose={close} /> : null}
         {before ? (
           <Step number={1} state="open" title={t('claim.code.title')} help="claimCode" text={lost ? t('claim.code.notYours') : null}>
             <CodeStep initialCode={params.get('code') ?? ''} into={opened} where={whereTo} onClaimed={entered} />
@@ -218,9 +235,6 @@ export function Claim() {
   const step = here + 2;
   const of = plan.length + 1;
   const after = plan.slice(here + 1).find(asks) ?? null;
-
-  // The name of the place the claim made did not get through: why, and the same write once more.
-  const unnamed = made && namePlace.isError ? <LoadFailed error={namePlace.error} retry={() => namePlace.mutate(namePlace.variables)} /> : null;
 
   // The answer to where it hangs, written; a refusal is said under the answers, and the same tap tries again. A
   // place that exists takes the device and ends the one this flow made. A new one is made only where the device
@@ -258,7 +272,7 @@ export function Claim() {
         headingRef={heading}
         hang={hang}
         onBack={() => void navigate(-1)}
-        onLeave={leave}
+        onLeave={close}
       />
     );
   }
@@ -274,6 +288,7 @@ export function Claim() {
         headingRef={heading}
         onStarting={() => setStartingGrow(true)}
         onLeave={leave}
+        onClose={close}
       />
     );
   }
@@ -317,7 +332,7 @@ export function Claim() {
 
   return (
     <section className={styles.screen}>
-      <FlowHead type={claimed.type} step={step} of={of} onClose={leave} />
+      <FlowHead type={claimed.type} step={step} of={of} onClose={close} />
 
       {/* A step change announces nothing by itself: this says what has opened. */}
       <p className={ui.visuallyHidden} role="status">
@@ -325,7 +340,6 @@ export function Claim() {
       </p>
 
       {device.isError ? <RefreshFailed failedAt={device.dataUpdatedAt} now={now} /> : null}
-      {unnamed}
 
       <Step number={1} state="done" title={<ClaimedTitle device={claimed} />} text={<ClaimedFacts device={claimed} sockets={sockets} now={now} />} />
 

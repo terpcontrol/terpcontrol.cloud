@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './Public.module.css';
 
@@ -12,6 +13,8 @@ import styles from './Public.module.css';
  */
 export function Nothing({ titleKey, bodyKey }: { titleKey: string; bodyKey: string }) {
   const { t } = useTranslation();
+  // The window says it too; the shell around it knew no title to give.
+  useEffect(() => void (document.title = `${t(titleKey)} · Terp Control`), [t, titleKey]);
 
   return (
     <section className={styles.nothing}>

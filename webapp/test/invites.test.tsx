@@ -211,7 +211,7 @@ describe('the links a tent has out', () => {
     drawTab();
     fireEvent.click(await screen.findByRole('button', { name: 'Show AAAAAAAA as a code and a QR' }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
+    const sheet = screen.getByRole('dialog', { name: 'Invite' });
     fireEvent.click(within(sheet).getByRole('tab', { name: 'Code' }));
     expect(within(sheet).getByText('AAAAAAAA')).toBeInTheDocument();
     expect(within(sheet).getByText(/They type it at .*\/join$/)).toBeInTheDocument();
@@ -227,7 +227,10 @@ describe('the invitation sheet', () => {
     await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
+    // The place's name stands by itself, as the second line of the heading.
+    const sheet = screen.getByRole('dialog', { name: 'Invite' });
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent(/^InviteBlue Dream tent$/);
+    expect(within(sheet).getByRole('heading', { level: 2 }).lastElementChild).toHaveTextContent(/^Blue Dream tent$/);
     // What a guest needs and sees is behind the help button of the validity: no paragraph stands over the button.
     expect(within(sheet).getByRole('button', { name: 'About Inviting' })).toHaveAccessibleDescription(
       /needs an account of their own .* sees the place .* not your other places/,
@@ -250,7 +253,7 @@ describe('the invitation sheet', () => {
     await inviting();
     fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Invite to Blue Dream tent' });
+    const sheet = screen.getByRole('dialog', { name: 'Invite' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'until revoked' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Make the link' }));
 

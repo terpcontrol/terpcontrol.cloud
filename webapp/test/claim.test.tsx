@@ -1,7 +1,7 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { Route, Routes, useLocation, useNavigate } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, DeviceCapabilities, DeviceClaimResult, GrowListItem, Me, NotificationSettings, Space } from '@fg2/shared-types/v1';
 import { GERMINATION_CHOICES } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -11,7 +11,7 @@ import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
 import { deviceWith } from './fixtures';
 import type { Told } from '@/log/log-context';
-import { drawAt } from './harness';
+import { drawAt, testClient } from './harness';
 import { meWith, spaceWhere } from './session';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -302,6 +302,9 @@ beforeEach(() => {
   });
 });
 
+/** What the claim calls a place it makes, by what the device turns out to be. */
+const WORDS = { tent: 'Tent', fridge: 'Fridge' };
+
 describe('adding a device', () => {
   it('asks for the code first, counts no steps before it knows the device and offers nothing to skip ahead with', () => {
     draw();
@@ -316,15 +319,74 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: 'Stop adding' })).toBeEnabled();
   });
 
-  it('stops adding from the head: back to Start before anything is claimed, into the place of the device after', async () => {
+  it('stops adding from the head: back to Start before anything is claimed, into the place of the device after - saying where it hangs', async () => {
     const { unmount } = draw();
     fireEvent.click(screen.getByRole('button', { name: 'Stop adding' }));
     expect(address()).toBe('/');
+    expect(told).toEqual([]);
     unmount();
 
+    state.spaces = [{ ...space, name: 'Tent' }];
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: 'Stop adding' }));
     expect(address()).toBe('/spaces/space-new');
+    // The device is claimed whatever was left unanswered: the sentence is the one a fan that joins a tent ends on.
+    expect(told).toEqual([{ label: 'Tent: Terp Controller now hangs here', undo: null }]);
+  });
+
+  it('says it of the last question´s cross too, in the verb of the kind - and nothing where the flow ends by its own step', async () => {
+    state.spaces = [{ ...space, name: 'Fridge' }];
+    state.devices = [{ ...device, type: 'fridge' }];
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/sim-controller-7f3a' ? state.devices[0] : answers(path)) as never,
+    );
+    const { unmount } = draw(left('grow'));
+    await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Stop adding' }));
+
+    expect(address()).toBe('/spaces/space-new');
+    expect(told).toEqual([{ label: 'Fridge: Terp Controller now works here', undo: null }]);
+    unmount();
+
+    told.length = 0;
+    draw(left('grow'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
+    expect(address()).toBe('/spaces/space-new');
+    expect(told).toEqual([]);
+  });
+
+  /**
+   * The questions are entries of the history over the one the code was read on, which the claim gave to the
+   * device. A flow that is left steps back onto that one and hands it to the place: Back from the place's Start
+   * finds the page the flow was opened from, and no question that is answered.
+   */
+  it('leaves no question behind in the history: Back from the place a finished flow opened goes where the flow came from', async () => {
+    state.grows = [{ ...spring, placements: [{ ...spring.placements[0], spaceId: 'space-new' }] } as GrowListItem];
+    state.unsent = true;
+    render(
+      <QueryClientProvider client={testClient()}>
+        <MemoryRouter initialEntries={['/control', '/claim']}>
+          <Toast told={told}>
+            <Routes>
+              <Route path="/claim" element={<Claim />} />
+              <Route path="*" element={null} />
+            </Routes>
+            <Watch />
+          </Toast>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
+    await waitFor(() => expect(openStep()).toHaveTextContent('What is it doing right now?'));
+    fireEvent.click(screen.getByRole('button', { name: 'Next · sockets and cam?' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next · notifications' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Done · open the place' }));
+
+    await waitFor(() => expect(address()).toBe('/spaces/space-new'));
+    expect(told).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'browser back' }));
+    expect(address()).toBe('/control');
   });
 
   it('folds the way across from the old cloud under the code it asks for', () => {
@@ -344,7 +406,7 @@ describe('adding a device', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: ' abcd1234 ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'abcd1234' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'abcd1234', spaceNames: WORDS }));
   });
 
   it('reports what the device itself says, names it in the head and opens the next question', async () => {
@@ -503,6 +565,7 @@ describe('adding a device', () => {
 
     expect(address()).toBe('/spaces/space-new');
     expect(api.post).not.toHaveBeenCalled();
+    expect(told).toEqual([]);
   });
 
   it('opens the question on the stage the place was just put on', async () => {
@@ -746,31 +809,12 @@ describe('adding a device', () => {
     expect(screen.getByText(/has not said anything yet/)).toBeInTheDocument();
   });
 
-  /** A place the app names by itself is named for what it is, the first of its kind without a number. */
-  it('names the place it made in a word, and not after the hardware standing in it', async () => {
+  /** A place the claim makes is named in the claim's own write: the words for a tent and a fridge, which the server picks from and numbers. */
+  it('sends the words for the place with the claim, and names nothing afterwards', async () => {
     await drawClaimed();
 
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Tent' }));
-  });
-
-  it('numbers past a place that already carries the name, from two', async () => {
-    state.spaces = [space, { ...space, id: 'space-old', name: 'tent' }, { ...space, id: 'space-older', name: 'Tent 2' }];
-    // An account with a place is asked where the new device hangs; the place its claim made is named all the same.
-    claim();
-    await hangQuestion('controller');
-
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Tent 3' }));
-  });
-
-  it('calls the place of a fridge module a fridge, and that of a first fan a tent', async () => {
-    state.claim = { device: { ...device, type: 'fridge' }, spaceCreated: true };
-    const { unmount } = claim();
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Fridge' }));
-    unmount();
-
-    state.claim = { device: fan, spaceCreated: true };
-    claim();
-    await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/spaces/space-new', { name: 'Tent' }));
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', expect.objectContaining({ spaceNames: WORDS }));
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
   it('puts the claimed device and the place its claim made in the address, so nothing of the claim is lost by a reload', async () => {
@@ -975,7 +1019,7 @@ describe('adding a device', () => {
 
     const question = await hangQuestion('fan');
     await waitFor(() => expect(question).toHaveFocus());
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', joinSpaceId: 'space-mother' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
     // How many steps follow is this answer's to say: beside a controller none does.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add fan$/);
     expect(screen.queryByText(/step \d/)).not.toBeInTheDocument();
@@ -1011,7 +1055,7 @@ describe('adding a device', () => {
     claim();
 
     await hangQuestion('fan');
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', joinSpaceId: 'space-mother' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
     expect(offered()).toEqual(['Mother tent', 'Drying tent', 'At a new place']);
   });
 
@@ -1076,7 +1120,7 @@ describe('adding a device', () => {
 
     await hangQuestion('fan');
     // No climate anywhere: the first of the account's own places is the one the claim named.
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', joinSpaceId: 'space-mother' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
     expect(screen.getByText('No device stands there yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Blue Dream/ }));
 
@@ -1169,14 +1213,13 @@ describe('adding a device', () => {
     claim();
 
     await hangQuestion('controller');
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', joinSpaceId: 'space-mother' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller$/);
     expect(offered()).toEqual(['At a new place', 'Mother tent']);
     expect(screen.getByRole('button', { name: /^At a new place/ })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('button', { name: /^Mother tent/ })).not.toHaveAttribute('aria-current');
     expect(screen.getByText('No device stands there yet.')).toBeInTheDocument();
     expect(screen.getByText('A second tent, say, with a climate of its own.')).toBeInTheDocument();
-    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/space-new', { name: 'Tent' }));
 
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
 
@@ -1187,7 +1230,7 @@ describe('adding a device', () => {
     expect(address()).toBe(left('doing', { ask: `place.${ASKED}`, made: 'space-new' }));
     // The claim made the place and gave it its name; the answer added nothing to that.
     expect(api.post).toHaveBeenCalledTimes(1);
-    expect(api.patch).toHaveBeenCalledTimes(1);
+    expect(api.patch).not.toHaveBeenCalled();
     expect(api.put).not.toHaveBeenCalled();
     expect(api.delete).not.toHaveBeenCalled();
   });
@@ -1222,24 +1265,6 @@ describe('adding a device', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
   });
 
-  /**
-   * The name of the place a claim made is a write after the claim. Where it does not get through the page says so
-   * with the sentence for it and sends the same write again - the claim is spent and cannot be repeated.
-   */
-  it('says that the name of the place the claim made did not get through, and sends it again', async () => {
-    vi.mocked(api.patch).mockRejectedValueOnce(new Error('offline'));
-    await drawClaimed();
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server. Try again.');
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-
-    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(vi.mocked(api.patch).mock.calls).toEqual([
-      ['/spaces/space-new', { name: 'Tent' }],
-      ['/spaces/space-new', { name: 'Tent' }],
-    ]);
-  });
-
   it('offers neither a room nor a place that was put away', async () => {
     state.spaces = [
       space,
@@ -1262,7 +1287,7 @@ describe('adding a device', () => {
     const drawn = await drawClaimed();
     await settled(drawn);
 
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS });
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 5$/);
     expect(openStep()).toHaveTextContent('What is it doing right now?');
     expect(screen.queryByRole('heading', { name: 'Where it hangs' })).not.toBeInTheDocument();
@@ -1274,7 +1299,7 @@ describe('adding a device', () => {
     claim();
 
     await hangQuestion('controller');
-    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', joinSpaceId: 'space-mother' });
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
     expect(offered()).toEqual(['At a new place', 'Mother tent']);
     expect(screen.queryByText(/Club tent/)).not.toBeInTheDocument();
   });
@@ -1342,7 +1367,7 @@ describe('adding a device', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Claim code' }), { target: { value: 'ABCD1234' } });
     fireEvent.click(screen.getByRole('button', { name: 'Claim it' }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS }));
   });
 
   /**

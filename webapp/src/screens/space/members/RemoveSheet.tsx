@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useInvites } from '@/api/invites';
 import { useRemoveMember } from '@/api/members';
+import { walkOut } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { Refused } from '@/ui/PageState';
@@ -83,6 +84,7 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
                 onSuccess: () => {
                   tell({ label: told.filter(Boolean).join(' · '), undo: null });
                   if (!gone) return onClose();
+                  walkOut(spaceId);
                   // The sheet stands on a history entry over the page's (`ui/sheet-back.ts`): stepped back, Start replaces the page's own.
                   window.addEventListener('popstate', () => void navigate('/', { replace: true }), { once: true });
                   window.history.back();

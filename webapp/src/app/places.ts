@@ -152,6 +152,23 @@ const useChosenPlace = (): string | null => useSyncExternalStore(subscribe, chos
 const pagePlace = (): string | null => pageOf;
 
 /**
+ * A place of somebody else's taken out of the reader's sight while the app was open (`shell/LostSight.tsx`): the
+ * account it was taken from, whose empty Start is then no first one, and what the reader walked out of themself -
+ * a place, or a room with its places -, which is said where they did it. That is asked once, of a place that is gone.
+ */
+let lostBy: string | null = null;
+const left = new Set<string | null>();
+
+export const loseSight = (userId: string | null) => {
+  if (lostBy === userId) return;
+  lostBy = userId;
+  told();
+};
+export const useLostSight = (): boolean => useSyncExternalStore(subscribe, () => lostBy) === useSession().user?.id;
+export const walkOut = (spaceId: string) => void left.add(spaceId);
+export const walkedOutOf = (space: Pick<Space, 'id' | 'roomId'>): boolean => left.delete(space.id) || left.has(space.roomId);
+
+/**
  * A page that belongs to one of the account's places says so: the place's
  * Start, who is let into it, a grow running there, its camera, its devices.
  * Opening it makes that place the chosen one, and while it is on screen the

@@ -7,6 +7,7 @@ import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
 import { useLayoutNews } from './layout-news';
 import { LayoutNotice } from './LayoutNotice';
+import { LostSight } from './LostSight';
 import { ZoneAdoption } from './ZoneAdoption';
 import { useFocusRescue } from '@/ui/focus-rescue';
 import { usePageTitle } from './page-title';
@@ -32,11 +33,12 @@ export function AppShell() {
   const main = useRef<HTMLElement>(null);
   const bare = useMatches().some(match => (match.handle as { bare?: boolean } | undefined)?.bare === true);
   usePageTitle(main);
-  const [news, seen] = useLayoutNews();
+  const [news, seen] = useLayoutNews(!bare);
   useFocusRescue();
 
   return (
     <LogProvider>
+      <LostSight />
       {bare ? (
         <main className={styles.setup} ref={main} id="main" tabIndex={-1} data-bare>
           <Outlet />

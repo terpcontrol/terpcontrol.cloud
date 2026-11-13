@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LayoutSeen } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
 import { useDevicesShape } from '@/api/devices';
-import { takeExpected, useSeeLayout } from '@/api/layers';
+import { expectLayout, takeExpected, useSeeLayout } from '@/api/layers';
 import { useMayManage } from '@/ui/session-access';
 import { newsOf, useShape } from './shape';
 
@@ -34,9 +34,11 @@ export interface LayoutNews {
  *
  * The shell asks this on every page, also on one drawn without the bar, so
  * the account is recorded wherever it is first seen; the notice is drawn
- * above the pages that have the bar.
+ * above the pages that have the bar (`drawn`), and a shape with a line to
+ * say is recorded only there: the question a claim asks is no place to have
+ * read it, and a flow left on it is told on the next page with the bar.
  */
-export const useLayoutNews = (): [LayoutNews | null, () => void] => {
+export const useLayoutNews = (drawn: boolean): [LayoutNews | null, () => void] => {
   const mayWrite = useMayManage();
   const me = useMe(false, mayWrite);
   const shape = useShape();
@@ -56,7 +58,6 @@ export const useLayoutNews = (): [LayoutNews | null, () => void] => {
     const key = `${now.diary}:${now.places}`;
     if ((seen !== null && seen.diary === now.diary && seen.places === now.places) || recorded.current === key) return;
 
-    recorded.current = key;
     // What the grower switched on a moment ago is recorded like any other change and not announced.
     const own = takeExpected();
     const came = newsOf(seen, now);
@@ -66,11 +67,14 @@ export const useLayoutNews = (): [LayoutNews | null, () => void] => {
       places: came !== null && came.places && own.places !== true,
       count: places,
     };
+    // Not where the line cannot be drawn: the word about what was expected is kept for the page that draws it.
+    if (!drawn && (told.before || told.diary || told.places)) return expectLayout(own);
+    recorded.current = key;
     // Said whether or not the write lands: a server that did not keep it says it again next time, which is no worse.
-    // A second place gone again before its line was read - a claim's guess, ended by the next answer - takes the line along.
+    // A second place gone again while its line stands - ended on a page without the bar - takes the line along.
     const unsaid = (was: LayoutNews | null) => (was && !now.places ? (was.before || was.diary ? { ...was, places: false } : null) : was);
     mutate(now, { onSettled: () => setNews(told.before || told.diary || told.places ? told : unsaid) });
-  }, [mayWrite, ready, account, devices, diary, places, mutate]);
+  }, [mayWrite, ready, account, devices, diary, places, mutate, drawn]);
 
   return [news, () => setNews(null)];
 };

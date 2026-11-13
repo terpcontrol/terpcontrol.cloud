@@ -52,16 +52,18 @@ export function InviteSheet({
   const [role, setRole] = useState<MemberRole>('can_log');
   const [validity, setValidity] = useState<Validity>('week');
 
-  const title = t('space.members.sheet.title', { name: spaceName });
+  // The place's name stands by itself, as the sheet's second line and in what a share is headed by.
+  const title = t('space.members.sheet.title');
 
   if (made) {
     return (
       <Sheet
         title={title}
+        note={spaceName}
         onClose={onClose}
         actions={
           <>
-            <ShareButton url={inviteAddress(made.code)} title={title} />
+            <ShareButton url={inviteAddress(made.code)} title={`${t('space.members.join.label')} · ${spaceName}`} />
             <button type="button" className={ui.button} onClick={onClose}>
               {t('space.members.sheet.done')}
             </button>
@@ -78,6 +80,7 @@ export function InviteSheet({
   return (
     <Sheet
       title={title}
+      note={spaceName}
       onClose={onClose}
       actions={
         <button

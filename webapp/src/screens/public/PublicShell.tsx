@@ -1,5 +1,5 @@
 import { Moon, Sun } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useLayoutEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { noLongerThere } from '@/api/problem';
@@ -22,8 +22,9 @@ import styles from './Public.module.css';
 export function PublicShell({ title, children }: { title?: string; children: ReactNode }) {
   const { t } = useTranslation();
 
-  // The tab is part of the page for somebody who opened three links at once.
-  useEffect(() => {
+  // The tab is part of the page for somebody who opened three links at once. Before the page's own effects: one
+  // that leads nowhere names the window itself (`Nothing`).
+  useLayoutEffect(() => {
     const before = document.title;
     document.title = title ? `${title} · Terp Control` : 'Terp Control';
     return () => {

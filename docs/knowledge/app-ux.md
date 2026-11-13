@@ -330,8 +330,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     again (`hang`, `Claim.tsx`). A second controller or fridge module stays in the place its claim made, and that
     place ends where the answer is a place that exists. A write of the flow that fails is said with the sentence
     for a refusal or a lost connection and tried again by the same tap. A flow left at the question leaves the
-    device somewhere sensible and no "Ort 1"; the notice about a second place is withdrawn where that place was
-    gone before it was read (`app/shell/layout-news.ts`).
+    device somewhere sensible and no "Ort 1". A place the claim makes is named in the claim's own write: the app
+    sends its words for a tent and a fridge (`spaceNames`), the server picks by the type and numbers. **The
+    layout is recorded as seen only on a page that draws the notice** (`useLayoutNews(drawn)`,
+    `app/shell/layout-news.ts`; the redesign session of 2026-11-13): on the claim's pages nothing is recorded,
+    so a second place that ends on the next answer is never announced, and a flow left there is told on the
+    next page with the bar.
   - *A place's name stands by itself* (the redesign session of 2026-11-13): no sentence glues a preposition to
     it. A place option is the name alone, with what stands there in a second line ("Controller, Lüfter: ein Klima,
     eine Kamera, eine Wartung."); the settled step reads "Wo er hängt" with the name beneath, the kind added only
@@ -357,7 +361,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     (`?device=&ask=&at=&made=`); where no place is asked, with the code. A step that is not asked is neither
     counted nor drawn nor ticked (the second walk found a count that changed and a tick on a step nobody saw). **Each step after the code is a history entry**:
     Back goes one step back, never to the code - it is spent - and from the first of them to the Start of the place
-    the device hangs in; the question's own "Zurück" is that Back. One verb per kind, in the question, the settled
+    the device hangs in; the question's own "Zurück" is that Back. **Every leave steps back over the flow's own
+    entries** (`steps` in the router state, `Claim.tsx`) onto the one the code was read on and gives that to the
+    place, so Back after a finished claim finds the page the flow was opened from, not a spent step. **The cross
+    after the code says what is**: the device hangs somewhere whatever was left unanswered, in the sentence of
+    a device that joins a climate ("Zelt: Controller hängt jetzt hier"); a flow ended by its last step says
+    nothing more (the redesign session of 2026-11-13). One verb per kind, in the question, the settled
     step and the toast ("Wo steckt der Plantalytix Socket?" - "Wo er steckt"). What explains a step is behind its
     help button; nothing stands under a title or under the button. An address that names a device the account
     cannot read says so in one sentence over the code field.
@@ -393,7 +402,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   Teilen".
   - *Name, kind and room are one save*, answered by a toast that names each change and takes all of it back
     ("Zelt 1 heißt jetzt Blütezelt · Blütezelt steht jetzt in Dachboden"); the toast says the room's stored name,
-    not what was typed, and "Widerrufen" is answered with what holds again. Renaming or regrouping writes nothing
+    not what was typed, and "Widerrufen" is answered with what holds again. A kind changed alone reads "<Name> ·
+    Art: Balkon"; after a rename in the same toast, "Art: …" alone. Renaming or regrouping writes nothing
     into a grow. Without a connection the save fails at once, with the sentence for a lost connection and the
     button to send it again: every write is sent whatever the browser believes about the connection (`WRITES`,
     `api/query-client.ts`), because one held back until the browser said "online" left "Sichert …" standing.
@@ -412,7 +422,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     by its code (`/claim?space=`). A device stands only in a place of its owner (ADR 0001), so a member who manages
     the place is offered neither, and the device's sheet asks only its owner where it stands: for anybody else
     the row and the sheet read "Umbenennen" (`screens/devices/DevicePage.tsx`). "Widerrufen" of a move or a name
-    is answered like every undo of the page, "Widerrufen · … steht jetzt in …" (`DeviceSettingsSheet.tsx`).
+    is answered like every undo of the page, "Widerrufen · … steht jetzt in …" (`DeviceSettingsSheet.tsx`); a
+    Terp Cam nobody named that goes along is "Kamera Terp Cam", its tag only where two go along.
     **A device or a Terp Cam nobody named is called by its kind** and carries the last four letters or figures of
     its id only where two of a kind without a name stand in that one list ("Lüfter · FAN1", "Lüfter · 6FAN"; the
     redesign session of 2026-11-13) - `deviceTitle(device, t, among)` with `among` the list the row stands in,
@@ -428,7 +439,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     with what holds again. Taking an invitation link back cannot be taken back - the server keeps a revoked code
     revoked - so "Zurückziehen" asks first, in the link's card, in one sentence (`ui/Asking.tsx`), and the toast
     names what the link was for ("Der Link … gilt nicht mehr · für Zelt · darf steuern"; `InviteBlock.tsx`; the
-    redesign session of 2026-11-13). The invitation sheet has no paragraph: that a guest needs an account and
+    redesign session of 2026-11-13). The invitation sheet is headed "Einladen" with the place's name as its second line, and has no paragraph: that a guest needs an account and
     what they will and will not see is behind the (i) beside "Gültig" (`help.invite`). A row answered by a toast
     at the window's foot moves clear of it (the role select, `scroll-margin-bottom`, `Members.module.css`).
   - A member who may not manage the place is shown the same list as a page of its own (`/spaces/:id/members`, from
@@ -437,7 +448,13 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     and is told so. Back from there does not find the page that was left: the leave sheet stands on a history
     entry over its page's, so it is stepped back from first and Start then replaces the page's own entry
     (`RemoveSheet.tsx`, `ui/sheet-back.ts`) - a `navigate(…, { replace: true })` from inside an open sheet
-    replaces the sheet's entry, not the page's.
+    replaces the sheet's entry, not the page's. **A guest whose access ends while the app is open is told once**
+    (the redesign session of 2026-11-13): a place of somebody else's that the places no longer name, or that a
+    newer home has stopped listing, is said in one toast ("Du siehst … nicht mehr"), and every read is taken
+    again - the bell, the tasks and the bar counted what stood there. Start then reads "Du siehst gerade keinen
+    Ort" over the same doors until a place is seen again or the app is opened anew; a cold open is the
+    first-run Start (`app/shell/LostSight.tsx`, `useLostSight` in `app/places.ts`). Whoever leaves is told by
+    the leave sheet alone (`walkOut`).
   - What needs the owner - the room, the people, the end - is drawn for the owner only; a member who may manage
     edits the name and the kind and sees who is here.
   - A place that has ended and an id that names nothing are the same page here too: a heading, the way to Start, no
@@ -465,17 +482,26 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     with this place, the room and its members ("Raum Lager endet – @gast2 sieht ihn dann nicht mehr"); the toast
     says the same. Guests do not block a removal: the question is the confirmation, and the server ends their
     access with the place (ADR 0001). The room does not end where what stood here gets a new place in it. People
-    are fates like devices (`fatesOf`, `what: 'people'`, `remove-plan.ts`). A disabled button is neutral, the danger colour is for one that can be
+    and a place's reminders ("3 Erinnerungen enden", counted from the reminders that name the place and no grow -
+    a grow's go where the grow goes; the server ends them with the place) are fates like devices (`fatesOf`,
+    `what: 'ends'`, `remove-plan.ts`). A disabled button is neutral, the danger colour is for one that can be
     tapped.
   - *Nothing is left half-made.* The writes are made one after another, and a new place is made only with the
     move of its device into it and taken away again if that move is refused. A refusal half-way says that the
-    place is not removed yet, the server's sentence or that the server cannot be reached, what is done and what is
-    still here, by name; every answer is kept, the grow's included, and "Noch einmal versuchen" goes on with what
-    is left - into the place an attempt already made. Changing an answer asks again. **After a refusal the page
-    reads places, devices, cameras, grows and members again before it says what is still here** (`useEndPlace`
-    waits for its reads on a refusal; `withSettled`): what left by another way is neither listed nor sent, a
-    grow that was to go with it is asked about again, and the same tap goes on only while every line left was
-    agreed to.
+    place is not removed yet, the server's sentence or that the server cannot be reached, what is done ("Schon
+    erledigt") and what is still open ("Noch offen" - a camera that went along with its device is owed its
+    answer but no longer here), by name; every answer is kept, the grow's included, and "Noch einmal versuchen"
+    goes on with what is left - into the place an attempt already made. Changing an answer asks again. **After
+    a refusal the page reads places, devices, cameras, grows, reminders and members again** (`useEndPlace` waits
+    for its reads on a refusal), **and what an attempt was about stays the page's business until the place is
+    gone** (`kept`, `remove-plan.ts`; `asked`, `done`, `made` in `RemovePlace.tsx`; the redesign session of
+    2026-11-13, after a camera's "entkoppeln" was dropped by the re-read and never sent): a thing is dropped
+    only when it is done or the account no longer holds it. A camera follows its device when the device moves,
+    so by the list it no longer stands here while its answer is still owed; its row and its write stay.
+    **Nothing "stays with" a device that has left**: each settled thing is kept with the place it now stands in
+    (`EndNote.at`), and "bleibt bei <device>" and a grow's "am neuen Ort von <device>" become "zieht in <place>"
+    / "in <place>" - same write, same agreed line, no second question. The same tap goes on only while every
+    line left was agreed to.
   - *The toast names where things went*: "Zelt Eins entfernt. Zeltcontroller und Lüfter stehen in Zelt 2. Blue
     Dream beendet.", without undo. The line the move writes into the grow's diary names both places - "Du hast
     von Zelt Eins nach Zelt 1 umgestellt" - by the names the server wrote into the line (`values.from`,
@@ -492,8 +518,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
 - **Steuerung is the chosen place's climate, then its devices** (Chris, 2026-11-11, decision 7;
   `screens/control/Control.tsx`, built after the prototype by the redesign session of 2026-11-12, whose rules the
   rest of this entry is, those after its critic's walk included). It always opens on the light and the targets of
-  the device the server names as the place's climate (`leadOf`, `screens/control/lead.ts`); a running plan does
-  not take the page. Under them a row each for Alarme, Grow-Plan, Ausgänge and Betriebsart, every one a page in
+  the device the server names as the place's climate (`leadOf`, `screens/control/lead.ts`) - where no device of
+  the place has reported yet the server names none, and the controller or fridge module leads, not whatever
+  joined last; a running plan does not take the page. Under them a row each for Alarme, Grow-Plan, Ausgänge and Betriebsart, every one a page in
   the address (`/control/alarms|plan|outputs|mode`) with a line that says its state, amber only where a person is
   needed (`PageRows.tsx`, the lines in `rows.ts`). Then the devices standing in the place.
   - *A row whose page would hold nothing, or only what the card over the rows says, is not drawn* (the second

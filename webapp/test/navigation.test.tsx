@@ -300,7 +300,12 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   const byId = /^\/grows\/([^/]+)$/.exec(path);
   if (byId && GROWS[byId[1]]) return json(GROWS[byId[1]]);
   if (path === '/cameras/cam-2') return json(camera);
-  if (/^\/spaces\/[^/]+\/members$/.test(path)) return json({ items: [], people: [], room: null, activity: [], nextCursor: null });
+  // Leaving is answered as the server does it: the place is off the reader's lists from then on.
+  if (method === 'DELETE' && /^\/spaces\/[^/]+\/members\/user-1$/.test(path)) server.places = [];
+  if (/^\/spaces\/[^/]+\/members$/.test(path)) {
+    const mine = server.youMay === 'own' ? [] : [{ id: 'row-1', spaceId: 'space-1', userId: 'user-1', role: 'can_log', inviteId: null }];
+    return json({ items: mine, people: [{ id: 'user-1', handle: 'you' }], room: null, activity: [], nextCursor: null });
+  }
   if (/^\/devices\/[^/]+\/sockets$/.test(path)) return json({ items: [], nextCursor: null, capabilities: {} });
   if (path === '/devices') return json({ items: server.places.map(([id]) => device(`device-${id.slice(-1)}`, id)), nextCursor: null });
   if (path === '/cameras')
@@ -946,24 +951,57 @@ describe('a change to the shape of the app', () => {
     expect(notice).not.toHaveTextContent('The grow diary is on');
   });
 
+  /** Every read of the shell answered and drawn, on a page where no notice can be: the moment to look for no write. */
+  const answered = async () => {
+    await waitFor(() => expect(server.sent.some(one => one.path === '/me')).toBe(true));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    await act(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
+  };
+
   /**
-   * A second controller's claim makes a place, and the answer to where it hangs may end it on the next page. The
-   * claim stands without the bar, so the line about two places was never read - and is not said about one.
+   * A second controller's claim makes a place, and its question stands without the bar, where no line is drawn. So
+   * the shape is not recorded as seen there: a flow left on the question is told on the next page with the bar.
    */
-  it('takes the line about a second place back where that place is gone before the line was read', async () => {
+  it('records a second place as seen where its line is drawn, not on the claim´s question', async () => {
     server.places = TWO;
     const router = open('/claim');
-    await recorded();
+    await answered();
+    expect(patches()).toHaveLength(0);
+
+    await act(() => router.navigate(QUIET));
+    expect(await screen.findByRole('status', { name: 'What changed' })).toHaveTextContent('There are 2 places now');
+    expect(patches()).toHaveLength(1);
+    expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: true } } });
+  });
+
+  /** The answer to where it hangs may end that place on the next page: nothing was recorded, and nothing is said about one place. */
+  it('says nothing of a second place that is gone before its line could be read, and writes nothing', async () => {
+    server.places = TWO;
+    const router = open('/claim');
+    await answered();
 
     server.places = [['space-1', 'Fridge 1']];
     await act(() => client.invalidateQueries());
-    await waitFor(() => expect(patches()).toHaveLength(2));
-    await waitFor(() => expect(client.isMutating()).toBe(0));
-    expect(patches()[1].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: false } } });
-
     await act(() => router.navigate(QUIET));
     expect(await screen.findAllByRole('navigation', { name: 'Main navigation' })).not.toHaveLength(0);
+    await answered();
     expect(screen.queryByRole('status', { name: 'What changed' })).not.toBeInTheDocument();
+    expect(patches()).toHaveLength(0);
+  });
+
+  it('keeps the word about what setup switched on for the page that draws the line about the rest', async () => {
+    expectLayout({ diary: true });
+    server.diary = true;
+    server.places = TWO;
+    server.me = meOf(true, { diary: false, places: false });
+    const router = open('/claim');
+    await answered();
+    expect(patches()).toHaveLength(0);
+
+    await act(() => router.navigate(QUIET));
+    const notice = await screen.findByRole('status', { name: 'What changed' });
+    expect(notice).toHaveTextContent('There are 2 places now');
+    expect(notice).not.toHaveTextContent('The grow diary is on');
   });
 
   it('records what went away without a word, because the grower did it', async () => {
@@ -984,6 +1022,89 @@ describe('a change to the shape of the app', () => {
     expect(patches()).toHaveLength(0);
     // The demo has no account: asking for one is answered 403 on every page, so the shell does not ask.
     expect(server.sent.filter(one => one.path === '/me')).toEqual([]);
+  });
+});
+
+/**
+ * A host ends a place, or takes a guest out of it, while the guest has the app open. The home, read on a beat,
+ * stops listing the place; the shell says so once, has everything read again, and Start does not greet the guest
+ * as somebody who has just signed up.
+ */
+describe('a place taken out of sight while the app is open', () => {
+  const beat = () => act(() => client.invalidateQueries({ queryKey: ['home'] }));
+  const reads = (path: string) => server.sent.filter(one => one.method === 'GET' && one.path === path).length;
+
+  it('tells a guest once, reads the bell´s alerts and the tasks again, and does not ask what to start with', async () => {
+    server.youMay = 'log';
+    withDiary();
+    open('/');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+    await waitFor(() => expect(reads('/tasks')).toBeGreaterThan(0));
+    const [alerts, tasks] = [reads('/alerts'), reads('/tasks')];
+
+    server.places = [];
+    await beat();
+
+    expect(await screen.findByText('You no longer see Fridge 1')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'You see no place right now' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'What do you start with?' })).not.toBeInTheDocument();
+    await waitFor(() => expect(reads('/alerts')).toBeGreaterThan(alerts));
+    expect(reads('/tasks')).toBeGreaterThan(tasks);
+
+    // Once: the next beat finds nothing new to say.
+    await beat();
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.getAllByText('You no longer see Fridge 1')).toHaveLength(1);
+  });
+
+  it('names each place that went, and keeps the cards of what is still seen', async () => {
+    server.youMay = 'log';
+    server.places = [...TWO, ['space-3', 'Balcony']];
+    open('/');
+    expect(await screen.findByRole('link', { name: /Balcony/ })).toBeInTheDocument();
+
+    server.places = [['space-3', 'Balcony']];
+    await beat();
+
+    expect(await screen.findByText('You no longer see Fridge 1 and Tent 2')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Balcony' })).toBeInTheDocument();
+  });
+
+  /** The lock screen: both reads are taken again on coming back, and the places may answer before the home does. */
+  it('tells it where the places are the first to come back without the place', async () => {
+    server.youMay = 'log';
+    open(QUIET);
+    await waitFor(() => expect(reads('/home')).toBe(1));
+    await waitFor(() => expect(reads('/spaces')).toBe(1));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+
+    server.places = [];
+    await act(() => client.invalidateQueries({ queryKey: ['spaces'], exact: true }));
+
+    expect(await screen.findByText('You no longer see Fridge 1')).toBeInTheDocument();
+  });
+
+  it('says nothing where the owner ends a place of their own: the page that did it has said so', async () => {
+    open('/');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+
+    server.places = [];
+    await beat();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'What do you start with?' })).toBeInTheDocument();
+    expect(screen.queryByText(/You no longer see/)).not.toBeInTheDocument();
+  });
+
+  it('says nothing more to a guest who leaves: the toast of leaving names the place', async () => {
+    server.youMay = 'log';
+    open('/spaces/space-1/members');
+    fireEvent.click(await screen.findByRole('button', { name: 'Leave Fridge 1' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Leave Fridge 1?' })).getByRole('button', { name: 'Leave' }));
+
+    expect(await screen.findByText('You have left Fridge 1')).toBeInTheDocument();
+    await waitFor(() => expect(reads('/home')).toBeGreaterThan(1));
+    await waitFor(() => expect(client.isFetching()).toBe(0));
+    expect(screen.queryByText(/You no longer see/)).not.toBeInTheDocument();
   });
 });
 
