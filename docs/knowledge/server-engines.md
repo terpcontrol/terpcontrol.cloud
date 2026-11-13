@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-13
-source: Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -32,6 +32,8 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - `modules/alarm/`: the engine judges each sample against the device's rules under a per-device lock and keeps the
   episode in `alarmRules.state`, so a rule with a long `forSeconds` (a fridge allowed to cool for an hour) survives a
   restart.
+- A device's rules are listed a page at a time with `counts` over all of them - total, on, raised - so a screen
+  that counts them does not count a page (`AlarmRuleService.counts`; Steuerung said "100 Regeln" of 110).
 - The health loop (`alarm-health.service.ts`, every 60 s) raises what no reading reports: the `offline` rule every
   device carries (critical, repeating every 30 min) and a camera's stale warning (on unless the camera turns it off).
   Silence counts from `heardAt`, the later of `state.lastSeenAt` and the newest stored sample
@@ -262,7 +264,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   (`diary-pictures.ts`; the day still running takes the newest lit one and no dark one), the means of temperature
   and humidity, the share inside the targets, and what happened that is nobody's line: the lamp, the stretches
   outside the band, and maintenance somebody switched - the lines a device writes when it goes on and off, of
-  every device of the place, told as one stretch (`maintenanceRuns`). Then the lines: the grow's own - what people
+  every device of the place, told as one stretch (`maintenanceRuns`), and regulation switched off and on again -
+  the settings line whose work mode goes to `off` and back, a `controlOff` stretch per device, overlapping runs
+  merged and one still running left open (the redesign session of 2026-11-13, after the whole-app walk: switching
+  it off left no line while maintenance did). Then the lines: the grow's own - what people
   wrote and the alarms raised where it stood, which name the grow - and for the people who keep the place the
   plan's steps there (found by place and kept by placement). **What else a device logs about itself is not
   diary**: restarts, a sensor deviating, a changed setting stay in the device's record and in Verlauf. The last

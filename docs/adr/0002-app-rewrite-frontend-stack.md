@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
 updated: 2026-11-13
-source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13); the redesign session of 2026-11-13 (Nebel's values); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+source: Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -145,8 +145,10 @@ playlist, hls.js is the one to add, and it is the only thing that would change.
 
 The round-15 palette is a closed set of about twenty colours in two modes, and `src/theme/tokens.css` is the only
 file any of them is written in. **A token reaches a component as a CSS variable**: `tokens.css` defines the
-names on `:root`, redefines them under `@media (prefers-color-scheme: dark)` for a system that asks for dark and
-has not been overruled and again under `:root[data-theme="dark"]` for the manual toggle, and a component's own
+names on `:root`, redefines them under `@media screen and (prefers-color-scheme: dark)` for a system that asks for
+dark and has not been overruled and again under `:root[data-theme="dark"]` inside `@media screen` for the manual
+toggle - for the screen only, so paper is light whatever the theme (a report printed from the dark theme was its
+pale ink on white; `test/paper.test.ts`), and a component's own
 `.module.css` says `var(--card)` or `var(--temperature)`. Switching mode is therefore one attribute on `<html>`:
 no provider, no re-render, nothing to keep in step. Tailwind would mean restating the same palette in a config
 and would invite the literals back in as arbitrary values; a CSS-in-JS library would move colours into the
@@ -182,12 +184,20 @@ and a live figure would push its unit about as it changes. `webapp/scripts/tabul
 digits of one width out of it: 0-9 only, each centred on the width of its weight's "0", as three static faces of
 about 1.3 KB (`src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`) - static, because recentring moves an
 outline differently at every weight. `--font-figure` names that face ahead of Albert Sans: digits are a digit
-wide, everything else keeps its own width. The server draws its overlays in the same family:
+wide, everything else keeps its own width. **It is for figures that stand under one another or change in place**
+- a table's column, an axis, a list's time column, a stepper's value, a countdown, Verlauf's cursor line - and for
+nothing else (the redesign session of 2026-11-13, after the whole-app walk): the cut "1", centred on a zero's
+width, leaves a hole on either side, which in a large light figure read "60, 1 %" and in a date "1 3.1 1.2026". A
+sentence, a date, a chip, a title and a figure that stands alone - a tile's, the picture's, a panel's head - are
+set in the face's own digits; app-ux.md §9 lists the uses. The server draws its overlays in the same family:
 `server/scripts/install-fonts.mjs` unpacks `@fontsource/albert-sans` at 400 and 500 into the image for librsvg.
 
 **Hierarchy** comes from size and a lighter weight, never from a second family and never from bold. There are
 three weights: 300 for a page's title and for figures, 400 for text and for a thing's name, 500 (`--weight-medium`)
-for what is stressed - a button's words, a value in a row, a chosen tab. Nothing is set heavier. A page's title is
+for what is stressed - a button's words, a value in a row, a chosen tab. Nothing is set heavier: what a browser
+sets bold by itself - `b`, `strong`, `th`, `h3`, `h4`, `optgroup` - is brought to the medium in `global.css`, and
+a weight is only ever one of the tokens (`test/weights.test.ts`; Düngung's product names had fallen to a `th`'s
+700). A page's title is
 300, closed up by -0.025 em, in `--heading`; a name and a section's heading (`h2`, `.name`) are 400 at -0.01 em in
 the same ink. In a region dimmed by age the heading ink steps down with the rest of the ink.
 
@@ -216,8 +226,11 @@ hairline rule.
   humidity a sea blue (225), CO₂ a mauve (320), a warning an ochre (78), an alarm a brick red (22) - at about
   0.53 for the curves and 0.50 for the two that are mostly words in light mode, 0.78 in dark. No curve shouts
   over another, and each still reads as text.
-- **The lamp has its own light**, a soft straw (`--lamp`), on a timeline lane and behind a lit day: until this look
-  it borrowed the warning's colour, and a lamp that is on is not a warning.
+- **The lamp has its own light**, a straw (`--lamp`), on a timeline lane and behind a lit day: until this look
+  it borrowed the warning's colour, and a lamp that is on is not a warning. It is lighter and yellower than the
+  warning in both modes - oklch(0.72 0.12 88) in light, 2.4:1 on a card where the first value was 1.8:1 and the
+  faintest mark on Verlauf; oklch(0.86 0.10 95) in dark, where the first value had been the warning's very own
+  (the redesign session of 2026-11-13, after the whole-app walk).
 
 Every text colour clears WCAG AA on the page, the card and the inset surface of its own mode, computed for each
 pair: the lowest are the three curve colours read as text on the inset surface, 4.5:1, and the secondary ink,
@@ -251,7 +264,7 @@ pair: the lowest are the three curve colours read as text on the inset surface, 
 | `--warning-wash` / `--warning-edge` | `#f9f0da` / `#dfc07f` | `--card-2` / `#b89a5a` | a warning's ground and edge |
 | `--alarm-wash` / `--alarm-edge` | `#fceae8` / `#ecb4b1` | `--card-2` / `#c87976` | an alarm's ground and edge |
 | `--output` | `#6981ab` | `#90a5cb` | what an output did: lanes, output lines |
-| `--lamp` | `#dcbc74` | `#dfc07f` | the lamp's light on a lane and a lit day |
+| `--lamp` | `#c4a040` | `#e5d183` | the lamp's light on a lane and a lit day |
 
 Rules that hold from the looks before: **a warning's ground and edge are written out**, not mixed from the signal
 into a surface, and in dark mode a warning stands on the lifted surface and lets its edge and ink say the rest;
@@ -277,7 +290,9 @@ and hand-written readings in ink, outputs in `--output`), the target band `--ban
 nights `--night` as a faint wash of the ink (black in dark mode), halved over a long range so a month of nights
 does not read as a barcode, and three faint rules across each plot in `--grid`. A series chip and the pinned
 reading's stroke are the legend. The server's timelapse overlays and share-link cards use the dark palette's ink,
-muted ink, ground and signal colours, in Albert Sans at 400 and 500.
+muted ink, ground and signal colours, in Albert Sans at 400 and 500. An overlay writes its figures as the app does
+for the owner - the owner's language and decimal mark, the app's decimals ("25,6 °C") - and draws its curve inside
+its box, the caption bar as wide as the box; a share card and the page around it are in the owner's language.
 
 **Icons** are drawn with a fine line: every lucide icon at a stroke of 1.5 (`svg.lucide` in `global.css`), as the
 type is light.

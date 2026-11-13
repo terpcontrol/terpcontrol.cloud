@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-13
-source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
+source: after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -21,9 +21,13 @@ string exists in English and German, with no English left in the German catalogu
   keinen Push-Schlüssel".
 - No machine key reaches the screen: slugs, type keys (`fridge`), model codes (`terp_cam`), firmware setting keys.
 - Diary lines read "Du hast gegossen" / "<Name> hat gegossen"; one's own words stand without a name. A watering says
-  how much, a feed also the week of the scheme it was dosed by: "Du hast gegossen · 1,5 l", "Du hast gedüngt · 5 l ·
-  Schema-Woche 5" (`amountOf`, `ui/entries.ts`). A move names from where to where: "Du hast von Zelt Eins nach
-  Zelt 1 umgestellt" (`home.entryDone.moveFromTo`; the redesign session of 2026-11-12). The line of a change of
+  how much, a feed also the week of the scheme it was dosed by: "Du hast gegossen · 1,5 L", "Du hast gedüngt · 5 L ·
+  Schema-Woche 5" (`amountOf`, `ui/entries.ts`); a line about some plants of a grow of several names them ("Du hast
+  gegossen · B2 · 1,5 L"). A move names from where to where: "Du hast von Zelt Eins nach Zelt 1 umgestellt"
+  (`home.entryDone.moveFromTo`; the redesign session of 2026-11-12); from no fixed place it reads "Du hast nach
+  Zweitzelt gestellt", into none "Du hast aus Zelt genommen" - no fixed place is never named in the line (the same
+  session after the whole-app walk). Regulation switched off is one line for off and on, like maintenance:
+  "Regelung aus · 12 Min", while it is off "Regelung ist aus". The line of a change of
   the measuring device does not repeat its stamp's hour: "Ab hier misst Controller B" (`grow.diary.measuredBy`;
   the redesign session of 2026-11-13).
 - **A place's name stands by itself**, never behind a preposition glued to it: "Zelt: Lüfter hängt jetzt hier",
@@ -182,10 +186,16 @@ string exists in English and German, with no English left in the German catalogu
   ([server-engines.md](server-engines.md)); nothing stored is changed - a stored name is read as the rule it
   names, so a rule somebody called exactly "Too hot" reads as the stage's wherever only its line is in hand. A
   rule a person or the firmware named keeps its name.
-- Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film.
+- Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film. A picture's caption has one form,
+  "Bild von 18:17" (`start.picture.takenAt`), with what makes it not the newest in front: "Licht aus · Bild von
+  18:17", "letztes Bild von 18:17".
+- Open alerts behind a status that is not an alert's own sentence are said in words, "3 Meldungen offen"; "+2" is
+  only for the rest behind an alert's own sentence. A device running a mode its grow's phase does not is said as
+  that: "Das Gerät trocknet, der Grow ist in der Phase Blüte". A start with a climate is "Starten · Klima:
+  Sämling · mit Licht".
 
 ## Numbers, dates and units
-- Figures follow the app's language (`ui/figures.ts`): decimal comma in German ("26,0 °C", "1,5 l"), no thousands
+- Figures follow the app's language (`ui/figures.ts`): decimal comma in German ("26,0 °C", "1,5 L"), no thousands
   grouping (one language's separator is the other's decimal point), each metric at its own decimals, rounded before
   writing - never "-0", "NaN" or "1.8599999"; "—" where there is no value. i18next interpolates with a point, so a
   figure is formatted before it goes into a string.
@@ -196,6 +206,15 @@ string exists in English and German, with no English left in the German catalogu
   **in a line of words the day is written out** - "Tag 23" in front of a line of the report, "vor 1 Tag" under a
   measurement (`spokenAgo`, `ui/age.ts`) - because "T 23" and "vor 1 T" ask to be worked out (the redesign session
   of 2026-11-12).
+- **A litre is "L" in both languages**, alone and in a dose ("1,5 L", "2 ml/L", "0,4 g/L"; the redesign session of
+  2026-11-13, after the whole-app walk read "4 l" as "4 I" in Albert Sans, whose small "l" is a capital "I" and a
+  text cursor to the eye). The catalogues write it so; a scheme's own unit stays stored as published (`ml/l`) and is
+  drawn through `unitShown` (`ui/figures.ts`). The Messen keypad, the Düngen sheet's doses and the Bericht's
+  weights go through the one number format too.
+- A span of days is "Tag 1 bis 18" / "Day 1 to 18", as "Tag 19 bis heute" is.
+- A refusal names the field and says what it takes: "pH: Das ist keine Zahl.", "Mehr als 0 L.", "Ein Gewicht ist
+  0 g oder mehr.", "Eine Dosis ist 0 oder mehr. Die Zelle bleibt, wie sie war."; a disabled Save says "Zum
+  Speichern fehlt noch …". A reminder to water or feed is called by its kind ("Gießen") until it is named.
 - **No figure stands on a line without what it counts** (the redesign session of 2026-11-12): a figure is bound to
   its unit (`unbroken`, `ui/fact-text.ts`), and a sentence made of facts with "·" between them is set as those
   facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the

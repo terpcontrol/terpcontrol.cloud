@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-13
-source: Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, awaiting his confirmation; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, awaiting his confirmation; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -658,7 +658,11 @@ to confirm with the redesign's pull request), `PublicGrowPage.weeks` and the two
 line is said by the grow's own name for it. It is a read model, nothing of it stored: a day is a date on the
 owner's calendar with the camera's picture of it, the means of its climate, the share of it inside the targets
 where the target record says what was aimed at, what happened that is nobody's line (`GrowDayEvent`: the lamp,
-stretches outside the band, maintenance somebody switched) and its lines. It reaches whatever `view` on the grow
+stretches outside the band, maintenance somebody switched, regulation switched off - `controlOff`, added by the
+redesign session's final fix round of 2026-11-13) and its lines. The same round added, without a stored field:
+`counts` on `AlarmRulePage` (what every rule of a device comes to, whichever page is read), `plants`
+(`PlantLabel`) on `SpaceOverview` and `PublicGrowPage` - a reader from outside gets none where the owner hides
+counts - and `language` on a share link's card. It reaches whatever `view` on the grow
 reaches, clamped to the grant's window; a reader from outside is answered no events, no plan lines, no share of a
 day, and no pictures unless the grant carries the cameras. What it costs and how a day
 is judged: [server-engines.md](../knowledge/server-engines.md#read-models). The stills a diary line or a grow's

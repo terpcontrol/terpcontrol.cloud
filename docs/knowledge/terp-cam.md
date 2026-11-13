@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-11-12
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
+updated: 2026-11-13
+source: the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -142,7 +142,10 @@ way and what the code has to respect. Internal notes on the camera exist.
   which the camera page reads too: change it there, not on one side.
 - The test button joins a read in flight (a Terp Cam read is the device's camera whatever the settings; an RTSP test
   with other settings reads on its own), and the poller leaves the button's read alone: a device bridges one relay
-  at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout.
+  at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout. The
+  camera page holds the button while the device it is read through is not live - offline or late with its
+  reports, not only offline - and drops a press the device fell silent under rather than waiting it out (the
+  redesign session of 2026-11-13; a press on a silent device said "Bild wird aufgenommen …" for over 45 s).
 - ffmpeg lanes (`ffmpeg.ts`, beside `runFfmpeg`, which every still, decode and film runs through): one shared pool let
   Terp Cam decodes queue behind hanging streams past the test button's wait. Hanging RTSP cameras can still delay
   other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).

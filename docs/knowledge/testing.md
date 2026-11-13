@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-11-12
-source: Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+updated: 2026-11-13
+source: printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -89,6 +89,9 @@ hardware, the development devices and copies of production data are in
 - *Camera specs time out after other specs added cameras:* unreachable test cameras held the server's ffmpeg slots
   (a Mac's ffmpeg waits 75 s per connect, and jest runs a previously failed spec first). The ffmpeg shim answers a
   stream on another machine as unreachable at once, and each spec's cameras are removed when it ends.
+- *`test/warm-up.test.ts` counts four requests where it expects two, or times out:* it waits on the clock of a
+  machine under load (seen beside the server's integration suite, 2026-11-13); alone it passes. Re-run it alone
+  before looking for a cause.
 - *`write ECONNRESET` in a body-limit test:* Fastify refuses on `Content-Length` and closes while the client still
   writes. Announce the length, write a few bytes, read the 413 (`answerToABodyOf` in `http-contract.spec.ts`).
 
@@ -184,6 +187,10 @@ hardware, the development devices and copies of production data are in
 - Playwright with the installed Chromium ([CLAUDE.md](../../CLAUDE.md#in-a-sandboxed-agent-session)). Its bundled
   Chromium plays no MP4, neither H.264 nor the H.265 the timelapses are encoded in: test playback logic with a VP9
   stand-in. `npm run start:public` serves the dev server to other machines - a phone, given an API address it reaches.
+- Print with `page.pdf()` after `page.emulateMedia({ media: null })`: an emulated media is kept for the PDF, and a
+  page printed under emulated `screen` shows the screen's colours, not the paper's.
+- A figure's look with values of one's choosing - ones, long numbers - needs no device: rewrite the read answers in
+  flight (`page.route` with `route.fetch()` and `route.fulfill({ response, body })`) and refuse every write.
 - A UI change is checked on the real stack in every state it has - live, stale, offline, device only, diary only,
   several places - light and dark, phone first (390x844, also 360 and 320 px), then desktop (1440 px).
 - Not defects: the service worker never registers in the Claude desktop app's built-in browser pane ("unknown error

@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -133,51 +133,47 @@ second list below is that session's decision, not Chris's word, until he confirm
 
 Each is built unless it says otherwise, and each can be refused by itself.
 
-**After the whole-app walk on the look's image - decided, not yet built**
+**After the whole-app walk on the look's image - built by the final fix round**
 
-Three critics walked the whole app on the image that first carried "Nebel"; this is what the first of them (Verlauf,
-and what cuts across every page) found and the session decided. The final fix round builds it and moves each line
-to where it belongs.
-- Paper is light whatever the theme: under print the light tokens hold (a report printed in the dark theme was
-  near-white on white).
-- A focused control is never under the phone's bottom bar; a toast's undo is the next tab stop after the control
-  it answers, and focus returns to that control.
-- An unknown `space=` says so, as an unknown place, grow, device and camera address do.
-- With the API away a page keeps its title and says what Start says, in one shared state; one wording for retry,
-  one "not found" page.
-- A figure that stands alone is set in the face's own digits; the digits of one width are for columns and for a
-  value that changes in place inside a line - the cut "1", centred on a zero's width, tore large light figures
-  apart ("60, 1 %").
-- Nothing falls to the browser's bold (`b`, `strong`, `th` take the medium weight).
-- The lamp's straw is darker in light mode (it was 1.6:1 on its lane) and its own in dark mode (it had the
-  warning's very value).
-- Verlauf: no night of no length, no point or CSV row inside a silence the card names, the last sample once in
-  the CSV. The film's climate overlay in the account's number format; a share card's line in its owner's language.
+Three critics walked the whole app on the image that first carried "Nebel"; the session decided what two of them
+(Verlauf and what cuts across every page; the grower's day) found, and the final fix round built it. Each line is
+the session's decision, open to Chris; where it is described now is in brackets. `webapp/src` went from 70,747
+to 71,844 lines - most of it new function: the grow pages' plants, deletion, answers and bar (+509), the shared
+line's pictures and plants, the failed state and the toast's tab order (`ui`, +202), the forms' refusals (`log`,
++184), Start's status (+77); the digit rule itself removed more than it added.
+- A phase without its climate writes no device, whatever the stage ("Lassen, wie sie sind" with Trocknung put the
+  tent into drying); a phase taken back says what the device goes on holding and leads to where drying or
+  germination is ended; Start says a work mode the grow's phase contradicts instead of "Alles im Ziel"; a phase
+  the grower set is his, not "von allein" ([app-ux.md §5 and §3](knowledge/app-ux.md)).
+- "Regelung aus" stands before maintenance and is not contradicted offline; open alerts behind a status that is
+  not an alert's own sentence are said in words, "3 Meldungen offen"; one state is said once on a screen (§3).
+- Paper is light whatever the theme; focus is never under a bar and a toast's undo is the next tab stop; an
+  unknown `space=` says so; a page that could not be read keeps its title, with one retry wording and one
+  not-found page (§3, §9, §12).
+- The digits of one width only where figures stand under one another or change in place; nothing falls to the
+  browser's bold; the lamp's straw darker in light and its own in dark
+  ([ADR 0002, "The look"](adr/0002-app-rewrite-frontend-stack.md#the-look-nebel), app-ux §9).
+- A line's pictures are reached from the line, and drawn in it on a share link; a line about some plants names
+  them; regulation off is a line of the day; "von allein" once per run; an alarm over says so; a folded card says
+  how much of it was an alarm (§2, the day cards).
+- A grow's bar is days of a scheme or the stages as segments; a harvested plant is counted as harvested; plants
+  are added and removed after the start, and a grow whose diary holds only its phases can be deleted; a scheme
+  chosen is saved; every write answers; one secondary button; litres are "L"; every figure in the account's number
+  format; a value a form cannot read is refused with a word (§2, §12, [app-wording.md](knowledge/app-wording.md)).
+- "Jetzt ein Bild" is held on a device that is not live; one caption form; the film's overlay in the owner's
+  number format and the share card in the owner's language (§2, ADR 0002, [terp-cam.md](knowledge/terp-cam.md)).
+- Steuerung counts a device's alarm rules from the server ([server-engines.md](knowledge/server-engines.md)).
+- **Open to Chris from this round**: a share link names a line's plants only where the owner shows the counts
+  (`hideCounts`, on by default - so by default it names none); putting back what a phase replaced from the
+  settings' history was not built (no route reads that history; "Trocknung beenden" brings back the targets from
+  before drying).
+- **Not built**: Meldungen centred at 1920 px - every reading-width page stands on the frame's left edge on
+  purpose, so titles do not jump between pages; the critic's "Verlauf:" trifles, Verlauf's tab order and its title
+  (Verlauf's own builder); what the third critic (setting up, steering, sharing, admin) finds.
 - Known and left: the 120-day read is 852-939 ms once the server has settled and up to 1.3 s right after it
   comes up; a slow network is a waterfall of three to four round trips; a silence about a step long depends on
-  how it falls into the windows.
-
-The second critic walked the grower's day and found one blocker and five majors; decided likewise:
-- **A phase without a preset never writes the device** ("Lassen, wie sie sind" with Trocknung put the tent into
-  drying), and a phase taken back does not leave the tent in a state the page denies: the question says what the
-  tent is set to, and gives back what the phase replaced where the settings' history can. Start says the work
-  mode in its status rather than "Alles im Ziel" over a tent that dries.
-- "Regelung aus" is never hidden or contradicted on Start: it stands before anything about maintenance, and an
-  offline banner does not say a device with regulation off goes on regulating.
-- "von allein" is what the device or the plan did by itself; a phase the grower set with a climate is his.
-- A feeding scheme chosen is saved at once, with a toast and its undo; the unsaved bar is for cells edited by hand.
-- The owner reaches a line's pictures from the line (the count opens the viewer; the correction sheet shows them).
-  A line about some plants of several names them.
-- Litres are "L" in both languages: Albert Sans's small "l" reads as a capital "I".
-- Digits of one width only where figures stand under one another or change in place (a table's column, an axis,
-  a list's time column, a stepper's value, a countdown, Verlauf's cursor line); a sentence, a date, a chip, a
-  title and a figure alone take the face's own digits. This widens the rule in the list above.
-- Every figure in the account's number format; a value a form cannot read is refused with a word; every write
-  answers; a harvested plant is counted as harvested; an alert that is over says so in the diary.
-- After a status that is not an alert's own sentence, what is open is said in words ("3 Meldungen offen"), not a
-  lone "+5". Lines the device wrote in a row carry "von allein" once. A grow's bar is days of a scheme, or the
-  stages as segments - never a fill by stage. One state is said once on a screen.
-- A plant can be added and removed after a grow's start (the routes exist, the screens did not offer it).
+  how it falls into the windows; Verlauf's cursor line keeps the digits of one width by the rule, so "11,1"
+  reads a little apart there.
 
 **The run**
 - One branch and one pull request for the whole redesign.
@@ -212,15 +208,12 @@ The second critic walked the grower's day and found one blocker and five majors;
 - A dose in the feeding grid and the scheme editor is written in the language's format ("2,5"), and an unsaved
   scheme's bar stands at the window's foot above the tab bar.
 - A diary line is drawn one way; the row of the app before the redesign is gone from the shared place and the
-  device diagnosis. A share link's reader reaches a line's photos by the count on the line, one tap away,
-  instead of thumbnails in the row (`screens/public/SharedSpace.tsx`, `ui/EntryWords.tsx`).
-- **Decided after the consolidation pass, not yet built.** On a share link a line with pictures draws them as
-  thumbnails again, as an option of the one diary line and nowhere else: the diary is what a share link shows
-  off, and the pass's brief had named the strip as what must not be lost. A line from an earlier year says its
-  year again. Steuerung takes a device's count of alarm rules from the server instead of from the first page of
-  the list.
-- Start's status carries "+n" for open alerts it does not name also while the place is offline, waiting, in
-  maintenance or switched off, and then leads to Meldungen (`screens/start/place.ts`).
+  device diagnosis. On a share link a line with pictures draws them as thumbnails, as an option of the one diary
+  line and nowhere else (decided after the consolidation pass: the diary is what a share link shows off, and the
+  pass's brief had named the strip as what must not be lost); everywhere else the count on the line opens them.
+  A line from an earlier year says its year.
+- Start's status says the open alerts it does not name in words ("3 Meldungen offen") also while the place is
+  offline, waiting, in maintenance or switched off, and then leads to Meldungen (`screens/start/place.ts`).
 - The split sheet's and the plan editor's climate chips read the climates' own names, as the phase correction
   did (`StageClimates`, `screens/grow/ClimatePick.tsx`); "Nur die Phase" as the first chip went.
 

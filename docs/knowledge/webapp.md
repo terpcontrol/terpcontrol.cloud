@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-13
-source: Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -137,15 +137,19 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     `ruleTitle` (`i18n/alarm-line.ts`);
   - *a diary line*: `DiaryLine` (`screens/grow/diary/DiaryLine.tsx`) on `ui/Lines` wherever lines of a diary are
     listed - Start, the day cards, Bericht, Verlauf, a shared place - and `Line` with `EntryWords` on a device's
-    diagnosis; a line's words are composed in `ui/EntryWords.tsx` alone. A line counts its pictures, and on a
-    shared place the count opens `ui/PictureViewer` on the link's own addresses;
+    diagnosis; a line's words are composed in `ui/EntryWords.tsx` alone, the plants it is about named by its
+    `plants`. A line's pictures are its own control: the count opens `ui/PictureViewer`, and where a share link
+    shows them `PictureStrip` (`ui/PictureViewer.tsx`) draws them in the line, as the correction sheet does;
+    a grow's bar is `GrowBar` (`screens/grow/GrowBar.tsx`), on the grow page and under Start's picture;
   - *a device and its climate*: regulation is switched back on by `ControlOff` (`screens/control/Mode.tsx`),
     which Steuerung and a leading device's page mount, and `useSwitchOn` (`screens/devices/switch-on.ts`) says the
     toast; maintenance is begun, told and ended by `MaintenanceControl` (`screens/devices/Maintenance.tsx`),
     whose `standing` form under Alarme never offers a start; whether a device is heard is worded by
     `livenessWords` (`ui/age.ts`) for the pill and for a card's line; the climates of one stage are the chip row
     `StageClimates` (`screens/grow/ClimatePick.tsx`) with `keptPreset` (`ui/presets.ts`), in the phase and split
-    sheets and the plan editor; "Erweitert" as a fold is `ui/advanced/AdvancedFold.tsx`, and what a server said
+    sheets and the plan editor, and what a device holds in their figures `heldNow` / `useHeldNow`
+    (`screens/grow/phase-climate.ts`); a device's count of alarm rules is the server's (`counts` on the rules
+    page, `useAlarmRulesOf`, `api/alarm-rules.ts`), never the length of the page read; "Erweitert" as a fold is `ui/advanced/AdvancedFold.tsx`, and what a server said
     in its own words `Raw` (`screens/camera/Film.tsx`);
   - *which alert leads*: `worstFirst` (`screens/alerts/inbox.ts`) orders Meldungen's open list, Start's
     sentence and the cards' rank; a place's alerts with the device each is about are `placeAlerts`
@@ -162,7 +166,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   - *what is due*: `useDue` with `duePlaces` (`screens/start/due.ts`) for Start's order and counts, the inbox
     and the bell.
   - *nothing here*: `NothingHere` (`ui/PageState.tsx`) is the dashed note that says so, with a way on where
-    there is one; a dashed box that frames a question, an offer or a warning is no empty state and sets
+    there is one; a page that could not be read is `LoadFailed` with its read and its title (Start's
+    `StartFailed` is it, with when the page last loaded under it), an address that names nothing `NoLongerHere`,
+    and an address the app has no page for `screens/NotFound.tsx`;
+  - *units*: a dose's or a litre's unit is drawn through `unitShown` (`ui/figures.ts`), which writes the litre
+    "L" and leaves the stored unit alone; a dashed box that frames a question, an offer or a warning is no empty state and sets
     `ui.cardDashed` itself;
   - *layout*: a column with a gap (`stack1` to `stack4`), a page's column (`page`), a list without its bullets
     (`list`), the list of what a change will do (`effects`), a row that wraps (`wrap`, `wrapRow`), a row (`row2`,
@@ -426,6 +434,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - While a sheet is open the page behind it does not scroll: `html:has([data-scrim])` in `src/styles/global.css`,
   the attribute being the sheet's backdrop (`ui/Sheet.tsx`). The place sheet is portalled to `<body>`, because the
   header it is opened from is a layer of its own under the tab bar.
+- Running `npm run generate` in `shared-types` while a Vite dev server runs can leave its dependency pre-bundle
+  broken ("does not provide an export named …"): delete the server's dependency cache and start it again.
 - `src/theme/albert-sans-tabular-digits-{300,400,500}.woff2`, the digits-only faces behind `--font-figure`, are
   cut by `scripts/tabular-digits.py` (needs `fonttools` and `brotli`); run it again after upgrading
   `@fontsource-variable/albert-sans`. `logo-reverse.png` is
@@ -457,7 +467,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   taken - with the caller's own way back; nothing is sent for it. `from` names the control where it may be used
   again at once, and its next toast takes the last one's place: `<device>:<setting>` through the save path's
   `say`, `firmware-<device>`, `maintenance-<devices>`, `device-<device>` (rename and move), `plan-<device>`,
-  `rule-<rule>`, `silence-<rule>`. `log/toast-room.ts` keeps the toasts to two and says where they stand while a
+  `rule-<rule>`, `silence-<rule>`. `useTabOrder` (`log/Toasts.tsx`) makes a toast's actions the next tab stops
+after the control it answers (`lastUsed`, or what held focus when it came) and hands focus back to that control
+after its way back, or when it times out holding the focus. `log/toast-room.ts` keeps the toasts to two and says where they stand while a
   sheet is open (`besideSheet`: under its box, over it, or in its foot). `Toasts.tsx` draws them through a
   portal into an element of its own and puts that element there: on `<body>`, fixed, or into the place every
   sheet keeps for it between its body and its button row (`[data-toasts]`, `ui/Sheet.tsx`), where the sheet's
