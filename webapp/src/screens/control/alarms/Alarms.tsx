@@ -1,6 +1,6 @@
 import { CloudOff, Droplets, DropletOff, Refrigerator, ThermometerSnowflake, ThermometerSun, type LucideIcon } from 'lucide-react';
 import { useAccountMe } from '@/api/account';
-import { DateTime } from 'luxon';
+import type { DateTime } from 'luxon';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
@@ -8,7 +8,6 @@ import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
-import { useDeviceCommand } from '@/api/commands';
 import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
@@ -21,18 +20,16 @@ import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
-import { maintenanceQuiet } from '@/ui/maintenance';
 import { useNow } from '@/ui/useNow';
-import { clock, zoneOf } from '@/ui/zone';
 import { ByDevice, NothingHere } from '../ByDevice';
 import { alarmsLine } from '../rows';
 import { RuleSheet } from './RuleSheet';
 import { useSilence } from './use-silence';
 import { ruleFor, templateBody, templateName, templatesFor, type AlarmTemplate, type TemplateKey } from './templates';
 import { boundLabel, groupRules, missingSensor, ruleTitle, watchable, watchLabel, willTell } from './rules';
+import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import styles from './Alarms.module.css';
-import { serverNow } from '@/api/clock';
 
 /**
  * The alarm rules of a place, under Steuerung › Alarme.
@@ -179,7 +176,7 @@ function DeviceRules({ device, grow, me, toldAbove, mayManage, highlighted, now 
       {/* Over the rules rather than under them: while this stands, every switch
           and every triggered dot below it is drawn over an engine that is
           refusing to turn this device's rules at all. */}
-      <InMaintenance device={device} me={me} mayManage={mayManage} now={now} />
+      <MaintenanceControl devices={[device]} now={now} standing mayEnd={mayManage} />
 
       {groups.map(group => (
         <div key={group.origin} className={ui.stack2}>
@@ -313,44 +310,6 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
         })}
       </ul>
       <Refused error={create.error} />
-    </div>
-  );
-}
-
-/**
- * That this device is being worked on, and until when: the state that decides
- * what every rule below will do while their switches still stand armed. Both
- * halves are named because they end at different times - the hardware is let
- * go when the window runs out, the alarms are held for the settling after it -
- * and "End now" gives back the hardware at once.
- */
-function InMaintenance({ device, me, mayManage, now }: { device: Device; me: Me | undefined; mayManage: boolean; now: DateTime }) {
-  const { t } = useTranslation();
-  const end = useDeviceCommand();
-  // Read against the clock as it is now and not as of the last beat: an End
-  // that has just been answered moved the window to this instant, and the beat
-  // could be ten seconds behind it - long enough to offer End again.
-  const quiet = maintenanceQuiet(device, DateTime.max(now, serverNow()));
-
-  if (!quiet) return null;
-  const zone = zoneOf(me);
-  const times = { until: clock(quiet.until, zone), alarms: clock(quiet.alarmsUntil, zone) };
-
-  return (
-    <div className={`${ui.card} ${styles.maintenance}`} role="status">
-      <span className={`mono ${styles.maintenanceText}`}>{t(quiet.parked ? 'maintenance.parked' : 'maintenance.settling', times)}</span>
-      {mayManage && quiet.parked ? (
-        <button
-          type="button"
-          className={ui.chip}
-          disabled={end.isPending}
-          onClick={() => end.mutate({ deviceId: device.id, command: { kind: 'maintenance', forSeconds: 0 } })}
-        >
-          {t(end.isPending ? 'maintenance.ending' : 'maintenance.end')}
-        </button>
-      ) : null}
-      {mayManage && quiet.parked ? <Help topic="endMaintenance" /> : null}
-      <Refused error={end.error} />
     </div>
   );
 }

@@ -2548,9 +2548,8 @@
     "publicCamerasNote": "The camera’s pictures in the diary and in the report. Switched off, the page shows only the diary’s photos."
   },
   "maintenance": {
-    "parked": "In maintenance until {{until}} – no alarm on this device until {{alarms}}",
-    "settling": "Out of maintenance since {{until}} – no alarm on this device until {{alarms}}, while the climate comes back",
-    "end": "End now",
+    "parked": "no alarm on this device until {{alarms}}",
+    "settling": "no alarm on this device until {{alarms}}, while the climate comes back",
     "ending": "Ending …",
     "running": "Maintenance until {{until}}",
     "runningNote": "Control and alarms paused",
@@ -2567,7 +2566,8 @@
       "started": "Maintenance started · until {{until}}",
       "extended": "Maintenance extended · until {{until}}",
       "ended": "Maintenance ended"
-    }
+    },
+    "settled": "Maintenance ended at {{until}}"
   },
   "alarms": {
     "noController": "Nothing here has alarm rules. A device has to be brought to this place first.",
@@ -3679,10 +3679,6 @@
     "maintenance": {
       "title": "Maintenance",
       "text": "For working in the tent or cabinet: for a quarter of an hour the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light; “Extend” adds another. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
-    },
-    "endMaintenance": {
-      "title": "End now",
-      "text": "The device takes up its work again at once. Its alarms stay held for another 10 minutes while the climate comes back."
     },
     "presetRules": {
       "title": "Rules from the phase",

@@ -36,7 +36,6 @@ export const HELP_TOPICS = [
   'feedGrid',
   'muteAll',
   'maintenance',
-  'endMaintenance',
   'presetRules',
   'offlineRule',
   'alarmTemplates',

@@ -2558,9 +2558,8 @@
     "publicCamerasNote": "Die Bilder der Cam im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
   },
   "maintenance": {
-    "parked": "In Wartung bis {{until}} – bis {{alarms}} kein Alarm auf diesem Gerät",
-    "settling": "Wartung seit {{until}} beendet – bis {{alarms}} noch kein Alarm auf diesem Gerät, solange das Klima zurückkommt",
-    "end": "Jetzt beenden",
+    "parked": "bis {{alarms}} kein Alarm auf diesem Gerät",
+    "settling": "bis {{alarms}} noch kein Alarm auf diesem Gerät, solange das Klima zurückkommt",
     "ending": "Wird beendet …",
     "running": "Wartung bis {{until}}",
     "runningNote": "Regelung und Alarme pausiert",
@@ -2577,7 +2576,8 @@
       "started": "Wartung gestartet · bis {{until}}",
       "extended": "Wartung verlängert · bis {{until}}",
       "ended": "Wartung beendet"
-    }
+    },
+    "settled": "Wartung seit {{until}} beendet"
   },
   "alarms": {
     "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät an diesen Ort geholt werden.",
@@ -3689,10 +3689,6 @@
     "maintenance": {
       "title": "Wartung",
       "text": "Für die Arbeit im Zelt oder Schrank: Eine Viertelstunde lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht; „Verlängern“ hängt eine weitere an. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
-    },
-    "endMaintenance": {
-      "title": "Jetzt beenden",
-      "text": "Das Gerät nimmt seine Arbeit sofort wieder auf. Seine Alarme bleiben noch 10 Minuten zurückgehalten, während das Klima zurückkommt."
     },
     "presetRules": {
       "title": "Regeln aus der Phase",

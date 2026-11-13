@@ -550,11 +550,11 @@ describe('the alarm rules page', () => {
     vi.mocked(api.post).mockResolvedValue({ publishedAt: NOW.toISO(), deviceOnline: true } as never);
     draw([device({ state: { ...device().state, maintenanceUntil: until.toISO()! } })]);
 
-    const banner = await screen.findByRole('status');
-    expect(banner).toHaveTextContent(`In maintenance until ${there(until)}`);
+    const banner = await screen.findByRole('group', { name: 'Maintenance' });
+    expect(banner).toHaveTextContent(`Maintenance until ${there(until)}`);
     expect(banner).toHaveTextContent(`no alarm on this device until ${there(until.plus({ minutes: 10 }))}`);
 
-    fireEvent.click(within(banner).getByRole('button', { name: 'End now' }));
+    fireEvent.click(within(banner).getByRole('button', { name: 'End' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
   });
@@ -568,7 +568,7 @@ describe('the alarm rules page', () => {
   it('stops offering End the moment the window it ended comes back', async () => {
     const parked = device({ state: { ...device().state, maintenanceUntil: NOW.plus({ minutes: 9 }).toISO()! } });
     const drawn = draw([parked]);
-    await screen.findByRole('button', { name: 'End now' });
+    await screen.findByRole('button', { name: 'End' });
     await new Promise(settle => setTimeout(settle, 30));
 
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
@@ -578,8 +578,8 @@ describe('the alarm rules page', () => {
       </Toast>,
     );
 
-    expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+    expect(await screen.findByText(/^Maintenance ended at/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End' })).not.toBeInTheDocument();
   });
 
   /**
@@ -591,17 +591,17 @@ describe('the alarm rules page', () => {
     const ended = NOW.minus({ minutes: 4 });
     draw([device({ state: { ...device().state, maintenanceUntil: ended.toISO()! } })]);
 
-    const banner = await screen.findByRole('status');
-    expect(banner).toHaveTextContent('Out of maintenance');
+    const banner = await screen.findByRole('group', { name: 'Maintenance' });
+    expect(banner).toHaveTextContent(`Maintenance ended at ${ended.setZone('Europe/Berlin').toFormat('HH:mm')}`);
     expect(banner).toHaveTextContent(`no alarm on this device until ${ended.plus({ minutes: 10 }).setZone('Europe/Berlin').toFormat('HH:mm')}`);
-    expect(within(banner).queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+    expect(within(banner).queryByRole('button')).toHaveAccessibleName('About Maintenance');
   });
 
   it('says nothing about maintenance on a device nobody is working on', async () => {
     draw();
 
     await screen.findByText('Too hot');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Maintenance' })).not.toBeInTheDocument();
   });
 
   it('calls the stage group by the stage alone where nothing grows here yet', async () => {

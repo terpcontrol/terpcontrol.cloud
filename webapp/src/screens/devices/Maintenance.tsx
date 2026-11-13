@@ -8,7 +8,7 @@ import { useLog } from '@/log/log-context';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
-import { parkedQuiet, VISIT_MINUTES } from '@/ui/maintenance';
+import { maintenanceQuiet, parkedQuiet, VISIT_MINUTES } from '@/ui/maintenance';
 import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
@@ -26,14 +26,35 @@ import styles from './Maintenance.module.css';
  * device known to be offline. A tap while the last is on its way sends
  * nothing, and no button is disabled for it: the focus stays where the hand
  * was.
+ *
+ * `standing` is the control where a window is only told and never begun -
+ * over a device's alarm rules: nothing while none stands, and both ends of the
+ * quiet named, because they differ - the hardware is let go when the window
+ * runs out, the alarms are held for the settling after it. `mayEnd` is whether
+ * the reader may end or extend it.
  */
-export function MaintenanceControl({ devices, now, id, disabled = false }: { devices: Device[]; now: DateTime; id?: string; disabled?: boolean }) {
+export function MaintenanceControl({
+  devices,
+  now,
+  id,
+  disabled = false,
+  standing = false,
+  mayEnd = true,
+}: {
+  devices: Device[];
+  now: DateTime;
+  id?: string;
+  disabled?: boolean;
+  standing?: boolean;
+  mayEnd?: boolean;
+}) {
   const { t } = useTranslation();
   const zone = useZone();
   const { tell } = useLog();
   const send = useDevicesCommand();
   const at = DateTime.max(now, serverNow());
   const running = parkedQuiet(devices, at);
+  const settling = standing && !running ? (devices.map(device => maintenanceQuiet(device, at)).find(quiet => quiet !== null) ?? null) : null;
   const ids = devices.map(device => device.id);
   const asked = send.variables?.command.kind === 'maintenance' ? send.variables.command.forSeconds : null;
   const unheard = asked !== null && asked > 0 && (send.data ?? []).some(receipt => !receipt.deviceOnline);
@@ -60,26 +81,36 @@ export function MaintenanceControl({ devices, now, id, disabled = false }: { dev
     }
   };
   const left = secondsTo(running?.until ?? null);
+  const quiet = running ?? settling;
+  if (standing && !quiet) return null;
 
   return (
     <div className={ui.stack2} id={id} tabIndex={id ? -1 : undefined}>
-      {running ? (
+      {quiet ? (
         <div className={styles.controlRunning} role="group" aria-label={t('maintenance.title')}>
           <span className={styles.controlSays}>
             <span className={styles.until}>
-              {t('maintenance.running', { until: clock(running.until, zone) })}
+              {t(running ? 'maintenance.running' : 'maintenance.settled', { until: clock(quiet.until, zone) })}
               <Help topic="maintenance" />
             </span>
             <span className={styles.subline}>
-              {send.isPending ? t(asked === 0 ? 'maintenance.ending' : 'maintenance.extending') : t('maintenance.runningNote')}
+              {send.isPending
+                ? t(asked === 0 ? 'maintenance.ending' : 'maintenance.extending')
+                : standing
+                  ? t(running ? 'maintenance.parked' : 'maintenance.settling', { alarms: clock(quiet.alarmsUntil, zone) })
+                  : t('maintenance.runningNote')}
             </span>
           </span>
-          <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(0)}>
-            {t('maintenance.endShort')}
-          </button>
-          <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(left + VISIT_MINUTES * 60)}>
-            {t('maintenance.extend')}
-          </button>
+          {running && mayEnd ? (
+            <>
+              <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(0)}>
+                {t('maintenance.endShort')}
+              </button>
+              <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(left + VISIT_MINUTES * 60)}>
+                {t('maintenance.extend')}
+              </button>
+            </>
+          ) : null}
         </div>
       ) : (
         <button
