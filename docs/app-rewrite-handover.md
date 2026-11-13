@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -132,6 +132,30 @@ second list below is that session's decision, not Chris's word, until he confirm
 ### Decided by the redesign session, not yet confirmed by Chris
 
 Each is built unless it says otherwise, and each can be refused by itself.
+
+**After the whole-app walk on the look's image - decided, not yet built**
+
+Three critics walked the whole app on the image that first carried "Nebel"; this is what the first of them (Verlauf,
+and what cuts across every page) found and the session decided. The final fix round builds it and moves each line
+to where it belongs.
+- Paper is light whatever the theme: under print the light tokens hold (a report printed in the dark theme was
+  near-white on white).
+- A focused control is never under the phone's bottom bar; a toast's undo is the next tab stop after the control
+  it answers, and focus returns to that control.
+- An unknown `space=` says so, as an unknown place, grow, device and camera address do.
+- With the API away a page keeps its title and says what Start says, in one shared state; one wording for retry,
+  one "not found" page.
+- A figure that stands alone is set in the face's own digits; the digits of one width are for columns and for a
+  value that changes in place inside a line - the cut "1", centred on a zero's width, tore large light figures
+  apart ("60, 1 %").
+- Nothing falls to the browser's bold (`b`, `strong`, `th` take the medium weight).
+- The lamp's straw is darker in light mode (it was 1.6:1 on its lane) and its own in dark mode (it had the
+  warning's very value).
+- Verlauf: no night of no length, no point or CSV row inside a silence the card names, the last sample once in
+  the CSV. The film's climate overlay in the account's number format; a share card's line in its owner's language.
+- Known and left: the 120-day read is 852-939 ms once the server has settled and up to 1.3 s right after it
+  comes up; a slow network is a waterfall of three to four round trips; a silence about a step long depends on
+  how it falls into the windows.
 
 **The run**
 - One branch and one pull request for the whole redesign.
