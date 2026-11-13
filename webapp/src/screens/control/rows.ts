@@ -139,10 +139,16 @@ const socketFact = (t: Translate, row: SocketRowModel, now: DateTime): string =>
 /** The settings an AIR fan's facts are, in the order `fanFactsOf` says them. */
 const FAN_SETTINGS = ['fanMode', 'fixedDay', 'fixedNight'];
 
+/** "Lüfter fest", "Lüfter nach Temperatur": an AIR fan's mode as one fact of a line. */
+const fanModeFact = (t: Translate, device: Device): string | null => {
+  const mode = fieldValue(device, 'fanMode');
+  return typeof mode === 'string' ? `${t('control.rows.fan')} ${t(`configChange.fanMode.${mode}`)}` : null;
+};
+
 /**
  * "Licht 80 % · Abluft an · Befeuchter aus · alle Auto": each output by the
  * rule above, and in amber what is held by hand. A further device's outputs
- * are led by its name. "alle Auto" is said only of a list made of sockets: a
+ * are led by its name, a fact of its own ("Abluft · Lüfter fest"). "alle Auto" is said only of a list made of sockets: a
  * lamp reports no hold, so nothing is claimed of one.
  */
 export const outputsLine = (
@@ -179,12 +185,12 @@ export const outputsLine = (
           return typeof speed === 'number' ? [set(name, `${t(`tuning.${name}`)} ${percentLabel(speed)}`)] : [];
         })
       : one.speed
-        ? fanFactsOf(t, one.device).map((fact, at) => set(FAN_SETTINGS[at], at === 0 ? `${t('control.rows.fan')}: ${fact}` : fact))
+        ? fanFactsOf(t, one.device).map((fact, at) => set(FAN_SETTINGS[at], at === 0 ? (fanModeFact(t, one.device) ?? fact) : fact))
         : [];
     const own = [...(index === 0 && stand && reported.length > 0 ? [stand] : []), ...reported, ...stored];
-    // A device called what its one output is called - a lamp, a fan - needs no name before it.
+    // A device called what its one output is called - a lamp, a fan - needs no name before it; any other is a fact of its own in front.
     const name = deviceName(one.device, t);
-    return index > 0 && own.length > 0 && !own[0].startsWith(name) ? [`${name}: ${own[0]}`, ...own.slice(1)] : own;
+    return index > 0 && own.length > 0 && !own[0].startsWith(name) ? [name, ...own] : own;
   });
   const byHand = all.some(one => held.has(one.device.id)) || sockets.some(row => forcedOf(row));
   const allAuto = !byHand && sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed);

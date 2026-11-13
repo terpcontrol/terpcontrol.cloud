@@ -218,12 +218,6 @@
   color: var(--ink);
 }
 
-/* A figure the running plan writes back every hour, and the line that says so. */
-.planMark {
-  flex: none;
-  color: var(--warning);
-}
-
 @media (min-width: 600px) {
   .fields {
     grid-template-columns: repeat(2, minmax(0, 13rem));

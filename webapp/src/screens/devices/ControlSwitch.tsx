@@ -18,11 +18,13 @@ import styles from './Maintenance.module.css';
  * where it is off, the page says so and switches it back on as Steuerung does
  * (`ControlOff`).
  *
- * Off is asked first, because it stops the heater, the cooling, the light and
- * the CO2 at once and they stay stopped. A running plan is paused with it -
- * its next step would switch the control back on, as saving the targets or
- * applying a preset does. A device that is not answering is still switched,
- * and answered as every setting of a device is (`useSaved`).
+ * Off is asked first, because it stops the heater, the cooling, the light, the
+ * CO2 and the fans at once and they stay stopped - the same list Steuerung's
+ * note says while it is off. Its yes is the one danger style. A running plan
+ * is paused with it - its next step would switch the control back on, as
+ * saving the targets or applying a preset does. A device that is not
+ * answering is still switched, and answered as every setting of a device is
+ * (`useSaved`).
  */
 export function ControlRow({ device }: { device: Device }) {
   const { t } = useTranslation();
@@ -60,6 +62,7 @@ function ControlOffSheet({ device, onClose }: { device: Device; onClose: () => v
         `${t('climateControl.label')} ${t('climateControl.state.off')}`,
         { undo, undone: `${t('climateControl.label')} ${t('climateControl.state.on')}` },
         'control',
+        running ? { now: t('control.saved.planPaused'), back: t('control.saved.planGoesOn') } : undefined,
       );
       onClose();
     } catch {
@@ -70,7 +73,7 @@ function ControlOffSheet({ device, onClose }: { device: Device; onClose: () => v
   const busy = move.isPending || configure.isPending;
   const actions = (
     <SheetAnswer done={false} error={move.error ?? configure.error ?? (planKnown ? null : plan.error)} onClose={onClose}>
-      <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !planKnown} onClick={() => void switchOff()}>
+      <button type="button" className={`${ui.button} ${ui.dangerFilled}`} disabled={busy || !planKnown} onClick={() => void switchOff()}>
         <Power size={16} strokeWidth={1.75} aria-hidden />
         {t(busy ? 'climateControl.switching' : 'climateControl.yes')}
       </button>

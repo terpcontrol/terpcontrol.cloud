@@ -125,20 +125,22 @@ describe('the fine settings themselves', () => {
     fireEvent.blur(field);
   };
 
-  it('are lines that open the value sheet, held to the range of the type, saved by name and taken back from the toast', async () => {
+  it('are lines that open the value sheet, refused outside the range of the type, saved by name and taken back from the toast', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     drawItem('light-ramps');
 
     fireEvent.click(screen.getByRole('button', { name: 'Change Sunrise, 15 min' }));
     expect(within(sheet()).getByRole('button', { name: 'Save' })).toBeDisabled();
-    // A figure typed past the range lands on its end.
+    // A figure typed past the range is refused with the range, never brought to its end.
     type('Sunrise', '90');
-    expect(within(sheet()).getByRole('spinbutton', { name: 'Sunrise' })).toHaveValue('60');
+    expect(within(sheet()).getByRole('spinbutton', { name: 'Sunrise' })).toHaveValue('90');
+    expect(within(sheet()).getByText('Sunrise: that has to be between 0 and 60 min.')).toBeInTheDocument();
+    expect(within(sheet()).getByRole('button', { name: 'Save' })).toBeDisabled();
     type('Sunrise', '30');
     save();
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { sunrise: 30 } }));
-    await waitFor(() => expect(said()).toBe('Sunrise 30 min · saved'));
+    await waitFor(() => expect(said()).toBe('Sunrise 30 min saved'));
     await act(async () => {
       await told[0].undo!();
     });
@@ -154,7 +156,7 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'CO₂ at night too' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { co2Night: true } }));
-    await waitFor(() => expect(said()).toBe('CO₂ at night too on · saved'));
+    await waitFor(() => expect(said()).toBe('CO₂ at night too on saved'));
   });
 
   it('show the compressor rest the firmware runs with where the document does not state it', () => {
@@ -188,7 +190,7 @@ describe('the fine settings themselves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change Sunset, 15 min' }));
     type('Sunset', '20');
     save();
-    await waitFor(() => expect(said()).toBe('Sunset 20 min · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Sunset 20 min saved, not with the device yet'));
   });
 
   /** The leaf offsets are the cloud's own reckoning: nothing of them is handed to a device, silent or not. */
@@ -208,17 +210,18 @@ describe('the fine settings themselves', () => {
         settings: { vpdLeafOffsetDay: -3, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.015 },
       }),
     );
-    await waitFor(() => expect(said()).toBe('Leaf against air · day −3.0 °C · saved'));
+    await waitFor(() => expect(said()).toBe('Leaf against air · day −3.0 °C saved'));
   });
 
-  it('take the lux factor of a known lamp on its sheet, and hold a typed one to the range', async () => {
+  it('take the lux factor of a known lamp on its sheet, and refuse a typed one outside the range', async () => {
     vi.mocked(api.patch).mockResolvedValue(device() as never);
     drawItem('lux-factor', device('controller', { ppfd: 'on' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Change Lux to PPFD factor, 0.015' }));
     expect(within(sheet()).getByRole('button', { name: 'White LED · 0.015' })).toHaveAttribute('aria-pressed', 'true');
     type('Lux to PPFD factor', '1.5');
-    expect(within(sheet()).getByRole('spinbutton', { name: 'Lux to PPFD factor' })).toHaveValue('0.0500');
+    expect(within(sheet()).getByRole('spinbutton', { name: 'Lux to PPFD factor' })).toHaveValue('1.5000');
+    expect(within(sheet()).getByText('Lux to PPFD factor: that has to be between 0.005 and 0.05.')).toBeInTheDocument();
     fireEvent.click(within(sheet()).getByRole('button', { name: 'HPS · 0.0122' }));
     save();
 
@@ -227,7 +230,7 @@ describe('the fine settings themselves', () => {
         settings: { vpdLeafOffsetDay: -2, vpdLeafOffsetNight: 0, ppfdLuxFactor: 0.0122 },
       }),
     );
-    await waitFor(() => expect(said()).toBe('Lux to PPFD factor 0.0122 · saved'));
+    await waitFor(() => expect(said()).toBe('Lux to PPFD factor 0.0122 saved'));
   });
 });
 

@@ -19,6 +19,7 @@ export const HELP_TOPICS = [
   'dayNight',
   'lightLimit',
   'lightsOn',
+  'lightHardStart',
   'resumePlan',
   'growDay',
   'growWeek',

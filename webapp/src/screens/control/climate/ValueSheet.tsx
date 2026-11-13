@@ -7,6 +7,7 @@ import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { ClockStepper, Stepper } from '../targets/Stepper';
 import fields from '../targets/DayNight.module.css';
+import { rangeRefusal, rangeSaid, refusedForRange } from './range';
 import styles from './Climate.module.css';
 
 /**
@@ -71,6 +72,11 @@ export type SheetValues = Readonly<Record<string, number>>;
  * which nothing is written. A sheet holds several figures only where they
  * make sense together - a socket's two switch points, a window's start and
  * its length.
+ *
+ * "Speichern" is live as soon as a figure differs from what is stored, typed
+ * or stepped, and what saving does stands under the field from the first
+ * keystroke. A figure outside its range is refused under the field in words
+ * that name the range, and the save waits; nothing but what was typed is sent.
  */
 export function ValueSheet({
   title,
@@ -106,8 +112,18 @@ export function ValueSheet({
   const [asked, setAsked] = useState(false);
   const whyId = useId();
   const values: SheetValues = Object.fromEntries(figures.map(figure => [figure.key, moved[figure.key] ?? figure.value]));
-  const changed = figures.some(figure => values[figure.key] !== figure.value);
-  const why = invalid?.(values) ?? null;
+  const changed = figures.some(figure => !Object.is(values[figure.key], figure.value));
+  const rangeOf = (figure: SheetFigure) => ({ min: figure.min ?? 0, max: figure.max ?? 100, decimals: figure.decimals ?? 0, unit: figure.unit });
+  const refused =
+    figures.map(figure => (figure.clock ? null : rangeRefusal(t, figure.label, values[figure.key], rangeOf(figure)))).find(Boolean) ?? null;
+  const why = refused ?? invalid?.(values) ?? null;
+  // What the figures amount to is said of a figure that reads, and of the stored one where the text is none.
+  const readable: SheetValues = Object.fromEntries(
+    figures.map(figure => [figure.key, Number.isFinite(values[figure.key]) ? values[figure.key] : figure.value]),
+  );
+  // A server that refuses a figure out of its range is said in the sheet's own words for it.
+  const ranged = figures.find(figure => !figure.clock);
+  const rangeRefused = asked && ranged && refusedForRange(error) ? rangeSaid(t, ranged.label, rangeOf(ranged)) : null;
 
   const save = async () => {
     setAsked(true);
@@ -161,8 +177,10 @@ export function ValueSheet({
                 unit={figure.unit}
                 less={t('targets.stepLess', { name })}
                 more={t('targets.stepMore', { name })}
-                changed={values[figure.key] !== figure.value}
+                changed={!Object.is(values[figure.key], figure.value)}
                 padded
+                live
+                describedBy={whyId}
                 disabled={busy}
                 onChange={set}
               />
@@ -178,13 +196,19 @@ export function ValueSheet({
             );
           })}
         </div>
-        {children?.(values, (key, value) => setMoved({ ...moved, [key]: value }))}
         {why ? (
-          <p className={styles.warn} id={whyId} role="status">
+          <p className={ui.problem} id={whyId} role="status">
             {why}
           </p>
         ) : null}
-        {asked ? <Refused error={error} /> : null}
+        {children?.(readable, (key, value) => setMoved({ ...moved, [key]: value }))}
+        {rangeRefused ? (
+          <p className={ui.problem} role="alert">
+            {rangeRefused}
+          </p>
+        ) : asked ? (
+          <Refused error={error} />
+        ) : null}
       </div>
     </Sheet>
   );

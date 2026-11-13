@@ -40,6 +40,7 @@ export function PresetSheet({
   chosen,
   pauses,
   runs,
+  switchesOn = false,
   busy,
   error,
   onSave,
@@ -56,6 +57,8 @@ export function PresetSheet({
   pauses: (next: TargetsDraft, chip: ClimateChoice, choices?: ChoiceValues) => string | null;
   /** The running plan, by name: ending a spell pauses it. */
   runs: string | null;
+  /** The control is switched off, and applying a preset switches it on. */
+  switchesOn?: boolean;
   busy: boolean;
   error: Error | null;
   /** `label` is what the toast says was saved. */
@@ -202,6 +205,7 @@ export function PresetSheet({
             {t('targets.planTable.pauses', { name: paused })}
           </p>
         ) : null}
+        {switchesOn && sets ? <p className={styles.note}>{t('climateControl.saveSwitchesOn')}</p> : null}
         {asked ? <Refused error={error} /> : null}
       </div>
     </Sheet>

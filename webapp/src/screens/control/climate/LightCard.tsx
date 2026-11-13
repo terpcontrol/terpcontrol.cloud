@@ -1,6 +1,6 @@
 import { CalendarRange } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, DeviceConfiguration, PendingSetting } from '@fg2/shared-types/v1';
@@ -17,9 +17,10 @@ import { hasDay, type Field, type NowHolding, type Shape } from '../targets/day-
 import { scheduleTitle, windowWords } from '../targets/schedule-words';
 import { Stepper } from '../targets/Stepper';
 import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
-import { FIGURES, figureText, pendingFigure, pendingWindow, type PendingItem } from './figures';
+import { FIGURES, figureText, pendingFigure, pendingWindow, planWords, type PendingItem } from './figures';
 import { LightSheet } from './LightSheet';
 import { PendingNote } from './Pending';
+import { rangeRefusal } from './range';
 import styles from './Climate.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -31,7 +32,9 @@ const REST_MS = 1500;
  * its window, with "Ändern" opening the day's plan on its sheet, and the
  * limit it is dimmed to, stepped where it stands and sent once it rests. A
  * lamp held by hand says so over its times, with the way to the hold's own
- * control under Ausgänge.
+ * control under Ausgänge. What a running plan writes back every hour is said
+ * in words at the card's foot. A limit typed outside its range is refused
+ * under the row and not sent.
  */
 export function LightCard({
   device,
@@ -46,6 +49,7 @@ export function LightCard({
   owned = NOTHING,
   plan = null,
   longest,
+  switchesOn = false,
   mayManage,
   busy,
   error,
@@ -69,6 +73,8 @@ export function LightCard({
   /** The running plan, and the schedule its step puts back where that is not the one that runs. */
   plan?: { name: string; sets: LightSchedule | null } | null;
   longest?: number;
+  /** The control is switched off, and saving switches it on. */
+  switchesOn?: boolean;
   mayManage: boolean;
   busy: boolean;
   error: Error | null;
@@ -82,7 +88,13 @@ export function LightCard({
   const [open, setOpen] = useState(false);
   const held = useHeldLight(device, now);
   const limit = useResting(baseline.lightLimit, onLimit);
+  // A limit typed outside its range stands in the field, refused, and is not sent.
+  const [typed, setTyped] = useState<number | null>(null);
+  const refusedId = useId();
+  const limitName = t('targets.aria.lightLimit');
+  const limitRefused = typed === null ? null : rangeRefusal(t, limitName, typed, { ...FIGURES.lightLimit, unit: '%' });
   const regime = shape.regime;
+  const planSays = plan ? planWords(t, plan.name, owned) : null;
   const words = windowWords(baseline, offset);
   const scheduled = regime === 'cycle' || regime === 'always' || regime === 'never';
   const windowHeld = pendingWindow(pending, { day: figureOf(stored, 'daynight', 'day'), night: figureOf(stored, 'daynight', 'night') });
@@ -146,7 +158,6 @@ export function LightCard({
                 </span>
               </>
             )}
-            {owned.has('lightHours') || owned.has('lightsOn') ? <PlanMark /> : null}
           </p>
           {mayManage ? (
             <button type="button" className={styles.pillButton} aria-label={t('control.light.change')} onClick={() => setOpen(true)}>
@@ -173,13 +184,12 @@ export function LightCard({
             <span className={styles.short}>{t('targets.aria.lightLimit')}</span>
             <span className={styles.long}>{t('control.light.limit')}</span>
             <Help topic="lightLimit" />
-            {owned.has('lightLimit') ? <PlanMark /> : null}
           </span>
           {mayManage ? (
             <span className={styles.nudge}>
               <Stepper
-                name={t('targets.aria.lightLimit')}
-                value={limit.value}
+                name={limitName}
+                value={typed ?? limit.value}
                 min={FIGURES.lightLimit.min}
                 max={FIGURES.lightLimit.max}
                 step={FIGURES.lightLimit.step}
@@ -187,9 +197,14 @@ export function LightCard({
                 unit={t('targets.unit.percent')}
                 less={t('control.light.lower')}
                 more={t('control.light.raise')}
-                changed={limit.resting}
+                changed={limit.resting || typed !== null}
                 pending={limitHeld !== undefined}
-                onChange={limit.set}
+                describedBy={refusedId}
+                onChange={value => {
+                  const refused = rangeRefusal(t, limitName, value, { ...FIGURES.lightLimit, unit: '%' });
+                  setTyped(refused ? value : null);
+                  if (!refused) limit.set(value);
+                }}
               />
             </span>
           ) : (
@@ -199,7 +214,13 @@ export function LightCard({
           )}
         </div>
       ) : null}
+      {limitRefused ? (
+        <p className={ui.problem} id={refusedId} role="status">
+          {limitRefused}
+        </p>
+      ) : null}
       {hasDay(regime) && baseline.lightLimit <= 0 ? <p className={styles.warn}>{t('targets.table.zeroLimit')}</p> : null}
+      {planSays ? <p className={styles.note}>{planSays}</p> : null}
       <PendingNote items={waiting} />
       {open ? null : <Refused error={limit.failed ? error : null} />}
       {open ? (
@@ -215,6 +236,8 @@ export function LightCard({
           planSets={planSets}
           longest={longest}
           pauses={pauses}
+          planName={plan?.name ?? null}
+          switchesOn={switchesOn}
           busy={busy}
           error={error}
           onSave={onTimes}
@@ -227,10 +250,14 @@ export function LightCard({
 
 const NOTHING: ReadonlySet<Field> = new Set();
 
-/** The mark on a figure a running plan writes back every hour. */
-export function PlanMark() {
+/** The mark on a figure a running plan writes back every hour; in the legend that explains it, a picture only. */
+export function PlanMark({ legend = false }: { legend?: boolean }) {
   const { t } = useTranslation();
-  return <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />;
+  return legend ? (
+    <CalendarRange size={13} strokeWidth={2} className={styles.planMark} aria-hidden />
+  ) : (
+    <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
+  );
 }
 
 /** "An um 06:00 · 18 Std", or the words for a lamp that never goes off or never comes on. */

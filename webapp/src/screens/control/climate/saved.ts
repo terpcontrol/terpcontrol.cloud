@@ -7,14 +7,21 @@ import { deviceLiveness } from '@/ui/age';
 import { useNow } from '@/ui/useNow';
 import { fieldOf, pendingByPath, pendingField } from './figures';
 
+/** What a save did beyond storing its figures - a plan paused, control switched on - and what the way back does about it. */
+export interface Also {
+  now: string;
+  back?: string;
+}
+
 /**
  * How every save of a device's settings is answered, whatever was set and
- * wherever: the toast that names what changed - "… gespeichert", and for a
- * device that is not heard "noch nicht am Gerät", the page's own words for
- * it - with the way to take it back where that is one write, and what then
- * holds again, said the same way. A device acknowledges nothing, so nothing
- * here says that it took anything. `from` names the setting, so saving it
- * again answers in the same toast.
+ * wherever: the toast that names what changed, in one form - "Temperatur am
+ * Tag 26,0 °C gespeichert", and for a device that is not heard "…, noch nicht
+ * am Gerät", the page's own words for it - then whatever else the save did
+ * ("· Plan pausiert"), with the way to take it back where that is one write,
+ * and what then holds again, said the same way. A device acknowledges
+ * nothing, so nothing here says that it took anything. `from` names the
+ * setting, so saving it again answers in the same toast.
  */
 export const useSaved = (device: Device) => {
   const { t } = useTranslation();
@@ -23,11 +30,12 @@ export const useSaved = (device: Device) => {
 
   return {
     offline,
-    say: (what: string, back: Back | null = null, from?: string) => {
-      const saved = (said: string) => t(offline ? 'control.saved.later' : 'control.saved.now', { what: said });
+    say: (what: string, back: Back | null = null, from?: string, also?: Also) => {
+      const saved = (said: string, more?: string) =>
+        [t(offline ? 'control.saved.later' : 'control.saved.now', { what: said }), more].filter(Boolean).join(' · ');
       tell({
-        label: saved(what),
-        ...(back ? { undo: back.undo, undone: saved(back.undone) } : { undo: null }),
+        label: saved(what, also?.now),
+        ...(back ? { undo: back.undo, undone: saved(back.undone, also?.back) } : { undo: null }),
         from: from === undefined ? undefined : `${device.id}:${from}`,
       });
     },

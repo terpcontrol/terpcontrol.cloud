@@ -1,6 +1,11 @@
 import type { DateTime } from 'luxon';
 import type { Device, Metric, PendingSetting, PendingSettings } from '@fg2/shared-types/v1';
-import { CONFIGURATION_FIELDS, configurationFieldsOf, type ConfigurationField } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import {
+  CONFIGURATION_FIELDS,
+  TARGET_RANGES,
+  configurationFieldsOf,
+  type ConfigurationField,
+} from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { lightWindowOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import type { Translate } from '@/i18n/i18n';
 import type { ClimateChoice } from '@/ui/presets';
@@ -12,7 +17,8 @@ import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
 
 /**
  * The figures Steuerung sets one at a time: where each stands in the device's
- * document, the range its stepper keeps it in, and what it is called.
+ * document, the range the server holds a hand's write to (`TARGET_RANGES`), and
+ * what it is called.
  */
 
 export type FigureField = Exclude<Field, 'lightsOn' | 'lightHours'>;
@@ -28,16 +34,21 @@ interface Spec {
   decimals: number;
 }
 
-const TEMPERATURE = { metric: 'temperature', min: 15, max: 35, step: 0.5, decimals: 1 } as const;
-const HUMIDITY = { metric: 'humidity', min: 30, max: 90, step: 1, decimals: 0 } as const;
+const spec = (metric: Spec['metric'], half: Half | null, path: keyof typeof TARGET_RANGES, decimals: number): Spec => ({
+  metric,
+  half,
+  path,
+  ...TARGET_RANGES[path],
+  decimals,
+});
 
 export const FIGURES: Record<FigureField, Spec> = {
-  dayTemperature: { ...TEMPERATURE, half: 'day', path: 'day.temperature' },
-  nightTemperature: { ...TEMPERATURE, half: 'night', path: 'night.temperature' },
-  dayHumidity: { ...HUMIDITY, half: 'day', path: 'day.humidity' },
-  nightHumidity: { ...HUMIDITY, half: 'night', path: 'night.humidity' },
-  co2: { metric: 'co2', half: 'day', path: 'co2.target', min: 400, max: 1500, step: 50, decimals: 0 },
-  lightLimit: { metric: 'light', half: null, path: 'lights.limit', min: 0, max: 100, step: 5, decimals: 0 },
+  dayTemperature: spec('temperature', 'day', 'day.temperature', 1),
+  nightTemperature: spec('temperature', 'night', 'night.temperature', 1),
+  dayHumidity: spec('humidity', 'day', 'day.humidity', 0),
+  nightHumidity: spec('humidity', 'night', 'night.humidity', 0),
+  co2: spec('co2', 'day', 'co2.target', 0),
+  lightLimit: spec('light', null, 'lights.limit', 0),
 };
 
 /** The two paths a light window is stored under. */
@@ -175,4 +186,12 @@ export const spellChangeOf = (chip: ClimateChoice | null, device: Device, spell:
   const wanted = chip.stage === spell;
   const running = spell === 'drying' ? control.drying : !control.drying && control.mode === 'germination';
   return wanted === running ? null : wanted ? 'starts' : 'ends';
+};
+
+/** "Plan: „Blüte“ setzt die Lichtzeiten und die Lichtgrenze – jede Stunde neu.", for what of the lamp a running plan writes; null where it writes none. */
+export const planWords = (t: Translate, name: string, owned: ReadonlySet<Field>): string | null => {
+  const times = owned.has('lightHours') || owned.has('lightsOn');
+  const limit = owned.has('lightLimit');
+  if (!times && !limit) return null;
+  return t('control.light.planSets', { name, what: t(`control.light.planWhat.${times && limit ? 'both' : times ? 'times' : 'limit'}`) });
 };

@@ -161,7 +161,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
 
     await waitFor(() => expect(patches()).toHaveLength(1));
     expect(patches()[0]).toMatchObject({ path: '/devices/plug-1/configuration', body: { set: { plugMode: 'cooler' } } });
-    await waitFor(() => expect(said()).toBe('Switches by Cooling · saved'));
+    await waitFor(() => expect(said()).toBe('Switches by Cooling saved'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     await act(async () => {
@@ -176,7 +176,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Own switch points at night' }));
 
     await waitFor(() => expect(patches()[0]?.body.set).toEqual({ dayNight: true }));
-    await waitFor(() => expect(said()).toBe('Own switch points at night on · saved'));
+    await waitFor(() => expect(said()).toBe('Own switch points at night on saved'));
   });
 
   it('draws the night’s points beside the day’s once the night has its own, with the times the day starts and ends at', () => {
@@ -202,7 +202,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
 
     await waitFor(() => expect(patches()).toHaveLength(1));
     expect(patches()[0].body.set).toEqual({ heaterDayOn: 23, heaterDayOff: 26 });
-    await waitFor(() => expect(said()).toBe('Switch points On below 23.0 °C, Off above 26.0 °C · saved'));
+    await waitFor(() => expect(said()).toBe('Switch points On below 23.0 °C, Off above 26.0 °C saved'));
   });
 
   it('adds a timer window at ten on the account’s clock, says when it ends, and sends the windows whole', async () => {
@@ -217,7 +217,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
 
     await waitFor(() => expect(patches()).toHaveLength(1));
     expect(patches()[0].body.set).toEqual({ timerWindows: [{ ontime: 36000, duration: 45 }] });
-    await waitFor(() => expect(said()).toBe('Time window 1 10:00–10:45 · saved'));
+    await waitFor(() => expect(said()).toBe('Time window 1 10:00–10:45 saved'));
   });
 
   it('removes a window from its sheet, and offers the next one an hour after the last ends', async () => {
@@ -230,7 +230,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
     fireEvent.click(setting('Time window 1'));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(patches()[0]?.body.set).toEqual({ timerWindows: [] }));
-    await waitFor(() => expect(said()).toBe('Time window 10:00–10:10 removed · saved'));
+    await waitFor(() => expect(said()).toBe('Time window 10:00–10:10 removed saved'));
   });
 
   /** Offline does not lock, and nothing is claimed that nobody knows: stored, when, and what the device was last handed. */
@@ -248,7 +248,7 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
     fireEvent.click(setting('On above'));
     type('Switch points: On above', 29);
     save();
-    await waitFor(() => expect(said()).toBe('Switch points On above 29.0 °C, Off below 25.0 °C · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Switch points On above 29.0 °C, Off below 25.0 °C saved, not with the device yet'));
   });
 
   /** A switch the document kept as `false` and the cloud now stores as 0 is the same switch, off. */
@@ -294,7 +294,7 @@ describe('an AIR fan', () => {
     type('Speed at night', 30);
     save();
     await waitFor(() => expect(patches()[0]).toMatchObject({ path: '/devices/fan-1/configuration', body: { set: { fixedNight: 30 } } }));
-    await waitFor(() => expect(said()).toBe('Speed at night 30 % · saved'));
+    await waitFor(() => expect(said()).toBe('Speed at night 30 % saved'));
   });
 
   it('holds the temperature and humidity it reads under its control, once it follows them', async () => {
@@ -335,7 +335,7 @@ describe('an AIR fan', () => {
     fireEvent.click(setting('Fan mode'));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'By humidity' }));
     save();
-    await waitFor(() => expect(said()).toBe('Fan mode By humidity · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Fan mode By humidity saved, not with the device yet'));
   });
 });
 
@@ -356,7 +356,7 @@ describe('a LIGHT', () => {
 
     await waitFor(() => expect(patches()).toHaveLength(1));
     expect(patches()[0]).toMatchObject({ path: '/devices/light-1/configuration', body: { set: { lightsOn: 21600, lightsOff: 75600 } } });
-    await waitFor(() => expect(said()).toBe('Light on 06:00–21:00 · 15 h · saved'));
+    await waitFor(() => expect(said()).toBe('Light on 06:00–21:00 · 15 h saved'));
   });
 
   it('steps its limit where it stands and sends it once it rests', async () => {
@@ -372,7 +372,7 @@ describe('a LIGHT', () => {
     vi.useRealTimers();
 
     await waitFor(() => expect(patches()[0]?.body.set).toEqual({ brightness: 75 }));
-    await waitFor(() => expect(said()).toBe('Light limit 75 % · saved'));
+    await waitFor(() => expect(said()).toBe('Light limit 75 % saved'));
   });
 
   it('says in one note what a silent lamp has not been handed, with the window and the limit it still runs', async () => {
@@ -393,7 +393,7 @@ describe('a LIGHT', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change times' }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Light on for: more' }));
     save();
-    await waitFor(() => expect(said()).toBe('Light on 06:00–22:00 · 16 h · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Light on 06:00–22:00 · 16 h saved, not with the device yet'));
   });
 });
 
@@ -413,7 +413,7 @@ describe('a fridge’s fans, among its outputs', () => {
     save();
 
     await waitFor(() => expect(patches()[0]).toMatchObject({ path: '/devices/fridge-1/configuration', body: { set: { clipFan: 65 } } }));
-    await waitFor(() => expect(said()).toBe('Clip fan 65 % · saved'));
+    await waitFor(() => expect(said()).toBe('Clip fan 65 % saved'));
   });
 
   it('say what a silent fridge has not been handed, and that it takes a new figure over', async () => {
@@ -425,7 +425,7 @@ describe('a fridge’s fans, among its outputs', () => {
     fireEvent.click(setting('Inner fans, at least'));
     type('Inner fans, at least', 40);
     save();
-    await waitFor(() => expect(said()).toBe('Inner fans, at least 40 % · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Inner fans, at least 40 % saved, not with the device yet'));
   });
 });
 

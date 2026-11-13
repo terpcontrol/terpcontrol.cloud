@@ -1,4 +1,3 @@
-import { CalendarRange } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
@@ -65,6 +64,11 @@ import ui from '@/ui/ui.module.css';
  * by the toast. A device that is not heard is set all the same; what it has
  * not been handed is marked and said under the card by the server's own
  * reckoning (`pending`), never by a guess of the page's.
+ *
+ * With its control switched off the two cards stay, read as what holds once
+ * it is on again: saving any of it switches the control on, which the sheet
+ * says before the tap and the toast after it, and taking the save back
+ * switches it off again.
  */
 
 interface ClimateWrite {
@@ -98,7 +102,9 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const pending = pendingByPath(liveRead.data?.pending);
   // Switched off while it was not heard, a device goes on holding what it was last handed: the cards stay as it runs them.
   const off = offNotTaken(read, pending);
-  const device: Device = off && read.control ? { ...read, control: { ...read.control, running: true } } : read;
+  // Switched off and told so, the cards stay too - as what it holds once it is on again.
+  const switchedOff = !off && read.control?.running === false && read.type !== 'fan';
+  const device: Device = (off || switchedOff) && read.control ? { ...read, control: { ...read.control, running: true } } : read;
   const offset = offsetOf(now, zone);
   const isOffline = saved.offline;
   const offline = isOffline ? offlineLabel(spoke, now, zone, true) : null;
@@ -108,9 +114,10 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const storedChoices = choicesOf(device);
   const shape = shapeOf(device, baseline, { climateOnly, humidified: humidifier && storedChoices.humidifierHolds });
   const regime = shape.regime;
+  // Nothing holds now while the control is off, so no column is marked as the one in force.
   const holding = nowHoldingOf({
-    device,
-    shape,
+    device: switchedOff ? read : device,
+    shape: switchedOff ? { regime: 'off', greenhouse: shape.greenhouse } : shape,
     stored: baseline,
     live: liveRead.data,
     offline: isOffline,
@@ -145,6 +152,12 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
     });
     const pauses = pausesFor(next, chip, choices);
     const moved = changedFields(next, baseline);
+    // Saving what the device holds brings a control that was switched off back on; its way back switches it off again.
+    const also = pauses
+      ? { now: t('control.saved.planPaused'), back: t('control.saved.planGoesOn') }
+      : switchedOff
+        ? { now: t('control.saved.controlOn'), back: t('control.saved.controlOff') }
+        : undefined;
 
     try {
       // The reason the plan's card gives says what was done by hand.
@@ -160,6 +173,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
       });
       const resume = async () => {
         if (pauses) await move.mutateAsync({ kind: 'resume' });
+        if (switchedOff) await configure.mutateAsync({ control: false });
       };
       // Into the document as it stands at the tap, so a setting saved since stays as it is.
       const put = async (figures: Partial<TargetsDraft>, extra: { germination?: boolean; germinationChoices?: Partial<ChoiceValues> } = {}) => {
@@ -198,7 +212,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
                     await resume();
                   };
       const undone = chip ? t('log.asBefore', { what: t('targets.title') }) : says(baseline);
-      saved.say(says(next), undo && { undo, undone }, chip ? 'preset' : moved.join(' '));
+      saved.say(says(next), undo && { undo, undone }, chip ? 'preset' : moved.join(' '), also);
       return true;
     } catch {
       // Said under the control that asked, from the write that was refused.
@@ -221,8 +235,6 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   if (plan.isPending) return <Waiting lines={4} />;
   // Whether a save has to pause a plan first is not guessed at: a plan that could not be read is a card that cannot be drawn yet.
   if (!plan.data && !isMissing(plan.error)) return <LoadFailed retry={() => void plan.refetch()} />;
-
-  if (regime === 'off') return <ControlOff device={device} mayManage={mayManage} />;
 
   const halves = halvesOf(regime);
   const preset = CLIMATE_CHOICES.find(chip => chosenBy(chip, baseline, shape, hasCo2, climateOnly)) ?? null;
@@ -263,6 +275,9 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
     <>
       <RefreshFailed failedAt={plan.isError && plan.data ? plan.dataUpdatedAt : null} now={now} />
       {off ? <ControlOff device={read} mayManage={mayManage} storedAt={off.savedAt} /> : null}
+      {switchedOff ? <ControlOff device={read} mayManage={mayManage} /> : null}
+      {/* Said once for both cards: what they hold is what holds once it is on again. */}
+      {switchedOff ? <p className={styles.note}>{t('climateControl.cardsWhenOn')}</p> : null}
 
       {regime === 'sensor' ? null : (
         <LightCard
@@ -277,6 +292,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           pending={pending}
           owned={owned}
           plan={status === 'running' ? { name: planName, sets: planScheduleOf(step, baseline) } : null}
+          switchesOn={switchedOff}
           mayManage={mayManage}
           busy={busy}
           error={refused}
@@ -361,7 +377,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
         ) : null}
         {status === 'running' && owned.size > 0 ? (
           <p className={styles.note}>
-            <CalendarRange size={13} strokeWidth={2} className={styles.planMark} aria-hidden /> {t('targets.planTable.legend', { name: planName })}
+            <PlanMark legend /> {t('targets.planTable.legend', { name: planName })}
           </p>
         ) : null}
         <Kept shape={shape} baseline={baseline} hasCo2={hasCo2} />
@@ -376,6 +392,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           regime={regime}
           baseline={baseline}
           pauses={next => (pausesFor(next) ? planName : null)}
+          switchesOn={switchedOff}
           busy={busy}
           error={refused}
           onSave={next => write({ next, says: draft => `${figureName(t, open.field, regime)} ${figureText(open.field, draft[open.field])}` })}
@@ -392,6 +409,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           chosen={preset}
           pauses={(next, chip, choices) => (pausesFor(next, chip, choices) ? planName : null)}
           runs={status === 'running' ? planName : null}
+          switchesOn={switchedOff}
           busy={busy}
           error={refused}
           onSave={(next, chip, choices, label) => write({ next, chip, choices, says: () => label })}
@@ -414,6 +432,7 @@ function FigureSheet({
   regime,
   baseline,
   pauses,
+  switchesOn,
   busy,
   error,
   onSave,
@@ -424,6 +443,8 @@ function FigureSheet({
   regime: Regime;
   baseline: TargetsDraft;
   pauses: (next: TargetsDraft) => string | null;
+  /** The control is switched off, and saving switches it on. */
+  switchesOn: boolean;
   busy: boolean;
   error: Error | null;
   onSave: (next: TargetsDraft) => Promise<boolean>;
@@ -446,9 +467,11 @@ function FigureSheet({
       {values => {
         const next = withValue(values[field]);
         const paused = pauses(next);
+        // A figure refused for its range makes no VPD worth reading.
+        const held = values[field] >= min && values[field] <= max;
         return (
           <>
-            {half && (metric === 'temperature' || metric === 'humidity') ? (
+            {held && half && (metric === 'temperature' || metric === 'humidity') ? (
               <p className={styles.derived}>
                 <Term topic="vpd">{t('targets.table.vpd', { value: vpdText(device, next, half) })}</Term>
               </p>
@@ -458,6 +481,7 @@ function FigureSheet({
                 {t('targets.planTable.pauses', { name: paused })}
               </p>
             ) : null}
+            {switchesOn ? <p className={styles.note}>{t('climateControl.saveSwitchesOn')}</p> : null}
           </>
         );
       }}

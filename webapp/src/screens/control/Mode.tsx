@@ -108,9 +108,10 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
 
 /**
  * A device whose control is switched off, said where its climate would stand -
- * on Steuerung, and on the page of a device that leads a place - with the one
- * tap that switches it on and what that brings back; off is switched on the
- * device's page.
+ * on Steuerung, and on the page of a device that leads a place - in one
+ * sentence that lists what stands still, as the question that switched it off
+ * listed it, with the one tap that switches it on; the rest is behind the help.
+ * Off is switched on the device's page.
  *
  * Switched off while the device was not heard (`storedAt`), off is a setting
  * it has not been handed like any other: the sentence says since when it is
@@ -131,8 +132,6 @@ export function ControlOff({ device, mayManage, storedAt = null }: { device: Dev
         ) : (
           <>
             <strong>{t('control.state.off')}.</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
-            {mayManage && on.resumes ? ` ${t('climateControl.onDoesPlan')}` : null}
-            {mayManage && on.later ? ` ${t('climateControl.onDoesLater')}` : null}
           </>
         )}
         <Help topic="climateControl" />

@@ -1,15 +1,17 @@
-import { CalendarRange, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Help } from '@/ui/Help';
+import ui from '@/ui/ui.module.css';
+import { rangeRefusal } from '../climate/range';
 import { halfOf, phaseOf, rampsFor, rampsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
 import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
 import type { LightSchedule, TargetsDraft } from './targets-draft';
 import styles from './DayNight.module.css';
-import ui from '@/ui/ui.module.css';
 
 interface LightPlanProps {
   device: Device;
@@ -34,6 +36,9 @@ interface LightPlanProps {
   planSets?: { name: string; schedule: LightSchedule } | null;
   /** The longest day the lamp can be told, in hours: a stand-alone LIGHT keeps two times of day and has no word for a day that never ends. */
   longest?: number;
+  /** The id the refusal of a typed length stands under, and where the sheet hears of it. */
+  refusedId?: string;
+  onRefused?: (why: string | null) => void;
 }
 
 /**
@@ -48,8 +53,15 @@ interface LightPlanProps {
  * that is said before the save.
  */
 export function LightPlan(props: LightPlanProps) {
-  const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null, longest = 24 } = props;
+  const { device, draft, baseline, set, readOnly, now, offset, planSets = null, longest = 24, refusedId, onRefused } = props;
   const { t } = useTranslation();
+  // A length typed outside what the lamp can be told stands in the field, refused, and never in the draft.
+  const [typedHours, setTypedHours] = useState<number | null>(null);
+  const hoursName = t('targets.aria.lightHours');
+  const hoursRange = { min: 0, max: longest, decimals: 1, unit: t('targets.unit.hours') };
+  // A refusal names the field as its label reads.
+  const hoursRefusal = (value: number) => rangeRefusal(t, t('targets.plan.hours'), value, hoursRange);
+  const hoursRefused = typedHours === null ? null : hoursRefusal(typedHours);
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
   const ramps = rampsFor(device, device.configuration, baseline);
@@ -59,12 +71,9 @@ export function LightPlan(props: LightPlanProps) {
     ? t(words.always ? 'targets.plan.alwaysDark' : 'targets.plan.windowDark', { on: words.on, off: words.off, hours: words.hours })
     : scheduleTitle(t, draft, offset);
   // A tent controller's firmware loses the morning ramp of a window that runs
-  // past midnight UTC: its lamp comes on at once, as the bar draws it.
+  // past midnight UTC: its lamp comes on at once, as the bar draws it. The
+  // grower is told of the hour as theirs, never as UTC.
   const hardStart = rampsOf(device.configuration).up > 0 && rampsFor(device, device.configuration, draft).up === 0 && !words.always && !words.never;
-  const mark = (field: Field) =>
-    owned.has(field) ? (
-      <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
-    ) : null;
 
   return (
     <div className={styles.section} role="group" aria-label={t('targets.plan.label')}>
@@ -106,7 +115,6 @@ export function LightPlan(props: LightPlanProps) {
           <div className={`${ui.stack1} ${styles.field}`}>
             <span className={styles.fieldLabel}>
               {t('targets.plan.lightsOn')}
-              {mark('lightsOn')}
               <Help topic="lightsOn" />
             </span>
             <ClockStepper
@@ -122,13 +130,10 @@ export function LightPlan(props: LightPlanProps) {
           </div>
         )}
         <div className={`${ui.stack1} ${styles.field}`}>
-          <span className={styles.fieldLabel}>
-            {t('targets.plan.hours')}
-            {mark('lightHours')}
-          </span>
+          <span className={styles.fieldLabel}>{t('targets.plan.hours')}</span>
           <Stepper
-            name={t('targets.aria.lightHours')}
-            value={draft.lightHours}
+            name={hoursName}
+            value={typedHours ?? draft.lightHours}
             min={0}
             max={longest}
             step={1}
@@ -136,25 +141,38 @@ export function LightPlan(props: LightPlanProps) {
             unit={t('targets.unit.hours')}
             less={t('targets.stepLess', { name: t('targets.aria.lightHours') })}
             more={t('targets.stepMore', { name: t('targets.aria.lightHours') })}
-            changed={draft.lightHours !== baseline.lightHours}
+            changed={typedHours !== null || draft.lightHours !== baseline.lightHours}
             disabled={readOnly}
-            onChange={lightHours => set({ ...draft, lightHours })}
+            live
+            describedBy={refusedId}
+            onChange={lightHours => {
+              const refused = hoursRefusal(lightHours);
+              setTypedHours(refused ? lightHours : null);
+              onRefused?.(refused);
+              if (!refused) set({ ...draft, lightHours });
+            }}
           />
         </div>
       </div>
+      {hoursRefused ? (
+        <p className={ui.problem} id={refusedId} role="status">
+          {hoursRefused}
+        </p>
+      ) : null}
 
       {words.always ? (
-        <p className={styles.note}>
-          {t('targets.plan.alwaysLine')} {t('targets.plan.keepsHour', { time: words.on })}
-        </p>
+        <p className={styles.note}>{t('targets.plan.alwaysLine', { time: words.on })}</p>
       ) : words.never ? (
-        <p className={styles.note}>
-          {t('targets.plan.neverLine')} {t('targets.plan.keepsHour', { time: words.on })}
-        </p>
+        <p className={styles.note}>{t('targets.plan.neverLine', { time: words.on })}</p>
       ) : (
         <p className={styles.note}>{t('targets.plan.night', { from: words.off, to: words.on, hours: words.nightHours })}</p>
       )}
-      {hardStart ? <p className={styles.note}>{t('targets.plan.hardStart', { time: words.on })}</p> : null}
+      {hardStart ? (
+        <p className={styles.note}>
+          {t('targets.plan.hardStart', { time: words.on })}
+          <Help topic="lightHardStart" />
+        </p>
+      ) : null}
     </div>
   );
 }

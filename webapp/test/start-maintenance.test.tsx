@@ -64,7 +64,6 @@ const place = (minutesOld: number): SpaceOverview =>
     entries: [],
     events: [],
     readingNames: [],
-    dueTasks: [],
     openAlerts: [],
     people: [],
   }) as unknown as SpaceOverview;

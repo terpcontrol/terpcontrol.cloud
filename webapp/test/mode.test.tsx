@@ -9,7 +9,7 @@ import { ModePage } from '@/screens/control/Mode';
 import { hasMode, modeLine } from '@/screens/control/rows';
 import { drawAt } from './harness';
 import { Toast } from './toast';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Betriebsart, the page behind its row under Steuerung: the work modes no
@@ -102,7 +102,7 @@ describe('the work mode', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { mode: 'greenhouse' } }));
-    await waitFor(() => expect(said()).toBe('Operating mode Greenhouse · saved'));
+    await waitFor(() => expect(said()).toBe('Operating mode Greenhouse saved'));
     await act(async () => {
       await told[0].undo!();
     });
@@ -113,7 +113,7 @@ describe('the work mode', () => {
     const view = draw(device());
     fireEvent.click(screen.getByRole('switch', { name: 'Energy saving' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { energySaving: true } }));
-    await waitFor(() => expect(said()).toBe('Energy saving on · saved'));
+    await waitFor(() => expect(said()).toBe('Energy saving on saved'));
     view.unmount();
 
     draw(device('fridge', { control: { ...CONTROL, mode: 'greenhouse' } }));
@@ -170,11 +170,29 @@ describe('the work mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Change Operating mode, Greenhouse/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(said()).toBe('Operating mode Standard · saved, not with the device yet'));
+    await waitFor(() => expect(said()).toBe('Operating mode Standard saved, not with the device yet'));
   });
 });
 
 describe('control switched off', () => {
+  /** The question said the fans go off where the note under it named four outputs without them. */
+  it('lists what stands still in the note as the question that switched it off listed it, in both languages', async () => {
+    const languages = { en: await catalogue('en'), de: await catalogue('de') } as unknown as Record<
+      string,
+      { climateControl: Record<string, Record<string, string>> }
+    >;
+    for (const [language, last] of [
+      ['en', 'fans'],
+      ['de', 'Lüfter'],
+    ] as const) {
+      const words = languages[language].climateControl;
+      for (const kind of ['fridge', 'controller']) {
+        const list = (sentence: string) => sentence.slice(0, sentence.indexOf(last) + last.length);
+        expect(list(words.offLine[kind])).toBe(list(words.stops[kind]));
+      }
+    }
+  });
+
   it('is said instead of a mode, with the one tap that switches it on and is answered', async () => {
     draw(device('fridge', { control: { ...CONTROL, running: false } }));
 
@@ -182,7 +200,7 @@ describe('control switched off', () => {
     expect(screen.queryByRole('button', { name: /^Change Operating mode/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
-    await waitFor(() => expect(said()).toBe('Control on · saved'));
+    await waitFor(() => expect(said()).toBe('Control on saved'));
   });
 
   /** A control the reader may not use is absent: the mode is a fact, and no choice is drawn that they could not make. */

@@ -132,7 +132,7 @@ const wire = {
   /** The account's zone; none leaves the page on the browser's, which the test keeps on UTC. */
   zone: null as string | null,
   /** What PUT /configuration answers with instead of the document, when a refusal is wanted. */
-  refuseSave: null as { status: number; code: string; detail: string } | null,
+  refuseSave: null as { status: number; code: string; detail: string; errors?: { field: string; code: string; detail: string }[] } | null,
   /** The roles of the sockets paired at the device; none answers 404, a device that reports no table. */
   sockets: null as string[] | null,
   /** The grow standing in the place, as its overview names it; none answers a place nothing grows in. */
@@ -142,7 +142,8 @@ const wire = {
   calls: [] as Call[],
 };
 
-const problem = (status: number, code: string, detail: string) => json({ status, code, title: code, detail, errors: [] }, status);
+const problem = (status: number, code: string, detail: string, errors: { field: string; code: string; detail: string }[] = []) =>
+  json({ status, code, title: code, detail, errors }, status);
 
 vi.stubGlobal(
   'fetch',
@@ -205,7 +206,7 @@ vi.stubGlobal(
       });
     }
     if (method === 'PUT' && path === '/devices/device-1/configuration') {
-      if (wire.refuseSave) return problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail);
+      if (wire.refuseSave) return problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail, wire.refuseSave.errors);
       wire.stored = body.configuration;
       return json(body);
     }
@@ -337,7 +338,7 @@ describe('the climate under Steuerung', () => {
       },
     });
     await waitFor(() => expect(told).toHaveLength(1));
-    expect(said()).toBe('Day temperature 24.0 °C · saved');
+    expect(said()).toBe('Day temperature 24.0 °C saved');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent('POST')).toHaveLength(0);
   });
@@ -408,7 +409,7 @@ describe('the climate under Steuerung', () => {
 
     await waitFor(() => expect(sent('PUT')).toHaveLength(1));
     expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.lights).toEqual({ sunrise: 15, sunset: 15, limit: 70 });
-    await waitFor(() => expect(said()).toBe('Light limit 70 % · saved'));
+    await waitFor(() => expect(said()).toBe('Light limit 70 % saved'));
   });
 
   it('opens the light’s times on a sheet and saves them with the light plan’s own editor', async () => {
@@ -427,7 +428,90 @@ describe('the climate under Steuerung', () => {
       night: 68400,
       maxDehumidifySeconds: 120,
     });
-    await waitFor(() => expect(said()).toBe('Light on 06:00–19:00 · 13 h · saved'));
+    await waitFor(() => expect(said()).toBe('Light on 06:00–19:00 · 13 h saved'));
+  });
+
+  /**
+   * Typing 99 for the day temperature saved 35,0 °C, and "3" became 15,0: a figure outside its range is refused
+   * under the field in words that name the range, Speichern waits, and nothing but what was typed is ever written.
+   */
+  describe('a figure outside its range', () => {
+    it('is refused on the sheet with its range, and nothing is written', async () => {
+      await drawn();
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 99);
+
+      const sheet = screen.getByRole('dialog');
+      const field = within(sheet).getByRole('spinbutton', { name: 'Day temperature' });
+      expect(field).toHaveValue('99.0');
+      expect(field).toHaveAttribute('aria-invalid', 'true');
+      expect(within(sheet).getByText('Day temperature: that has to be between 15 and 35 °C.')).toBeInTheDocument();
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+
+      type('Day temperature', 3);
+      expect(field).toHaveValue('3.0');
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+      expect(sent('PUT')).toHaveLength(0);
+    });
+
+    it('keeps text that is no figure, says so, and steps from it into the range', async () => {
+      await drawn();
+      fireEvent.click(figure('Night humidity'));
+      const sheet = screen.getByRole('dialog');
+      const field = within(sheet).getByRole('spinbutton', { name: 'Night humidity' });
+      fireEvent.change(field, { target: { value: 'viel' } });
+      fireEvent.blur(field);
+
+      expect(field).toHaveValue('viel');
+      expect(within(sheet).getByText('Night humidity: that is not a number.')).toBeInTheDocument();
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Night humidity: more' }));
+      expect(field).toHaveValue('30');
+      expect(within(sheet).queryByText(/not a number/)).not.toBeInTheDocument();
+    });
+
+    it('is said in the sheet’s own words where the server refuses it', async () => {
+      wire.refuseSave = {
+        status: 400,
+        code: 'validation_failed',
+        detail: 'The request does not match the contract.',
+        errors: [{ field: 'configuration.day.temperature', code: 'too_big', detail: 'This target is set from 15 to 35.' }],
+      };
+      await drawn();
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 24);
+      save();
+
+      expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('Day temperature: that has to be between 15 and 35 °C.');
+    });
+
+    it('is refused for the light limit stepped in place, and never sent', async () => {
+      await drawn();
+      vi.useFakeTimers();
+      const field = screen.getByRole('spinbutton', { name: 'Light limit' });
+      fireEvent.change(field, { target: { value: '150' } });
+      fireEvent.blur(field);
+
+      expect(field).toHaveValue('150');
+      expect(screen.getByText('Light limit: that has to be between 0 and 100 %.')).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      vi.useRealTimers();
+      expect(sent('PUT')).toHaveLength(0);
+    });
+
+    it('is refused for the light’s length on its sheet, and the save waits', async () => {
+      await drawn();
+      tap('Change times');
+      const sheet = screen.getByRole('dialog', { name: 'Light times' });
+      fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '25' } });
+
+      expect(within(sheet).getByText('Lasts: that has to be between 0 and 24 h.')).toBeInTheDocument();
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+      expect(sent('PUT')).toHaveLength(0);
+    });
   });
 
   describe('with a plan running', () => {
@@ -452,10 +536,33 @@ describe('the climate under Steuerung', () => {
       expect(sent('POST')[0].body).toEqual({ kind: 'pause', reason: 'Targets set by hand' });
 
       await waitFor(() => expect(told).toHaveLength(1));
+      // The answer names the pause, and its way back says the plan runs again.
+      expect(said()).toBe('Day temperature 24.0 °C saved · plan paused');
+      expect(told[0].undo && told[0].undone.replace(/\u00a0/g, ' ')).toBe('Day temperature 25.0 °C saved · plan running again');
       await act(async () => {
         await told[0].undo!();
       });
       expect(sent('POST')[1].body).toEqual({ kind: 'resume' });
+    });
+
+    /**
+     * A tap on Speichern straight after typing skipped a sentence that came only once the field was left, and
+     * Speichern stood grey while the new figure was typed: it is live, and the sentence stands, from the first key.
+     */
+    it('says the pause and makes Speichern live from the first keystroke, before the field is left', async () => {
+      wire.plan = plan('running');
+      await drawn();
+
+      fireEvent.click(figure('Day temperature'));
+      const sheet = screen.getByRole('dialog');
+      fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'Day temperature' }), { target: { value: '26' } });
+
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+      expect(within(sheet).getByText(/This pauses the plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
+      save();
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      expect((sent('PUT')[0].body as { configuration: DeviceConfiguration }).configuration.day).toMatchObject({ temperature: 26 });
     });
 
     it('leaves the plan running where the figure is none of the step’s', async () => {
@@ -480,13 +587,16 @@ describe('the climate under Steuerung', () => {
       expect(screen.queryByRole('button', { name: /Resume|Stop/ })).not.toBeInTheDocument();
     });
 
-    it('marks the light hours and the limit the plan sets, as it marks the targets', async () => {
+    /** A lone calendar glyph under the times and beside the limit said nothing to anybody who had not read the targets' legend. */
+    it('says in words what of the light the plan sets', async () => {
       wire.plan = plan('running');
       await drawn();
 
       const light = screen.getByRole('region', { name: 'Light' });
-      expect(within(light).getAllByRole('img', { name: 'set by the running plan' })).toHaveLength(2);
-      expect(within(light).getByText('On at 06:00 · 12 h').parentElement).toContainElement(within(light).getAllByRole('img')[0]);
+      expect(within(light).queryByRole('img', { name: 'set by the running plan' })).not.toBeInTheDocument();
+      expect(
+        within(light).getByText('Plan: “Autoflower, 12 weeks” sets the light times and the light limit – again every hour.'),
+      ).toBeInTheDocument();
     });
   });
 
@@ -544,7 +654,7 @@ describe('the climate under Steuerung', () => {
       const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; drying?: boolean; germination?: boolean };
       expect(body.configuration.day).toEqual({ temperature: 25, humidity: 50, heating: 'hard' });
       expect(body.configuration.co2).toEqual({ target: 1000, sunsetOff: 1 });
-      await waitFor(() => expect(said()).toBe('Climate preset Flower · saved'));
+      await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
       expect(told[0].undo).not.toBeNull();
     });
 
@@ -593,7 +703,7 @@ describe('the climate under Steuerung', () => {
       const body = sent('PUT')[0].body as { configuration: DeviceConfiguration };
       expect(body).toMatchObject({ germination: true, germinationChoices: { warnTooHumid: false, humidifierHolds: false } });
       expect(body.configuration.night).toEqual(CONFIGURATION.night);
-      await waitFor(() => expect(said()).toBe('During germination · saved'));
+      await waitFor(() => expect(said()).toBe('During germination saved'));
     });
 
     /**
@@ -621,7 +731,7 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
       expect(sent('PATCH')[0]).toMatchObject({ path: '/devices/device-1/configuration', body: { set: { drying: false } } });
       expect(sent('PUT')).toHaveLength(0);
-      await waitFor(() => expect(said()).toBe('Drying ended · saved'));
+      await waitFor(() => expect(said()).toBe('Drying ended saved'));
       expect(told[0].undo).toBeNull();
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
@@ -645,7 +755,7 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
       expect(sent('POST')[0].body).toEqual({ kind: 'pause', reason: 'Targets set by hand' });
       expect(sent('PATCH')[0].body).toEqual({ set: { mode: 'standard' } });
-      await waitFor(() => expect(said()).toBe('Germination ended · saved'));
+      await waitFor(() => expect(said()).toBe('Germination ended saved'));
     });
 
     it('offers to end nothing while no spell runs', async () => {
@@ -814,7 +924,7 @@ describe('the climate under Steuerung', () => {
       expect(screen.queryByText('Control off.')).not.toBeInTheDocument();
       tap('Switch control on');
       await waitFor(() => expect(sent('PATCH')[0]?.body).toEqual({ set: { control: true } }));
-      await waitFor(() => expect(said()).toBe('Control on · saved, not with the device yet'));
+      await waitFor(() => expect(said()).toBe('Control on saved, not with the device yet'));
     });
 
     it('still saves, and the toast says when the device takes it over', async () => {
@@ -825,7 +935,7 @@ describe('the climate under Steuerung', () => {
       save();
 
       await waitFor(() => expect(told).toHaveLength(1));
-      expect(said()).toBe('Day temperature 24.0 °C · saved, not with the device yet');
+      expect(said()).toBe('Day temperature 24.0 °C saved, not with the device yet');
     });
   });
 
@@ -871,14 +981,38 @@ describe('the climate under Steuerung', () => {
     });
 
     /** Switched off there is no table, because the device holds none of it - and the one way out stands beside the sentence. */
-    it('is the sentence and the way to switch on alone while control is off', async () => {
+    it('is the sentence and the way to switch on while control is off', async () => {
       draw(device({ type: 'fridge', control: { ...CONTROL, running: false } }));
 
       expect(await screen.findByText('Control off.')).toBeInTheDocument();
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
       tap('Switch control on');
       await waitFor(() => expect(sent('PATCH')[0]?.body).toEqual({ set: { control: true } }));
-      await waitFor(() => expect(said()).toBe('Control on · saved'));
+      await waitFor(() => expect(said()).toBe('Control on saved'));
+    });
+
+    /**
+     * The question that switched control off says it comes back on by saving targets, so the light and the targets
+     * stay in view while it is off - read as what holds once it is on, and saving them switches it on and says so.
+     */
+    it('keeps the light and the targets while control is off, and a save switches it on and says so', async () => {
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, running: false } }));
+
+      expect(screen.getByRole('region', { name: 'Light' })).toBeInTheDocument();
+      expect(screen.getAllByText('Applies once control is on again – whatever you change here switches it on.')).toHaveLength(1);
+      // Nothing holds while it is off, so no column is marked as the one in effect.
+      expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Day', 'Night']);
+
+      fireEvent.click(figure('Day temperature'));
+      type('Day temperature', 24);
+      expect(within(screen.getByRole('dialog')).getByText('This switches control back on.')).toBeInTheDocument();
+      save();
+
+      await waitFor(() => expect(said()).toBe('Day temperature 24.0 °C saved · control on'));
+      // Taken back, the figure goes back and control is off again.
+      await act(async () => {
+        await told[0].undo!();
+      });
+      expect(sent('PATCH').at(-1)?.body).toEqual({ set: { control: false } });
     });
   });
 });

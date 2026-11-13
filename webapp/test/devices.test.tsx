@@ -684,11 +684,13 @@ describe('a device on its own page', () => {
       expect(within(asked).getByText(/Heater, compressor, light, CO₂ valve and fans go off/)).toBeInTheDocument();
       expect(within(asked).getByText(/is paused, or its next step would switch control back on/)).toBeInTheDocument();
       expect(api.patch).not.toHaveBeenCalled();
+      // The one danger style: filled in the alarm's red, never the brand green of a primary action.
+      expect(within(asked).getByRole('button', { name: 'Switch off' }).className).toMatch(/dangerFilled/);
 
       fireEvent.click(within(asked).getByRole('button', { name: 'Switch off' }));
 
-      // Answered as every setting of a device is: the sheet goes, the toast says it is stored.
-      await waitFor(() => expect(said()).toEqual(['Control off · saved']));
+      // Answered as every setting of a device is: the sheet goes, the toast says it is stored and that the plan paused.
+      await waitFor(() => expect(said()).toEqual(['Control off saved · plan paused']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }]);
       expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: false } });
@@ -706,7 +708,7 @@ describe('a device on its own page', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Switch control off' }));
       fireEvent.click(within(await screen.findByRole('dialog', { name: 'Switch control off?' })).getByRole('button', { name: 'Switch off' }));
 
-      await waitFor(() => expect(said()).toEqual(['Control off · saved, not with the device yet']));
+      await waitFor(() => expect(said()).toEqual(['Control off saved, not with the device yet']));
     });
 
     it('says that control is off, switches it back on with one tap, and says that it did', async () => {
@@ -716,13 +718,14 @@ describe('a device on its own page', () => {
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
       // One control switches it on, the one Steuerung has: no second row for it among the device's rows.
+      // One sentence, listing what stands still as the question that switched it off listed it; the rest is behind the help.
       expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(
-        /The device only measures: .* Switch control on for it to hold them again\./,
+        /^Control off\. Heater, compressor, light, CO₂ valve and fans are off; the device only measures\.$/,
       );
       fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
-      await waitFor(() => expect(said()).toEqual(['Control on · saved']));
+      await waitFor(() => expect(said()).toEqual(['Control on saved']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -734,10 +737,11 @@ describe('a device on its own page', () => {
       vi.mocked(api.patch).mockResolvedValue(regulating() as never);
       await draw('/devices/device-1', 'Fridge module');
 
-      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(/The plan then goes on\.$/);
       fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
 
       await waitFor(() => expect(moves).toEqual([{ kind: 'resume' }]));
+      // Said in the answer, not in a second sentence of the note.
+      await waitFor(() => expect(said()).toEqual(['Control on saved · plan running again']));
     });
 
     /**
@@ -774,9 +778,8 @@ describe('a device on its own page', () => {
       await draw('/devices/device-1', 'Fridge module');
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Switch control on' }).closest('[data-tone="warn"]')).toHaveTextContent(
-        'That applies once the device is back online.',
-      );
+      // Switched on, the answer says it is not with the device yet: the note itself stays one sentence.
+      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(/^Control off\. [^.]+\.$/);
       expect(screen.queryByText(/not with the device yet/)).not.toBeInTheDocument();
     });
 

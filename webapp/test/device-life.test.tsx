@@ -327,4 +327,35 @@ describe('naming a device and moving it', () => {
     await waitFor(() => expect(told).toHaveLength(1));
     expect(api.post).toHaveBeenCalledTimes(1);
   });
+
+  /** "Abluft" twice in one place made Steuerung, its toasts and its alarms say one name for two devices. */
+  it('refuses a name another device of the place already has, before the save and in the server’s words', async () => {
+    const fan = { ...THE_PLUG, id: 'device-2', type: 'fan', name: 'Exhaust' } as Device;
+    answer([THE_PLUG, fan], [spaceWhere('own'), ELSEWHERE]);
+    await drawPage('Plantalytix Socket');
+    const sheet = await openSheet();
+    fireEvent.change(sheet.getByRole('textbox', { name: 'Name' }), { target: { value: ' exhaust ' } });
+
+    expect(sheet.getByRole('alert')).toHaveTextContent('Another device in this place is already called “Exhaust”.');
+    expect(sheet.getByRole('textbox', { name: 'Name' })).toHaveAttribute('aria-invalid', 'true');
+    expect(sheet.getByRole('button', { name: 'Save' })).toBeDisabled();
+    // Moved to a place where nothing is called that, the name is free.
+    fireEvent.click(sheet.getByRole('button', { name: 'Fridge 1' }));
+    expect(sheet.queryByRole('alert')).not.toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: 'Move' })).toBeEnabled();
+  });
+
+  it('says the server’s refusal of a taken name under the field, in the same words', async () => {
+    const { ApiError } = await import('@/api/problem');
+    await drawTab();
+    vi.mocked(api.patch).mockRejectedValueOnce(
+      new ApiError({ status: 409, code: 'name_taken', title: 'Conflict', detail: 'Another device here is already called "Lamp".', errors: [] }),
+    );
+    const sheet = await openSheet();
+    fireEvent.change(sheet.getByRole('textbox', { name: 'Name' }), { target: { value: 'Lamp' } });
+    fireEvent.click(sheet.getByRole('button', { name: 'Save' }));
+
+    expect(await sheet.findByRole('alert')).toHaveTextContent('Another device in this place is already called “Lamp”.');
+    expect(told).toEqual([]);
+  });
 });

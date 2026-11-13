@@ -10,8 +10,8 @@ import { useSaved } from '@/screens/control/climate/saved';
  * pauses a running plan so that its next step does not switch the device on
  * again, and on is the end of that. Left paused behind it, the plan stood still
  * without a word. A plan paused for anything else stays paused. It is answered
- * as every setting of a device is (`useSaved`); `later` is a device that is not
- * there to hear it.
+ * as every setting of a device is (`useSaved`), with the plan that goes on
+ * named; `later` is a device that is not there to hear it.
  */
 export const useSwitchOn = (device: Device) => {
   const { t, i18n } = useTranslation();
@@ -26,7 +26,12 @@ export const useSwitchOn = (device: Device) => {
     try {
       await configure.mutateAsync({ control: true });
       if (resumes) await move.mutateAsync({ kind: 'resume' });
-      saved.say(`${t('climateControl.label')} ${t('climateControl.state.on')}`, null, 'control');
+      saved.say(
+        `${t('climateControl.label')} ${t('climateControl.state.on')}`,
+        null,
+        'control',
+        resumes ? { now: t('control.saved.planGoesOn') } : undefined,
+      );
     } catch {
       // Shown beside the button, from the mutation that refused.
     }
