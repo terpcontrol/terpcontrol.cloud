@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-13
-source: a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -204,15 +204,23 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   its device reports by the offline rule** (`VALUE_AGE.staleSeconds` against the newest sample, `heardStretches`):
   measured against the rhythm of a month's windows, a lamp stayed "on" for six hours after its device went
   quiet. **A window named into the future ends now** (`windowOf`), so today's day is read at today's step.
-- **A window without a reading is a silence at every range** (`silenceOf`, `timeline-series.ts`; the redesign
-  session of 2026-11-13 after the fourth walk): a device that fills every window it is read in has left a
-  silence wherever one stands empty, and the curve, the lanes and the night break there - never less than the
-  two minutes after which a reading is stale (`VALUE_AGE.liveSeconds`), so a sample a second late into the
-  next window of a minute breaks nothing. Held to four of its windows, a month drew its line through a
-  six-hour morning nobody reported, which a week broke at. A device that reports more slowly than it is read
-  - an hourly history in windows of three minutes - is silent after four of its own gaps. Under a minute to
-  the window the cut is after three windows without a sample, half a minute at least: a restart is what a
-  zoom looks for. **A night is shaded only through hours somebody reported in** (`nightsOf`): the schedule's
+- **A silence is measured by the interval the device was keeping there** (`quietLimits`,
+  `shared-types/src/v1/cadence.ts`; the redesign session of 2026-11-13 after the seventh walk - the fourth had
+  made any empty window a silence, at every range): the curve, the lanes and the night break where a device
+  said nothing for more than four of its own intervals. The interval kept across a gap is the gap by the
+  samples of the window that closed it (`DeviceHistory.samples`: the most any output counted there, from the
+  counts read the Timeline makes anyway), and beside each gap the usual one is the middle of the six gaps
+  before it and of the six after it, the slower side counting. So a device that fills every window with its
+  samples is silent wherever one stands empty, as before, and one that reports as slowly as it is drawn, or
+  slower, leaves windows empty without a silence. Measured once for the window - the 75th percentile of its
+  gaps - a history of quarter hours with a day of live samples behind it drew 36 lamp stretches and 64 nights
+  at three days where its samples had three, and a five-minute device at a step of 270 s drew 21 where it had
+  two. Four, because one missed report is a slow sample and a device drawn at about its own interval leaves
+  every other window empty. Never less than the step, nor than the two minutes after which a reading is stale
+  (`VALUE_AGE.liveSeconds`); under a minute to the window never less than four windows or half a minute: a
+  restart is what a zoom looks for. A read that counted no samples takes a device that leaves few windows
+  empty for a fast one, as every read did before. The web app's strips are cut by the same function, and it
+  costs the read nothing: no query more, about a millisecond of arithmetic at 120 days. **A night is shaded only through hours somebody reported in** (`nightsOf`): the schedule's
   nights are cut to what was heard as the lamp's always were, mid-window and after the last word.
 - The rail caps machine lines (system, plan) apart from people's lines, so they cannot push the diary out. A
   reader from outside - a share link, a public page - is answered no alarm, no device id, no grow of the place

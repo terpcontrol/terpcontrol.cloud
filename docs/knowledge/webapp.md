@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-13
-source: a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -171,8 +171,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `compare` (`grow:<id>` or `space:<id>`), `focus`. `model.ts` turns one answer into what is drawn - which curves
   the place offers and which are ticked, each panel as a `Plot` with its figures, the strips and the curve each
   stands under (`ACTS_ON`), what a cursor reads, the table - so `Timeline.tsx` holds the view and the reads and
-  nothing of the arithmetic. An output is read from the answer's `points` alone (`figureAt`, `shareOf`,
-  `blocksOf`; a lane's `spans` only name the lamp's stretches by the clock, in `Strip.said`, the words beside
+  nothing of the arithmetic. An output is read from the answer's `points` alone (`figureAt`, `blocksOf`, and
+  `overTime` for its share and mean level, each drawn stretch by its width; where a stretch begins is `startsOf`,
+  by the silence rule the server's lanes go by, `quietLimits` of `@fg2/shared-types/v1-schemas/cadence.js`; a lane's `spans` only name the lamp's stretches by the clock, in `Strip.said`, the words beside
   its name), `restOf` says where the cursor rests - the device's last reading, else the window's last drawn
   point - and `readAt` what it reads: one point for every figure and output of the card and of each panel's
   head ([app-ux.md §7](app-ux.md#7-verlauf-day-and-night)). `Panel.tsx`, `Strips.tsx`, `CursorCard.tsx`, `DiaryCard.tsx` and `Adjust.tsx` draw;
@@ -420,9 +421,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `src/app/shell/AppShell.module.css`). A root that sets `width: 100%` therefore also needs a `max-width`
   (`--page-width`, `--reading-width`), or the margin pushes it past the window's right edge and the page scrolls
   sideways from about 1400 px - a place's page at `/spaces/:id` did, until it took `--page-width` itself. The
-  margin is a text page's: a root wider than `--page-width` - Verlauf's, by 200 px - also holds itself to the
-  room beside it (`min(…, calc(100% - max(0px, (100% - var(--page-width)) / 2)))`), or it runs out of the window
-  between about 1590 and 1795 px.
+  margin is a text page's: a root wider than `--page-width` - Verlauf's, by 200 px - sets its own, by its own
+  width (`.screen.screen` in `Timeline.module.css`, named twice to stand over `.main > *`), or it runs out of
+  the window between about 1590 and 1795 px and, held back only, stands up to 200 px off the middle.
 - The window's title follows the page's `<h1>` inside the shell (`app/shell/page-title.ts`). Outside it nothing
   does, so the card every such page stands in names it: `Door` (`src/screens/Door.tsx`) takes `page` - or the
   step's `title` - and sets "… – Terp Control". A tab that came from the demo carried the demo place's name over

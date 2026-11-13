@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-13
-source: the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+source: Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -140,11 +140,12 @@ Pitfalls, each met at least once:
   reads.
 - **The first and last sample beside a silence** (`edgesQuery`, `edgesAround`, `edgesOf`; the redesign session of
   2026-11-13 after the sixth walk; what it is for: [server-engines.md](server-engines.md#read-models)): for
-  each drawn window that stands beside a silence the series read found, a `range |> first()` or `|> last()`
+  each drawn window that stands beside a silence the series read found - by the device's own interval there,
+  which its samples per window say ([server-engines.md](server-engines.md#read-models)) - a `range |> first()` or `|> last()`
   over one step and all of the device's fields - a selector keeps its sample's own instant, and the earliest
   (latest) of the fields' rows is the device's. All of them are one script, a `union`. A device without a
-  silence is asked nothing, and beyond 120 edges (`MAX_EDGES`, a device slower than its step) the grid's
-  stamps stand. Against the store: 2 to 5 edges in 5 to 9 ms, on a week as on 120 days. The fifth walk's
+  silence is asked nothing - a slow one too, since the seventh walk: the windows it leaves empty between two
+  samples are no silences - and beyond 120 edges (`MAX_EDGES`) the grid's stamps stand. Against the store: 2 to 5 edges in 5 to 9 ms, on a week as on 120 days. The fifth walk's
   version asked every drawn window of one field with two `aggregateWindow(timeSrc: "_time")`: 11 ms on a day
   and 40 ms on 120 days for every device, and an output that began to report later took the edges of the
   field beside it.
