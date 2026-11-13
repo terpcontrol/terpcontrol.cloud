@@ -9,7 +9,7 @@
 }
 
 .blockTitle {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* The address in full, and still selectable: a browser that refuses the

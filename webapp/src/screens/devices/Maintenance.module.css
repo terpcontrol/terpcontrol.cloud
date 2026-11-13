@@ -29,7 +29,7 @@
   border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius);
   color: var(--ink);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
@@ -63,7 +63,7 @@
   flex: 1 1 100%;
   flex-direction: column;
   gap: 1px;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 

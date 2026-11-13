@@ -21,7 +21,7 @@
 }
 
 .basedOnName {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .basedOnAside {
@@ -140,7 +140,7 @@
 
 .weekHead[data-current='true'] {
   color: var(--green-ink);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* Only as wide as the name: a row head that filled its cell would push the unit

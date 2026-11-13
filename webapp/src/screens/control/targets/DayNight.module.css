@@ -4,7 +4,7 @@
 
 .section {
   /* The lamp's colour: lit, in the warm edge of the warning's ground. */
-  --lit: color-mix(in srgb, var(--warning-edge) 85%, var(--card));
+  --lit: var(--lamp);
 
   display: flex;
   flex-direction: column;
@@ -17,7 +17,7 @@
   margin: 0;
   font-family: var(--font-figure);
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
   color: var(--heading);
 }
@@ -50,7 +50,7 @@
   border-radius: var(--radius-pill);
   font-family: var(--font-text);
   font-size: var(--text-2xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-caption);
   color: var(--brand);
 }
@@ -208,7 +208,7 @@
 }
 
 .note strong {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--ink);
 }
 
@@ -320,7 +320,7 @@
   color: var(--ink);
   font-family: var(--font-figure);
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-align: center;
 }
 

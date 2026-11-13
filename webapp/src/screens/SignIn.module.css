@@ -81,7 +81,7 @@
   background: none;
   font: inherit;
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -107,7 +107,7 @@
 
 .agree a {
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -142,7 +142,7 @@
 
 .links a {
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -170,7 +170,7 @@
 .privacyTitle {
   margin: calc(var(--space-4) - var(--space-6)) 0 var(--space-3);
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-align: center;
 }
 

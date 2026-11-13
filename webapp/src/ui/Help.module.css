@@ -117,7 +117,7 @@
 
 .title {
   color: var(--heading);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* The arrow points at whatever opened the bubble, from the edge that faces it. */

@@ -64,7 +64,7 @@
   padding: 0;
   color: var(--toast-ink);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .between {

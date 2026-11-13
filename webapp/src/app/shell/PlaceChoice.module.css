@@ -13,7 +13,7 @@
   border-radius: var(--radius-pill);
   color: var(--ink);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .chip svg {
@@ -49,7 +49,7 @@
 
 .roomName {
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--label);
 }
 
@@ -91,7 +91,7 @@
 
 .placeName {
   display: block;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .status,
@@ -103,7 +103,7 @@
 /* A place that asks for somebody says so in the signal's colour, on its own line. */
 .status:is([data-tone='warn'], [data-tone='alarm']) {
   display: block;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 

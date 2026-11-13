@@ -23,12 +23,9 @@
 }
 
 /* "Ort bearbeiten" and "Ort entfernen": a head with the page's one action, the
-   fields, then what stands here and who is let in, each under its small title.
-   A name reads as it was typed: Inter's contextual alternates make "120x120"
-   a "120×120" in running text and not in a tracked heading. */
+   fields, then what stands here and who is let in, each under its small title. */
 .editing {
   gap: var(--space-4);
-  font-variant-ligatures: no-contextual;
 }
 
 /* A word of a name longer than its line breaks with a hyphen, as on Start. */
@@ -45,7 +42,7 @@
   gap: 6px;
   min-width: 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
@@ -82,7 +79,7 @@
   margin: 0;
   font-family: var(--font-text);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   letter-spacing: 0;
   color: var(--muted);
   overflow-wrap: anywhere;
@@ -99,7 +96,7 @@
   border: var(--rule-width) solid var(--warning-edge);
   border-radius: var(--radius);
   color: var(--warning);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-align: center;
   overflow-wrap: anywhere;
 }
@@ -110,7 +107,7 @@
   flex-direction: column;
   gap: 6px;
   padding: var(--space-3) var(--space-4);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   overflow-wrap: anywhere;
 }
 
@@ -163,7 +160,7 @@ button.end:disabled {
   place-items: center;
   min-height: 48px;
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* What the page says in sentences: why the last place stays, with the way back, and what an attempt that stopped half-way left. */

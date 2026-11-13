@@ -72,7 +72,7 @@
 
 .name {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
 }
 
@@ -109,7 +109,7 @@
   flex-basis: 100%;
   margin-top: calc(-1 * var(--space-2));
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
   text-decoration: none;
 }
@@ -215,7 +215,7 @@
 }
 
 .templateName {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .templateLine {

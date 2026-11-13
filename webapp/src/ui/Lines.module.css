@@ -54,7 +54,7 @@ button.stamp {
 }
 
 .line[data-severity] .text {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 
@@ -94,6 +94,6 @@ a.text {
   background: var(--brand-wash);
   color: var(--brand);
   font-size: var(--text-2xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }

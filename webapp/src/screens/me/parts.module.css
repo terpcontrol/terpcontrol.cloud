@@ -30,7 +30,7 @@
 .rowTitle {
   position: relative;
   z-index: 1;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: 1.35;
 }
 

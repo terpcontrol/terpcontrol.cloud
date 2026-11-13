@@ -85,7 +85,7 @@
 
 .name {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .unit {

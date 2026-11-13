@@ -25,7 +25,7 @@
 
 .says[data-pending] {
   color: var(--warning);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .sub {
@@ -44,7 +44,7 @@
   border-radius: var(--radius-pill);
   color: var(--brand);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .pillButton:hover {
@@ -87,7 +87,7 @@
   min-width: 4ch;
   font-family: var(--font-figure);
   font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   text-align: center;
   white-space: nowrap;
 }
@@ -166,7 +166,7 @@
 /* Which half holds right now, by what the device runs. */
 .now {
   font-size: var(--text-2xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--green-ink);
   white-space: nowrap;
 }
@@ -195,7 +195,7 @@
   color: var(--ink);
   font-family: var(--font-figure);
   font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
@@ -235,7 +235,7 @@ button.figure:hover {
   padding: var(--space-1) var(--space-3);
   font-family: inherit;
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   white-space: normal;
   text-align: center;
 }
@@ -281,7 +281,7 @@ button.figure:hover {
 .warn {
   margin: 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: 1.5;
   color: var(--warning);
 }
@@ -295,7 +295,7 @@ button.figure:hover {
   gap: 0 var(--space-3);
   margin: 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 
@@ -315,7 +315,7 @@ button.figure:hover {
   background: var(--warning-wash);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: 1.5;
   color: var(--warning);
 }

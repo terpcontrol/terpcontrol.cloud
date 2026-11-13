@@ -46,7 +46,7 @@
   flex-direction: column;
   gap: 6px;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
@@ -61,7 +61,7 @@
   align-items: center;
   min-height: var(--control-height);
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .handleRow {
@@ -110,7 +110,7 @@
 }
 
 .roleName {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .roleNote {
@@ -130,8 +130,8 @@
    across a table, and eight characters at figure size fit any phone. */
 .code {
   font-size: var(--text-figure);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
   overflow-wrap: anywhere;
 }
 

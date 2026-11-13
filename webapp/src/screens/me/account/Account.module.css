@@ -32,7 +32,7 @@
    wrapped: a name is recognised from its start. */
 .sessionDevice {
   overflow: hidden;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

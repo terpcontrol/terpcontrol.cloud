@@ -153,7 +153,7 @@
 
 .daysAt {
   font-family: var(--font-figure);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--ink);
 }
 
@@ -199,10 +199,8 @@
   background: var(--warning-wash);
   color: var(--warning);
   font-family: var(--font-figure);
-  font-size: 10px;
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
 }
 
 /* Taking the camera off the account, with the (i) that says what that means for a Terp Cam. */
@@ -222,7 +220,7 @@
   background: none;
   border: 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   color: var(--brand);
 }
 
@@ -259,7 +257,7 @@
   flex: 1 1 14rem;
   min-width: 0;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -291,7 +289,7 @@
   background: none;
   border: 0;
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
   color: var(--brand);
 }
@@ -321,7 +319,7 @@
   flex: none;
   min-width: 6.5rem;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* A value shares its label's line, at the right; one that needs more than the line breaks between its facts. */

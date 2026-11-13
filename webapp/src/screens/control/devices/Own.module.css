@@ -22,7 +22,7 @@
 
 /* A switch has no face of its own for what the device has not been handed: its name says it. */
 .line[data-pending] .name {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 
@@ -37,7 +37,7 @@
 
 .read {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* What a line does instead of holding a value: add a window, stop slowing a fan. */

@@ -1,5 +1,5 @@
 .author {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* What a grower typed keeps the lines they typed it in; runs of spaces are still collapsed, as anywhere else. */

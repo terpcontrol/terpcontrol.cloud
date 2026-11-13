@@ -18,7 +18,7 @@
    fill this sheet had was the old look's. */
 
 .chipValue {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .newOne {
@@ -36,7 +36,7 @@
 
 .fieldName {
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .fieldUnit {
@@ -47,7 +47,7 @@
 
 .fieldValue {
   font-size: var(--text-figure);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .hint {

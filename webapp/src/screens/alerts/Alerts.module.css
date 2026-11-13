@@ -54,7 +54,7 @@
 
 .title {
   margin: 0;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   overflow-wrap: anywhere;
   /* No figure or unit left alone on a last line ("5" over "d"). */
   text-wrap: pretty;
@@ -79,7 +79,7 @@
 
 /* "Does not reach you": the one part of the line that can be fixed, in the warning's colour. */
 .fix {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 
@@ -107,7 +107,7 @@
   color: var(--brand);
   font-family: var(--font-text);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -132,7 +132,7 @@
   border: 0;
   color: var(--brand);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   text-decoration: none;
 }
 

@@ -10,7 +10,7 @@
 
 /* What is stored and not yet with the device, in the ink a row's line says it in. */
 .facts strong {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--warning);
 }
 
@@ -44,7 +44,7 @@
 
 .cardTitle {
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
@@ -140,7 +140,7 @@
   border-radius: var(--radius-pill);
   color: var(--on-brand);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* An update and an install wait for a device that is heard. */
@@ -200,5 +200,5 @@
 /* What a smart socket is doing, over the control that holds it by hand. */
 .socketState {
   font-size: var(--text-lg);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
