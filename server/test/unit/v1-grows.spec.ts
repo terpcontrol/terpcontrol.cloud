@@ -1,5 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { growthStage } from '@fg2/shared-types/v1-schemas/common.js';
 import { Reflector } from '@nestjs/core';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
@@ -38,6 +39,8 @@ const FRIDGE = 'space-fridge';
 const GROW = 'grow-1';
 const DEVICE = 'device-1';
 
+const STAGES = growthStage.options;
+
 const STARTED_AT = new Date('2026-05-01T08:00:00.000Z');
 const TEN_DAYS_LATER = new Date('2026-05-11T09:00:00.000Z');
 
@@ -45,16 +48,12 @@ const db = useV1TestDatabase();
 let access: AccessService;
 let grows: GrowsService;
 let applied: { spaceId: string; stage: string; preset: string | null }[];
-let moded: { spaceId: string; stage: string }[];
 
 /** Stands in for the space slice, which owns the preset table and writes it to the controllers of a space. */
 const presets: ClimatePresets = {
   applyToSpace: async (spaceId, stage, preset): Promise<AppliedPreset[]> => {
     applied.push({ spaceId, stage, preset });
     return [{ deviceId: DEVICE, targets: { day: { temperature: 26, humidity: 65 }, night: { temperature: 22, humidity: 70 }, co2: null } }];
-  },
-  modeToSpace: async (spaceId, stage): Promise<void> => {
-    moded.push({ spaceId, stage });
   },
 };
 
@@ -95,7 +94,6 @@ const plantsOfGrow = (growId = GROW): Promise<PlantDocument[]> => grows.plantsOf
 beforeEach(async () => {
   await db.reset();
   applied = [];
-  moded = [];
   grows = build(presets);
   await world();
 });
@@ -390,13 +388,16 @@ describe('starting a grow', () => {
 // ---------------------------------------------------------------------------
 
 describe('entering a phase', () => {
-  it('puts the controllers of the space on the preset, and marks the phase as theirs', async () => {
+  /** The phase is the person's who asked for it: "by itself" is for what a plan or a preset applied to the place did. */
+  it('puts the controllers of the space on the preset, and the phase stays the one´s who set it', async () => {
     const grow = await started();
     const written = await grows.addPhase(grow.id, { stage: 'seedling', preset: 'early_seedling' }, OWNER, NOTHING_HIDDEN);
 
     expect(applied).toEqual([{ spaceId: TENT, stage: 'seedling', preset: 'early_seedling' }]);
-    expect(written).toMatchObject({ source: 'preset', deviceId: DEVICE, setBy: null });
+    expect(written).toMatchObject({ source: 'human', deviceId: DEVICE, setBy: OWNER });
     expect(written.targets?.day.temperature).toBe(26);
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.isAuto).toBe(false);
+    expect(await db.entries.findOne({ growId: grow.id, kind: 'phase' }).lean()).toMatchObject({ source: 'human', authorId: OWNER });
   });
 
   it("puts the controllers on the stage's own climate when it is asked for without a preset", async () => {
@@ -404,30 +405,24 @@ describe('entering a phase', () => {
     const written = await grows.addPhase(grow.id, { stage: 'flowering', climate: true }, OWNER, NOTHING_HIDDEN);
 
     expect(applied).toEqual([{ spaceId: TENT, stage: 'flowering', preset: null }]);
-    expect(written).toMatchObject({ stage: 'flowering', preset: null, source: 'preset', deviceId: DEVICE, setBy: null });
+    expect(written).toMatchObject({ stage: 'flowering', preset: null, source: 'human', deviceId: DEVICE, setBy: OWNER });
   });
 
-  it('leaves the climate alone when the stage comes without a preset and without asking for it', async () => {
+  /**
+   * A phase asked for without a climate is a record: the port to the devices is not called at all, whatever the
+   * stage. Drying entered so once put the tent into drying and its light off under a chip that said it stays.
+   */
+  it.each(STAGES)('writes no device for %s entered as a record, and every device for it entered with its climate', async stage => {
     const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'flowering', climate: false }, OWNER, NOTHING_HIDDEN);
-
+    await grows.addPhase(grow.id, { stage, preset: null }, OWNER, NOTHING_HIDDEN);
     expect(applied).toEqual([]);
-    expect(moded).toEqual([{ spaceId: TENT, stage: 'flowering' }]);
-  });
 
-  it('still lets a drying stage entered without its climate decide that the tent dries', async () => {
-    const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'drying', climate: false }, OWNER, NOTHING_HIDDEN);
-
+    const other = STAGES[(STAGES.indexOf(stage) + 1) % STAGES.length];
+    await grows.addPhase(grow.id, { stage: other, climate: false }, OWNER, NOTHING_HIDDEN);
     expect(applied).toEqual([]);
-    expect(moded).toEqual([{ spaceId: TENT, stage: 'drying' }]);
-  });
 
-  it('does not ask for the work mode again where the climate was written', async () => {
-    const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'drying', climate: true }, OWNER, NOTHING_HIDDEN);
-
-    expect(moded).toEqual([]);
+    await grows.addPhase(grow.id, { stage, climate: true }, OWNER, NOTHING_HIDDEN);
+    expect(applied).toEqual([{ spaceId: TENT, stage, preset: null }]);
   });
 
   it('is set by the person who picked it when no preset came with it', async () => {
@@ -607,7 +602,8 @@ describe('correcting a phase', () => {
   it('leaves who put the grow there alone, because a mistyped date decided nothing', async () => {
     const grow = await started();
     const entered = await grows.addPhase(grow.id, { stage: 'seedling', preset: 'early_seedling' }, OWNER, NOTHING_HIDDEN);
-    expect(entered.source).toBe('preset');
+    // As a preset applied to the place writes it: nobody picked the stage.
+    await db.grows.updateOne({ id: grow.id, 'phases.id': entered.id }, { $set: { 'phases.$.source': 'preset', 'phases.$.setBy': null } });
 
     const corrected = await grows.updatePhase(grow.id, entered.id, { startedAt: WRONG_DAY.toISOString() }, NOTHING_HIDDEN);
     expect(corrected).toMatchObject({ source: 'preset', setBy: null, deviceId: DEVICE });
@@ -956,7 +952,7 @@ describe('splitting a grow', () => {
     );
 
     expect(applied).toEqual([{ spaceId: FRIDGE, stage: 'drying', preset: 'slow_dry' }]);
-    expect(split.phase?.source).toBe('preset');
+    expect(split.phase).toMatchObject({ source: 'human', setBy: OWNER });
   });
 
   it('gives them a phase alone where no space was named', async () => {

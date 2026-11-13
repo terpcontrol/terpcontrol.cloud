@@ -2,7 +2,6 @@ import { Inject, Injectable, Module } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
-import { WORK_MODES_BY_TYPE } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { MODEL_V1 } from '@database/models';
 import { ModelsModule } from '@database/models.module';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -28,30 +27,6 @@ export class ClimatePresetsService implements ClimatePresets {
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
   ) {}
-
-  public async modeToSpace(spaceId: string, stage: GrowthStage): Promise<void> {
-    // Germination is dark, and a device goes dark for it only where its climate
-    // was asked for: a grow written into germination without one is a record of
-    // the seeds, wherever they sprout, and the device stays as it is.
-    if (stage === 'germination') return;
-
-    const here = await this.devices
-      .find({ spaceId, type: { $in: Object.keys(WORK_MODES_BY_TYPE) } }, { id: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'id' | 'configuration'>[]>();
-
-    for (const device of here) {
-      const workmode = device.configuration?.workmode;
-      // Only where the stage changes something: a write is a document sent to the device.
-      const changes = stage === 'drying' ? workmode !== 'dry' : workmode === 'dry' || workmode === 'off' || workmode === 'breed';
-      if (typeof workmode !== 'string' || !changes) continue;
-
-      try {
-        await this.configuration.applyConfiguration(device.id, {}, stage);
-      } catch (error) {
-        logger.error(`Could not put device ${device.id} into the work mode of the ${stage} stage: ${error}`);
-      }
-    }
-  }
 
   /**
    * Only the devices that state day and night targets at all: a plug, a light

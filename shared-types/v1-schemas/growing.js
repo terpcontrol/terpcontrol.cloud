@@ -484,7 +484,7 @@ exports.phaseCreate = (0, common_js_1.named)('PhaseCreate', zod_1.z.object({
     climate: zod_1.z
         .boolean()
         .optional()
-        .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false."),
+        .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false: the phase is then a record and no device is written, whatever the stage."),
     startedAt: (0, common_js_1.instant)().optional().describe('Defaults to now.'),
     plantIds: zod_1.z.array((0, common_js_1.id)()).nullable().optional().describe('Absent or null is every plant.'),
     germinationChoices: common_js_1.germinationChoices

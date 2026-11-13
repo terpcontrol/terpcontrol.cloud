@@ -5,9 +5,9 @@ import type { GerminationChoices, GrowthStage, PhaseTargets } from '@fg2/shared-
  *
  * The preset table and the write itself belong to the space slice, which serves
  * `POST /spaces/{id}/preset-applications` and reaches a device through the
- * protocol module. A grow needs two things back: that a controller really was
- * put on the preset, which is what the "auto" tag on the phase means, and what
- * it now runs, which is what the phase snapshots so a past phase can still draw
+ * protocol module. A grow needs two things back: whether a controller really
+ * was put on the preset, which is what the alarms of the stage then follow, and
+ * what it now runs, which the phase snapshots so a past phase can still draw
  * its target band.
  *
  * Optional, like every port between two slices here: until something is bound to
@@ -27,15 +27,6 @@ export interface ClimatePresets {
    * there, read with the germination stage alone.
    */
   applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null, choices?: Partial<GerminationChoices>): Promise<AppliedPreset[]>;
-  /**
-   * What a stage entered without a climate still decides: drying puts every
-   * device standing in the space on drying, and any other stage but germination
-   * ends a drying spell or a germination in the dark and switches a device that
-   * was off on again. Germination itself darkens nothing without its climate.
-   * The targets stay, but for the night temperature germination wrote over,
-   * which comes back with the light.
-   */
-  modeToSpace(spaceId: string, stage: GrowthStage): Promise<void>;
 }
 
 export const CLIMATE_PRESETS = Symbol('ClimatePresets');

@@ -633,7 +633,7 @@ export const phaseCreate = named(
       .boolean()
       .optional()
       .describe(
-        "Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false.",
+        "Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false: the phase is then a record and no device is written, whatever the stage.",
       ),
     startedAt: instant().optional().describe('Defaults to now.'),
     plantIds: z.array(id()).nullable().optional().describe('Absent or null is every plant.'),

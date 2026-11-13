@@ -57,8 +57,7 @@ import { accountOf } from '../caller';
  * A grow is not a device and does not need one - it is the story of a set of
  * plants, and the tent is only where they happen to be. So nothing here reaches
  * for hardware except in one place: entering a phase on a preset puts the
- * controllers of that space on the climate the preset asks for, which is what
- * makes a phase "auto".
+ * controllers of that space on the climate the preset asks for.
  */
 
 /** What a move says: where the plants go, when, and which of them. */
@@ -470,13 +469,19 @@ export class GrowsService {
    * Entering a phase. Where the plants stand in a space with a controller and a
    * preset was asked for, the controller is put on it first: the phase then
    * carries what it runs, which is the only way a phase that is over can still
-   * draw its target band, and it is marked as set by the preset, which is the
-   * "auto" tag on the screen.
+   * draw its target band.
    *
    * `climate` asks for the same without a preset: the stage's own climate. A
    * grower moving into flower wants the light on twelve hours, and the stage
    * on its own - the plain "Flower" every climate list offers - was the one
    * climate the phase picker could not put the tent on.
+   *
+   * Asked for neither, the phase is a record and no device is written,
+   * whatever the stage: drying entered as a record once put the tent into
+   * drying and its light off under a chip that said the climate stays.
+   *
+   * The phase is the person's who asked for it, with a climate or without: the
+   * "auto" tag is for what a plan or a preset applied to the place did.
    */
   public async addPhase(growId: string, body: PhaseCreate, setBy: string | null, hide: Redaction): Promise<Phase> {
     const grow = await this.require(growId);
@@ -531,18 +536,14 @@ export class GrowsService {
       writesClimate && spaceId !== null
         ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices)) ?? [])
         : [];
-    // Without a climate the stage still decides whether the tent dries.
-    if (applied.length === 0 && spaceId !== null) await this.presets?.modeToSpace(spaceId, request.stage);
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 
     const phase = await this.phases.setPhase({
       growId,
       stage: request.stage,
       preset: request.preset,
-      source: applied.length > 0 ? 'preset' : 'human',
-      // The contract names the person who picked the stage, and nobody picked
-      // one when a preset wrote the phase.
-      setBy: applied.length > 0 ? null : setBy,
+      source: 'human',
+      setBy,
       plantIds: request.plantIds,
       deviceId: controller?.deviceId ?? null,
       spaceId,

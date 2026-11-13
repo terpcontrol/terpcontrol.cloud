@@ -225,11 +225,12 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
    * plants have since been moved.
    *
    * Germination's bands are for air held round the clock at one temperature
-   * in the dark, with no humidity watched. A germination phase that wrote no
-   * climate leaves a place whose fridge or controller runs another mode - a
-   * climate with light, or drying - with the alarms that climate is watched
-   * by: "too cold" under 20 °C would trip every night of a flowering tent.
-   * Where the device there already germinates, the bands are its own.
+   * in the dark, with no humidity watched, and drying's for a dark room at one
+   * climate. A phase of either that wrote no climate leaves a place whose
+   * fridge or controller runs another mode - a climate with light, or the
+   * other of the two - with the alarms that climate is watched by: "too cold"
+   * under 20 °C would trip every night of a flowering tent. Where the device
+   * there already runs the stage's mode, the bands are its own.
    */
   private async rereadThresholds(grow: GrowDocument, phase: PhaseDocument, climateWritten: boolean): Promise<void> {
     if (!this.alarms) return;
@@ -238,7 +239,8 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
     const here = await this.devices
       .find({ spaceId: { $in: spaceIds } }, { id: 1, type: 1, 'configuration.workmode': 1 })
       .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration'>[]>();
-    if (phase.stage === 'germination' && !climateWritten && here.some(holdsAnotherMode)) return;
+    const mode = MODE_OF_STAGE[phase.stage];
+    if (mode && !climateWritten && here.some(device => holdsAnotherMode(device, mode))) return;
 
     const deviceIds = new Set([...here.map(device => device.id), ...(phase.deviceId ? [phase.deviceId] : [])]);
 
@@ -314,10 +316,13 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
   }
 }
 
-/** A device with work modes running a mode other than germination: its work mode is a word, and not `breed`. */
-const holdsAnotherMode = (device: Pick<StoredDevice, 'type' | 'configuration'>): boolean => {
+/** The work mode a stage puts a device into with its climate, for the two stages that have one of their own. */
+const MODE_OF_STAGE: Partial<Record<GrowthStage, string>> = { germination: 'breed', drying: 'dry' };
+
+/** A device with work modes running another mode than the stage's own: its work mode is a word, and not that one. */
+const holdsAnotherMode = (device: Pick<StoredDevice, 'type' | 'configuration'>, mode: string): boolean => {
   const workmode = device.configuration?.workmode;
-  return hasWorkModes(device.type) && typeof workmode === 'string' && workmode !== 'breed';
+  return hasWorkModes(device.type) && typeof workmode === 'string' && workmode !== mode;
 };
 
 const byDate = (one: PhaseDocument, other: PhaseDocument): number => one.startedAt.getTime() - other.startedAt.getTime();
