@@ -9,7 +9,7 @@ import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js
  */
 
 /** One day of the grow as this camera pictured it. */
-export interface PicturedDay {
+interface PicturedDay {
   dayNumber: number;
   mediaId: string;
   capturedAt: string;

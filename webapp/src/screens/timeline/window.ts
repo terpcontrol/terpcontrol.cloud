@@ -27,7 +27,7 @@ export const spans = (list: TimelineSpan[], time: number): boolean => list.some(
  * cut by the night. Day and night are aimed at differently, so a window drawn
  * against one of them would show half of it as a long fall out of band.
  */
-export interface Stretch {
+interface Stretch {
   from: number;
   to: number;
   target: TimelineTarget;

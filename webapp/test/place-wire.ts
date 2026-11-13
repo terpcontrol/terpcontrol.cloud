@@ -148,7 +148,7 @@ export const growOf = (over: Partial<SpaceOverview['grows'][number]> = {}): Spac
     ...over,
   }) as SpaceOverview['grows'][number];
 
-export const deviceLive = (over: Partial<DeviceLive['outputs']> = {}): DeviceLive => ({
+const deviceLive = (over: Partial<DeviceLive['outputs']> = {}): DeviceLive => ({
   deviceId: 'device-1',
   pending: null,
   metrics: {},
@@ -173,7 +173,7 @@ const curve = (from: number, step: number) =>
     ...(index === 12 ? { min: from - 4, max: from + 2 * step } : {}),
   }));
 
-export const timeline = (): SpaceTimeline =>
+const timeline = (): SpaceTimeline =>
   ({
     spaceId: 'space-1',
     range: '24h',

@@ -22,7 +22,7 @@ import styles from './EntryRow.module.css';
  * than the row assuming a session it has not got. `Picture` from the public API
  * fits this shape.
  */
-export type EntryPicture = (mediaId: string, width?: number) => string | null;
+type EntryPicture = (mediaId: string, width?: number) => string | null;
 
 /**
  * How many pictures a line draws before it says how many more it carries. One

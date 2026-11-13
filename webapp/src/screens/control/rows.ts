@@ -98,7 +98,7 @@ export const planLine = (t: Translate, plans: Plan[], now: DateTime, holds = tru
 };
 
 /** What a device drives beside its climate: its own lamp, a fridge's fans, an AIR fan's speed, its smart sockets. */
-export interface Outputs {
+interface Outputs {
   device: Device;
   light: boolean;
   /** What the lamp last ran at, where it reported. */

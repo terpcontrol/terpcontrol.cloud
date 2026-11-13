@@ -29,7 +29,7 @@ export const statesTargets = (configuration: DeviceConfiguration | null): boolea
  * their way from a plug that will never have any. An unknown type is believed
  * once its document arrives.
  */
-export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
+const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
 
 /**
  * A device that has never sent its document but whose kind says it will state a

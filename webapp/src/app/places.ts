@@ -91,8 +91,7 @@ export const timelinePath = (
   });
 
 /** The pages below a device's own: what few growers set, and what support asks for. */
-export const DEVICE_PAGES = ['advanced', 'details'] as const;
-export type DevicePageName = (typeof DEVICE_PAGES)[number];
+type DevicePageName = 'advanced' | 'details';
 
 /** A device's own page, reached from its card under Steuerung. */
 export const devicePath = (deviceId: string, page: DevicePageName | null = null): string =>

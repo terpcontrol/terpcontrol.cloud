@@ -12,7 +12,7 @@ import { CLOCK, DATED_CLOCK, DAY_IN_YEAR, nowThere, zoned } from './zone';
  * is the server's (`useNow`, `serverNow`), never the browser's clock.
  */
 
-export type DurationUnit = 's' | 'min' | 'h' | 'd';
+type DurationUnit = 's' | 'min' | 'h' | 'd';
 
 const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd' };
 
@@ -21,7 +21,7 @@ const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd
  * German. It is the catalogue's word, so an age and a grow day use one symbol;
  * where no catalogue is loaded, as in a unit test, the English one stands.
  */
-export const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
+const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
 
 /** A figure and its unit of time: "4 min", "3 T". */
 export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;

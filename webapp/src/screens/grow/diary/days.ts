@@ -198,7 +198,7 @@ export const writtenLine = (entry: Entry, count = 1, since = entry.occurredAt): 
 
 /** How many lines of their own a card shows before it folds, and how many lines it shows at least. */
 const OWN_SHOWN = 6;
-export const LINES_SHOWN = 4;
+const LINES_SHOWN = 4;
 
 /**
  * The lines a card draws before the rest is asked for. The grower's own lines

@@ -53,7 +53,7 @@ export const useFirmware = (device: Device, enabled = true) => {
 };
 
 /** A device with a build waiting for somebody's word. */
-export interface OfferedUpdate {
+interface OfferedUpdate {
   device: Device;
   build: DeviceFirmware;
 }

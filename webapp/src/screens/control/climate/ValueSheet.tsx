@@ -49,7 +49,7 @@ export function FigureButton({
 }
 
 /** One figure of a sheet: a number in its range, or a time of day on the account's clock. */
-export interface SheetFigure {
+interface SheetFigure {
   key: string;
   /** What it is called: over its stepper where the sheet holds several, and to a screen reader. */
   label: string;

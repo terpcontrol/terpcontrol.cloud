@@ -24,8 +24,7 @@ const PARKED_BY: Record<string, OutputMetric[]> = {
  * A controller that reports no CO2 sensor holds its CO2 target at zero, so its
  * valve is never driven and there is nothing of it to stop.
  */
-export const parkedOutputs = (device: Device): OutputMetric[] =>
-  (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || hasCo2Sensor(device));
+const parkedOutputs = (device: Device): OutputMetric[] => (PARKED_BY[device.type] ?? []).filter(output => output !== 'co2' || hasCo2Sensor(device));
 
 /** How long one tap parks the hardware, in minutes: Start and the device's card and page all name it. */
 export const VISIT_MINUTES = MAINTENANCE_VISIT_SECONDS / 60;

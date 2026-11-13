@@ -70,7 +70,7 @@ export const dayAt = (grow: GrowListItem | undefined, target: LogTarget, at: Dat
  * Where the date the grow began on begins, on its owner's calendar: the start
  * of day 1. A line dated to before it has no day of the grow to stand under.
  */
-export const growBegan = (grow: GrowListItem): Date => DateTime.fromJSDate(growOriginOf(grow), { zone: grow.summary.zone }).startOf('day').toJSDate();
+const growBegan = (grow: GrowListItem): Date => DateTime.fromJSDate(growOriginOf(grow), { zone: grow.summary.zone }).startOf('day').toJSDate();
 
 /**
  * What the moment of a line about a grow is held to: where the grow began,

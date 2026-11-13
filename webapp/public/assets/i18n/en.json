@@ -3536,7 +3536,6 @@
       "device_here": "A device still stands here.",
       "camera_here": "A camera still looks in here.",
       "grow_here": "A grow is still running here.",
-      "space_here": "Places still stand in this room.",
       "room_ended": "That room is gone: it ended with its last place.",
       "current_password_wrong": "That is not your current password."
     }

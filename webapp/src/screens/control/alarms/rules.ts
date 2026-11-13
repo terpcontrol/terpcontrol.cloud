@@ -185,7 +185,7 @@ export const unitOf = (watch: AlarmWatch): string => {
 const figureOf = (watch: AlarmWatch, value: number): string => (watch.kind === 'reading' ? targetFigure(value, watch.metric) : looseFigure(value));
 
 /** The two bounds of a rule as figures with their unit, "30 °C", each null where the rule sets none; an output watched for running sets neither. */
-export const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
+const boundsOf = (watch: AlarmWatch): { upper: string | null; lower: string | null } => {
   if (watch.kind === 'output_running') return { upper: null, lower: null };
   const unit = unitOf(watch);
   const one = (value: number | null) => (value === null ? null : `${figureOf(watch, value)}${unit ? ` ${unit}` : ''}`);

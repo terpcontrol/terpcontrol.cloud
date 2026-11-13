@@ -23,7 +23,7 @@ export const choicesOf = (device: Device | null): GerminationChoices => germinat
 export const useHumidifier = (device: Device | null): boolean => useHumidifiers(device).length > 0;
 
 /** The sockets paired as a humidifier at the device, with the state each was last reported in; none for hardware that pairs none. */
-export const useHumidifiers = (device: Device | null): Socket[] => {
+const useHumidifiers = (device: Device | null): Socket[] => {
   const asks = device !== null && SOCKET_HOST_TYPES.includes(device.type);
   const tables = useSocketTables(asks ? [device.id] : []);
   return asks ? (tables.tables.get(device.id)?.items?.filter(socket => socket.role === 'humidifier') ?? NONE) : NONE;

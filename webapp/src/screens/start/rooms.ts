@@ -2,7 +2,7 @@ import type { HomeSpaceCard, Space } from '@fg2/shared-types/v1';
 import { sortedByAttention } from './attention';
 
 /** A run of Start's cards: the places of one room under its name, or a place that stands in none. */
-export interface CardGroup<T> {
+interface CardGroup<T> {
   room: { id: string; name: string } | null;
   cards: T[];
 }

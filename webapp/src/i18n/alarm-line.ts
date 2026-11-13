@@ -84,7 +84,7 @@ export const alarmLineText = (i18n: I18n, param: string, triggered: boolean): st
  * crossed without the figure it had ("Luftfeuchte über 60 %"), for a line that
  * stands for many firings and has no one figure to state.
  */
-export interface AlarmLine {
+interface AlarmLine {
   rule: string;
   said: string[];
   limit: string | null;

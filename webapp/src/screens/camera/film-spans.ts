@@ -9,7 +9,7 @@ import { emptyRolling } from './rolling';
 /** The four films the page offers by name. */
 export type Span = 'day' | 'week' | 'phase' | 'grow';
 
-export interface FilmSpan {
+interface FilmSpan {
   span: Span;
   /** What making this film asks the server for. */
   body: TimelapseCreate;

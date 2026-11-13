@@ -75,7 +75,7 @@ export const measuredAtOf = (values: CardValue[]): string | null =>
 const SEVERITY: Record<Severity, number> = { critical: 3, warning: 2, info: 1 };
 
 /** How badly a card wants a person: an alarm first, then something due, then something offline. */
-export const attentionOf = (card: HomeSpaceCard): number => {
+const attentionOf = (card: HomeSpaceCard): number => {
   const alarm = Math.max(0, ...card.openAlerts.map(alert => SEVERITY[alert.severity] * 10));
   const due = card.dueTasks.length > 0 ? 5 : 0;
   const offline = livenessOf(card) === 'offline' ? 1 : 0;

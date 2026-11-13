@@ -3546,7 +3546,6 @@
       "device_here": "Hier steht noch ein Gerät.",
       "camera_here": "Hier schaut noch eine Kamera hinein.",
       "grow_here": "Hier läuft noch ein Grow.",
-      "space_here": "In diesem Raum stehen noch Orte.",
       "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht."
     }

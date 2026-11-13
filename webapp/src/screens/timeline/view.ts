@@ -138,7 +138,7 @@ export const withParams = (params: URLSearchParams, over: Record<string, string 
 };
 
 /** A window as the page knows it before any answer: its two ends, and whether it ends now and follows it. */
-export interface Window extends Span {
+interface Window extends Span {
   live: boolean;
 }
 

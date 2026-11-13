@@ -33,39 +33,20 @@ const LADDER: Record<AccessNeed, number> = { view: 0, log: 1, manage: 2, own: 3 
 export const enough = (youMay: AccessNeed | undefined, needed: AccessNeed): boolean => youMay !== undefined && LADDER[youMay] >= LADDER[needed];
 
 /**
- * The same question asked of many places at once, as the question rather than
- * as an answer.
- *
- * A list that draws rows from more than one place - every device this account
- * has, every task that is due, the cameras of a whole account - cannot ask per
- * row, because a hook is not called in a loop. So this reads the list the shell
- * already holds once and hands back the lookup, which is a plain function and
- * may be called as often as there are rows.
- *
- * `enabled` is for the one reader that may have no place to ask about at all: a
- * screen standing above every place asks nothing rather than fetching the whole
- * list to answer a question it has not got a place for.
- */
-export const useMayInEach = (enabled = true): ((spaceId: string | null) => AccessNeed | undefined) => {
-  const { user } = useSession();
-  const spaces = useSpaces(enabled);
-
-  return (spaceId: string | null) => {
-    if (spaceId === null) return undefined;
-    if (user?.isDemo === true) return 'view';
-
-    return spaces.data?.items.find(space => space.id === spaceId)?.youMay;
-  };
-};
-
-/**
- * The same answer for a space known only by its id, read from the list the
+ * What somebody may do in a space known only by its id, read from the list the
  * shell already holds. A space that is not in the list is one this account
  * cannot see at all, so the answer is `undefined` rather than `view` - "not
  * yet" and "not yours" are different things and only one of them is worth
- * waiting for.
+ * waiting for. Without a space nothing is read at all.
  */
-export const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => useMayInEach(spaceId !== null)(spaceId);
+const useMayInSpace = (spaceId: string | null): AccessNeed | undefined => {
+  const { user } = useSession();
+  const spaces = useSpaces(spaceId !== null);
+  if (spaceId === null) return undefined;
+  if (user?.isDemo === true) return 'view';
+
+  return spaces.data?.items.find(space => space.id === spaceId)?.youMay;
+};
 
 /** Something that stands somewhere: a device, a camera, a grow. Both fields are what the access decision is made of. */
 export interface Standing {
@@ -114,25 +95,6 @@ export const growStanding = (grow: { ownerId: string | null; placements: Placeme
   ownerId: grow.ownerId,
   spaceId: standsIn(grow),
 });
-
-/**
- * Where a grow stood last, which is what a screen looking at it needs and what
- * `standsIn` deliberately will not say.
- *
- * `standsIn` answers the open placement because that is the one a grow may be
- * written to through; a grow that has been harvested has none, and asking that
- * question of it gives nothing at all. But its Charts screen still has a tent
- * to name and an earlier run of that tent to offer, so this answers the newest
- * placement that named a place, open or closed. It decides nothing about
- * access - only what a finished grow is shown beside.
- */
-export const stoodIn = (grow: { placements: Placement[] }): string | null => {
-  const newest = [...grow.placements]
-    .filter(placement => placement.spaceId !== null)
-    .sort((one, other) => other.startedAt.localeCompare(one.startedAt))[0];
-
-  return standsIn(grow) ?? newest?.spaceId ?? null;
-};
 
 /**
  * Whether this session reaches a given need in a given place.

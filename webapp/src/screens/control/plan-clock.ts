@@ -67,7 +67,7 @@ export const readingAt = (state: PlanState, now: DateTime): DateTime => {
   return ahead > 0 && ahead <= CLOCKS_AGREE_MS ? started : now;
 };
 
-export const isOver = (plan: Plan, now: DateTime): boolean => overAt(plan, now.toMillis());
+const isOver = (plan: Plan, now: DateTime): boolean => overAt(plan, now.toMillis());
 
 /** How much of the step is left, or null where it has no length or is already over. */
 export const leftMs = (plan: Plan, now: DateTime): number | null => {

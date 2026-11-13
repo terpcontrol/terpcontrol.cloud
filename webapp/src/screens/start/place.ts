@@ -82,7 +82,7 @@ export const verdictSaid = (t: Translate, verdict: Verdict, metric: Metric, now:
   return t(`start.tile.${verdict.kind}`, { delta: figureWithUnit(verdict.delta, metric) });
 };
 
-export const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null, now: DateTime): Verdict => {
+const verdictOf = (value: CardValue | null, setpoint: CardSetpoint | null, now: DateTime): Verdict => {
   if (!value || value.value === null) return null;
   if (valueAge(value, now) !== 'live') return { kind: 'last', at: value.measuredAt };
   if (setpoint?.value == null || setpoint.band == null) return null;
@@ -219,7 +219,7 @@ export const rangeVerdictOf = (value: CardValue | null, range: SwitchRange, now:
 };
 
 /** When the lamp comes on and goes off, on the account's wall clock, as hours past midnight for a bar and as "08:00" for a sentence. */
-export interface LightWindow {
+interface LightWindow {
   /** Hours past local midnight, fractional. */
   start: number;
   hours: number;

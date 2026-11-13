@@ -220,7 +220,7 @@ export const shareOf = (strip: Pick<Strip, 'points'>): number | null => {
 };
 
 /** One stretch of a strip that is drawn alike, its ends as fractions of the window. */
-export type StripBlock = { from: number; to: number } & OutputFigure;
+type StripBlock = { from: number; to: number } & OutputFigure;
 
 /**
  * A strip as it is drawn: each point over the step it stands for, neighbours that say the same as one block.

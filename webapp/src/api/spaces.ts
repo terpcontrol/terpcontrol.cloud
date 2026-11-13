@@ -14,15 +14,14 @@ import { invalidate, useWrite, useWriteSettled } from './write';
  */
 const OVERVIEW_REFRESH_MS = 60_000;
 
-export const spacesQuery = queryOptions({ queryKey: ['spaces'], queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal) });
-
 /**
  * Every place this account can see. `enabled` is here for the readers that only
  * want one space's standing: a screen that stands above every place asks
  * nothing rather than fetching the whole list to answer a question it has not
  * got a place for.
  */
-export const useSpaces = (enabled = true) => useRead({ ...spacesQuery, enabled });
+export const useSpaces = (enabled = true) =>
+  useRead({ queryKey: ['spaces'], queryFn: ({ signal }) => api.get<SpacePage>('/spaces', undefined, signal), enabled });
 
 /**
  * The account's own places that have ended. An administrator may read any
@@ -208,7 +207,7 @@ export type EndStep =
 /** What an attempt tells as it goes: a thing settled and the place it now stands in, a place made for a device, or that place taken away again. */
 export type EndNote = { done: string; at: string | null } | { made: string; place: Space | null };
 
-export interface EndRun {
+interface EndRun {
   steps: readonly EndStep[];
   /** Places an earlier attempt made, by their device, that nothing is sent to any more. */
   drop: readonly (readonly [deviceId: string, spaceId: string])[];

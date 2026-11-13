@@ -29,7 +29,7 @@ export const GROUPS: Group[] = ['today', 'tomorrow', 'week'];
  * overdue. Both ends move into the account's zone together - a due date read
  * there against a today read here counts a day that is neither.
  */
-export const daysUntil = (dueAt: string, now: DateTime, zone: string | null): number =>
+const daysUntil = (dueAt: string, now: DateTime, zone: string | null): number =>
   Math.floor(zoned(dueAt, zone).startOf('day').diff(nowThere(now, zone).startOf('day'), 'days').days);
 
 /**
