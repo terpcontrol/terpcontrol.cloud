@@ -132,7 +132,7 @@ string exists in English and German, with no English left in the German catalogu
   writing - never "-0", "NaN" or "1.8599999"; "—" where there is no value. i18next interpolates with a point, so a
   figure is formatted before it goes into a string.
 - One date shape per language, decided only in `ui/zone.ts`: "19. Sep 2026" in German, "19 Sep 2026" in English, never
-  the US "Oct 23, 2026". Times and day boundaries are in the account's zone (Ich › Darstellung).
+  the US "Oct 23, 2026". Times and day boundaries are in the account's zone (Ich › Konto).
 - German units: T for days, Std, Min, and Uhr after a time of day ("06–24 Uhr"); English d, h, min. Spans the server
   writes ("5 d 10 h") are rewritten into the reader's units. The symbol stands beside a figure in a tile or a pill;
   **in a line of words the day is written out** - "Tag 23" in front of a line of the report, "vor 1 Tag" under a
@@ -143,7 +143,8 @@ string exists in English and German, with no English left in the German catalogu
   facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the
   line under a field, a chapter of the report, the count of a line's pictures.
 - Not localised: CSV cells, ids, ISO instants, the `yyyy-MM-dd` of a date field, firmware versions.
-- Unit preferences (°F, oz, gal) are stored with the account but not applied yet; Ich › Darstellung says so.
+- Unit preferences (°F, oz, gal) are stored with the account but not applied yet; the help beside "Einheiten"
+  under Ich › Darstellung says so.
 
 ## German slips to check for
 From the redesign review (2026-08-24), the ones a native reader notices first: wrong plurals ("1 Einträge" - use the

@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
 updated: 2026-11-13
-source: round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -42,8 +42,8 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   routes need no redirects from today's, and a change to the data model comes as a migration step (Chris,
   2026-11-11). It is built in rounds; the bar, the header's choice of place, the addresses, Start, the grow page
   with its diary by the day, the public page on the same day cards, Steuerung with a page per device and the
-  camera page, Verlauf as the one page of curves, and the pages of a place - editing it, ending it, adding a device
-  to it - are in since 2026-11-12
+  camera page, Verlauf as the one page of curves, the pages of a place - editing it, ending it, adding a device
+  to it - and Ich and Meldungen are in since 2026-11-13
   ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page),
   [§7](knowledge/app-ux.md#7-verlauf-day-and-night)), the other pages follow. A read of the whole web app on 2026-11-11 found, as the things the redesign still has to
   settle:
@@ -126,6 +126,16 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
   - Settled on 2026-11-12 (round 6): a claim no longer offers "ein neuer Ort" first to every device. A device asks
     once where it hangs, the place that exists first for a fan, a socket or a lamp
     ([app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)).
+  - Round 7 (Ich and Meldungen), state of 2026-11-13 (the redesign session; rules in
+    [app-ux.md §2](knowledge/app-ux.md#2-navigation-and-the-place-page)). Built, not yet walked by its critic:
+    Ich as one card of rows with a page per subject - the zone moved to Konto, the diary's answers to a page of
+    their own, the public grows into "Privatsphäre und Profil" -, every save of the account answered by a toast
+    with the way back, the screens of whoever runs the install as tabs behind "Verwaltung"; Meldungen as "Offen",
+    "Aufgaben" and "Erledigt", an alert as a sentence, its curves opened on its device, the bell counting what
+    the page lists, an update that waits for somebody's word as a card; the once-only notice for an account from
+    before the layout. No change to the server or the contract. Left for Chris: whether an alert that got better
+    stays under "Offen" until somebody ticks it, as the prototype draws it - it needs a stored field -, and
+    whether the rows Premium and Über keep the summary line they had (the prototype shows none; none is drawn).
   - Round 6 (place and room), state of 2026-11-12 (the redesign session; the data-model part is the amendment to
     [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood), **awaiting Chris's
     confirmation with the pull request**). Built: devices keep where they stood and the reads about the past use
@@ -360,9 +370,9 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     Also open: whether a day's camera picture outlives the camera's retention - today only a still that a diary
     line or a grow's cover names is spared.
 
-- **Unit preferences are saved, not applied.** Me › Appearance stores °C/°F, g/oz and l/gal (`preferences.units`),
-  but every figure is still drawn in °C, g and l, as the page's `unitsNote` tells the reader; only the Me screen's
-  summary line reads the choice (`webapp/src/screens/me/doors.ts`).
+- **Unit preferences are saved, not applied.** Ich › Darstellung stores °C/°F, g/oz and l/gal
+  (`preferences.units`), but every figure is still drawn in °C, g and l, as the help beside "Einheiten" tells the
+  reader (`help.units`); only the row's line on Ich reads the choice (`webapp/src/screens/me/doors.ts`).
 - **Plan templates cannot be renamed or deleted in the app.** `PATCH` and `DELETE /v1/plan-templates/{id}` exist;
   `webapp/src/api/plans.ts` only lists and creates.
 - **Two task sources are not derived.** The contract's `taskSource` names `scheme` and `plan_suggestion`, but tasks

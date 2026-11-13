@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-13
-source: round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
+source: round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -30,12 +30,17 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   by asking "Was wächst hier?" (`screens/claim/GrowStep.tsx`): an answer starts the grow, so Grow and the Eintrag
   button are in the bar at once. Whoever skips finds the same question as a card on Start, "Was wächst in …?" with
   "Grow starten" and "Nein danke" (`screens/start/Offers.tsx`): "Nein danke" is kept with the account while it keeps
-  no diary at all (`preferences.diary`, also under Ich › Darstellung: Automatisch / An / Aus), and with the one place
+  no diary at all (`preferences.diary`, also under Ich › Grow-Tagebuch: Automatisch / An / Aus), and with the one place
   (`presetPrompt: never`) for somebody who keeps a diary elsewhere. Until an answer the Start of a device is its
   readings, what happened last, the targets and maintenance, and nothing of the diary. An account nothing is known
   about yet is still drawn as one device without a diary (`app/shell/shape.ts`). Several places are a layer that
   appears with the second one. When a layer arrives the shell says once per account what moved
-  (`app/shell/LayoutNotice.tsx`) - never a silent flip.
+  (`app/shell/layout-news.ts`, `LayoutNotice.tsx`) - never a silent flip. **An account from before this layout is
+  told once where everything is** (the redesign session of 2026-11-13): one that was never shown a shape and
+  already owns a device reads which items its bar holds, what Verlauf and Steuerung are, and where Meldungen and
+  Ich went. A new account owns no device when the shell first sees it - a device is claimed inside the app, and
+  the shell records the account on the claim's page too - and is told nothing; neither is a guest, whose devices
+  are the host's.
   - *Setup names all its steps.* The last question is a page of its own, and the list of steps names it all the
     same: the count says six, so six are listed. The page stays until its own form has been answered - the grow it
     makes is read by the claim too, and must not take the question away under a form still sending
@@ -45,7 +50,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     (`expectLayout`, `api/layers.ts`) and the shell records the new layout as seen without its notice. Leaving the
     step unanswered takes the word back.
   - *"Nein danke" is answered.* The card is gone with the tap, so a toast says what holds now and where it is
-    changed - "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Darstellung." - with "Widerrufen",
+    changed - "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Grow-Tagebuch." - with "Widerrufen",
     which puts back what the account or the place said before (`tell`, `log/log-context.ts`).
 - **The form a grow is started with asks what cannot wait** (`screens/grow/new/WhatGrows.tsx`; §2, "One form starts a
   grow"): what it is, since when, how many plants, the phase. The stage it opens on is recorded and writes no targets
@@ -80,8 +85,52 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   items: the phone's header carries the bell (a dot while something is open) and the way to Ich, the rail both at its
   foot with the open count. An item stays marked on its pages - Start on a place's page, Grow on every grow,
   Steuerung on a device's pages, the claim and adding a camera - and a camera's page, Meldungen, the task
-  list its door opens (`/tasks`, whose way back leads to Meldungen) and Ich mark none. The fleet screens of whoever
-  runs the install are doors under Ich.
+  list reached from it (`/tasks`, whose way back leads to Meldungen) and Ich mark none.
+- **Ich is one card of rows, each opening a page with one subject** (`screens/Me.tsx`; the prototype Chris
+  accepted on 2026-11-12, built by the redesign session of 2026-11-13): under the arrow back and "@handle" stand
+  Benachrichtigungen, Konto, Darstellung, Grow-Tagebuch, Privatsphäre und Profil, Premium (with a camera of
+  one's own), Über and - for an administrator, tagged "nur Admin" - Verwaltung, then "Abmelden". A row says under
+  its title what its page holds today, read from the server (`screens/me/doors.ts`). **Every setting of the
+  account has one page**: the zone is Konto's (with e-mail, password, sessions, the export and the account's
+  end), the diary's three answers are a page of their own, and the public profile, which grows are public, what
+  shared views hide and how long readings are kept are one page - the page of public grows and the second copies
+  of the export and the deletion on the privacy page are gone. "Alle Grows" is a row only for an account that has
+  grows and no Grow in its bar; adding a device is Start's ("+ Ort hinzufügen"). The demo is shown the two rows
+  that work without an account and one sentence for the rest, and asks the server for nothing.
+  - *A setting is written on the tap and answered* (`useSaveAccount`, `screens/me/save.ts`; the notification
+    settings through `useWriteNotifications`): the toast names what holds now ("Zeitzone: Europe/Berlin",
+    "Warnungen per E-Mail · an") and takes it back. `PATCH /me` replaces each object it is given, so the way back
+    puts the one field back into the object as it stands then, and the toast is its setting's: the same switch
+    answers in the same toast, another one's stands beside it (`moved`). A narrower climate window, a password, a
+    session ended and an alert deleted cannot be taken back and say so by having no "Widerrufen". The theme and
+    the language are the browser's and are seen at once, without a toast.
+  - *The screens of whoever runs the install are behind Verwaltung*: the row opens the fleet, the four screens
+    are tabs of one head whose arrow leads back to Ich, and the page of one device leads back to the fleet. A
+    window narrower than the rail's 900 px is told that under the heading "Verwaltung", with the way back to Ich.
+- **Meldungen is what is open, what is due and what is over** (`screens/Alerts.tsx`, `screens/alerts/`; the
+  prototype, built by the redesign session of 2026-11-13). The head carries "1 Std stumm" - every channel of this
+  account for an hour, answered by a toast and taken back there. "Offen": a card per alert still standing, the
+  worst first, and one per update that waits for somebody's word ("Firmware … ist da", for a device whose updates
+  are off). "Aufgaben", where the diary is kept: the rows of Start's "Heute" (`DueList`, `screens/start/Today.tsx`)
+  and "Alle Aufgaben und Erinnerungen ›" to the task list. "Erledigt": the newest five alerts that are over as
+  rows - what it was and how long ago -, more behind "Früher"; a row opens the whole of it in a sheet, with its
+  curves and "Löschen". At the foot, the way to the notification settings.
+  - *An alert is a sentence*: "Luftfeuchte zu hoch" while it stands and "Luftfeuchte 22 Min zu hoch" once it is
+    over, a device gone quiet and a camera without pictures by their names; under it since when, where and how far
+    out ("seit 23:09 · Zelt · 68 % · über 60 %") or that it is over ("seitdem wieder im Ziel"); then the rule, the
+    severity as a word and whether anybody was told. An open alert is dated, never aged, so its words hold still.
+  - *"Verlauf öffnen" is for everybody who sees the place* and opens Verlauf on the reading, the moment and the
+    device (`?device=`), so a place of two climates opens on the one that raised it. Silencing the rule and editing
+    it are for whoever manages the place; an alert that reached nobody says so and leads to the notification
+    settings; a device gone quiet offers what to try behind "Was du tun kannst" and the way to its page.
+    Maintenance is not started here (§5).
+  - *The bell counts what the page lists* (`app/shell/bell.ts`): the alerts still standing and the updates
+    waiting; with nothing open, what is due, from the same read as the page's rows (`useDueEverywhere`,
+    `screens/start/due.ts`). The demo and an account without a diary have no "Aufgaben" and no count of them. What
+    the shell reads for it on every page is followed, not polled; the page itself reads on the live beat.
+  - *Not built: "Erledigt" on an open card.* The prototype keeps an alert that got better under "Offen" until
+    somebody ticks it. The server knows open and over and nothing between, so such an alert stands under
+    "Erledigt" at once; keeping it open needs a stored field and is Chris's to decide.
 - **One choice of place holds for Grow, Verlauf and Steuerung** (`app/places.ts`, `app/shell/PlaceChoice.tsx`). From
   the second place on a chip names the chosen place and opens the sheet "Ort": the places under their rooms in
   Start's order, each with its status sentence and what grows there, the chosen one ticked. With one place there is
@@ -756,11 +805,13 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   sentence under its controls), how long an alarm rule waits, how it repeats and that the next stage moves a
   stage's rule (`alarmFor`, `alarmRepeat`, `presetRules` - the rule sheet has no sentence under its fields), how
   the cloud reaches a stream camera's address (`streamAddress` - under the field stand only states: a login
-  already in the address, a carrying device that is quiet or offline; `screens/camera/add/RtspCamera.tsx`). A
+  already in the address, a carrying device that is quiet or offline, and a place without any device, where an
+  address of the home network will not answer the cloud; `screens/camera/add/RtspCamera.tsx`). A
   paragraph over a button was read by nobody and pushed the button off a short screen.
 - **What a finger is offered is 44 px high** where it is tapped: a toast's buttons, the chips of a sheet, a tab, a
   filter, the links of a notice, the ways and the lengths of a hold, the link of an empty page, the two ways on
-  the add-camera page. Where a row must
+  the add-camera page, every chip, menu and segment of the pages under Ich (`screens/me/parts.module.css`), an
+  alert's actions and the mute in Meldungen's head. Where a row must
   not grow by it, the control reaches into the row's own air - a rule card's switch through its `::after`, the
   header's logo beside the place chip out to the screen's edge, the place under a grow's name. A day card's way
   to its curves is a finger high round its middle, reaching over the title and the share; today's share, tapped
@@ -776,7 +827,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   as margin (`.facts > span`, `screens/devices/DevicePage.module.css`), and two reaches must not share one gap:
   the pill's row in a page's head is a finger high by itself (`ui/PageHead.module.css`). The terms "VPD Tag" and
   "VPD Nacht" under the targets take their room the same way and move the row's cut out by it (`.card .vpd`,
-  `screens/control/climate/Climate.module.css`). Measure a hit area by
+  `screens/control/climate/Climate.module.css`). The head of the notice that alarms reach nobody is a finger high
+  by itself, into the notice's own padding, so its (i) and "Später" share no strip with the link under them
+  (`NotifyNotice.module.css`); the word in Start's pill and the tick of a task reach the same way inside their
+  rows; a switch on a page under Ich is lent its 44 px by its row. Measure a hit area by
   what `elementFromPoint` answers 21 px from the control's middle, not by the boxes.
 - **A control the reader may not use is absent, not disabled or refused after the tap.** The ladder is view < log <
   manage < own, from `space.youMay` (`ui/session-access.ts` lists the need per kind of control). Places the reader
