@@ -4119,15 +4119,14 @@
       "title": "Remove {{name}}",
       "back": "Back to “Edit {{name}}”",
       "holds": "Still standing here",
+      "stay": "stays with {{device}}",
+      "move": "moves to {{place}}",
       "device": {
-        "new": "gets a new place of its own",
-        "move": "moves to {{place}}",
+        "new": "gets a new place",
         "release": "give up"
       },
       "camera": {
-        "stay": "stays with {{device}}",
         "uncouple": "unpair",
-        "move": "moves to {{place}}",
         "remove": "remove"
       },
       "grow": {
@@ -4138,13 +4137,42 @@
         "end": "End the grow"
       },
       "kept": "Curves and pictures up to today stay with the grow {{names}}.",
+      "curves": "After that you see the curves of {{name}} only with grows that stood here.",
       "guests_one": "{{count}} person is still let in. Let them go first.",
       "guests_other": "{{count}} people are still let in. Let them go first.",
       "toGuests": "To who is let in",
       "remove": "Remove {{name}}",
       "removing": "Removing …",
       "cancel": "Cancel",
-      "told": "{{name}} removed"
+      "ask": "Remove {{name}}?",
+      "final": "This cannot be taken back.",
+      "will": {
+        "make": "{{name}} gets a new place: {{place}}",
+        "move": "{{name}} moves to {{place}}",
+        "stay": "{{name}} stays with {{beside}}",
+        "release": "{{name}} is given up and then no longer belongs to your account",
+        "uncouple": "{{name}} is unpaired",
+        "remove": "{{name}} is removed",
+        "with": "{{name}} moves along to the new place of {{beside}}",
+        "nowhere": "{{name}} then stands in no fixed place",
+        "end": "{{name}} is ended"
+      },
+      "did": {
+        "stands_one": "{{names}} now stands in {{place}}.",
+        "stands_other": "{{names}} now stand in {{place}}.",
+        "nowhere_one": "{{names}} stands in no fixed place.",
+        "nowhere_other": "{{names}} stand in no fixed place.",
+        "release": "{{names}} given up.",
+        "uncouple": "{{names}} unpaired.",
+        "remove": "{{names}} removed.",
+        "end": "{{names}} ended."
+      },
+      "half": {
+        "still": "{{name}} is not removed yet.",
+        "done": "Already done: {{what}}",
+        "left": "Still here: {{names}}."
+      },
+      "told": "{{name}} removed."
     }
   },
   "climatePick": {

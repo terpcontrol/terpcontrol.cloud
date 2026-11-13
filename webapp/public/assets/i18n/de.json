@@ -4128,15 +4128,14 @@
       "title": "{{name}} entfernen",
       "back": "Zurück zu „{{name}} bearbeiten“",
       "holds": "Hier steht noch",
+      "stay": "bleibt bei {{device}}",
+      "move": "zieht in {{place}}",
       "device": {
-        "new": "bekommt einen eigenen neuen Ort",
-        "move": "zieht in {{place}}",
+        "new": "bekommt einen neuen Ort",
         "release": "abgeben"
       },
       "camera": {
-        "stay": "bleibt bei {{device}}",
         "uncouple": "entkoppeln",
-        "move": "zieht in {{place}}",
         "remove": "entfernen"
       },
       "grow": {
@@ -4147,13 +4146,42 @@
         "end": "Grow beenden"
       },
       "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
+      "curves": "Die Kurven von {{name}} siehst du danach nur noch bei Grows, die hier standen.",
       "guests_one": "Noch ist {{count}} Person eingeladen. Lass sie erst gehen.",
       "guests_other": "Noch sind {{count}} Personen eingeladen. Lass sie erst gehen.",
       "toGuests": "Zu den Eingeladenen",
       "remove": "{{name}} entfernen",
       "removing": "Wird entfernt …",
       "cancel": "Abbrechen",
-      "told": "{{name}} entfernt"
+      "ask": "{{name}} entfernen?",
+      "final": "Das lässt sich nicht zurücknehmen.",
+      "will": {
+        "make": "{{name}} bekommt einen neuen Ort: {{place}}",
+        "move": "{{name}} zieht in {{place}}",
+        "stay": "{{name}} bleibt bei {{beside}}",
+        "release": "{{name}} wird abgegeben und gehört dann nicht mehr zu deinem Konto",
+        "uncouple": "{{name}} wird entkoppelt",
+        "remove": "{{name}} wird entfernt",
+        "with": "{{name}} zieht mit an den neuen Ort von {{beside}}",
+        "nowhere": "{{name}} steht dann an keinem festen Ort",
+        "end": "{{name}} wird beendet"
+      },
+      "did": {
+        "stands_one": "{{names}} steht in {{place}}.",
+        "stands_other": "{{names}} stehen in {{place}}.",
+        "nowhere_one": "{{names}} steht an keinem festen Ort.",
+        "nowhere_other": "{{names}} stehen an keinem festen Ort.",
+        "release": "{{names}} abgegeben.",
+        "uncouple": "{{names}} entkoppelt.",
+        "remove": "{{names}} entfernt.",
+        "end": "{{names}} beendet."
+      },
+      "half": {
+        "still": "{{name}} ist noch nicht entfernt.",
+        "done": "Schon erledigt: {{what}}",
+        "left": "Noch hier: {{names}}."
+      },
+      "told": "{{name}} entfernt."
     }
   },
   "climatePick": {

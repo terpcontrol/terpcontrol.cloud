@@ -302,19 +302,35 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     edits the name and the kind and sees who is here.
 - **"Ort entfernen" gives everything standing there its own destination** (Chris, 2026-10-13: "irgendwie muss es
   möglich sein, einen Raum, den ich nicht mehr haben will, zu löschen"; 2026-11-11, decision 5; built by the
-  redesign session of 2026-11-12, `screens/place/RemovePlace.tsx` with `remove-plan.ts`, at `/spaces/:id/remove`).
-  A select per device ("bekommt einen eigenen neuen Ort", "zieht in …", "abgeben"), per camera ("bleibt bei …" or
-  "entkoppeln" for one a device answers for; "zieht in …" or "entfernen" for one on its own) and per running grow
-  ("Wo stehen die Pflanzen jetzt?", then: at the new place of a device, in another place, in no fixed place, "Grow
-  beenden"). A device goes to a place of its own unless told otherwise; **where the plants stand is never guessed**,
-  so the button waits until every grow is answered, and asks again when the device a grow was to go with is sent
-  elsewhere. It replaced the sheet that moved everything to one place.
-  - The writes are made one after another - places, devices, cameras, grows, then the end of the place - and one
-    that is refused stops there: what was done stays done, the page says the server's sentence and reads again what
-    still stands here. Nothing is taken back, and the toast "… entfernt" offers no undo.
+  redesign session of 2026-11-12, and again after its critic's walk - the rules below are that session's;
+  `screens/place/RemovePlace.tsx` with `remove-plan.ts`, at `/spaces/:id/remove`, outside the bar). A select per
+  device, per camera and per running grow, and it replaced the sheet that moved everything to one place.
+  - *A tent is kept together.* One device leads - the first controller or fridge module, else the first device -
+    and goes to another place of the account that fits: a place of its kind that holds no climate of its own yet,
+    else a new place ("Zelt 2", in the room the place stood in). Every other device and every camera defaults to
+    "bleibt bei <the leading device>" and goes wherever that one goes; "zieht in …", a place of its own and
+    "abgeben" stay in the select. Giving the leading device up hands the lead to the next. One new place at most
+    unless the grower asks for more.
+  - **Where the plants stand is never guessed**: a grow has no default ("Wo stehen die Pflanzen jetzt?" - at the
+    new place of a device, in another place, in no fixed place, "Grow beenden"), the button waits until every grow
+    is answered, and asks again when the device a grow was to go with is sent elsewhere.
+  - *It asks once, with everything it will do.* The page's button opens a sheet that lists each line as it will
+    happen - "Zeltcontroller zieht in Fridge Black", "Lüfter bleibt bei Zeltcontroller", "Lüfter wird abgegeben und
+    gehört dann nicht mehr zu deinem Konto", "Blue Dream wird beendet" - under "Das lässt sich nicht
+    zurücknehmen."; only its button writes. A disabled button is neutral, the danger colour is for one that can be
+    tapped.
+  - *Nothing is left half-made.* The writes are made one after another, and a new place is made only with the
+    move of its device into it and taken away again if that move is refused. A refusal half-way says that the
+    place is not removed yet, the server's sentence or that the server cannot be reached, what is done and what is
+    still here, by name; every answer is kept, the grow's included, and "Noch einmal versuchen" goes on with what
+    is left - into the place an attempt already made. Changing an answer asks again.
+  - *The toast names where things went*: "Zelt Eins entfernt. Zeltcontroller und Lüfter stehen in Zelt 2. Blue
+    Dream beendet.", without undo.
+  - With a grow the page says that curves and pictures up to today stay with it; without one, that the place's
+    curves are afterwards only seen with grows that stood there - an ended place has no page.
   - A place people are still let into is not ended: the page says how many and leads to them. Only the owner ends a
-    place, and never the last one - that one is Start.
-  - A place made for a device is named as a claim names one ("Zelt 2") and stands in the room the place stood in.
+    place, and never the last one - that one is Start. A place that has ended and an id that names nothing are the
+    same page: a heading, the way to Start, no retry.
 - **Steuerung is the chosen place's climate, then its devices** (Chris, 2026-11-11, decision 7;
   `screens/control/Control.tsx`, built after the prototype by the redesign session of 2026-11-12, whose rules the
   rest of this entry is, those after its critic's walk included). It always opens on the light and the targets of

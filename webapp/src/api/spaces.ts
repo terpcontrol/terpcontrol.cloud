@@ -121,41 +121,74 @@ export const useCreateSpace = () =>
 /**
  * Ending a place: each device, camera and running grow goes where it was sent
  * first (`remove-plan.ts`), then the place ends. Every step is a write of its
- * own, so one that is refused leaves what was done before it done; the page
- * reads what still stands here and offers the rest again. The server still
- * refuses where people are let in, and says so.
+ * own, so one that is refused leaves what was done before it done: `note`
+ * tells the page of each step as it goes through, and the next attempt is
+ * handed only what is left. The server still refuses where people are let in.
+ *
+ * A place is made in the step that moves its device into it. Where that move
+ * fails the place is taken away again at once; where even that fails - the
+ * connection is gone - the page keeps it, and the next attempt moves into it
+ * or drops it (`drop`), so none is left standing empty.
  */
 export const useEndPlace = (spaceId: string) =>
   useWriteSettled(
-    async (steps: readonly EndStep[]) => {
+    async ({ steps, drop, note }: EndRun) => {
       const made = new Map<string, string>();
       const placeOf = (to: EndTo): string | null => (to === null ? null : 'made' in to ? (made.get(to.made) ?? null) : to.spaceId);
 
+      for (const [deviceId, place] of drop) {
+        await api.delete(`/spaces/${place}`);
+        note({ made: deviceId, place: null });
+      }
       for (const step of steps) {
-        if (step.do === 'make') made.set(step.key, (await api.post<Space>('/spaces', step.body)).id);
-        else if (step.do === 'device') await api.put<Device>(`/spaces/${placeOf(step.to)}/devices/${step.deviceId}`);
-        else if (step.do === 'release') await api.delete(`/devices/${step.deviceId}/claim`);
-        else if (step.do === 'camera') await api.patch(`/cameras/${step.cameraId}`, { spaceId: step.spaceId });
-        else if (step.do === 'uncouple') await api.delete(`/cameras/${step.cameraId}`);
+        if (step.do === 'device') {
+          if (step.make) {
+            const place = await api.post<Space>('/spaces', step.make);
+            made.set(step.id, place.id);
+            note({ made: step.id, place });
+          }
+          try {
+            await api.put<Device>(`/spaces/${placeOf(step.to)}/devices/${step.id}`);
+          } catch (error) {
+            if (step.make)
+              await api.delete(`/spaces/${made.get(step.id)}`).then(
+                () => note({ made: step.id, place: null }),
+                () => undefined,
+              );
+            throw error;
+          }
+        } else if (step.do === 'release') await api.delete(`/devices/${step.id}/claim`);
+        else if (step.do === 'camera') await api.patch(`/cameras/${step.id}`, { spaceId: placeOf(step.to) });
+        else if (step.do === 'uncouple') await api.delete(`/cameras/${step.id}`);
         else if (step.do === 'grow')
-          await api.post(`/grows/${step.growId}/placements`, { spaceId: placeOf(step.to), startedAt: serverNow().toUTC().toISO()! });
-        else await api.patch(`/grows/${step.growId}`, { endedAt: serverNow().toUTC().toISO()! });
+          await api.post(`/grows/${step.id}/placements`, { spaceId: placeOf(step.to), startedAt: serverNow().toUTC().toISO()! });
+        else await api.patch(`/grows/${step.id}`, { endedAt: serverNow().toUTC().toISO()! });
+        note({ done: step.id });
       }
       await api.delete(`/spaces/${spaceId}`);
     },
-    // Read again whether it went through or stopped half-way: the page then shows what still stands here.
+    // Read again whether it went through or stopped half-way: a place made on the way is then one to choose.
     client => void invalidate(client, ['spaces'], ['space'], ['home'], ['devices'], ['cameras'], ['grows'], ['grow']),
   );
 
-/** Where something goes when its place ends: a place that exists, one a step before makes, or no place at all. */
+/** Where something goes when its place ends: a place that exists, the one made for a device in this attempt, or no place at all. */
 export type EndTo = { spaceId: string } | { made: string } | null;
 
-/** One write of ending a place, in the order they are made. */
+/** One write of ending a place, in the order they are made; `id` is the device, camera or grow it settles. */
 export type EndStep =
-  | { do: 'make'; key: string; body: SpaceCreate }
-  | { do: 'device'; deviceId: string; to: Exclude<EndTo, null> }
-  | { do: 'release'; deviceId: string }
-  | { do: 'camera'; cameraId: string; spaceId: string }
-  | { do: 'uncouple'; cameraId: string }
-  | { do: 'grow'; growId: string; to: EndTo }
-  | { do: 'end'; growId: string };
+  | { do: 'device'; id: string; to: Exclude<EndTo, null>; make?: SpaceCreate }
+  | { do: 'release'; id: string }
+  | { do: 'camera'; id: string; to: Exclude<EndTo, null> }
+  | { do: 'uncouple'; id: string }
+  | { do: 'grow'; id: string; to: EndTo }
+  | { do: 'end'; id: string };
+
+/** What an attempt tells as it goes: a thing settled, a place made for a device, or that place taken away again. */
+export type EndNote = { done: string } | { made: string; place: Space | null };
+
+export interface EndRun {
+  steps: readonly EndStep[];
+  /** Places an earlier attempt made, by their device, that nothing is sent to any more. */
+  drop: readonly (readonly [deviceId: string, spaceId: string])[];
+  note: (one: EndNote) => void;
+}

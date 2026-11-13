@@ -189,6 +189,25 @@
   white-space: normal;
 }
 
+/* Out of reach it gives the alarm colour up rather than fading into pink: drawn as every button that cannot be pressed. */
+button.end:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
+  opacity: 1;
+}
+
+/* What the answer will do, a line each. */
+.will {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
 .cancel {
   display: grid;
   place-items: center;
@@ -197,7 +216,7 @@
   font-weight: var(--weight-semibold);
 }
 
-/* What still keeps the place from ending, and the way to it. */
+/* What still keeps the place from ending, and the way to it; and what an attempt that stopped half-way left. */
 .guests {
   display: flex;
   flex-direction: column;
@@ -207,4 +226,5 @@
 
 .guests p {
   margin: 0;
+  overflow-wrap: anywhere;
 }
