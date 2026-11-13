@@ -23,10 +23,10 @@ import { diaryMovedAt, readingNamesOf } from '../diary/diary-entries';
 import { GrowReportService } from '../diary/report.service';
 import { GrowDiaryService } from '../diary/grow-diary.service';
 import { spacesDuring } from '../grow/grow-places';
-import { growUpTo, harvestOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
+import { growUpTo, harvestOf, labelOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { OverviewService } from '../overview/overview.service';
-import { CardCache, baseUrlOf, renderCard } from './link-card';
+import { CardCache, baseUrlOf, cardWords, growSentence, renderCard } from './link-card';
 import { ShareLinksService } from './share-links.service';
 
 /**
@@ -137,6 +137,7 @@ export class PublicPagesService {
       range: isoRange(range),
       includeCameras: grant.includeCameras,
       readingNames: readingNamesOf([grow])[0].readings,
+      plants: hide.counts ? [] : plants.map(labelOf),
       weeks: page.items,
       weeksCursor: page.nextCursor,
       harvest: harvestOf(plants, hide, range),
@@ -327,30 +328,34 @@ export class PublicPagesService {
     const summary = summaryOf(grow, plants, hide, await this.grows.zoneOf(grow), new Date());
     const handle = owner?.handle ?? null;
     const baseUrl = baseUrlOf(this.app.apiUrlExternal);
+    const language = owner?.preferences?.locale || 'en';
 
     return {
       title: grow.name,
-      description: grow.description ?? sentenceFor(handle, summary.dayNumber, summary.stage),
+      description: grow.description ?? growSentence(language, handle, summary.dayNumber, summary.stage),
       pageUrl: `${baseUrl}/g/${encodeURIComponent(grow.slug)}`,
       imageUrl: `${baseUrl}/v1/public/grows/${encodeURIComponent(grow.slug)}/card.png`,
       handle,
       dayNumber: summary.dayNumber,
       stage: summary.stage,
+      language,
     };
   }
 
   /** The same for a person: their handle, their line of text, and how much there is to read. */
   public userCard(author: StoredUser, grows: GrowDocument[]): LinkCard {
     const baseUrl = baseUrlOf(this.app.apiUrlExternal);
+    const language = author.preferences?.locale || 'en';
 
     return {
       title: `@${author.handle}`,
-      description: author.bio ?? diaryCount(grows.length),
+      description: author.bio ?? cardWords(language).diaries(grows.length),
       pageUrl: `${baseUrl}/@${encodeURIComponent(author.handle)}`,
       imageUrl: `${baseUrl}/v1/public/users/${encodeURIComponent(author.handle)}/card.png`,
       handle: author.handle,
       dayNumber: null,
       stage: null,
+      language,
     };
   }
 
@@ -448,18 +453,4 @@ const authorOf = (owner: StoredUser | null): PublicAuthor => {
     bio: owner.publicProfile ? owner.bio : null,
     avatarMediaId: owner.publicProfile ? owner.avatarMediaId : null,
   };
-};
-
-/** What a grow with no description of its own says about itself. */
-const sentenceFor = (handle: string | null, dayNumber: number | null, stage: string | null): string => {
-  const by = handle ? ` by @${handle}` : '';
-  if (dayNumber === null) return `A grow diary${by}.`;
-
-  return stage ? `A grow diary${by}, on day ${dayNumber} of ${stage}.` : `A grow diary${by}, on day ${dayNumber}.`;
-};
-
-const diaryCount = (count: number): string => {
-  if (count === 0) return 'No public grow diaries yet.';
-
-  return count === 1 ? 'One public grow diary.' : `${count} public grow diaries.`;
 };

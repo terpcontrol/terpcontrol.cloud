@@ -50,10 +50,10 @@ export class DeviceAlarmRulesController {
   @ApiOperation({ summary: 'The alarm rules watching this device' })
   @V1Answer(alarmRulePage)
   public async list(@Param('id') deviceId: string, @V1Query(pageQuery) query: PageQuery, @Caller() caller: AccessContext): Promise<AlarmRulePage> {
-    const page = await this.rules.list(deviceId, query);
+    const [page, counts] = await Promise.all([this.rules.list(deviceId, query), this.rules.counts(deviceId)]);
     const mayManage = !!(await this.access.access(caller, { type: 'device', id: deviceId }, 'manage'));
 
-    return mapPage(page, rule => alarmRuleOf(rule, mayManage));
+    return { ...mapPage(page, rule => alarmRuleOf(rule, mayManage)), counts };
   }
 
   @Post()

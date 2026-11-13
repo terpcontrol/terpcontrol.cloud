@@ -119,6 +119,7 @@ export const overviewOf = (over: Partial<SpaceOverview> = {}): SpaceOverview => 
   entries: [],
   events: [],
   readingNames: [],
+  plants: [],
   dueTasks: [],
   openAlerts: [],
   people: [{ id: 'user-1', handle: 'you' }],

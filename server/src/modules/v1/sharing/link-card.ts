@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { Injectable } from '@nestjs/common';
-import { LinkCard } from '@fg2/shared-types/v1';
+import { GrowthStage, LinkCard } from '@fg2/shared-types/v1';
 import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
 
 /**
@@ -78,11 +78,55 @@ const wrap = (text: string, size: number, lines: number): string[] => {
   return wrapped.slice(0, lines);
 };
 
-/** "@mia · Day 34 · Flowering" - whichever of the three the card has. */
-const metaLineOf = (card: LinkCard): string =>
-  [card.handle ? `@${card.handle}` : null, card.dayNumber === null ? null : `Day ${card.dayNumber}`, card.stage]
+/**
+ * The few words a card says, in the owner's language: a card is the grower's
+ * diary shown to somebody, and a German diary's card said "A grow diary by".
+ * The stages are the app's names for them (`home.stage` in its catalogues).
+ */
+const WORDS = {
+  de: {
+    day: (day: number) => `Tag ${day}`,
+    diaryBy: (handle: string | null) => (handle ? `Ein Grow-Tagebuch von @${handle}` : 'Ein Grow-Tagebuch'),
+    diaries: (count: number) =>
+      count === 0
+        ? 'Noch kein öffentliches Grow-Tagebuch.'
+        : count === 1
+          ? 'Ein öffentliches Grow-Tagebuch.'
+          : `${count} öffentliche Grow-Tagebücher.`,
+    stage: { germination: 'Keimung', seedling: 'Sämling', vegetative: 'Veg', flowering: 'Blüte', drying: 'Trocknung', curing: 'Reifung' },
+  },
+  en: {
+    day: (day: number) => `Day ${day}`,
+    diaryBy: (handle: string | null) => (handle ? `A grow diary by @${handle}` : 'A grow diary'),
+    diaries: (count: number) =>
+      count === 0 ? 'No public grow diaries yet.' : count === 1 ? 'One public grow diary.' : `${count} public grow diaries.`,
+    stage: { germination: 'Germination', seedling: 'Seedling', vegetative: 'Veg', flowering: 'Flower', drying: 'Drying', curing: 'Curing' },
+  },
+} as const satisfies Record<string, { stage: Record<GrowthStage, string> } & Record<string, unknown>>;
+
+/** The words of a language the app speaks, English for any other. */
+export const cardWords = (language: string | null | undefined) => (language?.startsWith('de') ? WORDS.de : WORDS.en);
+
+/** What a grow with no description of its own says about itself, in its owner's language: "Ein Grow-Tagebuch von @mia · Tag 34 · Blüte". */
+export const growSentence = (language: string, handle: string | null, dayNumber: number | null, stage: GrowthStage | null): string => {
+  const words = cardWords(language);
+  return [words.diaryBy(handle), dayNumber === null ? null : words.day(dayNumber), stage ? words.stage[stage] : null].filter(Boolean).join(' · ');
+};
+
+/** The language a card is written in, as `<html lang>` and the words name it. */
+const cardLanguage = (language: string): 'de' | 'en' => (language.startsWith('de') ? 'de' : 'en');
+
+/** "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language. */
+const metaLineOf = (card: LinkCard): string => {
+  const words = cardWords(card.language);
+  return [
+    card.handle ? `@${card.handle}` : null,
+    card.dayNumber === null ? null : words.day(card.dayNumber),
+    card.stage ? words.stage[card.stage] : null,
+  ]
     .filter((part): part is string => part !== null)
     .join('  ·  ');
+};
 
 const textLayer = (card: LinkCard, hasCover: boolean): string => {
   const title = wrap(card.title, TITLE_SIZE, 2);
@@ -216,7 +260,7 @@ export const shellHtml = (card: LinkCard): string => {
   const imageUrl = escapeHtml(card.imageUrl);
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${cardLanguage(card.language)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

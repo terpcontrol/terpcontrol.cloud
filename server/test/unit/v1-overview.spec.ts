@@ -592,6 +592,25 @@ describe('what was last written', () => {
     expect(page.events).toEqual([{ kind: 'maintenance', at: '2026-06-10T08:00:00.000Z', endedAt: '2026-06-10T08:10:00.000Z' }]);
   });
 
+  it('tells regulation switched off and on as the one stretch it was, beside maintenance', async () => {
+    await db.entries.create([
+      machine('off', '2026-06-10T09:00:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-configuration-updated', params: ['workmode: small → off', '', 'controller'] },
+        values: { kind: 'system' },
+      }),
+      machine('on', '2026-06-10T09:12:00.000Z', {
+        kind: 'system',
+        message: { key: 'message-device-configuration-updated', params: ['workmode: off → small', '', 'controller'] },
+        values: { kind: 'system' },
+      }),
+    ]);
+
+    const page = await readAs(session(OWNER));
+    expect(page.entries.map(line => line.id)).not.toContain('off');
+    expect(page.events).toEqual([{ kind: 'controlOff', at: '2026-06-10T09:00:00.000Z', endedAt: '2026-06-10T09:12:00.000Z' }]);
+  });
+
   it('leaves a maintenance still on without an end', async () => {
     await db.entries.create(maintenance('maintenance-on', '2026-06-10T11:50:00.000Z', 30));
 
@@ -773,6 +792,24 @@ describe('who may read it', () => {
     const unknown = await readAs(visitor(token));
     expect(unknown.grows.every(grow => grow.plantCount === null)).toBe(true);
     expect(unknown.grows.every(grow => grow.stageGroups.every(group => group.plantCount === null))).toBe(true);
+    expect(unknown.plants).toEqual([]);
+  });
+
+  /** A line about some plants names them on a link too - by the names the grow gives them, which are the count stated by name. */
+  it('names the grows´ plants to whoever keeps the tent, and to a link only where the owner shows the counts', async () => {
+    const labels = [
+      { id: 'plant-1', growId: GROW, label: 'Amnesia 1' },
+      { id: 'plant-2', growId: GROW, label: 'Amnesia 2' },
+      { id: 'plant-3', growId: GROW, label: 'Gelato 1' },
+    ];
+    expect((await readAs(session(OWNER))).plants).toEqual(labels);
+
+    const token = await linkFor({});
+    // Hidden by default: privacy is where an account starts.
+    expect((await readAs(visitor(token))).plants).toEqual([]);
+
+    await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: false } } });
+    expect((await readAs(visitor(token))).plants).toEqual(labels);
   });
 });
 

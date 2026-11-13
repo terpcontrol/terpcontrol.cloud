@@ -390,7 +390,8 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
           // that keeps them asks for nothing.
           light: !render.includeLightsOff,
         })),
-        language: overlays.dayCounter ? await this.cameras.languageOf(camera) : undefined,
+        // The day counter's word and the climate's figures are written as the owner reads the app.
+        language: overlays.dayCounter || overlays.climate ? await this.cameras.languageOf(camera) : undefined,
       };
 
       const all = await this.framesOf(camera.id, span.startsAt, endsAt, frameInterval);

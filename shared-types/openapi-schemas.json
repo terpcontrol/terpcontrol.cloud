@@ -4468,11 +4468,39 @@
           "string",
           "null"
         ]
+      },
+      "counts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "enabled": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "triggered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Enabled rules whose watch is out of bounds now."
+          }
+        },
+        "required": [
+          "total",
+          "enabled",
+          "triggered"
+        ],
+        "description": "Over every rule of the device, whichever page this is."
       }
     },
     "required": [
       "items",
-      "nextCursor"
+      "nextCursor",
+      "counts"
     ]
   },
   "AlarmRuleCreate": {
@@ -10342,6 +10370,27 @@
       "capturedAt"
     ]
   },
+  "PlantLabel": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "label": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "growId",
+      "label"
+    ]
+  },
   "TestCaptureState": {
     "type": "string",
     "enum": [
@@ -11654,6 +11703,39 @@
         "properties": {
           "kind": {
             "type": "string",
+            "const": "controlOff"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was."
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it was switched on again; null while it is still off, or where the day ended first."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "endedAt"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
             "const": "device"
           },
           "at": {
@@ -11810,7 +11892,7 @@
         "items": {
           "$ref": "#/components/schemas/GrowDayEvent"
         },
-        "description": "When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s."
+        "description": "When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s."
       },
       "latestStill": {
         "anyOf": [
@@ -12664,7 +12746,7 @@
         "items": {
           "$ref": "#/components/schemas/GrowDayEvent"
         },
-        "description": "When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s."
+        "description": "When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s."
       },
       "readingNames": {
         "type": "array",
@@ -12672,6 +12754,13 @@
           "$ref": "#/components/schemas/GrowReadingNames"
         },
         "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
+      },
+      "plants": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PlantLabel"
+        },
+        "description": "The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader."
       },
       "dueTasks": {
         "type": "array",
@@ -12709,6 +12798,7 @@
       "entries",
       "events",
       "readingNames",
+      "plants",
       "dueTasks",
       "openAlerts",
       "people"
@@ -14927,6 +15017,13 @@
         },
         "description": "What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed."
       },
+      "plants": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PlantLabel"
+        },
+        "description": "The grow’s plants, so a line about some of them names them; none where the counts are hidden."
+      },
       "weeks": {
         "type": "array",
         "items": {
@@ -14974,6 +15071,7 @@
       "range",
       "includeCameras",
       "readingNames",
+      "plants",
       "weeks",
       "weeksCursor",
       "harvest",
@@ -15141,6 +15239,10 @@
             "type": "null"
           }
         ]
+      },
+      "language": {
+        "type": "string",
+        "description": "The language of the owner's account, which the card's words are written in: `de` or `en`."
       }
     },
     "required": [
@@ -15150,7 +15252,8 @@
       "imageUrl",
       "handle",
       "dayNumber",
-      "stage"
+      "stage",
+      "language"
     ]
   }
 }

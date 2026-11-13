@@ -287,6 +287,17 @@ export type GrowDayEvent =
       endedAt: string | null;
     }
   | {
+      kind: 'controlOff';
+      /**
+       * When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was.
+       */
+      at: string;
+      /**
+       * When it was switched on again; null while it is still off, or where the day ended first.
+       */
+      endedAt: string | null;
+    }
+  | {
       kind: 'device';
       /**
        * When the device was put there: from here on the curves and the figures of the place are its own.
@@ -1662,6 +1673,17 @@ export interface AlarmRulePage {
    * Pass back as `cursor` for the next page; null on the last one.
    */
   nextCursor: string | null;
+  /**
+   * Over every rule of the device, whichever page this is.
+   */
+  counts: {
+    total: number;
+    enabled: number;
+    /**
+     * Enabled rules whose watch is out of bounds now.
+     */
+    triggered: number;
+  };
 }
 
 export interface AlarmRuleCreate {
@@ -3344,6 +3366,12 @@ export interface CameraStill {
   capturedAt: string;
 }
 
+export interface PlantLabel {
+  id: string;
+  growId: string;
+  label: string;
+}
+
 export interface TestCapture {
   id: string;
   cameraId: string;
@@ -3717,7 +3745,7 @@ export interface HomeSpaceCard {
    */
   entries: Entry[];
   /**
-   * When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.
+   * When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.
    */
   events: GrowDayEvent[];
   latestStill: LatestStill | null;
@@ -3956,13 +3984,17 @@ export interface SpaceOverview {
    */
   entries: Entry[];
   /**
-   * When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.
+   * When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.
    */
   events: GrowDayEvent[];
   /**
    * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
    */
   readingNames: GrowReadingNames[];
+  /**
+   * The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.
+   */
+  plants: PlantLabel[];
   dueTasks: OverviewTask[];
   openAlerts: OpenAlert[];
   /**
@@ -4637,6 +4669,10 @@ export interface PublicGrowPage {
    * What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.
    */
   readingNames: ReadingName[];
+  /**
+   * The grow’s plants, so a line about some of them names them; none where the counts are hidden.
+   */
+  plants: PlantLabel[];
   weeks: GrowDiaryWeek[];
   /**
    * Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.
@@ -4688,4 +4724,8 @@ export interface LinkCard {
   handle: string | null;
   dayNumber: number | null;
   stage: GrowthStage | null;
+  /**
+   * The language of the owner's account, which the card's words are written in: `de` or `en`.
+   */
+  language: string;
 }

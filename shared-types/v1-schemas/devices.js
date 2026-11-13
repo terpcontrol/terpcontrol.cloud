@@ -734,7 +734,19 @@ exports.alarmRule = (0, common_js_1.named)('AlarmRule', zod_1.z.object({
     silencedUntil: (0, common_js_1.instant)().nullable(),
     state: exports.alarmRuleState,
 }));
-exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.page)(exports.alarmRule));
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
+exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.page)(exports.alarmRule).extend({
+    counts: zod_1.z
+        .object({
+        total: zod_1.z.number().int(),
+        enabled: zod_1.z.number().int(),
+        triggered: zod_1.z.number().int().describe('Enabled rules whose watch is out of bounds now.'),
+    })
+        .describe('Over every rule of the device, whichever page this is.'),
+}));
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came
  * from is the server's to say - a rule written here is `human` by definition -

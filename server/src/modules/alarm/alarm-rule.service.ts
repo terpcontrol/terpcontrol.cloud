@@ -28,6 +28,16 @@ export class AlarmRuleService {
     return findPage(this.rules, [{ deviceId }], query);
   }
 
+  /** What every rule of a device comes to, whichever page of them is read. */
+  public async counts(deviceId: string): Promise<{ total: number; enabled: number; triggered: number }> {
+    const [total, enabled, triggered] = await Promise.all([
+      this.rules.countDocuments({ deviceId }),
+      this.rules.countDocuments({ deviceId, enabled: true }),
+      this.rules.countDocuments({ deviceId, enabled: true, 'state.triggered': true }),
+    ]);
+    return { total, enabled, triggered };
+  }
+
   public async byId(id: string): Promise<StoredAlarmRule> {
     const rule = await this.rules.findOne({ id }).lean<StoredAlarmRule>();
     if (!rule) throw notFound('alarm_rule_not_found', 'There is no alarm rule with that id.');

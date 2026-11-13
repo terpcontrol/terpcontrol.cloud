@@ -5,6 +5,7 @@ import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { serialiseEntry } from '@common/v1/entries';
 import { Span, withinRange } from '@common/v1/range';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
+import { CONFIGURATION_UPDATED, changeOf, linesOf } from '@modules/device-protocol/change-lines';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { demoEntry } from '@utils/demo';
 import { Redaction } from '../grow/grow-serialiser';
@@ -128,10 +129,25 @@ export const writtenFor = (grant: Pick<Grant, 'grantee'>): FilterQuery<EntryDocu
 const MAINTENANCE_LINES = ['message-maintenance-mode-activated', 'message-maintenance-mode-activated-remote'];
 
 /**
- * What a place's machines wrote that a diary tells all the same: the plan's
- * steps, which stand as the lines they are, and maintenance going on and off.
+ * The line a save writes where it switched a device's regulation off or on:
+ * its work mode to `off` or from it ("workmode: small → off"), whoever saved
+ * it - the app, a plan, the device's own menu. Like maintenance it is a
+ * person's doing that leaves the tent to itself, and it is told as one
+ * stretch (`controlOffRuns`); every other figure such a save moved stays with
+ * the device.
  */
-const MACHINE_LINES: FilterQuery<EntryDocument>[] = [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: MAINTENANCE_LINES } }];
+const CONTROL_LINES: FilterQuery<EntryDocument> = {
+  kind: 'system',
+  'message.key': CONFIGURATION_UPDATED,
+  'message.params.0': { $regex: /^workmode: (off → .+|.+ → off)$/m },
+};
+
+/**
+ * What a place's machines wrote that a diary tells all the same: the plan's
+ * steps, which stand as the lines they are, maintenance going on and off and
+ * regulation switched off and on.
+ */
+const MACHINE_LINES: FilterQuery<EntryDocument>[] = [{ kind: 'plan' }, { kind: 'system', 'message.key': { $in: MAINTENANCE_LINES } }, CONTROL_LINES];
 export const TOLD_OF_MACHINES: FilterQuery<EntryDocument> = { $or: MACHINE_LINES };
 
 /**
@@ -162,16 +178,75 @@ const maintenanceRuns = (lines: readonly EntryDocument[]): Span[] => {
   return open ? [...runs, open] : runs;
 };
 
+/** The end of a stretch nobody has ended yet: later than any day it is read against. */
+export const STILL_RUNNING = new Date(8.64e15);
+
+/** What a work-mode line says: switched off, switched on again, or neither. */
+const switchedBy = (entry: EntryDocument): 'off' | 'on' | null => {
+  if (entry.message?.key !== CONFIGURATION_UPDATED) return null;
+  const mode = linesOf(entry.message.params[0])
+    .map(changeOf)
+    .find(change => change?.path === 'workmode');
+  return mode?.after === 'off' && mode.before !== 'off' ? 'off' : mode?.before === 'off' && mode.after !== 'off' ? 'on' : null;
+};
+
+/**
+ * When a device of the place had its regulation switched off, from the lines
+ * that say it was and that it was switched on again: each device's own, and
+ * stretches of several devices that overlap or touch are one. One nobody has
+ * switched on again runs on (`STILL_RUNNING`); a switch on whose switch off
+ * lies before what was read says nothing about how long it was.
+ */
+const controlOffRuns = (lines: readonly EntryDocument[]): Span[] => {
+  const open = new Map<string, Date>();
+  const runs: Span[] = [];
+
+  for (const line of [...lines].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime())) {
+    const switched = switchedBy(line);
+    const device = line.deviceId ?? '';
+    const since = open.get(device);
+    if (switched === 'off' && !since) open.set(device, line.occurredAt);
+    if (switched === 'on' && since) {
+      runs.push({ startsAt: since, endsAt: line.occurredAt });
+      open.delete(device);
+    }
+  }
+
+  const all = [...runs, ...[...open.values()].map(startsAt => ({ startsAt, endsAt: STILL_RUNNING }))].sort(
+    (one, other) => one.startsAt.getTime() - other.startsAt.getTime(),
+  );
+  return all.reduce<Span[]>((merged, run) => {
+    const last = merged[merged.length - 1];
+    if (last && run.startsAt <= last.endsAt) {
+      merged[merged.length - 1] = { startsAt: last.startsAt, endsAt: run.endsAt > last.endsAt ? run.endsAt : last.endsAt };
+      return merged;
+    }
+    return [...merged, run];
+  }, []);
+};
+
 /**
  * Entries read by the diary's rules, as a diary tells them: the lines, newest
- * first, and when maintenance was on - the one thing of them that is a stretch
- * and not a line.
+ * first, and when maintenance was on and regulation off - the two things of
+ * them that are stretches and not lines.
  */
-export const toldOf = (entries: readonly EntryDocument[]): { lines: EntryDocument[]; maintenance: Span[] } => ({
-  lines: entries
-    .filter(entry => entry.kind !== 'system')
-    .sort((one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id)),
-  maintenance: maintenanceRuns(entries.filter(entry => entry.kind === 'system')),
+export const toldOf = (entries: readonly EntryDocument[]): { lines: EntryDocument[]; maintenance: Span[]; controlOff: Span[] } => {
+  const system = entries.filter(entry => entry.kind === 'system');
+
+  return {
+    lines: entries
+      .filter(entry => entry.kind !== 'system')
+      .sort((one, other) => other.occurredAt.getTime() - one.occurredAt.getTime() || other.id.localeCompare(one.id)),
+    maintenance: maintenanceRuns(system.filter(entry => entry.message?.key !== CONFIGURATION_UPDATED)),
+    controlOff: controlOffRuns(system),
+  };
+};
+
+/** A stretch as the day events of a diary carry it, up to `until`: still on where it runs past that. */
+export const stretchEvent = (kind: 'maintenance' | 'controlOff', run: Span, until: Date): GrowDayEvent => ({
+  kind,
+  at: run.startsAt.toISOString(),
+  endedAt: run.endsAt > until ? null : run.endsAt.toISOString(),
 });
 
 /** How many entries the tail reads for each line it answers: a maintenance is two lines of every device of the place. */
@@ -181,7 +256,8 @@ const READ_PER_LINE = 3;
  * The newest of a diary, which is what "Zuletzt" on Start shows of a place and
  * of the grows standing in it (`about`): the same lines by the same rules as
  * a day of the grow's diary - what people wrote, the alarms, the plan's steps -
- * and maintenance as the stretch it was. One read, newest first.
+ * and maintenance and regulation switched off as the stretches they were. One
+ * read, newest first.
  */
 export const diaryTail = async (
   entries: Model<EntryDocument>,
@@ -202,11 +278,14 @@ export const diaryTail = async (
   // Where the lines fill the list, a maintenance from before the oldest of them is not among the newest either.
   const since = lines.length === limit ? lines[lines.length - 1].occurredAt : null;
 
+  const newest = (run: Span) => since === null || run.startsAt >= since;
+
   return {
     lines,
-    events: told.maintenance
-      .filter(run => since === null || run.startsAt >= since)
-      .map(run => ({ kind: 'maintenance' as const, at: run.startsAt.toISOString(), endedAt: run.endsAt > now ? null : run.endsAt.toISOString() })),
+    events: [
+      ...told.maintenance.filter(newest).map(run => stretchEvent('maintenance', run, now)),
+      ...told.controlOff.filter(newest).map(run => stretchEvent('controlOff', run, now)),
+    ].sort((one, other) => other.at.localeCompare(one.at)),
   };
 };
 

@@ -27,7 +27,7 @@ import { climateOf, recordOf, settlingsOf } from '../phase/target-record';
 import { diaryTail, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
 import { completionsOf, dueTasksOf, reminderOfTask, remindersAbout } from '../diary/due-tasks';
 import { standingIn } from '../grow/grow-places';
-import { Redaction, growCardOf, growUpTo, redactionOf, summaryOf } from '../grow/grow-serialiser';
+import { Redaction, growCardOf, growUpTo, labelOf, redactionOf, summaryOf } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
 import { alertsRaisedIn, openAlertReader } from '../home/open-alerts';
 import { climatesOf, liveOfDevice, mergeLive, setpointOf } from '../space/space-live';
@@ -240,6 +240,8 @@ export class OverviewService {
       entries: told,
       events: tail.events,
       readingNames: readingNamesOf(grows),
+      // A list of names is the count stated the long way round: none of a grow whose counts this reader is not told.
+      plants: grows.flatMap(grow => (hide(grow.ownerId).counts ? [] : plants.filter(plant => plant.growId === grow.id).map(labelOf))),
       dueTasks,
       openAlerts: forKeepers ? alerts.map(openAlertOf) : [],
       people: await peopleNamed(this.users, [...told.map(entry => entry.authorId), ...dueTasks.map(task => task.assigneeId)]),

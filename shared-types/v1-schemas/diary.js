@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cameraCreate = exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
-exports.overviewTargets = exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growDayEvent = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.cameraStill = exports.cameraUpdate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputPoint = exports.timelinePanel = exports.timelineReading = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewClimate = void 0;
+exports.overviewTask = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growDayEvent = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.dueTask = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.plantLabel = exports.cameraStill = exports.cameraUpdate = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.spaceSeries = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputPoint = exports.timelinePanel = exports.timelineReading = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewClimate = exports.overviewTargets = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
 const common_js_1 = require("./common.js");
@@ -562,6 +562,14 @@ exports.cameraCreate = (0, common_js_1.named)('CameraCreate', zod_1.z.discrimina
 exports.cameraUpdate = (0, common_js_1.named)('CameraUpdate', exports.rtspCameraCreate.omit({ kind: true }).partial());
 /** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
 exports.cameraStill = (0, common_js_1.named)('CameraStill', zod_1.z.object({ mediaId: (0, common_js_1.id)(), capturedAt: (0, common_js_1.instant)() }));
+/**
+ * A plant by what it is called, so a line of a diary about some plants of a
+ * grow can name them ("B2") where the reader is not given the grow's plants
+ * otherwise - a page anybody may open, a link. A list of names is the count
+ * stated the long way round, so it is empty wherever the count is hidden
+ * (`hideCounts`), as a line's `plantIds` are.
+ */
+exports.plantLabel = (0, common_js_1.named)('PlantLabel', zod_1.z.object({ id: (0, common_js_1.id)(), growId: (0, common_js_1.id)(), label: zod_1.z.string() }));
 exports.testCaptureState = (0, common_js_1.named)('TestCaptureState', zod_1.z.enum(['running', 'done', 'failed']));
 /** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
 exports.captureFailure = (0, common_js_1.named)('CaptureFailure', zod_1.z.enum(capture_js_1.CAPTURE_FAILURES));
@@ -935,7 +943,8 @@ const deviceChange = zod_1.z.object({
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
  * change of the device that measures, which happened by themselves, and
- * maintenance, which a person switched - on and off are one event. Lamp and
+ * maintenance and regulation switched off, which a person switched - on and
+ * off are one event each. Lamp and
  * stretches are read from the measurements on every read of a day and stored
  * nowhere, so a day that has left the store's raw samples has none. A reader
  * from outside is answered none of them.
@@ -961,6 +970,11 @@ exports.growDayEvent = (0, common_js_1.named)('GrowDayEvent', zod_1.z.discrimina
         kind: zod_1.z.literal('maintenance'),
         at: (0, common_js_1.instant)().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
         endedAt: (0, common_js_1.instant)().nullable().describe('Null while it is still on, or where the day ended first.'),
+    }),
+    zod_1.z.object({
+        kind: zod_1.z.literal('controlOff'),
+        at: (0, common_js_1.instant)().describe('When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was.'),
+        endedAt: (0, common_js_1.instant)().nullable().describe('When it was switched on again; null while it is still off, or where the day ended first.'),
     }),
     deviceChange,
 ]));
@@ -998,7 +1012,9 @@ exports.homeSpaceCard = (0, common_js_1.named)('HomeSpaceCard', zod_1.z.object({
     entries: zod_1.z
         .array(exports.entry)
         .describe('The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by.'),
-    events: zod_1.z.array(exports.growDayEvent).describe('When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.'),
+    events: zod_1.z
+        .array(exports.growDayEvent)
+        .describe('When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.'),
     latestStill: exports.latestStill.nullable(),
     dueTasks: zod_1.z.array(exports.dueTask),
     openAlerts: zod_1.z.array(exports.openAlert),
@@ -1179,8 +1195,11 @@ exports.spaceOverview = (0, common_js_1.named)('SpaceOverview', zod_1.z.object({
         .describe('The newest lines of this space and of the grows standing in it, newest first, by the rules a day of the diary goes by: what people wrote, the alarms and the plan’s steps - not what else a device logs about itself. A reader from outside is answered what people wrote.'),
     events: zod_1.z
         .array(exports.growDayEvent)
-        .describe('When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
+        .describe('When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
     readingNames: zod_1.z.array(exports.growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    plants: zod_1.z
+        .array(exports.plantLabel)
+        .describe('The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.'),
     dueTasks: zod_1.z.array(exports.overviewTask),
     openAlerts: zod_1.z.array(exports.openAlert),
     people: zod_1.z.array(common_js_1.person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
@@ -1802,6 +1821,7 @@ exports.publicGrowPage = (0, common_js_1.named)('PublicGrowPage', zod_1.z.object
     range: exports.timeRange,
     includeCameras: zod_1.z.boolean(),
     readingNames: zod_1.z.array(exports.readingName).describe('What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.'),
+    plants: zod_1.z.array(exports.plantLabel).describe('The grow’s plants, so a line about some of them names them; none where the counts are hidden.'),
     weeks: zod_1.z.array(exports.growDiaryWeek),
     weeksCursor: zod_1.z
         .string()
@@ -1864,4 +1884,5 @@ exports.linkCard = (0, common_js_1.named)('LinkCard', zod_1.z.object({
     handle: zod_1.z.string().nullable(),
     dayNumber: zod_1.z.number().int().nullable(),
     stage: common_js_1.growthStage.nullable(),
+    language: zod_1.z.string().describe("The language of the owner's account, which the card's words are written in: `de` or `en`."),
 }));

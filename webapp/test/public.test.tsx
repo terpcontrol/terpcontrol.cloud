@@ -112,6 +112,7 @@ const page: PublicGrowPage = {
   range: { startsAt: at(34), endsAt: NOW.toISO()! },
   includeCameras: true,
   readingNames: [{ key: 'runoff_ec', name: 'Runoff EC', unit: 'mS/cm' }],
+  plants: [],
   weeks: [week],
   weeksCursor: null,
   harvest: null,
@@ -408,6 +409,7 @@ describe('a tent behind a link', () => {
     entries: [],
     events: [],
     readingNames: [],
+    plants: [],
     dueTasks: [],
     openAlerts: [],
     people: [],
@@ -497,7 +499,8 @@ describe('a tent behind a link', () => {
    * "Zuletzt" is the diary's own line, as Start draws it: no name on it, the day it was written, and its
    * pictures counted in the line, which is the way to them at the link's own addresses.
    */
-  it('says its latest lines as the diary does, and opens a line´s pictures through the link', () => {
+  /** The diary is what a link shows off: a line's pictures stand in it as thumbnails, each the way to itself. */
+  it('says its latest lines as the diary does, draws a line´s pictures in it and opens them through the link', () => {
     const space: SpaceOverview = {
       ...sharedSpace(at(0)),
       entries: [entry({ id: 'e-photo', kind: 'photo', values: { kind: 'photo' }, text: 'The canopy from above', mediaIds: ['one', 'two'] })],
@@ -507,16 +510,44 @@ describe('a tent behind a link', () => {
 
     const latest = within(screen.getByRole('region', { name: 'Latest' }));
     const line = latest.getByRole('listitem');
-    expect(line).toHaveTextContent(/^yesterdayPhoto: The canopy from above · 2\s?pictures, open the picture$/);
+    expect(line).toHaveTextContent(/^yesterdayPhoto: The canopy from above$/);
     expect(line.textContent).not.toMatch(/anna/);
+    expect(within(line).getByRole('img', { name: 'Picture 1 of 2' })).toHaveAttribute('src', publicPicture('spring-run')('one', 200));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
-    fireEvent.click(latest.getByRole('button', { name: /The canopy from above/ }));
+    fireEvent.click(within(line).getByRole('img', { name: 'Picture 2 of 2' }));
     const viewer = screen.getByRole('dialog');
-    expect(viewer).toHaveAccessibleName('Picture 1 of 2');
-    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('one', 1200));
-    fireEvent.click(within(viewer).getByRole('button', { name: 'Next picture' }));
+    expect(viewer).toHaveAccessibleName('Picture 2 of 2');
     expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('two', 1200));
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Previous picture' }));
+    expect(viewer.querySelector('img')).toHaveAttribute('src', publicPicture('spring-run')('one', 1200));
+  });
+
+  /** A line about one plant of several said nothing of which; where the grower shows the count, the link names it as the diary does. */
+  it('names the plants a line is about where the answer names the grow´s plants, and none where it does not', () => {
+    const plants = [
+      { id: 'p1', growId: 'grow-1', label: 'A1' },
+      { id: 'p2', growId: 'grow-1', label: 'B2' },
+      { id: 'p3', growId: 'grow-1', label: 'C3' },
+    ];
+    const watered = entry({ id: 'e-b2', plantIds: ['p2'] });
+    const drawn = drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), entries: [watered], plants }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).toHaveTextContent(/B2/);
+    drawn.unmount();
+
+    // The counts hidden, the answer names no plants and the line names none.
+    drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: [{ ...watered, plantIds: [] }], plants: [] }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/B2/);
   });
 
   it('still says nothing has been reported of a tent whose window is open', () => {

@@ -8,7 +8,7 @@ import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import { OverlayFrame, composeFrame, overlayLayer, readingIn, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { session } from './support/callers';
@@ -445,6 +445,44 @@ describe('what the builder makes of it', () => {
 
     expect(overlayLayer(frame, only, { ...context, language: 'de' })).toContain('>Tag 4</text>');
     expect(overlayLayer(frame, only, context)).toContain('>Day 4</text>');
+  });
+
+  /** A German owner's film said "25.6°C" beside "Tag 29": the figures are the app's, in the owner's language. */
+  it('writes the climate´s figures as the app writes them for the owner: its decimals, its decimal mark, a space before the unit', () => {
+    const readings = (values: number[]) => values.map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const context = { growStartedAt: null, temperature: readings([24.04, 25.63]), humidity: readings([58.4, 59.2]), light: [], captions: [] };
+    const frame = { at: new Date('2026-08-20T01:00:00.000Z'), width: 1280, height: 720 };
+    const climate = { dayCounter: false, climate: true, entries: false };
+
+    expect(overlayLayer(frame, climate, { ...context, language: 'de' })).toMatch(/>25,6 °C<\/text>[\s\S]*>59 %<\/text>/);
+    expect(overlayLayer(frame, climate, { ...context, language: 'en' })).toMatch(/>25\.6 °C<\/text>/);
+    expect(readingIn(-0.04, 1, '°C', 'de')).toBe('0,0 °C');
+  });
+
+  /** The curve poked four pixels out of its box at the right: drawn inside it now, joined round. */
+  it('keeps the curves and the cursor inside the climate box, and the caption over it as wide as the box', () => {
+    // A steep last step, which a mitred join drew past the box's edge.
+    const steep = [20, 20, 20, 30, 20].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const context = {
+      growStartedAt: null,
+      temperature: steep,
+      humidity: steep,
+      light: [],
+      captions: [{ at: new Date('2026-08-20T04:00:00.000Z'), text: 'topped' }],
+    };
+    const frame = { at: new Date('2026-08-20T04:00:00.000Z'), width: 1280, height: 720 };
+    const layer = overlayLayer(frame, { dayCounter: false, climate: true, entries: true }, context)!;
+
+    const rects = [...layer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({ left: Number(found[1]), width: Number(found[2]) }));
+    const [caption, box] = rects;
+    expect(caption).toEqual(box);
+    const xs = [...layer.matchAll(/<path d="([^"]*)"/g)].flatMap(found => [...found[1].matchAll(/[ML]([\d.]+) /g)].map(point => Number(point[1])));
+    const cursor = Number(/<line x1="([\d.]+)"/.exec(layer)![1]);
+    for (const x of [...xs, cursor]) {
+      expect(x).toBeGreaterThanOrEqual(box.left + 2);
+      expect(x).toBeLessThanOrEqual(box.left + box.width - 2);
+    }
+    expect(layer).toContain('stroke-linejoin="round"');
   });
 
   it('draws nothing where every overlay that was asked for has nothing to say', () => {

@@ -110,11 +110,19 @@ describe('the rules watching a device', () => {
     expect(rule.watch).toEqual({ kind: 'output_running', output: 'dehumidifier' });
   });
 
-  it('lists them, and pages through them', async () => {
+  it('lists them, pages through them, and counts every rule on every page', async () => {
     const listed = await owner.client.get(`/v1/devices/${device}/alarm-rules?limit=1`).expect(200);
+    const all = await owner.client.get(`/v1/devices/${device}/alarm-rules?limit=100`).expect(200);
 
     expect(listed.body.items).toHaveLength(1);
     expect(listed.body.nextCursor).toEqual(expect.any(String));
+    // Steuerung said "100 Regeln" of a device with 110: the count is the server's, not the length of a page.
+    expect(listed.body.counts).toEqual({
+      total: all.body.items.length,
+      enabled: all.body.items.filter((rule: { enabled: boolean }) => rule.enabled).length,
+      triggered: all.body.items.filter((rule: { enabled: boolean; state: { triggered: boolean } }) => rule.enabled && rule.state.triggered).length,
+    });
+    expect(listed.body.counts.total).toBeGreaterThan(1);
   });
 
   it('changes what a rule watches for, and puts it away again', async () => {

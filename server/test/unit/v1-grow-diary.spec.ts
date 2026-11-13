@@ -634,6 +634,42 @@ describe('maintenance', () => {
   });
 });
 
+/**
+ * Regulation switched off and on again wrote a settings line ("workmode: small → off") that no day told: the
+ * critic's incident of a tent left to itself had no cause in its diary. It is one stretch, as maintenance is.
+ */
+describe('regulation switched off', () => {
+  const switched = (id: string, at: Date, line: string, over: Partial<EntryDocument> = {}) =>
+    machine(id, 'message-device-configuration-updated', at, {
+      message: { key: 'message-device-configuration-updated', params: [line, '', 'controller'] },
+      ...over,
+    });
+  const offOf = (day: GrowDiaryDay) => day.events.filter(event => event.kind === 'controlOff');
+
+  it('is one stretch from the save that switched it off to the one that switched it on, and nothing of the other figures', async () => {
+    await db.entries.create([
+      switched('off', berlin(12, '09:00'), 'day.temperature: 25 → 24\nworkmode: small → off'),
+      switched('figures', berlin(12, '09:05'), 'day.temperature: 24 → 23'),
+      switched('on', berlin(12, '09:12'), 'workmode: off → small'),
+    ]);
+    const day = dayOf(await read(), 11);
+
+    expect(offOf(day)).toEqual([{ kind: 'controlOff', at: berlin(12, '09:00').toISOString(), endedAt: berlin(12, '09:12').toISOString() }]);
+    // The save's lines are the device's record, not the diary's.
+    expect(day.entries.map(line => line.id)).not.toEqual(expect.arrayContaining(['off', 'figures', 'on']));
+  });
+
+  it('runs on where nobody switched it on, and is one stretch for two devices of the place switched off together', async () => {
+    await db.entries.create([
+      switched('off-controller', berlin(12, '09:30'), 'workmode: full → off'),
+      switched('off-plug', new Date(berlin(12, '09:30').getTime() + 2000), 'workmode: small → off', { deviceId: 'device-plug' }),
+      switched('on-plug', berlin(12, '09:40'), 'workmode: off → small', { deviceId: 'device-plug' }),
+    ]);
+
+    expect(offOf(dayOf(await read(), 11))).toEqual([{ kind: 'controlOff', at: berlin(12, '09:30').toISOString(), endedAt: null }]);
+  });
+});
+
 describe('the pictures of a diary', () => {
   it('are the still nearest midday, and today the newest one taken in the light', async () => {
     const page = await read();

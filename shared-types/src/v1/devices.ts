@@ -1007,7 +1007,22 @@ export const alarmRule = named(
   }),
 );
 
-export const alarmRulePage = named('AlarmRulePage', page(alarmRule));
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
+export const alarmRulePage = named(
+  'AlarmRulePage',
+  page(alarmRule).extend({
+    counts: z
+      .object({
+        total: z.number().int(),
+        enabled: z.number().int(),
+        triggered: z.number().int().describe('Enabled rules whose watch is out of bounds now.'),
+      })
+      .describe('Over every rule of the device, whichever page this is.'),
+  }),
+);
 
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came

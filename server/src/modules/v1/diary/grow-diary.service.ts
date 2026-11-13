@@ -20,7 +20,7 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { dayClimateOf } from './day-climate';
-import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, toldOf, writtenFor } from './diary-entries';
+import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, stretchEvent, toldOf, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService, RecordedController } from './grow-climate.service';
@@ -80,6 +80,8 @@ interface PageWorld {
   lines: EntryDocument[];
   /** When the devices of the place were in maintenance; none for a reader from outside. */
   maintenance: Span[];
+  /** When a device of the place had its regulation switched off; none for a reader from outside. */
+  controlOff: Span[];
   /** When another device took over the climate where the grow stood; none for a reader from outside. */
   changes: DeviceChange[];
   stills: Map<number, DayStill>;
@@ -122,7 +124,7 @@ export class GrowDiaryService {
     const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
     const days = page.items.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
 
-    const [hide, { lines, maintenance }, earlier, controllers, changes, films, stills] = await Promise.all([
+    const [hide, { lines, maintenance, controlOff }, earlier, controllers, changes, films, stills] = await Promise.all([
       this.grows.redaction(grant),
       this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
@@ -148,7 +150,7 @@ export class GrowDiaryService {
       page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, changes, stills, films };
+    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, controlOff, changes, stills, films };
     const weeks = page.items.map(week => this.weekOf(week, world, recordedOf.get(week.weekNumber) ?? []));
 
     const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
@@ -212,12 +214,13 @@ export class GrowDiaryService {
     // What the devices did, and how well they kept to their targets, is for the people who keep the place: a page
     // anybody may open says how the day was and what was done to the plants.
     const outsider = isOutsider(world.grant);
-    const switched: GrowDayEvent[] = world.maintenance.flatMap(run => {
-      const part = lifeOf(run, seen);
-      return part
-        ? [{ kind: 'maintenance' as const, at: part.startsAt.toISOString(), endedAt: run.endsAt > part.endsAt ? null : part.endsAt.toISOString() }]
-        : [];
-    });
+    // Maintenance and regulation switched off, each the part of its stretch that falls on this day.
+    const stretches = (kind: 'maintenance' | 'controlOff', runs: Span[]): GrowDayEvent[] =>
+      runs.flatMap(run => {
+        const part = lifeOf(run, seen);
+        return part ? [stretchEvent(kind, { startsAt: part.startsAt, endsAt: run.endsAt }, part.endsAt)] : [];
+      });
+    const switched = [...stretches('maintenance', world.maintenance), ...stretches('controlOff', world.controlOff)];
 
     return {
       date: day.date,
@@ -239,9 +242,10 @@ export class GrowDiaryService {
    * plan's steps there. A plan's line names its place and not always a grow,
    * so it is found by the place and kept by the placement; one about another
    * grow sharing the tent is that grow's. Beside them the lines that say
-   * maintenance went on and off, which are told as stretches and not as lines.
+   * maintenance went on and off and regulation off and on, which are told as
+   * stretches and not as lines.
    */
-  private async linesIn(grow: GrowDocument, grant: Grant, span: Span, spaceIds: string[]): Promise<{ lines: EntryDocument[]; maintenance: Span[] }> {
+  private async linesIn(grow: GrowDocument, grant: Grant, span: Span, spaceIds: string[]): Promise<ReturnType<typeof toldOf>> {
     const during = { occurredAt: { $gte: span.startsAt, $lt: span.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries

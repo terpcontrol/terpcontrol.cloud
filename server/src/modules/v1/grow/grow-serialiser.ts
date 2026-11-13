@@ -10,6 +10,7 @@ import type {
   PhaseGroup,
   Placement,
   Plant,
+  PlantLabel,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
 import { growDayAt, growDayUpTo, growOriginOf, growWeekOfDay, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
@@ -63,6 +64,13 @@ export const redactionOf = (redacted: boolean, privacy: UserPrivacy | null | und
  * hidden.
  */
 const scope = (plantIds: string[] | null, hide: Redaction): string[] | null => (hide.counts && plantIds !== null ? [] : plantIds);
+
+/** A plant by its name, for a page that names the plants of a line and is not answered the plants themselves. */
+export const labelOf = (plant: Pick<PlantDocument, 'id' | 'growId' | 'label'>): PlantLabel => ({
+  id: plant.id,
+  growId: plant.growId,
+  label: plant.label,
+});
 
 /**
  * Which day of its phase a grow is on: the days of the grow this phase has

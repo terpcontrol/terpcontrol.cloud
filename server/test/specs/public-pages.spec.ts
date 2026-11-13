@@ -221,6 +221,8 @@ describe('a public grow at its own address', () => {
     const hidden = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
     expect(hidden.body.plantCount).toBeNull();
     expect(hidden.body.harvest).toMatchObject({ wetWeightG: null, dryWeightG: null });
+    // The plants by name are the count by name: none while it is hidden.
+    expect(hidden.body.plants).toEqual([]);
 
     await quiet.client
       .patch('/v1/me')
@@ -229,6 +231,9 @@ describe('a public grow at its own address', () => {
 
     const shown = await anonymous().get(`/v1/public/grows/${theirs.slug}`).expect(200);
     expect(shown.body.plantCount).toBe(3);
+    expect(shown.body.plants.map((plant: { label: string }) => plant.label)).toEqual(
+      plants.body.items.map((plant: { label: string }) => plant.label),
+    );
     expect(shown.body.harvest).toMatchObject({ wetWeightG: 430, dryWeightG: 97 });
   });
 });

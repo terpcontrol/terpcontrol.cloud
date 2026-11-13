@@ -1867,6 +1867,10 @@ export declare const alarmRule: z.ZodObject<{
         lastSampleAt: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>;
 }, z.core.$strip>;
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
 export declare const alarmRulePage: z.ZodObject<{
     items: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -1968,6 +1972,11 @@ export declare const alarmRulePage: z.ZodObject<{
         }, z.core.$strip>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
+    counts: z.ZodObject<{
+        total: z.ZodNumber;
+        enabled: z.ZodNumber;
+        triggered: z.ZodNumber;
+    }, z.core.$strip>;
 }, z.core.$strip>;
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came

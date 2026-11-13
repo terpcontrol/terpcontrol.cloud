@@ -747,6 +747,15 @@ export const cameraUpdate = named('CameraUpdate', rtspCameraCreate.omit({ kind: 
 /** One picture of a camera, where the camera is already known: a row of the day's strip, the picture a test took. */
 export const cameraStill = named('CameraStill', z.object({ mediaId: id(), capturedAt: instant() }));
 
+/**
+ * A plant by what it is called, so a line of a diary about some plants of a
+ * grow can name them ("B2") where the reader is not given the grow's plants
+ * otherwise - a page anybody may open, a link. A list of names is the count
+ * stated the long way round, so it is empty wherever the count is hidden
+ * (`hideCounts`), as a line's `plantIds` are.
+ */
+export const plantLabel = named('PlantLabel', z.object({ id: id(), growId: id(), label: z.string() }));
+
 export const testCaptureState = named('TestCaptureState', z.enum(['running', 'done', 'failed']));
 
 /** What kind of failure a read of a camera was, from the words it left behind (`capture.ts`). */
@@ -1229,7 +1238,8 @@ const deviceChange = z.object({
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
  * change of the device that measures, which happened by themselves, and
- * maintenance, which a person switched - on and off are one event. Lamp and
+ * maintenance and regulation switched off, which a person switched - on and
+ * off are one event each. Lamp and
  * stretches are read from the measurements on every read of a day and stored
  * nowhere, so a day that has left the store's raw samples has none. A reader
  * from outside is answered none of them.
@@ -1261,6 +1271,13 @@ export const growDayEvent = named(
       kind: z.literal('maintenance'),
       at: instant().describe('When somebody put the devices of the place into maintenance, or the start of the day where they already were.'),
       endedAt: instant().nullable().describe('Null while it is still on, or where the day ended first.'),
+    }),
+    z.object({
+      kind: z.literal('controlOff'),
+      at: instant().describe(
+        'When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was.',
+      ),
+      endedAt: instant().nullable().describe('When it was switched on again; null while it is still off, or where the day ended first.'),
     }),
     deviceChange,
   ]),
@@ -1306,7 +1323,9 @@ export const homeSpaceCard = named(
     entries: z
       .array(entry)
       .describe('The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by.'),
-    events: z.array(growDayEvent).describe('When maintenance was on among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.'),
+    events: z
+      .array(growDayEvent)
+      .describe('When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.'),
     latestStill: latestStill.nullable(),
     dueTasks: z.array(dueTask),
     openAlerts: z.array(openAlert),
@@ -1547,8 +1566,11 @@ export const spaceOverview = named(
       ),
     events: z
       .array(growDayEvent)
-      .describe('When maintenance was on among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
+      .describe('When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
     readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    plants: z
+      .array(plantLabel)
+      .describe('The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.'),
     dueTasks: z.array(overviewTask),
     openAlerts: z.array(openAlert),
     people: z.array(person).describe('Everyone the answer names, so an entry can say who wrote it without another read.'),
@@ -2363,6 +2385,7 @@ export const publicGrowPage = named(
     range: timeRange,
     includeCameras: z.boolean(),
     readingNames: z.array(readingName).describe('What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.'),
+    plants: z.array(plantLabel).describe('The grow’s plants, so a line about some of them names them; none where the counts are hidden.'),
     weeks: z.array(growDiaryWeek),
     weeksCursor: z
       .string()
@@ -2441,5 +2464,6 @@ export const linkCard = named(
     handle: z.string().nullable(),
     dayNumber: z.number().int().nullable(),
     stage: growthStage.nullable(),
+    language: z.string().describe("The language of the owner's account, which the card's words are written in: `de` or `en`."),
   }),
 );

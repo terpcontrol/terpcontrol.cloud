@@ -136,24 +136,50 @@ const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null
 };
 
 /**
+ * A reading as the app writes it for the owner: its own decimals - one for the
+ * temperature, none for the humidity - with the language's decimal mark and a
+ * space before the unit ("25,6 °C", "59 %"), never "-0".
+ */
+export const readingIn = (value: number, decimals: number, unit: string, language: string | undefined): string => {
+  // Rounded first, and a rounded -0 made 0 by adding it to 0: "-0,0" is no reading.
+  const rounded = Number(value.toFixed(decimals)) + 0;
+  const figure = new Intl.NumberFormat(language ?? 'en', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: false,
+  }).format(rounded);
+  return `${figure} ${unit}`;
+};
+
+/** Where the climate box stands on a frame, which the caption above it takes its width from. */
+const climateBox = (frame: OverlayFrame): { left: number; width: number; height: number; pad: number } => {
+  const width = Math.round(frame.width * 0.62);
+  return { left: Math.round((frame.width - width) / 2), width, height: Math.round(frame.height / 5), pad: Math.round(frame.height / 36) };
+};
+
+/**
  * The temperature and the humidity of the whole span, with a cursor on the
  * instant this frame was taken - which is what makes a film of a tent worth
- * watching rather than a film of a plant.
+ * watching rather than a film of a plant. The curves and the cursor are drawn
+ * inside the box, a stroke's width in from its edges and joined round, so a
+ * steep last step does not poke out of it.
  */
 const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | null => {
   const lines = [
-    { points: context.temperature, colour: TEMPERATURE, unit: '°C' },
-    { points: context.humidity, colour: HUMIDITY, unit: '%' },
+    { points: context.temperature, colour: TEMPERATURE, unit: '°C', decimals: 1 },
+    { points: context.humidity, colour: HUMIDITY, unit: '%', decimals: 0 },
   ].filter(line => line.points.some(point => point.value !== null));
 
   if (lines.length === 0) return null;
 
-  const height = Math.round(frame.height / 5);
-  const width = Math.round(frame.width * 0.62);
-  const pad = Math.round(frame.height / 36);
+  const box = climateBox(frame);
+  const { height, pad } = box;
   const top = frame.height - height - pad;
-  const left = Math.round((frame.width - width) / 2);
   const size = Math.round(frame.height / 30);
+  const inset = Math.max(Math.round(size / 2), STROKE * 2);
+  // The plot inside the box.
+  const left = box.left + inset;
+  const width = box.width - inset * 2;
 
   const first = new Date(lines[0].points[0].measuredAt).getTime();
   const last = new Date(lines[0].points[lines[0].points.length - 1].measuredAt).getTime();
@@ -190,7 +216,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
       .join(' ');
 
     const now = nearest(frame.at, line.points);
-    return { path, colour: line.colour, reading: now === null ? null : `${now.toFixed(1)}${line.unit}` };
+    return { path, colour: line.colour, reading: now === null ? null : readingIn(now, line.decimals, line.unit, context.language) };
   });
 
   // Each reading starts at a fixed place of its own, so one whose width changes
@@ -200,19 +226,27 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
       line.reading === null
         ? []
         : [
-            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
+            `<text x="${left + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
                    font-weight="500" fill="${line.colour}">${line.reading}</text>`,
           ],
     )
     .join('');
 
   return `<g>
-    <rect x="${left}" y="${top}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.45"/>
-    ${drawn.map(line => `<path d="${line.path}" fill="none" stroke="${line.colour}" stroke-width="2"/>`).join('')}
+    <rect x="${box.left}" y="${top}" width="${box.width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.45"/>
+    ${drawn
+      .map(
+        line =>
+          `<path d="${line.path}" fill="none" stroke="${line.colour}" stroke-width="${STROKE}" stroke-linejoin="round" stroke-linecap="round"/>`,
+      )
+      .join('')}
     <line x1="${cursorX.toFixed(1)}" y1="${top}" x2="${cursorX.toFixed(1)}" y2="${top + height}" stroke="${MUTED}" stroke-width="1"/>
     ${readings}
   </g>`;
 };
+
+/** The width of a curve's line. */
+const STROKE = 2;
 
 /** The diary line of this moment, as the board draws it: "Day 26 · topped". */
 const caption = (frame: OverlayFrame, context: TimelapseContext): string | null => {
@@ -220,23 +254,30 @@ const caption = (frame: OverlayFrame, context: TimelapseContext): string | null 
   if (!line) return null;
 
   const size = Math.round(frame.height / 26);
-  const pad = Math.round(frame.height / 36);
   const height = Math.round(size * 2);
-  const top = frame.height - height - pad - (context.temperature.length > 0 ? Math.round(frame.height / 5) + pad : 0);
+  // Over the climate box it stands as wide as that box, so the two read as one column; alone it takes the frame.
+  const box = climateBox(frame);
+  const over = context.temperature.length > 0;
+  const left = over ? box.left : box.pad;
+  const width = over ? box.width : frame.width - box.pad * 2;
+  const top = frame.height - height - box.pad - (over ? box.height + box.pad : 0);
 
   return `<g>
-    <rect x="${pad}" y="${top}" width="${frame.width - pad * 2}" height="${height}" rx="${Math.round(size / 3)}"
+    <rect x="${left}" y="${top}" width="${width}" height="${height}" rx="${Math.round(size / 3)}"
           fill="${PANEL}" fill-opacity="0.58"/>
-    <text x="${pad * 2}" y="${top + height / 2}" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeText(line.text)}</text>
+    <text x="${left + box.pad}" y="${top + height / 2}" dominant-baseline="central"
+          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeText(line.text, charactersIn(width - box.pad * 2, size))}</text>
   </g>`;
 };
+
+/** About how many characters of the face fit a width at a size: a caption is cut rather than run past its bar. */
+const charactersIn = (width: number, size: number): number => Math.max(Math.floor(width / (size * 0.55)), 8);
 
 /** Text somebody typed, being put into an XML document. */
 export const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** A caption is whatever somebody typed, and a frame has room for a line of it. */
-const escapeText = (text: string): string => escapeXml(text.slice(0, 80));
+/** A caption is whatever somebody typed, and its bar has room for a line of it. */
+const escapeText = (text: string, room: number): string => escapeXml(text.length > room ? `${text.slice(0, room - 1).trimEnd()}…` : text);
 
 const clamp = (value: number): number => Math.min(Math.max(value, 0), 1);
 

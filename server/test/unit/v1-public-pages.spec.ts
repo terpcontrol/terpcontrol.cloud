@@ -2,7 +2,7 @@ import { LinkCard } from '@fg2/shared-types/v1';
 import { Grant } from '@common/v1/access.types';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
-import { CardCache, baseUrlOf, shellHtml } from '@modules/v1/sharing/link-card';
+import { CardCache, baseUrlOf, cardWords, growSentence, shellHtml } from '@modules/v1/sharing/link-card';
 import { belongsToGrow } from '@modules/v1/sharing/public-pages.service';
 
 /**
@@ -164,13 +164,24 @@ describe('which pictures a public diary lets out', () => {
 describe('the shell a crawler reads', () => {
   const card = (over: Partial<LinkCard> = {}): LinkCard => ({
     title: 'Spring run',
-    description: 'A grow diary by @mia, on day 34 of flowering.',
+    description: 'A grow diary by @mia · Day 34 · Flower',
     pageUrl: 'https://api.example/g/spring-run',
     imageUrl: 'https://api.example/v1/public/grows/spring-run/card.png',
     handle: 'mia',
     dayNumber: 34,
     stage: 'flowering',
+    language: 'en',
     ...over,
+  });
+
+  /** A German grower's card read "A grow diary by @ccnebel.": its words are the owner's language, as the app is. */
+  it('is written in its owner´s language, and says which that is', () => {
+    expect(growSentence('de', 'mia', 34, 'flowering')).toBe('Ein Grow-Tagebuch von @mia · Tag 34 · Blüte');
+    expect(growSentence('en', 'mia', 34, 'vegetative')).toBe('A grow diary by @mia · Day 34 · Veg');
+    expect(growSentence('fr', null, null, null)).toBe('A grow diary');
+    expect(cardWords('de').diaries(3)).toBe('3 öffentliche Grow-Tagebücher.');
+    expect(shellHtml(card({ language: 'de' }))).toContain('<html lang="de">');
+    expect(shellHtml(card())).toContain('<html lang="en">');
   });
 
   it('says the same thing in its tags as the picture it points at', () => {
