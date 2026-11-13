@@ -2117,7 +2117,8 @@
     "stretchBefore": "The stretch before",
     "stretchAfter": "The stretch after",
     "lightFrom": "from {{from}}",
-    "lightUntil": "until {{to}}"
+    "lightUntil": "until {{to}}",
+    "partlyOn": "on {{share}} %"
   },
   "camera": {
     "lastError": "Last try failed: {{reason}}",

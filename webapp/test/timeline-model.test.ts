@@ -4,18 +4,17 @@ import i18next from 'i18next';
 import { csvOf, plotOption } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
 import {
+  blocksOf,
   csvFor,
   drawnBefore,
   extremesOf,
-  levelsOf,
+  figureAt,
   nearestPoint,
   offeredOf,
   panelsOf,
   quietSince,
   shareOf,
   shownOf,
-  slicesOf,
-  stateAt,
   stripsOf,
   type Shown,
 } from '@/screens/timeline/model';
@@ -40,6 +39,13 @@ const band = {
   day: { setpoint: 25, band: { low: 24, high: 26 } },
   night: { setpoint: 21, band: { low: 20, high: 22 } },
 };
+
+/** An output's points for the first hours of the day, each closing its hour: the samples heard, those it ran in, its mean level. */
+const counted = (hours: number, said: (hour: number) => [number, number, number | null]): NonNullable<SpaceTimeline['outputs'][number]['points']> =>
+  Array.from({ length: hours }, (_, index) => {
+    const [heard, on, level] = said(index + 1);
+    return { measuredAt: at(index + 1), heard, on, level };
+  });
 
 /** A day at an hour to the point. At 03:00 a door stood open for forty seconds: the mean barely moved, the extremes did. */
 const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
@@ -90,9 +96,17 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
       deviceId: 'device-1',
       spans: [{ startsAt: at(7), endsAt: at(8) }],
       heardUntil: at(24),
-      level: { unit: 'percent', points: [{ measuredAt: at(8), value: 60 }] },
+      // At 60 % through the hour before 08:00 into the window, and off in every other.
+      points: counted(24, hour => (hour === 8 ? [12, 12, 60] : [12, 0, 0])),
     },
-    { output: 'dehumidifier', deviceId: 'device-1', spans: [{ startsAt: at(12), endsAt: at(12.15) }], heardUntil: at(24) },
+    {
+      output: 'dehumidifier',
+      deviceId: 'device-1',
+      spans: [{ startsAt: at(12), endsAt: at(12.15) }],
+      heardUntil: at(24),
+      // Nine minutes of one hour: three samples of twenty.
+      points: counted(24, hour => [20, hour === 13 ? 3 : 0, null]),
+    },
     {
       output: 'light',
       deviceId: 'device-1',
@@ -101,9 +115,16 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
         { startsAt: at(12), endsAt: at(20) },
       ],
       heardUntil: at(20),
-      level: { unit: 'percent', points: [{ measuredAt: at(20), value: 65 }] },
+      // Heard for twenty hours of the day, lit at 65 % for fourteen of them.
+      points: counted(20, hour => (hour <= 6 || hour > 12 ? [12, 12, 65] : [12, 0, 0])),
     },
-    { output: 'fan', deviceId: 'device-1', spans: [{ startsAt: at(0), endsAt: at(24) }], heardUntil: at(24) },
+    {
+      output: 'fan',
+      deviceId: 'device-1',
+      spans: [{ startsAt: at(0), endsAt: at(24) }],
+      heardUntil: at(24),
+      points: counted(24, () => [12, 12, null]),
+    },
   ],
   events: [],
   deviceChanges: [],
@@ -342,65 +363,85 @@ describe('the strips', () => {
     expect(stripsOf(t, fridge)[0].name).toBe('Compressor');
   });
 
-  it('tints a slice by the share of it the output ran, and leaves blank what nobody heard', () => {
+  it('draws a strip from its points, neighbours that say the same as one block, and leaves blank what nobody heard', () => {
     const light = stripsOf(t, answer()).find(strip => strip.output === 'light')!;
-    const slices = slicesOf(light, FROM, FROM + 24 * HOUR, 24);
+    const blocks = blocksOf(light, FROM, FROM + 24 * HOUR, HOUR);
 
-    expect(slices.slice(0, 7)).toEqual([1, 1, 1, 1, 1, 1, 0]);
-    expect(slices[12]).toBe(1);
-    // Heard until 20:00 into the window: after that it is not "off", it is unknown.
-    expect(slices.slice(20)).toEqual([null, null, null, null]);
-    expect(shareOf(light, FROM, FROM + 24 * HOUR)).toBeCloseTo(14 / 20, 6);
+    expect(blocks.map(block => [Math.round(block.from * 24), Math.round(block.to * 24), block.share, block.level])).toEqual([
+      [0, 6, 1, 65],
+      [6, 12, 0, 0],
+      // Heard until 20:00 into the window: after that it is not "off", it is unknown, and no block stands there.
+      [12, 20, 1, 65],
+    ]);
+    expect(shareOf(light)).toBeCloseTo(14 / 20, 6);
+    expect(light.levelled).toBe(true);
   });
 
-  it('shows a run of nine minutes in a day as a share of its slice rather than losing it', () => {
+  it('draws a run of nine minutes in a day as the share of its point, and a switch with no level', () => {
     const dehumidifier = stripsOf(t, answer()).find(strip => strip.output === 'dehumidifier')!;
-    const slices = slicesOf(dehumidifier, FROM, FROM + 24 * HOUR, 24);
+    const ran = blocksOf(dehumidifier, FROM, FROM + 24 * HOUR, HOUR).filter(block => block.share > 0);
 
-    expect(slices[12]).toBeCloseTo(0.15, 6);
-    expect(slices.filter(share => share)).toHaveLength(1);
+    expect(ran).toEqual([{ from: 12 / 24, to: 13 / 24, share: 0.15, level: null }]);
+    expect(dehumidifier.levelled).toBe(false);
   });
 
-  it('fills a slice to the level its output ran at, where it says one, and whole where it only switches', () => {
-    const { strips } = drawn(answer());
-    const heater = strips.find(strip => strip.output === 'heater')!;
-    const levels = levelsOf(heater, FROM, FROM + 24 * HOUR, HOUR, 24)!;
+  it('counts a valve that pulses five seconds every two minutes as open in one sample of twenty-four, not all day', () => {
+    // Its runs, each rounded out to the grain it was found at, join into one that covers the day.
+    const valve = stripsOf(
+      t,
+      answer({
+        outputs: [
+          {
+            output: 'co2',
+            deviceId: null,
+            spans: [{ startsAt: at(0), endsAt: at(24) }],
+            heardUntil: at(24),
+            points: counted(24, () => [720, 30, null]),
+          },
+        ],
+      }),
+    )[0];
 
-    // The level stamped 08:00 stands for the hour before it.
-    expect(levels[7]).toBe(0.6);
-    expect(levels[3]).toBeNull();
-    expect(
-      levelsOf(
-        strips.find(strip => strip.output === 'dehumidifier')!,
-        FROM,
-        FROM + 24 * HOUR,
-        HOUR,
-        24,
-      ),
-    ).toBeNull();
+    expect(shareOf(valve)).toBeCloseTo(1 / 24, 6);
+    expect(blocksOf(valve, FROM, FROM + 24 * HOUR, HOUR)).toEqual([{ from: 0, to: 1, share: 1 / 24, level: null }]);
+    expect(figureAt(valve, FROM + 3.5 * HOUR, HOUR)).toEqual({ share: 1 / 24, level: null });
   });
 
-  it('says "on x % of the time" of the time the device reported, not of the window', () => {
-    // Heard for six hours of the day, lit for three of them: half, not an eighth.
-    const light = { output: 'light' as const, name: 'Light', runs: [{ from: FROM, to: FROM + 3 * HOUR }], heardUntil: FROM + 6 * HOUR, levels: [] };
-    expect(shareOf({ ...light, heardMs: 6 * HOUR }, FROM, FROM + 24 * HOUR)).toBe(0.5);
-    // An answer that does not say for how long falls back to the window up to the last thing heard.
-    expect(shareOf({ ...light, heardMs: null }, FROM, FROM + 24 * HOUR)).toBe(0.5);
+  it('says "on x % of the time" of the samples heard, not of the window', () => {
+    // Heard for six hours of the day, lit in half of the samples: half, not an eighth.
+    const light = { points: [1, 2, 3, 4, 5, 6].map(hour => [FROM + hour * HOUR, 12, hour <= 3 ? 12 : 0, hour <= 3 ? 65 : 0] as const) };
+    expect(shareOf(light)).toBe(0.5);
     // A device that came eighteen hours into the day and was lit ever since was on all of the time it reported.
-    const late = { ...light, runs: [{ from: FROM + 18 * HOUR, to: FROM + 24 * HOUR }], heardUntil: FROM + 24 * HOUR };
-    expect(shareOf({ ...late, heardMs: 6 * HOUR }, FROM, FROM + 24 * HOUR)).toBe(1);
-    expect(
-      stripsOf(t, answer({ outputs: [{ output: 'light', deviceId: null, spans: [], heardUntil: at(24), heardSeconds: 21_600 }] }))[0].heardMs,
-    ).toBe(6 * HOUR);
+    expect(shareOf({ points: [19, 20, 21, 22, 23, 24].map(hour => [FROM + hour * HOUR, 12, 12, 65] as const) })).toBe(1);
+    expect(shareOf({ points: [] })).toBeNull();
   });
 
-  it('reads an output at the cursor: its level where it says one, on or off, nothing past the last thing heard', () => {
-    const [light, heater] = stripsOf(t, answer());
+  it('counts two devices that drive the same output together', () => {
+    const lane = (heard: number, on: number, level: number) => ({
+      output: 'heater' as const,
+      deviceId: null,
+      spans: [],
+      heardUntil: at(24),
+      points: [{ measuredAt: at(1), heard, on, level }],
+    });
+    expect(stripsOf(t, answer({ outputs: [lane(12, 12, 60), lane(4, 0, 0)] }))[0].points).toEqual([[FROM + HOUR, 16, 12, 45]]);
+  });
 
-    expect(stateAt(heater, FROM + 7.5 * HOUR, HOUR)).toEqual({ on: true, level: 60 });
-    expect(stateAt(heater, FROM + 9 * HOUR, HOUR)).toEqual({ on: false, level: null });
-    expect(stateAt(light, FROM + 19.5 * HOUR, HOUR)).toEqual({ on: true, level: 65 });
-    expect(stateAt(light, FROM + 21 * HOUR, HOUR)).toBeNull();
+  it('reads an output over the point the cursor falls into: its mean level, the share it ran, nothing where nobody heard', () => {
+    const [light, heater, dehumidifier] = stripsOf(t, answer());
+
+    expect(figureAt(heater, FROM + 7.5 * HOUR, HOUR)).toEqual({ share: 1, level: 60 });
+    // Heard and off, which is a figure: 0 %.
+    expect(figureAt(heater, FROM + 9 * HOUR, HOUR)).toEqual({ share: 0, level: 0 });
+    expect(figureAt(dehumidifier, FROM + 12.5 * HOUR, HOUR)).toEqual({ share: 0.15, level: null });
+    expect(figureAt(light, FROM + 19.5 * HOUR, HOUR)).toEqual({ share: 1, level: 65 });
+    // Past the last thing heard there is no point, and nothing is said - not "off".
+    expect(figureAt(light, FROM + 21 * HOUR, HOUR)).toBeNull();
+    // A silence in the middle of the window is the same nothing.
+    const gapped = { points: light.points.filter(([end]) => end <= FROM + 3 * HOUR || end > FROM + 9 * HOUR) };
+    expect(figureAt(gapped, FROM + 5.5 * HOUR, HOUR)).toBeNull();
+    // The first point after it has the samples it has.
+    expect(figureAt(gapped, FROM + 9.5 * HOUR, HOUR)).toEqual({ share: 0, level: 0 });
   });
 });
 
@@ -503,13 +544,13 @@ describe('the picture a plot comes to', () => {
 describe('the table', () => {
   it('holds every curve drawn with its lowest and highest, and every output as the state it held', () => {
     const { panels, strips } = drawn(answer(), ['temperature', 'outputs']);
-    const table = csvFor(t, panels, strips, { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false);
+    const table = csvFor(t, panels, strips, HOUR, null, 'UTC', false);
     const [head, ...rows] = table.slice(1).split('\n');
 
     // The mark a spreadsheet reads the encoding by, so "°C" arrives as that.
     expect(table.charCodeAt(0)).toBe(0xfeff);
-    // Every output as how hard it ran over each point's window, in per cent: a level by the share of the window it
-    // ran, and for one that only switches that share.
+    // Every output as what the samples of each point's window came to, in per cent: its mean level, and for one
+    // that only switches the share of them it ran in.
     expect(head).toBe(
       '"Time","Temperature (°C)","Temperature · low (°C)","Temperature · high (°C)","Light (%)","Heater (%)","Dehumidifier (%)","Fan (%)"',
     );
@@ -529,10 +570,7 @@ describe('the table', () => {
       panels: [{ metric: 'temperature', points: [1, 2, 3, 4, 5, 6].map(hour => ({ measuredAt: at(hour), value: 24.8 })), targets: [] }],
     });
     const { panels, strips } = drawn(quiet, ['temperature', 'outputs', 'light']);
-    const rows = csvFor(t, panels, strips, { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false)
-      .slice(1)
-      .split('\n')
-      .slice(1);
+    const rows = csvFor(t, panels, strips, HOUR, null, 'UTC', false).slice(1).split('\n').slice(1);
 
     expect(rows).toHaveLength(6);
     expect(rows.at(-1)!.startsWith('2026-11-11T20:00:00')).toBe(true);
@@ -540,11 +578,9 @@ describe('the table', () => {
 
   it('says of the deficit`s column that it is worked out', () => {
     const { panels } = drawn(answer(), ['vpd']);
-    expect(
-      csvFor(t, panels, [], { from: FROM, to: FROM + 24 * HOUR, stepMs: HOUR }, 'UTC', false)
-        .slice(1)
-        .split('\n')[0],
-    ).toBe('"Time","VPD, worked out from temperature and humidity (kPa)"');
+    expect(csvFor(t, panels, [], HOUR, null, 'UTC', false).slice(1).split('\n')[0]).toBe(
+      '"Time","VPD, worked out from temperature and humidity (kPa)"',
+    );
   });
 
   it('is written with semicolons and decimal commas where figures are written with a comma, so a spreadsheet there reads columns', () => {

@@ -1718,26 +1718,31 @@ export const timelinePanel = named(
 );
 
 /**
- * How hard an output was driven while it ran, window by window, for an output
- * the device drives at a level rather than only on and off: a dimmed lamp, a
- * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ * One drawn point of an output, counted from the samples the device wrote in
+ * the window that point closes. Everything said about an output is counted
+ * from these - what it did at a point, the share of the time it ran, how its
+ * lane is filled - and nothing from a run rounded out to the step: a valve that
+ * opens for five seconds every two minutes was otherwise open all day.
  *
- * `percent` is the share of full output, averaged over the stretches of each
- * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
- * hours of the window it was dark, and the lane's spans say when it was. `count`
- * is the CO2 valve: what the device counted while the valve was open, summed
- * over each window, which is how much was dosed there and not a share of
- * anything. A window the output did not run in has no point.
+ * A window the device wrote no sample of the output in has no point, which is
+ * "nothing was heard" and never "off".
  */
-export const timelineOutputLevel = named(
-  'TimelineOutputLevel',
+export const timelineOutputPoint = named(
+  'TimelineOutputPoint',
   z.object({
-    unit: z.enum(['percent', 'count']),
-    points: z.array(seriesPoint).describe('Stamped like the climate points: each closes the window it stands for.'),
+    measuredAt: instant().describe('Stamped like the climate points: each closes the window it stands for.'),
+    heard: z.number().int().positive().describe('How many samples of the output the window held.'),
+    on: z.number().int().nonnegative().describe('In how many of them the output was running.'),
+    level: z
+      .number()
+      .nullable()
+      .describe(
+        'The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.',
+      ),
   }),
 );
 
-/** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
+/** One output over the window, as the lanes under the panels draw it: when it was on, and what its samples came to point by point. */
 export const timelineOutputLane = named(
   'TimelineOutputLane',
   z.object({
@@ -1751,20 +1756,16 @@ export const timelineOutputLane = named(
     heardUntil: instant().describe(
       'How far anything is known about this output: the last instant the device was heard from inside the window, or the window\'s own end where it is still reporting. A span ending here ended because nobody has said anything since, which is not the same claim as the output having been switched off - so a wave drawn from these spans stops here rather than running flat along the bottom to the edge.',
     ),
-    heardSeconds: z
-      .number()
-      .int()
-      .optional()
-      .describe('For how long the device was heard about this output inside the window, which is what a share of the time it ran is a share of.'),
     fridge: z
       .literal(true)
       .optional()
       .describe(
         'Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.',
       ),
-    level: timelineOutputLevel
+    points: z
+      .array(timelineOutputPoint)
       .optional()
-      .describe('Only for an output the device drives at a level; absent where the output is a switch and nothing more.'),
+      .describe('The output point by drawn point, in order; absent where the read did not count its samples.'),
   }),
 );
 

@@ -105,7 +105,7 @@ export const fromHandover = (leading: DeviceHistory, chain: readonly Predecessor
       metrics: leading.series.metrics.map(row => ({ ...row, points: since(row.points) })),
       outputs: leading.series.outputs.map(row => ({ ...row, points: since(row.points) })),
     },
-    outputs: leading.outputs.map(output => (output.levels ? { ...output, levels: since(output.levels) } : output)),
+    outputs: leading.outputs.map(output => (output.figures ? { ...output, figures: since(output.figures) } : output)),
   };
 };
 

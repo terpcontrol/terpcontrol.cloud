@@ -27,6 +27,8 @@ export interface ParsedFlux {
   switchings: boolean;
   /** `timeSrc: "_start"` stamps a window at its start rather than at its stop, which is what the switchings read asks for. */
   timeAtStart: boolean;
+  /** A filter that keeps only the samples above zero, which is how the samples an output ran in are counted. */
+  aboveZero: boolean;
 }
 
 export type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count';
@@ -91,6 +93,7 @@ export const parseFlux = (query: string): ParsedFlux => ({
   last: /\|>\s*last\(\)/.test(query),
   switchings: /\|>\s*difference\(/.test(query),
   timeAtStart: /timeSrc:\s*"_start"/.test(query),
+  aboveZero: /filter\(fn: \(r\) => r\._value > 0\.0\)/.test(query),
 });
 
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
@@ -152,7 +155,7 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
 
 const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, start: number, stop: number): ResultRow[] => {
   const measurement = parsed.measurement ?? 'status';
-  const written = matching.filter(point => field in point.fields);
+  const written = matching.filter(point => field in point.fields && (!parsed.aboveZero || point.fields[field] > 0));
   const identity = {
     field,
     measurement,

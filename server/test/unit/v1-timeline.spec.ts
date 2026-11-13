@@ -938,7 +938,6 @@ describe('the night, the lanes and the alarms', () => {
       spans: [{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }],
       // Still reporting, so everything up to the edge of the window is known.
       heardUntil: '2026-06-10T12:00:00.000Z',
-      heardSeconds: 86400,
     });
     // Reported and never on: a lane of its own, with nothing in it.
     expect(page.outputs.find(lane => lane.output === 'dehumidifier')?.spans).toEqual([]);
@@ -1428,11 +1427,11 @@ describe('the night and the lanes over a window wider than the cycle', () => {
 
   it('draws the lamp´s lane as the stretches it ran for, at the same resolution', () => {
     expect(lanesOf([history()], WINDOW)).toEqual([
-      { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString(), heardSeconds: expect.any(Number) },
+      { output: 'light', deviceId: CONTROLLER, spans: stretches(true), heardUntil: CLOSES.toISOString() },
     ]);
   });
 
-  it('says how hard each output ran where the read asked for it: a share of full output, or what the valve dosed', () => {
+  it('says what the samples of each output came to, point by drawn point, where the read counted them', () => {
     const lamp = history();
     const at = (minutes: number) => new Date(OPENS.getTime() + minutes * 60_000).toISOString();
     const read: DeviceHistory = {
@@ -1440,53 +1439,52 @@ describe('the night and the lanes over a window wider than the cycle', () => {
       outputs: [
         {
           ...lamp.outputs[0],
-          levels: [
-            { measuredAt: at(10), value: 62.4 },
-            { measuredAt: at(20), value: 100 },
+          figures: [
+            { measuredAt: at(10), heard: 6, on: 6, mean: 62.44 },
+            // Lit in two samples of six at 70 %: the mean of all six, the dark ones counting as 0.
+            { measuredAt: at(20), heard: 6, on: 2, mean: 70 / 3 },
           ],
         },
         {
           output: 'heater',
           switchings: lamp.outputs[0].switchings,
-          levels: [
-            { measuredAt: at(10), value: 0.355 },
-            { measuredAt: at(20), value: 1.2 },
+          figures: [
+            { measuredAt: at(10), heard: 6, on: 2, mean: 0.8 / 3 },
+            { measuredAt: at(20), heard: 6, on: 6, mean: 1.2 },
           ],
         },
-        { output: 'co2', switchings: lamp.outputs[0].switchings, levels: [{ measuredAt: at(10), value: 3500 }] },
-        // A switch has no level, whatever the read asked.
-        { output: 'dehumidifier', switchings: lamp.outputs[0].switchings },
+        // A valve that pulsed in one sample of twenty-four: its ticks are no share of anything.
+        { output: 'co2', switchings: lamp.outputs[0].switchings, figures: [{ measuredAt: at(10), heard: 24, on: 1, mean: 145.8 }] },
+        { output: 'dehumidifier', switchings: lamp.outputs[0].switchings, figures: [{ measuredAt: at(10), heard: 6, on: 2, mean: 1 / 3 }] },
+        // Not counted: the read did not ask.
+        { output: 'fan', switchings: lamp.outputs[0].switchings },
       ],
     };
 
     const lanes = lanesOf([read], WINDOW);
 
-    expect(lanes.map(lane => [lane.output, lane.level])).toEqual([
+    expect(lanes.map(lane => [lane.output, lane.points])).toEqual([
       [
         'light',
-        {
-          unit: 'percent',
-          points: [
-            { measuredAt: at(10), value: 62 },
-            { measuredAt: at(20), value: 100 },
-          ],
-        },
+        [
+          { measuredAt: at(10), heard: 6, on: 6, level: 62.4 },
+          { measuredAt: at(20), heard: 6, on: 2, level: 23.3 },
+        ],
       ],
       // The heater's demand is a fraction of one, and never more than all of it.
       [
         'heater',
-        {
-          unit: 'percent',
-          points: [
-            { measuredAt: at(10), value: 36 },
-            { measuredAt: at(20), value: 100 },
-          ],
-        },
+        [
+          { measuredAt: at(10), heard: 6, on: 2, level: 26.7 },
+          { measuredAt: at(20), heard: 6, on: 6, level: 100 },
+        ],
       ],
-      ['co2', { unit: 'count', points: [{ measuredAt: at(10), value: 3500 }] }],
-      ['dehumidifier', undefined],
+      ['co2', [{ measuredAt: at(10), heard: 24, on: 1, level: null }]],
+      ['dehumidifier', [{ measuredAt: at(10), heard: 6, on: 2, level: null }]],
+      ['fan', undefined],
     ]);
-    expect('level' in lanes[3]).toBe(false);
+    expect('points' in lanes[4]).toBe(false);
+    expect('level' in lanes[0]).toBe(false);
   });
 
   it('says a lane is a fridge module´s, to a link as well, so its dehumidifier can be called the compressor', () => {
@@ -1568,7 +1566,6 @@ describe('the same lamp run at every range', () => {
         deviceId: CONTROLLER,
         spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: CLOSES.toISOString() }],
         heardUntil: CLOSES.toISOString(),
-        heardSeconds: expect.any(Number),
       },
     ]);
   });
@@ -1639,8 +1636,6 @@ describe('a lane of a tent that has gone quiet', () => {
         deviceId: CONTROLLER,
         spans: [{ startsAt: LIT_FROM.toISOString(), endsAt: LAST_SAMPLE.toISOString() }],
         heardUntil: LAST_SAMPLE.toISOString(),
-        // Heard from the start of the window to the last sample, which is what a share of the time is of.
-        heardSeconds: Math.round((LAST_SAMPLE.getTime() - OPENS.getTime()) / 1000),
       },
     ]);
   });

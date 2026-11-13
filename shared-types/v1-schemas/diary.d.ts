@@ -4878,30 +4878,22 @@ export declare const timelinePanel: z.ZodObject<{
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
- * How hard an output was driven while it ran, window by window, for an output
- * the device drives at a level rather than only on and off: a dimmed lamp, a
- * fan's speed, the heater's demand, and the CO2 valve's dosing.
+ * One drawn point of an output, counted from the samples the device wrote in
+ * the window that point closes. Everything said about an output is counted
+ * from these - what it did at a point, the share of the time it ran, how its
+ * lane is filled - and nothing from a run rounded out to the step: a valve that
+ * opens for five seconds every two minutes was otherwise open all day.
  *
- * `percent` is the share of full output, averaged over the stretches of each
- * window the output ran in - so a lamp dimmed to 60 % reads 60 % however many
- * hours of the window it was dark, and the lane's spans say when it was. `count`
- * is the CO2 valve: what the device counted while the valve was open, summed
- * over each window, which is how much was dosed there and not a share of
- * anything. A window the output did not run in has no point.
+ * A window the device wrote no sample of the output in has no point, which is
+ * "nothing was heard" and never "off".
  */
-export declare const timelineOutputLevel: z.ZodObject<{
-    unit: z.ZodEnum<{
-        percent: "percent";
-        count: "count";
-    }>;
-    points: z.ZodArray<z.ZodObject<{
-        measuredAt: z.ZodISODateTime;
-        value: z.ZodNullable<z.ZodNumber>;
-        min: z.ZodOptional<z.ZodNumber>;
-        max: z.ZodOptional<z.ZodNumber>;
-    }, z.core.$strip>>;
+export declare const timelineOutputPoint: z.ZodObject<{
+    measuredAt: z.ZodISODateTime;
+    heard: z.ZodNumber;
+    on: z.ZodNumber;
+    level: z.ZodNullable<z.ZodNumber>;
 }, z.core.$strip>;
-/** One output over the window, as the lanes under the panels draw it: when it was on, and how hard it ran. */
+/** One output over the window, as the lanes under the panels draw it: when it was on, and what its samples came to point by point. */
 export declare const timelineOutputLane: z.ZodObject<{
     output: z.ZodEnum<{
         dehumidifier: "dehumidifier";
@@ -4920,20 +4912,13 @@ export declare const timelineOutputLane: z.ZodObject<{
         endsAt: z.ZodISODateTime;
     }, z.core.$strip>>;
     heardUntil: z.ZodISODateTime;
-    heardSeconds: z.ZodOptional<z.ZodNumber>;
     fridge: z.ZodOptional<z.ZodLiteral<true>>;
-    level: z.ZodOptional<z.ZodObject<{
-        unit: z.ZodEnum<{
-            percent: "percent";
-            count: "count";
-        }>;
-        points: z.ZodArray<z.ZodObject<{
-            measuredAt: z.ZodISODateTime;
-            value: z.ZodNullable<z.ZodNumber>;
-            min: z.ZodOptional<z.ZodNumber>;
-            max: z.ZodOptional<z.ZodNumber>;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
+    points: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        measuredAt: z.ZodISODateTime;
+        heard: z.ZodNumber;
+        on: z.ZodNumber;
+        level: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
@@ -5182,20 +5167,13 @@ export declare const spaceTimeline: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
-        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
-        level: z.ZodOptional<z.ZodObject<{
-            unit: z.ZodEnum<{
-                percent: "percent";
-                count: "count";
-            }>;
-            points: z.ZodArray<z.ZodObject<{
-                measuredAt: z.ZodISODateTime;
-                value: z.ZodNullable<z.ZodNumber>;
-                min: z.ZodOptional<z.ZodNumber>;
-                max: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>>;
-        }, z.core.$strip>>;
+        points: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            heard: z.ZodNumber;
+            on: z.ZodNumber;
+            level: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     events: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -6736,20 +6714,13 @@ export declare const growSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
-        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
-        level: z.ZodOptional<z.ZodObject<{
-            unit: z.ZodEnum<{
-                percent: "percent";
-                count: "count";
-            }>;
-            points: z.ZodArray<z.ZodObject<{
-                measuredAt: z.ZodISODateTime;
-                value: z.ZodNullable<z.ZodNumber>;
-                min: z.ZodOptional<z.ZodNumber>;
-                max: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>>;
-        }, z.core.$strip>>;
+        points: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            heard: z.ZodNumber;
+            on: z.ZodNumber;
+            level: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;
@@ -6865,20 +6836,13 @@ export declare const spaceSeries: z.ZodObject<{
             endsAt: z.ZodISODateTime;
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
-        heardSeconds: z.ZodOptional<z.ZodNumber>;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
-        level: z.ZodOptional<z.ZodObject<{
-            unit: z.ZodEnum<{
-                percent: "percent";
-                count: "count";
-            }>;
-            points: z.ZodArray<z.ZodObject<{
-                measuredAt: z.ZodISODateTime;
-                value: z.ZodNullable<z.ZodNumber>;
-                min: z.ZodOptional<z.ZodNumber>;
-                max: z.ZodOptional<z.ZodNumber>;
-            }, z.core.$strip>>;
-        }, z.core.$strip>>;
+        points: z.ZodOptional<z.ZodArray<z.ZodObject<{
+            measuredAt: z.ZodISODateTime;
+            heard: z.ZodNumber;
+            on: z.ZodNumber;
+            level: z.ZodNullable<z.ZodNumber>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     nights: z.ZodArray<z.ZodObject<{
         startsAt: z.ZodISODateTime;

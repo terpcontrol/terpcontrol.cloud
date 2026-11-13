@@ -37,19 +37,22 @@ import {
   extremesQuery,
   deficitGrainFor,
   fieldsFor,
+  figuresOf,
   FluxRow,
   FluxWindow,
   grainsQuery,
   gridOf,
   instantsOf,
   latestByField,
-  levelsByField,
-  levelsQuery,
+  countsByField,
+  countsQuery,
   liveQuery,
   MAX_SAMPLED_SECONDS,
   MIN_STEP_SECONDS,
   newestSampleQuery,
   oldestSampleQuery,
+  OutputCount,
+  OutputFigure,
   OutputSwitching,
   pointsOf,
   rawSamplePredicate,
@@ -174,10 +177,11 @@ export interface OutputHistory {
   /** In order: the state the window is found in, then every switching after it. Empty where the device reported that output not at all. */
   switchings: OutputSwitching[];
   /**
-   * How hard it ran, window by window, as the device wrote it: only where the
-   * read asked for levels and the output is driven at one (`OUTPUT_LEVEL`).
+   * What its samples came to, one for every drawn window it was heard in: only
+   * where the read asked for them. Every figure said about an output is counted
+   * from these and from nothing else - never from a run rounded out to a grain.
    */
-  levels?: SeriesPoint[];
+  figures?: OutputFigure[];
 }
 
 /**
@@ -463,17 +467,17 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
    * beside it is a few hundred windows - the promise that a long range costs
    * what a short one costs still holds.
    */
-  public async history(deviceId: string, request: SeriesRequest, levels = false): Promise<DeviceHistory> {
+  public async history(deviceId: string, request: SeriesRequest, figures = false): Promise<DeviceHistory> {
     const outputs = request.outputs ?? [];
     // The fan's own day is read in the same scan as its output, so a chart of an AIR is shaded by its night.
     const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
-    // At the step the series settles on, so a level stands under the reading of the same window.
+    // At the step the series settles on, so an output's figures stand under the reading of the same window.
     const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
-    const [series, switchings, lastSampleAt, levelled] = await Promise.all([
+    const [series, switchings, lastSampleAt, counts] = await Promise.all([
       this.series(deviceId, request),
       this.switchingsOf(deviceId, outputs, request, extra, switchingGrainFor(stepSeconds)),
       this.newestSampleIn(deviceId, outputs, request),
-      levels ? this.levelsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
+      figures ? this.countsOf(deviceId, outputs, { startsAt: request.startsAt, endsAt: request.endsAt, stepSeconds }) : null,
     ]);
     const days = switchings.get(DAY_FIELD) ?? [];
 
@@ -482,20 +486,27 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
       outputs: outputs.map(output => ({
         output,
         switchings: switchings.get(fieldOfOutputMetric(output)) ?? [],
-        ...(levelled && OUTPUT_LEVEL[output] ? { levels: levelled.get(fieldOfOutputMetric(output)) ?? [] } : {}),
+        ...(counts
+          ? {
+              figures: figuresOf(
+                series.outputs.find(one => one.output === output)?.points ?? [],
+                counts.get(fieldOfOutputMetric(output)),
+                OUTPUT_LEVEL[output] === undefined,
+              ),
+            }
+          : {}),
       })),
       lastSampleAt,
       ...(days.length > 0 ? { days } : {}),
     };
   }
 
-  /** How hard each output that has a level was driven, by the field it is stored under. A window of no width holds none. */
-  private async levelsOf(deviceId: string, outputs: readonly OutputMetric[], window: FluxWindow): Promise<Map<string, SeriesPoint[]>> {
-    const driven = outputs.filter(output => OUTPUT_LEVEL[output] !== undefined);
-    if (driven.length === 0 || window.endsAt <= window.startsAt || window.stepSeconds <= 0) return new Map();
+  /** How many samples every drawn window holds of each output, and in how many it ran, by the field it is stored under. A window of no width holds none. */
+  private async countsOf(deviceId: string, outputs: readonly OutputMetric[], window: FluxWindow): Promise<Map<string, Map<string, OutputCount>>> {
+    if (outputs.length === 0 || window.endsAt <= window.startsAt || window.stepSeconds <= 0) return new Map();
 
-    const fieldsOf = (unit: 'percent' | 'count') => driven.filter(output => OUTPUT_LEVEL[output]?.unit === unit).map(fieldOfOutputMetric);
-    return levelsByField(await this.read(levelsQuery(this.bucket, deviceId, fieldsOf('percent'), fieldsOf('count'), window)));
+    const counted = outputs.filter(output => OUTPUT_LEVEL[output] !== undefined).map(fieldOfOutputMetric);
+    return countsByField(await this.read(countsQuery(this.bucket, deviceId, outputs.map(fieldOfOutputMetric), counted, window)));
   }
 
   /**

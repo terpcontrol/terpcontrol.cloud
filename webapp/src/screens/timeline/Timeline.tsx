@@ -3,7 +3,17 @@ import { hashKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type { ChartView, Entry, GrowListItem, GrowSeriesPoint, MeasurementDefinition, ShareLink, Space, SpaceTimeline } from '@fg2/shared-types/v1';
+import type {
+  ChartView,
+  Entry,
+  GrowListItem,
+  GrowSeriesPoint,
+  MeasurementDefinition,
+  OutputMetric,
+  ShareLink,
+  Space,
+  SpaceTimeline,
+} from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { useGrow, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
@@ -41,6 +51,7 @@ import { DiaryCard } from './DiaryCard';
 import { axisEnds, cursorStamp, meanStamp, stepWords, windowLabel } from './labels';
 import {
   csvFor,
+  figureAt,
   nearestPoint,
   offeredOf,
   panelsOf,
@@ -49,9 +60,9 @@ import {
   SAMPLE_SECONDS,
   shareOf,
   shownOf,
-  stateAt,
   stripsOf,
   type Compared,
+  type OutputFigure,
   type Strip,
 } from './model';
 import { Axis, Panel } from './Panel';
@@ -592,19 +603,20 @@ function Screen({
           ? meanStamp(t, first.point[0], window, data.stepSeconds, zone)
           : cursorStamp(stood, window, data.stepSeconds, zone);
   const onReading = read.some(one => one.point !== null && one.curve.lastAt !== null && one.point[0] === one.curve.lastAt);
+  // Where the device's last reading stands as the curves' last point.
+  const closing = curves.find(curve => curve.lastAt !== null)?.lastAt ?? null;
   // The room beside every plot is as wide as the longest figure a scale writes there, and the same for all of
   // them: the plots stand on one time axis down the page.
   const gutter =
     Math.max(4, ...curves.flatMap(curve => [curve.corner(curve.line.scale.low).length, curve.corner(curve.line.scale.high).length])) * 6.5 + 12;
   // Two figures in one unit - the air's and the leaf's degrees - are told apart by name.
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
+  const said = new Map<OutputMetric, OutputFigure>((reading?.outputs ?? []).map(one => [one.output, { share: one.on ? 1 : 0, level: one.level }]));
   const outputsAt = (shown.light || shown.outputs ? strips : [])
     .filter(strip => (strip.output === 'light' ? shown.light : shown.outputs))
     // On the device's last reading - at rest, or with the cursor set on that point - the card says what each output
-    // was doing then, as the reading has it, and no mean of a window.
-    .map(strip =>
-      outputWords(t, strip, (onReading ? reading?.outputs.find(one => one.output === strip.output) : null) ?? stateAt(strip, cursor, stepMs)),
-    );
+    // was doing then, as the reading has it; on any other point, what the samples of that point's window came to.
+    .map(strip => outputWords(t, strip, (onReading ? said.get(strip.output) : null) ?? figureAt(strip, cursor, stepMs)));
 
   const cameras = data.cameras.filter(camera => camera.frames.length > 0);
   const ends = axisEnds(t, window, live, zone);
@@ -726,7 +738,7 @@ function Screen({
             <section className={styles.card} data-focus={(view.focus === 'light' && light !== null) || undefined}>
               <header className={styles.panelHead}>
                 <h2>{t(loose.length === 1 && light ? 'timeline.output.light' : light ? 'timeline.lightAndOutputs' : 'timeline.adjust.outputs')}</h2>
-                {light ? <span className={styles.panelRange}>{lightWords(t, light, window, live, zone)}</span> : null}
+                {light ? <span className={styles.panelRange}>{lightWords(t, light, window, live, stepMs, zone)}</span> : null}
               </header>
               <Strips strips={loose} from={window.from} to={window.to} stepMs={stepMs} cursor={resting ? null : cursor} focus={view.focus} />
               {panels.length === 0 ? <Axis from={window.from} to={window.to} ends={ends} /> : null}
@@ -790,9 +802,20 @@ function Screen({
             curves.length + strips.length > 0
               ? () =>
                   saveFile(
-                    new Blob([csvFor(t, panels, shown.outputs || shown.light ? strips : [], { ...window, stepMs }, zone, decimalMark() === ',')], {
-                      type: 'text/csv;charset=utf-8',
-                    }),
+                    new Blob(
+                      [
+                        csvFor(
+                          t,
+                          panels,
+                          strips.filter(strip => (strip.output === 'light' ? shown.light : shown.outputs)),
+                          stepMs,
+                          closing === null ? null : { at: closing, outputs: said },
+                          zone,
+                          decimalMark() === ',',
+                        ),
+                      ],
+                      { type: 'text/csv;charset=utf-8' },
+                    ),
                     `${slug(data.name) || 'verlauf'}-${zonedAt(window.from, zone).toFormat('yyyy-MM-dd')}.csv`,
                   )
               : null
@@ -858,26 +881,41 @@ function Nothing({ data, now, toLast }: { data: SpaceTimeline; now: ReturnType<t
   );
 }
 
-/** What an output did at the cursor: its level where it says one, on or off, and a dash where nobody heard of it. */
-const outputWords = (t: Translate, strip: Strip, state: ReturnType<typeof stateAt>): string =>
-  `${strip.name} ${state === null ? '—' : !state.on ? t('timeline.off') : state.level !== null ? `${state.level}\u00a0%` : t('timeline.on')}`;
+/**
+ * What an output did at the cursor, in one form per output: one driven at a level in per cent of full output -
+ * over a point, its mean level -, one that only switches on or off, and over a point it ran in a part of, the
+ * share of it. A dash where nobody heard of it, which is not "off".
+ */
+const outputWords = (t: Translate, strip: Strip, said: OutputFigure | null): string => {
+  const words =
+    said === null
+      ? '—'
+      : said.level !== null
+        ? `${Math.round(said.level)}\u00a0%`
+        : said.share === 0
+          ? t('timeline.off')
+          : said.share === 1
+            ? t('timeline.on')
+            : t('timeline.partlyOn', { share: Math.max(1, Math.round(said.share * 100)) });
+  return `${strip.name} ${words}`;
+};
 
 /**
- * The lamp over the window in a few words: its last lit stretch by the clock
- * where the window is read by the clock, else the share of the window it was
- * on; and how bright it last ran.
+ * The lamp over the window in a few words: its lit stretches by the clock
+ * where the window is read by the clock, else the share of its samples it was
+ * on in; and how bright it ran.
  */
-const lightWords = (t: Translate, light: Strip, window: { from: number; to: number }, live: boolean, zone: string | null): string => {
+const lightWords = (t: Translate, light: Strip, window: { from: number; to: number }, live: boolean, stepMs: number, zone: string | null): string => {
   const clock = (time: number) => zonedAt(time, zone).toFormat('HH:mm');
-  // How bright a stretch ran: the middle of its levels, which a ramp at either end does not move.
+  // How bright a stretch ran while it was lit: the middle of its points' levels, which a ramp at either end does not move.
   const levelOf = (run: { from: number; to: number }): string | null => {
-    const levels = light.levels
-      .filter(([end]) => end > run.from && end <= run.to + 1)
-      .map(([, value]) => value)
+    const levels = light.points
+      .filter(([end, , on, level]) => end > run.from && end <= run.to + stepMs && on > 0 && level !== null)
+      .map(([, heard, on, level]) => Math.round(((level as number) * heard) / on))
       .sort((one, other) => one - other);
     return levels.length > 0 ? `${levels[Math.floor(levels.length / 2)]}\u00a0%` : null;
   };
-  const share = shareOf(light, window.from, window.to);
+  const share = shareOf(light);
   // Every lit stretch of the window by the clock, each with its own level, where they are few enough to read. One
   // the window cuts is named by the end it has: "bis 12:00" did not come on at the window's first minute.
   const lit = light.runs.filter(one => one.to > window.from && one.from < window.to);

@@ -58,6 +58,12 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
   const step = (to - from) / count;
   const points = (value: number, spike?: { min: number; max: number }) =>
     Array.from({ length: count }, (_, index) => ({ measuredAt: iso(from + (index + 1) * step), value, ...(spike && index === 12 ? spike : {}) }));
+  // An output's samples point by point: those heard, those it ran in, and its mean level where it has one.
+  const counted = (said: (index: number) => [number, number, number | null]) =>
+    Array.from({ length: count }, (_, index) => {
+      const [heard, on, level] = said(index);
+      return { measuredAt: iso(from + (index + 1) * step), heard, on, level };
+    });
 
   return {
     spaceId: 'space-1',
@@ -89,14 +95,16 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
         deviceId: 'device-1',
         spans: [{ startsAt: iso(from), endsAt: iso(to) }],
         heardUntil: iso(to),
-        level: { unit: 'percent', points: [{ measuredAt: iso(to), value: 65 }] },
+        points: counted(() => [12, 12, 65]),
       },
-      { output: 'heater', deviceId: 'device-1', spans: [], heardUntil: iso(to) },
+      { output: 'heater', deviceId: 'device-1', spans: [], heardUntil: iso(to), points: counted(() => [12, 0, 0]) },
       {
         output: 'dehumidifier',
         deviceId: 'device-1',
         spans: [{ startsAt: iso(from + 12 * step), endsAt: iso(from + 12.5 * step) }],
         heardUntil: iso(to),
+        // On through half of the thirteenth point.
+        points: counted(index => [12, index === 12 ? 6 : 0, null]),
       },
     ],
     events: [restart, watered],
@@ -321,7 +329,8 @@ describe('Verlauf as it opens', () => {
     expect(card).toHaveTextContent('25.2 °C · 58.0 % · 1.40 kPa');
     // The zoom stands with the card, which stays in sight while the page scrolls.
     expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
-    expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
+    // One form per output: one driven at a level reads in per cent, also at 0; a switch reads on or off.
+    expect(card).toHaveTextContent('Light 65 % · Heater 0 % · Dehumidifier off');
   });
 
   it('lists what was written in the window, oldest first, a device`s line marked as its own', async () => {
@@ -451,7 +460,7 @@ describe('what the place reads now', () => {
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
     expect(card).toHaveTextContent('26.7 °C · 61.4 % · 1.52 kPa');
     // The outputs are that reading's too: the lamp at 40 %, not the 65 % the window's mean came to.
-    expect(card).toHaveTextContent('Light 40 % · Heater off · Dehumidifier on');
+    expect(card).toHaveTextContent('Light 40 % · Heater 0 % · Dehumidifier on');
   });
 
   it('is the same for somebody reading through a link: one instant, one set of figures', async () => {

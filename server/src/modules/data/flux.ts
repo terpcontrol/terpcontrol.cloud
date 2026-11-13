@@ -397,59 +397,91 @@ export const valveOpeningsQuery = (bucket: string, deviceId: string, window: Tim
     |> filter(fn: (r) => ${REAL_VALVE_FIGURE})
     |> sum()`;
 
-/** The two answers `levelsQuery` yields: a share of full output, and what the CO2 valve dosed. */
-const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
+/** The two answers `countsQuery` yields: how many samples a window held of an output, and in how many of them it ran. */
+const COUNT_RESULT = { heard: 'heard', on: 'on' } as const;
 
 /**
- * How hard each output was driven, window by window, at the step the curves
- * beside it are drawn at.
+ * How many samples of each output every drawn window holds, and in how many of
+ * them the output was running: what every figure said about an output is
+ * counted from, beside the mean the series read already answers.
  *
- * A level is averaged over the samples the output was running in and over no
- * others. Averaged with the dark ones, a lamp dimmed to 60 % that came on half
- * way through a window read 30 %, and a whole season read as the duty cycle;
- * the lane's spans already say when it ran, so the level only has to say how
- * hard. The valve's ticks are summed instead, because each sample counts the
- * ticks since the one before it and a window's dose is all of them together.
- * Only raw samples are read: a day summarised into its mean has kept neither.
+ * A figure taken from the runs instead - the stretches between two switchings,
+ * each rounded out to the grain it was found at - called a valve that opens for
+ * five seconds every two minutes open three quarters of the day, and a heater
+ * a fifth of the time where its samples said an eighth.
+ *
+ * `counted` are the outputs driven at a level, and the valve. One that only
+ * switches writes 0 or 1, so the mean of a window is already the share of its
+ * samples it ran in, and it is left out of the second count: a filter on the
+ * value is the one thing here the store does not push down - four months of
+ * five outputs counted in 53 ms and counted above zero in 227 ms.
+ * The valve's "there is no valve" figure is counted like any other; whoever
+ * reads the counts drops a window whose mean is that figure (`gridOf`).
+ * Only raw samples are read: a day kept as its mean has no samples left.
  */
-export const levelsQuery = (bucket: string, deviceId: string, levels: readonly string[], doses: readonly string[], window: FluxWindow): string => {
-  const read = (fields: readonly string[], keep: string, fn: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${anyField(fields)})
-    |> filter(fn: (r) => ${keep})${aggregate(window, fn, false)}
+export const countsQuery = (bucket: string, deviceId: string, fields: readonly string[], counted: readonly string[], window: FluxWindow): string => {
+  const read = (names: readonly string[], kept: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(names)})${kept}${aggregate(window, 'count', false)}
     |> yield(name: "${name}")`;
 
   return [
-    levels.length > 0 ? read(levels, 'r._value > 0.0', 'mean', LEVEL_RESULT.level) : null,
-    doses.length > 0 ? read(doses, REAL_VALVE_FIGURE, 'sum', LEVEL_RESULT.dose) : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+    read(fields, '', COUNT_RESULT.heard),
+    ...(counted.length > 0 ? [read(counted, '\n    |> filter(fn: (r) => r._value > 0.0)', COUNT_RESULT.on)] : []),
+  ].join('\n');
 };
 
+/** What one window held of one output: its samples, and those it ran in - null where they were not counted. */
+export interface OutputCount {
+  heard: number;
+  on: number | null;
+}
+
 /**
- * The rows of that read, per field and in order. A device whose points were
- * once tagged with an owner answers one table per tag, so two rows can name the
- * same window: a dose is the two added up, a level the higher of the two.
+ * The rows of that read, per field and window. A device whose points were once
+ * tagged with an owner answers one table per tag, so two rows can name the
+ * same window, and their samples are added up.
  */
-export const levelsByField = (rows: (FluxRow & { result?: string })[]): Map<string, SeriesPoint[]> => {
-  const byField = new Map<string, Map<string, number>>();
+export const countsByField = (rows: (FluxRow & { result?: string })[]): Map<string, Map<string, OutputCount>> => {
+  const byField = new Map<string, Map<string, OutputCount>>();
 
   for (const row of rows) {
     const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
-    const windows = byField.get(row._field) ?? new Map<string, number>();
-    const known = windows.get(row._time);
-    windows.set(row._time, known === undefined ? value : row.result === LEVEL_RESULT.dose ? known + value : Math.max(known, value));
+    const windows = byField.get(row._field) ?? new Map<string, OutputCount>();
+    const known = windows.get(row._time) ?? { heard: 0, on: null };
+    windows.set(row._time, row.result === COUNT_RESULT.on ? { ...known, on: (known.on ?? 0) + value } : { ...known, heard: known.heard + value });
     byField.set(row._field, windows);
   }
 
-  return new Map(
-    [...byField].map(([field, windows]) => [
-      field,
-      [...windows].sort(([one], [other]) => one.localeCompare(other)).map(([measuredAt, value]) => ({ measuredAt, value })),
-    ]),
-  );
+  return byField;
 };
+
+/** One drawn window of one output, counted from its samples. */
+export interface OutputFigure {
+  measuredAt: string;
+  /** How many samples the window held. */
+  heard: number;
+  /** In how many of them the output was running. */
+  on: number;
+  /** The mean of all of them as the device wrote them, a sample in which it was off counting as the 0 it is. */
+  mean: number;
+}
+
+/**
+ * One output's figures: for every window the series holds a mean of it, the
+ * samples counted there. The mean is the series' own - of every sample, off or
+ * on - and a window whose mean is the valve's "there is no valve" has none
+ * (`gridOf`), so it has no figure either. An output that only switches
+ * (`switches`) writes 0 or 1, and the samples it ran in are its mean of them all.
+ */
+export const figuresOf = (points: readonly SeriesPoint[], counts: ReadonlyMap<string, OutputCount> | undefined, switches: boolean): OutputFigure[] =>
+  points.flatMap(point => {
+    const counted = counts?.get(point.measuredAt);
+    if (point.value === null || !counted || counted.heard <= 0) return [];
+    const on = counted.on ?? (switches ? Math.round(point.value * counted.heard) : 0);
+
+    return [{ measuredAt: point.measuredAt, heard: counted.heard, on: Math.min(counted.heard, Math.max(0, on)), mean: point.value }];
+  });
 
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
 const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;

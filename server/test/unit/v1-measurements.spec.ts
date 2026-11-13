@@ -9,8 +9,8 @@ import {
   grainsQuery,
   gridOf,
   latestByField,
-  levelsByField,
-  levelsQuery,
+  countsByField,
+  countsQuery,
   liveQuery,
   OutputSwitching,
   readingsOf,
@@ -218,48 +218,51 @@ describe('the extremes of a window', () => {
   });
 });
 
-describe('the levels query', () => {
-  it('averages a level over the samples it was running in, and sums what the valve dosed', () => {
-    const query = levelsQuery(BUCKET, DEVICE, ['out_light', 'out_fan-internal'], ['out_co2'], window(60 * 24, 87));
-    const [level, dose] = query.split('yield(name: "level")');
+describe('the counts query', () => {
+  it('counts every sample of an output per window, and those above zero of the ones driven at a level', () => {
+    const query = countsQuery(BUCKET, DEVICE, ['out_light', 'out_dehumidifier', 'out_co2'], ['out_light', 'out_co2'], window(60 * 24, 87));
+    const [heard, on] = query.split('yield(name: "heard")');
 
-    // A dark sample is not averaged in: the lane's spans say when, the level how hard.
-    expect(level).toContain('r["_field"] == "out_light" or r["_field"] == "out_fan-internal"');
-    expect(level).toContain('r._value > 0.0');
-    expect(level).toContain('aggregateWindow(every: 87s, fn: mean, createEmpty: false)');
-    // The valve's "there is none" is left out before it is summed, or a sum would swallow it.
-    expect(dose).toContain('r["_field"] == "out_co2"');
-    expect(dose).toContain('r["_value"] >= 0.0 and r["_value"] != 4294967295.0');
-    expect(dose).toContain('aggregateWindow(every: 87s, fn: sum, createEmpty: false)');
-    expect(dose).toContain('yield(name: "dose")');
+    // No filter on the value: that is what the store pushes down.
+    expect(heard).toContain('r["_field"] == "out_light" or r["_field"] == "out_dehumidifier" or r["_field"] == "out_co2"');
+    expect(heard).not.toContain('_value');
+    expect(heard).toContain('aggregateWindow(every: 87s, fn: count, createEmpty: false)');
+    // A switch writes 0 or 1 and is counted from its mean, so the dearer read leaves it out.
+    expect(on).toContain('r["_field"] == "out_light" or r["_field"] == "out_co2"');
+    expect(on).not.toContain('out_dehumidifier');
+    expect(on).toContain('r._value > 0.0');
+    expect(on).toContain('aggregateWindow(every: 87s, fn: count, createEmpty: false)');
+    expect(on).toContain('yield(name: "on")');
   });
 
-  it('asks only for what has a level, and refuses anything that is not a name', () => {
-    expect(levelsQuery(BUCKET, DEVICE, ['out_light'], [], window(60, 60))).not.toContain('dose');
-    expect(levelsQuery(BUCKET, DEVICE, [], ['out_co2'], window(60, 60))).not.toContain('"level"');
-    expect(() => levelsQuery(BUCKET, DEVICE, ['x" or r["device_id"] == "other'], [], window(60, 60))).toThrow();
+  it('asks for the second count only where something is driven at a level, and refuses anything that is not a name', () => {
+    expect(countsQuery(BUCKET, DEVICE, ['out_relais'], [], window(60, 60))).not.toContain('"on"');
+    expect(() => countsQuery(BUCKET, DEVICE, ['x" or r["device_id"] == "other'], [], window(60, 60))).toThrow();
   });
 
-  it('reads the rows back per field in order, adding up a dose answered twice and keeping the higher level', () => {
+  it('reads the rows back per field and window, adding up a window answered twice', () => {
     const rows = [
-      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 80 },
-      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:05:00Z', _value: 40 },
-      { result: 'level', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 60 },
-      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:05:00Z', _value: 2000 },
-      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:05:00Z', _value: 1500 },
-      { result: 'dose', _field: 'out_co2', _time: '2026-01-20T10:10:00Z', _value: null },
+      { result: 'heard', _field: 'out_light', _time: '2026-01-20T10:05:00Z', _value: 6 },
+      { result: 'heard', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 4 },
+      // A device whose points were once tagged with an owner answers the window twice.
+      { result: 'heard', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 2 },
+      { result: 'on', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 1 },
+      { result: 'on', _field: 'out_light', _time: '2026-01-20T10:10:00Z', _value: 2 },
+      { result: 'heard', _field: 'out_dehumidifier', _time: '2026-01-20T10:05:00Z', _value: 6 },
+      { result: 'heard', _field: 'out_dehumidifier', _time: '2026-01-20T10:10:00Z', _value: null },
     ];
 
-    expect(levelsByField(rows)).toEqual(
+    expect(countsByField(rows)).toEqual(
       new Map([
         [
           'out_light',
-          [
-            { measuredAt: '2026-01-20T10:05:00Z', value: 40 },
-            { measuredAt: '2026-01-20T10:10:00Z', value: 80 },
-          ],
+          new Map([
+            // Counted, and above zero in none: no row of the second read names the window.
+            ['2026-01-20T10:05:00Z', { heard: 6, on: null }],
+            ['2026-01-20T10:10:00Z', { heard: 6, on: 3 }],
+          ]),
         ],
-        ['out_co2', [{ measuredAt: '2026-01-20T10:05:00Z', value: 3500 }]],
+        ['out_dehumidifier', new Map([['2026-01-20T10:05:00Z', { heard: 6, on: null }]])],
       ]),
     );
   });

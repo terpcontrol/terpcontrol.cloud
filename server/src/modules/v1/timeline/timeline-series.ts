@@ -239,8 +239,9 @@ const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow)
  * to be able to tell them apart: three days of silence are not three days of
  * "off".
  *
- * Where the read asked how hard the outputs ran, a lane that has a level says
- * so too, in percent of full output or, for the valve, as the ticks it dosed.
+ * Where the read counted the outputs' samples, a lane carries them point by
+ * drawn point (`pointsOfOutput`): what a card, a share of the time and a strip
+ * say about an output is counted from those, and the spans say only when.
  * A lane of a fridge module says so, because its dehumidifier output is the
  * compressor and every screen calls it that - a link included.
  */
@@ -260,8 +261,7 @@ export const lanesOf = (
               ...(fridges.has(one.series.deviceId) ? { fridge: true as const } : {}),
               spans: spansOf(output, true, one.series, window, heardAt(one)),
               heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
-              heardSeconds: heardSecondsOf(output, one.series, window, heardAt(one)),
-              ...levelOf(output),
+              ...pointsOfOutput(output),
             },
           ]
         : [],
@@ -321,20 +321,22 @@ export const readingOf = (live: Pick<DeviceLive, 'metrics' | 'outputs'>, metrics
 const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
   new Set(devices.filter(device => device.type === 'fridge').map(device => device.id));
 
-/** The level of one output in the contract's unit, where it has one and the read asked for it. */
-const levelOf = (output: OutputHistory): Pick<TimelineOutputLane, 'level'> => {
+/**
+ * One output's drawn points, where the read counted its samples: how many each window held, in how many the
+ * output ran, and for one driven at a level the mean level over all of them in per cent of full output.
+ */
+const pointsOfOutput = (output: OutputHistory): Pick<TimelineOutputLane, 'points'> => {
+  if (!output.figures) return {};
   const kind = OUTPUT_LEVEL[output.output];
-  if (!kind || !output.levels) return {};
 
   return {
-    level: {
-      unit: kind.unit,
-      points: output.levels.map(point => ({
-        measuredAt: point.measuredAt,
-        // A share of full output is a whole percent; a dose is whole ticks.
-        value: point.value === null ? null : Math.round(Math.min(kind.unit === 'percent' ? 100 : Infinity, point.value * kind.scale)),
-      })),
-    },
+    points: output.figures.map(figure => ({
+      measuredAt: figure.measuredAt,
+      heard: figure.heard,
+      on: figure.on,
+      // To a tenth: a heater that ran at 59 % in one sample of six is 9,8 % of full output over that window.
+      level: kind?.unit === 'percent' ? Math.round(Math.min(100, figure.mean * kind.scale) * 10) / 10 : null,
+    })),
   };
 };
 
@@ -344,12 +346,6 @@ const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: Serie
   const heard = heardStretches(points, readOf(series, window), series.stepSeconds, sampled);
 
   return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
-};
-
-/** For how long the device was heard about one output inside the window: what "on for x % of the time" is a share of. */
-const heardSecondsOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): number => {
-  const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
-  return Math.round(heardStretches(points, window, series.stepSeconds, sampled).reduce((sum, stretch) => sum + stretch.to - stretch.from, 0) / 1000);
 };
 
 /** The part of the window a device's read covers: its stay. */

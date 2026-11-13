@@ -4093,12 +4093,23 @@ export interface TimelinePanel {
   targets: TimelineTargets[];
 }
 
-export interface TimelineOutputLevel {
-  unit: 'percent' | 'count';
+export interface TimelineOutputPoint {
   /**
    * Stamped like the climate points: each closes the window it stands for.
    */
-  points: SeriesPoint[];
+  measuredAt: string;
+  /**
+   * How many samples of the output the window held.
+   */
+  heard: number;
+  /**
+   * In how many of them the output was running.
+   */
+  on: number;
+  /**
+   * The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.
+   */
+  level: number | null;
 }
 
 export interface TimelineOutputLane {
@@ -4113,26 +4124,13 @@ export interface TimelineOutputLane {
    */
   heardUntil: string;
   /**
-   * For how long the device was heard about this output inside the window, which is what a share of the time it ran is a share of.
-   */
-  heardSeconds?: number;
-  /**
    * Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.
    */
   fridge?: true;
-  level?: TimelineOutputLevel1;
-}
-
-/**
- * Only for an output the device drives at a level; absent where the output is a switch and nothing more.
- */
-
-export interface TimelineOutputLevel1 {
-  unit: 'percent' | 'count';
   /**
-   * Stamped like the climate points: each closes the window it stands for.
+   * The output point by drawn point, in order; absent where the read did not count its samples.
    */
-  points: SeriesPoint[];
+  points?: TimelineOutputPoint[];
 }
 
 export interface TimelineAlarm {

@@ -418,6 +418,64 @@ describe('applying a climate preset', () => {
     await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&from=${to}&to=${from}`).expect(400);
   });
 
+  // What is said about an output is counted from its samples. Taken from its runs - each rounded out to the grain
+  // it was found at - a valve that opens for five seconds every two minutes was open three quarters of a day,
+  // and a heater that ran one minute of three at 80 % was written as 80 % for the three.
+  it('counts an output from its samples, point by drawn point: a pulse, a run shorter than a step, a silence', async () => {
+    const spaceId = await tentWithAController();
+    const deviceId = (await owner.client.get('/v1/devices').expect(200)).body.items.find((one: { spaceId: string }) => one.spaceId === spaceId).id;
+    const MINUTE = 60_000;
+    const base = Math.floor((Date.now() - 6 * 3600_000) / 180_000) * 180_000;
+    const within = (time: number, from: number, to: number) => time >= base + from * MINUTE && time < base + to * MINUTE;
+    await seedMeasurements(
+      Array.from({ length: 120 * 12 }, (_, index) => ({ index, time: base + index * 5000 + 2000 }))
+        // Its first reading a minute into a window; half an hour of silence, and back a minute into another.
+        .filter(({ time }) => !within(time, 0, 1) && !within(time, 60, 91))
+        .map(({ index, time }) => ({
+          time,
+          device_id: deviceId,
+          fields: {
+            temperature: 24,
+            humidity: 55,
+            out_light: 70,
+            out_heater: within(time, 10, 11) ? 0.8 : 0,
+            out_dehumidifier: within(time, 20, 21) ? 1 : 0,
+            // Five seconds every two minutes.
+            out_co2: index % 24 === 0 ? 3 : 0,
+          },
+        })),
+    );
+
+    const day = (await owner.client.get(`/v1/spaces/${spaceId}/timeline?range=24h&metrics=temperature`).expect(200)).body;
+    type Point = { measuredAt: string; heard: number; on: number; level: number | null };
+    const lane = (output: string): { points: Point[] } => day.outputs.find((one: { output: string }) => one.output === output);
+    const at = (output: string, minute: number) => lane(output).points.find(point => Date.parse(point.measuredAt) === base + minute * MINUTE);
+
+    expect(day.stepSeconds).toBe(180);
+    // One minute of three at 80 %: twelve samples of thirty-six, and 26.7 % of full output over the point.
+    expect(at('heater', 12)).toEqual({ measuredAt: new Date(base + 12 * MINUTE).toISOString(), heard: 36, on: 12, level: 26.7 });
+    expect(at('heater', 15)).toMatchObject({ heard: 36, on: 0, level: 0 });
+    // A switch has no level: the samples it ran in say all there is.
+    expect(at('dehumidifier', 21)).toMatchObject({ heard: 36, on: 12, level: null });
+    expect(at('light', 12)).toMatchObject({ heard: 36, on: 36, level: 70 });
+    // The valve ran in one sample of twenty-four, whatever a point is wide.
+    const valve = lane('co2').points;
+    expect(valve.every(point => point.on >= 1 && point.on <= 2 && point.level === null)).toBe(true);
+    const sum = (of: (point: Point) => number) => valve.reduce((total, point) => total + of(point), 0);
+    expect(sum(point => point.on) / sum(point => point.heard)).toBeCloseTo(1 / 24, 2);
+
+    // The first reading stands a minute into its window, and nothing is said of the time before it.
+    expect(lane('heater').points[0]).toMatchObject({ measuredAt: new Date(base + 3 * MINUTE).toISOString(), heard: 24, on: 0 });
+    // Nothing was heard for half an hour: no point says "off" there. The first after it has the samples it has.
+    const heard = lane('heater').points.map(point => (Date.parse(point.measuredAt) - base) / MINUTE);
+    expect(heard.filter(minute => minute > 60 && minute <= 90)).toEqual([]);
+    expect(at('heater', 60)).toMatchObject({ heard: 36 });
+    expect(at('heater', 93)).toMatchObject({ heard: 24, on: 0, level: 0 });
+    expect(at('light', 93)).toMatchObject({ heard: 24, on: 24, level: 70 });
+    // What a run was rounded out to and what the device was heard for are no figures of the answer any more.
+    expect(Object.keys(lane('heater')).sort()).toEqual(['deviceId', 'heardUntil', 'output', 'points', 'spans']);
+  });
+
   // The warmest sample of a window need not be its driest, nor the one with the warmest leaf. Read at three minutes
   // to the point, a tent between 20.7 and 31.5 °C, 38 and 58.8 % and a leaf of 18.9 to 21.5 °C was answered a
   // deficit of -0.53 to 1.64 kPa, built from extremes that never met; no sample of it was below 0.4 or above 1.1.
