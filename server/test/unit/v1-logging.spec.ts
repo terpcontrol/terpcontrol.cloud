@@ -157,6 +157,7 @@ beforeEach(async () => {
     access,
     new EntryWriterService(db.entries),
     maintenance,
+    db.spaces,
   );
 
   const alarms: StageAlarms = { applyStage: async () => undefined };
@@ -222,6 +223,35 @@ describe('who may write a line, and against what', () => {
       status: 400,
       code: 'entry_about_nothing',
     });
+  });
+
+  /**
+   * A place that has ended is on no screen, so a line somebody writes about it
+   * is refused - written new or moved there. The grow that stood in it is
+   * still written to, a line already on the place stays correctable, and what
+   * a machine records goes through the writer and is not asked.
+   */
+  it('takes no line about a place that has ended, from a person', async () => {
+    const onThePlace = { kind: 'note' as const, spaceId: SPACE, values: { kind: 'note' as const }, text: 'Wiped the walls.' };
+    const kept = await entries.create(session(OWNER), onThePlace);
+    const onTheGrow = await entries.create(session(OWNER), aNote);
+    await db.spaces.updateOne({ id: SPACE }, { $set: { archivedAt: new Date() } });
+    const ended = { status: 409, code: 'space_archived' };
+
+    expect(await problem(entries.create(session(OWNER), onThePlace))).toEqual(ended);
+    expect(await problem(entries.update(session(OWNER), onTheGrow.id, { spaceId: SPACE }))).toEqual(ended);
+    expect(await db.entries.countDocuments()).toBe(2);
+
+    expect((await entries.update(session(OWNER), kept.id, { text: 'Wiped the walls and the floor.' })).text).toBe('Wiped the walls and the floor.');
+    expect((await entries.create(session(OWNER), aNote)).growId).toBe(GROW);
+    const logged = await new EntryWriterService(db.entries).write({
+      source: 'device',
+      authorId: null,
+      spaceId: SPACE,
+      deviceId: DEVICE,
+      values: { kind: 'system' },
+    });
+    expect(logged.spaceId).toBe(SPACE);
   });
 
   it('writes against named plants, and finds their grow from them', async () => {

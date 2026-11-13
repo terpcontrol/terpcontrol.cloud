@@ -51,7 +51,8 @@ export class PresetApplicationsService {
   ) {}
 
   public async apply(ctx: AccessContext, spaceId: string, body: PresetApplicationCreate): Promise<PresetApplication> {
-    const space = await this.spaces.require(spaceId);
+    // An ended place takes no climate either: nothing stands there to be put on it.
+    const space = await this.spaces.requireStanding(spaceId);
     const preset = body.preset ?? null;
     const decision = body.decision ?? null;
     const appliedAt = new Date();

@@ -1,6 +1,8 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
+import { Model } from 'mongoose';
 import { z } from 'zod';
 import { Camera, CameraCreate, CameraUpdate, MediaPage, TestCapture, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
 import {
@@ -20,8 +22,11 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant, Grantee } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
+import { refuseEndedId } from '@common/v1/rooms';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
+import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
 import { TestCapturesService } from './test-captures.service';
@@ -82,6 +87,7 @@ export class CamerasController {
     private readonly builder: TimelapseService,
     private readonly access: AccessService,
     private readonly tests: TestCapturesService,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
   @Get()
@@ -121,7 +127,11 @@ export class CamerasController {
       await this.requireATunnel(deviceId);
       refuseUdpThroughATunnel(body.transport);
     }
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (body.spaceId) {
+      await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+      // A camera looking into a place that has ended would be on no screen.
+      await refuseEndedId(this.spaces, body.spaceId);
+    }
     if (!deviceId && !body.spaceId) {
       throw badRequest('nowhere_to_put_it', 'A camera belongs to a space or to the controller that answers for it; name one of them.');
     }
@@ -180,8 +190,13 @@ export class CamerasController {
     const current = await this.require(id);
 
     // Moving a camera is managing two places, and the guard above has only
-    // decided about the one it stands in.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    // decided about the one it stands in. An ended place takes none - which is
+    // asked of a move alone, so a camera still standing in a place that was
+    // put away keeps its settings changeable.
+    if (body.spaceId) {
+      await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+      if (body.spaceId !== current.spaceId) await refuseEndedId(this.spaces, body.spaceId);
+    }
     if (current.kind !== 'rtsp' && (namesAStream(body) || body.deviceId !== undefined)) {
       throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
     }

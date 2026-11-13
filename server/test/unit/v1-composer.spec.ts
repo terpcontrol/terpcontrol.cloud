@@ -76,7 +76,7 @@ const build = (): void => {
   const builder = new TimelapseService(cameras, media, entitlement, {} as never);
   builder.renderQueued = () => undefined;
 
-  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never);
+  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, db.spaces);
 };
 
 const world = async (entitledUntil: Date | null): Promise<void> => {
@@ -95,6 +95,40 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
 beforeEach(async () => {
   await db.reset();
   status = 0;
+});
+
+/**
+ * A camera looking into a place that has ended would be on no screen. A new
+ * one is refused there and so is one moved there; a camera a place that was
+ * put away still holds keeps its settings changeable, since nothing is put
+ * anywhere by that.
+ */
+describe('where a camera may be put', () => {
+  const stream = { kind: 'rtsp' as const, name: 'Cam 4', url: 'rtsp://10.0.0.5:554/stream1' };
+  const refused = async (act: Promise<unknown>) =>
+    (
+      await act.then(
+        () => null,
+        error => error as { problem?: { status: number; code: string } },
+      )
+    )?.problem;
+
+  it('puts none into a place that has ended, new or moved, and leaves one standing there to be changed', async () => {
+    build();
+    await world(null);
+    expect((await controller.create(session(OWNER), { ...stream, spaceId: BALCONY })).spaceId).toBe(BALCONY);
+    await db.spaces.updateOne({ id: BALCONY }, { $set: { archivedAt: new Date() } });
+    const ended = { status: 409, code: 'space_archived' };
+
+    expect(await refused(controller.create(session(OWNER), { ...stream, spaceId: BALCONY }))).toMatchObject(ended);
+    expect(await refused(controller.update(session(OWNER), CAMERA, { spaceId: BALCONY }))).toMatchObject(ended);
+    expect((await db.cameras.findOne({ id: CAMERA }).lean())?.spaceId).toBe(TENT);
+
+    expect((await controller.update(session(OWNER), ELSEWHERE, { spaceId: BALCONY, name: 'Still on the balcony' })).name).toBe(
+      'Still on the balcony',
+    );
+    expect((await controller.update(session(OWNER), ELSEWHERE, { spaceId: TENT })).spaceId).toBe(TENT);
+  });
 });
 
 describe('what a film costs', () => {

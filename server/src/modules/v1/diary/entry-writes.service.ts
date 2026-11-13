@@ -10,6 +10,7 @@ import { serialiseEntry } from '@common/v1/entries';
 import { zoneOfOwner } from '@common/v1/owner-zone';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { badRequest, forbidden, notFound, unauthenticated } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { isDuplicateKey } from '@database/duplicate-key';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -17,6 +18,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { spacesNow } from '../grow/grow-places';
@@ -58,6 +60,7 @@ export class EntryWritesService {
     private readonly access: AccessService,
     private readonly writer: EntryWriterService,
     @Inject(MAINTENANCE_STARTER) private readonly maintenance: MaintenancePort,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
   /** The zone the week of a feed is counted in: the calendar of the grow's owner. */
@@ -71,6 +74,11 @@ export class EntryWritesService {
     const authorId = authorOf(ctx);
     const occurredAt = momentOf(body.occurredAt);
     await requireLogOn(this.access, ctx, body);
+    // A line somebody writes about a place that has ended would be read on no
+    // screen. What a machine writes - an alarm, a device's message, a plan -
+    // goes through the writer itself and is not asked: it records what
+    // happened, and a refusal there would be thrown at nobody.
+    if (body.spaceId) await refuseEndedId(this.spaces, body.spaceId);
 
     const grow = await this.growOf(body.growId ?? null, body.plantIds ?? []);
     const line = {
@@ -117,6 +125,8 @@ export class EntryWritesService {
       mediaIds: body.mediaIds ?? entry.mediaIds,
     };
     await requireLogOn(this.access, ctx, targets);
+    // Moved onto an ended place it would be a new line there; a line that already stands on one stays correctable.
+    if (body.spaceId && body.spaceId !== entry.spaceId) await refuseEndedId(this.spaces, body.spaceId);
 
     const occurredAt = body.occurredAt === undefined ? entry.occurredAt : momentOf(body.occurredAt);
     const grow = await this.growOf(targets.growId, targets.plantIds ?? []);
