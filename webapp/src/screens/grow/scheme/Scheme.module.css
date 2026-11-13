@@ -248,13 +248,6 @@
 }
 
 /* Adding a row: a name, the unit it is measured in, and the tap that makes it. */
-.newProduct {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-}
-
 .newProductName {
   flex: 1;
   min-width: 140px;

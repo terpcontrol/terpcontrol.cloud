@@ -5,7 +5,7 @@ import { firstChoice, type PlaceCard } from '@/app/places';
 import { fetchedAt } from '@/api/clock';
 import { livenessOf, livenessThrough, sortedByAttention } from '@/screens/start/attention';
 import { worstFirst } from '@/screens/alerts/inbox';
-import { holdVerdictOf, judgedPanel, placeAlerts, statusOf } from '@/screens/start/place';
+import { holdVerdictOf, judgedPanel, placeAlerts, statusOf, statusText } from '@/screens/start/place';
 import { groupedByRoom, startOrder } from '@/screens/start/rooms';
 import { ago, cardOf, growOf, setpoints, values } from './place-wire';
 import { spaceWhere } from './session';
@@ -69,6 +69,17 @@ describe('the sentence a place says', () => {
     expect(worstFirst(inbox).map(one => one.id)).toEqual(['silent', 'hot', 'mould', 'fridge-warm']);
     const status = statusOf({ ...place, openAlerts: placeAlerts(listed, inbox as never, here, now) }, now);
     expect(status).toMatchObject({ kind: 'alert', alert: { alertId: 'silent', device: { id: 'device-2' } }, more: 3 });
+
+    // A status that outranks the alert sentence - the place's own silence, maintenance, regulation off - counts them all behind it.
+    const silent = { ...place, values: [], silentSince: ago(35), openAlerts: placeAlerts(listed, inbox as never, here, now) };
+    expect(statusOf(silent, now)).toMatchObject({ kind: 'offline', more: 4 });
+    // The silence of the device the place is judged by is the place's own, said by the pill and the box, and is not counted.
+    expect(statusOf({ ...silent, leadId: 'device-2' }, now)).toMatchObject({ kind: 'offline', more: 3 });
+    // The catalogue's sentences are not this suite's business: a key stands for its sentence, the count for itself.
+    const t = ((key: string, said?: { count?: number }) => (key === 'start.status.more' ? `+${said?.count}` : key)) as never;
+    const off = statusOf({ ...place, controlOff: true, openAlerts: placeAlerts(listed, inbox as never, here, now) }, now);
+    expect(statusText(t, off, now, 'UTC')).toBe('start.status.controlOff · +4');
+    expect(statusText(t, statusOf({ ...place, controlOff: true }, now), now, 'UTC')).toBe('start.status.controlOff');
 
     // Without the account's list - the demo - no device is known: the place's own silence is the pill's to say, and no other is named.
     expect(statusOf({ ...place, openAlerts: placeAlerts(listed, undefined, here, now) }, now)).toMatchObject({

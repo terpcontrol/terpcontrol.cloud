@@ -73,7 +73,7 @@ export function Diary({ page, picture, now, banner, aside, earlier }: DiaryProps
           fallback={<Leaf size={36} strokeWidth={1.25} aria-hidden />}
         />
 
-        <div className={styles.titleRow}>
+        <div className={ui.rowTop}>
           <div className={styles.titles}>
             <h1 className={styles.title}>{page.name}</h1>
             <Author author={page.author} picture={picture} aside={aside} />

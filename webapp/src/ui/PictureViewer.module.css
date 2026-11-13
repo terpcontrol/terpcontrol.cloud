@@ -73,8 +73,11 @@ div.scrim {
   border-radius: var(--radius);
 }
 
+/* `Photo` fills its frame and crops; here the picture keeps its own size and shape. */
 .frame img {
+  width: auto;
   max-width: 100%;
+  height: auto;
   max-height: 100%;
   object-fit: contain;
 }

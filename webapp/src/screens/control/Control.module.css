@@ -121,19 +121,10 @@
 }
 
 .refusal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   gap: var(--space-3);
 }
 
 /* A device with no plan, and the two ways to give it one. */
-.none {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .noneWhat {
   font-weight: var(--weight-semibold);
 }
@@ -230,12 +221,6 @@
   width: 88px;
 }
 
-.figures {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
 .figure {
   display: flex;
   align-items: baseline;
@@ -297,13 +282,6 @@
 /* What a save will do to a tent that is already running, said before it does
    it. Sentences rather than bullets: a marker in front would read as options. */
 .effect {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
   color: var(--ink);
 }
 
@@ -375,27 +353,12 @@
   }
 }
 
-/* The way out of a page with nothing to set, inside the dashed note: underlined, so the green stays the Save's. */
-.addDevice {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
-  margin-block: -12px;
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  white-space: nowrap;
-}
-
 /* --- Steuerung itself: the climate, the rows, the devices -------------------- */
 
 /* One column on a phone and beside the rail, until the climate and the devices
    both fit side by side: from 1200px the devices stand right of the climate. */
 .columns,
 .column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -513,14 +476,9 @@
 
 /* --- the devices standing in the place --- */
 
+/* The shared card, its parts a little further apart. */
 .device {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-3);
-  padding: 14px var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
 }
 
 .deviceHead {
@@ -570,14 +528,4 @@
   background: var(--card-2);
   color: var(--muted);
   object-fit: cover;
-}
-
-.add {
-  min-height: 48px;
-  padding: 0 var(--space-4);
-  background: var(--card);
-  border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius);
-  color: var(--ink);
-  font-weight: var(--weight-semibold);
 }

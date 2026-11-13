@@ -244,7 +244,7 @@ export function TelegramCard({ me, held }: CardProps) {
       below={
         <>
           {offered && waiting ? (
-            <p className={styles.linkLine}>
+            <p className={`${ui.wrapRow} ${styles.linkLine}`}>
               <a className={`${ui.button} ${ui.primary}`} href={offered.url} target="_blank" rel="noreferrer">
                 {t('notifications.telegram.open')}
               </a>
@@ -311,7 +311,7 @@ export function EmailCard({ me, held }: CardProps) {
         <>
           {editing ? (
             <form
-              className={parts.fields}
+              className={ui.stack3}
               onSubmit={event => {
                 event.preventDefault();
                 if (!typed) return;
@@ -410,7 +410,7 @@ export function WebhookCard({ me, held }: CardProps) {
         <>
           {editing ? (
             <form
-              className={parts.fields}
+              className={ui.stack3}
               onSubmit={event => {
                 event.preventDefault();
                 if (!draft.url) return;

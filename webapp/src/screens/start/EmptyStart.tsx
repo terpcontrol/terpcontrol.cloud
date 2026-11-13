@@ -39,7 +39,7 @@ export function EmptyStart() {
   };
 
   return (
-    <section className={`${styles.page} ${styles.empty}`} data-single>
+    <section className={`${ui.stack3} ${styles.page} ${styles.empty}`} data-single>
       <h1>{t(lost ? 'start.empty.lost' : 'start.empty.title')}</h1>
       <PlaceDoors />
       <Door title={t('start.empty.demo')} note={t('start.empty.demoNote')} onClick={() => setDemo('asking')} />
@@ -48,7 +48,7 @@ export function EmptyStart() {
           <button type="button" className={styles.go} data-tone="brand" onClick={() => void open()}>
             {t('home.demo.confirm')}
           </button>
-          <button type="button" className={styles.wide} onClick={() => setDemo('idle')}>
+          <button type="button" className={ui.wide} onClick={() => setDemo('idle')}>
             {t('home.demo.stay')}
           </button>
         </div>
@@ -72,10 +72,10 @@ function NothingInTheDemo() {
   const { leaving, leave } = useLeave('/sign-in');
 
   return (
-    <section className={`${styles.page} ${styles.empty}`} data-single>
+    <section className={`${ui.stack3} ${styles.page} ${styles.empty}`} data-single>
       <h1>{t('home.demoEmpty.title')}</h1>
       <p className={styles.cardText}>{t('home.demoEmpty.text')}</p>
-      <button type="button" className={styles.wide} disabled={leaving} onClick={() => void leave()}>
+      <button type="button" className={ui.wide} disabled={leaving} onClick={() => void leave()}>
         {t('home.demoEmpty.signIn')}
       </button>
     </section>

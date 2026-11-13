@@ -14,7 +14,7 @@ import {
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
-import { Refused } from '@/ui/PageState';
+import { NothingHere, Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Label } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -101,7 +101,7 @@ export function FirmwareScreen() {
         </table>
       </div>
 
-      {builds.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('admin.firmware.noBuilds')}</p> : null}
+      {builds.length === 0 ? <NothingHere>{t('admin.firmware.noBuilds')}</NothingHere> : null}
     </section>
   );
 }

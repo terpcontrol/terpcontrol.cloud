@@ -12,12 +12,6 @@
   font-weight: var(--weight-semibold);
 }
 
-.switchRow {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-}
-
 /* The address in full, and still selectable: a browser that refuses the
    clipboard leaves reading it off the screen as the only way. */
 .address {

@@ -72,7 +72,7 @@ export function Places({
   );
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       {demo ? <DemoBanner /> : null}
       <div className={styles.head}>
         <h1>{t('shell.tabs.home')}</h1>

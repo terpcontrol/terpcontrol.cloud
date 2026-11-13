@@ -60,7 +60,7 @@ export function Picture({
   return (
     <div className={styles.picture} {...ageAttribute(age)}>
       <Link to={to} className={styles.pictureLink}>
-        {src ? <img src={src} alt={alt} /> : <span className={styles.pictureEmpty}>{empty}</span>}
+        {src ? <img className={ui.cover} src={src} alt={alt} /> : <span className={styles.pictureEmpty}>{empty}</span>}
         <span className={ui.visuallyHidden}>{`, ${opens}`}</span>
       </Link>
       <span className={styles.chips}>

@@ -32,11 +32,11 @@ export function Door({
   );
 
   return to ? (
-    <Link to={to} className={`${styles.row} ${styles.door}`} data-first={first || undefined} onClick={onClick}>
+    <Link to={to} className={`${ui.rowCard} ${styles.door}`} data-first={first || undefined} onClick={onClick}>
       {inside}
     </Link>
   ) : (
-    <button type="button" className={`${styles.row} ${styles.door}`} data-first={first || undefined} onClick={onClick}>
+    <button type="button" className={`${ui.rowCard} ${styles.door}`} data-first={first || undefined} onClick={onClick}>
       {inside}
     </button>
   );
@@ -68,12 +68,12 @@ export function AddPlace({ wide = false }: { wide?: boolean }) {
 
   return (
     <>
-      <button type="button" className={wide ? styles.wide : styles.add} onClick={() => setOpen(true)}>
+      <button type="button" className={wide ? ui.wide : styles.add} onClick={() => setOpen(true)}>
         + {t('start.addPlace')}
       </button>
       {open ? (
         <Sheet title={t('start.addPlace')} onClose={() => setOpen(false)}>
-          <div className={`${ui.sheetBody} ${styles.doors}`}>
+          <div className={`${ui.sheetBody} ${ui.stack3}`}>
             <PlaceDoors onChosen={() => setOpen(false)} />
             <Door to="/cameras/add" title={t('start.empty.camera')} note={t('start.empty.cameraNote')} onClick={() => setOpen(false)} />
           </div>

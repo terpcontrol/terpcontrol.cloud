@@ -61,7 +61,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
         aria-label={t('shell.place.chip', { name: here.name })}
         onClick={() => setOpen(true)}
       >
-        <span className={styles.name}>{here.name}</span>
+        <span className={ui.cut}>{here.name}</span>
         <ChevronDown size={14} strokeWidth={2.4} aria-hidden />
       </button>
       {/* Out of the bar it is opened from, which is a layer of its own under the sheets. */}

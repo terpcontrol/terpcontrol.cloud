@@ -28,7 +28,7 @@ export function HardwareStep({ device, sockets, camOnly = false }: { device: Dev
 
   return (
     <>
-      <ul className={styles.reported}>
+      <ul className={`${ui.effects} ${styles.reported}`}>
         {camOnly ? null : (
           <li>
             <span className="label">{t('claim.hardware.sockets')}</span>

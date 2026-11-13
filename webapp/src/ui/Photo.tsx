@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import ui from './ui.module.css';
 
 /**
  * A picture in a frame that knows whether it has one.
@@ -27,7 +28,7 @@ export function Photo({
 
   return (
     <span className={className} data-empty={!shown}>
-      {shown ? <img src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} /> : fallback}
+      {shown ? <img className={ui.cover} src={src} alt={alt} loading="lazy" onError={() => setFailed(true)} /> : fallback}
     </span>
   );
 }

@@ -127,7 +127,7 @@ export function DoingStep({
       ) : null}
 
       {applied ? (
-        <ul className={styles.effect}>
+        <ul className={ui.effects}>
           <li>{wroteLine}</li>
           {wrote && window ? <li>{t('claim.doing.window', { light: window })}</li> : null}
           <li>{phaseLine}</li>

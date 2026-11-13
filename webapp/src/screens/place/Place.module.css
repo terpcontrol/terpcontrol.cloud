@@ -3,14 +3,6 @@
    One reading column, set against the left edge under the title the way the
    rest of the app's settings are. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. */
 .steering {
   width: 100%;

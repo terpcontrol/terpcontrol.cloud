@@ -16,6 +16,7 @@ import { PlaceStart } from './PlaceStart';
 import { noteLoaded } from './loaded';
 import { StartFailed, StartWaiting } from './states';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * Start. An account with one place is shown that place; one whose single grow
@@ -81,7 +82,7 @@ export function StartOfPlace() {
   // a place that is not its own, which only that read answers for.
   if (own) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${styles.page}`}>
         <PlaceEnded title={t('shell.tabs.home')} name={own.name} />
       </section>
     );

@@ -251,7 +251,7 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
 
   return (
     <div className={styles.editor}>
-      <ul className={styles.effect}>
+      <ul className={`${ui.effects} ${styles.effect}`}>
         <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
         <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
       </ul>

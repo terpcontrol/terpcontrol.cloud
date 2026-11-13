@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem, PlantPage, Space } from '@fg2/shared-types/v1';
 import type { useGrowPlants } from '@/api/grows';
-import { LoadFailed, Waiting } from '@/ui/PageState';
-import ui from '@/ui/ui.module.css';
+import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
 import { placeName } from './placement';
 import styles from './GrowPage.module.css';
 
@@ -35,7 +34,7 @@ function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage
     return location ? placeName(t, spaces, location.spaceId) : null;
   };
 
-  if (page.items.length === 0) return <p className={`${ui.cardDashed} ${ui.note} ${styles.empty}`}>{t('grow.noPlants')}</p>;
+  if (page.items.length === 0) return <NothingHere>{t('grow.noPlants')}</NothingHere>;
 
   return (
     <ul className={styles.rows} aria-label={t('grow.tabs.plants')}>

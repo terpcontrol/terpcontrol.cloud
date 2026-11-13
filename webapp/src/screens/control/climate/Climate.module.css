@@ -3,13 +3,7 @@
    whatever opens a sheet, and under the card what the device has not taken. */
 
 .card {
-  display: flex;
-  flex-direction: column;
   gap: var(--space-3);
-  padding: 14px var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
 }
 
 /* What stands, and at the row's end what changes it. */
@@ -146,12 +140,6 @@
 }
 
 /* The figures: a label, and a button per half of the day. One column where the device holds one climate round the clock. */
-.grid {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .gridRow {
   display: grid;
   /* The label keeps its longest word whole; the figures share what is left. */
@@ -357,16 +345,6 @@ button.figure:hover {
 }
 
 /* What a preset moves: the figure, and from what to what. */
-.sets {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-
 .sets li {
   display: flex;
   flex-wrap: wrap;

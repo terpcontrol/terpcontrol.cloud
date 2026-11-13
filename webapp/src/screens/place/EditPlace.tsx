@@ -193,7 +193,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
   };
 
   return (
-    <section className={`${styles.page} ${styles.reading} ${styles.editing}`}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.reading} ${styles.editing}`}>
       <PageHead
         back={{ to: placePath(space.id), label: t('place.backTo', { name: space.name }) }}
         title={t('place.edit.title', { name: space.name })}

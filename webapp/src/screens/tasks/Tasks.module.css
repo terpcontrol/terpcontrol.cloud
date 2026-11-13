@@ -1,14 +1,6 @@
 /* The Tasks tab: a list in four groups, a card per task, and the sheet a
    rhythm is written in. Layout only - every colour is a token. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* Whose tasks, beside the title: two answers, each a finger high. */
 .scope button {
   height: var(--control-height);
@@ -153,12 +145,6 @@ button.none {
 
 /* Grows and places under ABOUT: each kind its own row, named in sentence case
    so the block's own heading stays the only label above them. */
-.subgroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .subLabel {
   font-size: var(--text-sm);
   color: var(--muted);

@@ -144,7 +144,7 @@ export function WhatGrows({
   const questions = (
     <form
       id={form}
-      className={styles.whatGrows}
+      className={`${ui.stack4} ${styles.whatGrows}`}
       onSubmit={event => {
         event.preventDefault();
         void submit();

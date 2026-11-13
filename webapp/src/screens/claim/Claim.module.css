@@ -3,14 +3,6 @@
    Every shape below is the app's own card, chip, field and button; this file
    is the column they stand in and the numbered marker beside them. */
 
-.screen {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* One step: the marker in its own column, everything the step says in the
    other. The gap between steps is the screen's, so the list reads as a list
    rather than as four cards. */
@@ -169,17 +161,6 @@
 
 /* What a preset did, once it has been applied. Sentences rather than figures,
    and without list markers, which would read as options to choose between. */
-.effect,
-.reported {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-
 .reported li {
   display: flex;
   align-items: baseline;
@@ -269,12 +250,6 @@
 }
 
 /* The head of every page of the flow: the way out, what is being added and how far along. */
-.flowHead {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
 .close {
   display: grid;
   flex: none;

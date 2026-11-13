@@ -14,7 +14,7 @@ import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { cameraTitle } from '@/ui/naming';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
@@ -123,7 +123,7 @@ function Account({ title }: { title: string }) {
       {!premium.enforced ? <p className={ui.note}>{t('me.premium.ungated')}</p> : null}
 
       {list.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.noCameras')}</p>
+        <NothingHere>{t('me.premium.noCameras')}</NothingHere>
       ) : (
         <ul className={ui.group}>
           {list.map((camera, index) => (

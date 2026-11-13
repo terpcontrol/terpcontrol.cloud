@@ -291,7 +291,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
         />
       )}
 
-      <section className={styles.card} aria-labelledby={`targets-${device.id}`}>
+      <section className={`${ui.panel} ${styles.card}`} aria-labelledby={`targets-${device.id}`}>
         <div className={styles.line}>
           <h2 className={`${ui.cardHeading} ${styles.title}`} id={`targets-${device.id}`}>
             {t('targets.title')}
@@ -303,7 +303,12 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           ) : null}
         </div>
 
-        <div className={styles.grid} role="table" aria-label={t('targets.table.label')} data-single={halves.length === 1 || undefined}>
+        <div
+          className={`${ui.stack2} ${styles.grid}`}
+          role="table"
+          aria-label={t('targets.table.label')}
+          data-single={halves.length === 1 || undefined}
+        >
           <div role="row" className={styles.gridRow}>
             <span role="columnheader" aria-label={t('targets.table.figure')} />
             {halves.map(half => (

@@ -147,7 +147,7 @@ function CodeEntry() {
       <p className={styles.by}>{t('space.members.join.code.body')}</p>
 
       <form
-        className={styles.codeForm}
+        className={ui.stack3}
         onSubmit={event => {
           event.preventDefault();
           if (code) void navigate(`/join/${code}`);

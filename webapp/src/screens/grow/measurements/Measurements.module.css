@@ -2,14 +2,6 @@
    and the sheet one card opens. Layout only - every colour, size and radius is
    a token. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 .growName {
   margin-left: auto;
   color: var(--muted);

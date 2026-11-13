@@ -21,10 +21,3 @@
 .go {
   width: 100%;
 }
-
-/* The typed code and the button under it, on the page a code is read to. */
-.codeForm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}

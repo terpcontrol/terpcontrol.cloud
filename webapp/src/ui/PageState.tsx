@@ -1,4 +1,5 @@
 import type { DateTime } from 'luxon';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { fetchedAt } from '@/api/clock';
@@ -94,5 +95,25 @@ export function Waiting({ lines = 3 }: { lines?: number }) {
         <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
       ))}
     </div>
+  );
+}
+
+/**
+ * Nothing here yet: the sentence that says what is missing, in the dashed shape every screen says it in, and - where
+ * the page has no other - the way to where it is set or added.
+ */
+export function NothingHere({ children, to, where }: { children: ReactNode; to?: string; where?: string }) {
+  return (
+    <p className={`${ui.cardDashed} ${ui.note}`}>
+      {children}
+      {to ? (
+        <>
+          {' '}
+          <Link to={to} className={styles.wayOn}>
+            {where}
+          </Link>
+        </>
+      ) : null}
+    </p>
   );
 }

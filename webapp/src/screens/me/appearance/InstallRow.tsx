@@ -51,7 +51,7 @@ function InstallSteps({ ios }: { ios: boolean }) {
   const { t } = useTranslation();
 
   return (
-    <div className={styles.install}>
+    <div className={ui.stack2}>
       <p className={ui.note}>{t(ios ? 'install.iosIntro' : 'install.androidIntro')}</p>
       <ol className={styles.steps}>
         {ios ? (

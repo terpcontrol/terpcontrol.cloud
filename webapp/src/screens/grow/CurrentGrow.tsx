@@ -5,7 +5,7 @@ import { useGrowsEverIn } from '@/api/grows';
 import { useSpaceOverview } from '@/api/spaces';
 import { GROW, ALL_GROWS, useCurrentPlace } from '@/app/places';
 import { Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { MoveHereSheet } from '../space/MoveHereSheet';
@@ -61,9 +61,9 @@ function VisitedGrow({ spaceId, tab }: { spaceId: string; tab: GrowTab }) {
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} />;
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       <VisitingTitle title={t('shell.tabs.grow')} spaceId={spaceId} />
-      <p className={`${ui.cardDashed} ${ui.note}`}>{t('home.invite.noGrow')}</p>
+      <NothingHere>{t('home.invite.noGrow')}</NothingHere>
     </section>
   );
 }
@@ -83,7 +83,7 @@ function NothingGrows({ place }: { place: { spaceId: string; name: string } | nu
   const last = useGrowsEverIn(place?.spaceId ?? null).data?.items.find(grow => grow.endedAt !== null);
 
   return (
-    <div className={styles.nothingGrows}>
+    <div className={ui.stack1}>
       <p className={ui.note}>{t('home.invite.noGrow')}</p>
       {last ? (
         <Link to={`${ALL_GROWS}/${last.id}/report`} className={ui.headLink}>

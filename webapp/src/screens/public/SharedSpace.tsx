@@ -60,7 +60,7 @@ export function SharedSpace({
       {banner}
 
       <header className={ui.stack3}>
-        <div className={styles.titleRow}>
+        <div className={ui.rowTop}>
           <h1 className={styles.title}>{space.name}</h1>
           <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values)} now={now} explain />
         </div>
@@ -101,7 +101,7 @@ export function SharedSpace({
       {/* "Look at my curves" is why a place is shared, so its Timeline is
           here: the last day, week or month, read only and through the link's
           own window. */}
-      <section className={styles.timeline}>
+      <section className={ui.stack2}>
         <SharedTimeline
           spaceId={space.spaceId}
           shared={{ token, picture }}
@@ -113,7 +113,7 @@ export function SharedSpace({
         <ul className={ui.list} aria-label={t('space.growingHere')}>
           {space.grows.map(grow => (
             <li key={grow.growId} className={styles.growRow}>
-              <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
+              <span className={`name ${ui.cut}`}>{grow.name}</span>
               <span className={`mono ${styles.cardMeta}`}>
                 {[
                   growDay(t, grow),

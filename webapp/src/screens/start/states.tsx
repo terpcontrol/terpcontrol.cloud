@@ -24,7 +24,7 @@ export function StartWaiting() {
   );
 
   return (
-    <section className={styles.page} aria-busy="true" aria-label={t('start.waiting')}>
+    <section className={`${ui.stack3} ${styles.page}`} aria-busy="true" aria-label={t('start.waiting')}>
       <div className={styles.head}>
         <span className={styles.wait} style={{ width: 96, height: 26 }} />
       </div>
@@ -61,7 +61,7 @@ export function StartFailed({ retry, error = null, retrying = false }: { retry: 
   const answered = error instanceof ApiError;
 
   return (
-    <section className={styles.page} data-single>
+    <section className={`${ui.stack3} ${styles.page}`} data-single>
       <div className={styles.head}>
         <h1>{t('shell.tabs.home')}</h1>
       </div>

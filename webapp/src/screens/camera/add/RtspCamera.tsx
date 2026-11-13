@@ -10,6 +10,7 @@ import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { placesFor } from '@/app/places';
 import { deviceName, PLACE_KINDS } from '@/ui/naming';
+import { AdvancedFold } from '@/ui/advanced/AdvancedFold';
 import { ageAttribute, ageLabel, deviceLiveness } from '@/ui/age';
 import { Help, Term } from '@/ui/Help';
 import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -18,7 +19,8 @@ import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { carriersOf, hasLogin } from '../stream';
-import { StreamFold, TransportRow, TunnelRow } from '../StreamOptions';
+import { Raw } from '../Film';
+import { TransportRow, TunnelRow } from '../StreamOptions';
 import styles from './AddCamera.module.css';
 
 /** Where the reason a button cannot be pressed is written, so both buttons can point a screen reader at it. */
@@ -272,10 +274,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
         />
       </section>
 
-      <StreamFold>
+      <AdvancedFold>
         {carrier ? <TunnelRow on={tunnel} carrier={carrier} onChange={pullThrough} /> : null}
         <TransportRow value={transport} tunnel={pulled} onChange={setTransport} />
-      </StreamFold>
+      </AdvancedFold>
 
       {/* This side giving up on the answer is not the server refusing anything, so it is not drawn as a refusal. */}
       <Refused error={create.error ?? amend.error ?? (gaveUp(capture.error) ? null : capture.error) ?? drop.error} />
@@ -330,12 +332,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
               <p className={ui.problem} role="alert">
                 {t('cameras.add.rtsp.failed', { reason: t(`camera.failure.${capture.data.reason ?? 'unknown'}`) })}
               </p>
-              {capture.data.error ? (
-                <details className={styles.said}>
-                  <summary className="mono">{t('camera.whatItSaid')}</summary>
-                  <p className="mono">{capture.data.error}</p>
-                </details>
-              ) : null}
+              {capture.data.error ? <Raw summary={t('camera.whatItSaid')}>{capture.data.error}</Raw> : null}
             </>
           )}
         </section>

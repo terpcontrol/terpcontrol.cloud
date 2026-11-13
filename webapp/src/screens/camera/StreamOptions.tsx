@@ -1,13 +1,10 @@
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CameraTransport, Device } from '@fg2/shared-types/v1';
 import { deviceName } from '@/ui/naming';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
-import advanced from '@/ui/advanced/Advanced.module.css';
 import { transportsFor } from './stream';
-import styles from './CameraPage.module.css';
 
 /**
  * The fine settings of a stream camera, drawn the same in the form that adds
@@ -96,21 +93,5 @@ export function TransportRow({
         ))}
       </Choices>
     </SettingRow>
-  );
-}
-
-/**
- * The folded Erweitert of a stream camera, drawn as the sections the registry
- * fills are drawn: what is chosen in it is held by the form around it, so its
- * rows are passed in rather than found.
- */
-export function StreamFold({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-
-  return (
-    <details className={advanced.section}>
-      <summary className={`label ${styles.fold}`}>{t('advanced.title')}</summary>
-      <div className={advanced.items}>{children}</div>
-    </details>
   );
 }

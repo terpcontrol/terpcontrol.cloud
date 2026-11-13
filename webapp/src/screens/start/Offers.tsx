@@ -58,7 +58,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
         <button type="button" className={styles.go} onClick={() => setAsking(true)}>
           {t('home.invite.startGrow')}
         </button>
-        <button type="button" className={styles.wide} disabled={busy} onClick={decline}>
+        <button type="button" className={ui.wide} disabled={busy} onClick={decline}>
           {t('home.diary.decline')}
         </button>
       </div>
@@ -84,7 +84,7 @@ export function DeviceOffer() {
         </Link>
         <button
           type="button"
-          className={styles.wide}
+          className={ui.wide}
           disabled={decline.isPending}
           onClick={() => decline.mutate({ preferences: { deviceOfferDeclined: true } })}
         >

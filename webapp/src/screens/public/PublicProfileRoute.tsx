@@ -72,7 +72,7 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
 
   return (
     <section className={styles.profile}>
-      <header className={styles.profileHead}>
+      <header className={ui.rowTop}>
         <Photo src={avatar} alt="" className={styles.profileAvatar} fallback={initials(author.handle)} />
         <div className={styles.profileText}>
           <h1 className={styles.title}>@{author.handle}</h1>
@@ -104,7 +104,7 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
       <Link to={`/g/${grow.slug}`} className={styles.cardLink}>
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
         <span className={`${ui.textColumn} ${styles.cardText}`}>
-          <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
+          <span className={`name ${ui.cut}`}>{grow.name}</span>
           <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
         </span>
       </Link>

@@ -66,12 +66,12 @@ export function DayCard({
       {picture && src ? (
         live && picture.cameraId && picture.entry === null && reader.cameras ? (
           <Link to={`/cameras/${picture.cameraId}`} className={styles.dayPicture}>
-            <img src={src} alt={alt} loading="lazy" />
+            <img className={ui.cover} src={src} alt={alt} loading="lazy" />
             <span className={ui.visuallyHidden}>{`, ${t('grow.diary.openCamera')}`}</span>
           </Link>
         ) : (
           <button type="button" className={styles.dayPicture} onClick={() => onPicture(picture)}>
-            <img src={src} alt={alt} loading="lazy" />
+            <img className={ui.cover} src={src} alt={alt} loading="lazy" />
             <span className={ui.visuallyHidden}>{`, ${t('grow.diary.openPicture')}`}</span>
           </button>
         )

@@ -19,13 +19,13 @@ import { maintenanceQuiet } from '@/ui/maintenance';
 import { deviceName } from '@/ui/naming';
 import { OfflineBox } from '@/ui/OfflineHelp';
 import { PageHead } from '@/ui/PageHead';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, useZone } from '@/ui/zone';
 import { Alarms } from './alarms/Alarms';
-import { ByDevice, NothingHere } from './ByDevice';
+import { ByDevice } from './ByDevice';
 import { DevicesHere } from './DevicesHere';
 import { inOrder, leadOf, useLead } from './lead';
 import { ModePage } from './Mode';
@@ -126,9 +126,9 @@ export function Control({
   // A place with nothing to steer says so, with the way to add a device; a camera standing there is still listed.
   if (!lead) {
     return framed(
-      <div className={styles.column}>
+      <div className={`${ui.stack3} ${styles.column}`}>
         {/* The one way to add a device is the button under it; a session that may add none is told only what is. */}
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.control.nothing')}</p>
+        <NothingHere>{t('place.control.nothing')}</NothingHere>
         <DevicesHere spaceId={spaceId} devices={items} lead={null} mayManage={mayManage} maySetUp={maySetUp} />
       </div>,
     );
@@ -142,8 +142,8 @@ export function Control({
     : { climate: t('control.climateIn', { place }), devices: t('control.devicesIn', { place }) };
 
   return framed(
-    <div className={styles.columns}>
-      <div className={styles.column}>
+    <div className={`${ui.stack3} ${styles.columns}`}>
+      <div className={`${ui.stack3} ${styles.column}`}>
         <h2 className={styles.label} data-wide>
           {over.climate}
         </h2>
@@ -157,7 +157,7 @@ export function Control({
         <PageRows spaceId={spaceId} devices={ordered} now={now} />
         {reader}
       </div>
-      <div className={styles.column}>
+      <div className={`${ui.stack3} ${styles.column}`}>
         <h2 className={styles.label}>{over.devices}</h2>
         <DevicesHere spaceId={spaceId} devices={ordered} lead={lead} mayManage={mayManage} maySetUp={maySetUp} />
       </div>

@@ -165,7 +165,12 @@ export function PhotoEntry({
         <div className={styles.pictures}>
           {pictures.map((picture, index) => (
             <div key={picture.url} className={styles.picked}>
-              <img src={picture.url} alt={t('log.pictureAlt', { n: index + 1 })} style={{ transform: `rotate(${picture.rotate}deg)` }} />
+              <img
+                className={ui.cover}
+                src={picture.url}
+                alt={t('log.pictureAlt', { n: index + 1 })}
+                style={{ transform: `rotate(${picture.rotate}deg)` }}
+              />
               <button
                 type="button"
                 className={`${styles.pickedAction} ${styles.pickedTurn}`}

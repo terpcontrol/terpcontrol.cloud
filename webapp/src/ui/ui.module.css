@@ -935,13 +935,15 @@
 .stack3,
 .stack4,
 .list,
+.effects,
 .textColumn,
 .panel {
   display: flex;
   flex-direction: column;
 }
 
-.stack1 {
+.stack1,
+.effects {
   gap: var(--space-1);
 }
 
@@ -959,10 +961,23 @@
 }
 
 /* A list that is a column of its own rows, without the browser's bullets and indent. */
-.list {
+.list,
+.effects {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* What a change will do, said before it does it: sentences one under the other, without markers, which would read
+   as options to choose between. */
+.effects {
+  font-size: var(--text-sm);
+}
+
+/* A page that is one column: as wide as text reads, a little below the header. A screen sets only how it differs. */
+.page {
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
 }
 
 /* The words of a row beside its picture or its control: a name over its line, cut rather than pushing the control out. */
@@ -977,6 +992,7 @@
 .wrapRow,
 .row2,
 .row3,
+.rowTop,
 .headRow {
   display: flex;
 }
@@ -999,8 +1015,29 @@
 }
 
 .row3,
+.rowTop,
 .headRow {
   gap: var(--space-3);
+}
+
+/* Words that may wrap beside a switch or a pill that stays at their first line. */
+.rowTop {
+  align-items: flex-start;
+}
+
+/* A picture that fills the frame it stands in, cropped rather than squeezed. */
+.cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* One line, cut rather than wrapped. */
+.cut {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* A heading with what belongs at its other end, on one baseline. */
@@ -1030,6 +1067,35 @@
   font-weight: var(--weight-semibold);
   letter-spacing: 0;
   color: var(--label);
+}
+
+/* A card that is one row and one tap: it leads somewhere, opens what is under it or plays. */
+.rowCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--ink);
+}
+
+/* The button under a page's cards: outlined like one of them, as wide as the screen gives it. */
+.wide {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-weight: var(--weight-semibold);
+}
+
+.wide:disabled {
+  opacity: 0.45;
 }
 
 /* The small outlined button in the brand colour: a card's one action. */

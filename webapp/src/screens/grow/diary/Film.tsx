@@ -1,6 +1,7 @@
 import { Play } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import ui from '@/ui/ui.module.css';
 import { stageOfWeek, type FilmedWeek } from './days';
 import styles from './Diary.module.css';
 
@@ -20,7 +21,7 @@ export function FilmCard({ week, picture }: { week: FilmedWeek; picture: (mediaI
   if (playing) return <video className={styles.filmPlayer} src={src} controls autoPlay muted playsInline />;
 
   return (
-    <button type="button" className={styles.film} onClick={() => setPlaying(true)}>
+    <button type="button" className={`${ui.rowCard} ${styles.film}`} onClick={() => setPlaying(true)}>
       <span className={styles.filmPlay}>
         <Play size={16} strokeWidth={2} fill="currentColor" aria-hidden />
       </span>

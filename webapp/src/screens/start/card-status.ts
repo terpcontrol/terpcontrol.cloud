@@ -31,7 +31,10 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const silence = silenceOf(values, here, now);
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const openAlerts = usePlaceAlerts(card.openAlerts, here, now);
-  const status = statusOf({ ...card, values, setpoints, openAlerts, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince }, now);
+  const status = statusOf(
+    { ...card, values, setpoints, openAlerts, leadId: device?.id, quiet, controlOff: controlOffOf(here), humidifierHold, silentSince },
+    now,
+  );
   const said = (status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
 
   return { here, device, values, status, said };

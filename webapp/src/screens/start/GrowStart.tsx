@@ -12,6 +12,7 @@ import { PhaseLine } from './Phase';
 import { OwnPhoto } from './Picture';
 import { Today } from './Today';
 import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * Start of an account whose one grow stands in no place: a diary kept by
@@ -26,7 +27,7 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
   const grow = card.grow!;
 
   return (
-    <section className={styles.page} data-single>
+    <section className={`${ui.stack3} ${styles.page}`} data-single>
       <div className={styles.head}>
         <h1>{grow.name}</h1>
       </div>

@@ -11,7 +11,7 @@ import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
-import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -133,7 +133,7 @@ function Links({ userId }: { userId: string | null }) {
 
       <SectionHead label={t('me.shareLinks.active')} count={active.length} />
       {active.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.none')}</p>
+        <NothingHere>{t('me.shareLinks.none')}</NothingHere>
       ) : (
         <ul className={ui.group} aria-label={t('me.shareLinks.active')}>
           {active.map(link => (
@@ -163,7 +163,7 @@ function Links({ userId }: { userId: string | null }) {
           no card, once both lists have actually answered. Two accounts in five
           of the restored database own neither a tent nor a grow. */}
       {nothingToShare ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.noSubjects')}</p>
+        <NothingHere>{t('me.shareLinks.noSubjects')}</NothingHere>
       ) : (
         <button
           type="button"

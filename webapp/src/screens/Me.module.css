@@ -1,8 +1,5 @@
 /* Ich: the head, who is signed in, the rows in one card, and signing out. */
 .page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   max-width: var(--column-width);
 }
 

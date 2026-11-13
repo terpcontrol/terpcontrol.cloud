@@ -14,7 +14,7 @@ import { Facts } from '@/ui/Facts';
 import { MINUTE_MS } from '@/ui/days';
 import { useKept, useKeptScroll } from '@/ui/kept';
 import { Line, Lines } from '@/ui/Lines';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { DATED_CLOCK, useZone, zoned } from '@/ui/zone';
@@ -86,7 +86,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
   const film = weeks.find(hasFilm) ?? null;
 
   return (
-    <div className={styles.diary}>
+    <div className={`${ui.stack3} ${styles.diary}`}>
       <div className={`${ui.stack3} ${styles.days}`}>
         <RefreshFailed failedAt={diary.isError ? diary.dataUpdatedAt : null} now={now} />
         <Days
@@ -107,7 +107,9 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
           {pictures.length > 0 ? (
             <section className={ui.panel} aria-labelledby="grow-recent-pictures">
               <div className={styles.recentHead}>
-                <h2 id="grow-recent-pictures">{t('grow.diary.recentPictures')}</h2>
+                <h2 id="grow-recent-pictures" className={ui.cardHeading}>
+                  {t('grow.diary.recentPictures')}
+                </h2>
                 <Link to={picturesTo} replace>
                   {t('grow.diary.allPictures')}
                   {'\u00a0›'}
@@ -117,6 +119,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
                 {pictures.slice(0, RECENT_PICTURES).map(picture => (
                   <button key={picture.mediaId} type="button" onClick={() => setViewing(picture)}>
                     <img
+                      className={ui.cover}
                       src={mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.still) ?? ''}
                       alt={t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: picture.dayNumber })}
                       loading="lazy"
@@ -210,7 +213,7 @@ export function Days({
 
   return (
     <>
-      {days.length === 0 && earlier.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.diary.empty')}</p> : null}
+      {days.length === 0 && earlier.length === 0 ? <NothingHere>{t('grow.diary.empty')}</NothingHere> : null}
       {open.map(card)}
       {folded.map(({ week, covered, days: inWeek }) => (
         <WeekRow
@@ -293,7 +296,7 @@ function WeekRow({
 
   return (
     <section className={`${ui.stack3} ${styles.week}`}>
-      <button type="button" className={styles.row} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button type="button" className={ui.rowCard} aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className={styles.rowText}>
           <Facts facts={[from === to ? t('home.card.dayN', { day: from }) : t('grow.diary.days', { from, to }), stageOfWeek(t, week)]} />
           {holds.length > 0 ? <Facts facts={holds} className={styles.rowLine} /> : null}

@@ -318,7 +318,7 @@ function Effect({ effect, changed, entry }: { effect: PhaseEffect; changed: bool
   lines.push(t(entry));
 
   return (
-    <ul className={styles.effect}>
+    <ul className={`${ui.effects} ${styles.effect}`}>
       {lines.map(line => (
         <li key={line}>{line}</li>
       ))}

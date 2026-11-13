@@ -8,8 +8,9 @@ import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-prese
 import { useSavePlan } from '@/api/plans';
 import { Sheet } from '@/ui/Sheet';
 import { awaitingClimate, germinates, hasCo2Sensor } from '@/ui/climate-hardware';
+import { StageClimates } from '@/screens/grow/ClimatePick';
 import { Help } from '@/ui/Help';
-import { presetsOf, stageChoiceName } from '@/ui/presets';
+import { keptPreset, presetsOf, stageChoiceName } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import { SwitchRow } from '@/ui/Switch';
@@ -276,7 +277,6 @@ function StepFields({
   onChange: (over: Partial<StepDraft>) => void;
 }) {
   const { t } = useTranslation();
-  const presets = step.stage ? presetsOf(step.stage) : [];
   const extra = otherSections(step.settings);
   const awaiting = awaitingClimate(device);
   const humidifier = useHumidifier(device);
@@ -284,13 +284,12 @@ function StepFields({
   const choices = step.germinationChoices ?? choicesOf(device);
 
   const pickStage = (stage: GrowthStage | null) => {
-    // A preset refines the stage it belongs to, so it does not survive a change of stage.
-    const keep = stage !== null && presetsOf(stage).includes(step.preset ?? '');
     // Drying and germination know no day, light or CO2: a step into either writes what it holds and nothing else.
     // A germination step says what it does about the humidity, starting from what the device does now.
     onChange({
       stage,
-      preset: keep ? step.preset : null,
+      // A preset refines the stage it belongs to, so it survives a change of stage only where the new one has it.
+      preset: stage ? keptPreset(stage, step.preset) : null,
       germinationChoices: stage === 'germination' ? choices : null,
       ...heldByStage(step, stage),
     });
@@ -327,18 +326,10 @@ function StepFields({
       </Choices>
       <p className={ui.note}>{t('space.control.step.stageNote')}</p>
 
-      {presets.length > 0 ? (
-        <Choices label={t('space.control.step.preset')}>
-          <Choice chosen={step.preset === null} onChoose={() => onChange({ preset: null })}>
-            {t('grow.lifecycle.phase.noPreset')}
-          </Choice>
-          {presets.map(preset => (
-            <Choice key={preset} chosen={step.preset === preset} onChoose={() => onChange({ preset })}>
-              {t(`grow.presetName.${preset}`, { defaultValue: preset })}
-            </Choice>
-          ))}
+      {step.stage && presetsOf(step.stage).length > 0 ? (
+        <StageClimates label={t('space.control.step.preset')} stage={step.stage} chosen={step.preset} onPick={preset => onChange({ preset })}>
           <Help topic="stepPreset" />
-        </Choices>
+        </StageClimates>
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
@@ -346,7 +337,7 @@ function StepFields({
       {step.duration.value <= 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
       <span className="label">{t('space.control.step.settings')}</span>
-      <div className={styles.figures}>
+      <div className={`${ui.halves} ${styles.figures}`}>
         {figuresFor(device, step.stage).map(figure => (
           <FigureField key={figure.key} figure={figure} step={step} onChange={onChange} held={dark} />
         ))}
@@ -652,7 +643,7 @@ function Effect({ effect }: { effect: PlanEditEffect }) {
   if (effect.resends) lines.push(t('space.control.effect.resends'));
 
   return (
-    <ul className={styles.effect}>
+    <ul className={`${ui.effects} ${styles.effect}`}>
       {lines.map(line => (
         <li key={line}>{line}</li>
       ))}

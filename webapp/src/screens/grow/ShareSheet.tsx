@@ -57,7 +57,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
     <Sheet title={t('sharing.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
         <section className={ui.stack3}>
-          <div className={styles.switchRow}>
+          <div className={ui.rowTop}>
             <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.publicPage')}
@@ -77,7 +77,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
           {isPublic && cameras ? (
-            <div className={styles.switchRow}>
+            <div className={ui.rowTop}>
               <div className={ui.textColumn}>
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
@@ -102,7 +102,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
         </section>
 
         <section className={ui.stack3}>
-          <div className={styles.switchRow}>
+          <div className={ui.rowTop}>
             <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.links')}
@@ -275,7 +275,7 @@ function Editor({
       </div>
 
       {cameras ? (
-        <div className={styles.switchRow}>
+        <div className={ui.rowTop}>
           <div className={ui.textColumn}>
             <span>{t('sharing.cameras')}</span>
             <span className={ui.note}>{t('sharing.camerasNote')}</span>

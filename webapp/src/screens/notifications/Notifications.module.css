@@ -27,9 +27,6 @@
 
 /* The link out to Telegram and how long it is good for. */
 .linkLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   gap: var(--space-3);
 }
 

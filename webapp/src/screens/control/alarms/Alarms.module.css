@@ -172,12 +172,6 @@
 
 /* The four alarms most tents want, each a tap from a rule: a card per alarm,
    two across on a phone, its name over the line it would trip at. */
-.templates {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .templateList {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -236,11 +230,4 @@
   gap: var(--space-1);
   font-size: var(--text-xs);
   color: var(--muted);
-}
-
-/* One answer a webhook template asks for, with its name above it. */
-.templateField {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }

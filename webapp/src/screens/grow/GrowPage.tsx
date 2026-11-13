@@ -58,7 +58,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
 
   if (grow.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${styles.page}`}>
         <Waiting lines={2} />
         <Waiting lines={4} />
       </section>
@@ -76,7 +76,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   const tabs = GROW_TABS.map(key => ({ key, label: t(`grow.tabs.${key}`), to: growTabPath(base, key), end: key === 'diary' }));
 
   return (
-    <section className={styles.page} data-tab={tab}>
+    <section className={`${ui.stack3} ${styles.page}`} data-tab={tab}>
       <GrowHead grow={grow.data} spaces={spaces.data?.items ?? []}>
         <GrowMenu
           grow={grow.data}
@@ -105,7 +105,7 @@ export function NoGrow({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       <header className={styles.head}>
         <div className={styles.title}>
           <h1>{t('shell.tabs.grow')}</h1>

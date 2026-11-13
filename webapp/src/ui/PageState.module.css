@@ -22,3 +22,15 @@
   background: var(--card-2);
   border-radius: var(--radius);
 }
+
+/* The way out of a page with nothing on it, inside the dashed note: underlined, so the green stays the Save's. */
+.wayOn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-block: -12px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}

@@ -219,7 +219,7 @@ export function Claim() {
   const before = deviceId === null || lost;
   if (before || !claimed || !plan || !open || (open === 'grow' && (!space || growsHere.isPending))) {
     return (
-      <section className={styles.screen}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>
         {before || (!claimed && device.isError) ? <FlowHead type={null} onClose={close} /> : null}
         {before ? (
           <Step number={1} state="open" title={t('claim.code.title')} help="claimCode" text={lost ? t('claim.code.notYours') : null}>
@@ -334,7 +334,7 @@ export function Claim() {
   };
 
   return (
-    <section className={styles.screen}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>
       <FlowHead type={claimed.type} step={step} of={of} onClose={close} />
 
       {/* A step change announces nothing by itself: this says what has opened. */}
@@ -384,7 +384,7 @@ function OnlyLooking() {
   const { t } = useTranslation();
 
   return (
-    <section className={styles.screen}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>
       <h1>{t('claim.title')}</h1>
       <p className={`${ui.cardDashed} ${styles.demoNote}`}>{t('claim.demo')}</p>
       <Link className={ui.button} to="/">

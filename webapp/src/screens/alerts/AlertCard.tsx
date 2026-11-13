@@ -21,6 +21,7 @@ import { Row } from '@/ui/Rows';
 import { Sheet } from '@/ui/Sheet';
 import { OfflineSteps } from '@/ui/OfflineHelp';
 import { figure, targetFigure } from '@/ui/units';
+import ui from '@/ui/ui.module.css';
 import { beganAt, crossedBound, ruleName, spanOf, titleOf } from './inbox';
 import type { AlertNames } from './names';
 import { looseFigure, unbroken } from '@/ui/figures';
@@ -61,7 +62,7 @@ export function AlertCard({ heardAt = null, ...props }: AlertProps & { heardAt?:
   const [steps, setSteps] = useKept(`steps-${alert.id}`, false);
 
   return (
-    <li className={styles.card} data-severity={alert.severity} aria-label={`${severity} · ${title}`}>
+    <li className={`${ui.panel} ${styles.card}`} data-severity={alert.severity} aria-label={`${severity} · ${title}`}>
       <Said {...props} title={title} told={told} heardAt={heardAt} />
       {/* A device gone quiet cannot be told anything from here, so what is offered is what to try in front of it. */}
       {alert.kind === 'offline' ? (
@@ -106,7 +107,7 @@ export function ResolvedRow(props: AlertProps & { fold: string[]; since: string;
       <Row title={count > 1 ? titleOf(t, alert, rule, names, '') : title} line={<Facts facts={line} />} onOpen={() => setOpen(true)} />
       {open ? (
         <Sheet title={title} onClose={() => setOpen(false)}>
-          <div className={styles.whole}>
+          <div className={ui.stack3}>
             <Said {...props} title={null} />
             <Actions {...props} title={title} onRemoved={() => setOpen(false)} />
           </div>
@@ -377,7 +378,7 @@ function Actions({
 
   return (
     <>
-      <div className={styles.actions}>
+      <div className={`${ui.wrapRow} ${styles.actions}`}>
         {alert.spaceId && placed ? <Link to={timelineOf(alert.spaceId, alert, rule)}>{t('alerts.action.timeline')}</Link> : null}
         {open && camera && alert.cameraId ? <Link to={`/cameras/${alert.cameraId}`}>{t('alerts.action.checkCam')}</Link> : null}
         {more.length > 1 ? <Menu label={t('grow.menu.label', { name: title })}>{more}</Menu> : more}

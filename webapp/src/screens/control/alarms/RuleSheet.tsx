@@ -11,7 +11,7 @@ import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { WEBHOOK_METHODS } from '@/screens/notifications/settings';
 import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
-import advanced from '@/ui/advanced/Advanced.module.css';
+import { AdvancedFold } from '@/ui/advanced/AdvancedFold';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -284,30 +284,17 @@ function Repeat({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partia
  * never hidden behind a fold.
  */
 function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(draft.severity !== 'critical' && draft.repeatMinutes > 0);
   const webhook = draft.tellBy === 'webhook';
   const quiet = draft.severity !== 'critical';
   if (!webhook && !quiet) return null;
 
   return (
-    <details className={advanced.section} open={open}>
-      <summary
-        className="label"
-        onClick={event => {
-          event.preventDefault();
-          setOpen(!open);
-        }}
-      >
-        {t('advanced.title')}
-      </summary>
-      {open ? (
-        <div className={ui.sheetBody}>
-          {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
-          {quiet ? <Repeat draft={draft} onChange={onChange} /> : null}
-        </div>
-      ) : null}
-    </details>
+    <AdvancedFold open={quiet && draft.repeatMinutes > 0}>
+      <div className={ui.sheetBody}>
+        {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
+        {quiet ? <Repeat draft={draft} onChange={onChange} /> : null}
+      </div>
+    </AdvancedFold>
   );
 }
 
@@ -347,7 +334,7 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
         <div className={control.fields}>
           <p className={ui.note}>{t(`webhookTargets.${chosen.id}.hint`)}</p>
           {chosen.fields.map(field => (
-            <label key={field.key} className={styles.templateField}>
+            <label key={field.key} className={ui.stack1}>
               <span className="label">{t(field.label)}</span>
               <input
                 className={ui.input}

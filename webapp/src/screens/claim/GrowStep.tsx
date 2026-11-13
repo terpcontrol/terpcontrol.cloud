@@ -75,7 +75,7 @@ export function GrowStep({
   };
 
   return (
-    <section className={styles.screen}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>
       <FlowHead type={device.type} step={step} of={of} onClose={() => skip(onClose)} />
       {still ? (
         <img

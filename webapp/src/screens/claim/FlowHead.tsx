@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Facts } from '@/ui/Facts';
 import styles from './Claim.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * The head of every page of adding a device, which stands outside the app's
@@ -17,7 +18,7 @@ export function FlowHead({ type, step, of, onClose }: { type: string | null; ste
   const count = step && of ? t('claim.step', { step, of }).replaceAll(' ', ' ') : null;
 
   return (
-    <header className={styles.flowHead}>
+    <header className={ui.row3}>
       <button type="button" className={styles.close} aria-label={t('claim.close')} onClick={onClose}>
         <X size={22} strokeWidth={2} aria-hidden />
       </button>

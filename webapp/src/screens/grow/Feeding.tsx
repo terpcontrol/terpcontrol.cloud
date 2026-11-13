@@ -6,7 +6,7 @@ import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
 import { looseFigure, typedFigure } from '@/ui/figures';
 import { Help, Term } from '@/ui/Help';
-import { Refused } from '@/ui/PageState';
+import { NothingHere, Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
 import { withFlipWeek } from './scheme/grid';
@@ -126,9 +126,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   if (!draft) {
     return (
       <div className={styles.page}>
-        <section className={ui.cardDashed}>
-          <span className="label">{t('grow.noScheme')}</span>
-        </section>
+        <NothingHere>{t('grow.noScheme')}</NothingHere>
         {mayManage ? (
           <div className={ui.wrap}>
             <button type="button" className={ui.button} onClick={() => setChoosing(true)}>

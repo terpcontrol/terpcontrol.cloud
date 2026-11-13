@@ -10,7 +10,7 @@ import { plotOption } from '@/charts/series';
 import type { ChartPalette } from '@/charts/tokens';
 import { measurementCurve } from '@/screens/timeline/model';
 import { HOUR_MS } from '@/ui/days';
-import { LoadFailed, NoLongerHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -60,7 +60,7 @@ export function Measurements() {
 
   if (grow.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Waiting lines={2} />
         <Waiting lines={3} />
       </section>
@@ -90,7 +90,7 @@ export function Measurements() {
   };
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <header className={ui.row2}>
         <BackLink to={`/grows/${growId}`} label={t('grow.measurements.back')} />
         <h1>{t('grow.measurements.title')}</h1>
@@ -114,7 +114,7 @@ export function Measurements() {
       </header>
 
       {definitions.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.measurements.none')}</p>
+        <NothingHere>{t('grow.measurements.none')}</NothingHere>
       ) : (
         <ul className={ui.group} aria-label={t('grow.measurements.yours')}>
           {definitions.map(definition => (

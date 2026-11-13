@@ -2,14 +2,6 @@
    on. The composer, the film player and the settings sheet borrow this file,
    because they are the same picture, the same chips and the same films. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* The picture with its days, and what is done with it: one column until two
    fit, which is from the width at which the four film chips still stand in
    one row beside a picture wider than a phone's. */
@@ -68,13 +60,9 @@
 }
 
 /* What unfolds under a tap is a finger high. */
-.raw summary,
-.fold {
+.raw summary {
   min-height: var(--control-height);
   align-content: center;
-}
-
-.raw summary {
   font-size: var(--text-xs);
   color: var(--muted);
   cursor: pointer;

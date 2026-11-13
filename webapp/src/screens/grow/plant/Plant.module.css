@@ -1,14 +1,6 @@
 /* One plant's page: a title, a picture, four figures, its charts and its lines.
    The same column every other page under the rail keeps. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* The grow this plant belongs to, and where it stands among the grow's
    plants, is the line over its name rather than a corner beside it: beside a
    long plant name it was squeezed into two lines of its own and pushed the

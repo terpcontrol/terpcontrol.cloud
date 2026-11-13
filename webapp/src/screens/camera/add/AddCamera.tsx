@@ -28,7 +28,7 @@ export function AddCamera() {
   const mayManage = useMayManage();
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <header className={ui.row2}>
         <BackLink to="/control" label={t('shell.tabs.control')} />
         <h1>{t('cameras.add.title')}</h1>

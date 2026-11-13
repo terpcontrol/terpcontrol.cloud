@@ -10,7 +10,7 @@ import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
 import { useAnswered } from '@/screens/grow/told';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { joined } from '../doors';
@@ -53,7 +53,7 @@ export function Schemes() {
       ) : !shipped.data ? (
         <LoadFailed retry={() => void shipped.refetch()} />
       ) : shipped.data.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.schemes.noneShipped')}</p>
+        <NothingHere>{t('me.schemes.noneShipped')}</NothingHere>
       ) : (
         shipped.data.map(summary => (
           <SchemeRow

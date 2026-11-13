@@ -152,7 +152,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   const groups = GROUP_ORDER.filter(group => advanced.some(item => GROUPS[item.id] === group)).map(group => t(`device.advanced.${group}`));
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${ui.page}`}>
       {/* Steuerung is where the device's card stands; a reader without it came from the place. */}
       <PageHead
         title={name}
@@ -231,7 +231,7 @@ function Under({ device, name, title, children }: { device: Device; name: string
   const { t } = useTranslation();
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${ui.page}`}>
       <PageHead title={title} of={name} back={{ to: devicePath(device.id), label: t('device.backTo', { name }) }} />
       {children}
     </section>

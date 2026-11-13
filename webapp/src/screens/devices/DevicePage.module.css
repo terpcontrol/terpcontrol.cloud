@@ -3,14 +3,6 @@
    buttons, chips, fields and notes are the app's own; what is said here is how
    they stand together. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 .facts {
   font-size: var(--text-sm);
   color: var(--muted);

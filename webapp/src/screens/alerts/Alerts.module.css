@@ -1,12 +1,4 @@
 /* Meldungen: what is open as cards, what is due, what is over as rows. */
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
 /* The mute and what it does, beside the title or together under it: a pill a finger high, and while it holds, until when under the head. */
 .muting {
   display: flex;
@@ -27,23 +19,6 @@
 
 .section + .section {
   margin-top: var(--space-2);
-}
-
-.section > h2 {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--label);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px var(--space-4);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
 }
 
 /* How bad it is, as the card's left edge - an inside stripe, so the card
@@ -71,12 +46,6 @@
 }
 
 /* The whole of an alert that is over, in its sheet. */
-.whole {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .said {
   display: flex;
   flex-direction: column;
@@ -122,13 +91,6 @@
 }
 
 /* What can be done with an alert: one row of pills a finger high, the ⋯ at its end so that its list opens inside the card. */
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .actions > div {
   margin-left: auto;
 }

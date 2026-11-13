@@ -308,11 +308,12 @@ export const controlOffOf = (devices: Device[]): boolean => devices.some(device 
  * page that says "since 18:02" about the same tent.
  */
 export type Status =
-  | { kind: 'offline'; since: string | null }
+  /** `more` on a status that outranks the alert sentence: how many alerts of the place stand open behind it, unnamed. */
+  | { kind: 'offline'; since: string | null; more: number }
   | { kind: 'none' }
-  | { kind: 'waiting' }
-  | { kind: 'maintenance'; quiet: Quiet }
-  | { kind: 'controlOff' }
+  | { kind: 'waiting'; more: number }
+  | { kind: 'maintenance'; quiet: Quiet; more: number }
+  | { kind: 'controlOff'; more: number }
   /** The alert Meldungen leads with for this place, and how many more of the place's are open behind it. */
   | { kind: 'alert'; alert: PlaceAlert; more: number }
   /** `since` is null for a run too short to count yet, and undefined where no verdict was at hand to say. */
@@ -346,6 +347,8 @@ interface StatusInput {
   deviceIds: string[] | null;
   /** As `placeAlerts` hands them over; a bare list names no silence. */
   openAlerts: PlaceAlert[];
+  /** The device the place is judged by: its silence is the place's own, which the pill and the box say. */
+  leadId?: string | null;
   /** The day's verdict, which a place's own Start reads and its card among several is not sent. */
   verdict?: ClimateVerdict | null;
   quiet: Quiet | null;
@@ -360,17 +363,18 @@ interface StatusInput {
 export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
   // The first in Meldungen's order (`worstFirst`), so Start names what the inbox leads with.
-  const [alert, ...more] = worstFirst(place.openAlerts.filter(one => !isSilence(one) || one.device !== undefined));
-  const alerted: Status | null = alert ? { kind: 'alert', alert, more: more.length } : null;
+  const open = worstFirst(place.openAlerts.filter(one => !isSilence(one) || (one.device !== undefined && one.deviceId !== place.leadId)));
+  const alerted: Status | null = open.length > 0 ? { kind: 'alert', alert: open[0], more: open.length - 1 } : null;
+  const more = open.length;
   // A place with no sensor can still have something open: a camera that stopped delivering is its one way to go wrong.
   if (liveness === 'none') return alerted ?? { kind: 'none' };
   if (liveness === 'offline') {
-    if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values) };
+    if (place.values.length > 0) return { kind: 'offline', since: measuredAtOf(place.values), more };
     // No value at all: a device that has yet to send its first one, unless it is known to have been heard and gone quiet.
-    return place.silentSince ? { kind: 'offline', since: place.silentSince } : { kind: 'waiting' };
+    return place.silentSince ? { kind: 'offline', since: place.silentSince, more } : { kind: 'waiting', more };
   }
-  if (place.quiet) return { kind: 'maintenance', quiet: place.quiet };
-  if (place.controlOff) return { kind: 'controlOff' };
+  if (place.quiet) return { kind: 'maintenance', quiet: place.quiet, more };
+  if (place.controlOff) return { kind: 'controlOff', more };
 
   if (alerted) return alerted;
 
@@ -420,9 +424,11 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
 
 /** The status in words, the same on a place's Start and on its card. */
 export const statusText = (t: Translate, status: Status, now: DateTime, zone: string | null): string => {
+  // Behind whatever is said: how many open alerts of the place it leaves unnamed.
+  const more = 'more' in status && status.more > 0 ? ` · ${t('start.status.more', { count: status.more })}` : '';
   switch (status.kind) {
     case 'offline':
-      return offlineLabel(status.since, now, zone, true);
+      return offlineLabel(status.since, now, zone, true) + more;
     case 'none':
       return t('home.invite.noSensor');
     case 'off': {
@@ -438,16 +444,18 @@ export const statusText = (t: Translate, status: Status, now: DateTime, zone: st
       // A device of the place gone silent beside one that reports is named, as Meldungen names it.
       const what = alert.device ? t('alerts.title.offline', { what: deviceName(alert.device, t) }) : alertLabel(t, alert, now, zone);
       const since = t('start.status.since', { time: sinceLabel(alert.device ? silentSince(alert) : alert.startedAt, now, zone) });
-      return [what, since, status.more > 0 ? t('start.status.more', { count: status.more }) : null].filter(Boolean).join(' · ');
+      return `${what} · ${since}${more}`;
     }
     case 'maintenance':
-      return status.quiet.parked
-        ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })
-        : t('start.status.settling', { until: clock(status.quiet.alarmsUntil, zone) });
+      return (
+        (status.quiet.parked
+          ? t('start.status.maintenance', { until: clock(status.quiet.until, zone) })
+          : t('start.status.settling', { until: clock(status.quiet.alarmsUntil, zone) })) + more
+      );
     case 'stale':
       return t('start.status.stale', { time: status.at ? sinceLabel(status.at, now, zone) : '' });
     default:
-      return t(`start.status.${status.kind}`);
+      return t(`start.status.${status.kind}`) + more;
   }
 };
 

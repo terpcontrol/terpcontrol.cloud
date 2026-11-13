@@ -4,7 +4,7 @@ import type { Device, Plan, PlanNotify } from '@fg2/shared-types/v1';
 import { usePlanTemplates, useSavePlanTemplate } from '@/api/plans';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
-import { Waiting } from '@/ui/PageState';
+import { NothingHere, Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -114,9 +114,7 @@ export function StartFromTemplateSheet({
         ) : null}
 
         {templates.isPending ? <Waiting lines={2} /> : null}
-        {!templates.isPending && items.length === 0 && !ready ? (
-          <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.template.none')}</p>
-        ) : null}
+        {!templates.isPending && items.length === 0 && !ready ? <NothingHere>{t('space.control.template.none')}</NothingHere> : null}
         {ready && items.length > 0 ? <span className="label">{t('readyPlans.saved')}</span> : null}
 
         <ul className={ui.list}>

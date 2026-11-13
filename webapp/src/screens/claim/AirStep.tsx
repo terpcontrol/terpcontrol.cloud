@@ -7,6 +7,7 @@ import { Refused } from '@/ui/PageState';
 import { FlowHead } from './FlowHead';
 import { hangWords } from './steps';
 import styles from './Claim.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * "Wo hängt es?", asked once of a device that measures by itself, in an
@@ -75,7 +76,7 @@ export function AirStep({
   const fresh = answer(null, t('claim.air.new'), t(`claim.air.newNote.${ownClimate ? device.type : 'other'}`));
 
   return (
-    <section className={styles.screen}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>
       <FlowHead type={device.type} onClose={onLeave} />
       <h2 ref={headingRef} tabIndex={-1} className={styles.growTitle}>
         {hangWords(t, 'title', device.type)}

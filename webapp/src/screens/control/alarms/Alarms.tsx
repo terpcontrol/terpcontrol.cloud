@@ -17,11 +17,11 @@ import { durationLabel } from '@/ui/age';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
-import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { ByDevice, NothingHere } from '../ByDevice';
+import { ByDevice } from '../ByDevice';
 import { alarmsLine } from '../rows';
 import { RuleSheet } from './RuleSheet';
 import { useSilence } from './use-silence';
@@ -269,7 +269,7 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
   };
 
   return (
-    <div className={styles.templates}>
+    <div className={ui.stack2}>
       <span className="label">
         {t('alarms.template.label')}
         <Help topic="alarmTemplates" />

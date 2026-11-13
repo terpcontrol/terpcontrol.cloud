@@ -1,12 +1,6 @@
 /* Ich › Darstellung: the theme as three segments, the rest as menus. */
 
 /* The steps that put the app on the home screen, under their row. */
-.install {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .steps {
   margin: 0;
   padding-left: 1.4em;

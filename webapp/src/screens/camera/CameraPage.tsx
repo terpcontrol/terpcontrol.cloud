@@ -228,7 +228,7 @@ function Watch({
     });
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
       {/* The camera belongs to the place it watches: the way back leads there, as Start's picture led here. */}
       <PageHead title={called(camera.name)} back={{ to: place ? placePath(place.id) : '/', label: place?.name ?? t('shell.tabs.home') }}>
         <span className={`${ui.live} ${styles.pill} ${styles.cut}`} data-liveness={freshness}>

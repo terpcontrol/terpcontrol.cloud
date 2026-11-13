@@ -157,7 +157,12 @@ function Points({
 
   return (
     <SettingsBlock title={t('plugSettings.points')} help="switchPoints" pending={pendingOf(device, settings, lines)}>
-      <div className={climate.grid} role="table" aria-label={t('plugSettings.points')} data-single={halves.length === 1 || undefined}>
+      <div
+        className={`${ui.stack2} ${climate.grid}`}
+        role="table"
+        aria-label={t('plugSettings.points')}
+        data-single={halves.length === 1 || undefined}
+      >
         {halves.length > 1 ? (
           <div role="row" className={climate.gridRow}>
             <span role="columnheader" aria-label={t('targets.table.figure')} />

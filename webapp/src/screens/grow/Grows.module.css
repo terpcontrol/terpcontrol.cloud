@@ -2,9 +2,6 @@
    rows, and the doors to what belongs to growing. */
 
 .page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   width: 100%;
   max-width: var(--column-width);
 }
@@ -38,13 +35,6 @@
   flex-direction: column;
   gap: var(--space-3);
   margin-top: var(--space-2);
-}
-
-.shelf h2 {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  letter-spacing: 0;
-  color: var(--label);
 }
 
 .card,
@@ -121,17 +111,4 @@
 
 .door .text {
   font-weight: var(--weight-medium);
-}
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--muted);
-  text-align: center;
-}
-
-.empty p {
-  margin: 0;
 }

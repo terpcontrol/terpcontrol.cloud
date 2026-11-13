@@ -12,7 +12,7 @@ import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
 import { authorOf, growDayOf, headlineOf, KIND_ICON } from '@/ui/entries';
-import { LoadFailed, NoLongerHere, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -59,7 +59,7 @@ export function PlantPage() {
 
   if (grow.isPending || plants.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Waiting lines={2} />
         <Waiting lines={3} />
       </section>
@@ -80,7 +80,7 @@ export function PlantPage() {
 
   const all = plants.data.items;
   const plant = all.find(one => one.id === plantId);
-  if (!plant) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.notHere')}</p>;
+  if (!plant) return <NothingHere>{t('grow.plant.notHere')}</NothingHere>;
 
   // Moving, splitting, harvesting and renaming a plant are the grow's own
   // moves, which are `manage` where the grow stands today.
@@ -90,7 +90,7 @@ export function PlantPage() {
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <header className={styles.head}>
         <BackLink to={`/grows/${growId}/plants`} label={t('grow.plant.back')} className={styles.back} />
         <div className={styles.titles}>
@@ -150,7 +150,7 @@ export function PlantPage() {
       {entries.isPending ? (
         <Waiting lines={3} />
       ) : lines.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.noEntries')}</p>
+        <NothingHere>{t('grow.plant.noEntries')}</NothingHere>
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
@@ -224,7 +224,7 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
   const mediaId = newest?.mediaIds[0];
   const src = mediaId ? mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) : null;
 
-  if (!newest || !src) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('grow.plant.noPhotos')}</p>;
+  if (!newest || !src) return <NothingHere>{t('grow.plant.noPhotos')}</NothingHere>;
 
   return (
     <figure className={styles.hero}>

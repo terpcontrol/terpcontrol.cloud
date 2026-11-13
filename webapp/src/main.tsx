@@ -3,6 +3,8 @@
 import '@fontsource-variable/inter/opsz.css';
 import './theme/tokens.css';
 import './styles/global.css';
+// The shared shapes before any screen's own styles: where both speak of an element, the screen's rule is the later one and wins.
+import './ui/ui.module.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

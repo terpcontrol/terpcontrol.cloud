@@ -9,7 +9,7 @@ import { useSession } from '@/api/session';
 import { useTasks } from '@/api/tasks';
 import { useLog } from '@/log/log-context';
 import { Help } from '@/ui/Help';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -56,7 +56,7 @@ export function Tasks() {
 
   if (waiting.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Head />
         <Waiting />
       </section>
@@ -65,7 +65,7 @@ export function Tasks() {
 
   if (!waiting.data) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Head />
         <LoadFailed retry={() => void waiting.refetch()} />
       </section>
@@ -112,11 +112,7 @@ function Nothing({ demo, waiting, onAll }: { demo: boolean; waiting: number; onA
   const { t } = useTranslation();
 
   if (demo) {
-    return (
-      <div className={`${ui.cardDashed} ${styles.none}`}>
-        <p className={ui.note}>{t('tasks.demoNoList')}</p>
-      </div>
-    );
+    return <NothingHere>{t('tasks.demoNoList')}</NothingHere>;
   }
 
   if (waiting > 0) {
@@ -127,11 +123,7 @@ function Nothing({ demo, waiting, onAll }: { demo: boolean; waiting: number; onA
     );
   }
 
-  return (
-    <div className={`${ui.cardDashed} ${styles.none}`}>
-      <p className={ui.note}>{t('tasks.nothingDue')}</p>
-    </div>
-  );
+  return <NothingHere>{t('tasks.nothingDue')}</NothingHere>;
 }
 
 function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null; now: DateTime }) {
@@ -211,7 +203,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const tick = (task: Task) => complete(task.id, doneLabel(task), { undoable: task.source !== 'plan_step' });
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
       <Head scope={shared ? scope : undefined} onScope={pickScope} />
       <RefreshFailed failedAt={failedAt} now={now} />
 

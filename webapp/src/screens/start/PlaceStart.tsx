@@ -135,6 +135,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       setpoints,
       deviceIds: overview.deviceIds,
       openAlerts,
+      leadId: device?.id,
       verdict: climate?.verdict ?? overview.verdict,
       quiet: quietOf(here, now),
       controlOff: controlOffOf(here),
@@ -168,13 +169,13 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   usePageOfPlace(spaceId);
 
   return (
-    <section className={styles.page} aria-labelledby={`${spaceId}-name`} data-single={byHand || undefined}>
+    <section className={`${ui.stack3} ${styles.page}`} aria-labelledby={`${spaceId}-name`} data-single={byHand || undefined}>
       {demo ? <DemoBanner /> : null}
       <header className={styles.head}>
         {back ? <BackLink to="/" label={t('shell.tabs.home')} /> : null}
         {/* One name per place: the head is the place's, also where it holds nothing but a grow, and the menu renames what it shows. */}
         <h1 id={`${spaceId}-name`}>{overview.name}</h1>
-        {wide && !offline ? sentence : null}
+        {wide ? sentence : null}
         <div className={styles.headEnd}>
           {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAt} now={now} explain waiting={waiting} /> : null}
           {menu ? (
@@ -226,7 +227,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {grow && !camera && !(kept && ownMedia) ? <GrowHead grow={grow} to={GROW} /> : null}
           {/* What only some places measure stands directly under what carries the four readings: the picture, or the tiles. */}
           {camera ? further : null}
-          {wide || offline ? null : sentence}
+          {wide ? null : sentence}
           <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />
           {/* "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day. */}
           {held && lit ? (
@@ -402,8 +403,9 @@ function StatusSentence({
   let tone: ReturnType<typeof toneOf> = toneOf(status);
   let to: string | null;
 
-  // Silence is the box's to say, and that a device has yet to send its first value the pill's beside the name.
-  if (status.kind === 'offline' || status.kind === 'waiting') return null;
+  // Silence is the box's to say, and that a device has yet to send its first value the pill's beside the name -
+  // unless other alerts of the place stand open behind it, which the sentence then counts.
+  if ((status.kind === 'offline' || status.kind === 'waiting') && status.more === 0) return null;
   if (status.kind === 'none') {
     if (!camera) return null;
     const last = camera.lastStillAt;
@@ -425,11 +427,13 @@ function StatusSentence({
         ? status.alert.kind === 'camera_stale' && camera && status.more === 0
           ? `/cameras/${camera.cameraId}`
           : '/alerts'
-        : status.kind === 'off'
-          ? timelinePath(overview.spaceId, status.metric)
-          : (status.kind === 'noTargets' || status.kind === 'controlOff') && mayManage
-            ? controlPath(overview.spaceId)
-            : null;
+        : 'more' in status && status.more > 0
+          ? '/alerts'
+          : status.kind === 'off'
+            ? timelinePath(overview.spaceId, status.metric)
+            : (status.kind === 'noTargets' || status.kind === 'controlOff') && mayManage
+              ? controlPath(overview.spaceId)
+              : null;
   }
 
   const said = <Facts facts={factsOf(text).map(unbroken)} />;

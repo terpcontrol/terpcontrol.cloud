@@ -1,4 +1,4 @@
-import { ChevronRight, Sprout } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,7 @@ import { followingLine, lineOnce, schemesLine, shareLinksLine, type Read } from 
 import { BackLink } from '@/ui/BackLink';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -50,7 +50,7 @@ export function Grows() {
 
   if (grows.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${styles.page}`}>
         <Waiting lines={2} />
         <Waiting lines={2} />
       </section>
@@ -62,7 +62,7 @@ export function Grows() {
   const finished = grows.data.items.filter(grow => grow.endedAt !== null);
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       <header className={styles.head}>
         <BackLink to={GROW} label={t('grow.measurements.back')} />
         <h1>{t('grow.all.title')}</h1>
@@ -75,16 +75,13 @@ export function Grows() {
 
       <RefreshFailed failedAt={grows.isError ? grows.dataUpdatedAt : null} now={now} />
 
-      {grows.data.items.length === 0 ? (
-        <div className={`${ui.cardDashed} ${styles.empty}`}>
-          <Sprout size={28} strokeWidth={1.5} aria-hidden />
-          <p>{t('grow.all.none')}</p>
-        </div>
-      ) : null}
+      {grows.data.items.length === 0 ? <NothingHere>{t('grow.all.none')}</NothingHere> : null}
 
       {running.length > 0 ? (
         <section className={styles.shelf} aria-labelledby="grows-running">
-          <h2 id="grows-running">{t('grow.all.running')}</h2>
+          <h2 id="grows-running" className={ui.cardHeading}>
+            {t('grow.all.running')}
+          </h2>
           {running.map(grow => (
             <Link key={grow.growId} to={`/grows/${grow.growId}`} className={styles.card}>
               <Cover mediaId={grow.coverMediaId} />
@@ -100,7 +97,9 @@ export function Grows() {
 
       {finished.length > 0 ? (
         <section className={styles.shelf} aria-labelledby="grows-finished">
-          <h2 id="grows-finished">{t('grow.all.finished')}</h2>
+          <h2 id="grows-finished" className={ui.cardHeading}>
+            {t('grow.all.finished')}
+          </h2>
           {finished.map(grow => (
             <Link key={grow.growId} to={`/grows/${grow.growId}/report`} className={styles.row}>
               <span className={styles.text}>
@@ -156,7 +155,9 @@ function Beside() {
 
   return (
     <section className={styles.shelf} aria-labelledby="grows-beside">
-      <h2 id="grows-beside">{t('grow.all.beside')}</h2>
+      <h2 id="grows-beside" className={ui.cardHeading}>
+        {t('grow.all.beside')}
+      </h2>
       <div className={styles.doors}>
         {feeds
           ? door(

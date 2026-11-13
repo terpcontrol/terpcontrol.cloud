@@ -8,7 +8,7 @@ import { useGrowDiary } from '@/api/grows';
 import { itemsOf } from '@/api/pages';
 import { THUMBNAIL_WIDTH, mediaUrl, useSession } from '@/api/session';
 import { useLog } from '@/log/log-context';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { hasFilm, picturesOfDay, sourceOf, stageOfWeek, type GrowPicture } from '../diary/days';
@@ -70,7 +70,7 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       : [stageOfWeek(t, week), t('grow.diary.days', { from: week.dayFrom, to: week.dayTo })].filter(Boolean).join(' · ');
 
   return (
-    <div className={styles.pictures}>
+    <div className={`${ui.stack3} ${styles.pictures}`}>
       <RefreshFailed failedAt={diary.isError ? diary.dataUpdatedAt : null} now={now} />
       <div className={styles.which} role="group" aria-label={t('grow.pictures.whichLabel')}>
         {offered.map(one => (
@@ -88,17 +88,16 @@ export function Pictures({ grow, now }: { grow: GrowListItem; now: DateTime }) {
       {film && which !== 'photos' && byWeek.length > 0 ? <FilmCard week={film} picture={mediaUrl} /> : null}
 
       {/* Weeks without a picture are not the whole grow without one, while earlier weeks are still to be asked for. */}
-      {byWeek.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t(diary.hasNextPage ? 'grow.pictures.noneInWeeks' : `grow.pictures.none.${which}`)}</p>
-      ) : null}
+      {byWeek.length === 0 ? <NothingHere>{t(diary.hasNextPage ? 'grow.pictures.noneInWeeks' : `grow.pictures.none.${which}`)}</NothingHere> : null}
       {byWeek.map(({ week, pictures: inWeek }) => (
-        <section key={week.weekNumber} className={styles.week} aria-labelledby={`grow-pictures-${week.weekNumber}`}>
+        <section key={week.weekNumber} className={`${ui.stack3} ${styles.week}`} aria-labelledby={`grow-pictures-${week.weekNumber}`}>
           <h2 id={`grow-pictures-${week.weekNumber}`}>{heading(week)}</h2>
           <ul className={styles.grid}>
             {inWeek.map(picture => (
               <li key={picture.mediaId}>
                 <button type="button" onClick={() => setViewing(picture)}>
                   <img
+                    className={ui.cover}
                     src={mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.still) ?? ''}
                     alt={t(picture.entry ? 'grow.diary.photoAlt' : 'grow.diary.stillAlt', { day: picture.dayNumber })}
                     loading="lazy"

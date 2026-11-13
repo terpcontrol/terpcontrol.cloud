@@ -42,7 +42,7 @@ function Frame({ children, note = false }: { children?: ReactNode; note?: boolea
   const { choice } = useTheme();
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       <PageHead back={{ to: '/', label: t('me.back') }} title={t('me.title')} />
       <p className={styles.handle}>@{user?.handle ?? '?'}</p>
 

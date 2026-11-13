@@ -214,7 +214,9 @@ function Chapter({
 
   return (
     <article className={styles.chapter}>
-      <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
+      <span className={styles.cover}>
+        {cover ? <img className={ui.cover} src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}
+      </span>
       <div className={styles.chapterText}>
         <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
         <Facts

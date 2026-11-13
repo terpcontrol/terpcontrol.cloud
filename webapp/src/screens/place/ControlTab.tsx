@@ -2,9 +2,8 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { NothingHere } from '../control/ByDevice';
 import { Control } from '../control/Control';
 import { PlaceEnded, Visited } from './PlaceTitle';
 import styles from './Place.module.css';
@@ -29,7 +28,7 @@ export function ControlTab() {
   if (visiting) {
     return (
       <Visited spaceId={visiting}>
-        <section className={`${styles.page} ${styles.steering}`}>
+        <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
           <Control spaceId={visiting} sub={page} />
         </section>
       </Visited>
@@ -38,7 +37,7 @@ export function ControlTab() {
 
   if (ended) {
     return (
-      <section className={`${styles.page} ${styles.steering}`}>
+      <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
         <PlaceEnded title={t('shell.tabs.control')} name={ended.name} />
       </section>
     );
@@ -46,7 +45,7 @@ export function ControlTab() {
 
   if (!here) {
     return (
-      <section className={`${styles.page} ${styles.steering}`}>
+      <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
         <h1>{t('shell.tabs.control')}</h1>
         {user?.isDemo === true ? (
           <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.control.demoNothing')}</p>
@@ -60,7 +59,7 @@ export function ControlTab() {
   }
 
   return (
-    <section className={`${styles.page} ${styles.steering}`}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
       <Control key={here.spaceId} spaceId={here.spaceId} sub={page} here={here} several={places.length > 1} />
     </section>
   );

@@ -9,7 +9,7 @@ import { CopyButton } from '@/ui/CopyButton';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -185,7 +185,7 @@ function OwnGrows({ account, held }: { account: Me; held: boolean }) {
       ) : !grows.data ? (
         <LoadFailed retry={() => void grows.refetch()} />
       ) : own.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.privacy.noGrows')}</p>
+        <NothingHere>{t('me.privacy.noGrows')}</NothingHere>
       ) : (
         own.map(grow => <GrowRow key={grow.id} grow={grow} links={linksOpening(grow)} held={held} />)
       )}

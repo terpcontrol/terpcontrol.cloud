@@ -143,7 +143,7 @@ export function Targets({
   }
 
   return (
-    <Link to={controlPath(spaceId)} className={styles.row}>
+    <Link to={controlPath(spaceId)} className={ui.rowCard}>
       {offline ? (
         <span className={styles.rowText} data-tone="brand">
           {t('start.targets.changeOffline')}

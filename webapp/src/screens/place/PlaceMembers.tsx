@@ -8,6 +8,7 @@ import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import { Members } from '../space/members/Members';
 import styles from './Place.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * Who else is let into a place, for a member who may not manage it: reached
@@ -29,7 +30,7 @@ export function PlaceMembers() {
   if (mayManage) return <Navigate to={editPath(space.id)} replace />;
 
   return (
-    <section className={`${styles.page} ${styles.reading}`}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.reading}`}>
       <PageHead
         back={{ to: placePath(space.id), label: t('place.backTo', { name: space.name }) }}
         title={t('place.edit.people', { name: space.name })}

@@ -39,7 +39,7 @@ export function MePage({ title, demo, grows = false, children }: { title: string
   const back = grows ? { to: ALL_GROWS, label: t('grow.all.back') } : { to: '/me', label: t('me.backHere') };
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${styles.page}`}>
       <PageHead back={back} title={title} />
       {demo !== undefined && user?.isDemo === true ? <p className={`${ui.cardDashed} ${ui.note}`}>{demo}</p> : children}
     </section>
@@ -104,8 +104,8 @@ export function Row({
   below?: ReactNode;
 }) {
   return (
-    <div className={`${ui.card} ${ui.joined} ${styles.row}`} data-danger={danger ? '' : undefined}>
-      <div className={styles.rowHead}>
+    <div className={`${ui.card} ${ui.joined} ${ui.stack3} ${styles.row}`} data-danger={danger ? '' : undefined}>
+      <div className={`${ui.wrapRow} ${styles.rowHead}`}>
         <div className={styles.rowText}>
           <span className={styles.rowTitle}>
             {title}

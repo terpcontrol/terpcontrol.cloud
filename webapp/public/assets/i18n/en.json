@@ -1126,7 +1126,6 @@
         "record": "Add a phase to the record",
         "stageLabel": "Phase",
         "presetLabel": "Climate preset",
-        "noPreset": "Phase only",
         "alreadyThere": "The grow is already in this phase: nothing is written.",
         "alreadyThereEnded": "The grow ended in this phase: nothing is written.",
         "submit": "Enter {{stage}}",

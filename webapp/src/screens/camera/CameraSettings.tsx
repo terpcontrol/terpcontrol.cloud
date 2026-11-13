@@ -13,6 +13,7 @@ import type { Told } from '@/log/log-context';
 import { deviceName } from '@/ui/naming';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { missingLine } from '@/screens/me/premium/free-tier';
+import { AdvancedFold } from '@/ui/advanced/AdvancedFold';
 import { Asking } from '@/ui/Asking';
 import type { HelpTopic } from '@/ui/explain';
 import { Facts } from '@/ui/Facts';
@@ -24,7 +25,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, zoneOf } from '@/ui/zone';
 import { carrierOf } from './stream';
-import { CarrierRow, StreamFold, TransportRow, TunnelRow } from './StreamOptions';
+import { CarrierRow, TransportRow, TunnelRow } from './StreamOptions';
 import styles from './CameraPage.module.css';
 
 /** What a save says it changed, by the field it wrote. */
@@ -341,11 +342,11 @@ export function CameraSettings({
 
         {/* How a stream is reached, which almost nobody changes: through a device standing where it looks, or opened by the cloud itself. */}
         {camera.kind === 'rtsp' && mayManage ? (
-          <StreamFold>
+          <AdvancedFold>
             {puller ? <TunnelRow on={pulled} carrier={puller} onChange={next => pull(next ? puller.id : null)} /> : null}
             {puller && pulled && here.length > 1 ? <CarrierRow devices={here} chosen={puller.id} onChoose={pull} /> : null}
             <TransportRow value={(value('transport') as CameraTransport | null) ?? 'tcp'} tunnel={pulled} onChange={next => set('transport', next)} />
-          </StreamFold>
+          </AdvancedFold>
         ) : null}
 
         {/* Taking the camera off the account is the owner's alone, asked where it stands, and cannot be taken back. */}

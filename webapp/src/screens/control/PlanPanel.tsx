@@ -104,7 +104,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
     return (
       <section className={ui.stack3}>
         {isMissing(plan.error) ? (
-          <div className={`${ui.cardDashed} ${styles.none}`}>
+          <div className={`${ui.cardDashed} ${ui.stack2}`}>
             <p className={styles.noneWhat}>
               {t('space.control.none')}
               <Help topic="plan" />

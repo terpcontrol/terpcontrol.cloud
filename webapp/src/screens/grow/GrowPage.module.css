@@ -4,9 +4,6 @@
    line under it, at every width. */
 
 .page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   width: 100%;
   max-width: var(--column-width);
 }
@@ -120,11 +117,6 @@
   color: var(--muted);
 }
 
-/* A tab with nothing in it yet: the note that says so. */
-.empty {
-  margin: 0;
-}
-
 .tips {
   margin: 0;
   padding-left: var(--space-5);
@@ -224,12 +216,6 @@
 }
 
 /* Grow where nothing grows in the chosen place: the two ways to change that. */
-.nothingGrows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .growActions {
   display: flex;
   flex-wrap: wrap;

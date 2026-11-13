@@ -284,7 +284,7 @@ function Group({
   if (items.length === 0) return null;
 
   return (
-    <div className={styles.subgroup}>
+    <div className={ui.stack2}>
       <span className={styles.subLabel}>{label}</span>
       <Choices label={label}>
         {items.map(item => (

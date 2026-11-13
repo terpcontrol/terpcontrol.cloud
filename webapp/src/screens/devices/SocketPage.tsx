@@ -97,7 +97,7 @@ function Socket({
   // A socket that left the table - removed, or its device handed over - has no page: what the address was about, and the way on to its device.
   if (!row) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${ui.page}`}>
         {head(t('shell.gone.title.socket'))}
         <p className={ui.note}>{t('device.socket.gone', { device: title })}</p>
         <Row alone to={devicePath(device.id)} title={t('control.device.all', { name: title })} />
@@ -114,7 +114,7 @@ function Socket({
   const timed = isTimed(row.role);
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${ui.page}`}>
       {head(row.role ? t('device.socket.title', { name }) : name)}
       <p className={styles.facts}>
         <FactLine

@@ -158,7 +158,7 @@ export function PresetSheet({
 
         {picked && !sets ? <p className={styles.note}>{t('control.preset.same')}</p> : null}
         {figures.length > 0 || hours ? (
-          <ul className={styles.sets} aria-label={t(ending ? 'control.preset.returns' : 'control.preset.sets')}>
+          <ul className={`${ui.effects} ${styles.sets}`} aria-label={t(ending ? 'control.preset.returns' : 'control.preset.sets')}>
             {figures.map(({ field, to }) => (
               <li key={field}>
                 <span>{figureName(t, field, ending ? 'cycle' : after.regime)}</span>

@@ -28,12 +28,6 @@
   border-color: var(--brand);
 }
 
-.name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* A room stands apart from what is listed before it. */
 .room + .room,
 .place + .room {

@@ -56,13 +56,6 @@
 /* What a change will move, said before it moves. Sentences rather than bullets:
    a list marker in front of each would read as options to choose between. */
 .effect {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
   color: var(--ink);
 }
 

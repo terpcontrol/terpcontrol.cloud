@@ -8,9 +8,6 @@
 /* What a refused screen is: the sentence, and the way back. It keeps the
    column width the rest of the app uses, because it is prose and not a table. */
 .refusal {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   max-width: var(--column-width);
 }
 

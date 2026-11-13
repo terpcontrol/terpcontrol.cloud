@@ -155,7 +155,7 @@ function PasswordRow({ held }: { held: boolean }) {
       below={
         open ? (
           <form
-            className={parts.fields}
+            className={ui.stack3}
             onSubmit={event => {
               event.preventDefault();
               if (!ready) return;

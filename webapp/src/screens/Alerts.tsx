@@ -19,7 +19,7 @@ import { Help } from '@/ui/Help';
 import { useKept, useKeptScroll } from '@/ui/kept';
 import { deviceName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
-import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Rows } from '@/ui/Rows';
 import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
@@ -123,7 +123,7 @@ export function Alerts() {
   // and for nothing else.
   if (open.isPending) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
         {head}
         <Waiting lines={2} />
         <Waiting lines={2} />
@@ -133,7 +133,7 @@ export function Alerts() {
 
   if (!open.data) {
     return (
-      <section className={styles.page}>
+      <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
         {head}
         <LoadFailed
           retry={() => {
@@ -153,7 +153,7 @@ export function Alerts() {
   const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), placed: !!placeOf(alert), now });
 
   return (
-    <section className={styles.page}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
       {head}
       <RefreshFailed failedAt={failedAt} now={now} />
       {names.failed ? (
@@ -164,18 +164,20 @@ export function Alerts() {
 
       {standing.length + updates.length > 0 ? (
         <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-open">
-          <h2 id="alerts-open">{t('alerts.open')}</h2>
+          <h2 id="alerts-open" className={ui.cardHeading}>
+            {t('alerts.open')}
+          </h2>
           <ul className={ui.list}>
             {standing.map(alert => (
               <AlertCard key={alert.id} {...card(alert)} heardAt={heardOf(alert, silent)} />
             ))}
             {updates.map(({ device, build }) => (
-              <li key={device.id} className={`${styles.card} ${styles.beside}`}>
+              <li key={device.id} className={`${ui.panel} ${styles.card} ${styles.beside}`}>
                 <p className={styles.title}>
                   {t('alerts.update', { build: buildName(build) })}
                   <span className={styles.line}>{deviceName(device, t)}</span>
                 </p>
-                <div className={styles.actions}>
+                <div className={`${ui.wrapRow} ${styles.actions}`}>
                   <Link to={devicePath(device.id)}>{t('alerts.action.device')}</Link>
                 </div>
               </li>
@@ -183,14 +185,16 @@ export function Alerts() {
           </ul>
         </section>
       ) : (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t(emptyKey(user?.isDemo === true, watching))}</p>
+        <NothingHere>{t(emptyKey(user?.isDemo === true, watching))}</NothingHere>
       )}
 
       {/* The list of tasks is the diary's; a step of the grow plan waits here without one. */}
       {due.kept || due.rows.length > 0 ? (
         <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-tasks">
-          <h2 id="alerts-tasks">{t('tasks.title')}</h2>
-          <div className={styles.card}>
+          <h2 id="alerts-tasks" className={ui.cardHeading}>
+            {t('tasks.title')}
+          </h2>
+          <div className={`${ui.panel} ${styles.card}`}>
             {due.rows.length > 0 ? <DueList rows={due.rows} across={due.across} now={now} /> : null}
             {due.kept ? (
               <Link to="/tasks" className={styles.onward}>
@@ -204,7 +208,9 @@ export function Alerts() {
       {resolved.isPending ? <Waiting lines={2} /> : null}
       {folds.length > 0 ? (
         <section className={`${ui.stack2} ${styles.section}`} aria-labelledby="alerts-over">
-          <h2 id="alerts-over">{t('alerts.over')}</h2>
+          <h2 id="alerts-over" className={ui.cardHeading}>
+            {t('alerts.over')}
+          </h2>
           <Rows>
             {over.map(({ newest, since }) => (
               <ResolvedRow

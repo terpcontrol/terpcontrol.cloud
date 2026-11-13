@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import type { Device } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
 import { useKept } from '@/ui/kept';
 import { deviceTitle } from '@/ui/naming';
 import { Row } from '@/ui/Rows';
-import ui from '@/ui/ui.module.css';
 import type { RowLine } from './rows';
 import styles from './Control.module.css';
 
@@ -111,17 +110,5 @@ function Folded({
       </h2>
       {open ? children() : null}
     </section>
-  );
-}
-
-/** A page with nothing on it for this place: what is missing, and the way to where it is set or added. */
-export function NothingHere({ children, to, where }: { children: ReactNode; to: string; where: string }) {
-  return (
-    <p className={`${ui.cardDashed} ${ui.note}`}>
-      {children}{' '}
-      <Link to={to} className={styles.addDevice}>
-        {where}
-      </Link>
-    </p>
   );
 }

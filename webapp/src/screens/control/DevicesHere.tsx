@@ -108,7 +108,7 @@ export function DevicesHere({
       })}
 
       {maySetUp ? (
-        <button type="button" className={styles.add} onClick={() => setAdding(true)}>
+        <button type="button" className={ui.wide} onClick={() => setAdding(true)}>
           + {t('control.add.title')}
         </button>
       ) : null}
@@ -159,7 +159,7 @@ function DeviceCard({
   const elsewhere = unsaid(pending, leads);
 
   return (
-    <section className={styles.device} aria-label={title} data-short={!leads || undefined}>
+    <section className={`${ui.panel} ${styles.device}`} aria-label={title} data-short={!leads || undefined}>
       <div className={styles.deviceHead}>
         <RowText title={title} line={<Facts facts={[...says, firmware, own ? `${own.label}: ${own.value}` : null]} />} warn={offline && !waiting} />
         {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}

@@ -113,7 +113,7 @@ export function LightCard({
   ];
 
   return (
-    <section className={`${styles.card} ${styles.light}`} aria-labelledby={`light-${device.id}`}>
+    <section className={`${ui.panel} ${styles.card} ${styles.light}`} aria-labelledby={`light-${device.id}`}>
       <h2 className={`${ui.cardHeading} ${styles.title}`} id={`light-${device.id}`}>
         {t('control.light.title')}
       </h2>

@@ -128,7 +128,7 @@ function AddProduct({ taken, onAdd }: { taken: Product[]; onAdd: (product: Produ
   const [unit, setUnit] = useState(UNITS[0]);
 
   return (
-    <div className={styles.newProduct}>
+    <div className={ui.wrapRow}>
       <input
         className={`${ui.input} ${styles.newProductName}`}
         value={name}

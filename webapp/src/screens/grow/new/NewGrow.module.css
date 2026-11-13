@@ -1,12 +1,6 @@
 /* "Was wächst hier?": the one form a grow is started with. The fields, the
    segments and the button are the app's own, so nothing here restates a
    surface, a radius or a colour. */
-.whatGrows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
 .field {
   display: flex;
   flex-direction: column;

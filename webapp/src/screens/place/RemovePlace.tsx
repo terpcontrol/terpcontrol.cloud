@@ -84,7 +84,7 @@ export function RemovePlace() {
   const running = grows.data.items.filter(grow => grow.endedAt === null).map(grow => ({ id: grow.id, name: grow.name, day: grow.summary.dayNumber }));
 
   return (
-    <section className={`${styles.page} ${styles.reading} ${styles.editing}`}>
+    <section className={`${ui.stack3} ${ui.page} ${styles.reading} ${styles.editing}`}>
       <PageHead back={back} title={t('place.remove.title', { name: space.name })} />
       {places.length > 1 ? (
         <Removing

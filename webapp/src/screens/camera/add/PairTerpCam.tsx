@@ -198,7 +198,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
         )}
         <div className={styles.foundText}>
           <span className={styles.foundTitle}>
-            <span className={styles.foundName}>{called ?? t('cameras.add.found.title', { tag: cameraTag(camera) })}</span>
+            <span className={ui.cut}>{called ?? t('cameras.add.found.title', { tag: cameraTag(camera) })}</span>
             <span className={styles.pill}>{t('cameras.add.found.pill')}</span>
           </span>
           <span className={styles.foundNote}>{line}</span>

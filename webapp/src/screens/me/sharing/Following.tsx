@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useHome } from '@/api/home';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { MePage } from '../parts';
@@ -37,7 +37,7 @@ function Followed() {
       <RefreshFailed failedAt={home.isError ? home.dataUpdatedAt : null} now={now} />
       <SectionHead label={t('me.following.title')} count={t('me.following.count', { count: grows.length })} />
       {grows.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.following.none')}</p>
+        <NothingHere>{t('me.following.none')}</NothingHere>
       ) : (
         <ul className={styles.tiles} aria-label={t('me.following.title')}>
           {grows.map(grow => (

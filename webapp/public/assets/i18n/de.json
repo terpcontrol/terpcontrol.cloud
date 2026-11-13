@@ -1136,7 +1136,6 @@
         "record": "Phase nachtragen",
         "stageLabel": "Phase",
         "presetLabel": "Klima-Preset",
-        "noPreset": "Nur die Phase",
         "alreadyThere": "Der Grow steht bereits in dieser Phase: Es wird nichts geschrieben.",
         "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen: Es wird nichts geschrieben.",
         "submit": "{{stage}} setzen",
