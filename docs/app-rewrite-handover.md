@@ -1,6 +1,6 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) - where its decisions and knowledge live now, and what it left open; read before picking up one of those open items
-updated: 2026-11-12
+updated: 2026-11-13
 source: round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
@@ -110,22 +110,33 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
     it, names are unique, a room is a field the server makes and ends, three migration steps (run on a restored
     copy, [data-operations.md](knowledge/data-operations.md#migrations-in-operation)); "Ort bearbeiten" and "Ort
     entfernen" as pages, the question where a device hangs, the claim outside the bar, "von @…" for a guest.
-    The critic's walk (2026-11-12) found one blocker and seven majors; decided by the redesign session, not built
-    yet, and not Chris's word:
+    The critic's walk (2026-11-12) found one blocker and seven majors. What the redesign session decided about
+    them - not Chris's word - is built (2026-11-13), the server's part seen in tests, the pages on the session's
+    stack; a second walk has not looked yet:
       - A device stands only in a place of its owner: the server refuses a move or a claim into anybody else's
-        place, and the app offers a move only to the device's owner. (A guest who may manage could take the owner's
-        fan into a place of his own, where neither of them reached it.) This answers point 6 below.
+        place (409 `place_of_another_account`), and the app offers a move, and "+ Gerät hierher holen", only to
+        the device's and the place's owner. (A guest who may manage could take the owner's fan into a place of
+        his own, where neither of them reached it.)
       - A room exists only while a place stands in it. Taking the last place out of a room with members asks
-        first and ends their access with the room; the amendment's "and its last member have left" goes. A room
+        first and ends their access with the room; the amendment's "and its last member have left" went. A room
         option and the save toast say who sees the place through it.
       - A fan, socket or light that joins a place which already regulates is done after "Wo hängt …?", and a claim
         never writes targets to a device other than the one being claimed.
       - The claim puts the device where the place question's first answer says, so a flow left there leaves no
-        stray place; a place the app names by itself is "Zelt", "Zelt 2", ….
+        stray place; a place the app names by itself is "Zelt", "Zelt 2", …. Its steps are worked out once and
+        kept in the address, and Back goes one step.
       - "Ort entfernen" keeps a tent together by default, asks once with every line it will write, makes a new
-        place only in the step that fills it, and says after a refusal what is done and what is still here.
+        place only in the step that fills it, and says after a refusal what is done and what is still here. The
+        move it writes into a grow's diary names from where to where.
+      - "Wer … sieht" is one list of everybody who sees the place; every write there is answered; a guest who
+        leaves lands on Start. "Ort bearbeiten" and "Ort entfernen" stand outside the bar as the claim does.
       - A change of the measuring device is a line in Verlauf and in the diary; a device's events, strips and
-        samples count for a place only inside its stay; `climate.csv` is in time order.
+        samples count for a place only inside its stay; `climate.csv` is in time order;
+        `/timeline?device=<id>` is about that device and the chosen place follows.
+      - At 320 px nothing leaves its card, and what a finger is offered is 44 px high, on the pages the walk
+        named.
+      Not built: the trifle "120×120 everywhere" - nothing in the app, its catalogues or the demo data writes a
+      size; the only "120x120" is in a place name the walk typed.
     Left for Chris, each with what is built meanwhile:
       1. The amendment itself, point by point - in particular that `devices.spaceId` stays beside the placements,
          that a stay under five minutes leaves no trace, and that a device's first placement is read back past its
@@ -136,9 +147,17 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
          of a room that exists chooses that room.
       4. A place cannot be renamed or given a kind while a device is added; it is called "Zelt 2" and edited
          afterwards. The old step asked for both.
-      5. Removing a place is not one write: a refusal half-way leaves what was done before it done.
-      6. A member who may manage a host's place may still claim a device into it through the API; the app offers
-         only places of one's own.
+      5. Removing a place is not one write: a refusal half-way leaves what was done before it done, and the page
+         says what is done and what is still here.
+      6. A guest who may manage may rename the owner's place and change its kind (the server allows it); only the
+         owner moves a device, sets the room and ends the place.
+      7. The last place of an account cannot be removed, as before the round.
+      8. Verlauf counts an alarm for the place it was raised in: one a device raised elsewhere and that is still
+         open after the device came here stands on Start and the overview, which go by the device, not in
+         Verlauf.
+      9. A move's diary line keeps the names the two places had then; renaming a place later does not rewrite it.
+      10. A stream camera at a place without a device: that a home-network address will not answer there is now
+          only behind the help button, so it is learnt from the failed test.
   - The weight is live duplication, not dead code: 21 ideas (place chooser, rename sheet, maintenance, climate
     preset, light limit, ...) are each built in three to nine places, against one unused export.
   - Round 4 (Steuerung, devices, camera), state of 2026-11-12 (the redesign session; rules in
@@ -211,7 +230,7 @@ Checked against the code on 2026-10-08; the navigation item on 2026-11-12. Take 
       instant of the pause; a hold sent again the same way with another length - the firmware reports a hold only
       when its way changes; a pause reason in the reader's language beyond the three the app writes itself -
       the server stores words, not a code; a moment's camera picture in Verlauf's cursor,
-      reached from the camera page (round 5); `/claim` for a guest in somebody's place (round 6). Three of
+      reached from the camera page (round 5). Three of
       Erweitert's fields did not fit the value sheet as it was: the Lux-to-PPFD factor took a finer step and the
       two known lamps as chips, the AIR fan a socket slows is a choice with a write of its own, and the CO₂
       cylinder is a report with a refill form and stayed as it was. Left for the wording pass:
