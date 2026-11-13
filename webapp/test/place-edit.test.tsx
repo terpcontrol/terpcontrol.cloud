@@ -158,13 +158,10 @@ describe('editing a place', () => {
     await waitFor(() => expect(told).toHaveLength(1));
     expect(told[0].label).toBe('Tent is now called Flower tent · Kind: Other place · Flower tent now stands in Cellar');
 
-    // Taken back by the room's name: the room it left may have ended with its last place. The undo says what is back.
+    // Taken back by the room's name: the room it left may have ended with its last place. The toast is handed what is back.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { name: 'Tent', kind: 'tent', roomName: 'Grow room' });
-    expect(told[1]).toMatchObject({
-      label: 'Undone · Flower tent is now called Tent · Kind: Tent · Tent now stands in Grow room',
-      undo: null,
-    });
+    expect(told).toMatchObject([{ undone: 'Flower tent is now called Tent · Kind: Tent · Tent now stands in Grow room' }]);
   });
 
   /** A place's name stands by itself in a sentence: before the kind, and only where the toast has not just said it. */
@@ -246,7 +243,7 @@ describe('editing a place', () => {
 
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { roomName: 'Grow room' });
-    expect(told[1]).toMatchObject({ label: 'Undone · Tent now stands in Grow room · @mara now sees it too · @lea no longer sees it', undo: null });
+    expect(told).toMatchObject([{ undone: 'Tent now stands in Grow room · @mara now sees it too · @lea no longer sees it' }]);
   });
 
   it('asks before the last place leaves a room people are let into, names them, and offers no way back afterwards', async () => {

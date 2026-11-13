@@ -29,7 +29,9 @@ export function OwnSettings({ device }: { device: Device }) {
 
   if (configuration === null) {
     const key = awaitingClimate(device) ? 'targets.waiting' : device.type === 'plug' || device.type === 'light' ? 'ownPanel.waiting' : null;
-    return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, { device: deviceTitle(device, t, all.data?.items) })}</p> : null;
+    // Named as its card under the place names it: by the tail of its id only beside another of its kind standing there.
+    const here = all.data?.items.filter(other => other.spaceId === device.spaceId);
+    return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, { device: deviceTitle(device, t, here) })}</p> : null;
   }
 
   if (device.type === 'plug') return <PlugPanel device={device} mayManage={mayManage} />;

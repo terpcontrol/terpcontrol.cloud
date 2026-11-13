@@ -79,7 +79,8 @@ export function PersonRow({
       await write(() => role);
       tell({
         label: said(role),
-        undo: () => write(row => row.role).then(() => tell({ label: `${t('place.edit.told.undone')} · ${said(guest.role)}`, undo: null })),
+        undo: () => write(row => row.role),
+        undone: said(guest.role),
         from: `member-${guest.userId}`,
       });
       // The toast stands at the window's foot: a row down there moves clear of it, by the room its select keeps (`.roleSelect`).

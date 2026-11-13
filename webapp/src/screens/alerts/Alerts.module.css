@@ -137,13 +137,6 @@
   color: var(--warning);
 }
 
-/* The id something is known by, where the list that holds its name could not be
-   read. It is not a name, so it is not set like one - and an id is long enough
-   to need a break anywhere rather than a line of its own. */
-.unnamed {
-  overflow-wrap: anywhere;
-}
-
 /* That the names could not be read, said once above the cards rather than on each. */
 .namesFailed {
   margin: 0;

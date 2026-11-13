@@ -147,10 +147,10 @@ describe('naming a device and moving it', () => {
     // The page is called by the new name at once, without waiting for the list.
     expect(await screen.findByRole('heading', { level: 1, name: 'East lamp' })).toBeInTheDocument();
 
-    // Taken back, the device has no name of its own again, and the page is not left silent about it.
+    // Taken back, the device has no name of its own again, and the toast is handed what to say about it.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { name: null });
-    expect(told[1]).toEqual({ label: 'Undone · East lamp is now called Plantalytix Socket', undo: null });
+    expect(told).toMatchObject([{ undone: 'East lamp is now called Plantalytix Socket' }]);
   });
 
   /**
@@ -190,10 +190,10 @@ describe('naming a device and moving it', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(told.map(one => one.label)).toEqual(['Plantalytix Socket is now in Fridge 1']);
 
-    // Taken back, it stands where it stood, and a toast says where that is.
+    // Taken back, it stands where it stood, and the toast is handed where that is.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { spaceId: 'space-1' });
-    expect(told[1]).toEqual({ label: 'Undone · Plantalytix Socket is now in Tent 1', undo: null });
+    expect(told).toMatchObject([{ undone: 'Plantalytix Socket is now in Tent 1' }]);
   });
 
   /** A device stands only in a place of its owner, so somebody who manages the host's place is not asked where it stands. */
@@ -249,7 +249,9 @@ describe('naming a device and moving it', () => {
     );
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { name: 'East tent', spaceId: 'space-1' });
-    expect(told[1].label).toBe('Undone · Fridge module is now called East tent · East tent is now in Tent 1 · with camera Canopy cam, 2 sockets');
+    expect(told).toMatchObject([
+      { undone: 'Fridge module is now called East tent · East tent is now in Tent 1 · with camera Canopy cam, 2 sockets' },
+    ]);
   });
 
   /** A Terp Cam nobody named is "Terp Cam": what is printed on it tells two apart, and one camera goes along. */
@@ -288,7 +290,7 @@ describe('naming a device and moving it', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'fridge', name: 'KS Black', roomId: 'room-1' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { spaceId: 'space-new' }));
-    await waitFor(() => expect(told).toEqual([{ label: 'Fridge module is now in KS Black', undo: null, from: 'device-device-1' }]));
+    await waitFor(() => expect(told).toMatchObject([{ label: 'Fridge module is now in KS Black', undo: null, from: 'device-device-1' }]));
   });
 
   it('keeps the sheet open with what the server said when the move is refused, and makes no second place on the next try', async () => {

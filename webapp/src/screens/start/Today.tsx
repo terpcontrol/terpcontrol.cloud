@@ -2,85 +2,43 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Task } from '@fg2/shared-types/v1';
 import { planMoved } from '@/api/plans';
 import { useLog } from '@/log/log-context';
 import { Asking } from '@/ui/Asking';
 import { Facts } from '@/ui/Facts';
-import { enough, useMayInEach, useMayLogIn } from '@/ui/session-access';
 import { useZone } from '@/ui/zone';
-import { dueLabel, entryKindOf, tickedLabel } from '@/screens/tasks/tasks';
-import { useDueList, type Due, type DueNow, type Place } from './due';
+import { dueLabel, tickedLabel } from '@/screens/tasks/tasks';
+import { useDue, type Due } from './due';
 import styles from './Start.module.css';
 
 /**
- * "Heute": what is due today or overdue, each with the one tap that settles
- * it. Nothing is drawn while nothing is due. `across` is a list over several
- * places, where a row says where before it says since when.
+ * "Heute": what is due for the reader today or overdue, each with the one tap
+ * that settles it. Nothing is drawn while nothing is due. One place of
+ * several lists its own; the Start of everything lists all of it, and with
+ * several places a row says where before it says since when.
  */
-export function Today({ due, places, across = false, now }: { due: Due[]; places: Place[]; across?: boolean; now: DateTime }) {
+export function Today({ spaceId, now }: { spaceId?: string; now: DateTime }) {
   const { t } = useTranslation();
-  const list = useDueList(due, places, now);
-  if (list.rows.length + list.steps.length === 0) return null;
+  const due = useDue(now);
+  const rows = spaceId && due.across ? due.rows.filter(one => one.spaceId === spaceId) : due.rows;
+  if (rows.length === 0) return null;
 
   return (
     <section className={styles.card} aria-labelledby="start-today">
       <h2 className={styles.cardTitle} id="start-today">
         {t('start.today.title')}
       </h2>
-      <DueList {...list} across={across} now={now} />
+      <DueList rows={rows} across={!spaceId && due.across} now={now} />
     </section>
   );
 }
 
-/**
- * The rows of what is due - on Start under "Heute", behind the bell under
- * "Aufgaben". A watering or a feeding is something to enter - how much, what -
- * so it opens the entry sheet on that kind, and the line written there closes
- * the task; a chore has nothing to enter and is ticked off, and the toast
- * names it. A step of the grow plan waiting to be confirmed stands here too,
- * for whoever may steer the place, and asks first: it moves the plan on.
- */
-export function DueList({ rows, steps, across, now }: DueNow & { across: boolean; now: DateTime }) {
-  const { t } = useTranslation();
-  const zone = useZone();
-  const { openSheet, complete } = useLog();
-  const session = useMayLogIn();
-  const mayIn = useMayInEach();
-
+/** The rows of what is due - on Start under "Heute", behind the bell under "Aufgaben". */
+export function DueList({ rows, across, now }: { rows: Due[]; across: boolean; now: DateTime }) {
   return (
     <ul className={styles.rows}>
-      {rows.map(({ task, spaceId, place, grow }) => {
-        const mayLog = session && (spaceId === null || enough(mayIn(spaceId), 'log'));
-        const subject = task.subject.type === 'grow' ? (grow?.name ?? place) : place;
-        const enters = grow !== null && (task.kind === 'water' || task.kind === 'feed');
-        return (
-          <li key={task.id} className={styles.due}>
-            <span className={styles.dueText}>
-              {task.label}
-              <span className={styles.dueNote}>
-                <Facts facts={[across && grow?.name, across && place, dueLabel(t, task.dueAt, now, zone, { since: true })]} />
-              </span>
-            </span>
-            {mayLog ? (
-              <button
-                type="button"
-                className={styles.dueAction}
-                aria-label={`${t(enters ? 'start.today.enter' : 'home.strip.done')}: ${task.label}`}
-                onClick={() =>
-                  enters
-                    ? openSheet({ growId: grow.growId, spaceId, kind: entryKindOf(task.kind) as 'water' | 'feed' })
-                    : complete(task.id, tickedLabel(t, task, across ? subject : null))
-                }
-              >
-                {t(enters ? 'start.today.enter' : 'home.strip.done')}
-              </button>
-            ) : null}
-          </li>
-        );
-      })}
-      {steps.map(({ task, place }) => (
-        <Step key={task.id} task={task} place={place.name} across={across} now={now} />
+      {rows.map(one => (
+        <Row key={one.task.id} {...one} across={across} now={now} />
       ))}
     </ul>
   );
@@ -90,36 +48,37 @@ export function DueList({ rows, steps, across, now }: DueNow & { across: boolean
 const stepMoved = (client: QueryClient) => void planMoved(client);
 
 /**
- * A plan step waiting for its word: the row is the step by its name, said to
- * be the grow plan's, with "Bestätigen" beside it. Confirming sends the next
- * step's targets to the device and cannot be taken back, so it asks first;
- * once it has landed the plan and the devices are read again, so the targets'
- * row says the new step at once rather than on the next beat.
+ * One task with its tap. A watering or a feeding is something to enter - how
+ * much, what - so it opens the entry sheet on that kind, and the line written
+ * there closes the task; a chore has nothing to enter and is ticked off, and
+ * the toast names it. A step of the grow plan is said to be the plan's and
+ * asks first: confirming sends the next step's targets to the device and
+ * cannot be taken back. Once it has landed the plan and the devices are read
+ * again, so the targets' row says the new step at once.
  */
-function Step({ task, place, across, now }: { task: Task; place: string; across: boolean; now: DateTime }) {
+function Row({ task, spaceId, where, growId, across, now }: Due & { across: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const { complete } = useLog();
+  const { openSheet, complete } = useLog();
   const [asking, setAsking] = useState(false);
+  const step = task.source === 'plan_step';
+  const enters = !step && growId !== null && (task.kind === 'water' || task.kind === 'feed');
+  const verb = t(step ? 'start.today.confirm' : enters ? 'start.today.enter' : 'home.strip.done');
+  const told = tickedLabel(t, task, across ? where[0] : null);
+  const act = () => {
+    if (step) setAsking(true);
+    else if (enters) openSheet({ growId, spaceId, kind: task.kind as 'water' | 'feed' });
+    else complete(task.id, told);
+  };
 
   return (
     <li className={styles.due}>
       <span className={styles.dueText}>
         {task.label}
         <span className={styles.dueNote}>
-          <Facts facts={[t('tasks.planStep'), across && place, dueLabel(t, task.dueAt, now, zone, { since: true })]} />
+          <Facts facts={[step && t('tasks.planStep'), ...(across ? where : []), dueLabel(t, task.dueAt, now, zone, { since: true })]} />
         </span>
       </span>
-      {asking ? null : (
-        <button
-          type="button"
-          className={styles.dueAction}
-          aria-label={t('tasks.planStepTitle', { label: task.label })}
-          onClick={() => setAsking(true)}
-        >
-          {t('start.today.confirm')}
-        </button>
-      )}
       {asking ? (
         <div className={styles.dueAsk}>
           <Asking
@@ -128,12 +87,16 @@ function Step({ task, place, across, now }: { task: Task; place: string; across:
             busy={false}
             onYes={() => {
               setAsking(false);
-              complete(task.id, tickedLabel(t, task, across ? place : null), { undoable: false, changed: stepMoved });
+              complete(task.id, told, { undoable: false, changed: stepMoved });
             }}
             onCancel={() => setAsking(false)}
           />
         </div>
-      ) : null}
+      ) : (
+        <button type="button" className={styles.dueAction} aria-label={`${verb}: ${task.label}`} onClick={act}>
+          {verb}
+        </button>
+      )}
     </li>
   );
 }

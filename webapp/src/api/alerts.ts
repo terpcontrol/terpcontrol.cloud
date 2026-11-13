@@ -42,9 +42,9 @@ export const useOpenAlerts = () => useAlerts(true);
  */
 export const useResolvedAlerts = () => useAlerts(false);
 
-/** Takes an episode that is over off the record; the server refuses one still open. */
-export const useRemoveAlert = () =>
+/** Takes episodes that are over off the record, a folded row's all at once; the server refuses one still open. */
+export const useRemoveAlerts = () =>
   useWriteSettled(
-    (alertId: string) => api.delete(`/alerts/${alertId}`),
+    (alertIds: string[]) => Promise.all(alertIds.map(alertId => api.delete(`/alerts/${alertId}`))),
     client => invalidate(client, alertsKey(false)),
   );

@@ -49,7 +49,6 @@ import { ReadingTiles } from './ReadingTiles';
 import { usePlace, useHumidifierHold, useLamp } from './reads';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
-import type { Due } from './due';
 import { Today } from './Today';
 import styles from './Start.module.css';
 
@@ -161,12 +160,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const declined = diary ? space?.presetPrompt === 'never' : me.data?.preferences.diary === 'off';
   const offerGrow = !visiting && mayManage && hasDevice && !growing && me.data !== undefined && space !== undefined && !declined;
   const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
-  const due: Due[] = overview.dueTasks.map(task => ({
-    task,
-    spaceId,
-    place: overview.name,
-    grow: overview.grows.find(one => task.subject.type === 'grow' && one.growId === task.subject.id) ?? overview.grows[0] ?? null,
-  }));
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} parks={parks} />;
   const further = extras.length > 0 ? <Extras spaceId={spaceId} extras={extras} /> : null;
   // Somebody let in who may not manage the place has nothing behind the menu; who else is here is a tap on whose place it is.
@@ -261,11 +254,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         <div className={styles.column}>
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           {visiting ? null : <NotifyNotice later />}
-          {/* What is due is there to be settled, so a session that may write nothing is not shown the list.
-              The diary's reminders come with the diary; a plan step waiting for its word is Steuerung's and comes without. */}
-          {demo ? null : (
-            <Today due={diary ? due : []} places={[{ spaceId, name: overview.name, growIds: overview.grows.map(one => one.growId) }]} now={now} />
-          )}
+          {/* What is due is the reader's own list, and support reading a customer's place is not shown its own work there. */}
+          {visiting ? null : <Today spaceId={spaceId} now={now} />}
           <Latest
             entries={overview.entries}
             events={overview.events}

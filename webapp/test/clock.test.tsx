@@ -83,6 +83,7 @@ const answer = (path: string): Response => {
   if (path === '/v1/spaces') return json({ items: [spaceWhere('own', { id: 'space-1', name: 'Flower room B' })], nextCursor: null });
   if (path === '/v1/devices') return json({ items: [device], nextCursor: null });
   if (path === '/v1/cameras') return json({ items: [], nextCursor: null });
+  if (path === '/v1/home') return json({ spaces: [], followedGrows: [], people: [], layers: { diary: false } });
   // The whole notification object rather than the mute alone. The inbox reads
   // the routing grid to say whether an open alert reached anybody, and it asks
   // that of every open card now, so half an answer here is a shape the server

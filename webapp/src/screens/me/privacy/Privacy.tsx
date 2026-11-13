@@ -212,7 +212,13 @@ function GrowRow({ grow, links, held }: { grow: GrowListItem; links: string | nu
           disabled={held || update.isPending}
           onChange={on =>
             void set(on ? 'public' : 'private').then(
-              label => tell({ label, undo: () => set(on ? 'private' : 'public'), from: `grow-public:${grow.id}` }),
+              label =>
+                tell({
+                  label,
+                  undo: () => set(on ? 'private' : 'public'),
+                  undone: t(`me.saved.grow.${on ? 'private' : 'public'}`, { name: grow.name }),
+                  from: `grow-public:${grow.id}`,
+                }),
               // Said under the row, from the write that was refused.
               () => undefined,
             )

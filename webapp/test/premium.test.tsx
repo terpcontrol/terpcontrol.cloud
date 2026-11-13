@@ -6,7 +6,7 @@ import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith, spacePage, spaceWhere } from './session';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -162,10 +162,10 @@ describe('an install that enforces Premium', () => {
 
     expect(card('Terp Cam 1').getByText('until 19 Jul 2027')).toBeInTheDocument();
     expect(card('Terp Cam 1').getByText('Premium')).toBeInTheDocument();
-    expect(card('Terp Cam 1').getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
+    expect(card('Terp Cam 1').getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
     expect(card('Terp Cam 1').getByRole('link', { name: 'Terp Cam 1' })).toHaveAttribute('href', '/cameras/camera-Terp Cam 1');
 
-    expect(card('Tapo C200').getByText('· RTSP · Tent 1')).toBeInTheDocument();
+    expect(card('Tapo C200').getByText(reading('RTSP · Tent 1'))).toBeInTheDocument();
     expect(card('Tapo C200').getByText('until 27 Oct 2027')).toBeInTheDocument();
 
     expect(card('Side cam').getByText('needs Premium')).toBeInTheDocument();
@@ -181,10 +181,23 @@ describe('an install that enforces Premium', () => {
 
     const cards = screen.getAllByText('Canopy cam').map(name => within(name.closest('li')!));
     expect(cards).toHaveLength(2);
-    expect(cards[0].getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
-    expect(cards[1].getByText('· RTSP · Tent 2')).toBeInTheDocument();
+    expect(cards[0].getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
+    expect(cards[1].getByText(reading('RTSP · Tent 2'))).toBeInTheDocument();
     expect(cards[0].getByRole('link', { name: 'Canopy cam' })).toHaveAttribute('href', '/cameras/camera-a');
     expect(cards[1].getByRole('link', { name: 'Canopy cam' })).toHaveAttribute('href', '/cameras/camera-b');
+  });
+
+  it('calls the only Terp Cam nobody named by its kind once, and two of them by what is printed on each', async () => {
+    const unnamed = (tag: string) => camera({ name: `Terp Cam · ${tag}`, id: `camera-${tag}`, entitlement: included.entitlement });
+    server.cameras = [unnamed('D878'), bought];
+    const one = draw();
+
+    expect(within((await screen.findByRole('link', { name: 'Terp Cam' })).closest('li')!).getByText(reading('Tent 1'))).toBeInTheDocument();
+    one.unmount();
+
+    server.cameras = [unnamed('D878'), unnamed('B071')];
+    await drawLoaded();
+    expect(screen.getAllByRole('link', { name: /^Terp Cam/ }).map(link => link.textContent)).toEqual(['Terp Cam · D878', 'Terp Cam · B071']);
   });
 
   it('reads the sentence under a camera from its grant rather than from its dates', async () => {
@@ -354,7 +367,7 @@ describe('an install that gates nothing', () => {
   it('still names the tent beside each camera', async () => {
     await drawLoaded();
 
-    expect(card('Old cam').getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
+    expect(card('Old cam').getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
   });
 });
 

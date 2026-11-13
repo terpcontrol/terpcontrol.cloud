@@ -7,10 +7,11 @@ import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { useOpenAlerts, useResolvedAlerts } from '@/api/alerts';
 import { itemsOf } from '@/api/pages';
 import { useSession } from '@/api/session';
+import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import { devicePath } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { buildName, useOfferedUpdates } from '@/screens/devices/firmware-builds';
-import { useDueEverywhere } from '@/screens/start/due';
+import { useDue } from '@/screens/start/due';
 import { DueList } from '@/screens/start/Today';
 import { foldSame } from '@/screens/grow/diary/days';
 import { instantOf, isAhead } from '@/ui/age';
@@ -20,12 +21,12 @@ import { deviceName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Rows } from '@/ui/Rows';
-import { enough, useMayInEach, useMayManage } from '@/ui/session-access';
+import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { AlertCard, ResolvedRow } from './alerts/AlertCard';
-import { beganAt, heardOf, lastEndedFirst, silentDevices, titleOf, worstFirst } from './alerts/inbox';
+import { beganAt, heardOf, lastEndedFirst, openAgain, silentDevices, titleOf, worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import styles from './alerts/Alerts.module.css';
 
@@ -51,26 +52,23 @@ const OVER_MORE = 20;
  * first two list (`app/shell/bell.ts`).
  *
  * The list is the alarm engine's own record, read on the beat live values age
- * on, and it is drawn the moment it arrives. What a name and a rule add to a
- * card lands as it comes and never holds the alerts back: where a name has
- * not arrived the card falls back to the id, and a failed read is said out
- * loud.
+ * on, and it is drawn the moment it arrives, each alert under the name of the
+ * place it stands in or happened in, which it carries itself. What a device's
+ * name and a rule add to a card lands as it comes and never holds the alerts
+ * back, and a failed read is said out loud.
  */
 export function Alerts() {
   const { t } = useTranslation();
   const now = useNow();
-  // The mute is the account's own and stands above every place; silencing a rule is `manage` on the place the card is about.
+  // The mute is the account's own and stands above every place.
   const mayWriteAtAll = useMayManage();
-  const mayManageIn = useMayInEach();
-  // An alert that names no place is shown to nobody but its owner, so there the session's own half is the whole answer.
-  const mayActOn = (alert: Alert): boolean => (alert.spaceId === null ? mayWriteAtAll : enough(mayManageIn(alert.spaceId), 'manage'));
   const { user } = useSession();
   // The demo has no account of its own and is not asked for one.
   const me = useAccountMe();
   const open = useOpenAlerts();
   const resolved = useResolvedAlerts();
   const updates = useOfferedUpdates();
-  const due = useDueEverywhere(now);
+  const due = useDue(now);
   const { names, watching } = useInboxNames();
   // Back from an alert's curves finds the list as it was left: as far unfolded, as far down.
   const [shown, setShown] = useKept('over', OVER_FIRST);
@@ -79,6 +77,15 @@ export function Alerts() {
   const silent = silentDevices(itemsOf(open.data));
   const standing = worstFirst(itemsOf(open.data), silent);
   const ended = lastEndedFirst(itemsOf(resolved.data));
+  // What a card offers is decided by the place it names: where the device stands for an open alert, where it
+  // happened for one that is over. A place that ended since is not among those in use; its record is still its
+  // owner's to delete, and only the list of ended places says so.
+  const inUse = useSpaces().data?.items;
+  const placeOf = (alert: Alert) => inUse?.find(place => place.id === alert.spaceId);
+  const gone = useEndedSpaces(inUse !== undefined && ended.some(alert => alert.spaceId !== null && !placeOf(alert))).data?.items;
+  // An alert that names no place is shown to nobody but its owner, so there the session's own half is the whole answer.
+  const mayActOn = (alert: Alert): boolean =>
+    alert.spaceId === null ? mayWriteAtAll : enough((placeOf(alert) ?? gone?.find(place => place.id === alert.spaceId))?.youMay, 'manage');
   // Only the devices something has actually gone wrong on: a rule is read to
   // say what a card watched, and a device with no card on the page says nothing.
   const ruleDevices = [...new Set([...standing, ...ended].filter(alert => alert.ruleId && alert.deviceId).map(alert => alert.deviceId!))];
@@ -86,11 +93,10 @@ export function Alerts() {
   const ruleOf = (alert: Alert) => (alert.ruleId ? (rules.rules.get(alert.ruleId) ?? null) : null);
   // A reading that came and went all morning is one row: the same sentence about the same device on the same day.
   const day = (alert: Alert) => zoned(alert.resolvedAt ?? alert.startedAt, zoneOf(me.data)).toISODate();
-  const over = foldSame(
-    ended,
-    alert => [day(alert), alert.spaceId, alert.deviceId, titleOf(t, alert, ruleOf(alert), names, null)].join('|'),
-    beganAt,
-  );
+  const kind = (alert: Alert) => [day(alert), alert.spaceId, alert.deviceId, titleOf(t, alert, ruleOf(alert), names, null)].join('|');
+  const kinds = new Map(ended.map(alert => [alert.id, kind(alert)]));
+  const kindOf = (alert: Alert) => kinds.get(alert.id)!;
+  const over = foldSame(ended, kindOf, beganAt);
 
   const head = (
     <PageHead back={{ to: '/', label: t('me.back') }} title={t('shell.alerts')}>
@@ -130,7 +136,7 @@ export function Alerts() {
   const failedAt = (open.isError || resolved.isError) && Number.isFinite(readAt) ? readAt : null;
   const more = open.hasNextPage || resolved.hasNextPage;
   const fetching = open.isFetchingNextPage || resolved.isFetchingNextPage;
-  const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), now });
+  const card = (alert: Alert) => ({ alert, rule: ruleOf(alert), names, me: me.data, mayManage: mayActOn(alert), placed: !!placeOf(alert), now });
 
   return (
     <section className={styles.page}>
@@ -166,14 +172,17 @@ export function Alerts() {
         <p className={`${ui.cardDashed} ${ui.note}`}>{t(emptyKey(user?.isDemo === true, watching))}</p>
       )}
 
-      {due.kept ? (
+      {/* The list of tasks is the diary's; a step of the grow plan waits here without one. */}
+      {due.kept || due.rows.length > 0 ? (
         <section className={styles.section} aria-labelledby="alerts-tasks">
           <h2 id="alerts-tasks">{t('tasks.title')}</h2>
           <div className={styles.card}>
-            {due.rows.length + due.steps.length > 0 ? <DueList {...due} now={now} /> : null}
-            <Link to="/tasks" className={styles.onward}>
-              {t('alerts.allTasks')} ›
-            </Link>
+            {due.rows.length > 0 ? <DueList rows={due.rows} across={due.across} now={now} /> : null}
+            {due.kept ? (
+              <Link to="/tasks" className={styles.onward}>
+                {t('alerts.allTasks')} ›
+              </Link>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -183,8 +192,15 @@ export function Alerts() {
         <section className={styles.section} aria-labelledby="alerts-over">
           <h2 id="alerts-over">{t('alerts.over')}</h2>
           <Rows>
-            {over.slice(0, shown).map(({ newest, count, since }) => (
-              <ResolvedRow key={newest.id} {...card(newest)} count={count} since={since} />
+            {over.slice(0, shown).map(({ newest, since }) => (
+              <ResolvedRow
+                key={newest.id}
+                {...card(newest)}
+                fold={ended.filter(alert => kindOf(alert) === kindOf(newest)).map(alert => alert.id)}
+                since={since}
+                elsewhere={inUse?.length !== 1 || !placeOf(newest)}
+                again={openAgain(newest, standing)}
+              />
             ))}
           </Rows>
           {over.length > shown || more ? (

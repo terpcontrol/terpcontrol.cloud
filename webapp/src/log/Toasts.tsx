@@ -15,6 +15,8 @@ import styles from './Toasts.module.css';
  * also the place where a write that never landed is admitted to.
  *
  * There are never more than two, and none lies on an open sheet (`toast-room.ts`).
+ * The newest stands at the edge the stack hangs on - over the bar, at the
+ * window's foot, against a sheet's box - so none moves when another's time is up.
  */
 
 export interface LoggedLine {
@@ -26,6 +28,8 @@ export interface LoggedLine {
   changed?: LogRequest['changed'];
   /** For a toast that tells of something already done: how it is taken back. Null for a line that was written. */
   revert: (() => Promise<unknown>) | null;
+  /** What holds again once it is taken back, in the teller's words. */
+  undone?: string;
   /** The control a toast that tells of something came from, whose next toast takes its place. */
   from?: string;
   /** The line could not be sent because nothing answered: it is sent again by itself once the connection is back. */
@@ -91,7 +95,12 @@ const stand = (host: HTMLElement): HTMLElement | null => {
 
   if (host.parentElement !== home) home.append(host);
   host.toggleAttribute('data-in-sheet', where === 'foot');
-  host.style.cssText = !where || where === 'foot' ? '' : 'top' in where ? `top: ${where.top}px; bottom: auto` : `bottom: ${where.bottom}px`;
+  host.style.cssText =
+    !where || where === 'foot'
+      ? ''
+      : 'top' in where
+        ? `top: ${where.top}px; bottom: auto; flex-direction: column-reverse`
+        : `bottom: ${where.bottom}px`;
   return sheet;
 };
 

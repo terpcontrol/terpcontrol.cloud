@@ -1961,7 +1961,8 @@
     "litresNoNumber": "That is not a number.",
     "litresTooMuch": "At most {{max}} L.",
     "corrected": "Line corrected",
-    "takenBack": "Line taken back"
+    "takenBack": "Line taken back",
+    "undone": "Undone"
   },
   "timeline": {
     "rangeLabel": "Range",
@@ -2949,7 +2950,7 @@
       "weekly_timelapse": "Week film"
     },
     "short": {
-      "alerts": "critical",
+      "alerts": "critical alarms",
       "warnings": "warnings",
       "tasks": "tasks due",
       "plan": "plan asks",
@@ -3010,7 +3011,8 @@
       "quiet": "Quiet hours {{from}}–{{to}}",
       "unlinked": "Telegram unlinked",
       "email": "E-mail to {{address}}",
-      "webhook": "Webhook to {{host}}"
+      "webhook": "Webhook to {{host}}",
+      "mail": "{{what}} by e-mail to {{address}}"
     }
   },
   "notify": {
@@ -3021,19 +3023,9 @@
     "to": "to {{email}}",
     "other": "Other ways",
     "later": "Later",
-    "done": "Critical alarms now come by e-mail to {{email}}.",
     "reaches": "Critical alarms reach you by {{channels}}.",
     "change": "Change",
-    "titleRows": "{{what}} do not reach you",
-    "doneRows": "{{what}} now come by e-mail to {{email}}.",
-    "row": {
-      "alerts": "critical alarms",
-      "warnings": "camera warnings",
-      "tasks": "task reminders",
-      "plan": "grow plan questions",
-      "weekly_timelapse": "the week's film"
-    },
-    "and": "and"
+    "titleRows": "{{what}} do not reach you"
   },
   "alerts": {
     "bell_one": "Alerts · {{count}} open",
@@ -3062,7 +3054,9 @@
       "forAll": "holds for everyone who sees the place"
     },
     "remove": {
-      "ask": "The alert is deleted for everyone you share the place with. Its line in the timeline stays."
+      "ask_one": "The alert is deleted for everyone you share the place with. Its line in the timeline stays.",
+      "ask_other": "{{count}} alerts are deleted for everyone you share the place with. Their lines in the timeline stay.",
+      "many": "Delete {{count}} alerts"
     },
     "nothing": "Nothing is open right now.",
     "output": {
@@ -3087,7 +3081,7 @@
       "warning": "warning",
       "info": "info"
     },
-    "namesFailed": "Could not read the names · places, devices and cams are shown by their id",
+    "namesFailed": "Could not read the names · devices and cams are shown without one",
     "bellTasks_one": "Alerts · {{count}} task due",
     "bellTasks_other": "Alerts · {{count}} tasks due",
     "back": "Back to Alerts",
@@ -3101,7 +3095,8 @@
     "told": {
       "muted": "Everything muted until {{time}}",
       "loud": "Unmuted",
-      "removed": "Alert deleted"
+      "removed_one": "Alert deleted",
+      "removed_other": "{{count}} alerts deleted"
     },
     "title": {
       "high": "{{what}} too high",
@@ -3713,7 +3708,7 @@
     },
     "emailAlarms": {
       "title": "Alarms by e-mail",
-      "text": "Until a way is set up, nothing reaches you: no alarm, not even “device offline”, no task that is due and no camera that stopped delivering. One tap sends what can call on you by e-mail to the address you sign in with: a device's critical alarms, a camera's warning and the reminders of your tasks. Everything else stays as it is. Change or switch it off under Me › Notifications. “Later” hides this notice for a week."
+      "text": "Until a way is set up, nothing reaches you: no alarm, not even “device offline”, no task that is due and no camera that stopped delivering. One tap sends what can call on you by e-mail to the address you sign in with: critical alarms with a device, warnings with a camera, tasks due with a diary. Everything else stays as it is. Change or switch it off under Me › Notifications. “Later” hides this notice for a week."
     },
     "quietHours": {
       "title": "Quiet hours",
@@ -4129,8 +4124,7 @@
         "sees_one": "{{people}} now sees it too",
         "sees_other": "{{people}} now see it too",
         "seesNoMore_one": "{{people}} no longer sees it",
-        "seesNoMore_other": "{{people}} no longer see it",
-        "undone": "Undone"
+        "seesNoMore_other": "{{people}} no longer see it"
       },
       "devices": "Devices here",
       "bring": "Bring a device here",

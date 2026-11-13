@@ -1,22 +1,21 @@
 import type { DateTime } from 'luxon';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { AccessNeed, GrowOrSpaceRef, Reminder, Task } from '@fg2/shared-types/v1';
+import type { Reminder, Task } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
-import { useGrows } from '@/api/grows';
 import { useRoomsMembers } from '@/api/members';
 import { useReminders } from '@/api/reminders';
 import { useSession } from '@/api/session';
-import { useSpaces } from '@/api/spaces';
 import { useTasks } from '@/api/tasks';
 import { useLog } from '@/log/log-context';
 import { Help } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, growStanding, useMayLogIn, useMayManage, useMayWith, type Standing } from '@/ui/session-access';
+import { enough, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { nowThere, useZone } from '@/ui/zone';
 import { PageHead } from '@/ui/PageHead';
+import { useSubjects } from './start/due';
 import { ReminderSheet } from './tasks/ReminderSheet';
 import { DoneCard, RhythmCard, TaskCard } from './tasks/TaskCard';
 import {
@@ -29,7 +28,6 @@ import {
   reminderOf,
   storedScope,
   storeScope,
-  subjectName,
   tickedLabel,
   type Scope,
 } from './tasks/tasks';
@@ -144,13 +142,11 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const zone = useZone();
   const { user } = useSession();
   const { complete } = useLog();
-  const mayLog = useMayLogIn();
   const mayManage = useMayManage();
-  const mayWith = useMayWith();
+  // Where a card's subject stands decides who may act on it: this list gathers tasks from every place at once.
+  const { grows, spaces, standingOf, mayOn, mayTick, nameOf } = useSubjects();
   const done = useTasks(true);
   const reminders = useReminders();
-  const grows = useGrows();
-  const spaces = useSpaces();
   const devices = useDevices();
   const [scope, setScope] = useState<Scope>(storedScope);
   /** The sheet: closed, open on a new rhythm, or open on the one behind a card. */
@@ -174,53 +170,15 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const shared = [...tasks, ...(done.data?.items ?? [])].some(task => task.assigneeId !== null && task.assigneeId !== myId);
   const shown = scope === 'all' || !shared ? tasks : tasks.filter(task => isMine(task, myId));
   const ticked = newestFirst((done.data?.items ?? []).filter(task => scope === 'all' || !shared || isMine(task, myId)));
-  const nameOf = (task: Task) => subjectName(task.subject, grows.data?.items, spaces.data?.items);
-  const openGrows = (grows.data?.items ?? []).filter(grow => grow.endedAt === null);
-
-  /**
-   * Where a task's or a rhythm's subject stands, which is what decides who may
-   * act on it. This list is the one screen that gathers tasks from every place
-   * at once, so the question is asked per card; null while the grows have not
-   * answered, and a control is not drawn on a guess.
-   */
-  const standingOf = (subject: GrowOrSpaceRef): Standing | null => {
-    if (subject.type === 'space') return { ownerId: null, spaceId: subject.id };
-    const grow = (grows.data?.items ?? []).find(one => one.id === subject.id);
-
-    return grow ? growStanding(grow) : null;
-  };
-
-  /**
-   * Whether this session reaches a need on a subject. A rhythm is asked the
-   * same question the cards ask of a task, because the list reaches rhythms no
-   * card is drawing: a member may see the arrangements of the tent they were
-   * let into and may not rewrite them.
-   */
-  const mayOn = (subject: GrowOrSpaceRef, need: AccessNeed): boolean => {
-    const standing = standingOf(subject);
-
-    return standing !== null && enough(mayWith(standing), need);
-  };
-
   // Who ticked what somebody else did, by the people of the place it was done in: read only where there is such a tick.
   const byOthers = ticked.filter(task => task.completion?.authorId && task.completion.authorId !== myId);
   const members = useRoomsMembers([...new Set(byOthers.flatMap(task => standingOf(task.subject)?.spaceId ?? []))]);
   const tickedBy = (task: Task): string | null =>
     [...members.values()].flatMap(page => page?.people ?? []).find(person => person.id === task.completion?.authorId)?.handle ?? null;
 
-  /**
-   * What ticking one off really needs. Almost every task is a diary line and
-   * wants `log`, but a plan step is not a line: it moves the plan on and sends
-   * the next step's targets to the controller, which the decision record puts
-   * under `manage` and the Control tab already refuses. Two screens deciding
-   * the same thing differently is how a guest gets to do through the back door
-   * what the front door would not let them.
-   */
-  const mayTick = (task: Task): boolean => mayOn(task.subject, task.source === 'plan_step' ? 'manage' : 'log');
-
   /** The places a rhythm can be hung on: a reminder is `manage` on its subject, so nothing else may be offered. */
-  const reminderGrows = openGrows.filter(grow => enough(mayWith(growStanding(grow)), 'manage'));
-  const reminderSpaces = (spaces.data?.items ?? []).filter(space => enough(space.youMay, 'manage'));
+  const reminderGrows = (grows ?? []).filter(grow => grow.endedAt === null && mayOn({ type: 'grow', id: grow.id }, 'manage'));
+  const reminderSpaces = (spaces ?? []).filter(space => enough(space.youMay, 'manage'));
 
   // A rhythm is what repeats; a one-off stands under its day, and here only while that day is beyond the board.
   const rhythms = [...(reminders.data?.items ?? [])]
@@ -241,7 +199,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   };
 
   /** What the toast says: the task that was ticked, by its own name, and where (`tickedLabel`). */
-  const doneLabel = (task: Task) => tickedLabel(t, task, nameOf(task));
+  const doneLabel = (task: Task) => tickedLabel(t, task, nameOf(task.subject));
 
   /**
    * Ticking a plan step tells the plan to go on: the next step becomes the
@@ -276,12 +234,12 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
                   <TaskCard
                     key={task.id}
                     task={task}
-                    name={nameOf(task)}
+                    name={nameOf(task.subject)}
                     reminder={reminder}
                     deviceId={deviceOf(task)}
                     me={user}
                     now={now}
-                    onDone={mayLog && mayTick(task) ? () => tick(task) : null}
+                    onDone={mayTick(task) ? () => tick(task) : null}
                     onEdit={mayOn(task.subject, 'manage') && reminder ? () => setEditing({ reminder }) : null}
                     why={task.source === 'plan_step' && !mayTick(task) ? t('tasks.stepIsManaged') : null}
                   />
@@ -302,7 +260,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
           </header>
           <ul className={ui.group}>
             {ticked.map(task => (
-              <DoneCard key={task.id} task={task} name={nameOf(task)} by={tickedBy(task)} me={user} now={now} />
+              <DoneCard key={task.id} task={task} name={nameOf(task.subject)} by={tickedBy(task)} me={user} now={now} />
             ))}
           </ul>
         </section>
@@ -324,7 +282,7 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
               <RhythmCard
                 key={reminder.id}
                 reminder={reminder}
-                name={subjectName(reminder.subject, grows.data?.items, spaces.data?.items)}
+                name={nameOf(reminder.subject)}
                 language={i18n.language}
                 onEdit={mayOn(reminder.subject, 'manage') ? () => setEditing({ reminder }) : null}
               />

@@ -97,12 +97,10 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
         ]
           .filter(Boolean)
           .join(' · ');
-      const stood = to && (here?.name ?? t('place.edit.nowhere'));
-      const undone = () => tell({ label: `${t('place.edit.told.undone')} · ${said(name, title, stood)}`, undo: null });
-
       tell({
         label: said(title, name, to?.name ?? null),
-        undo: fresh ? null : () => write.mutateAsync(back).then(undone),
+        undo: fresh ? null : () => write.mutateAsync(back),
+        undone: said(name, title, to && (here?.name ?? t('place.edit.nowhere'))),
         from: `device-${device.id}`,
       });
       onClose();

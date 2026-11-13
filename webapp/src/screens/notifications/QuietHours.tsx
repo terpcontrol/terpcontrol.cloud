@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Me, QuietHours } from '@fg2/shared-types/v1';
 import { Refused } from '@/ui/PageState';
 import { Row } from '@/screens/me/parts';
+import parts from '@/screens/me/parts.module.css';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useWriteNotifications } from './write';
@@ -45,6 +46,8 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
 
   const shown = wanted ?? quiet;
   const empty = wanted !== null && wanted.fromMinute === wanted.toMinute;
+  // Beside a window that is refused the title keeps the saved one.
+  const titled = empty ? quiet : shown;
 
   const answer = (window: QuietHours | null) => {
     const said = window ? { from: timeOf(window.fromMinute), to: timeOf(window.toMinute) } : { what: t('notifications.quietHours') };
@@ -83,7 +86,7 @@ export function QuietHoursCard({ me, held, locked }: { me: Me; held: boolean; lo
   return (
     <Row
       title={
-        shown ? t('notifications.quiet.window', { from: timeOf(shown.fromMinute), to: timeOf(shown.toMinute) }) : t('notifications.quiet.offTitle')
+        titled ? t('notifications.quiet.window', { from: timeOf(titled.fromMinute), to: timeOf(titled.toMinute) }) : t('notifications.quiet.offTitle')
       }
       line={t(shown ? 'notifications.quiet.critical' : 'notifications.quiet.offLine')}
       below={
@@ -123,7 +126,7 @@ function TimeField({ label, value, locked, onChange, onLeave }: Field) {
   }
 
   return (
-    <label className={styles.field}>
+    <label className={parts.field}>
       <span className="label">{label}</span>
       <input
         className={`mono ${ui.input}`}

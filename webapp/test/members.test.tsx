@@ -327,7 +327,7 @@ describe('who sees a place, as its owner', () => {
 
     await told[0].undo!();
     expect(wrote(1)).toMatchObject({ method: 'PATCH', path: '/spaces/space-1/members/user-2', body: { role: 'can_log' } });
-    expect(told[1]).toMatchObject({ label: 'Undone · @lea can now log · Blue Dream tent', undo: null });
+    expect(told).toMatchObject([{ undone: '@lea can now log · Blue Dream tent' }]);
   });
 
   it('changes a room´s member from this list, at the room', async () => {
@@ -355,7 +355,7 @@ describe('who sees a place, as its owner', () => {
 
     await told[0].undo!();
     expect(server.wrote.slice(2).map(one => one.body)).toEqual([{ role: 'can_manage' }, { role: 'can_manage' }]);
-    expect(told[1].label).toBe('Undone · @lea can now manage · Blue Dream tent · Grow room');
+    expect(told).toMatchObject([{ undone: '@lea can now manage · Blue Dream tent · Grow room' }]);
   });
 
   it('says under the row what the server said when it refused a role', async () => {
@@ -767,9 +767,22 @@ describe('an invitation somebody was sent', () => {
     drawJoin();
 
     expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(document.title).toBe('You are invited to Blue Dream tent · Terp Control');
     expect(screen.getByText('from @chris')).toBeInTheDocument();
     expect(screen.getByText(/You do not see: their other places/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
+  });
+
+  it('names the window of the page a code is typed on', async () => {
+    wrapped(
+      <Routes>
+        <Route path="/join" element={<JoinRoute />} />
+      </Routes>,
+      '/join',
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Have an invitation code?' })).toBeInTheDocument();
+    expect(document.title).toBe('Have an invitation code? · Terp Control');
   });
 
   it('takes somebody who is signed in straight in', async () => {

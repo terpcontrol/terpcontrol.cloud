@@ -9,6 +9,9 @@ import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { cameraCalled } from '@/ui/camera-name';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { cameraTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
@@ -109,6 +112,9 @@ function Account({ title }: { title: string }) {
   const list = cameras.data.items.filter(camera => camera.ownerId === me.data.id);
   const failedAt = me.isError ? me.dataUpdatedAt : cameras.isError ? cameras.dataUpdatedAt : null;
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
+  // A camera nobody named is drawn by what is printed on the cam, and without that where it is the only such one.
+  const titles = list.map(camera => cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t));
+  const oneUnnamed = titles.filter(title => cameraCalled(title, true) !== title).length < 2;
 
   return (
     <MePage title={title}>
@@ -120,15 +126,11 @@ function Account({ title }: { title: string }) {
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.noCameras')}</p>
       ) : (
         <ul className={ui.group}>
-          {list.map(camera => (
+          {list.map((camera, index) => (
             <CameraCard
               key={camera.id}
               camera={camera}
-              // A camera a controller paired carries that controller's type as
-              // its name until somebody renames it, so it is drawn the way
-              // every other screen draws it - by what is printed on the cam -
-              // rather than as a second row called "controller".
-              name={cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t)}
+              name={cameraCalled(titles[index], oneUnnamed)}
               place={placeOf(camera.spaceId)}
               premium={premium}
               now={now}
@@ -180,10 +182,10 @@ function CameraCard({
       <div className={styles.cameraHead}>
         <span className={styles.cameraName}>
           <Link to={`/cameras/${camera.id}`}>{name}</Link>
-          <span className={`mono ${styles.kind}`}>
-            · {t(`me.premium.kind.${camera.kind}`)}
-            {place ? ` · ${place}` : ''}
-          </span>
+          <Facts
+            className={`mono ${styles.kind}`}
+            facts={[...factsOf(t(`me.premium.kind.${camera.kind}`)).filter(word => word !== factsOf(name)[0]), place]}
+          />
           {enforced && entitled ? <span className={styles.chip}>{t('me.premium.tier.premium')}</span> : null}
         </span>
         {enforced ? (

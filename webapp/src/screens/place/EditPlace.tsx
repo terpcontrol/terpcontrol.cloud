@@ -159,10 +159,8 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
       tell({
         label: said(was, now, sees, seesNoMore),
         // A room that ended took its people along, and writing the place back would not bring them in again.
-        undo: endsRoom
-          ? null
-          : () =>
-              save.mutateAsync(back).then(() => tell({ label: `${t('place.edit.told.undone')} · ${said(now, was, seesNoMore, sees)}`, undo: null })),
+        undo: endsRoom ? null : () => save.mutateAsync(back),
+        undone: said(now, was, seesNoMore, sees),
         from: `place-${space.id}`,
       });
       setTyped(null);

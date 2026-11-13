@@ -517,7 +517,7 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/me/email-alarms'));
-    expect(await screen.findByText('Critical alarms now come by e-mail to grower@example.org.')).toBeInTheDocument();
+    expect(await screen.findByText('Critical alarms by e-mail to grower@example.org')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
     // Answered, the step is still the fourth of five: the count was said when the device was claimed.
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 4 of 5$/);

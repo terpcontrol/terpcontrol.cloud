@@ -74,6 +74,12 @@ function Probe() {
           {value}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={() => tell({ label: 'Tent is now called Flower tent', undo: () => Promise.resolve(), undone: 'Flower tent is now called Tent' })}
+      >
+        rename
+      </button>
     </>
   );
 }
@@ -106,6 +112,32 @@ describe('the toasts on a page', () => {
     fireEvent.click(screen.getByRole('button', { name: '90 %' }));
 
     await waitFor(() => expect(shown()).toEqual(['one', 'Light limit 90 %']));
+  });
+
+  it('answers "Undo" in the toast it was tapped in, with what holds again where the screen said it, and goes when that is read', async () => {
+    vi.useFakeTimers();
+    try {
+      drawAt(
+        <LogProvider>
+          <Probe />
+        </LogProvider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'one' }));
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      fireEvent.click(screen.getByRole('button', { name: 'rename' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+
+      expect(shown()).toEqual(['one', 'Undone · Flower tent is now called Tent']);
+      expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+      // It stays as long as a toast that tells of something: the one told a second before it goes a second before it.
+      await act(() => vi.advanceTimersByTimeAsync(7500));
+      expect(shown()).toEqual(['Undone · Flower tent is now called Tent']);
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(shown()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   /** jsdom lays nothing out: the boxes a phone 600 high would measure, the toasts 108 high, the sheet's body with more to show. */
@@ -169,6 +201,19 @@ describe('the toasts on a page', () => {
     await waitFor(() => expect(toasts.style.bottom).toBe('249px'));
     expect(toasts.parentElement).toBe(document.body);
     expect(screen.getByRole('dialog')).not.toContainElement(toasts);
+    // The stack grows away from the sheet: the newest is the last, against its box.
+    expect(toasts.style.flexDirection).toBe('');
+  });
+
+  it('stands under a sheet the window has room below, the newest first: against its box there too', async () => {
+    laidOut({ top: 100, high: 200 });
+    drawAt(withSheet(true));
+
+    fireEvent.click(screen.getByRole('button', { name: 'one', hidden: true }));
+    const toasts = await waitFor(() => document.querySelector<HTMLElement>('[role="status"][aria-live]')!);
+
+    await waitFor(() => expect(toasts.style.top).toBe('308px'));
+    expect(toasts.style.flexDirection).toBe('column-reverse');
   });
 });
 

@@ -11,8 +11,9 @@ import { useMayManage } from '@/ui/session-access';
 import { Facts } from '@/ui/Facts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { rowsInWords, useCallingRows } from './calling';
-import { alarmsReach, callsReach, channelsLabel, LATER_DAYS, mailAddressOf, putAway, reachedBy } from './reach';
+import { useCallingRows } from './calling';
+import { alarmsReach, callsReach, channelsLabel, LATER_DAYS, mailAddressOf, mailSaid, putAway, reachedBy } from './reach';
+import { inWords } from './settings';
 import { useWriteNotifications } from './write';
 import styles from './NotifyNotice.module.css';
 
@@ -36,18 +37,18 @@ const SETTINGS = '/me/notifications';
  * "Later", nothing put away is honoured, and no link to the page they are on.
  */
 export function NotifyNotice({ later = false }: { later?: boolean }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const now = useNow();
   const mayManage = useMayManage();
   const me = useMe(false, mayManage);
   const putOff = useUpdateMe();
   const rows = useCallingRows();
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
   const titleId = useId();
 
   if (!mayManage || !me.data || rows.length === 0) return null;
   // What the tap did is said while it holds: mail switched off again brings the notice back.
-  if (callsReach(me.data, rows)) return done ? <Done address={done} rows={rows} /> : null;
+  if (callsReach(me.data, rows)) return done ? <Done me={me.data} /> : null;
   if (later && (putOff.isPending || putOff.isSuccess || putAway(me.data, now))) return null;
 
   const account = me.data;
@@ -58,7 +59,7 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
       <div className={styles.head}>
         <p className={styles.title} id={titleId}>
           <BellOff size={16} strokeWidth={2} aria-hidden />
-          <span>{rows.includes('alerts') ? t('notify.title') : t('notify.titleRows', { what: rowsInWords(t, rows) })}</span>
+          <span>{rows.includes('alerts') ? t('notify.title') : t('notify.titleRows', { what: inWords(t, i18n.language, rows) })}</span>
           <Help topic="emailAlarms" />
         </p>
         {later ? (
@@ -67,7 +68,7 @@ export function NotifyNotice({ later = false }: { later?: boolean }) {
           </button>
         ) : null}
       </div>
-      <EmailAlarmsOffer me={account} rows={rows} others={later} compact={later} onDone={setDone} />
+      <EmailAlarmsOffer me={account} rows={rows} others={later} compact={later} onDone={() => setDone(true)} />
       <Refused error={putOff.error} />
     </section>
   );
@@ -95,13 +96,13 @@ function Said({ className, role, children }: { className: string; role?: 'status
  */
 export function NotifyStep({ me }: { me: Me | undefined }) {
   const { t } = useTranslation();
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   if (!me) return null;
-  if (done) return <Done address={done} />;
+  if (done) return <Done me={me} />;
   if (alarmsReach(me)) return <Said className={styles.reached}>{t('notify.reaches', { channels: channelsLabel(t, reachedBy(me)) })}</Said>;
 
-  return <EmailAlarmsOffer me={me} others onDone={setDone} />;
+  return <EmailAlarmsOffer me={me} others onDone={() => setDone(true)} />;
 }
 
 /**
@@ -123,7 +124,7 @@ export function EmailAlarmsOffer({
   others?: boolean;
   /** One row rather than two: "Per E-Mail" with the address beside it, in the room the notice has on Start. */
   compact?: boolean;
-  onDone?: (address: string) => void;
+  onDone?: () => void;
 }) {
   const { t } = useTranslation();
   const { mailOn, error, pending } = useWriteNotifications(me);
@@ -156,14 +157,13 @@ export function EmailAlarmsOffer({
   );
 }
 
-/** What the tap did, in the place it was tapped. */
-function Done({ address, rows }: { address: string; rows?: NotificationCategory[] }) {
-  const { t } = useTranslation();
-  const critical = !rows || (rows.length === 1 && rows[0] === 'alerts');
+/** What the tap did, in the place it was tapped - while mail is on, in the words its toast and its card say. */
+function Done({ me }: { me: Me }) {
+  const { t, i18n } = useTranslation();
 
-  return (
+  return me.notifications.channels.email === null ? null : (
     <Said className={styles.done} role="status">
-      {critical ? t('notify.done', { email: address }) : t('notify.doneRows', { what: rowsInWords(t, rows), email: address })}
+      {mailSaid(t, i18n.language, me)}
     </Said>
   );
 }

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { controlPath, devicePath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me } from '@fg2/shared-types/v1';
-import { useRemoveAlert } from '@/api/alerts';
+import { useRemoveAlerts } from '@/api/alerts';
 import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { unitOf, willTell } from '@/screens/control/alarms/rules';
@@ -35,6 +35,8 @@ interface AlertProps {
   /** The account behind the routing and the clock times; undefined until it has answered. */
   me: Me | undefined;
   mayManage: boolean;
+  /** Whether the place it names is one in use: a place that has ended has no Verlauf to open. */
+  placed: boolean;
   now: DateTime;
 }
 
@@ -79,17 +81,20 @@ export function AlertCard({ heardAt = null, ...props }: AlertProps & { heardAt?:
  * Something that is over: a row that says what it was, where and when it
  * ended, and opens the whole of it - how far it went, which rule, and the two
  * things left to do with it: look at the curves of that hour, or delete it.
- * Episodes of one kind on one day are one row (`count`, `since`), which opens
- * the newest.
+ * Episodes of one kind on one day are one row (`fold`, their ids, and
+ * `since`), which opens the newest and deletes them all. The row says where
+ * (`elsewhere`) unless that is the reader's only place; `again` is the same
+ * thing standing open once more, of which nothing is said to be back in range.
  */
-export function ResolvedRow({ count, since, ...props }: AlertProps & { count: number; since: string }) {
+export function ResolvedRow(props: AlertProps & { fold: string[]; since: string; elsewhere: boolean; again: boolean }) {
   const { t } = useTranslation();
-  const { alert, rule, names, me, now } = props;
+  const { alert, rule, names, me, now, fold, since, elsewhere } = props;
   const [open, setOpen] = useKept(`whole-${alert.id}`, false);
   const zone = zoneOf(me);
   const title = titleOf(t, alert, rule, names, spanOf(t, alert));
+  const count = fold.length;
   const line = [
-    names.spaces.size > 1 && alert.spaceId ? names.spaces.get(alert.spaceId) : null,
+    elsewhere ? alert.spaceName : null,
     dayStamp(alert.resolvedAt ?? alert.startedAt, now, zone),
     count > 1 ? t('home.entryRepeats', { count, since: sinceLabel(since, now, zone) }) : null,
   ];
@@ -132,21 +137,22 @@ function Said({
   title,
   told = null,
   heardAt = null,
-}: Omit<AlertProps, 'mayManage'> & { title: string | null; told?: Told; heardAt?: string | null }) {
+  again = false,
+}: Omit<AlertProps, 'mayManage' | 'placed'> & { title: string | null; told?: Told; heardAt?: string | null; again?: boolean }) {
   const { t } = useTranslation();
   const device = (alert.deviceId && names.devices.get(alert.deviceId)) || null;
   const zone = zoneOf(me);
-  const parts: Part[] = [
-    { text: whenOf(t, alert, now, zone), known: true },
+  const facts = [
+    whenOf(t, alert, now, zone),
     ...placeOf(t, alert, names, device),
-    ...stateOf(t, alert, rule, heardAt ? t('alerts.last', { time: sinceLabel(heardAt, now, zone) }) : null).map(text => ({ text, known: true })),
+    ...stateOf(t, alert, rule, heardAt ? t('alerts.last', { time: sinceLabel(heardAt, now, zone) }) : null, again),
   ];
 
   return (
     <div className={styles.said}>
       {title ? <p className={styles.title}>{title}</p> : null}
       <p className={styles.line}>
-        <Facts facts={parts.map(part => (part.known ? part.text : <span className={styles.unnamed}>{part.text}</span>))} />
+        <Facts facts={facts} />
       </p>
       <p className={styles.meta}>
         <Facts facts={metaOf(t, alert, rule, device, me, now, told)} />
@@ -155,40 +161,19 @@ function Said({
   );
 }
 
-/** A word of the first line, and whether it is a name or the bare id something is known by. */
-interface Part {
-  text: string;
-  known: boolean;
-}
-
 /**
- * What something is called, or the id it is known by once a read has come back
- * without a name for it. A list still on its way says nothing rather than
- * flashing an id that a name is about to replace; a list that was refused says
- * the id, because a card whose place has quietly gone missing is a card about
- * nothing in particular.
+ * Where it stands or happened: the place by the name the alert carries, and
+ * with it the device where another one stands there and naming it is the only
+ * way to tell two cards apart. An alert that names no place is placed by the
+ * device it came from; a camera and a device gone quiet are named by the title.
  */
-const nameOrId = (name: string | undefined, id: string, names: AlertNames): Part | null =>
-  name !== undefined ? { text: name, known: true } : names.pending ? null : { text: id, known: false };
+const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device | null): string[] => {
+  const told =
+    device !== null &&
+    alert.kind !== 'offline' &&
+    (alert.spaceName === null || [...names.devices.values()].some(one => one.id !== device.id && one.spaceId === alert.spaceId));
 
-/**
- * Where it happened: the space, and with it the device where the space holds
- * more than one and naming it is the only way to tell two cards apart. An alert
- * that names no space is placed by the device it came from; a camera and a
- * device gone quiet are named by the title.
- */
-const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device | null): Part[] => {
-  if (alert.spaceId) {
-    const space = nameOrId(names.spaces.get(alert.spaceId), alert.spaceId, names);
-    // The title of a device gone quiet names it already.
-    const crowded = alert.kind !== 'offline' && (names.devicesInSpace.get(alert.spaceId) ?? 0) > 1;
-
-    return [space, device && crowded ? { text: deviceName(device, t), known: true } : null].filter(part => part !== null);
-  }
-  if (alert.deviceId && alert.kind !== 'offline')
-    return [device ? { text: deviceName(device, t), known: true } : nameOrId(undefined, alert.deviceId, names)].filter(part => part !== null);
-
-  return [];
+  return [alert.spaceName, told ? deviceName(device, t) : null].filter(part => part !== null);
 };
 
 /**
@@ -212,11 +197,13 @@ const whenOf = (t: Translate, alert: Alert, now: DateTime, zone: string | null):
  * crossed, or how long an output was asked to pause -, and once it is over
  * how far it went and that it is over. An episode its rule stopped watching -
  * the stage's "too humid" resting in germination - did not get better, and is
- * not said to have.
+ * not said to have; neither is one whose rule stands open again (`again`),
+ * which the line under it dates the end of.
  */
-const stateOf = (t: Translate, alert: Alert, rule: AlarmRule | null, last: string | null): string[] => {
+const stateOf = (t: Translate, alert: Alert, rule: AlarmRule | null, last: string | null, again: boolean): string[] => {
   const what = alert.kind === 'threshold' ? watchedOf(alert, rule) : null;
   const figures = what ? figuresOf(t, alert, what, last) : [];
+  if (alert.resolvedAt && again) return figures;
   if (alert.resolvedAt)
     return [...figures, t(`alerts.state.${alert.rested ? 'rested' : what?.watch.kind === 'output_running' ? 'running' : alert.kind}`)];
 
@@ -333,28 +320,32 @@ const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): stri
 /**
  * What can be done with an alert, in one row. Its curves are for everybody
  * who sees the place, and a camera that stopped delivering is looked at.
- * Behind ⋯ is the rest: the page of a device gone quiet; for whoever manages
- * the place an hour of silence for the rule - which holds for everybody - and
- * the rule itself; and the notification settings where the alert reaches
- * nobody. Once it is over it can be deleted - asked first, because it goes
- * for everyone the place is shared with.
+ * Behind ⋯ is the rest - one thing alone stands in the row itself: the page
+ * of a device gone quiet; for whoever manages the place the device stands in
+ * an hour of silence for the rule - which holds for everybody - and the rule
+ * itself; and the notification settings where the alert reaches nobody. Once
+ * it is over it can be deleted, a folded row whole (`fold`) - asked first,
+ * because it goes for everyone the place is shared with.
  */
 function Actions({
   alert,
   rule,
   names,
   mayManage,
+  placed,
   now,
   title,
   unreached = false,
+  fold = [alert.id],
   onRemoved,
-}: AlertProps & { title: string; unreached?: boolean; onRemoved?: () => void }) {
+}: AlertProps & { title: string; unreached?: boolean; fold?: string[]; onRemoved?: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
   // The silence is offered only where the alert names a device, so the empty id is never sent.
   const silence = useSilence(rule, alert.deviceId ?? '', now);
-  const remove = useRemoveAlert();
+  const remove = useRemoveAlerts();
   const [asking, setAsking] = useState(false);
+  const count = fold.length;
   const open = alert.resolvedAt === null;
   const camera = alert.kind === 'camera_stale';
   const ruled = open && mayManage && !camera && rule !== null;
@@ -367,7 +358,7 @@ function Actions({
     ruled && alert.deviceId ? (
       <button key="silence" type="button" disabled={silence.busy} onClick={silence.toggle}>
         {t(silence.silenced ? 'alerts.action.unsilenceRule' : 'alerts.action.silenceRule')}
-        <span className={styles.line}>{t('alerts.action.forAll')}</span>
+        {alert.spaceId ? <span className={styles.line}>{t('alerts.action.forAll')}</span> : null}
       </button>
     ) : null,
     ruled && alert.spaceId ? (
@@ -385,9 +376,9 @@ function Actions({
   return (
     <>
       <div className={styles.actions}>
-        {alert.spaceId ? <Link to={timelineOf(alert.spaceId, alert, rule)}>{t('alerts.action.timeline')}</Link> : null}
+        {alert.spaceId && placed ? <Link to={timelineOf(alert.spaceId, alert, rule)}>{t('alerts.action.timeline')}</Link> : null}
         {open && camera && alert.cameraId ? <Link to={`/cameras/${alert.cameraId}`}>{t('alerts.action.checkCam')}</Link> : null}
-        {more.length > 0 ? <Menu label={t('grow.menu.label', { name: title })}>{more}</Menu> : null}
+        {more.length > 1 ? <Menu label={t('grow.menu.label', { name: title })}>{more}</Menu> : more}
         {!open && mayManage ? (
           <button type="button" disabled={remove.isPending} aria-expanded={asking} onClick={() => setAsking(!asking)}>
             {t('alerts.action.remove')}
@@ -396,14 +387,14 @@ function Actions({
       </div>
       {asking ? (
         <Asking
-          note={t('alerts.remove.ask')}
-          yes={t('alerts.action.remove')}
+          note={t('alerts.remove.ask', { count })}
+          yes={count > 1 ? t('alerts.remove.many', { count }) : t('alerts.action.remove')}
           danger
           busy={remove.isPending}
           onYes={() =>
-            remove.mutate(alert.id, {
+            remove.mutate(fold, {
               onSuccess: () => {
-                tell({ label: t('alerts.told.removed'), undo: null });
+                tell({ label: t('alerts.told.removed', { count }), undo: null });
                 onRemoved?.();
               },
             })

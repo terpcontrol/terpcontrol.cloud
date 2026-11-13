@@ -81,8 +81,13 @@ export interface CompleteOptions {
 /** Something that was done already, said in the toast with the way to take it back - where it can be taken back whole. */
 export interface Told {
   label: string;
-  /** Takes it back; a refusal is said in the toast, which then offers to try again. Null where there is no taking it back. */
+  /**
+   * Takes it back, and the toast answers in its place: "Undone: <label>". A refusal is said there too, with the offer
+   * to try again. Null where there is no taking it back.
+   */
   undo: (() => Promise<unknown>) | null;
+  /** What holds again once it is taken back, where the label taken back would read wrong: "Undone · <this>". */
+  undone?: string;
   /** The control that was used, where it may be used again at once - a switch, a stepper: its next toast takes this one's place. */
   from?: string;
 }

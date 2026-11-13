@@ -1971,7 +1971,8 @@
     "litresNoNumber": "Das ist keine Zahl.",
     "litresTooMuch": "Höchstens {{max}} l.",
     "corrected": "Eintrag berichtigt",
-    "takenBack": "Eintrag widerrufen"
+    "takenBack": "Eintrag widerrufen",
+    "undone": "Widerrufen"
   },
   "timeline": {
     "rangeLabel": "Zeitraum",
@@ -3020,7 +3021,8 @@
       "quiet": "Ruhezeiten {{from}}–{{to}}",
       "unlinked": "Telegram getrennt",
       "email": "E-Mail an {{address}}",
-      "webhook": "Webhook an {{host}}"
+      "webhook": "Webhook an {{host}}",
+      "mail": "{{what}} per E-Mail an {{address}}"
     }
   },
   "notify": {
@@ -3031,19 +3033,9 @@
     "to": "an {{email}}",
     "other": "Andere Wege",
     "later": "Später",
-    "done": "Kritische Alarme kommen jetzt per E-Mail an {{email}}.",
     "reaches": "Kritische Alarme erreichen dich per {{channels}}.",
     "change": "Ändern",
-    "titleRows": "{{what}} erreichen dich nicht",
-    "doneRows": "{{what}} kommen jetzt per E-Mail an {{email}}.",
-    "row": {
-      "alerts": "kritische Alarme",
-      "warnings": "Warnungen der Cam",
-      "tasks": "Erinnerungen an Aufgaben",
-      "plan": "Fragen des Grow-Plans",
-      "weekly_timelapse": "der Wochenfilm"
-    },
-    "and": "und"
+    "titleRows": "{{what}} erreichen dich nicht"
   },
   "alerts": {
     "bell_one": "Meldungen · {{count}} offen",
@@ -3072,7 +3064,9 @@
       "forAll": "gilt für alle, die den Ort sehen"
     },
     "remove": {
-      "ask": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt."
+      "ask_one": "Die Meldung wird für alle gelöscht, mit denen du den Ort teilst. Ihre Zeile im Verlauf bleibt.",
+      "ask_other": "{{count}} Meldungen werden für alle gelöscht, mit denen du den Ort teilst. Ihre Zeilen im Verlauf bleiben.",
+      "many": "{{count}} Meldungen löschen"
     },
     "nothing": "Gerade ist nichts offen.",
     "output": {
@@ -3097,7 +3091,7 @@
       "warning": "Warnung",
       "info": "Info"
     },
-    "namesFailed": "Namen nicht lesbar · Orte, Geräte und Cams stehen mit ihrer Id",
+    "namesFailed": "Namen nicht lesbar · Geräte und Cams stehen ohne Namen",
     "bellTasks_one": "Meldungen · {{count}} Aufgabe fällig",
     "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig",
     "back": "Zurück zu Meldungen",
@@ -3111,7 +3105,8 @@
     "told": {
       "muted": "Alles stumm bis {{time}}",
       "loud": "Wieder laut",
-      "removed": "Meldung gelöscht"
+      "removed_one": "Meldung gelöscht",
+      "removed_other": "{{count}} Meldungen gelöscht"
     },
     "title": {
       "high": "{{what}} zu hoch",
@@ -3723,7 +3718,7 @@
     },
     "emailAlarms": {
       "title": "Alarme per E-Mail",
-      "text": "Solange kein Weg eingerichtet ist, meldet sich nichts bei dir: kein Alarm, auch „Gerät offline“ nicht, keine fällige Aufgabe und keine Cam, die nichts mehr liefert. Ein Tipp schickt per E-Mail an die Adresse, mit der du dich anmeldest, was sich bei dir melden kann: kritische Alarme eines Geräts, die Warnung einer Cam und die Erinnerungen an deine Aufgaben. Alles andere bleibt, wie es ist. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
+      "text": "Solange kein Weg eingerichtet ist, meldet sich nichts bei dir: kein Alarm, auch „Gerät offline“ nicht, keine fällige Aufgabe und keine Cam, die nichts mehr liefert. Ein Tipp schickt per E-Mail an die Adresse, mit der du dich anmeldest, was sich bei dir melden kann: mit einem Gerät die kritischen Alarme, mit einer Cam die Warnungen, mit einem Tagebuch die fälligen Aufgaben. Alles andere bleibt, wie es ist. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
     },
     "quietHours": {
       "title": "Ruhezeiten",
@@ -4139,8 +4134,7 @@
         "sees_one": "{{people}} sieht es jetzt mit",
         "sees_other": "{{people}} sehen es jetzt mit",
         "seesNoMore_one": "{{people}} sieht es nicht mehr",
-        "seesNoMore_other": "{{people}} sehen es nicht mehr",
-        "undone": "Widerrufen"
+        "seesNoMore_other": "{{people}} sehen es nicht mehr"
       },
       "devices": "Geräte hier",
       "bring": "Gerät hierher holen",

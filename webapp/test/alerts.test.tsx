@@ -73,7 +73,7 @@ const alert = (over: Partial<Alert>): Alert => ({
   deviceId: 'device-1',
   cameraId: null,
   spaceId: 'space-1',
-  spaceName: 'Tent',
+  spaceName: 'Flower room B',
   kind: 'threshold',
   severity: 'critical',
   startedAt: iso(NOW.minus({ hours: 2, minutes: 20 })),
@@ -160,6 +160,8 @@ const server = {
   older: [] as Alert[],
   rules: [] as AlarmRule[],
   places: [{ id: 'space-1', name: 'Flower room B' }],
+  /** The reader's own places that have ended, which only `?archived=true` lists. */
+  ended: [] as { id: string; name: string }[],
   devices: [deviceRow()],
   cameras: [{ id: 'cam-2', name: 'Cam 2' }] as Record<string, unknown>[],
   /** The builds a device is offered, by its id. */
@@ -167,6 +169,8 @@ const server = {
   me,
   home: [] as HomeSpaceCard[],
   tasks: [] as Task[],
+  /** The grows a task can be about, each with where it stands. */
+  grows: [] as Record<string, unknown>[],
   sent: [] as { method: string; path: string; body: unknown }[],
 };
 
@@ -188,6 +192,8 @@ const answer = (method: string, path: string, body: unknown): Response => {
   // What a card offers - silencing the rule - is `manage` where the alert happened, so the space list carries the standing.
   if (method === 'GET' && path === '/v1/spaces')
     return json({ items: server.places.map(place => spaceWhere(state.youMay, place)), nextCursor: null });
+  if (method === 'GET' && path === '/v1/spaces?archived=true')
+    return json({ items: server.ended.map(place => spaceWhere('own', { ...place, archivedAt: iso(NOW) })), nextCursor: null });
   if (method === 'GET' && path === '/v1/devices') return json({ items: server.devices, nextCursor: null });
   const builds = /^\/v1\/devices\/([^/]+)\/firmwares$/.exec(path);
   if (method === 'GET' && builds) return json({ items: server.builds[builds[1]] ?? [], nextCursor: null });
@@ -198,6 +204,7 @@ const answer = (method: string, path: string, body: unknown): Response => {
   if (method === 'GET' && rules) return json({ items: server.rules.filter(one => one.deviceId === rules[1]), nextCursor: null });
   if (method === 'GET' && path === '/v1/me') return json(server.me);
   if (method === 'GET' && path.startsWith('/v1/tasks')) return json({ items: server.tasks, nextCursor: null });
+  if (method === 'GET' && path.startsWith('/v1/grows')) return json({ items: server.grows, nextCursor: null });
   if (method === 'PUT' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
   if (method === 'DELETE' && path.startsWith('/v1/alarm-rules/')) return json(server.rules[0]);
   if (method === 'DELETE' && path.startsWith('/v1/alerts/')) {
@@ -229,12 +236,14 @@ beforeEach(() => {
   server.older = [];
   server.rules = [];
   server.places = [{ id: 'space-1', name: 'Flower room B' }];
+  server.ended = [];
   server.devices = [deviceRow()];
   server.cameras = [{ id: 'cam-2', name: 'Cam 2' }];
   server.builds = {};
   server.me = me;
   server.home = [];
   server.tasks = [];
+  server.grows = [];
   server.sent = [];
   vi.stubGlobal(
     'fetch',
@@ -345,6 +354,7 @@ describe('the inbox', () => {
       alert({
         id: 'blip',
         spaceId: 'space-2',
+        spaceName: 'Cellar',
         startedAt: iso(NOW.minus({ hours: 2 })),
         resolvedAt: iso(NOW.minus({ hours: 2 }).plus({ seconds: 20 })),
       }),
@@ -382,7 +392,19 @@ describe('the inbox', () => {
         ['Humidity too low for 1 h', stamp(NOW.minus({ hours: 4 }))],
       ]),
     );
-    expect(await openRow(/^Humidity too high/)).toHaveAccessibleName('Humidity too high for 4 min');
+    const sheet = await openRow(/^Humidity too high/);
+    expect(sheet).toHaveAccessibleName('Humidity too high for 4 min');
+
+    // "Delete" on the row is the row: every episode folded into it, asked for by their number and answered once.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
+    expect(within(sheet).getByText(/^3 alerts are deleted for everyone you share the place with/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete 3 alerts' }));
+
+    await waitFor(() =>
+      expect(sentTo('DELETE', '/v1/alerts/').map(one => one.path)).toEqual(['/v1/alerts/third', '/v1/alerts/second', '/v1/alerts/first']),
+    );
+    expect(await screen.findAllByText('3 alerts deleted')).toHaveLength(1);
+    await waitFor(() => expect(overRows()).toEqual([['Humidity too low for 1 h', stamp(NOW.minus({ hours: 4 }))]]));
   });
 
   it('says what happened, since when, where and how far out, then which rule raised it and how it will go on', async () => {
@@ -413,6 +435,22 @@ describe('the inbox', () => {
     more(card);
     expect(within(card).getByRole('button', { name: /^Silence this rule 1 h/ })).toHaveTextContent('holds for everyone who sees the place');
     expect(within(card).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
+  });
+
+  /** An open alert stands where its device stands: the server moves it with the device, and every way on leads there. */
+  it('names the place the device stands in now, and opens its curves and its rule there', async () => {
+    server.places = [...server.places, { id: 'space-2', name: 'Cellar' }];
+    server.devices = [deviceRow({ spaceId: 'space-2' })];
+    server.alerts = [alert({ spaceId: 'space-2', spaceName: 'Cellar' })];
+    server.rules = [rule()];
+    draw();
+
+    const [card] = await waitFor(() => openCards());
+    expect(within(card).getByText(reading(`${since} · Cellar · 68 % · above 60 %`))).toBeInTheDocument();
+    expect((await within(card).findByRole('link', { name: 'Open timeline' })).getAttribute('href')).toMatch(
+      /^\/timeline\?space=space-2&device=device-1&/,
+    );
+    expect(within(more(card)).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-2&rule=rule-1');
   });
 
   /** A place may hold a second climate, so the curves an alert opens are those of the device it came from. */
@@ -650,35 +688,40 @@ describe('the inbox', () => {
     expect(await screen.findByText(reading(`${since} · Flower room B · Blue Dream tent · 68 % · above 60 %`))).toBeInTheDocument();
   });
 
-  it('draws the cards as soon as the alerts are there, waiting for no name to do it', async () => {
+  it('draws the cards as soon as the alerts are there, under the place each names, waiting for no list to do it', async () => {
     let arrive = () => {};
     state.hold = {
-      path: '/v1/spaces',
+      path: '/v1/cameras',
       until: new Promise<void>(resolve => {
         arrive = resolve;
       }),
     };
-    server.alerts = [alert({})];
-    server.rules = [rule()];
+    server.alerts = [alert({}), alert({ id: 'cam', kind: 'camera_stale', ruleId: null, deviceId: null, cameraId: 'cam-2', value: 5400 })];
     draw();
 
-    expect(await screen.findByText(reading(`${since} · 68 % · above 60 %`))).toBeInTheDocument();
+    expect(await screen.findByText(reading(`${since} · Flower room B · 68`))).toBeInTheDocument();
+    expect(screen.getByText('Camera without a picture')).toBeInTheDocument();
     arrive();
-    expect(await screen.findByText(reading(`${since} · Flower room B · 68 % · above 60 %`))).toBeInTheDocument();
+    expect(await screen.findByText('Cam 2 without a picture')).toBeInTheDocument();
   });
 
-  it('falls back to the id when a name cannot be read, and says that it could not', async () => {
+  it('says the kind of thing where a name cannot be read, never an id, and says that it could not', async () => {
     state.refuse = {
       method: 'GET',
-      path: '/v1/spaces',
+      path: '/v1/devices',
       problem: { status: 503, code: 'unavailable', title: 'Unavailable', detail: 'Try again.', errors: [] },
     };
-    server.alerts = [alert({})];
-    server.rules = [rule()];
+    server.alerts = [
+      alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: 1500 }),
+      alert({ id: 'nowhere', spaceId: null, spaceName: null }),
+    ];
     draw();
 
-    expect(await screen.findByText(reading(`${since} · space-1 · 68 % · above 60 %`))).toBeInTheDocument();
-    expect(screen.getByText('Could not read the names · places, devices and cams are shown by their id')).toBeInTheDocument();
+    // A device gone quiet is known by the place it stands in; one that stands in none by nothing but what went wrong.
+    expect(await screen.findByLabelText('warning · Flower room B offline')).toBeInTheDocument();
+    expect(screen.getByText(reading(`${since} · 68`))).toBeInTheDocument();
+    expect(screen.queryByText(/device-1|space-1/)).not.toBeInTheDocument();
+    expect(screen.getByText('Could not read the names · devices and cams are shown without one')).toBeInTheDocument();
   });
 
   it('reads what is open once for the bell and the list together', async () => {
@@ -715,8 +758,9 @@ describe('the inbox', () => {
     fireEvent.click(within(quiet).getByRole('button', { name: 'What you can do ›' }));
     expect(within(quiet).getByText(/^Power: is the adapter plugged in/)).toBeInTheDocument();
     expect(within(quiet).getByText(/^Unplug the device, wait 10 seconds/)).toBeInTheDocument();
-    expect(within(more(quiet)).getByRole('link', { name: 'To the device' })).toHaveAttribute('href', '/devices/device-1');
-    expect(within(quiet).queryByRole('button', { name: /^Silence this rule/ })).not.toBeInTheDocument();
+    // The one thing a ⋯ would hold stands in the row itself.
+    expect(within(quiet).getByRole('link', { name: 'To the device' })).toHaveAttribute('href', '/devices/device-1');
+    expect(within(quiet).queryByRole('button', { name: /^More about|^Silence this rule/ })).not.toBeInTheDocument();
   });
 
   /** A reading of a device that has gone silent since is an old one: it says so, and stands under what is about now. */
@@ -922,6 +966,53 @@ describe('the inbox', () => {
     expect(within(sheet).queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
   });
 
+  it('does not say an episode is back in range while its rule stands open again, only when it ended', async () => {
+    server.alerts = [
+      alert({ id: 'open-1', startedAt: iso(NOW.minus({ minutes: 20 })) }),
+      alert({ id: 'over-1', resolvedAt: iso(NOW.minus({ hours: 1 })) }),
+    ];
+    server.rules = [rule()];
+    draw();
+
+    const sheet = await openRow(/^Humidity too high for 1 h/);
+    expect(
+      within(sheet).getByText(reading(`${clock(NOW.minus({ hours: 2, minutes: 20 }))} · Flower room B · worst 71 % · above 60 %`)),
+    ).toBeInTheDocument();
+    expect(within(sheet).getByText(reading(`Humidity high · critical · until ${clock(NOW.minus({ hours: 1 }))}`))).toBeInTheDocument();
+    expect(within(sheet).queryByText(/back in range/)).not.toBeInTheDocument();
+  });
+
+  /** What is over keeps the place it happened in, and an ended place is in no list of places in use. */
+  describe('an episode in a place that has ended since', () => {
+    beforeEach(() => {
+      server.alerts = [alert({ id: 'over-1', spaceId: 'space-gone', spaceName: 'Old tent', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
+      server.rules = [rule()];
+    });
+
+    it('is named by the place it happened in and deleted by its owner, and offers no curves of a place that has none', async () => {
+      server.ended = [{ id: 'space-gone', name: 'Old tent' }];
+      draw();
+
+      await waitFor(() => expect(overRows()).toEqual([['Humidity too high for 1 h', `Old tent · ${stamp(NOW.minus({ hours: 1 }))}`]]));
+      const sheet = await openRow(/^Humidity too high for 1 h/);
+      expect(within(sheet).getByText(reading(/ · Old tent · worst 71 % · above 60 % · back in range since then$/))).toBeInTheDocument();
+      expect(within(sheet).queryByRole('link', { name: 'Open timeline' })).not.toBeInTheDocument();
+      fireEvent.click(await within(sheet).findByRole('button', { name: 'Delete' }));
+      fireEvent.click(within(sheet).getAllByRole('button', { name: 'Delete' })[1]);
+
+      await waitFor(() => expect(sentTo('DELETE', '/v1/alerts/over-1')).toHaveLength(1));
+    });
+
+    it('offers no delete to a reader whose ended places do not hold it', async () => {
+      draw();
+
+      const sheet = await openRow(/^Humidity too high for 1 h/);
+      await waitFor(() => expect(sentTo('GET', '/v1/spaces?archived=true')).toHaveLength(1));
+      expect(within(sheet).getByText(reading(/ · Old tent · /))).toBeInTheDocument();
+      expect(within(sheet).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    });
+  });
+
   it('deletes an episode that is over once asked and says so, and offers no delete on one still open', async () => {
     server.alerts = [alert({ id: 'open-1' }), alert({ id: 'over-1', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
     server.rules = [rule()];
@@ -1095,14 +1186,15 @@ describe('the inbox', () => {
     await waitFor(() => expect(screen.getAllByText(reading(/ · Flower room B · 68 % · above 60 %$/))).toHaveLength(2));
     await waitFor(() => expect(readsOf('/v1/devices/device-1/alarm-rules')).toHaveLength(1));
     expect(readsOf('/v1/devices/device-2/alarm-rules')).toHaveLength(0);
+    // The places in use say what a card offers; the ended ones are asked for only by an alert whose place is not among them.
     expect(readsOf('/v1/spaces')).toHaveLength(1);
     expect(readsOf('/v1/devices')).toHaveLength(1);
     expect(readsOf('/v1/cameras')).toHaveLength(1);
-    // Both halves of the list, the three names, the account behind the mute,
-    // the home that says what is due, and one rule list: eight reads for two
-    // alerts on one of two devices. Neither device has its updates off, so
-    // none is asked for its builds.
-    expect(server.sent.filter(one => one.method === 'GET').map(one => one.path.split('?')[0])).toHaveLength(8);
+    // Both halves of the list, the places and the two names, the account behind the mute,
+    // the home, one rule list, and what is due - the tasks, for whoever steers a
+    // place, and the grows they can be about: ten reads for two alerts on one of
+    // two devices. Neither device has its updates off, so none is asked for its builds.
+    expect(server.sent.filter(one => one.method === 'GET').map(one => one.path.split('?')[0])).toHaveLength(10);
   });
 
   /** The inbox with one alert open, a little over two live beats after it was drawn. */
@@ -1130,7 +1222,7 @@ describe('the inbox', () => {
     expect(readsOf('/v1/devices/device-1/alarm-rules')).toHaveLength(1);
   });
 
-  /** A name changes when somebody renames something, never on its own: three lists re-read every beat were most of what this screen asked. */
+  /** A name changes when somebody renames something, never on its own: lists re-read every beat were most of what this screen asked. */
   it('reads the names at a walk too', async () => {
     await twoBeatsOn();
 
@@ -1326,21 +1418,21 @@ describe('the bell', () => {
  * Tasks have no tab of their own: whoever keeps a diary finds what is due
  * behind the bell, beside everything else that is waiting on them, with the
  * way to the whole list under it. The rows are Start's rows, and they and the
- * bell's count are one read - the task list, as `/tasks` filters it under
- * "Mine" - so the two agree and neither counts somebody else's task. An
- * account that keeps no diary is not asked for a list, and the demo, which
- * may settle nothing, is offered none.
+ * bell's count are one read - the task list's "Today" under "Mine", less what
+ * the reader may not settle - so the two agree. Without a diary only a step
+ * of the grow plan waits, for whoever steers a place; the demo, which may
+ * settle nothing, is offered none.
  */
 describe('what is due', () => {
   const due = (id: string, label: string, dueAt: DateTime, over: Record<string, unknown> = {}) =>
     ({ id, kind: 'water', label, dueAt: iso(dueAt), subject: { type: 'grow', id: 'grow-1' }, assigneeId: null, defaults: null, ...over }) as Task;
-  const growing = { growId: 'grow-1', name: 'Spring run' } as HomeSpaceCard['grow'];
   const step = due('step-1', 'Week 3', NOW.minus({ minutes: 30 }), { source: 'plan_step', subject: { type: 'space', id: 'space-1' } });
   const tasks = () => screen.getByRole('region', { name: 'Tasks' });
 
   beforeEach(() => {
     server.me = keepsDiary;
-    server.home = [card({ grow: growing })];
+    server.home = [card()];
+    server.grows = [{ id: 'grow-1', ownerId: THE_HOST, name: 'Spring run', placements: [{ spaceId: 'space-1', endedAt: null }] }];
   });
 
   it('lists what is due for the reader with the tap that settles each, and leads to the whole list', async () => {
@@ -1372,14 +1464,49 @@ describe('what is due', () => {
   });
 
   it('says where a task is due, before since when, once there are several places', async () => {
-    server.home = [card({ grow: growing }), card({ spaceId: 'space-2', name: 'Mother tent' })];
-    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 })), step];
+    server.home = [card(), card({ spaceId: 'space-2', name: 'Mother tent' })];
+    server.tasks = [
+      due('t1', 'Water', NOW.minus({ hours: 2 })),
+      due('t2', 'Clean the filter', NOW.minus({ hours: 1 }), { kind: 'chore', subject: { type: 'space', id: 'space-1' } }),
+      step,
+    ];
     draw();
 
     expect(
       await within(await screen.findByRole('region', { name: 'Tasks' })).findByText(reading(/^Spring run · Flower room B · due since \d\d:\d\d$/)),
     ).toBeInTheDocument();
+    // A task about a place names the place, as the task list does, and not the grow standing there.
+    expect(within(tasks()).getAllByRole('listitem')[1]).toHaveTextContent(/^Clean the filterFlower room B · due since \d\d:\d\dDone$/);
     expect(within(tasks()).getByText(reading(/^grow plan · Flower room B · due since \d\d:\d\d$/))).toBeInTheDocument();
+  });
+
+  it('offers a guest who may only log the diary´s tasks and no step of the plan, and one who may only look nothing', async () => {
+    state.youMay = 'log';
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 })), step];
+    const { unmount } = draw(
+      <>
+        <Rail />
+        <Alerts />
+      </>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Alerts · 1 task due' })).toBeInTheDocument();
+    expect(within(tasks()).getByRole('button')).toHaveAccessibleName('Log: Water');
+    unmount();
+
+    state.youMay = 'view';
+    server.sent = [];
+    draw(
+      <>
+        <Rail />
+        <Alerts />
+      </>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'All tasks and reminders ›' })).toBeInTheDocument();
+    await waitFor(() => expect(readsOf('/v1/grows')).not.toHaveLength(0));
+    expect(within(tasks()).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Alerts' })).toBeInTheDocument();
   });
 
   it('keeps the way to the list where nothing is due', async () => {
@@ -1437,8 +1564,24 @@ describe('what is due', () => {
     expect(within(bell).getByText('1')).toHaveAttribute('data-kind', 'alerts');
   });
 
-  it('offers an account that keeps no diary no tasks, and asks it for no list', async () => {
+  it('counts and offers a step of the grow plan without a diary, to whoever steers a place, and nothing of the diary´s', async () => {
     server.me = me;
+    server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 }), { subject: { type: 'space', id: 'space-1' } }), step];
+    draw(
+      <>
+        <Rail />
+        <Alerts />
+      </>,
+    );
+
+    expect(await screen.findByRole('link', { name: 'Alerts · 1 task due' })).toBeInTheDocument();
+    expect(within(tasks()).getByRole('button')).toHaveAccessibleName('Confirm: Week 3');
+    expect(within(tasks()).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('offers an account that keeps no diary and steers no place no tasks, and asks it for no list', async () => {
+    server.me = me;
+    state.youMay = 'log';
     server.tasks = [due('t1', 'Water', NOW.minus({ hours: 2 }), { subject: { type: 'space', id: 'space-1' } })];
     draw(
       <>

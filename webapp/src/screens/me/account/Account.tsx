@@ -16,6 +16,7 @@ import { useNow } from '@/ui/useNow';
 import { useLog } from '@/log/log-context';
 import { browserZone, calendarDay, useZone, zoneNames } from '@/ui/zone';
 import { AccountPage, ExportRow, Menu, Row } from '../parts';
+import parts from '../parts.module.css';
 import { useSaveAccount } from '../save';
 import { DeleteRow } from './DeleteRow';
 import { deviceLabel, sortedSessions } from './sessions';
@@ -155,7 +156,7 @@ function PasswordRow({ held }: { held: boolean }) {
       below={
         open ? (
           <form
-            className={styles.fields}
+            className={parts.fields}
             onSubmit={event => {
               event.preventDefault();
               if (!ready) return;
@@ -172,7 +173,7 @@ function PasswordRow({ held }: { held: boolean }) {
           >
             {FIELDS.map(key => (
               <Fragment key={key}>
-                <label className={styles.field}>
+                <label className={parts.field}>
                   <span className="label">{t(`me.account.password.${key}`)}</span>
                   <input
                     className={ui.input}
@@ -187,7 +188,7 @@ function PasswordRow({ held }: { held: boolean }) {
               </Fragment>
             ))}
             {mismatch ? <p className={ui.problem}>{t('me.account.password.mismatch')}</p> : null}
-            <div className={styles.actions}>
+            <div className={parts.actions}>
               <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!ready}>
                 {change.isPending ? t('me.account.password.saving') : t('me.account.password.save')}
               </button>

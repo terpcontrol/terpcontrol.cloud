@@ -12,6 +12,9 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import styles from './Join.module.css';
 
+/** Names the window after the page, as `Nothing` does for an invitation that leads nowhere: the shell round them knows no title. */
+const useWindowTitle = (title: string) => useEffect(() => void (document.title = `${title} · Terp Control`), [title]);
+
 /**
  * `/join/{code}`: what somebody who was sent a link sees, and `/join` on its
  * own: where somebody who was read a code types it.
@@ -61,6 +64,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   const zone = useZone();
   const name = preview.spaceName ?? '';
   const here = `/join/${code}`;
+  useWindowTitle(t('space.members.join.title', { name }));
 
   // The sign-up page comes back here with this word once the account exists:
   // the person read the terms above before they went to make one, and made it
@@ -134,6 +138,7 @@ function CodeEntry() {
   const navigate = useNavigate();
   const [typed, setTyped] = useState('');
   const code = typed.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  useWindowTitle(t('space.members.join.code.title'));
 
   return (
     <section className={styles.invitation}>

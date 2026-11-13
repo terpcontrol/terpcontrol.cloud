@@ -522,6 +522,15 @@ describe('Steuerung of a place with several devices', () => {
     expect(head).not.toHaveTextContent('Control on');
   });
 
+  it('names a device that has not sent its settings as its card does: no tail of its id beside one of its kind standing elsewhere', async () => {
+    const unnamed = { ...device(), name: null, configuration: null };
+    state.devices = [unnamed, { ...unnamed, id: 'device-9', spaceId: 'space-2' }];
+    drawTab();
+
+    expect(await screen.findByText(/^Controller has not sent its settings yet/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Controller' })).toBeInTheDocument();
+  });
+
   it('says a heard lead regulates, and dates a place led by a device with no regulation of its own', async () => {
     state.devices = [{ ...device(), control: regulating }];
     const live = drawTab(null, '/control', here(['device-1']));

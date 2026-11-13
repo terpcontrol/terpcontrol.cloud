@@ -10,6 +10,7 @@ import { Refused } from '@/ui/PageState';
 import { HandleField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { Row } from '../parts';
+import parts from '../parts.module.css';
 import styles from './Account.module.css';
 
 /**
@@ -72,7 +73,7 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
       <div className={styles.asked}>
         <p>{t('me.account.delete.what')}</p>
         <p>{t('me.account.delete.grows')}</p>
-        <HandleField className={styles.field} label={t('me.account.delete.typeHandle', { handle })} value={typed} onChange={setTyped} />
+        <HandleField className={parts.field} label={t('me.account.delete.typeHandle', { handle })} value={typed} onChange={setTyped} />
         {typedHandle(typed) !== '' && !sure ? <p className={ui.problem}>{t('me.account.delete.notHandle')}</p> : null}
         <Refused error={remove.error} />
       </div>

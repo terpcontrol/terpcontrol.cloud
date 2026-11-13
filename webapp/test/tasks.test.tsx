@@ -872,9 +872,9 @@ describe('the sheet', () => {
 
 /**
  * Behind the bell: the bell's count and the inbox's "Tasks" are one read, the
- * task list as this page filters it under "Mine", so neither counts a task
- * with somebody else's name on it. It is read on the alerts' beat, by an
- * account that keeps a diary and by nobody else.
+ * task list as this page files it under "Today" and "Mine", less what the
+ * reader may not settle. It is read on the alerts' beat, by an account that
+ * keeps a diary or steers a place, and by nobody else.
  */
 describe('what is due for the reader, behind the bell', () => {
   const wire = { diary: true, home: [] as HomeSpaceCard[] };
@@ -898,7 +898,7 @@ describe('what is due for the reader, behind the bell', () => {
     vi.mocked(api.get).mockImplementation((path: string, query?: Record<string, unknown>) => {
       if (path === '/home') return Promise.resolve({ spaces: wire.home, followedGrows: [], people: [], layers: { diary: wire.diary } }) as never;
       if (path === '/me') return Promise.resolve({ preferences: { timezone: null }, layers: { diary: wire.diary } }) as never;
-      if (path === '/tasks' || path === '/spaces') return Promise.resolve(answers(path, query)) as never;
+      if (path === '/tasks' || path === '/spaces' || path === '/grows') return Promise.resolve(answers(path, query)) as never;
       return Promise.resolve({ items: [], nextCursor: null }) as never;
     });
   });
@@ -947,8 +947,36 @@ describe('what is due for the reader, behind the bell', () => {
     }
   });
 
-  it('asks an account that keeps no diary for no list, and offers it none', async () => {
+  it('counts and offers a member who may only log the diary´s tasks, and no step of the plan', async () => {
+    state.youMay = 'log';
+    drawInbox();
+
+    expect(await screen.findByRole('link', { name: 'Alerts · 2 tasks due' })).toBeInTheDocument();
+    expect(inbox().queryByRole('button', { name: /^Confirm/ })).not.toBeInTheDocument();
+  });
+
+  it('counts and lists nothing for somebody who may only look', async () => {
+    state.youMay = 'view';
+    drawInbox();
+
+    expect(await screen.findByRole('link', { name: 'All tasks and reminders ›' })).toBeInTheDocument();
+    await waitFor(() => expect(reads('/grows')).not.toHaveLength(0));
+    expect(screen.getByRole('link', { name: 'Alerts' })).toBeInTheDocument();
+    expect(inbox().queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('counts and offers a step of the grow plan to whoever steers a place without keeping a diary, and none of the diary´s', async () => {
     wire.diary = false;
+    drawInbox();
+
+    expect(await screen.findByRole('link', { name: 'Alerts · 1 task due' })).toBeInTheDocument();
+    expect(inbox().getByRole('button')).toHaveAccessibleName('Confirm: Late flower on day 36?');
+    expect(inbox().queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('asks an account that keeps no diary and steers no place for no list, and offers it none', async () => {
+    wire.diary = false;
+    state.youMay = 'log';
     drawInbox();
 
     expect(await screen.findByRole('heading', { name: 'Alerts', level: 1 })).toBeInTheDocument();

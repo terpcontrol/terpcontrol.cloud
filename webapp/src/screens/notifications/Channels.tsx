@@ -17,11 +17,12 @@ import { calendarDay, clock, zoneOf } from '@/ui/zone';
 import { useNow } from '@/ui/useNow';
 import { forgetId, pushKey, pushSupported, rememberedId, rememberId, subscribe, usePushSubscription } from './push';
 import { Row } from '@/screens/me/parts';
+import parts from '@/screens/me/parts.module.css';
 import { Switch } from '@/ui/Switch';
 import { useWriteNotifications } from './write';
 import { headersOf, headersText } from '@/ui/headers';
 import { useCallingRows } from './calling';
-import { categoriesOn, hostOf, listed, WEBHOOK_METHODS } from './settings';
+import { categoriesOn, hostOf, inWords, WEBHOOK_METHODS } from './settings';
 import styles from './Notifications.module.css';
 
 /**
@@ -46,9 +47,9 @@ const REPLYABLE: NotificationCategory[] = ['alerts', 'warnings', 'tasks'];
 /** The line under a card that is on: what the grid sends its way. */
 function Carries({ me, channel }: { me: Me; channel: NotificationChannel }) {
   const { t, i18n } = useTranslation();
-  const short = categoriesOn(me.notifications.routing, channel).map(category => t(`notifications.short.${category}`));
+  const rows = categoriesOn(me.notifications.routing, channel);
 
-  return <>{short.length > 0 ? listed(short, i18n.language) : t('notifications.nothingRouted')}</>;
+  return <>{rows.length > 0 ? inWords(t, i18n.language, rows, false) : t('notifications.nothingRouted')}</>;
 }
 
 /** The chip that opens a card's fields, drawn only while they are closed. */
@@ -67,7 +68,7 @@ function EditActions({ save, onCancel }: { save: boolean; onCancel: () => void }
   const { t } = useTranslation();
 
   return (
-    <div className={styles.actions}>
+    <div className={parts.actions}>
       <button type="submit" className={`${ui.button} ${ui.primary}`} disabled={!save}>
         {t('notifications.save')}
       </button>
@@ -305,7 +306,7 @@ export function EmailCard({ me, held }: CardProps) {
         <>
           {editing ? (
             <form
-              className={styles.fields}
+              className={parts.fields}
               onSubmit={event => {
                 event.preventDefault();
                 if (!typed) return;
@@ -313,7 +314,7 @@ export function EmailCard({ me, held }: CardProps) {
                 write({ channels: { ...me.notifications.channels, email: typed } }, t('notifications.told.email', { address: typed }));
               }}
             >
-              <label className={styles.field}>
+              <label className={parts.field}>
                 <span className="label">{t('notifications.email.address')}</span>
                 <input
                   className={ui.input}
@@ -399,7 +400,7 @@ export function WebhookCard({ me, held }: CardProps) {
         <>
           {editing ? (
             <form
-              className={styles.fields}
+              className={parts.fields}
               onSubmit={event => {
                 event.preventDefault();
                 if (!draft.url) return;
@@ -407,7 +408,7 @@ export function WebhookCard({ me, held }: CardProps) {
                 write({ channels: { ...me.notifications.channels, webhook: draft } }, t('notifications.told.webhook', { host: hostOf(draft.url) }));
               }}
             >
-              <label className={styles.field}>
+              <label className={parts.field}>
                 <span className="label">{t('notifications.webhook.url')}</span>
                 <input
                   className={`mono ${ui.input}`}
@@ -419,7 +420,7 @@ export function WebhookCard({ me, held }: CardProps) {
                   onChange={event => setUrl(event.target.value)}
                 />
               </label>
-              <div className={styles.field}>
+              <div className={parts.field}>
                 <span className="label">{t('notifications.webhook.method')}</span>
                 <Choices label={t('notifications.webhook.method')}>
                   {WEBHOOK_METHODS.map(one => (
@@ -429,7 +430,7 @@ export function WebhookCard({ me, held }: CardProps) {
                   ))}
                 </Choices>
               </div>
-              <label className={styles.field}>
+              <label className={parts.field}>
                 <span className="label">{t('notifications.webhook.headers')}</span>
                 <textarea
                   className={`mono ${ui.input} ${styles.text}`}

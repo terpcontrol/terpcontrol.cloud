@@ -1,23 +1,5 @@
 /* Ich › Konto: the sign-in rows, the zone, the list of sessions, and the two ways out. */
 
-.fields {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .sessions {
   display: flex;
   flex-direction: column;
@@ -104,6 +86,12 @@
   gap: var(--space-3);
   font-size: var(--text-sm);
   line-height: var(--line-body);
+}
+
+/* The handle to type is printed as it is written: in the label's capitals it would be another name. */
+.asked :global(.label) {
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* The zone menu holds four hundred place names, and a native select is as wide

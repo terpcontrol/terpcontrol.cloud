@@ -23,7 +23,7 @@ import {
   values,
   writes,
 } from './place-wire';
-import { spaceWhere, THE_HOST } from './session';
+import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
 /** Who reads Start: the grower, whoever runs the install, or the demo. */
@@ -60,13 +60,30 @@ const camera = (minutes = 5): SpaceOverview['cameras'][number] => ({
   litStill: null,
 });
 
-const due = (id: string, kind: string, label: string, subject: { type: 'grow' | 'space'; id: string }, minutes = 30) =>
-  ({ id, kind, label, dueAt: ago(minutes), subject, assigneeId: null, defaults: null }) as SpaceOverview['dueTasks'][number];
+/** A task waiting on the task list, which is what "Today" is drawn from, and a grow as the grows' list says where it stands. */
+const due = (id: string, kind: string, label: string, subject: { type: 'grow' | 'space'; id: string }, minutes = 30) => ({
+  id,
+  source: 'reminder',
+  kind,
+  label,
+  dueAt: ago(minutes),
+  subject,
+  assigneeId: null as string | null,
+});
+
+const standing = (spaceId: string | null, over: Record<string, unknown> = {}) => ({
+  id: 'grow-1',
+  ownerId: THE_HOST,
+  name: 'Spring run',
+  placements: [{ spaceId, endedAt: null }],
+  ...over,
+});
 
 const onePlace = (overview: SpaceOverview, diary = false) => {
   server.me = meOf(diary);
   server.home = homeOf([cardOf({ grow: overview.grows[0] ?? null })], diary);
   server.overviews.set('space-1', overview);
+  server.grows = overview.grows.map(grow => standing('space-1', { id: grow.growId, name: grow.name }));
 };
 
 const draw = (at = '/') =>
@@ -175,18 +192,14 @@ describe('Start of one place with a camera and a grow', () => {
   });
 
   it('lists what is due today: a watering opens the entry sheet on that kind, a chore is ticked off', async () => {
-    onePlace(
-      overviewOf({
-        grows: [growOf()],
-        dueTasks: [
-          due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' }),
-          due('task-2', 'chore', 'Clean the filter', { type: 'space', id: 'space-1' }),
-          // Tomorrow's is not today's.
-          due('task-3', 'feed', 'Feed', { type: 'grow', id: 'grow-1' }, -26 * 60),
-        ],
-      }),
-      true,
-    );
+    onePlace(overviewOf({ grows: [growOf()] }), true);
+    server.tasks = [
+      due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' }),
+      due('task-2', 'chore', 'Clean the filter', { type: 'space', id: 'space-1' }),
+      // Tomorrow's is not today's, and one with somebody else's name on it is not the reader's: the task list has both.
+      due('task-3', 'feed', 'Feed', { type: 'grow', id: 'grow-1' }, -26 * 60),
+      { ...due('task-4', 'chore', 'Trim', { type: 'space', id: 'space-1' }), assigneeId: 'user-mia' },
+    ];
     draw();
 
     const today = (await screen.findByRole('heading', { name: 'Today' })).closest('section')!;
@@ -808,14 +821,12 @@ describe('the states of Start', () => {
 
   it('says whose place it is to somebody let into it, what they may do, and who can change the targets', async () => {
     server.youMay = 'log';
-    onePlace(
-      overviewOf({
-        grows: [growOf()],
-        people: [{ id: THE_HOST, handle: 'host' }],
-        dueTasks: [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })],
-      }),
-      true,
-    );
+    onePlace(overviewOf({ grows: [growOf()], people: [{ id: THE_HOST, handle: 'host' }] }), true);
+    // A step of the plan is not sent to somebody who may not confirm it; were it, it is not theirs to settle.
+    server.tasks = [
+      due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' }),
+      { ...due('step-1', 'chore', 'Late flower', { type: 'space', id: 'space-1' }), source: 'plan_step' },
+    ];
     draw();
 
     // Whose place it is leads to who else is here, which is where a member leaves; a reader who may change
@@ -825,7 +836,8 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     // What a member may do is there: the watering is theirs to enter.
-    expect(screen.getByRole('button', { name: 'Log: Water' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Log: Water' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Confirm/ })).not.toBeInTheDocument();
     // What they may not is absent rather than refused: the targets are read, not opened.
     const targets = screen.getByRole('heading', { name: 'Targets' }).closest('section')!;
     expect(targets).toHaveTextContent('Day 25 °C · 60 % · CO₂ 900 ppm · Night 21 °C · 55 %');
@@ -836,6 +848,18 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('heading', { name: /What grows/ })).not.toBeInTheDocument();
   });
 
+  it('lists nothing as due to somebody who may only look, who could settle none of it', async () => {
+    server.youMay = 'view';
+    onePlace(overviewOf({ grows: [growOf()] }), true);
+    const grow = { type: 'grow' as const, id: 'grow-1' };
+    server.tasks = [due('task-1', 'water', 'Water', grow), due('task-2', 'chore', 'Clean', { type: 'space', id: 'space-1' })];
+    draw();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+    await waitFor(() => expect(server.calls).toEqual(expect.arrayContaining(['GET /tasks', 'GET /grows'])));
+    expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
+  });
+
   it('shows the demo what there is to see, says that nothing can be changed, and offers an account', async () => {
     who.demo = true;
     onePlace(
@@ -843,10 +867,10 @@ describe('the states of Start', () => {
         cameras: [camera()],
         grows: [growOf()],
         entries: [entry('entry-1', { kind: 'water', text: null, authorId: 'user-9', growId: 'grow-1', values: { kind: 'water' } as never })],
-        dueTasks: [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })],
       }),
       true,
     );
+    server.tasks = [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })];
     draw();
 
     expect(await screen.findByText('Demo · you are looking on, nothing can be changed')).toBeInTheDocument();
@@ -855,8 +879,9 @@ describe('the states of Start', () => {
     expect(screen.getByRole('heading', { name: 'Latest' }).closest('section')).toHaveTextContent('Watered: Watered');
     // The demo has no account and so no zone of one: the hours are the reader's own.
     expect(screen.getByRole('heading', { name: 'Targets' }).closest('section')).toHaveTextContent(/Light \d\d:00 to \d\d:00/);
-    // Nothing that writes: nothing to tick, no menu, no place to add, and nobody to ask for a change.
+    // Nothing that writes: nothing to tick - no list is asked for -, no menu, no place to add, and nobody to ask for a change.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
+    expect(server.calls).not.toContain('GET /tasks');
     expect(screen.queryByRole('link', { name: /^Edit place/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^More about/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Add a place' })).not.toBeInTheDocument();
@@ -926,17 +951,19 @@ describe('the states of Start', () => {
           setpoints: [],
           grow: growOf({ name: 'Windowsill' }),
           entries: [entry('entry-1', { text: 'Repotted', growId: 'grow-1', spaceId: null })],
-          dueTasks: [{ id: 'task-1', kind: 'water', label: 'Water', dueAt: ago(30), subject: { type: 'grow', id: 'grow-1' }, assigneeId: null }],
         }),
       ],
       true,
     );
+    // A grow standing nowhere is its owner's alone, and so is what is due on it.
+    server.grows = [standing(null, { ownerId: YOU, name: 'Windowsill' })];
+    server.tasks = [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })];
     draw();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Windowsill' })).toBeInTheDocument();
     expect(screen.getByText('Flower · week 3').closest('a')).toHaveAttribute('href', '/grow');
     expect(screen.getByRole('heading', { name: 'Latest' }).closest('section')).toHaveTextContent('Repotted');
-    fireEvent.click(screen.getByRole('button', { name: 'Log: Water' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Log: Water' }));
     expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: null, kind: 'water' });
   });
 
@@ -987,6 +1014,7 @@ describe('Start with several places', () => {
       values: values().map(value => (value.metric === 'humidity' ? { ...value, value: 72 } : value)),
       grow: growOf({ growId: 'grow-2', name: 'Autumn cuttings', dayNumber: 9, stage: 'vegetative' }),
       latestStill: { mediaId: 'still-2', cameraId: 'cam-2', capturedAt: ago(4), lightOff: false },
+      // The home's own word that something is due here, which lifts the card; what is due for the reader is the task list's.
       dueTasks: [{ id: 'task-2', kind: 'water', label: 'Water', dueAt: ago(30), subject: { type: 'grow', id: 'grow-2' }, assigneeId: null }],
     });
 
@@ -999,6 +1027,8 @@ describe('Start with several places', () => {
       spaceWhere('own', { id: 'room-1', name: 'Cellar', kind: 'room' }),
     ];
     server.home = homeOf([cardOf(), tent()], true);
+    server.grows = [standing('space-2', { id: 'grow-2', name: 'Autumn cuttings' })];
+    server.tasks = [due('task-2', 'water', 'Water', { type: 'grow', id: 'grow-2' })];
     server.overviews.set('space-1', overviewOf());
     server.overviews.set('space-2', overviewOf({ spaceId: 'space-2', name: 'Tent 2', deviceIds: ['device-2'] }));
   });
@@ -1025,18 +1055,7 @@ describe('Start with several places', () => {
   });
 
   it('counts a step of the grow plan waiting for its word among what is due at a place', async () => {
-    server.tasks = [
-      {
-        id: 'step-1',
-        source: 'plan_step',
-        sourceId: 'plan-1',
-        kind: 'custom',
-        label: 'Late flower',
-        dueAt: ago(10),
-        subject: { type: 'space', id: 'space-2' },
-        assigneeId: null,
-      },
-    ];
+    server.tasks.push({ ...due('step-1', 'custom', 'Late flower', { type: 'space', id: 'space-2' }, 10), source: 'plan_step' });
     draw();
 
     await waitFor(() => expect(screen.getByRole('link', { name: /^The newest picture of Tent 2/ })).toHaveTextContent('2 tasks due'));

@@ -22,7 +22,7 @@ import { readingFacts, readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { DemoBanner, GuestLine } from './states';
-import { dueNow, dueOfCards, placesOfCards, useWaitingSteps } from './due';
+import { useDue } from './due';
 import { Today } from './Today';
 import styles from './Start.module.css';
 
@@ -48,7 +48,6 @@ export function Places({
 }) {
   const { t } = useTranslation();
   const now = useNow();
-  const zone = useZone();
   const { user } = useSession();
   const diary = useDiaryLayer();
   const devices = useDevices(places.some(place => place.deviceIds.length > 0)).data?.items;
@@ -61,13 +60,9 @@ export function Places({
     const space = spaceOf(card);
     return space && user && !demo && space.ownerId !== user.id ? space : null;
   };
-  const due = dueOfCards([...places, ...loose]);
-  const named = placesOfCards(places);
-  // What a card says is due is what "Heute" lists for it: the diary's reminders, and a plan step waiting for its word.
-  const reminders = demo || !diary ? [] : dueNow(due, now, zone);
-  const steps = useWaitingSteps(demo ? [] : named, now);
-  const dueIn = (spaceId: string): number =>
-    reminders.filter(one => one.spaceId === spaceId).length + steps.filter(step => step.place.spaceId === spaceId).length;
+  // What a card says is due is what "Heute" lists for it.
+  const due = useDue(now).rows;
+  const dueIn = (spaceId: string): number => due.filter(one => one.spaceId === spaceId).length;
   // A refresh that fails ages the page, not the devices: each place is judged as the last answer left it.
   const judged = judgedAt(now, failedAt);
   const card = (one: Place) => (
@@ -117,7 +112,7 @@ export function Places({
         <div className={styles.column}>
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           <NotifyNotice later />
-          {demo ? null : <Today due={diary ? due : []} places={named} across now={now} />}
+          <Today now={now} />
           {demo ? null : <AddPlace wide />}
         </div>
       </div>

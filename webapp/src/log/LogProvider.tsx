@@ -30,6 +30,16 @@ const TOLD_MS = 8000;
 /** A toast as it is first shown: nothing failed, nothing taken back, no entry yet. */
 const UNANSWERED = { failure: null, reason: null, undoing: false, entry: null, progress: null };
 
+/** A toast that only says something - what was done, or that it was taken back - with nothing to offer by itself. */
+const saying = (label: string) => ({
+  ...UNANSWERED,
+  label,
+  state: 'saved' as const,
+  details: null,
+  undoable: false,
+  undoUntil: Date.now() + TOLD_MS,
+});
+
 interface Details {
   kind: TileKind;
   target: LogTarget;
@@ -55,20 +65,28 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   const dismiss = useCallback((key: number) => setLines(current => current.filter(line => line.key !== key)), []);
 
-  const change = useCallback((key: number, over: Partial<LoggedLine>) => {
-    setLines(current => current.map(line => (line.key === key ? { ...line, ...over } : line)));
+  const change = useCallback((key: number, over: Partial<LoggedLine> | ((line: LoggedLine) => Partial<LoggedLine>)) => {
+    setLines(current => current.map(line => (line.key === key ? { ...line, ...(typeof over === 'function' ? over(line) : over) } : line)));
   }, []);
 
-  const remove = useCallback(
-    (key: number, entry: Entry) =>
-      takeEntryBack(entry.id).then(
-        () => {
-          diaryChanged(client);
-          dismiss(key);
-        },
-        error => change(key, { state: 'failed', failure: 'undo', entry, reason: reasonOf(error) }),
-      ),
-    [change, client, dismiss],
+  /**
+   * Takes a line back - by its own way where it only told of something, else by deleting what it wrote - and answers
+   * where the Undo stood: with what holds again in the teller's words, else with what was taken back. A refusal is
+   * said there too. A line still on its way has no id yet and is taken back the moment the server answers with one.
+   */
+  const undo = useCallback(
+    ({ key, entry, revert }: Pick<LoggedLine, 'key' | 'entry' | 'revert'>) => {
+      if (!revert && !entry) {
+        takenBack.current.add(key);
+        return change(key, { undoing: true });
+      }
+      change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
+      void (revert?.() ?? takeEntryBack(entry!.id).then(() => diaryChanged(client))).then(
+        () => change(key, line => saying(`${t('log.undone')}${line.undone ? ` · ${line.undone}` : `: ${line.label}`}`)),
+        error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
+      );
+    },
+    [change, client, t],
   );
 
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */
@@ -76,7 +94,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
     (key: number, send: LogRequest['send'], changed?: LogRequest['changed']) => {
       void send((done, total) => change(key, { progress: total > 1 ? { done, total } : null })).then(
         entry => {
-          if (takenBack.current.delete(key)) return void remove(key, entry);
+          if (takenBack.current.delete(key)) return undo({ key, entry, revert: null });
           change(key, { state: 'saved', entry, undoUntil: Date.now() + UNDO_MS });
           diaryChanged(client);
           changed?.(client);
@@ -89,7 +107,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
         },
       );
     },
-    [change, client, remove, t],
+    [change, client, t, undo],
   );
 
   // A line written without a connection is sent by itself when the connection returns while the app is open.
@@ -128,41 +146,14 @@ export function LogProvider({ children }: { children: ReactNode }) {
     [attempt],
   );
 
-  /** Taking back what a toast only told of: its own way back, with a refusal said where the Undo was. */
-  const revert = useCallback(
-    (line: LoggedLine) => {
-      change(line.key, { undoing: true, undoUntil: null });
-      void line.revert?.().then(
-        () => dismiss(line.key),
-        error => change(line.key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
-      );
-    },
-    [change, dismiss],
-  );
-
-  const undo = useCallback(
-    (line: LoggedLine) => {
-      if (line.revert) revert(line);
-      else if (line.state === 'saving') {
-        // It has no id yet. The line is taken back the moment the server answers with one.
-        takenBack.current.add(line.key);
-        change(line.key, { undoing: true });
-      } else if (line.entry) {
-        change(line.key, { undoing: true });
-        void remove(line.key, line.entry);
-      } else dismiss(line.key);
-    },
-    [change, dismiss, remove, revert],
-  );
-
   const retry = useCallback(
     (line: LoggedLine) => {
-      if (line.revert) return revert({ ...line, state: 'saved' });
+      // An undo that was refused is tried as it was asked, and shows that it is.
+      if (line.failure === 'undo') return undo(line);
       change(line.key, { state: 'saving', failure: null, reason: null, waiting: false });
-      if (line.failure === 'undo' && line.entry) void remove(line.key, line.entry);
-      else attempt(line.key, line.send, line.changed);
+      attempt(line.key, line.send, line.changed);
     },
-    [attempt, change, remove, revert],
+    [attempt, change, undo],
   );
 
   const sheetOpen = opening !== null;
@@ -198,22 +189,9 @@ export function LogProvider({ children }: { children: ReactNode }) {
       },
       [log],
     ),
-    tell: useCallback(({ label, undo: back, from }: Told) => {
-      const key = nextKey.current++;
-      setLines(current =>
-        withRoom(current, {
-          ...UNANSWERED,
-          key,
-          label,
-          send: () => Promise.reject(new Error('nothing to send')),
-          revert: back,
-          from,
-          details: null,
-          state: 'saved',
-          undoable: back !== null,
-          undoUntil: Date.now() + TOLD_MS,
-        }),
-      );
+    tell: useCallback(({ label, undo: back, undone, from }: Told) => {
+      const line = { ...saying(label), key: nextKey.current++, send: () => Promise.reject(new Error('nothing to send')), revert: back, undone, from };
+      setLines(current => withRoom(current, { ...line, undoable: back !== null }));
     }, []),
   };
 

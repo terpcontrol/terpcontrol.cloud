@@ -1,6 +1,6 @@
 import type { Translate } from '@/i18n/i18n';
 import { DateTime } from 'luxon';
-import type { EntryKind, GrowListItem, GrowOrSpaceRef, Reminder, ReminderKind, Space, Task } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowOrSpaceRef, Reminder, Space, Task } from '@fg2/shared-types/v1';
 import { readStored, writeStored } from '@/ui/stored';
 import { clock, DAY, nowThere, WEEKDAY_DAY, zoned } from '@/ui/zone';
 
@@ -57,9 +57,6 @@ export const tickedLabel = (t: Translate, task: { label: string; source?: string
   [task.source === 'plan_step' ? `${t('tasks.stepConfirmed')} · ${task.label}` : t('tasks.tickedOff', { label: task.label }), where]
     .filter(Boolean)
     .join(' · ');
-
-/** The diary line ticking a task off writes: a chore or a task of one's own is a note, the rest are what they say. */
-export const entryKindOf = (kind: ReminderKind): EntryKind => (kind === 'chore' || kind === 'custom' ? 'note' : kind);
 
 export const groupOf = (task: Task, now: DateTime, zone: string | null): Group => {
   const days = daysUntil(task.dueAt, now, zone);

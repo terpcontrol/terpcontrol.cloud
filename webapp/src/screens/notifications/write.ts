@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { meKey, notificationsWith, useMailAlarms, useUpdateMe } from '@/api/account';
 import { useLog } from '@/log/log-context';
 import { moved } from '@/screens/me/save';
-import { mailAddressOf } from './reach';
+import { mailSaid } from './reach';
 import { routes, routingWith } from './settings';
 
 /**
@@ -20,7 +20,7 @@ import { routes, routingWith } from './settings';
  * so the answer hangs on the write (`mutateAsync`) and not on the card.
  */
 export const useWriteNotifications = (me: Me) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const update = useUpdateMe();
   const mail = useMailAlarms();
   const client = useQueryClient();
@@ -51,16 +51,15 @@ export const useWriteNotifications = (me: Me) => {
     },
     /**
      * E-mail switched on in one tap, the same from the card's switch and from the notice: the server writes the login
-     * address (one already set stays) and routes `rows` to it, critical alarms where none are named. Taken back as far
-     * as the tap went.
+     * address (one already set stays) and routes `rows` to it, critical alarms where none are named. The toast says what
+     * mail carries by then; taken back as far as the tap went.
      */
-    mailOn: (rows?: NotificationCategory[], done?: (address: string) => void) => {
+    mailOn: (rows?: NotificationCategory[], done?: () => void) => {
       const { channels, routing } = me.notifications;
-      const address = mailAddressOf(me);
       const routed = (rows ?? [alertCategory('critical')!]).filter(row => !routes(routing, row, 'email'));
-      const landed = () => {
-        done?.(address);
-        answer(t('notifications.told.email', { address }), 'channels.email', now => ({
+      const landed = (set: Me) => {
+        done?.();
+        answer(mailSaid(t, i18n.language, set), 'channels.email', now => ({
           channels: channels.email === null ? { ...now.channels, email: null } : now.channels,
           routing: routed.reduce((grid, row) => routingWith(grid, row, 'email', false), now.routing),
         }));

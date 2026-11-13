@@ -13,6 +13,7 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { joined } from '../doors';
 import { MePage } from '../parts';
+import parts from '../parts.module.css';
 import styles from './Schemes.module.css';
 
 /** Which scheme is open over the list, and off which shelf. */
@@ -204,7 +205,7 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
       }
     >
       <div className={styles.sheetBody}>
-        <label className={styles.field}>
+        <label className={parts.field}>
           <span className="label">{t('me.schemes.name')}</span>
           <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
         </label>

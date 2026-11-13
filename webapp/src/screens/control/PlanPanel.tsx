@@ -109,7 +109,17 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
               {t('space.control.none')}
               <Help topic="plan" />
             </p>
-            {landing === 'awaited' ? <p className={ui.note}>{t('targets.waiting', { device: deviceTitle(device, t, all.data?.items) })}</p> : null}
+            {landing === 'awaited' ? (
+              <p className={ui.note}>
+                {t('targets.waiting', {
+                  device: deviceTitle(
+                    device,
+                    t,
+                    all.data?.items.filter(other => other.spaceId === device.spaceId),
+                  ),
+                })}
+              </p>
+            ) : null}
             {mayManage && landing === 'document' ? (
               <div className={styles.actions}>
                 {/* A fridge starts where a beginner starts: from one of the two ready plans. */}

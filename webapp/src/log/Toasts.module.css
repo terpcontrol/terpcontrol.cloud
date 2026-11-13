@@ -1,5 +1,5 @@
 /* The line that was just written, sitting over the tab bar where the thumb
-   that wrote it already is. */
+   that wrote it already is: the newest is the last, older ones stand above it. */
 
 .toasts {
   position: fixed;
@@ -21,6 +21,8 @@
   gap: var(--space-3);
   width: 100%;
   max-width: var(--column-width);
+  /* As high with its button as without: an answer to "Undo" stands where the offer stood. */
+  min-height: var(--control-height);
   padding: var(--space-3) var(--space-4);
   background: var(--toast);
   border-radius: var(--radius);

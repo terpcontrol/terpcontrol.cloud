@@ -117,6 +117,9 @@ const toastHost = () => document.querySelector<HTMLElement>('[role="status"][ari
 const toasts = () =>
   [...(toastHost()?.querySelectorAll(':scope > div > :first-child') ?? [])].map(label => label.textContent.replace(/\u00a0/g, ' '));
 
+/** The green line that says what a tap for mail did, where it was tapped. */
+const receipt = () => document.querySelector('p[role="status"] > span')?.textContent;
+
 beforeAll(() => translate());
 
 beforeEach(() => {
@@ -208,7 +211,7 @@ describe('an account with an address', () => {
     server.me = me(WITH_MAIL);
     await drawLoaded();
 
-    expect(screen.getByText(reading('you@example.org · critical and tasks due'))).toBeInTheDocument();
+    expect(screen.getByText(reading('you@example.org · critical alarms and tasks due'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'E-mail' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Critical alarms by E-mail' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toHaveAttribute('aria-checked', 'false');
@@ -245,7 +248,7 @@ describe('an account with an address', () => {
 
     expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
     expect(server.patched).toHaveLength(0);
-    expect(screen.getByText(reading('you@example.org · critical and tasks due'))).toBeInTheDocument();
+    expect(screen.getByText(reading('you@example.org · critical alarms and tasks due'))).toBeInTheDocument();
   });
 
   it('routes one more category to it and sends everything else back unchanged', async () => {
@@ -353,8 +356,8 @@ describe('switching e-mail on', () => {
     await waitFor(() => expect(server.mailed).toEqual([['alerts', 'tasks']]));
     expect(server.patched).toHaveLength(0);
     expect(screen.queryByLabelText('Address')).not.toBeInTheDocument();
-    expect(await screen.findByText(reading('login@example.org · critical and tasks due'))).toBeInTheDocument();
-    expect(toasts()).toEqual(['E-mail to login@example.org']);
+    expect(await screen.findByText(reading('login@example.org · critical alarms and tasks due'))).toBeInTheDocument();
+    expect(toasts()).toEqual(['Critical alarms and tasks due by e-mail to login@example.org']);
   });
 
   it('writes the same from the notice, and says what the tap did only while it holds', async () => {
@@ -364,14 +367,19 @@ describe('switching e-mail on', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Notify me by e-mail' }));
 
     await waitFor(() => expect(server.mailed).toEqual([['alerts', 'tasks']]));
-    expect(await screen.findByText('Critical alarms and task reminders now come by e-mail to login@example.org.')).toBeInTheDocument();
-    expect(toasts()).toEqual(['E-mail to login@example.org']);
+    await waitFor(() => expect(receipt()).toBe('Critical alarms and tasks due by e-mail to login@example.org'));
+    expect(toasts()).toEqual([receipt()]);
+
+    // What the grid sends to mail from then on is what the receipt says.
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Warnings by E-mail' })).toBeEnabled());
+    fireEvent.click(screen.getByRole('switch', { name: 'Warnings by E-mail' }));
+    await waitFor(() => expect(receipt()).toBe('Critical alarms, warnings, and tasks due by e-mail to login@example.org'));
 
     await waitFor(() => expect(screen.getByRole('switch', { name: 'E-mail' })).toBeEnabled());
     fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
 
     expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
-    expect(screen.queryByText(/now come by e-mail/)).not.toBeInTheDocument();
+    expect(receipt()).toBeUndefined();
   });
 
   it('takes the tap back as far as the tap went: the address, and the rows it routed', async () => {
@@ -381,7 +389,7 @@ describe('switching e-mail on', () => {
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('switch', { name: 'E-mail' }));
-    await waitFor(() => expect(toasts()).toEqual(['E-mail to login@example.org']));
+    await waitFor(() => expect(toasts()).toEqual(['Critical alarms, tasks due, and plan asks by e-mail to login@example.org']));
     fireEvent.click(within(toastHost()!).getByRole('button', { name: 'Undo' }));
 
     await waitFor(() => expect(server.patched).toHaveLength(1));
@@ -429,10 +437,10 @@ describe('the notice that alarms reach nobody', () => {
     // Over the readings the notice is two rows, so the tap reads "By e-mail" with the address beside it.
     fireEvent.click(screen.getByRole('button', { name: 'By e-mail' }));
 
-    expect(await screen.findByText('Critical alarms now come by e-mail to login@example.org.')).toBeInTheDocument();
+    await waitFor(() => expect(receipt()).toBe('Critical alarms by e-mail to login@example.org'));
     expect(server.posted).toEqual([expect.stringMatching(/\/v1\/me\/email-alarms$/)]);
     expect(server.patched).toHaveLength(0);
-    expect(toasts()).toEqual(['E-mail to login@example.org']);
+    expect(toasts()).toEqual([receipt()]);
     expect(screen.getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/me/notifications');
   });
 
@@ -599,7 +607,7 @@ describe('quiet hours', () => {
     await waitFor(() => expect(lastPatch().quietHours).toEqual({ fromMinute: 1380, toMinute: 420 }));
   });
 
-  it('refuse a window of no length with a sentence, and write nothing of it', async () => {
+  it('refuse a window of no length with a sentence, keep the saved one in the title and write nothing of it', async () => {
     server.me = me({ quietHours: { fromMinute: 1380, toMinute: 420 } });
     await drawLoaded();
 
@@ -607,7 +615,9 @@ describe('quiet hours', () => {
     fireEvent.blur(screen.getByLabelText('From'));
 
     expect(screen.getByRole('alert')).toHaveTextContent('From and To are the same: these quiet hours would have no length and are not saved.');
-    expect(screen.getByText('07:00 – 07:00')).toBeInTheDocument();
+    // The title stays what is saved; the field keeps what was typed beside the refusal.
+    expect(screen.getByText('23:00 – 07:00')).toBeInTheDocument();
+    expect(screen.getByLabelText('From')).toHaveValue('07:00');
     // Longer than the pause a changed time waits for.
     await act(() => new Promise(resolve => setTimeout(resolve, 1500)));
     expect(server.patched).toHaveLength(0);
@@ -749,7 +759,9 @@ describe('linking Telegram', () => {
     });
     await drawLoaded();
 
-    expect(screen.getByText(reading(/^linked .* · critical and week film · a reply to an alarm or a task goes into the diary$/))).toBeInTheDocument();
+    expect(
+      screen.getByText(reading(/^linked .* · critical alarms and week film · a reply to an alarm or a task goes into the diary$/)),
+    ).toBeInTheDocument();
   });
 
   it('promises no logging by reply where nothing sent there can take one', async () => {
@@ -862,7 +874,7 @@ describe('the push card', () => {
     server.me = me({ routing: { ...NOTHING.routing, alerts: ['push'] } }, { pushSubscribed: true });
     await drawLoaded();
 
-    expect(screen.getByText(reading('subscribed on another device · critical'))).toBeInTheDocument();
+    expect(screen.getByText(reading('subscribed on another device · critical alarms'))).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Push' })).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByRole('switch', { name: 'Critical alarms by Push' })).toBeEnabled();
   });

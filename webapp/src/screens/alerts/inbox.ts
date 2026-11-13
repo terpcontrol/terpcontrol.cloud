@@ -79,6 +79,10 @@ export const crossedBound = (
  */
 export const beganAt = (alert: Alert): string => (alert.kind === 'offline' ? silentSince(alert) : alert.startedAt);
 
+/** Whether what an episode that is over was about stands open again: the same rule on the same device, the same silence. */
+export const openAgain = (over: Alert, open: Alert[]): boolean =>
+  open.some(one => one.ruleId === over.ruleId && one.kind === over.kind && one.deviceId === over.deviceId && one.cameraId === over.cameraId);
+
 /** How many seconds an episode that is over stood. */
 const lastedSeconds = (alert: Alert): number => (millis(alert.resolvedAt ?? alert.startedAt) - millis(beganAt(alert))) / 1000;
 
@@ -110,7 +114,7 @@ export const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, name
 
   if (alert.kind === 'offline') {
     const device = alert.deviceId ? names.devices.get(alert.deviceId) : undefined;
-    return said('offline', device ? deviceName(device, t) : (alert.spaceId && names.spaces.get(alert.spaceId)) || t('shell.gone.title.device'));
+    return said('offline', device ? deviceName(device, t) : (alert.spaceName ?? t('shell.gone.title.device')));
   }
   if (alert.kind === 'camera_stale') return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'));
 
