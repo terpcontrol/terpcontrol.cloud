@@ -426,7 +426,7 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
 
-    expect(await screen.findByText('Could not save that line')).toBeInTheDocument();
+    expect(await screen.findByText('Could not save that entry')).toBeInTheDocument();
 
     vi.mocked(api.post).mockResolvedValue(written as never);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -684,7 +684,7 @@ describe('the log sheet', () => {
     await waitFor(() => expect(pending['d.jpg']).toBeDefined());
     act(() => pending['d.jpg']({ id: 'media-d' }));
 
-    expect(await screen.findByText(/Could not save that line · 4 of 5 pictures uploaded/)).toBeInTheDocument();
+    expect(await screen.findByText(/Could not save that entry · 4 of 5 pictures uploaded/)).toBeInTheDocument();
     refuse = false;
     vi.mocked(api.post).mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -734,9 +734,9 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'open phase there' }));
 
     const phase = await screen.findByRole('dialog', { name: 'Phase' });
-    expect(within(phase).getByText('A phase belongs to a grow, and this line is about a place.')).toBeInTheDocument();
+    expect(within(phase).getByText('A phase belongs to a grow, and this entry is about a place.')).toBeInTheDocument();
 
-    fireEvent.click(await within(phase).findByRole('button', { name: 'Start a grow in Place 2' }));
+    fireEvent.click(await within(phase).findByRole('button', { name: 'Place 2: start a grow' }));
 
     // The form a grow is started with takes this one's place, already about the place asked about.
     expect(await screen.findByRole('dialog', { name: 'Place 2: What grows here?' })).toBeInTheDocument();
@@ -757,7 +757,7 @@ describe('the log sheet', () => {
 
     const sheet = await screen.findByRole('dialog', { name: 'Log' });
     const chip = await within(sheet).findByRole('button', { name: /^Spring run/ });
-    expect(within(sheet).getByRole('alert')).toHaveTextContent('The grow or place this link names is not on your home');
+    expect(within(sheet).getByRole('alert')).toHaveTextContent('The grow or place this link names is not on Home');
     expect(chip).toHaveAttribute('aria-pressed', 'false');
     expect(within(sheet).getByRole('button', { name: /^Note/ })).toBeDisabled();
     expect(screen.queryByRole('dialog', { name: 'Note' })).not.toBeInTheDocument();
@@ -804,7 +804,7 @@ describe('the log sheet', () => {
         .getAllByRole('button')
         .map(chip => chip.textContent);
 
-    const places = within(sheet).getByRole('group', { name: 'What the line is about' });
+    const places = within(sheet).getByRole('group', { name: 'What the entry is about' });
     expect(named(places)).toEqual(['Tent 1 · Spring run', 'Balcony']);
     const ofThePlace = within(sheet).getByRole('group', { name: 'Which plant' });
     expect(named(ofThePlace)).toEqual(plants.items.filter(plant => plant.status === 'active').map(plant => plant.label));
@@ -887,14 +887,14 @@ describe('the log sheet', () => {
     const correction = await screen.findByRole('dialog', { name: 'Water' });
     fireEvent.change(within(correction).getByRole('textbox', { name: 'Water in litres' }), { target: { value: '3' } });
     fireEvent.click(within(correction).getByRole('button', { name: 'Save the correction' }));
-    expect(await screen.findByText(reading('Line corrected'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('Entry corrected'))).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'correct' }));
     const again = await screen.findByRole('dialog', { name: 'Water' });
-    fireEvent.click(within(again).getByRole('button', { name: 'Take this line back' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Take this entry back' }));
     fireEvent.click(within(again).getByRole('button', { name: 'Take it back' }));
-    expect(await screen.findByText(reading('Line taken back'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('Entry taken back'))).toBeInTheDocument();
     expect(api.delete).toHaveBeenCalledWith(`/entries/${lastWater.id}`);
   });
 

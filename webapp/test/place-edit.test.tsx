@@ -195,7 +195,7 @@ describe('editing a place', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Room' }), { target: { value: 'none' } });
     fireEvent.click(await saveReady());
     await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/spaces/tent', { roomId: null }));
-    expect(told[1].label).toBe('Tent no longer stands in a room');
+    expect(told[1].label).toBe('Tent is no longer in a room');
   });
 
   it('names a room in the toast as it is stored, not as it was typed', async () => {
@@ -280,7 +280,7 @@ describe('editing a place', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/spaces/tent', { roomId: null }));
     await waitFor(() => expect(told).toHaveLength(1));
-    expect(told[0]).toMatchObject({ label: 'Tent no longer stands in a room · @mara and @jonas no longer see it', undo: null });
+    expect(told[0]).toMatchObject({ label: 'Tent is no longer in a room · @mara and @jonas no longer see it', undo: null });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -745,7 +745,7 @@ describe('removing a place', () => {
     // Nothing else is patched: no camera is moved by itself and no grow is ended.
     expect(vi.mocked(api.patch).mock.calls).toEqual([moved('device-1', 'made-Tent 2'), moved('device-2', 'made-Tent 2')]);
     expect(api.post).toHaveBeenCalledWith('/grows/grow-1/placements', expect.objectContaining({ spaceId: 'made-Tent 2' }));
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller, Fan, and Spring run now stand here.']));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller, Fan, and Spring run are here now.']));
     expect(told[0].undo).toBeNull();
     expect(screen.getByTestId('address')).toHaveTextContent('/');
   });
@@ -761,17 +761,17 @@ describe('removing a place', () => {
     const sheet = await ask();
     // The loft stands in no room: the room the tent was the last place of ends, which is said though nobody was let into it.
     expect(linesOf(sheet)).toEqual([
-      'Tent controller moves to: Loft',
+      'Tent controller moves – new place: Loft',
       'Fan stays with Tent controller',
       'Canopy cam stays with Tent controller',
-      'Spring run moves to: Loft',
+      'Spring run moves – new place: Loft',
       'The room Grow room ends',
     ]);
 
     answer(sheet);
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'Tent removed. Loft: Tent controller, Fan, and Spring run now stand here. The room Grow room has ended.',
+        'Tent removed. Loft: Tent controller, Fan, and Spring run are here now. The room Grow room has ended.',
       ]),
     );
     expect(api.post).not.toHaveBeenCalledWith('/spaces', expect.anything());
@@ -797,7 +797,7 @@ describe('removing a place', () => {
     answer(sheet);
 
     await waitFor(() =>
-      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller given up. Tent 2: Fan now stands here. Spring run ended.']),
+      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent controller given up. Tent 2: Fan is here now. Spring run ended.']),
     );
     expect(api.delete).toHaveBeenCalledWith('/devices/device-1/claim');
     expect(api.patch).toHaveBeenCalledWith('/grows/grow-1', { endedAt: expect.any(String) });
@@ -832,14 +832,14 @@ describe('removing a place', () => {
     ['Spring run · Day 29', 6, 'with:device-1', 'move:made-Tent 2'],
   ];
   const ALL = 'Tent controller, Plantalytix Socket, Fan, Canopy cam, and Spring run';
-  const MOVED = 'Tent 2: Tent controller and Plantalytix Socket now stand here.';
-  const SETTLED = 'Tent 2: Tent controller, Plantalytix Socket, and Spring run now stand here. Fan given up. Canopy cam unpaired.';
+  const MOVED = 'Tent 2: Tent controller and Plantalytix Socket are here now.';
+  const SETTLED = 'Tent 2: Tent controller, Plantalytix Socket, and Spring run are here now. Fan given up. Canopy cam unpaired.';
 
   it.each([
     [1, null, ALL],
     // The place made for the controller is taken away again, so none stands empty - and made again by the next attempt.
     [2, null, ALL],
-    [3, 'Tent 2: Tent controller now stands here.', 'Plantalytix Socket, Fan, Canopy cam, and Spring run'],
+    [3, 'Tent 2: Tent controller is here now.', 'Plantalytix Socket, Fan, Canopy cam, and Spring run'],
     [4, MOVED, 'Fan, Canopy cam, and Spring run'],
     [5, `${MOVED} Fan given up.`, 'Canopy cam and Spring run'],
     [6, `${MOVED} Fan given up. Canopy cam unpaired.`, 'Spring run'],
@@ -927,7 +927,7 @@ describe('removing a place', () => {
       .mockResolvedValue(null as never);
     fireEvent.change(select('Tent controller'), { target: { value: 'move:fridge' } });
     const sheet = await ask();
-    expect(linesOf(sheet)[0]).toBe('Tent controller moves to: KS Black');
+    expect(linesOf(sheet)[0]).toBe('Tent controller moves – new place: KS Black');
     expect(api.delete).not.toHaveBeenCalled();
     answer(sheet);
 
@@ -959,14 +959,14 @@ describe('removing a place', () => {
       '@guest and @mara then no longer see Tent',
     ]);
     // No grow keeps the curves: said in one line.
-    expect(screen.getByText('After that you see the curves of Tent only with grows that stood here.')).toBeInTheDocument();
+    expect(screen.getByText('After that you see this place’s curves only with the grows that grew here.')).toBeInTheDocument();
     expect(screen.queryByText(/let in/)).not.toBeInTheDocument();
 
     answer(sheet);
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'Tent removed. Tent 2: Tent controller and Fan now stand here. 2 reminders ended. @guest and @mara no longer see Tent.',
+        'Tent removed. Tent 2: Tent controller and Fan are here now. 2 reminders ended. @guest and @mara no longer see Tent.',
       ]),
     );
   });
@@ -983,7 +983,7 @@ describe('removing a place', () => {
     answer(sheet);
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'Tent removed. KS Black: Tent controller and Fan now stand here. @guest no longer sees Tent. The room Grow room has ended – @mara and @jonas no longer see it.',
+        'Tent removed. KS Black: Tent controller and Fan are here now. @guest no longer sees Tent. The room Grow room has ended – @mara and @jonas no longer see it.',
       ]),
     );
   });
@@ -998,7 +998,7 @@ describe('removing a place', () => {
     expect(linesOf(sheet)[2]).toBe('Terp Cam is unpaired');
     answer(sheet);
     await waitFor(() =>
-      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Fan now stand here. Terp Cam unpaired.']),
+      expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Fan are here now. Terp Cam unpaired.']),
     );
   });
 
@@ -1041,7 +1041,7 @@ describe('removing a place', () => {
     answer(await ask());
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('Already done: Tent 2: Tent controller now stands here.');
+    expect(alert).toHaveTextContent('Already done: Tent 2: Tent controller is here now.');
     expect(alert).toHaveTextContent('Still open: Spring run.');
     expect(screen.queryByRole('combobox', { name: 'Fan' })).not.toBeInTheDocument();
     // The answer stands, by the name of the place the controller now stands in.
@@ -1050,7 +1050,7 @@ describe('removing a place', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/spaces/tent'));
     expect(vi.mocked(api.patch).mock.calls.filter(([path]) => path.endsWith('device-2'))).toHaveLength(1);
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Spring run now stand here.']));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Spring run are here now.']));
   });
 
   it('asks again where the lists read after a refusal change what the answers mean', async () => {

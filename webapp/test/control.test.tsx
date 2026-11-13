@@ -267,7 +267,7 @@ describe('the plan panel over hardware that states no climate', () => {
     state.devices = [lamp()];
     drawTab('plan');
 
-    expect(await screen.findByText(/Nothing standing here takes targets from a plan\./)).toBeInTheDocument();
+    expect(await screen.findByText(/No device here takes targets from a plan\./)).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Back to Control' }).at(-1)).toHaveAttribute('href', '/control?space=space-1');
     expect(screen.queryByText('Bar light')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Write a plan' })).not.toBeInTheDocument();
@@ -444,7 +444,7 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
   it('lists the devices standing in the place under the climate, each with the way to its own page', async () => {
     drawTab();
 
-    expect(await screen.findByRole('heading', { name: 'Devices in Tent' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Devices · Tent' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Everything about Blue Dream tent/ })).toHaveAttribute('href', '/devices/device-1');
   });
 });
@@ -622,7 +622,7 @@ describe('Steuerung of a place with several devices', () => {
 
     // The page reached by its address says so rather than repeating the card.
     drawTab('outputs');
-    expect(await screen.findByText(/Nothing standing here has outputs of its own/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing here has outputs of its own/)).toBeInTheDocument();
   });
 
   it('says the fan of a further device among the outputs, which lead to its page', async () => {
@@ -763,7 +763,7 @@ describe('what a row says about the page behind it', () => {
       warn: false,
     });
     expect(alarmsLine(t, [rule({}), rule({ id: 'b', name: 'Too humid', state: { triggered: true } })])).toEqual({
-      text: '2 rules · “Too humid” has raised',
+      text: '2 rules · “Too humid” has gone off',
       warn: true,
     });
     expect(alarmsLine(t, [rule({}), rule({ id: 'b', enabled: false }), rule({ id: 'c', origin: 'always', enabled: false })])).toEqual({
@@ -927,7 +927,7 @@ describe('the clock under a running step', () => {
     draw();
 
     // The header states the step's length and the ladder below it repeats it.
-    expect(screen.getAllByText('No stage · 7 days')).not.toHaveLength(0);
+    expect(screen.getAllByText('No phase · 7 days')).not.toHaveLength(0);
     expect(screen.getByText('25 min on this step · 7 d left')).toBeInTheDocument();
   });
 
@@ -957,7 +957,7 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText("extended: this step's clock starts in 5 h · 6 h left")).toBeInTheDocument();
+    expect(screen.getByText('extended: this step’s clock starts in 5 h · 6 h left')).toBeInTheDocument();
   });
 
   it('calls a step that has only just been started started, not extended', () => {

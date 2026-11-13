@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-13
-source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12)
+source: Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -28,7 +28,12 @@ string exists in English and German, with no English left in the German catalogu
   the redesign session of 2026-11-13).
 - **A place's name stands by itself**, never behind a preposition glued to it: "Zelt: Lüfter hängt jetzt hier",
   "Was wächst hier?", "<Name>: Was wächst hier?" as a sheet's title - not "in Zelt", which reads wrong for half
-  the names people give (the redesign session of 2026-11-13).
+  the names people give (the redesign session of 2026-11-13). The forms in use: the name in front with a colon
+  ("Zelt: Grow starten", "Zelt: das neueste Bild"), behind a noun that says what it is ("Den Ort Zelt gibt es
+  nicht mehr", "über den Raum Keller"), behind a colon or a dot as a fact ("neuer Ort: Zelt", "Klima · Zelt"), or
+  the sentence says "hier" and "dieser Ort". A room is called a room where its name is said. The one sentence
+  that keeps its prepositions is the diary's move line below, which names two places. English follows the same
+  forms, and nothing "stands in" a place there: a device "is in" it, a grow "grew there".
 - A machine line says only what is known: the firmware's update line is "Update angefordert" - the device was told;
   whether it took is a line of its own ("Firmware-Update abgeschlossen", "Update kam nicht an").
 - Thresholds are written in words ("über 28 °C"), not with arrows or "›", since every link ends in one; metric names
@@ -39,6 +44,13 @@ string exists in English and German, with no English left in the German catalogu
 | Thing | English | German |
 | --- | --- | --- |
 | where a grow or device stands | place | Ort ("Raum" only for a real room; never Bereich) |
+| the bar's first page | Home | Start (never Startseite) |
+| where the plants are, from germination to curing | phase | Phase (never Stadium) |
+| the page behind the bell, and a card on it | Alerts; alert | Meldungen; Meldung (never Posteingang, inbox) |
+| what is set up under Steuerung › Alarme | alarm | Alarm |
+| adding a device with its code | claim | übernehmen (never beanspruchen) |
+| writing into the diary; what is written | log; entry | eintragen; Eintrag (never loggen) |
+| readings where the targets are | on target | im Ziel ("in band" / "im Zielband" only for the share of a day) |
 | the account | account | Konto, also in sign-in and activation |
 | the page of curves | Timeline | Verlauf; what it draws are Kurven, not Graphen, Charts or Diagramme |
 | what a device holds | targets | Zielwerte, not Sollwerte |
@@ -46,7 +58,7 @@ string exists in English and German, with no English left in the German catalogu
 | a place, a device or a camera that reports | online | online (never "live"; "verbunden" only in "Verbunden über") |
 | the automatic schedule | plan | Plan, never Rezept; old message keys stay and read the new way |
 | the lamp's ceiling | light limit | Lichtgrenze |
-| maintenance | Maintenance · 15 min | Wartung · 15 Min ("Regelung und Alarme pausieren") |
+| maintenance | Maintenance · 15 min | Wartung · 15 Min ("Regelung und Alarme pausieren"; never Wartungsmodus) |
 | the built-in offline rule | Device offline | Gerät offline |
 | a fridge's fans | clip fan, internal fan, back-wall fan | Klemmlüfter, Innenlüfter, Rückwandlüfter |
 | a fridge's dehumidifier output | compressor | Kompressor (a tent's dehumidifier keeps its name) |
@@ -68,7 +80,8 @@ string exists in English and German, with no English left in the German catalogu
   dehumidifier is the compressor on every screen.
 - The CO₂ dosing counter is in "Takte": the firmware adds up how long the valve was open, in ticks of its clock
   ([device-protocol.md 5.4](../device-protocol.md#54-which-keys-each-hardware-type-reports)), and counts no openings;
-  `help.chartOutputs` says so beside the chart. The CO₂ report card (`co2Report.*`) does not follow this yet.
+  `help.chartOutputs` says so beside the chart, and the CO₂ report card and the rule sheet's note count in them too
+  (`co2Report.*`, `alarms.sheet.ticksNote`).
 - A share link's actions are "Ändern" (a change may widen a link as well as narrow it), "Zurückziehen", and "Löschen"
   only once it is revoked or expired - the server refuses to delete a working one (409 `share_link_live`).
 - Shared texts say "das Gerät", not "der Controller". A device is called by its type alone unless the account has two
@@ -87,12 +100,26 @@ string exists in English and German, with no English left in the German catalogu
 - English: the page is "Control" and so is the regulation (`climateControl.*`) in every string, the pill
   included: "Control on" / "Control off" (`control.state.*`; the redesign session of 2026-11-12 after its critic's
   second walk - "Regulating" was a second word for it). An output held by hand is "held on", never "forced on"
-  (`devices.socket.forced`). A device's page says "in {{place}}", and its sheet's block is "Place". One AIR fan
+  (`devices.socket.forced`). A device's sheet has a block "Place"; a place's name stands by itself there as
+  everywhere. One AIR fan
   is "Fan", and a build is "Firmware from <day>" on the card as on the device's page.
 - The cloud's own alarm rule is grouped and tagged "Eingebaut" / "built in": it can be switched off, so it is
   not "immer an" (the redesign session of 2026-11-12).
 - A place with nothing to steer and an account with no place read one sentence at Steuerung's address: "Hier gibt
   es noch nichts zu steuern: Zielwerte und Alarme kommen mit dem ersten Gerät." (`place.control.nothing`).
+- **The growth stage is a "Phase" / "phase"** (the redesign session of 2026-11-13, in the one wording pass;
+  waiting for Chris's confirmation): the tile, the sheet, the film and the range said Phase, while the field in
+  that sheet, the plan step and the help said "Stadium" / "stage" for the same thing - two words, and a help text
+  to tell them apart. Germination to curing are phases; entering one writes it on the grow with its date. The
+  contract and the code keep `stage` (the value) and `phase` (the stretch); a firmware rollout's "Stufe" /
+  "stage" is another thing and keeps its word.
+- **Meldungen is the page, a Meldung what stands on it; an Alarm is what is set up under Steuerung › Alarme** and
+  what it raises ("Kritische Alarme erreichen dich per ..."). "Regel" / "rule" names the same alarm only where a
+  sentence has to tell it from the Meldung it raised - "Regel bearbeiten" on a card, "7 Regeln · alle ruhig" as
+  a count. The page is never "Posteingang" or "inbox" (the redesign session of 2026-11-13).
+- **Page names are names in both languages**: Start, Grow, Eintrag, Verlauf, Steuerung, Meldungen, Ich - Home,
+  Grow, Log, Timeline, Control, Alerts, Me, capitalised in a sentence too ("on Home", "in the Timeline"), and a
+  way through them is written with "›" ("Ich › Konto"), as a way through somebody else's app is.
 - Superseded names: "Pflegemodus" (Chris, 2025-11-07, the old app) and the rewrite's "Reingehen" / "Alarme aus"
   became "Wartung" (2026-10-04); "Bereich" (2026-09-23) became "Ort" (Chris, 2026-10-01), and English "space" became
   "place" (2026-10-04).
@@ -154,6 +181,14 @@ string exists in English and German, with no English left in the German catalogu
   "Vorbei" (English "Resolved"), never "Erledigt"; the way to the notification settings is "Benachrichtigungen
   einstellen" wherever it is offered; English "Log" is the verb for "Eintragen" (the redesign session of
   2026-11-13, after its critic's walk).
+
+## Typography
+One set in both catalogues (the redesign session of 2026-11-13; the `timeline.*` keys were left for the page's
+own last pass): a dash in a sentence is a spaced en dash (" – "), never a hyphen or an em dash; "—" alone is a
+missing value. An ellipsis is one character with a space before it ("Speichert …", "Saving …"; a placeholder
+that trails off keeps it tight). Quotes are „…“ in German and “…” in English, the apostrophe is ’. CO₂ carries
+its subscript. No arrows: a range is "bis" / "to" or an en dash between two dates, a change is said in words
+("zeigt dann Tag 14 statt Tag 12"). English spells as in Britain (litres, mould, colour).
 
 ## German slips to check for
 From the redesign review (2026-08-24), the ones a native reader notices first: wrong plurals ("1 Einträge" - use the

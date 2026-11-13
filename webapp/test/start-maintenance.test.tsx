@@ -178,7 +178,7 @@ describe('maintenance on Start', () => {
     expect(screen.queryByRole('button', { name: /^Maintenance · 15/ })).not.toBeInTheDocument();
     // The sentence near the top says so too, and leads to where the window is ended.
     const sentence = within(screen.getByRole('status')).getByRole('link');
-    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · regulation and alarms paused$/);
+    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · control and alarms paused$/);
     expect(sentence).toHaveAttribute('href', '#start-maintenance');
     expect(control.parentElement).toHaveAttribute('id', 'start-maintenance');
 

@@ -807,7 +807,7 @@ describe('the climate under Steuerung', () => {
       await drawn({ ...silent(), type: 'fridge', control: { ...CONTROL, running: false } });
 
       expect(
-        await screen.findByText('Control off saved at 14:31, not with the device yet: Blue Dream tent goes on regulating until it is back online.'),
+        await screen.findByText('Control off saved at 14:31, not with the device yet: Blue Dream tent goes on controlling until it is back online.'),
       ).toBeInTheDocument();
       expect(screen.getByRole('table', { name: 'Targets' })).toBeInTheDocument();
       expect(screen.getByRole('region', { name: 'Light' })).toBeInTheDocument();

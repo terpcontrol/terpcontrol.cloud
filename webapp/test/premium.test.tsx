@@ -393,12 +393,12 @@ describe('what Premium covers', () => {
         .slice(1)
         .map(row => within(row).getByRole('rowheader').textContent),
     ).toEqual([
-      "Live still and today's timelapse",
+      'Current picture and today’s timelapse',
       'Full resolution stills',
       'Stills kept',
       'Timelapse over the whole grow, HD',
       'Reel export with overlays',
-      'Control, timeline, diary, alarms, sharing',
+      'Control, Timeline, diary, alarms, sharing',
     ]);
   });
 
@@ -426,7 +426,7 @@ describe('what Premium covers', () => {
     await drawLoaded();
 
     expect(screen.getByRole('button', { name: 'About Premium' })).toHaveAccessibleDescription(
-      /belongs to one camera, not to the account, and never renews by itself: the offer stands under Me › Premium on the camera's card/,
+      /belongs to one camera, not to the account, and never renews by itself: the offer is under Me › Premium on the camera’s card/,
     );
     expect(screen.queryByText(/Per camera, not per account/)).toBeNull();
   });

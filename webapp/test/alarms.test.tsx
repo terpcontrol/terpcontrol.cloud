@@ -170,7 +170,7 @@ describe('the alarm rules page', () => {
     );
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
-    expect(await screen.findByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing here has alarm rules/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
   });
@@ -190,7 +190,7 @@ describe('the alarm rules page', () => {
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
     expect(await screen.findByText('Device offline')).toBeInTheDocument();
-    expect(screen.queryByText(/Nothing stands here that has alarm rules/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing here has alarm rules/)).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Device offline on or off' })).toBeEnabled();
   });
 
@@ -243,7 +243,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(await screen.findByText('From the climate preset Flower')).toBeInTheDocument();
-    expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
+    expect(screen.getByText('thresholds move with the phase')).toBeInTheDocument();
 
     // The cloud's own rule can be switched off like any other, so its head does not call it always on.
     const labels = screen.getAllByText(/^(From the climate preset Flower|Built in|From the device|Written here)$/).map(label => label.textContent);
@@ -519,7 +519,7 @@ describe('the alarm rules page', () => {
 
     const info = await screen.findByRole('button', { name: 'About Muting and maintenance' });
     expect(info).toHaveAccessibleDescription(/A muted rule keeps watching: .* it only tells nobody\./);
-    expect(info).toHaveAccessibleDescription(/Maintenance mode holds the alarms themselves back/);
+    expect(info).toHaveAccessibleDescription(/Maintenance holds the alarms themselves back/);
   });
 
   /**
@@ -1105,7 +1105,7 @@ describe('the rule sheet', () => {
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'URL' }), { target: { value: 'http://10.0.0.5/alarm' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'GET' }));
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Headers' }), { target: { value: 'X-Token: abc\nnot a header' } });
-    fireEvent.click(within(sheet).getByRole('switch', { name: "Through the device's tunnel" }));
+    fireEvent.click(within(sheet).getByRole('switch', { name: 'Through the device’s tunnel' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     await waitFor(() =>
@@ -1161,8 +1161,8 @@ describe('the rule sheet', () => {
     expect(within(sheet).getByLabelText(/^above/)).toHaveValue(30);
     // That the next stage moves the rule's lines stands behind the help beside its name.
     expect(within(sheet).queryByText(/The next stage/)).not.toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the stage' }));
-    expect(screen.getAllByText(/The next stage moves their lines and waits/)).not.toHaveLength(0);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the phase' }));
+    expect(screen.getAllByText(/The next phase moves their lines and waits/)).not.toHaveLength(0);
     expect(within(sheet).getByRole('button', { name: 'Delete the alarm' })).toBeInTheDocument();
 
     fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });

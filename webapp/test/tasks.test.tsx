@@ -555,7 +555,7 @@ describe('ticking one off', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done: Water' }));
 
     expect(await screen.findByText('Somebody has already ticked this one off.')).toBeInTheDocument();
-    expect(screen.queryByText('Could not save that line')).not.toBeInTheDocument();
+    expect(screen.queryByText('Could not save that entry')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });
@@ -775,7 +775,7 @@ describe('a reminder', () => {
 });
 
 describe('the demo', () => {
-  // The demo reads somebody else's account, and the server answers it no task
+  // The demo reads somebody else’s account, and the server answers it no task
   // list at all - so the page says that rather than that nothing is due.
   it('is told it has no task list, and is offered nothing to tap', async () => {
     who.demo = true;
@@ -990,7 +990,7 @@ describe('what is due for the reader, behind the bell', () => {
     who.demo = true;
     drawInbox();
 
-    expect(await screen.findByText('The demo has no inbox; open a place to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no alerts of its own; open a place to see its alarms.')).toBeInTheDocument();
     await waitFor(() => expect(reads('/home')).not.toHaveLength(0));
     expect(screen.queryByRole('region', { name: 'Tasks' })).not.toBeInTheDocument();
     expect(reads('/tasks')).toHaveLength(0);

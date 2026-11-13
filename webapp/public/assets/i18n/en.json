@@ -7,11 +7,11 @@
     "cancel": "Cancel"
   },
   "demo": {
-    "opening": "Opening the demo..."
+    "opening": "Opening the demo …"
   },
   "login": {
     "sessionEnded": "Your session has ended, so you were signed out. Sign in again to return to the page you were on.",
-    "email": "Email",
+    "email": "E-mail",
     "password": "Password",
     "newPassword": "New password",
     "createAccount": "Create account",
@@ -25,7 +25,7 @@
     "noAccount": "No account yet?",
     "signUp": {
       "intro": "An e-mail address, a username, a password and your agreement to the privacy statement.",
-      "forInvitation": "An invitation to {{name}} is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
+      "forInvitation": "An invitation is waiting: {{name}}. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "forInvitationUnnamed": "An invitation is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "handle": "Username",
       "handleNote": "The only name anybody here ever sees.",
@@ -68,19 +68,19 @@
       }
     },
     "confirmations": {
-      "startFlowering": "Ready for flowering? From now on the light runs 12/12 — confirm to start the switch.",
-      "harvest": "Check the trichomes: milky with first amber tones? Then harvest and confirm — drying starts next.",
-      "dryingDone": "Do the branches snap instead of bending? Then drying is done — off to the curing jars."
+      "startFlowering": "Ready for flowering? From now on the light runs 12/12 – confirm to start the switch.",
+      "harvest": "Check the trichomes: milky with first amber tones? Then harvest and confirm – drying starts next.",
+      "dryingDone": "Do the branches snap instead of bending? Then drying is done – off to the curing jars."
     }
   },
   "assistant": {
-    "tipsTitle": "Tips for this stage",
+    "tipsTitle": "Tips for this phase",
     "tips": {
       "seedling": {
-        "1": "Keep the medium slightly moist, never soaking wet — seedlings drown faster than they dry out.",
+        "1": "Keep the medium slightly moist, never soaking wet – seedlings drown faster than they dry out.",
         "2": "High humidity (65–75 %) helps young roots; a propagator dome works great in the first days.",
-        "3": "Keep the light dimmed (around 40 %) and at a good distance — bleached or curled leaves mean it's too strong.",
-        "4": "Don't feed yet: the seed carries nutrients for the first two weeks."
+        "3": "Keep the light dimmed (around 40 %) and at a good distance – bleached or curled leaves mean it’s too strong.",
+        "4": "Don’t feed yet: the seed carries nutrients for the first two weeks."
       },
       "germination": {
         "1": "Seeds germinate dark and moist: between two damp paper towels or 1 cm deep straight into the medium, never standing in water.",
@@ -89,22 +89,22 @@
         "4": "No feeding and no pressing down: the seed brings what it needs for the first days."
       },
       "vegetative": {
-        "1": "Water when the top few centimeters of the medium feel dry — lifting the pot tells you more than a schedule.",
+        "1": "Water when the top few centimetres of the medium feel dry – lifting the pot tells you more than a schedule.",
         "2": "Now is training time: topping or bending (LST) creates an even canopy and more bud sites.",
         "3": "Raise light intensity step by step towards 80–100 % as the plants toughen up.",
         "4": "Watch the VPD curve on Timeline: 0.8–1.1 kPa keeps transpiration and growth in balance."
       },
       "flowering": {
-        "1": "Keep humidity at or below 50 % — dense buds plus high humidity is how mold starts.",
-        "2": "Don't change the light schedule anymore; interruptions of the dark period stress photoperiod plants.",
-        "3": "Feed bloom nutrients and watch leaf color — fading towards the end is normal.",
+        "1": "Keep humidity at or below 50 % – dense buds plus high humidity is how mould starts.",
+        "2": "Don’t change the light schedule anymore; interruptions of the dark period stress photoperiod plants.",
+        "3": "Feed bloom nutrients and watch leaf colour – fading towards the end is normal.",
         "4": "Check the trichomes in the last weeks: cloudy with the first amber ones usually means harvest time."
       },
       "drying": {
-        "1": "16–20 °C and 55–60 % humidity, dark and with gentle air movement — slow drying preserves the terpenes.",
-        "2": "Plan for 10–14 days. If it's done after 5, it was too warm or too dry.",
+        "1": "16–20 °C and 55–60 % humidity, dark and with gentle air movement – slow drying preserves the terpenes.",
+        "2": "Plan for 10–14 days. If it’s done after 5, it was too warm or too dry.",
         "3": "The snap test: when small branches crack instead of bending, the buds are ready for curing jars.",
-        "4": "Open the jars daily in the first curing week ('burping') to let moisture escape."
+        "4": "Open the jars daily in the first curing week (“burping”) to let moisture escape."
       }
     }
   },
@@ -170,7 +170,7 @@
     "reboot": {
       "action": "Restart",
       "title": "Restart {{name}}?",
-      "text": "The device restarts and cannot be reached for a moment, usually less than a minute. It regulates nothing meanwhile.",
+      "text": "The device restarts and cannot be reached for a moment, usually less than a minute. It controls nothing meanwhile.",
       "kept": "Targets and settings are kept. Anything you switched by hand – the light or a socket – ends with the restart.",
       "yes": "Restart now",
       "sent": "Restart asked for · {{name}} will be back in a moment",
@@ -246,9 +246,9 @@
       "withSockets_other": "{{count}} sockets",
       "told": {
         "named": "{{was}} is now called {{name}}",
-        "moved": "{{place}}: {{name}} now stands here",
+        "moved": "{{place}}: {{name}} is here now",
         "with": "with {{what}}",
-        "nowhere": "{{name}} now stands in no place"
+        "nowhere": "{{name}} is in no place now"
       },
       "rename": "Rename"
     },
@@ -281,40 +281,40 @@
   "message-lost-connection-text": "The connection between your device and our sever was lost and has been reestablished. If this messages appeares regulary please check your wifi and internet connection",
   "message-device-booted-title": "Device rebooted",
   "message-device-booted-text": "Your device has rebooted. If this messages appears regularly please check your power connection.",
-  "message-device-booted:POWERON-text": "Your device has rebooted. The reason was a power cycle (POWERON) - this is normal after unplugging or a power outage. If this message appears unexpectedly please check your power connection.",
+  "message-device-booted:POWERON-text": "Your device has rebooted. The reason was a power cycle (POWERON) – this is normal after unplugging or a power outage. If this message appears unexpectedly please check your power connection.",
   "message-device-booted:BROWNOUT-text": "Your device has rebooted. The reason was a brownout: the supply voltage dropped below the safe threshold. This usually means the power adapter or USB cable cannot deliver enough current.",
   "message-device-booted:TASK_WDT-text": "Your device has rebooted. The reason was a task watchdog timeout: the main firmware loop did not respond in time and was force-restarted. This typically happens when network operations get stuck on a flaky internet uplink. If this message appears regularly please check your internet connection.",
   "message-device-booted:INT_WDT-text": "Your device has rebooted. The reason was an interrupt watchdog timeout: an interrupt routine in the firmware took too long. Please report this to support if it happens repeatedly.",
   "message-device-booted:WDT-text": "Your device has rebooted. The reason was an internal watchdog timeout. Please report this to support if it happens repeatedly.",
-  "message-device-booted:PANIC-text": "Your device has rebooted. The reason was a firmware crash (panic) - the device restarted automatically. Please report this to support if it happens repeatedly.",
-  "message-device-booted:SW-text": "Your device has rebooted. Its firmware restarted it on purpose: after installing an update, after its network settings were changed, from its own menu, to recover from a lost connection or low memory, or - on older builds - because a restart was asked for remotely.",
+  "message-device-booted:PANIC-text": "Your device has rebooted. The reason was a firmware crash (panic) – the device restarted automatically. Please report this to support if it happens repeatedly.",
+  "message-device-booted:SW-text": "Your device has rebooted. Its firmware restarted it on purpose: after installing an update, after its network settings were changed, from its own menu, to recover from a lost connection or low memory, or – on older builds – because a restart was asked for remotely.",
   "message-device-booted:EXT-text": "Your device has rebooted. The reason was a hardware reset via the reset pin.",
   "message-device-booted:DEEPSLEEP-text": "Your device has rebooted. The reason was a wake-up from deep sleep mode.",
   "message-device-booted:SDIO-text": "Your device has rebooted. The reason was a restart over the SDIO interface.",
   "message-device-booted:UNKNOWN-text": "Your device has rebooted. The reason was not reported by the device. If this message appears regularly please check your power connection and internet uplink.",
-  "message-device-booted:REMOTE-text": "Your device has rebooted. The reason was an intentional restart triggered remotely via the portal.",
+  "message-device-booted:REMOTE-text": "Your device has rebooted. The reason was an intentional restart triggered in the app.",
   "message-buffer-overflow-title": "Connection problem",
   "message-buffer-overflow-text": "Data could not be transferred to the server and was lost. Please check your internet connection or wifi.",
-  "message-co2-low-title": "Low CO2",
-  "message-co2-low-text": "Check your CO2 bottle!",
+  "message-co2-low-title": "Low CO₂",
+  "message-co2-low-text": "Check your CO₂ cylinder!",
   "message-device-firmware-update-title": "Update asked for",
   "message-device-firmware-update-text": "Your device was told to install new software. Whether it did is a separate line.",
   "message-ext-sensor-deviate-title": "External and internal sensor deviation",
   "message-ext-sensor-deviate-text": "External and internal sensor differ! Check sensor placement!",
   "message-ext-sensor-fail-title": "External sensor has failed!",
   "message-ext-sensor-fail-text": "The external sensor has failed!",
-  "message-maintenance-mode-activated:0-title": "Maintenance mode deactivated",
-  "message-maintenance-mode-activated:0-text": "Your device's maintenance mode was manually disabled. Alarms will be re-enabled in 10 minutes.",
-  "message-maintenance-mode-activated-title": "Maintenance mode activated",
-  "message-maintenance-mode-activated-text": "Your device was manually put into maintenance mode for {{value}} minutes. Alarms will be disabled during this time",
-  "message-maintenance-mode-activated-remote:0-title": "Maintenance mode deactivated via portal",
-  "message-maintenance-mode-activated-remote:0-text": "Your device's maintenance mode was manually disabled via the portal. Alarms will be re-enabled in 10 minutes.",
-  "message-maintenance-mode-activated-remote-title": "Maintenance mode activated via portal",
-  "message-maintenance-mode-activated-remote-text": "Your device was manually put into maintenance mode for {{value}} minutes via the portal. Alarms will be disabled during this time",
+  "message-maintenance-mode-activated:0-title": "Maintenance ended",
+  "message-maintenance-mode-activated:0-text": "Your device’s maintenance was ended by hand. Alarms are back on in 10 minutes.",
+  "message-maintenance-mode-activated-title": "Maintenance started",
+  "message-maintenance-mode-activated-text": "Your device was put into maintenance by hand for {{value}} minutes. Alarms are off during this time.",
+  "message-maintenance-mode-activated-remote:0-title": "Maintenance ended in the app",
+  "message-maintenance-mode-activated-remote:0-text": "Your device’s maintenance was ended in the app. Alarms are back on in 10 minutes.",
+  "message-maintenance-mode-activated-remote-title": "Maintenance started in the app",
+  "message-maintenance-mode-activated-remote-text": "Your device was put into maintenance in the app for {{value}} minutes. Alarms are off during this time.",
   "message-firmware-update-complete-title": "Firmware update complete",
-  "message-firmware-update-complete-text": "Your device's firmware update was completed",
+  "message-firmware-update-complete-text": "Your device’s firmware update was completed",
   "message-firmware-update-complete-with-ids-title": "Firmware update complete",
-  "message-firmware-update-complete-with-ids-text": "Your device's firmware update was completed: {{value}}",
+  "message-firmware-update-complete-with-ids-text": "Your device’s firmware update was completed: {{value}}",
   "message-firmware-update-failed-with-ids-title": "Update did not take",
   "message-firmware-update-failed-with-ids-text": "Your device was told to install new software and has not come back running it: {{value}}. It is still on the build named first, and is being asked again.",
   "message-recipe-step-awaiting-confirmation-title": "Plan step awaiting confirmation",
@@ -326,7 +326,7 @@
   "message-recipe-completed-title": "Plan completed",
   "message-recipe-completed-text": "The plan has completed all its steps.",
   "message-device-configuration-updated-title": "Settings changed",
-  "message-device-configuration-updated-text": "The device's settings were changed:\n{{value}}",
+  "message-device-configuration-updated-text": "The device’s settings were changed:\n{{value}}",
   "message-recipe-step-manually-activated-title": "Plan started",
   "message-recipe-step-manually-activated-text": "The plan was started at step {{value}}.",
   "message-alarm-webhook-error-title": "Alarm webhook error",
@@ -337,16 +337,16 @@
   "message-alarm-resolved-text": "{{value}}",
   "message-rtsp-stream-error-title": "RTSP stream error",
   "message-rtsp-stream-error-text": "Failed to fetch image from RTSP stream: {{value}}",
-  "message-diary-co2-refill-title": "CO2 cylinder was refilled",
-  "message-diary-co2-refill-text": "The CO2 cylinder was refilled.",
-  "message-diary-plant-log-title": "Plant log entry",
+  "message-diary-co2-refill-title": "CO₂ cylinder was refilled",
+  "message-diary-co2-refill-text": "The CO₂ cylinder was refilled.",
+  "message-diary-plant-log-title": "Plant entry",
   "message-diary-plant-log-text": "A line written in the diary of the plants.",
-  "message-diary-fridge-log-title": "Fridge log entry",
+  "message-diary-fridge-log-title": "Fridge entry",
   "message-diary-fridge-log-text": "A line written in the diary of the fridge.",
   "message-diary-measurement-title": "User measurement",
   "message-diary-measurement-text": "A reading somebody took and wrote down.",
   "message-diary-plant-lifecycle-title": "Plant phase change",
-  "message-diary-plant-lifecycle-text": "The plants were moved on to another stage.",
+  "message-diary-plant-lifecycle-text": "The plants were moved on to another phase.",
   "message-smart-socket-cmd-failed-title": "Smart socket command failed",
   "message-smart-socket-cmd-failed-text": "Failed to send a power command to the smart socket for role: {{value}}",
   "message-smart-socket-readdressed-title": "Smart socket found again",
@@ -356,7 +356,7 @@
   "message-terp-cam-not-found-title": "Camera not found",
   "message-terp-cam-not-found-text": "The paired camera did not answer a network search. Check that it has power and is on your WiFi.",
   "message-terp-cam-connected-title": "Camera connected",
-  "message-terp-cam-connected-text": "A Terp Control Cam was paired with this device and is delivering pictures.",
+  "message-terp-cam-connected-text": "A Terp Cam was paired with this device and is delivering pictures.",
   "message-cam-reset:ok-title": "Camera restarted",
   "message-cam-reset:ok-text": "The camera answered the restart it was sent and is coming back up.",
   "message-cam-reset:no-response-title": "Camera did not answer a restart",
@@ -370,7 +370,7 @@
   "message-smart-socket-disconnected-title": "Smart socket disconnected",
   "message-smart-socket-disconnected-text": "The smart socket assignment was removed for role: {{value}}",
   "message-smart-socket-address-lost-title": "Smart socket address lost",
-  "message-smart-socket-address-lost-text": "The smart socket for role {{value}} is not at its stored address any more — another socket answers there. It is looked for on the network; enter its address again if it does not come back.",
+  "message-smart-socket-address-lost-text": "The smart socket for role {{value}} is not at its stored address any more – another socket answers there. It is looked for on the network; enter its address again if it does not come back.",
   "message-smart-socket-tested-title": "Smart socket tested",
   "message-smart-socket-tested-text": "The smart socket for role {{value}} was switched briefly to check that it answers.",
   "message-aux-command-failed-title": "Command not carried out",
@@ -384,7 +384,7 @@
     "discord": {
       "name": "Discord",
       "url": "Discord webhook URL",
-      "hint": "Discord → channel settings → Integrations → Webhooks → New webhook, then paste the URL here."
+      "hint": "Discord › channel settings › Integrations › Webhooks › New webhook, then paste the URL here."
     },
     "telegram": {
       "name": "Telegram",
@@ -396,27 +396,27 @@
       "name": "ntfy.sh",
       "topic": "Topic name",
       "server": "Server",
-      "hint": "Install the ntfy app and subscribe to the same topic — no account needed. Pick a hard-to-guess topic name."
+      "hint": "Install the ntfy app and subscribe to the same topic – no account needed. Pick a hard-to-guess topic name."
     },
     "home_assistant": {
       "name": "Home Assistant",
       "baseUrl": "Home Assistant URL",
       "webhookId": "Webhook ID",
-      "hint": "Create a webhook trigger in an automation; local instances are reached through your device's tunnel automatically."
+      "hint": "Create a webhook trigger in an automation; local instances are reached through your device’s tunnel automatically."
     }
   },
   "install": {
     "iosIntro": "Install Terp Control as an app on your home screen:",
     "iosStep1": "Open this page in Safari and tap the share icon",
     "iosStep2": "Choose “Add to Home Screen”.",
-    "iosStep3": "Tap “Add” — done.",
+    "iosStep3": "Tap “Add” – done.",
     "androidIntro": "Install Terp Control as an app on your home screen:",
     "androidStep1": "Open the browser menu",
     "androidStep2": "Choose “Install app” or “Add to Home screen”.",
-    "note": "Terp Control then launches full-screen with its own icon — just like a regular app.",
+    "note": "Terp Control then launches full-screen with its own icon – just like a regular app.",
     "title": "On the home screen",
     "line": "Terp Control then opens full-screen from its own icon, like an app.",
-    "lineIos": "Full-screen from its own icon - and on an iPhone the only way to push notifications.",
+    "lineIos": "Full-screen from its own icon – and on an iPhone the only way to push notifications.",
     "running": "Terp Control is already running here as an app from the home screen.",
     "now": "Install",
     "how": "Show how",
@@ -439,14 +439,14 @@
     "place": {
       "chip": "Place: {{name}}",
       "title": "Place",
-      "holds": "holds for Grow, Timeline and Control",
+      "holds": "applies to Grow, Timeline and Control",
       "chosen": "chosen"
     },
     "loadFailed": "Could not load. Try again.",
     "unreachable": "Could not reach the server. Try again.",
     "cannotReach": {
       "title": "Could not reach the server",
-      "why": "You are still signed in. The app asks the server to confirm that each time it starts, and this time the server did not answer - a restart at the other end, or a connection that dropped. Nothing has been lost and nothing has to be typed again; trying again in a moment is usually all it takes.",
+      "why": "You are still signed in. The app asks the server to confirm that each time it starts, and this time the server did not answer – a restart at the other end, or a connection that dropped. Nothing has been lost and nothing has to be typed again; trying again in a moment is usually all it takes.",
       "again": "Try again",
       "asking": "Trying …",
       "signIn": "Sign in instead"
@@ -472,18 +472,18 @@
       "again": "Try it again",
       "home": "Home"
     },
-    "zoneAdopted": "Clock times now follow {{zone}}, the zone this device is in. Your account was still on {{from}}, which every account starts on - quiet hours are read in the new zone too.",
+    "zoneAdopted": "Clock times now follow {{zone}}, the zone this device is in. Your account was still on {{from}}, which every account starts on – quiet hours are read in the new zone too.",
     "zoneAdoptedChange": "Change it",
     "zoneAdoptedDismiss": "Got it",
     "layout": {
       "label": "What changed",
       "diary": "The grow diary is on. The bar now has “Grow” with the diary and “Log” for watering, feeding, photos and notes; what is due is on Home and behind the bell.",
-      "places": "There are {{count}} places now: Home shows each as a card. The place named at the top holds for Grow, Timeline and Control; tap its name to switch.",
+      "places": "There are {{count}} places now: Home shows each as a card. The place named at the top applies to Grow, Timeline and Control; tap its name to switch.",
       "ok": "Got it",
       "diaryOff": "Turn it off under Me › Grow diary",
       "before": {
         "phone": "The app has a new layout. The bar at the bottom holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and your account are at the top right – the bell and “Me”.",
-        "wide": "The app has a new layout. The bar on the left holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and Me are at its foot."
+        "wide": "The app has a new layout. The bar on the left holds {{items}}: Timeline shows the curves, Control holds the targets, the alarms and the devices. Alerts and Me are at the bottom of it."
       }
     },
     "skipToContent": "Skip to the page",
@@ -501,14 +501,14 @@
       "scan": "scan QR",
       "orScan": "or scan",
       "scanUnavailable": "This browser cannot read QR codes; type the code instead.",
-      "scanDenied": "The camera was not allowed — type the code instead, or allow the camera for this site.",
+      "scanDenied": "The camera was not allowed – type the code instead, or allow the camera for this site.",
       "scanHint": "Point the camera at the QR code on the box.",
       "cancel": "Cancel"
     },
     "demo": {
       "confirm": "Open the demo · sign out of mine",
       "stay": "Stay in my account",
-      "opening": "Opening the demo…",
+      "opening": "Opening the demo …",
       "failed": "The demo could not be opened."
     },
     "waiting": "loading",
@@ -520,8 +520,8 @@
       "offline": "offline"
     },
     "card": {
-      "noReading": "–",
-      "inBand": "in band",
+      "noReading": "—",
+      "inBand": "on target",
       "noTarget": "no target",
       "auto": "by itself",
       "noPhase": "No phase yet",
@@ -530,7 +530,7 @@
       "day": "day",
       "dayN": "Day {{day}}",
       "ago": "{{age}} ago",
-      "stillAlt": "The newest picture of {{name}}",
+      "stillAlt": "{{name}}: the newest picture",
       "enteredPhase": "Entered {{stage}}"
     },
     "metric": {
@@ -773,7 +773,7 @@
       "count_one": "{{count}} grow",
       "count_other": "{{count}} grows",
       "none": "You follow nobody yet. Follow sits at the top of any public diary.",
-      "note": "A followed grow is somebody else's public page: you see what any stranger sees, and it stays here until you stop following."
+      "note": "A followed grow is somebody else’s public page: you see what any stranger sees, and it stays here until you stop following."
     },
     "shareLinks": {
       "title": "Share links",
@@ -783,13 +783,13 @@
       "none": "No links handed out yet",
       "kind": {
         "public_page": "public page",
-        "view": "timeline"
+        "view": "Timeline"
       },
       "days_one": "{{count}} day",
       "days_other": "{{count}} days",
       "lasting_one": "for {{count}} day",
       "lasting_other": "for {{count}} days",
-      "permanentLink": "the grow's permanent link",
+      "permanentLink": "the grow’s permanent link",
       "growPrivate": "grow now private · does not open",
       "readOnly": "read-only view",
       "permanent": "permanent",
@@ -808,7 +808,7 @@
       "new": "+ New link · grow or place · cams · expiry",
       "noSubjects": "Nothing of your own to share yet",
       "address": "Address",
-      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again - sharing once more takes a new link.",
+      "revokeNote": "Revoking ends the link now. Whoever has it sees from then on exactly what a link nobody made shows: nothing. It stays listed here with the date, and it cannot be started again – sharing once more takes a new link.",
       "forgetNote": "Forgetting takes the link off this list. It has already stopped working.",
       "sheet": {
         "title": "New link",
@@ -816,7 +816,7 @@
         "kind": "Kind",
         "window": "Time span",
         "wholeWindow": "No limit",
-        "windowNote": "The link shows this time span only: curves, timeline and entries from it.",
+        "windowNote": "The link shows this time span only: curves, Timeline and entries from it.",
         "wholeWindowNote": "The link shows the place as it is now, and everything before.",
         "publicPage": "Public page",
         "view": "Read-only view",
@@ -864,14 +864,14 @@
         "premium": "Premium",
         "yes": "included",
         "no": "not included",
-        "live": "Live still and today's timelapse",
+        "live": "Current picture and today’s timelapse",
         "resolution": "Full resolution stills",
         "kept": "Stills kept",
         "wholeGrow": "whole grow",
         "wholeGrowHd": "Timelapse over the whole grow, HD",
         "reel": "Reel export with overlays",
         "watermark": "watermark",
-        "rest": "Control, timeline, diary, alarms, sharing",
+        "rest": "Control, Timeline, diary, alarms, sharing",
         "keptDays_one": "{{count}} day",
         "keptDays_other": "{{count}} days",
         "widthPx": "{{width}} px",
@@ -897,7 +897,7 @@
       "weeks_other": "{{count}} weeks",
       "flip": "flip week {{week}}",
       "noneShipped": "This build ships no schemes.",
-      "howToKeep": "A scheme of your own is kept from a grow's Feeding tab: “Save as my own”.",
+      "howToKeep": "A scheme of your own is kept from a grow’s Feeding tab: “Save as my own”.",
       "fromAsset": "from {{name}}",
       "byHand": "written by hand",
       "readFrom": "read from",
@@ -905,7 +905,7 @@
       "copyNote": "A scheme on this shelf is a copy. Editing it changes what the next grow starts from and nothing that is already growing.",
       "name": "Name",
       "save": "Save",
-      "saving": "Saving…",
+      "saving": "Saving …",
       "delete": "Delete",
       "deleteAsk": "Delete {{name}}? Grows already fed by it keep their own grid. The copy on your shelf goes for good; a grow that still has the grid can put one back from its Feeding tab.",
       "deleteYes": "Delete it",
@@ -927,7 +927,7 @@
         "mismatch": "The two new passwords differ.",
         "save": "Save",
         "cancel": "Cancel",
-        "saving": "Saving…",
+        "saving": "Saving …",
         "changed": "Password changed."
       },
       "sessions": {
@@ -942,7 +942,7 @@
         "signOutOthers": "Sign every other browser out",
         "sweep": {
           "title": "Sign every other browser out?",
-          "what": "Every other browser and script signed in as you is signed out at once - the ones listed here and the ones that are not, wherever they are. Whoever holds one has to sign in again with your e-mail and password.",
+          "what": "Every other browser and script signed in as you is signed out at once – the ones listed here and the ones that are not, wherever they are. Whoever holds one has to sign in again with your e-mail and password.",
           "thisOne": "This browser stays signed in, and nothing else about the account changes. A session that ends this way cannot be brought back; signing in again makes a new one.",
           "yes": "Sign the others out",
           "signingOut": "Signing them out …",
@@ -956,7 +956,7 @@
         "ask": "Build the zip",
         "again": "Try again",
         "queued": "queued",
-        "rendering": "building the file…",
+        "rendering": "building the file …",
         "download": "Download · {{size}} · built {{age}} ago",
         "failedPlain": "The file could not be built.",
         "line": "JSON, CSV, diary photos and films in one zip"
@@ -1052,7 +1052,7 @@
     "finalDay": "final day",
     "phaseBarEndedLabel": "Phase progress, ended in {{stage}}",
     "noFixedPlace": "No fixed place",
-    "stoodIn": "stood in {{name}}",
+    "stoodIn": "last place: {{name}}",
     "rename": {
       "title": "Name and kind",
       "name": "Name",
@@ -1076,18 +1076,18 @@
       "harvest": "Harvested",
       "wet": "wet {{grams}} g",
       "dry": "dry {{grams}} g",
-      "dayFromToToday": "day {{from}} → today",
+      "dayFromToToday": "day {{from}} to today",
       "waterCount_one": "{{count}} water",
       "waterCount_other": "{{count}} waters",
       "feedCount_one": "{{count}} feed",
       "feedCount_other": "{{count}} feeds",
       "export": {
         "title": "Export",
-        "note": "Everything about this grow in one zip: the diary, the readings and the climate - a row a minute, averaged - as CSV, and every photo of it.",
+        "note": "Everything about this grow in one zip: the diary, the readings and the climate – a row a minute, averaged – as CSV, and every photo of it.",
         "ask": "Export this grow",
         "again": "Try again",
         "queued": "queued",
-        "rendering": "building the file…",
+        "rendering": "building the file …",
         "download": "Download · {{size}}",
         "failedPlain": "The file could not be built.",
         "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
@@ -1108,7 +1108,7 @@
       },
       "when": "On",
       "cancel": "Cancel",
-      "saving": "Saving…",
+      "saving": "Saving …",
       "everyPlant": "Every plant",
       "whichPlants": "Which plants",
       "somePlants_one": "{{count}} plant",
@@ -1120,9 +1120,9 @@
         "endedLine": "Ended in {{stage}} on day {{growDay}} of the grow · {{date}}",
         "enter": "Enter a phase",
         "record": "Add a phase to the record",
-        "stageLabel": "Stage",
+        "stageLabel": "Phase",
         "presetLabel": "Climate preset",
-        "noPreset": "Stage only",
+        "noPreset": "Phase only",
         "alreadyThere": "The grow is already in this phase: nothing is written.",
         "alreadyThereEnded": "The grow ended in this phase: nothing is written.",
         "submit": "Enter {{stage}}",
@@ -1140,23 +1140,23 @@
         "confirmWithdraw": "Withdraw this phase",
         "effect": {
           "nothingYet": "Nothing changed yet.",
-          "growDay": "The grow reads day {{from}}, week {{weekFrom}} → day {{to}}, week {{weekTo}}.",
-          "phaseDay": "This phase reads day {{from}} → day {{to}}.",
-          "stage": "The grow reads {{from}} → {{to}}.",
-          "noPhaseLeft": "The grow is left with no phase: no stage and no day counter until one is entered again.",
-          "timelineOnly": "Nothing the grow page shows moves: this phase lies behind the one the grow stands in.",
+          "growDay": "The grow then reads day {{to}}, week {{weekTo}} instead of day {{from}}, week {{weekFrom}}.",
+          "phaseDay": "This phase then reads day {{to}} instead of day {{from}}.",
+          "stage": "The grow then reads {{to}} instead of {{from}}.",
+          "noPhaseLeft": "The grow is left with no phase and no day counter until one is entered again.",
+          "timelineOnly": "Nothing the grow page shows moves: this phase lies before the one the grow is in.",
           "entry": "The diary line that announced it moves with it.",
           "entryGone": "The diary line that announced it goes with it."
         }
       },
       "move": {
         "title": "Move",
-        "standsIn": "Standing in {{places}}",
+        "standsIn": "Place now: {{places}}",
         "moveTo": "Move to",
         "note": "The open placement of these plants is closed and a new one opened. Plants that are not moving keep the place they are in.",
-        "nowhereNote": "No fixed place is somewhere a grow can be rather than the absence of a place: it stays in the diary and on the home screen.",
+        "nowhereNote": "No fixed place is somewhere a grow can be rather than the absence of a place: it stays in the diary and on Home.",
         "submit": "Move · {{place}}",
-        "history": "Where it has stood",
+        "history": "Where it has been",
         "newestFirst": "newest first",
         "stillThere": "still there",
         "leftOn": "left on",
@@ -1281,7 +1281,7 @@
         "to": "to",
         "targetNote": "Both ends empty is a measurement nobody aims at; one end alone is a limit.",
         "save": "Save",
-        "saving": "Saving…",
+        "saving": "Saving …",
         "delete": "Delete",
         "deleteAsk": "Delete this measurement? Nothing has been written under it.",
         "deleteYes": "Delete it",
@@ -1304,7 +1304,7 @@
         "backspace": "Delete the last digit",
         "saveAndNext": "Save and next plant",
         "save": "Save",
-        "saving": "Saving…",
+        "saving": "Saving …",
         "nothingYet": "Nothing is measured in this grow yet.",
         "setUp": "Set up measurements",
         "noGrow": "A reading belongs to a grow, and nothing is growing here yet.",
@@ -1313,7 +1313,8 @@
       "curve": {
         "alt": "{{name}} over the grow: {{count}} readings between {{low}} and {{high}} {{unit}}",
         "span": "{{low}} to {{high}} · last {{last}}",
-        "one": "One reading so far: {{last}}"
+        "one": "One reading so far: {{last}}",
+        "alt_one": "{{name}} over the grow: one reading, {{low}} {{unit}}"
       },
       "noteNoPlace": "A measurement is a Measure tile on the Log sheet, a line in the diary, a curve here and a column in the export. Per plant or per grow is chosen once."
     },
@@ -1345,7 +1346,7 @@
       "label": "Label",
       "strain": "Strain",
       "save": "Save",
-      "saving": "Saving…"
+      "saving": "Saving …"
     },
     "scheme": {
       "basedOn": "Based on",
@@ -1383,9 +1384,9 @@
       "removeProduct": "Remove {{name}}",
       "unsaved": "not saved",
       "save": "Save",
-      "saving": "Saving…",
+      "saving": "Saving …",
       "discard": "Discard",
-      "chartCaption": "The manufacturer's chart is a starting point, not a rule.",
+      "chartCaption": "The manufacturer’s chart is a starting point, not a rule.",
       "sheet": {
         "title": "Feeding scheme",
         "follows": "This grow follows",
@@ -1495,21 +1496,21 @@
       "noControllerAdd": "Add a device",
       "none": "No plan yet.",
       "noClimateHasPlan": "This device states no climate, so what these steps write lands in a document that has nowhere for it. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
-      "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device's own tuning but put in place of it: the work mode, the light schedule, the dehumidifier's timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
+      "waitingHasPlan": "This device has not sent its settings yet, so these steps are held back rather than sent. What a step carries would not be added to the device’s own tuning but put in place of it: the work mode, the light schedule, the dehumidifier’s timings and the dimming ramps would all be back at a factory value, and none of them has ever reached the cloud to be put back. A step whose settings are emptied sends nothing at all, and a stopped plan sends nothing until it is started again.",
       "write": "Write a plan",
       "edit": "Edit the plan",
       "noSteps": "This plan has no steps, so there is nothing for it to run.",
-      "noStage": "No stage",
+      "noStage": "No phase",
       "waits": "waits for you",
       "stepOf": "Step {{number}} of {{count}}",
       "served": "{{age}} on this step",
-      "extendedClock": "extended: this step's clock starts in {{age}}",
-      "extendedPausedClock": "extended: once resumed, this step's clock starts after {{age}}",
+      "extendedClock": "extended: this step’s clock starts in {{age}}",
+      "extendedPausedClock": "extended: once resumed, this step’s clock starts after {{age}}",
       "left": "{{age}} left",
       "over": "its time is up",
       "openEnded": "runs until it is moved on",
       "pausedFor": "Paused: {{reason}}",
-      "startsStage": "Starting puts a grow standing here into {{stage}}, with its day counter and a diary line. To come in later, use what stands under the plan: continue the plan at a step.",
+      "startsStage": "Starting puts a grow here into {{stage}}, with its day counter and a diary line. To come in later, use the row under the plan: continue the plan at a step.",
       "status": {
         "running": "Running",
         "paused": "Paused",
@@ -1524,14 +1525,14 @@
       },
       "next": {
         "step": "Next · step {{number}}, {{name}}",
-        "loops": "Next · back to step 1, {{name}} — this plan loops.",
+        "loops": "Next · back to step 1, {{name}} – this plan loops.",
         "ends": "This is the last step: the plan completes when it is over.",
         "atRest": "Starting it begins at step 1.",
         "completed": "Every step has run. Starting it again begins at step 1."
       },
       "applied": {
         "at": "Step sent to the device {{age}} ago",
-        "never": "This step's settings go to the device within the minute",
+        "never": "This step’s settings go to the device within the minute",
         "atRest": "While the plan is not running it writes nothing: the device keeps whatever it was last set to",
         "quiet": "{{offline}} · what the device is really running may be older than this"
       },
@@ -1549,10 +1550,10 @@
         "extend": "More time on the step the place is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
         "extendYes": "Add {{length}}",
         "skip": "The plan moves on to step {{number}}, {{name}}, and starts its clock. What this step still had to run is not kept.",
-        "skipPaused": "The plan moves on to step {{number}}, {{name}}, and stays paused: that step's clock starts when the plan is resumed. What this step still had to run is not kept.",
+        "skipPaused": "The plan moves on to step {{number}}, {{name}}, and stays paused: that step’s clock starts when the plan is resumed. What this step still had to run is not kept.",
         "skipEnds": "This is the last step, so skipping it completes the plan. The device keeps the settings this step gave it.",
         "skipYes": "Skip the step",
-        "stop": "The plan keeps its steps and stands at the first one again, ready to be started. The device keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
+        "stop": "The plan keeps its steps and is back at the first one, ready to be started. The device keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
         "stopYes": "Stop the plan",
         "remove": "The plan and its steps are taken off this device. The device keeps whatever it was last set to, and what the plan wrote stays in the diary. Keep it as a template first to start from it again.",
         "removeYes": "Remove the plan"
@@ -1590,8 +1591,8 @@
       "step": {
         "defaultName": "Step {{number}}",
         "name": "Name",
-        "stage": "Stage",
-        "stageNote": "The stage is what the step puts the grow standing here into, with the day counter and the diary line that go with it. A step with no stage leaves the phase where it is.",
+        "stage": "Phase",
+        "stageNote": "The phase is the one the step puts the grow here into, with the day counter and the diary line that go with it. A step with no phase leaves the grow in the one it has.",
         "preset": "Climate preset",
         "duration": "How long",
         "durationValue": "How long, as a number",
@@ -1604,9 +1605,9 @@
         "endsGerminationShort": "ends germination",
         "warnsTooHumid": "“Too humid” warns",
         "humidifierRests": "humidifier rests",
-        "writesSections": "A step writes the figures it is given into the device's settings: the day and night targets, the CO₂ target, the light's limit and how long it is on. A figure left empty stays what the device has, and so does everything else in its settings.",
-        "writesSectionsNoCo2": "A step writes the figures it is given into the device's settings: the day and night targets, the light's limit and how long it is on. This device reports no CO₂ sensor, so no CO₂ target is written — its firmware holds one at zero whatever it is told. A figure left empty stays what the device has, and so does everything else in its settings.",
-        "writesNowhere": "This device has not sent its settings yet, so this step is not sent. What it carries would be put in place of the device's own tuning rather than added to it, and every setting this step does not name would be back at a factory value. Clearing these figures is how the step is taken off.",
+        "writesSections": "A step writes the figures it is given into the device’s settings: the day and night targets, the CO₂ target, the light’s limit and how long it is on. A figure left empty stays what the device has, and so does everything else in its settings.",
+        "writesSectionsNoCo2": "A step writes the figures it is given into the device’s settings: the day and night targets, the light’s limit and how long it is on. This device reports no CO₂ sensor, so no CO₂ target is written – its firmware holds one at zero whatever it is told. A figure left empty stays what the device has, and so does everything else in its settings.",
+        "writesNowhere": "This device has not sent its settings yet, so this step is not sent. What it carries would be put in place of the device’s own tuning rather than added to it, and every setting this step does not name would be back at a factory value. Clearing these figures is how the step is taken off.",
         "alsoWrites": "This step also carries settings this screen does not edit ({{sections}}); they are kept as they are.",
         "takeFromController": "Take what the device holds now",
         "waits": "Wait to be confirmed",
@@ -1620,7 +1621,7 @@
         "remove": "Remove",
         "add": "Add a step",
         "dryingNote": "A step into drying switches the device into its drying mode: the light stays off, no CO₂ is dosed, and it holds these two figures round the clock.",
-        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity where one is paired and may hold it. The next step brings the light back, one without a stage too – unless it is a germination itself.",
+        "germinationNote": "A step into germination switches the device dark: no light, no CO₂, and it holds this temperature round the clock; a humidifier holds the humidity where one is paired and may hold it. The next step brings the light back, one without a phase too – unless it is a germination itself.",
         "moved": "{{name}} is now step {{number}} of {{count}}",
         "removed": "{{name}} removed",
         "openNamed": "Edit {{name}}",
@@ -1661,7 +1662,7 @@
         "ownAddress": "your own address",
         "emailNote": "Left empty, the plan writes to the address this account signs in with.",
         "writeEntries": "Write it in the diary",
-        "writeEntriesNote": "A step change leaves a line on the place's timeline, whether or not a mail goes out."
+        "writeEntriesNote": "A step change leaves a line on the place’s Timeline, whether or not a mail goes out."
       },
       "effect": {
         "newPlan": "This device is being run by nothing, so the plan is saved at rest. Starting it is a separate tap.",
@@ -1671,7 +1672,7 @@
         "moves": "{{name}} is the step the place is on: it moves from {{from}} to {{to}} and keeps the time it has already served.",
         "relength": "Its new length is measured against that time, so a step that has already served longer than it now lasts is over at once.",
         "restarts": "{{gone}} is the step the place is on and it is gone from the list, so {{starts}} takes its place as step {{number}} and starts from zero. A confirmation it was waiting for is forgotten.",
-        "resends": "The step's settings are sent to the device again within the next minute rather than at the next hour."
+        "resends": "The step’s settings are sent to the device again within the next minute rather than at the next hour."
       },
       "refused": {
         "nothing_to_confirm": "This step is not waiting to be confirmed: it has been answered already, or its time is not up yet.",
@@ -1701,7 +1702,7 @@
         "yours": "yours",
         "published": "published by somebody else"
       },
-      "youMayLog": "You may log in this place, not steer it. The plan, the targets and the alarm rules stand here as they are set; changing them is for whoever steers the place.",
+      "youMayLog": "You may log in this place, not steer it. The plan, the targets and the alarm rules are shown here as they are set; changing them is for whoever steers the place.",
       "told": {
         "paused": "“{{plan}}” paused",
         "resumed": "“{{plan}}” is running again · {{step}}",
@@ -1718,7 +1719,7 @@
     "noReadingsYet": "Nothing reported yet",
     "growingHere": "Growing here",
     "empty": {
-      "says": "Nothing stands here any more: no device, no camera, no grow.",
+      "says": "Nothing is here any more: no device, no camera, no grow.",
       "remove": "Remove {{name}}"
     },
     "lastStill": "last one {{age}} ago",
@@ -1734,7 +1735,7 @@
       "startGrowHere": "Start a grow here"
     },
     "members": {
-      "demo": "The demo looks at somebody else's place and owns nothing, so there is nobody to let in and nobody to let go.",
+      "demo": "The demo looks at somebody else’s place and owns nothing, so there is nobody to let in and nobody to let go.",
       "invite": "Invite",
       "makeLink": "Make a link",
       "copyLink": "Copy the invite link",
@@ -1757,18 +1758,18 @@
       },
       "remove": {
         "title": "{{place}}: take @{{name}} out?",
-        "body": "They lose this place and everything standing in it. What they wrote here stays here and goes on carrying their name.",
+        "body": "They lose this place and everything in it. What they wrote here stays here and goes on carrying their name.",
         "bodyKeepsRoom": "They keep this place through the room {{room}} and lose only what they held here. What they wrote here stays here and goes on carrying their name.",
         "yes": "Take them out",
         "alsoTheLink": "They came in on the link {{code}}, and taking them out stops it: anybody else you sent that one to can no longer join. Whoever is already in stays in, your other links are untouched, and a new link is one tap away.",
-        "bodyRoom": "They lose every place of this room and everything standing there. What they wrote there stays and goes on carrying their name."
+        "bodyRoom": "They lose every place of this room and everything there. What they wrote there stays and goes on carrying their name."
       },
       "leave": {
         "title": "Leave {{place}}?",
-        "body": "{{place}} goes off your home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
+        "body": "{{place}} disappears from Home and you can only come back in if you are let in again. What you wrote here stays here and goes on carrying your name.",
         "bodyKeepsRoom": "You keep this place through the room {{room}} and give up only the role you held here. What you wrote here stays here and goes on carrying your name.",
         "yes": "Leave",
-        "bodyRoom": "Every place of this room goes off your home and you can only come back in if you are let in again. What you wrote there stays and goes on carrying your name."
+        "bodyRoom": "Every place of this room disappears from Home and you can only come back in if you are let in again. What you wrote there stays and goes on carrying your name."
       },
       "join": {
         "label": "Invitation",
@@ -1779,8 +1780,8 @@
           "can_log": "You would be able to log entries, photos and tasks here.",
           "can_manage": "You would be able to log here, and to change the targets, the plan, the alarms and the sockets."
         },
-        "sees": "You see: {{name}}, every grow that has stood in it – private and finished ones too – and the cams.",
-        "doesNotSee": "You do not see: their other places, grows that never stood here, or who else holds a link.",
+        "sees": "You see: {{name}}, every grow that has grown there – private and finished ones too – and the cams.",
+        "doesNotSee": "You do not see: their other places, grows that were never here, or who else holds a link.",
         "until": "This link works until {{date}}",
         "accept": "Join {{name}}",
         "signIn": "Sign in to join",
@@ -1815,7 +1816,7 @@
         "title": "Invite",
         "role": "Role",
         "roleNote": {
-          "can_log": "sees the place and its grows, logs entries, ticks tasks",
+          "can_log": "sees the place and its grows, logs, ticks tasks",
           "can_manage": "can log, plus targets, plan and alarms",
           "can_logPlain": "sees the place and its readings",
           "can_managePlain": "sees the place and changes its targets, plan and alarms too"
@@ -1863,9 +1864,9 @@
   "log": {
     "title": "Log",
     "close": "Close",
-    "targetLabel": "What the line is about",
+    "targetLabel": "What the entry is about",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
-    "notHere": "The grow or place this link names is not on your home · it may have finished, or it may not be yours to write in · pick where the line should go",
+    "notHere": "The grow or place this link names is not on Home · it may have finished, or it may not be yours to write in · pick where the entry should go",
     "litres": "{{litres}} L",
     "tile": {
       "water": "Water",
@@ -1883,18 +1884,18 @@
     "measurements": "Measurements",
     "notePlaceholder": "What happened?",
     "trainingPlaceholder": "What did you do?",
-    "phaseNeedsGrow": "A phase belongs to a grow, and this line is about a place.",
-    "startGrowHere": "Start a grow in {{name}}",
+    "phaseNeedsGrow": "A phase belongs to a grow, and this entry is about a place.",
+    "startGrowHere": "{{name}}: start a grow",
     "now": "now",
     "save": "Save",
     "saveDay": "Save · Day {{day}}",
-    "takeBack": "Take this line back",
-    "takeBackAsk": "Take this line back? It leaves the diary for good.",
+    "takeBack": "Take this entry back",
+    "takeBackAsk": "Take this entry back? It leaves the diary for good.",
     "takeBackYes": "Take it back",
     "logAsPlanned": "Log as planned",
-    "saveFailed": "Could not save that line",
+    "saveFailed": "Could not save that entry",
     "photoTitle": "Photo entry",
-    "pictureAlt": "Picture {{n}} for this line",
+    "pictureAlt": "Picture {{n}} for this entry",
     "choosePicture": "Take or choose a picture",
     "addPicture": "Add a picture",
     "rotatePicture": "Turn picture {{n}}",
@@ -1916,7 +1917,7 @@
     "dismiss": "Dismiss",
     "takingBack": "taking it back",
     "uploaded": "{{done}} of {{total}} pictures uploaded",
-    "undoFailed": "Could not take that line back",
+    "undoFailed": "Could not take that entry back",
     "taskClosed": "Task done",
     "startsIn": "from scheme week {{week}}",
     "moment": {
@@ -1945,8 +1946,8 @@
     "schemeWeek": "Scheme week {{week}}",
     "litresNoNumber": "That is not a number.",
     "litresTooMuch": "At most {{max}} L.",
-    "corrected": "Line corrected",
-    "takenBack": "Line taken back",
+    "corrected": "Entry corrected",
+    "takenBack": "Entry taken back",
     "undone": "Undone"
   },
   "timeline": {
@@ -2163,10 +2164,10 @@
     "logErrors": "log failed captures to the diary",
     "saysNothing": "nothing",
     "save": "Save",
-    "saving": "Saving…",
+    "saving": "Saving …",
     "saveFailed": "That was not saved.",
     "unpair": "Unpair",
-    "unpairSure": "This camera's pictures stay where they are.",
+    "unpairSure": "This camera’s pictures stay where they are.",
     "unpairYes": "Unpair it",
     "unpairNote": "Unpairing stops this camera being read. Every picture and film it has delivered keeps its link to it.",
     "entitlement": {
@@ -2180,7 +2181,7 @@
     },
     "film": {
       "queued": "waiting",
-      "rendering": "being made…",
+      "rendering": "being made …",
       "ready": "ready",
       "failed": "not made",
       "failedPlain": "The film could not be made.",
@@ -2212,7 +2213,7 @@
       "asked": "{{film}} is being made"
     },
     "noFilms": "No film of this camera yet.",
-    "firstWeekEnds": "The week film shows the last complete week. This camera's first complete week ends on {{date}}.",
+    "firstWeekEnds": "The week film shows the last complete week. This camera’s first complete week ends on {{date}}.",
     "picturesSince": "This camera has only taken pictures since {{date}}: the phase film and the grow film start there.",
     "weekFilmByMail": "The week film every Monday by e-mail",
     "address": "Address",
@@ -2333,7 +2334,7 @@
         "looksAtLabel": "Looks at",
         "looksAtHint": "Canopy, side view …",
         "save": "Save",
-        "saving": "Saving…"
+        "saving": "Saving …"
       },
       "rtsp": {
         "label": "RTSP camera",
@@ -2347,9 +2348,9 @@
         "name": "Name",
         "nameHint": "Camera",
         "test": "Test",
-        "testing": "Taking a picture…",
+        "testing": "Taking a picture …",
         "save": "Add camera",
-        "saving": "Adding…",
+        "saving": "Adding …",
         "worked": "A picture came back · {{age}}",
         "failed": "No picture: {{reason}}",
         "shotAlt": "The picture the test came back with",
@@ -2373,7 +2374,7 @@
         "username": "User",
         "password": "Password",
         "loginInAddress": "The login is already written into the address and is used as it is.",
-        "noCarrier": "{{place}}: no device stands here to fetch the stream from your network · an address of your home network will not answer the cloud"
+        "noCarrier": "{{place}}: no device here fetches the stream from your network · an address of your home network will not answer the cloud"
       }
     }
   },
@@ -2416,7 +2417,7 @@
       "photoperiod": "photoperiod",
       "autoflower": "autoflower"
     },
-    "ran": "{{from}} → {{to}}",
+    "ran": "{{from}} – {{to}}",
     "since": "since {{from}}",
     "diaryCount_one": "{{count}} public diary",
     "diaryCount_other": "{{count}} public diaries",
@@ -2439,7 +2440,7 @@
     },
     "noDiary": {
       "title": "Nothing to read here",
-      "body": "There is no public diary at this address. Whether a diary has one is the grower's decision, and it is theirs to take back."
+      "body": "There is no public diary at this address. Whether a diary has one is the grower’s decision, and it is theirs to take back."
     },
     "noProfile": {
       "title": "Nobody here",
@@ -2472,7 +2473,7 @@
     "copyAddress": "Copy the public address",
     "copyLink": "Copy the link",
     "links": "Links",
-    "linksNote": "A key for one person: a stretch of days, with or without the camera's pictures.",
+    "linksNote": "A key for one person: a stretch of days, with or without the camera’s pictures.",
     "newLink": "New link",
     "createLink": "Create link",
     "noLinks": "No links handed out",
@@ -2502,16 +2503,16 @@
       "all": "the whole grow",
       "until": "up to {{to}}",
       "since": "from {{from}}",
-      "between": "{{from}} → {{to}}"
+      "between": "{{from}} – {{to}}"
     },
-    "publicPageNoteCameras": "The diary gets an address of its own that anybody can open – with its photos and the camera's pictures. Harvest weights and plant counts follow your privacy settings.",
+    "publicPageNoteCameras": "The diary gets an address of its own that anybody can open – with its photos and the camera’s pictures. Harvest weights and plant counts follow your privacy settings.",
     "linksNoteNoCamera": "A key for one person, for a stretch of days.",
     "publicCameras": "Camera pictures on the public page",
-    "publicCamerasNote": "The camera's pictures in the diary and in the report. Switched off, the page shows only the diary's photos."
+    "publicCamerasNote": "The camera’s pictures in the diary and in the report. Switched off, the page shows only the diary’s photos."
   },
   "maintenance": {
-    "parked": "In maintenance until {{until}} — no alarm on this device until {{alarms}}",
-    "settling": "Out of maintenance since {{until}} — no alarm on this device until {{alarms}}, while the climate comes back",
+    "parked": "In maintenance until {{until}} – no alarm on this device until {{alarms}}",
+    "settling": "Out of maintenance since {{until}} – no alarm on this device until {{alarms}}, while the climate comes back",
     "end": "End now",
     "ending": "Ending …",
     "running": "Maintenance until {{until}}",
@@ -2532,13 +2533,13 @@
     }
   },
   "alarms": {
-    "noController": "Nothing stands here that has alarm rules. A device has to be claimed into this place first.",
+    "noController": "Nothing here has alarm rules. A device has to be brought to this place first.",
     "quietLine": "Muting and maintenance",
     "add": "+ Custom alarm",
     "group": {
       "presetOf": "From the climate preset {{name}}",
       "presetNone": "From the climate preset",
-      "presetAside": "thresholds move with the stage",
+      "presetAside": "thresholds move with the phase",
       "always": "Built in",
       "device": "From the device",
       "human": "Written here"
@@ -2601,7 +2602,7 @@
       "below": "below",
       "fractionNote": "As a fraction of the time it runs: 0.5 is half the time.",
       "switchNote": "Off or on, and nothing in between: 0 or 1.",
-      "ticksNote": "How often the valve opened since the last reading, counted rather than measured — not a level.",
+      "ticksNote": "How long the valve was open since the last reading, counted in ticks rather than measured – not a level.",
       "noBound": "Give it a line to cross: above, below, or both.",
       "for": "For how long",
       "minutes": "min",
@@ -2625,19 +2626,19 @@
       "resolvedPayload": "Body when it clears",
       "payloadHint": "empty sends the standard message",
       "reportErrors": "Report errors to the diary",
-      "tunnel": "Through the device's tunnel",
+      "tunnel": "Through the device’s tunnel",
       "tunnelNote": "For a target on the local network, which the device can reach and the cloud cannot.",
       "repeat": "Repeat",
       "repeatEvery": "every",
       "save": "Save the alarm",
       "delete": "Delete the alarm",
-      "deleteAsk": "The rule is gone for good. An alert it has already raised stays in the inbox.",
+      "deleteAsk": "The alarm is gone for good. An alert it has already raised stays under Alerts.",
       "deleteYes": "Delete it",
       "offlineWatch": "This one watches whether the device reports at all, which is not something that can be pointed elsewhere.",
       "template": "Service for the webhook",
       "templateFill": "Fill in the fields",
-      "templateFilled": "The URL, method and messages above are filled in. Check them and save the rule.",
-      "templateFilledTunnel": "The URL, method and messages above are filled in. The address is on the local network, so the call goes through the device's tunnel. Check everything and save the rule."
+      "templateFilled": "The URL, method and messages above are filled in. Check them and save the alarm.",
+      "templateFilledTunnel": "The URL, method and messages above are filled in. The address is on the local network, so the call goes through the device’s tunnel. Check everything and save the alarm."
     },
     "offlineRule": "Device offline",
     "watchRunning": "{{output}} running",
@@ -2655,7 +2656,7 @@
       "upper": "above {{value}} · {{length}}",
       "lower": "below {{value}} · {{length}}",
       "make": "Set up {{name}}: {{line}}",
-      "making": "setting up…",
+      "making": "setting up …",
       "runs": "runs {{length}} without a break"
     },
     "channelOff": "{{channel}} (off)",
@@ -2752,7 +2753,7 @@
       "me": "me",
       "somebodyElse": "somebody else · kept",
       "save": "Save",
-      "saving": "Saving…",
+      "saving": "Saving …",
       "delete": "Delete this reminder",
       "deleteAsk": "The rhythm stops and its open tasks go with it. Diary lines already written stay.",
       "deleteYes": "Yes, delete it",
@@ -2767,7 +2768,7 @@
       "askUnnamed": "This confirms the step and starts the next one; it cannot be taken back.",
       "yes": "Confirm the step"
     },
-    "stepIsManaged": "Confirming a step moves the plan on and sends the next step's targets to the controller. Only whoever steers the place can do that.",
+    "stepIsManaged": "Confirming a step moves the plan on and sends the next step’s targets to the device. Only whoever steers the place can do that.",
     "every_one": "every day",
     "every_other": "every {{count}} days",
     "tickedOff": "Done · {{label}}",
@@ -2803,7 +2804,7 @@
     "pauseReason": "Targets set by hand",
     "pauseReasonGermination": "Germination choice changed by hand",
     "save": "Save",
-    "saving": "Saving…",
+    "saving": "Saving …",
     "discard": "Discard",
     "readOnly": "This session may look and not set.",
     "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow.",
@@ -2888,7 +2889,7 @@
       "windowDark": "Day {{on}}–{{off}} · {{hours}} h · lamp at 0 %",
       "alwaysDark": "Day round the clock · 24 h · lamp at 0 %",
       "keepsHour": "Set a length between 0 and 24 h and the day starts at {{time}} again.",
-      "hardStart": "With this window the controller switches the light on at {{time}} without ramping up: it counts in UTC, and the window runs past midnight UTC. In the evening it dims as usual."
+      "hardStart": "With this window the device switches the light on at {{time}} without ramping up: it counts in UTC, and the window runs past midnight UTC. In the evening it dims as usual."
     }
   },
   "notifications": {
@@ -2929,7 +2930,7 @@
       "noKey": "not available on this server",
       "unsupported": "this browser cannot receive push",
       "denied": "Permission was not given, so nothing can be pushed to this browser.",
-      "asking": "Asking the browser…",
+      "asking": "Asking the browser …",
       "otherDevice": "subscribed on another device",
       "iosInstall": "on an iPhone only in the app on the home screen.",
       "iosHow": "How to put it there"
@@ -2986,7 +2987,7 @@
     "title": "Alarms do not reach you",
     "email": "Notify me by e-mail",
     "emailShort": "By e-mail",
-    "sending": "Switching on…",
+    "sending": "Switching on …",
     "to": "to {{email}}",
     "other": "Other ways",
     "later": "Later",
@@ -3011,18 +3012,18 @@
     "action": {
       "silence": "Silence 1 h",
       "unsilence": "Unsilence",
-      "timeline": "Open timeline",
+      "timeline": "Open Timeline",
       "editRule": "Edit rule",
       "checkCam": "Check cam",
       "remove": "Delete",
       "device": "To the device",
       "silenceRule": "Silence this rule 1 h",
       "unsilenceRule": "Unsilence this rule",
-      "forAll": "holds for everyone who sees the place"
+      "forAll": "applies to everyone who sees the place"
     },
     "remove": {
-      "ask_one": "The alert is deleted for everyone you share the place with. Its line in the timeline stays.",
-      "ask_other": "{{count}} alerts are deleted for everyone you share the place with. Their lines in the timeline stay.",
+      "ask_one": "The alert is deleted for everyone you share the place with. Its line in the Timeline stays.",
+      "ask_other": "{{count}} alerts are deleted for everyone you share the place with. Their lines in the Timeline stay.",
       "many": "Delete {{count}} alerts"
     },
     "nothing": "Nothing is open right now.",
@@ -3041,8 +3042,8 @@
     "bellMore_one": "Alerts · more than {{count}} open",
     "bellMore_other": "Alerts · more than {{count}} open",
     "earlier": "Earlier",
-    "nothingWatching": "Alarms land here once a device measures or a cam films.",
-    "demoNoInbox": "The demo has no inbox; open a place to see its alarms.",
+    "nothingWatching": "Alerts land here once a device measures or a cam films.",
+    "demoNoInbox": "The demo has no alerts of its own; open a place to see its alarms.",
     "severity": {
       "critical": "critical",
       "warning": "warning",
@@ -3074,14 +3075,14 @@
       "offlineWas": "{{what}} offline for {{span}}",
       "camera": "{{what}} without a picture",
       "cameraWas": "{{what}} without a picture for {{span}}",
-      "running": "{{what}} runs without a pause",
+      "running": "{{what}} running without a pause",
       "runningWas": "{{what}} ran too long without a pause"
     },
     "state": {
-      "threshold": "back in range since then",
+      "threshold": "back on target since then",
       "running": "has paused since then",
       "offline": "back online since then",
-      "camera_stale": "delivers pictures again",
+      "camera_stale": "is delivering pictures again",
       "rested": "rests in germination · not resolved"
     },
     "brief": "a moment",
@@ -3097,18 +3098,18 @@
       "title": "Read the code off the display",
       "field": "Claim code",
       "claim": "Claim it",
-      "claiming": "Claiming…",
+      "claiming": "Claiming …",
       "claimed": "Claimed",
       "live": "online {{age}} ago",
       "stale": "last heard {{age}} ago",
       "offline": "offline · last heard {{age}} ago",
-      "neverHeard": "Claimed, but it has not said anything yet. It appears here the moment it connects; the rest can be set up meanwhile.",
+      "neverHeard": "Claimed, but it has not said anything yet. It appears here the moment it is online; the rest can be set up meanwhile.",
       "firmware": "firmware {{version}}",
       "sockets_one": "{{count}} socket",
       "sockets_other": "{{count}} sockets",
       "camera": "Cam: {{name}}",
       "noCamera": "none",
-      "rtsp": "Add a camera without a controller (RTSP)",
+      "rtsp": "Add a camera without a device (RTSP)",
       "into": "Place: {{name}}",
       "notYours": "This device is not on your account."
     },
@@ -3124,15 +3125,15 @@
       "title": "What is it doing right now?",
       "pick": "What the place is doing",
       "measure": "just measure",
-      "measureNote": "Nothing is written to the controller. It goes on reporting and the timeline fills. No thresholds are set — a stage would have written them, so add your own under Control › Alarms.",
+      "measureNote": "Nothing is written to the device. It goes on reporting and the Timeline fills. No thresholds are set – a phase would have written them, so add your own under Control › Alarms.",
       "apply": "Put it on {{stage}}",
-      "applying": "Writing the targets…",
-      "wroteNothing": "No controller here took the targets.",
-      "wroteTo_one": "The targets went to {{count}} controller.",
-      "wroteTo_other": "The targets went to {{count}} controllers.",
+      "applying": "Writing the targets …",
+      "wroteNothing": "No device here took the targets.",
+      "wroteTo_one": "The targets went to {{count}} device.",
+      "wroteTo_other": "The targets went to {{count}} devices.",
       "phaseWritten": "A grow here entered {{stage}}.",
-      "noPhaseWritten": "No grow entered the stage; only the climate was written.",
-      "noPhaseNoClimate": "No grow entered the stage, and no climate was written.",
+      "noPhaseWritten": "No grow entered the phase; only the climate was written.",
+      "noPhaseNoClimate": "No grow entered the phase, and no climate was written.",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
@@ -3165,7 +3166,7 @@
     },
     "step": "step {{step}} of {{of}}",
     "close": "Stop adding",
-    "backToStart": "Back to Start",
+    "backToStart": "Back to Home",
     "air": {
       "title": {
         "fan": "Where does the fan hang?",
@@ -3191,12 +3192,12 @@
         "fridge": "{{place}}: {{device}} now works here"
       },
       "hereNote": "{{devices}}: one climate, one camera, one maintenance window.",
-      "hereEmpty": "No device stands there yet.",
+      "hereEmpty": "No device is there yet.",
       "new": "At a new place",
       "newNote": {
         "controller": "A second tent, say, with a climate of its own.",
         "fridge": "A second fridge, say, with a climate of its own.",
-        "other": "A drying tent, say, where no other device stands."
+        "other": "A drying tent, say, with no other device in it."
       },
       "back": "Back"
     },
@@ -3255,7 +3256,7 @@
     "refused": {
       "title": "Not for this account",
       "line": "The fleet screens belong to whoever runs this install. Nothing behind them would answer this account, so there is nothing here to show you.",
-      "home": "Back to home"
+      "home": "Back to Home"
     },
     "narrow": {
       "line": "The fleet screens are tables a dozen columns wide, and there is no phone layout of them. Open this on a desktop, {{width}} px or wider."
@@ -3265,12 +3266,12 @@
       "unclaimed": "unclaimed",
       "neverSeen": "never",
       "open": "Open {{id}}",
-      "noPlace": "This one stands in no place, so there is nothing to open.",
+      "noPlace": "This one is in no place, so there is nothing to open.",
       "showing": "showing {{shown}} of {{loaded}} loaded · {{devices}} on this install",
-      "camerasOwn": "cams and the camera rows are the ones this account can see - the camera list answers an account, not the install, whose count is on the health card",
+      "camerasOwn": "cams and the camera rows are the ones this account can see – the camera list answers an account, not the install, whose count is on the health card",
       "loadMore": "Load the rest",
       "noMatch": "No device matches these filters.",
-      "noMatchSearch": "No device matches \"{{search}}\". The search reads a device's id, its serial number, its name and its owner's handle, not the place it stands in.",
+      "noMatchSearch": "No device matches “{{search}}”. The search reads a device’s id, its serial number, its name and its owner’s handle, not the place it is in.",
       "clearFilters": "Show everything",
       "empty": "No device has registered with this install yet.",
       "column": {
@@ -3319,10 +3320,10 @@
       "alarmWatch": "Offline watch ran {{time}} · {{age}} ago · {{watched}}",
       "noAlarmWatch": "No offline-alarm pass has completed since this server started",
       "updates": "{{installing}} · {{gaveUp}}",
-      "statsFailed": "Could not read the install's own figures.",
+      "statsFailed": "Could not read the install’s own figures.",
       "statsMissing": "This server does not answer its own figures yet: it has no /admin/stats route.",
       "statsGap": "Nor, until they are read: devices online, what the pictures weigh, the render queue, the camera count and the retention pass.",
-      "notAnswered": "Not here because this install answers no figure for them yet: MQTT connections as the broker counts them - online above is what has been heard from, not what is connected -, the size of the time-series database, the server's own log, and the alarms of the last seven days per device.",
+      "notAnswered": "Not here because this install answers no figure for them yet: MQTT connections as the broker counts them – online above is what has been heard from, not what is connected -, the size of the time-series database, the server’s own log, and the alarms of the last seven days per device.",
       "cameras": "{{cameras}} · {{quiet}}",
       "unclassified": "{{devices}} in no class, which no rollout reaches",
       "paused": "{{paused}} {{ofClasses}} paused",
@@ -3344,7 +3345,7 @@
       "willStage": "The stage goes from {{from}} % to {{to}} %, which is about {{after}} rather than {{before}} {{ofDevices}}.",
       "willPace": "At most {{devices}} installing at once, and the rollout stops by itself after {{failures}}.",
       "confirmTitle": "Change the rollout for {{name}}?",
-      "confirmBody": "This reaches hardware standing in somebody's place, within minutes:",
+      "confirmBody": "This reaches hardware in somebody’s place, within minutes:",
       "confirmYes": "Apply the change",
       "register": "Register a build",
       "buildName": "Name",
@@ -3381,7 +3382,7 @@
       "title": "Users",
       "search": "Search",
       "create": "+ Account",
-      "noMatch": "No account matches \"{{search}}\". The search reads handles and addresses.",
+      "noMatch": "No account matches “{{search}}”. The search reads handles and addresses.",
       "showing": "showing {{shown}} of {{loaded}} loaded",
       "active": "active",
       "notActivated": "not activated",
@@ -3396,10 +3397,10 @@
       "makeAdmin": "May run this install",
       "createIt": "Create the account",
       "changeTitle": "Change @{{handle}}",
-      "changeSomebody": "This is somebody else's account: @{{handle}}. What is changed here is changed for them, and they are told by nothing.",
+      "changeSomebody": "This is somebody else’s account: @{{handle}}. What is changed here is changed for them, and they are told by nothing.",
       "changeMine": "This is your own account.",
-      "demoteMine": "Without \"May run this install\" the Admin section is gone for you the moment this is saved, and you cannot give it back to yourself.",
-      "deactivateMine": "Without \"Active\" this account cannot sign in at all, and it is the account you are signed in with.",
+      "demoteMine": "Without “May run this install” the Admin section is gone for you the moment this is saved, and you cannot give it back to yourself.",
+      "deactivateMine": "Without “Active” this account cannot sign in at all, and it is the account you are signed in with.",
       "lastAdmin": "This is the only administrator this install has. Make somebody else one before taking it away here.",
       "confirmMineTitle": "Change your own account?",
       "confirmMine": "Save anyway",
@@ -3410,7 +3411,7 @@
       "save": "Save",
       "activationCode": "Activation code · {{code}}",
       "deleteTitle": "Delete @{{handle}}",
-      "deleteBody": "Everything @{{handle}} owns goes with the account: their places, grows, entries, pictures and films. What they wrote in other people's places stays there and loses their name. It cannot be taken back.",
+      "deleteBody": "Everything @{{handle}} owns goes with the account: their places, grows, entries, pictures and films. What they wrote in other people’s places stays there and loses their name. It cannot be taken back.",
       "deleteAdmin": "If this is the account the install is configured with, the server keeps it: that account is looked up by its address on every start and is not deleted from here.",
       "deleteDevices": "The devices they had claimed become claimable again by whoever is holding them.",
       "deleteMine": "This is your own account. Deleting it signs you out and leaves this install without you.",
@@ -3446,8 +3447,8 @@
       "type": "Type",
       "serial": "Serial number",
       "owner": "Owner",
-      "zone": "Customer's time zone",
-      "noZone": "none chosen (their browser's)",
+      "zone": "Customer’s time zone",
+      "noZone": "none chosen (their browser’s)",
       "lastSeen": "Last heard",
       "firmware": "Firmware · channel",
       "place": "Place",
@@ -3455,8 +3456,8 @@
       "settings": "Settings, as sent to the device",
       "noSettings": "The device has no settings document yet.",
       "factors": "Factors and control",
-      "hardware": "The device's hardware report",
-      "lines": "The device's messages",
+      "hardware": "The device’s hardware report",
+      "lines": "The device’s messages",
       "noLines": "The device has reported nothing yet.",
       "clockTime": "{{utc}} UTC",
       "clockTimeThere": "{{utc}} UTC · {{there}} for the customer",
@@ -3493,7 +3494,7 @@
       "claim_code_unknown": "No device is showing that code. Read it off the display again.",
       "device_already_yours": "You have already added this device. You find it under Control.",
       "device_claimed": "That device already belongs to somebody else. It has to be removed there first.",
-      "space_archived": "That place has been removed. Choose another.",
+      "space_archived": "That place no longer exists.",
       "capability_not_announced": "This device has not said it understands that. It needs newer firmware.",
       "device_sent_no_settings": "This device has not sent its settings yet, so there is nothing to write into.",
       "device_states_no_climate": "This device states no climate, so there is nowhere to write one.",
@@ -3501,7 +3502,7 @@
       "occurred_in_the_future": "A line records something that has happened. It can be dated back but not forward.",
       "too_many_requests": "Too many attempts in a short time. Wait a minute and try again.",
       "space_in_use": "This place cannot be removed yet.",
-      "device_here": "A device still stands here.",
+      "device_here": "A device is still here.",
       "camera_here": "A camera still looks in here.",
       "grow_here": "A grow is still running here.",
       "room_ended": "That room is gone: it ended with its last place.",
@@ -3546,7 +3547,7 @@
       "text": "Online: the newest reading is less than 2 minutes old. Stale: less than 10. After that the device counts as offline, and its figures are dimmed rather than hidden – they are the last thing it measured."
     },
     "band": {
-      "title": "In band",
+      "title": "On target",
       "text": "Close enough to the target to count as on it: within ±1 °C, ±5 % humidity or ±200 ppm CO₂. At night CO₂ has no band, because the device only adds CO₂ by day. After every switch between day and night the climate is given an hour to follow the new figures – on a fridge, plus the minutes its lamp and targets glide – and so it is for an hour after every change of the targets, the light plan or the operating mode. Meanwhile anything between the band before and the band after counts as on target, and the tile says “changing over”."
     },
     "verdict": {
@@ -3555,11 +3556,11 @@
     },
     "climatePreset": {
       "title": "Climate preset",
-      "text": "A ready climate for a stage: day and night temperature and humidity, the light hours, the light limit and CO₂. “Germination · dark” is a climate and an operating mode at once: dark, no CO₂, 24 °C and 75 % humidity for a humidifier round the clock; “Seedling · with light” is the first climate with light. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
+      "text": "A ready climate for a phase: day and night temperature and humidity, the light hours, the light limit and CO₂. “Germination · dark” is a climate and an operating mode at once: dark, no CO₂, 24 °C and 75 % humidity for a humidifier round the clock; “Seedling · with light” is the first climate with light. Auto is for autoflowers, which keep 18–20 hours of light instead of going to 12/12."
     },
     "stage": {
-      "title": "Stage and phase",
-      "text": "The stage is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first stage with light. Entering one writes a phase on the grow: the date it began, a diary line, and the stage's alarm rules on the devices where the plants stand (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device's alarms as they are. The phase counts the grow’s days and weeks – the feeding plan and the charts go by it. On a grow that is over, a phase added afterwards repairs what it went through and moves nothing else."
+      "title": "Phase",
+      "text": "The phase is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first phase with light. Entering one writes it on the grow: the date it began, a diary line, and its alarm rules on the devices the plants are with (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device’s alarms as they are. The phase counts the grow’s days and weeks – the feeding plan and the curves go by it. On a grow that is over, a phase added afterwards repairs what it went through and moves nothing else."
     },
     "stepPreset": {
       "title": "A preset in a step",
@@ -3567,11 +3568,11 @@
     },
     "plan": {
       "title": "Grow plan",
-      "text": "A list of steps, each a stage, a length and the targets the controller should hold. While it runs, the cloud moves on when a step's time is up and sends the current step's targets again every hour the controller is online. Saving a plan does not start it."
+      "text": "A list of steps, each with a phase, a length and the targets the device should hold. While it runs, the cloud moves on when a step’s time is up and sends the current step’s targets again every hour the device is online. Saving a plan does not start it."
     },
     "planMoves": {
       "title": "Start and pause",
-      "text": "Start sends step 1's targets to the controller within half a minute, if it is online, and puts the grow here into the step's stage if it names one. Pause stops the step's clock and sends nothing; the controller keeps the targets it has until the plan runs again."
+      "text": "Start sends step 1’s targets to the device within half a minute, if it is online, and puts the grow here into the step’s phase if it names one. Pause stops the step’s clock and sends nothing; the device keeps the targets it has until the plan runs again."
     },
     "dayNight": {
       "title": "Day and night",
@@ -3579,27 +3580,27 @@
     },
     "lightLimit": {
       "title": "Light limit",
-      "text": "The most the lamp may give by day, as a share of its full output: it ramps up to it at sunrise and down again at sunset. At 0 % it stays dark, but the day still holds - with the day figures and with CO₂. Dark with no day at all are drying and germination · dark."
+      "text": "The most the lamp may give by day, as a share of its full output: it ramps up to it at sunrise and down again at sunset. At 0 % it stays dark, but the day still holds – with the day figures and with CO₂. Dark with no day at all are drying and germination · dark."
     },
     "lightsOn": {
       "title": "Light on at",
-      "text": "When the light comes on and the day begins, on your account’s clock (Me › Account). When the clocks change for summer or winter time it stays at this time - the cloud resets the device itself on the night of the change, once your account’s time zone is set: the app takes it on your first sign-in, and Me › Account changes it. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
+      "text": "When the light comes on and the day begins, on your account’s clock (Me › Account). When the clocks change for summer or winter time it stays at this time – the cloud resets the device itself on the night of the change, once your account’s time zone is set: the app takes it on your first sign-in, and Me › Account changes it. For cheaper night power or a cooler summer tent, move the day into the night, from 22:00 for example. A running plan keeps this time unless its step brings one of its own."
     },
     "resumePlan": {
       "title": "Resume the plan",
-      "text": "The plan's clock runs on from where it stopped, and within the hour the step's own figures are sent again, replacing those set here."
+      "text": "The plan’s clock runs on from where it stopped, and within the hour the step’s own figures are sent again, replacing those set here."
     },
     "growDay": {
       "title": "Grow day",
       "text": "Day 1 is the day the grow began. Every midnight adds one – counted on the calendar of whoever owns the grow."
     },
     "growWeek": {
-      "title": "Week of the stage",
-      "text": "“Veg week 2” is the second week the grow has stood in veg. How far the grow is overall is said by the day: day 1 is the day it began. In the diary a week is named by its days and carries the stage most of that week lay in."
+      "title": "Week of the phase",
+      "text": "“Veg week 2” is the second week the grow has been in veg. How far the grow is overall is said by the day: day 1 is the day it began. In the diary a week is named by its days and carries the phase most of that week lay in."
     },
     "autoTag": {
       "title": "by itself",
-      "text": "This phase was set by a grow plan or a climate preset, which wrote the targets here along with it – it was not recorded as a stage alone. It has nothing to do with autoflowers."
+      "text": "This phase was set by a grow plan or a climate preset, which wrote the targets here along with it – it was not only recorded. It has nothing to do with autoflowers."
     },
     "phasePreset": {
       "title": "Targets with the phase",
@@ -3607,7 +3608,7 @@
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",
-      "text": "Both change the record only: the phase's date, the day count it starts and its diary line. Neither puts back the targets or the light the controllers were given at the time."
+      "text": "Both change the record only: the phase’s date, the day count it starts and its diary line. Neither puts back the targets or the light the devices were given at the time."
     },
     "autoflower": {
       "title": "Photoperiod or autoflower",
@@ -3627,31 +3628,31 @@
     },
     "waterEc": {
       "title": "Water",
-      "text": "The EC of your water before anything is added. It is added to the scheme's EC targets, so a target is what your meter should read; 0 means reverse osmosis water."
+      "text": "The EC of your water before anything is added. It is added to the scheme’s EC targets, so a target is what your meter should read; 0 means reverse osmosis water."
     },
     "feedFlip": {
       "title": "Flip week",
-      "text": "The scheme is read by the grow's own week, counted from day 1. The flip week says when the grow went to 12/12 and marks the scheme's weeks from then on as flowering; it does not switch the light or enter a phase."
+      "text": "The scheme is read by the grow’s own week, counted from day 1. The flip week says when the grow went to 12/12 and marks the scheme’s weeks from then on as flowering; it does not switch the light or enter a phase."
     },
     "muteAll": {
       "title": "Mute all",
-      "text": "For an hour nothing is sent to you, critical alarms included. What would have been sent in that hour is not sent later either - only a rule that repeats reports again afterwards, as long as its alarm is still open. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."
+      "text": "For an hour nothing is sent to you, critical alarms included. What would have been sent in that hour is not sent later either – only a rule that repeats reports again afterwards, as long as its alarm is still open. Only you are muted: the others you share your places with are still told, and a rule with its own e-mail or webhook still sends."
     },
     "maintenance": {
       "title": "Maintenance",
-      "text": "For working in the tent or cabinet: for a quarter of an hour the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light; \"Extend\" adds another. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
+      "text": "For working in the tent or cabinet: for a quarter of an hour the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light; “Extend” adds another. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
     },
     "endMaintenance": {
       "title": "End now",
       "text": "The device takes up its work again at once. Its alarms stay held for another 10 minutes while the climate comes back."
     },
     "presetRules": {
-      "title": "Rules from the stage",
-      "text": "Each stage brings four rules – too hot, too humid, too cold at night and too much CO₂ – with lines worked out from the targets. The next stage moves their lines and waits; what you switched off, regraded or silenced stays, and curing removes them."
+      "title": "Rules from the phase",
+      "text": "Each phase brings four rules – too hot, too humid, too cold at night and too much CO₂ – with lines worked out from the targets. The next phase moves their lines and waits; what you switched off, regraded or silenced stays, and curing removes them."
     },
     "offlineRule": {
       "title": "The offline rule",
-      "text": "Every device has one rule that raises a critical alarm once nothing has been heard from it for ten minutes, plus the rule's own wait. It cannot be deleted – only switched off, silenced or sent elsewhere."
+      "text": "Every device has one rule that raises a critical alarm once nothing has been heard from it for ten minutes, plus the rule’s own wait. It cannot be deleted – only switched off, silenced or sent elsewhere."
     },
     "alarmTemplates": {
       "title": "Set up in one tap",
@@ -3659,15 +3660,15 @@
     },
     "alarmQuiet": {
       "title": "Muting and maintenance",
-      "text": "A muted rule keeps watching: the alert still shows under Alerts and marks the place on Home – it only tells nobody. Maintenance mode holds the alarms themselves back: for its 15 minutes and 10 more, while the climate comes back."
+      "text": "A muted rule keeps watching: the alert still shows under Alerts and marks the place on Home – it only tells nobody. Maintenance holds the alarms themselves back: for its 15 minutes and 10 more, while the climate comes back."
     },
     "severity": {
       "title": "Severity",
-      "text": "Critical and warning go out on the matching rows of each person's notification settings, and only critical comes through quiet hours. Info is not announced there: it only shows under Alerts."
+      "text": "Critical and warning go out on the matching rows of each person’s notification settings, and only critical comes through quiet hours. Info is not announced there: it only shows under Alerts."
     },
     "tellBy": {
       "title": "Tell me by",
-      "text": "My notification settings reaches everyone who keeps this place, each by their own settings, mute and quiet hours. An e-mail address or a webhook reaches only that address, whatever anybody's mute or quiet hours."
+      "text": "My notification settings reaches everyone who keeps this place, each by their own settings, mute and quiet hours. An e-mail address or a webhook reaches only that address, whatever anybody’s mute or quiet hours."
     },
     "routingGrid": {
       "title": "What goes where",
@@ -3695,15 +3696,15 @@
     },
     "socketRoles": {
       "title": "Socket roles",
-      "text": "Every smart socket is given a role at the device and switches with it: a heater socket with the heater, a light socket with the lamp, pump or timer by a cycle of its own, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. The role is set when the socket is paired; it can be changed on the socket's page under “Address, role, credentials”."
+      "text": "Every smart socket is given a role at the device and switches with it: a heater socket with the heater, a light socket with the lamp, pump or timer by a cycle of its own, and a manual one only while you hold it. An exhaust runs from 0.8 °C over the target and stops just above it, a humidifier from 5 points of humidity under the target and stops at the target. The role is set when the socket is paired; it can be changed on the socket’s page under “Address, role, credentials”."
     },
     "socketHold": {
       "title": "Holding by hand",
-      "text": "On or Off holds the socket in that state for the time you choose, up to 24 hours; after that it switches by its role again. Auto ends it early, and so does a restart of the device. For another length, go to Auto first and choose again. A heater socket stays off all the same while the air is more than 5 °C above its target."
+      "text": "On or Off holds the socket in that state for the time you choose, up to 24 hours; after that it switches by its role again. Auto ends it early, and so does a restart of the device. For another length, go to Auto first and choose again. A heater socket still stays off while the air is more than 5 °C above its target."
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time you choose or until the device restarts. Auto ends it early. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. A socket with a light role follows the light output unless it is held itself. The device does not report a hold back: what stands here is what this browser last sent, until its time is up."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time you choose or until the device restarts. Auto ends it early. Day and night stay where the light plan puts them: the same targets hold, and CO₂ is still dosed by day only. A socket with a light role follows the light output unless it is held itself. The device does not report a hold back: what is shown here is what this browser last sent, until its time is up."
     },
     "firmwareChannel": {
       "title": "Updates",
@@ -3715,7 +3716,7 @@
     },
     "cameraPauses": {
       "title": "Off in the dark, off during maintenance",
-      "text": "Off in the dark skips pictures while the device's lamp is off – at night, but also at a light limit of 0 % or while drying; off during maintenance skips them while the device is in maintenance or switched off. Both only work for a camera that belongs to a device, and with off in the dark no warning is raised when this camera stops delivering."
+      "text": "Off in the dark skips pictures while the device’s lamp is off – at night, but also at a light limit of 0 % or while drying; off during maintenance skips them while the device is in maintenance or switched off. Both only work for a camera that belongs to a device, and with off in the dark no warning is raised when this camera stops delivering."
     },
     "staleWarning": {
       "title": "Tells you",
@@ -3723,19 +3724,19 @@
     },
     "premiumCamera": {
       "title": "Premium",
-      "text": "Premium belongs to one camera, not to the account, and never renews by itself: the offer stands under Me › Premium on the camera's card once its year is ending. A Terp Cam comes with 12 months when it is first paired; an RTSP camera has Premium only where it is bought for it. Without it, films are SD with a watermark, and HD and whole-grow films are not made. Self-hosted installations have no Premium and gate nothing."
+      "text": "Premium belongs to one camera, not to the account, and never renews by itself: the offer is under Me › Premium on the camera’s card once its year is ending. A Terp Cam comes with 12 months when it is first paired; an RTSP camera has Premium only where it is bought for it. Without it, films are SD with a watermark, and HD and whole-grow films are not made. Self-hosted installations have no Premium and gate nothing."
     },
     "timelapses": {
       "title": "Timelapses",
-      "text": "Films made from this camera's stored pictures, 25 to the second. The day, week and month films rebuild themselves. The camera page plays the newest film of each kind; where there is none yet you make it: of the day chosen, the last complete week, the current phase or the whole grow."
+      "text": "Films made from this camera’s stored pictures, 25 to the second. The day, week and month films rebuild themselves. The camera page plays the newest film of each kind; where there is none yet you make it: of the day chosen, the last complete week, the current phase or the whole grow."
     },
     "overlays": {
       "title": "Overlays",
-      "text": "What is drawn on the film: the grow's day, a temperature and humidity curve with the moment marked, and diary entries as captions. Each needs something to draw from – a grow, a device, entries – and is left out where there is none."
+      "text": "What is drawn on the film: the grow’s day, a temperature and humidity curve with the moment marked, and diary entries as captions. Each needs something to draw from – a grow, a device, entries – and is left out where there is none."
     },
     "lightsOffFrames": {
       "title": "Lights-off frames",
-      "text": "Left off, pictures taken while the device's light was off are dropped, so the film does not flash dark every night. A picture with no light reading counts as lit."
+      "text": "Left off, pictures taken while the device’s light was off are dropped, so the film does not flash dark every night. A picture with no light reading counts as lit."
     },
     "render": {
       "title": "Render",
@@ -3747,7 +3748,7 @@
     },
     "rtsp": {
       "title": "RTSP",
-      "text": "The live video stream most network cameras offer, at an address that starts with rtsp://. The cloud takes a still from it at the camera's interval, as it does from a Terp Cam."
+      "text": "The live video stream most network cameras offer, at an address that starts with rtsp://. The cloud takes a still from it at the camera’s interval, as it does from a Terp Cam."
     },
     "rolloutFailures": {
       "title": "Failures that stop it",
@@ -3755,11 +3756,11 @@
     },
     "publicPage": {
       "title": "Public page",
-      "text": "Anybody can read the diary at this address without an account – the phases, the days with their photos and the camera's pictures. The address is made from the grow's name, so it is not a secret; switching the page off takes it down at once."
+      "text": "Anybody can read the diary at this address without an account – the phases, the days with their photos and the camera’s pictures. The address is made from the grow’s name, so it is not a secret; switching the page off takes it down at once."
     },
     "linkActions": {
       "title": "Change, revoke, forget",
-      "text": "Change sets a link's days, pictures and expiry anew – wider as well as narrower – and keeps its address. Revoke stops the address working at once and keeps it in this list with the day it stopped. Forget appears once a link has stopped, revoked or run out, and takes it off the list. Neither can be undone."
+      "text": "Change sets a link’s days, pictures and expiry anew – wider as well as narrower – and keeps its address. Revoke stops the address working at once and keeps it in this list with the day it stopped. Forget appears once a link has stopped, revoked or run out, and takes it off the list. Neither can be undone."
     },
     "shareWindow": {
       "title": "From, to, expires",
@@ -3767,7 +3768,7 @@
     },
     "spaceLink": {
       "title": "Grow or place",
-      "text": "A link to a place shows its live climate against the targets – once its To date has passed, the climate of its last day instead – the grows standing there – private ones too – and its latest diary lines; a link to a grow shows that grow's diary. Neither shows tasks or alerts."
+      "text": "A link to a place shows its current climate against the targets – once its To date has passed, the climate of its last day instead – the grows there – private ones too – and its latest diary lines; a link to a grow shows that grow’s diary. Neither shows tasks or alerts."
     },
     "privacyRedaction": {
       "title": "Shared views",
@@ -3779,7 +3780,7 @@
     },
     "deleteAccount": {
       "title": "Deleting the account",
-      "text": "Lines you wrote in other people's places stay, without your name, and the climate readings stay with the devices, which can then be claimed again. A single grow is deleted from the grow's own page."
+      "text": "Lines you wrote in other people’s places stay, without your name, and the climate readings stay with the devices, which can then be claimed again. A single grow is deleted from the grow’s own page."
     },
     "passwordChange": {
       "title": "Changing the password",
@@ -3787,11 +3788,11 @@
     },
     "memberRole": {
       "title": "Roles",
-      "text": "“Can log” sees the place with its readings, grows and cams, writes entries, adds photos and ticks off tasks. “Can manage” also changes targets, the plan, alarms, sockets and camera settings, and corrects other people's entries. Devices, inviting and removing people stay with whoever manages the place. Read-only viewing is what share links do; there is no role for it."
+      "text": "“Can log” sees the place with its readings, grows and cams, writes entries, adds photos and ticks off tasks. “Can manage” also changes targets, the plan, alarms, sockets and camera settings, and corrects other people’s entries. Devices, inviting and removing people stay with whoever manages the place. Read-only viewing is what share links do; there is no role for it."
     },
     "invite": {
       "title": "Inviting",
-      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. Whoever joins needs an account of their own (e-mail, username and password) and sees the place – for a room, every place in it –, what is growing there, the cams and every grow that stood there before, private ones too; not your other places, or grows that never stood there. A username you already share a place with is added at once as can log, without being asked."
+      "text": "Anybody who has an invite link can join with it, as often as it is used, until it expires or you revoke it – revoking stops new joins, and whoever is in stays. Whoever joins needs an account of their own (e-mail, username and password) and sees the place – for a room, every place in it –, what is growing there, the cams and every grow that grew there before, private ones too; not your other places, or grows that never stood there. A username you already share a place with is added at once as can log, without being asked."
     },
     "diaryLayer": {
       "title": "Grow diary",
@@ -3807,7 +3808,7 @@
     },
     "ppfd": {
       "title": "PPFD",
-      "text": "How much light the plant can use arrives at leaf level, in µmol per square metre and second. It is estimated from the sensor's lux reading with the factor set for your device."
+      "text": "How much light the plant can use arrives at leaf level, in µmol per square metre and second. It is estimated from the sensor’s lux reading with the factor set for your device."
     },
     "leafTemperature": {
       "title": "Leaf temperature",
@@ -3819,7 +3820,7 @@
     },
     "climateControl": {
       "title": "Control",
-      "text": "Switches the device's whole climate control off and on again: heater, cooling or dehumidifying, light, CO₂ and fans. While it is off the device keeps measuring and reporting. Meant for an empty cabinet, for cleaning or for the time between two grows. Saving targets, applying a preset or the next plan step switches control back on."
+      "text": "Switches the device’s whole climate control off and on again: heater, cooling or dehumidifying, light, CO₂ and fans. While it is off the device keeps measuring and reporting. Meant for an empty cabinet, for cleaning or for the time between two grows. Saving targets, applying a preset or the next plan step switches control back on."
     },
     "energySaving": {
       "title": "Energy saving",
@@ -3828,11 +3829,11 @@
     "advanced": {
       "operatingMode": {
         "title": "Operating mode",
-        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the stage and come and go with the climate preset under Control, with a phase of the grow or with a plan step. Energy saving applies to standard only."
+        "text": "What the device does as a whole while control is on. Standard holds temperature, humidity, light and CO₂ by day and night. Greenhouse holds the temperature only: light and CO₂ keep running by the light plan, the compressor only cools and does not dehumidify on purpose. Germination · dark and Drying are not chosen here: they belong to the phase and come and go with the climate preset under Control, with a phase of the grow or with a plan step. Energy saving applies to standard only."
       },
       "cameraTunnel": {
         "title": "Pull through the device",
-        "text": "On, the cloud pulls the stream from your home network over the connection of the device in this place, so the camera needs no port forwarding and no dynamic DNS. Turn it off only for a camera reachable from the internet: the cloud then opens the stream itself, and the device's connection is left alone."
+        "text": "On, the cloud pulls the stream from your home network over the connection of the device in this place, so the camera needs no port forwarding and no dynamic DNS. Turn it off only for a camera reachable from the internet: the cloud then opens the stream itself, and the device’s connection is left alone."
       },
       "cameraTransport": {
         "title": "Transport",
@@ -3852,11 +3853,11 @@
       },
       "co2Fan": {
         "title": "Slow an AIR fan",
-        "text": "While the Plantalytix Socket doses in intervals, an AIR fan runs at the set speed at most, so the CO₂ is not blown out again right away. The fan knows the Plantalytix Socket's dosing windows for it; when its interval changes, the fan is told."
+        "text": "While the Plantalytix Socket doses in intervals, an AIR fan runs at the set speed at most, so the CO₂ is not blown out again right away. The fan knows the Plantalytix Socket’s dosing windows for it; when its interval changes, the fan is told."
       },
       "plugProtections": {
         "title": "Protections",
-        "text": "Switch the Plantalytix Socket off whatever it is regulating: above a temperature, below a temperature, and they keep least times on and off so an appliance does not switch every few seconds. It comes back on only once the reading is back by the set gap."
+        "text": "Switch the Plantalytix Socket off whatever it is controlling: above a temperature, below a temperature, and they keep least times on and off so an appliance does not switch every few seconds. It comes back on only once the reading is back by the set gap."
       },
       "lightRamp": {
         "title": "Sunrise and sunset",
@@ -3880,11 +3881,11 @@
       },
       "leafOffset": {
         "title": "Leaf against air",
-        "text": "How much warmer or cooler than the air the leaf is taken to be wherever no leaf sensor measures it. That is what VPD is worked out with on Start, in History and on the targets. Under light a leaf evaporates water and is cooler: the default is −2 °C by day and 0 °C at night. Nothing is regulated by it."
+        "text": "How much warmer or cooler than the air the leaf is taken to be wherever no leaf sensor measures it. That is what VPD is worked out with on Home, in the Timeline and with the targets. Under light a leaf evaporates water and is cooler: the default is −2 °C by day and 0 °C at night. Nothing is controlled by it."
       },
       "ppfdFactor": {
         "title": "Lux to PPFD factor",
-        "text": "Turns the light sensor's lux into PPFD. The right factor depends on the lamp's spectrum: white full-spectrum LED about 0.015, high-pressure sodium (HPS) about 0.0122. With the wrong one the PPFD shown is up to 20 % off."
+        "text": "Turns the light sensor’s lux into PPFD. The right factor depends on the lamp’s spectrum: white full-spectrum LED about 0.015, high-pressure sodium (HPS) about 0.0122. With the wrong one the PPFD shown is up to 20 % off."
       },
       "continuePlan": {
         "title": "Continue the plan at a step",
@@ -3892,7 +3893,7 @@
       },
       "co2Report": {
         "title": "CO₂ cylinder",
-        "text": "When a cylinder goes in, note what it holds and – if you weighed it – what was left in the old one. From the valve openings the device counts, the card works out how many openings a gram of CO₂ is. From the first empty cylinder on it estimates what is left in the one in use and how long it will last."
+        "text": "When a cylinder goes in, note what it holds and – if you weighed it – what was left in the old one. From the valve’s ticks the device counts, the card works out how many ticks make a gram of CO₂. From the first empty cylinder on it estimates what is left in the one in use and how long it will last."
       },
       "lightOverheat": {
         "title": "Overheat protection",
@@ -3905,15 +3906,15 @@
     },
     "alarmRepeat": {
       "title": "Repeat",
-      "text": "While the alarm lasts, it is said again every so many minutes - for a warning or a notice just as for a critical alarm. That helps above all a webhook that switches something at home: if one call is lost, the next one comes. 0 says it once. An e-mail comes no more often than every five minutes."
+      "text": "While the alarm lasts, it is said again every so many minutes – for a warning or a notice just as for a critical alarm. That helps above all a webhook that switches something at home: if one call is lost, the next one comes. 0 says it once. An e-mail comes no more often than every five minutes."
     },
     "webhookTemplate": {
       "title": "Service for the webhook",
-      "text": "For Home Assistant, Discord, Telegram and ntfy the app fills in the URL, method and messages from the few answers the service needs. What is saved is an ordinary webhook, which you can still change by hand. A Home Assistant address on the local network is called through the device's tunnel automatically."
+      "text": "For Home Assistant, Discord, Telegram and ntfy the app fills in the URL, method and messages from the few answers the service needs. What is saved is an ordinary webhook, which you can still change by hand. A Home Assistant address on the local network is called through the device’s tunnel automatically."
     },
     "streamAddress": {
       "title": "Stream address",
-      "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera's app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings.\nWhere a device stands in the place the camera looks at, the cloud pulls the stream from your network through it. Otherwise it opens the stream itself, and the address has to be reachable from the internet."
+      "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera’s app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings.\nWhere a device is in the place the camera looks at, the cloud pulls the stream from your network through it. Otherwise it opens the stream itself, and the address has to be reachable from the internet."
     },
     "stepLightHours": {
       "title": "Light on for (in a step)",
@@ -3921,7 +3922,7 @@
     },
     "readyPlans": {
       "title": "Ready-made plans",
-      "text": "Two whole grows for the fridge: photoperiod (about 16 weeks, flower starts with the switch to 12 hours of light) and autoflower (about 11 weeks, the light stays at 18 hours). Every step brings its phase's targets; before flower, before harvest and at the end of drying the plan waits for you. Choosing one opens the plan to look through; nothing is written until “Save plan”."
+      "text": "Two whole grows for the fridge: photoperiod (about 16 weeks, flower starts with the switch to 12 hours of light) and autoflower (about 11 weeks, the light stays at 18 hours). Every step brings its phase’s targets; before flower, before harvest and at the end of drying the plan waits for you. Choosing one opens the plan to look through; nothing is written until “Save plan”."
     },
     "drying": {
       "title": "Drying",
@@ -3929,7 +3930,7 @@
     },
     "germination": {
       "title": "Germination · dark",
-      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step – one without a stage too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set; while it runs, both are changed under Control in the climate preset."
+      "text": "Seeds germinate in the dark: the device goes into its germination mode – no light, no CO₂, only a humidifier holding the humidity – and heats and cools to one temperature round the clock. In a tent the exhaust does the cooling; a dehumidifier stays off, as it would warm the tent and dry out the medium the seeds sprout in. 24 °C is suggested, the middle of the 22–26 °C seeds sprout fastest at. Germination also brings 75 % humidity: seeds sprout well between about 70 and 90 % – drier, the medium dries out on top and the seed coat hardens; wetter, water stands on the medium and the tray. 75 % sits safely in between, below the 90 % at which “Too humid” warns, and the seedling after it holds 65–70 %. Only a humidifier on a smart socket can hold it; once germination ends, the humidity from before applies again. Germination starts with “Germination · dark” under Control, as the climate of the germination phase, during setup or with a germination plan step. Any other climate, phase or plan step – one without a phase too – ends it: the device holds day and night with light again, on standard with its energy saving. Entering the germination phase without a climate changes nothing on the device, its alarms included. Whether “Too humid” warns during germination and whether a humidifier holds the humidity is chosen wherever germination is set; while it runs, both are changed under Control in the climate preset."
     },
     "germinationAlarm": {
       "title": "“Too humid” during germination",
@@ -3945,11 +3946,11 @@
     },
     "plugMode": {
       "title": "Switches by",
-      "text": "What the Plantalytix Socket regulates with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off. CO₂ needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are on the Plantalytix Socket’s page under Advanced."
+      "text": "What the Plantalytix Socket controls with its own sensor: heating, cooling, humidifying, dehumidifying or CO₂ – then it switches at two points of the reading. With a timer it switches at set times of day, and Off keeps it off. CO₂ needs the CO₂ sensor sold as an accessory; without it the Plantalytix Socket stays off. Dosing in intervals and slowing an AIR down are on the Plantalytix Socket’s page under Advanced."
     },
     "plugDayNight": {
       "title": "Day and night",
-      "text": "The Plantalytix Socket knows the day only as a time: it begins at “Day from” and ends at “Night from”, on your clock. With switch points of their own at night it regulates to other values at night; in CO₂ mode it does not dose at night at all."
+      "text": "The Plantalytix Socket knows the day only as a time: it begins at “Day from” and ends at “Night from”, on your clock. With switch points of their own at night it holds other values at night; in CO₂ mode it does not dose at night at all."
     },
     "switchPoints": {
       "title": "Switch points",
@@ -3965,7 +3966,7 @@
     },
     "fanSpeeds": {
       "title": "Speed",
-      "text": "As a share of full speed. In fixed mode one value holds by day and one at night. Regulated, the fan never runs slower than “At least” and never faster than “Most” – so the night stays quiet and the air still moves."
+      "text": "As a share of full speed. In fixed mode one value holds by day and one at night. Controlled, the fan never runs slower than “At least” and never faster than “Most” – so the night stays quiet and the air still moves."
     },
     "nightBand": {
       "title": "Band, night and spread",
@@ -3997,7 +3998,7 @@
     },
     "deviceMove": {
       "title": "Moving",
-      "text": "From the move on the device's readings count for the new place; what it measured so far stays with the old one. The camera that runs through the device, its sockets and its alarms move with it. A grow does not: you move that on the grow's page. A new place is made in the room the device stands in now."
+      "text": "From the move on the device’s readings count for the new place; what it measured so far stays with the old one. The camera that runs through the device, its sockets and its alarms move with it. A grow does not: you move that on the grow’s page. A new place is made in the room the device is in now."
     },
     "alarmFor": {
       "title": "For how long",
@@ -4009,7 +4010,7 @@
     },
     "claimCode": {
       "title": "The code",
-      "text": "The device shows a short code on its display, and the box carries the same one as a QR code. It is the whole proof that the device stands with you."
+      "text": "The device shows a short code on its display, and the box carries the same one as a QR code. It is the whole proof that you have the device in front of you."
     },
     "claimLater": {
       "title": "It can wait",
@@ -4017,15 +4018,15 @@
     },
     "accountExport": {
       "title": "Export everything",
-      "text": "Every grow, your diary photos and the finished films in one zip: JSON, CSV and the pictures. The climate comes as a row a minute, averaged, rather than as the reading every few seconds it was measured at. Single camera stills stay in the app - there are tens of thousands of them - and the zip counts them per camera."
+      "text": "Every grow, your diary photos and the finished films in one zip: JSON, CSV and the pictures. The climate comes as a row a minute, averaged, rather than as the reading every few seconds it was measured at. Single camera stills stay in the app – there are tens of thousands of them – and the zip counts them per camera."
     },
     "publicGrow": {
       "title": "Public grows",
-      "text": "A public grow shows a stranger the diary from its first day: the phases, the days with their photos and the camera's pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
+      "text": "A public grow shows a stranger the diary from its first day: the phases, the days with their photos and the camera’s pictures, the climate averages, the strains, and your handle. Harvest weights and plant counts follow your privacy settings. It never shows the place’s current readings, its devices, its alarms or its tasks, and never your e-mail. Followers see the same page, and nobody can write."
     },
     "timezone": {
       "title": "Time zone",
-      "text": "The time zone is kept with your account. Every clock time the app draws and the quiet hours are read in it - the same on every device, wherever it is."
+      "text": "The time zone is kept with your account. Every clock time the app draws and the quiet hours are read in it – the same on every device, wherever it is."
     },
     "sessions": {
       "title": "Sessions",
@@ -4037,7 +4038,7 @@
     },
     "firmwareClasses": {
       "title": "Device classes",
-      "text": "A channel points at a build, and every device of the class that follows that channel is told to install it. Nothing here is written until Apply, and what the change would reach stands under the controls."
+      "text": "A channel points at a build, and every device of the class that follows that channel is told to install it. Nothing here is written until Apply, and what the change would reach is shown under the controls."
     },
     "firmwareRegister": {
       "title": "Register a build",
@@ -4045,7 +4046,7 @@
     },
     "demoObjects": {
       "title": "What the demo shows",
-      "text": "What a demo visitor sees: every place, device, camera and grow marked as a demo object. Nothing on this screen writes - the mark is a property of the database with no route behind it, and is set where the demo is seeded."
+      "text": "What a demo visitor sees: every place, device, camera and grow marked as a demo object. Nothing on this screen writes – the mark is a property of the database with no route behind it, and is set where the demo is seeded."
     },
     "adminAddresses": {
       "title": "Addresses",
@@ -4053,7 +4054,7 @@
     },
     "rolloutStages": {
       "title": "Firmware rollout",
-      "text": "A class hands its build out on stable, beta and alpha. A stage tells a share of the class at a time, and the share is taken from each device's id, so a device inside it stays inside it as it grows. A device reports the build it is running within minutes of installing it."
+      "text": "A class hands its build out on stable, beta and alpha. A stage tells a share of the class at a time, and the share is taken from each device’s id, so a device inside it stays inside it as it grows. A device reports the build it is running within minutes of installing it."
     }
   },
   "place": {
@@ -4087,7 +4088,7 @@
         "named": "{{was}} is now called {{name}}",
         "kind": "Kind: {{kind}}",
         "room": "Room: {{room}}",
-        "noRoom": "{{name}} no longer stands in a room",
+        "noRoom": "{{name}} is no longer in a room",
         "sees_one": "{{people}} now sees it too",
         "sees_other": "{{people}} now see it too",
         "seesNoMore_one": "{{people}} no longer sees it",
@@ -4117,9 +4118,9 @@
     "remove": {
       "title": "Remove {{name}}",
       "back": "Back to “Edit {{name}}”",
-      "holds": "Still standing here",
+      "holds": "Still here",
       "stay": "stays with {{device}}",
-      "move": "moves to: {{place}}",
+      "move": "new place: {{place}}",
       "device": {
         "new": "gets a new place",
         "release": "give up"
@@ -4135,7 +4136,7 @@
         "end": "End the grow"
       },
       "kept": "Curves and pictures up to today stay with the grow {{names}}.",
-      "curves": "After that you see the curves of {{name}} only with grows that stood here.",
+      "curves": "After that you see this place’s curves only with the grows that grew here.",
       "remove": "Remove {{name}}",
       "removing": "Removing …",
       "cancel": "Cancel",
@@ -4143,13 +4144,13 @@
       "final": "This cannot be taken back.",
       "will": {
         "make": "{{name}} gets a new place: {{place}}",
-        "move": "{{name}} moves to: {{place}}",
+        "move": "{{name}} moves – new place: {{place}}",
         "stay": "{{name}} stays with {{beside}}",
         "release": "{{name}} is given up and then no longer belongs to your account",
         "uncouple": "{{name}} is unpaired",
         "remove": "{{name}} is removed",
         "with": "{{name}} moves along to the new place of {{beside}}",
-        "nowhere": "{{name}} then stands in no fixed place",
+        "nowhere": "{{name}} then has no fixed place",
         "end": "{{name}} is ended",
         "reminders_one": "{{count}} reminder ends",
         "reminders_other": "{{count}} reminders end",
@@ -4160,10 +4161,10 @@
         "roomEmpty": "The room {{place}} ends"
       },
       "did": {
-        "stands_one": "{{place}}: {{names}} now stands here.",
-        "stands_other": "{{place}}: {{names}} now stand here.",
-        "nowhere_one": "{{names}} stands in no fixed place.",
-        "nowhere_other": "{{names}} stand in no fixed place.",
+        "stands_one": "{{place}}: {{names}} is here now.",
+        "stands_other": "{{place}}: {{names}} are here now.",
+        "nowhere_one": "{{names}} has no fixed place.",
+        "nowhere_other": "{{names}} have no fixed place.",
         "release": "{{names}} given up.",
         "uncouple": "{{names}} unpaired.",
         "remove": "{{names}} removed.",
@@ -4184,7 +4185,7 @@
       "told": "{{name}} removed.",
       "last": "{{name}} is your only place, so it cannot be removed."
     },
-    "ended": "{{name}} has been removed. You see its curves only with grows that stood there."
+    "ended": "The place {{name}} has been removed. Its curves are now only with the grows that grew there."
   },
   "climatePick": {
     "label": "Targets",
@@ -4257,10 +4258,10 @@
   },
   "recover": {
     "title": "Forgot your password",
-    "intro": "Enter your account's e-mail address. You will get a mail with a link and a code to set a new password with.",
+    "intro": "Enter your account’s e-mail address. You will get a mail with a link and a code to set a new password with.",
     "send": "Send mail",
     "sending": "Sending …",
-    "sent": "If {{email}} has an account here, a mail is on its way now. Open its link or enter its code - both work for 60 minutes. Check the spam folder too.",
+    "sent": "If {{email}} has an account here, a mail is on its way now. Open its link or enter its code – both work for 60 minutes. Check the spam folder too.",
     "enterCode": "Enter the code from the mail",
     "haveCode": "I already have a code",
     "again": "Ask for a new mail",
@@ -4287,16 +4288,16 @@
   },
   "legacyMove": {
     "toggle": "Coming from the old Fridge Grow 2.0 / Plantalytix cloud?",
-    "intro": "Accounts of the old cloud were not carried over - this one is your new one. Your module shows a code only once it talks to this server. This is how you switch it over:",
+    "intro": "Accounts of the old cloud were not carried over – this one is your new one. Your module shows a code only once it talks to this server. This is how you switch it over:",
     "changeServer": "On the module, open “Change Server” under “Wifi Connection”. Tip: typing works better after switching to the “Off” mode first.",
     "noChangeServer": "If it is missing,",
     "firmware": "install a new firmware first",
     "noChangeServerEnd": " and then still follow every step here.",
     "address": "Enter this address there:",
-    "addressEnd": " - to type the “s” of “https” you have to delete the “://” first.",
+    "addressEnd": " – to type the “s” of “https” you have to delete the “://” first.",
     "password": "Type an “a” as the password, even though one is already there: before you tap “Done”, the field must read “aa”.",
     "update": "Wait until the firmware update has finished and the module has restarted.",
-    "failed": "If it says “Connection failed”, restart the module - otherwise you cannot leave the menu.",
+    "failed": "If it says “Connection failed”, restart the module – otherwise you cannot leave the menu.",
     "portal": "Now open “Connect to portal”. The module then shows the code you enter here."
   },
   "planLight": {
@@ -4375,10 +4376,10 @@
     "lasts_one": "lasts about {{count}} more day",
     "lasts_other": "lasts about {{count}} more days",
     "noRate": "What is left can be estimated once a cylinder has run empty and been noted.",
-    "rate_one": "{{rate}} valve openings a gram, from {{count}} empty cylinder",
-    "rate_other": "{{rate}} valve openings a gram, from {{count}} empty cylinders",
+    "rate_one": "{{rate}} ticks a gram, from {{count}} empty cylinder",
+    "rate_other": "{{rate}} ticks a gram, from {{count}} empty cylinders",
     "cylinder": "{{from}} – {{to}} · {{grams}} g used",
-    "cylinderRate": "{{rate}} openings a g",
+    "cylinderRate": "{{rate}} ticks a g",
     "add": "New cylinder in",
     "filled": "The new cylinder holds",
     "leftOver": "Left in the old one",
@@ -4401,8 +4402,8 @@
     "what": "“{{name}}” leaves your account. Whoever holds the device next adds it to their own account with the code on its display.",
     "goes": "Its grow plan, its alarms and the camera connected through it go with the device.",
     "goesAlarms": "Its alarms go with the device.",
-    "stays": "The place {{place}} and its diary stay. Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
-    "staysNowhere": "Nothing changes on the device itself: it keeps regulating with its last settings until someone else takes it over.",
+    "stays": "The place {{place}} and its diary stay. Nothing changes on the device itself: it keeps running on its last settings until someone else takes it over.",
+    "staysNowhere": "Nothing changes on the device itself: it keeps running on its last settings until someone else takes it over.",
     "next": "Continue",
     "sure": "This cannot be undone. The device only comes back to your account if you add it again with the code on its display, as the first time.",
     "yes": "Remove for good",
@@ -4731,7 +4732,7 @@
     "harvestIn_other": "Harvest in about {{count}} weeks",
     "day": "Last 24 h",
     "curve": "{{metric}} over the last 24 hours, between {{low}} and {{high}}",
-    "waiting": "Start is loading",
+    "waiting": "Home is loading",
     "addPlace": "Add a place",
     "menu": {
       "words": "Edit place",
@@ -4795,7 +4796,7 @@
       "light": "Light",
       "none": "No targets yet.",
       "controlOff": "Control off: the device holds no targets right now.",
-      "awaiting": "Waiting for the device's settings.",
+      "awaiting": "Waiting for the device’s settings.",
       "roundTheClock": "Round the clock"
     },
     "grow": {
@@ -4822,23 +4823,23 @@
       "demo": "Look at the demo",
       "demoNote": "a place set up to look around in",
       "invited": "I have an invitation",
-      "camera": "Add a camera without a controller",
+      "camera": "Add a camera without a device",
       "cameraNote": "an RTSP stream that shows a place",
       "lost": "You see no place right now"
     },
     "failed": {
       "title": "No connection to the server",
-      "text": "Your devices keep regulating. The app shows readings again once the connection is back.",
+      "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back.",
       "retry": "Try again",
       "loadedToday": "Last loaded at {{time}}.",
       "loadedOn": "Last loaded on {{time}}.",
       "serverTitle": "The server reports an error",
-      "serverText": "Your devices keep regulating. It is not your connection – try again in a moment.",
+      "serverText": "Your devices keep controlling the climate. It is not your connection – try again in a moment.",
       "retrying": "Trying …"
     },
     "offline": {
       "title": "The device has not reported since {{time}}.",
-      "text": "It keeps regulating with the last targets. What stands below is the last there is."
+      "text": "It keeps holding the last targets. What you see below is the last there is."
     },
     "demo": {
       "says": "Demo · you are looking on, nothing can be changed",
@@ -4866,7 +4867,7 @@
       "highNow": "{{metric}} {{delta}} too high just now",
       "lowNow": "{{metric}} {{delta}} too low just now",
       "since": "since {{time}}",
-      "maintenance": "Maintenance until {{until}} · regulation and alarms paused",
+      "maintenance": "Maintenance until {{until}} · control and alarms paused",
       "settling": "Maintenance over · alarms held until {{until}}",
       "stale": "Last readings from {{time}} · the device is reporting late",
       "noTargets": "Readings arriving · no targets yet",
@@ -4887,13 +4888,13 @@
     },
     "camera": {
       "none": "No picture yet",
-      "delivers": "{{name}} delivers · picture {{age}} ago",
+      "delivers": "{{name}} is delivering · picture {{age}} ago",
       "quietSince": "{{name}} not delivering · since {{time}}",
       "nothingYet": "{{name}} has not delivered a picture yet"
     },
-    "visiting": "Support view of a customer's place: read only. Times are in your time zone.",
+    "visiting": "Support view of a customer’s place: read only. Times are in your time zone.",
     "reading": {
-      "open": "open the timeline"
+      "open": "open the Timeline"
     },
     "noRoom": "In no room",
     "curveSpan": "{{low}}–{{high}}"
@@ -4912,7 +4913,7 @@
     "backTo": "Back: {{name}}",
     "offlineKeeps": "What you set here reaches the device as soon as it is heard again.",
     "waitsForDevice": "Maintenance, restart and update have to wait until the device is back online.",
-    "curves": "This device's curves",
+    "curves": "This device’s curves",
     "asOf": "as of {{time}}",
     "firmware": {
       "updateTo": "Update of {{day}}",
@@ -4960,8 +4961,8 @@
       "outputs": "Outputs",
       "mode": "Operating mode"
     },
-    "climateIn": "Climate in {{place}}",
-    "devicesIn": "Devices in {{place}}",
+    "climateIn": "Climate · {{place}}",
+    "devicesIn": "Devices · {{place}}",
     "change": "Change",
     "stand": "as of {{time}}",
     "light": {
@@ -5016,11 +5017,11 @@
       "several": "{{number}} settings saved {{saved}}, not with the device yet",
       "one": "{{name}}: {{value}} · the device still holds {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
-      "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on regulating until it is back online.",
+      "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on controlling until it is back online.",
       "stored": "{{what}} saved {{saved}}, not with the device yet"
     },
     "offline": {
-      "text": "You can set everything all the same. The device takes it over once it reports again, and until then regulates with what it held at {{time}}."
+      "text": "You can still set everything. The device takes it over once it reports again, and until then runs on what it held at {{time}}."
     },
     "state": {
       "on": "Control on",
@@ -5032,9 +5033,9 @@
       "alarmsOn_one": "{{count}} rule",
       "alarmsOn_other": "{{count}} rules",
       "alarmsCalm": "all quiet",
-      "alarmRaised": "“{{name}}” has raised",
-      "alarmsRaised_one": "{{count}} has raised",
-      "alarmsRaised_other": "{{count}} have raised",
+      "alarmRaised": "“{{name}}” has gone off",
+      "alarmsRaised_one": "{{count}} has gone off",
+      "alarmsRaised_other": "{{count}} have gone off",
       "planOff": "off",
       "planAtRest": "“{{name}}” · {{status}}",
       "light": "Light",
@@ -5050,7 +5051,7 @@
       "also": "also {{others}}"
     },
     "outputs": {
-      "none": "Nothing standing here has outputs of its own."
+      "none": "Nothing here has outputs of its own."
     },
     "device": {
       "late": "online · last heard {{age}} ago",
@@ -5074,7 +5075,7 @@
     "climate": "Climate",
     "devices": "Devices",
     "plan": {
-      "none": "Nothing standing here takes targets from a plan."
+      "none": "No device here takes targets from a plan."
     },
     "mode": {
       "none": "There is no operating mode to choose here.",

@@ -36,7 +36,7 @@ const draw = (state: unknown = null) =>
   );
 
 /** Fill the form in with credentials that are right, and ask. */
-const signIn = (email = 'Email', password = 'Password', button = 'Sign in') => {
+const signIn = (email = 'E-mail', password = 'Password', button = 'Sign in') => {
   fireEvent.change(screen.getByLabelText(email), { target: { value: 'you@example.com' } });
   fireEvent.change(screen.getByLabelText(password), { target: { value: 'a long enough secret' } });
   fireEvent.click(screen.getByRole('button', { name: button }));

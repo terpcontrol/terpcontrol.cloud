@@ -1322,7 +1322,7 @@ describe('the films', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Week' }));
 
     expect(screen.queryByRole('button', { name: 'Make the film' })).not.toBeInTheDocument();
-    expect(screen.getByText(/This camera's first complete week ends on/)).toBeInTheDocument();
+    expect(screen.getByText(/This camera’s first complete week ends on/)).toBeInTheDocument();
   });
 
   it('refuses the film of a whole grow to a camera without Premium, and leads to what Premium covers', () => {

@@ -320,7 +320,7 @@ describe('a plant of a grow', () => {
     fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
 
     const sheet = await screen.findByRole('dialog', { name: 'Measure' });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Take this line back' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take this entry back' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Take it back' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/e-2'));

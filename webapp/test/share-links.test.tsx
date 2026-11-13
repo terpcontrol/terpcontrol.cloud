@@ -196,7 +196,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [link({ subject: { type: 'space', id: 'space-9' } })];
     await drawLoaded();
 
-    expect(card("Mia's tent · timeline")).toBeInTheDocument();
+    expect(card("Mia's tent · Timeline")).toBeInTheDocument();
     expect(server.asked.filter(asked => asked.startsWith('/spaces')).length).toBeGreaterThan(1);
   });
 
@@ -207,7 +207,7 @@ describe('a subject the first page does not hold', () => {
 
     await screen.findByText('Active');
     expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
-    await waitFor(() => expect(card("Mia's tent · timeline")).toBeInTheDocument());
+    await waitFor(() => expect(card("Mia's tent · Timeline")).toBeInTheDocument());
   });
 
   it('says the name could not be read when that list fails, rather than that the link has gone', async () => {
@@ -215,7 +215,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [link({})];
     draw();
 
-    await waitFor(() => expect(card('Could not load. Try again. · timeline')).toBeInTheDocument());
+    await waitFor(() => expect(card('Could not load. Try again. · Timeline')).toBeInTheDocument());
     expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
   });
 
@@ -226,14 +226,14 @@ describe('a subject the first page does not hold', () => {
 
     const gone = await waitFor(() => card('Could not load. Try again. · public page'));
     expect(gone).not.toHaveTextContent('grow now private');
-    expect(gone).not.toHaveTextContent("the grow's permanent link");
+    expect(gone).not.toHaveTextContent('the grow’s permanent link');
   });
 
   it('still calls a link gone once both lists have been read to their end without it', async () => {
     server.links = [link({ subject: { type: 'space', id: 'space-404' } })];
     draw();
 
-    await waitFor(() => expect(card('no longer here · timeline')).toBeInTheDocument());
+    await waitFor(() => expect(card('no longer here · Timeline')).toBeInTheDocument());
   });
 });
 
@@ -246,10 +246,10 @@ describe('the active list', () => {
     expect(screen.getByText('Active').nextElementSibling).toHaveTextContent('2');
 
     const page = card('Spring run #3 · public page');
-    expect(page).toHaveTextContent("the grow's permanent link · cams on · weights hidden · 41 opens · last 2 h ago");
+    expect(page).toHaveTextContent('the grow’s permanent link · cams on · weights hidden · 41 opens · last 2 h ago');
     expect(page).not.toHaveAttribute('data-dead');
 
-    const week = card('Tent 1 · timeline · for 7 days');
+    const week = card('Tent 1 · Timeline · for 7 days');
     expect(week).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · cams on · weights hidden · 6 opens · last 5 min ago`);
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
   });
@@ -264,7 +264,7 @@ describe('the active list', () => {
     server.links = [link({ includeCameras: false })];
     await drawLoaded();
 
-    expect(card('Tent 1 · timeline')).toHaveTextContent('read-only view · permanent · cams off · weights hidden · not opened yet');
+    expect(card('Tent 1 · Timeline')).toHaveTextContent('read-only view · permanent · cams off · weights hidden · not opened yet');
   });
 
   it('warns on a public-page link whose grow has gone private, because the server still answers it', async () => {
@@ -293,7 +293,7 @@ describe('links that have stopped', () => {
     expect(within(dead).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByText('Expired or revoked').nextElementSibling).toHaveTextContent('2');
 
-    const gone = card('Tent 1 · timeline · for 14 days');
+    const gone = card('Tent 1 · Timeline · for 14 days');
     expect(gone).toHaveAttribute('data-dead');
     expect(gone).toHaveTextContent(`expired ${dayOf(expired.expiresAt!)} · not opened yet`);
     expect(within(gone).queryByRole('button', { name: 'Copy the link' })).not.toBeInTheDocument();
@@ -325,13 +325,13 @@ describe('links that have stopped', () => {
 describe('a link’s own sheet', () => {
   it('shows the address of a live link and revokes it where it stands', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · timeline · for 7 days/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · Timeline · for 7 days/ }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · timeline · for 7 days' });
+    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · Timeline · for 7 days' });
     expect(within(sheet).getByText(/\/shared\/tok-week$/)).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     // What it will do, to whom, and that there is no way back to a live link.
-    expect(within(sheet).getByText(/it cannot be started again - sharing once more takes a new link/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/it cannot be started again – sharing once more takes a new link/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
     await waitFor(() => expect(server.revoked).toEqual(['link-week']));
@@ -368,7 +368,7 @@ describe('copying', () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/shared\/tok-page$/));
 
     writeText.mockRejectedValueOnce(new Error('refused'));
-    fireEvent.click(within(card('Tent 1 · timeline · for 7 days')).getByRole('button', { name: 'Copy the link' }));
+    fireEvent.click(within(card('Tent 1 · Timeline · for 7 days')).getByRole('button', { name: 'Copy the link' }));
     await screen.findByText('Copy it by hand');
   });
 });

@@ -817,7 +817,7 @@ describe('a device on its own page', () => {
       await draw();
 
       expect(screen.getByText('own settings of device-1')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /This device's curves/ })).toHaveAttribute('href', '/timeline?space=space-1&device=device-1');
+      expect(screen.getByRole('link', { name: /This device’s curves/ })).toHaveAttribute('href', '/timeline?space=space-1&device=device-1');
     });
 
     /** Everything of a second device is one tap from its page, and nothing of it is built a second time. */

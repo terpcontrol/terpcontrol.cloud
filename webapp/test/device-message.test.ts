@@ -21,7 +21,7 @@ describe('device messages against the shipped catalogue', () => {
   });
 
   it('reads a key with no parameter', () => {
-    expect(resolveDeviceMessage(i18n, { key: 'message-co2-low', params: [] }, 'title')).toBe('Low CO2');
+    expect(resolveDeviceMessage(i18n, { key: 'message-co2-low', params: [] }, 'title')).toBe('Low CO₂');
   });
 
   it('prefers the wording written for that exact parameter', () => {
@@ -120,13 +120,13 @@ describe('device messages against the shipped catalogue', () => {
       resolveDeviceMessage(i18n, { key: 'message-firmware-update-complete-with-ids', params: [] }, 'title'),
     );
     expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Firmware update complete');
-    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed");
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe('Your device’s firmware update was completed');
   });
 
   it('names the builds of an update with the arrow, and an unknown one in words', () => {
     const message = { key: 'message-firmware-update-complete-with-ids', params: ['unknown -> 0.0.0'] };
 
-    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed: an unknown build → 0.0.0");
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe('Your device’s firmware update was completed: an unknown build → 0.0.0');
   });
 
   it('says a whole picture is missing without reciting the telemetry in the headline', () => {
@@ -154,7 +154,7 @@ describe('device messages against the shipped catalogue', () => {
     const plants = { source: 'device' as const, text: null, message: { key: 'message-diary-plant-log', params: [] } };
     const sensor = { source: 'device' as const, text: null, message: { key: 'message-ext-sensor-fail', params: [] } };
 
-    expect(entryHeadline(i18n, plants)).toBe('Plant log entry');
+    expect(entryHeadline(i18n, plants)).toBe('Plant entry');
     expect(entryDetail(i18n, plants)).toBeNull();
     // Its two halves differ by a word, so only being named keeps it quiet.
     expect(entryDetail(i18n, sensor)).toBeNull();

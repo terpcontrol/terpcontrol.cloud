@@ -449,7 +449,7 @@ describe('a camera at a stream address', () => {
     expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     expect(within(field).getByRole('paragraph')).toHaveTextContent(
-      'Balcony: no device stands here to fetch the stream from your network · an address of your home network will not answer the cloud',
+      'Balcony: no device here fetches the stream from your network · an address of your home network will not answer the cloud',
     );
   });
 

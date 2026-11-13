@@ -311,7 +311,7 @@ describe('the inbox', () => {
     draw();
 
     // The account keeps no diary, so nothing here points to tasks it has not got.
-    expect(await screen.findByText('Alarms land here once a device measures or a cam films.')).toBeInTheDocument();
+    expect(await screen.findByText('Alerts land here once a device measures or a cam films.')).toBeInTheDocument();
     expect(screen.queryByText(/Tasks/)).not.toBeInTheDocument();
     expect(screen.queryByText('Nothing is open right now.')).not.toBeInTheDocument();
     // Nothing here can raise an alarm, so there is nothing to mute.
@@ -444,11 +444,11 @@ describe('the inbox', () => {
       within(card)
         .getAllByRole('link')
         .map(link => link.textContent),
-    ).toEqual(['Open timeline']);
+    ).toEqual(['Open Timeline']);
     expect(within(card).getAllByRole('button')).toHaveLength(1);
 
     more(card);
-    expect(within(card).getByRole('button', { name: /^Silence this rule 1 h/ })).toHaveTextContent('holds for everyone who sees the place');
+    expect(within(card).getByRole('button', { name: /^Silence this rule 1 h/ })).toHaveTextContent('applies to everyone who sees the place');
     expect(within(card).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-1&rule=rule-1');
   });
 
@@ -462,7 +462,7 @@ describe('the inbox', () => {
 
     const [card] = await waitFor(() => openCards());
     expect(within(card).getByText(reading(`${since} · Cellar · 68 % · above 60 %`))).toBeInTheDocument();
-    expect((await within(card).findByRole('link', { name: 'Open timeline' })).getAttribute('href')).toMatch(
+    expect((await within(card).findByRole('link', { name: 'Open Timeline' })).getAttribute('href')).toMatch(
       /^\/timeline\?space=space-2&device=device-1&/,
     );
     expect(within(more(card)).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-2&rule=rule-1');
@@ -476,8 +476,8 @@ describe('the inbox', () => {
     server.rules = [rule(), rule({ id: 'rule-2', deviceId: 'device-2', watch: { kind: 'output_running', output: 'dehumidifier' } })];
     draw();
 
-    await screen.findByText('Dehumidifier runs without a pause');
-    expect(screen.getAllByRole('link', { name: 'Open timeline' }).map(link => link.getAttribute('href'))).toEqual([
+    await screen.findByText('Dehumidifier running without a pause');
+    expect(screen.getAllByRole('link', { name: 'Open Timeline' }).map(link => link.getAttribute('href'))).toEqual([
       `/timeline?space=space-1&device=device-2&focus=dehumidifier&at=${encodeURIComponent(iso(began))}`,
       `/timeline?space=space-1&device=device-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
     ]);
@@ -505,11 +505,11 @@ describe('the inbox', () => {
     ];
     draw();
 
-    const running = await screen.findByLabelText('critical · Dehumidifier runs without a pause');
+    const running = await screen.findByLabelText('critical · Dehumidifier running without a pause');
     expect(within(running).getByText(reading(`${since} · Flower room B · longer than 2 h`))).toBeInTheDocument();
     expect(within(running).getByText(reading('Humidity high · critical · goes to you by e-mail · does not repeat'))).toBeInTheDocument();
     // A rule that trips the moment the output starts has no span worth drawing.
-    const instant = screen.getByLabelText('critical · Heater runs without a pause');
+    const instant = screen.getByLabelText('critical · Heater running without a pause');
     expect(within(instant).getByText(reading(`${since} · Flower room B`))).toBeInTheDocument();
     expect(screen.queryByText(/0 s/)).not.toBeInTheDocument();
     expect(within(screen.getByLabelText('critical · alarm')).getByText(reading(`${since} · Flower room B · 68`))).toBeInTheDocument();
@@ -674,7 +674,7 @@ describe('the inbox', () => {
 
     const sheet = await openRow(/^Cam 2 without a picture for/);
     expect(within(sheet).getByText(reading(`warning · until ${clock(NOW.minus({ minutes: 5 }))}`))).toBeInTheDocument();
-    expect(within(sheet).getByText(/delivers pictures again$/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/is delivering pictures again$/)).toBeInTheDocument();
     expect(screen.queryByText(/does not repeat|does not reach you|not announced|goes to you/)).not.toBeInTheDocument();
   });
 
@@ -970,10 +970,10 @@ describe('the inbox', () => {
     const sheet = await openRow(/^Humidity too high for 1 h/);
     expect(sheet).toHaveAccessibleName('Humidity too high for 1 h');
     expect(
-      within(sheet).getByText(reading(`${clock(began)} · Flower room B · worst 71 % · above 60 % · back in range since then`)),
+      within(sheet).getByText(reading(`${clock(began)} · Flower room B · worst 71 % · above 60 % · back on target since then`)),
     ).toBeInTheDocument();
     expect(within(sheet).getByText(reading(`Humidity high · critical · until ${clock(NOW.minus({ hours: 1 }))}`))).toBeInTheDocument();
-    expect(within(sheet).getByRole('link', { name: 'Open timeline' })).toHaveAttribute(
+    expect(within(sheet).getByRole('link', { name: 'Open Timeline' })).toHaveAttribute(
       'href',
       `/timeline?space=space-1&device=device-1&focus=humidity&at=${encodeURIComponent(iso(began))}`,
     );
@@ -1010,8 +1010,8 @@ describe('the inbox', () => {
 
       await waitFor(() => expect(overRows()).toEqual([['Humidity too high for 1 h', `Old tent · ${stamp(NOW.minus({ hours: 1 }))}`]]));
       const sheet = await openRow(/^Humidity too high for 1 h/);
-      expect(within(sheet).getByText(reading(/ · Old tent · worst 71 % · above 60 % · back in range since then$/))).toBeInTheDocument();
-      expect(within(sheet).queryByRole('link', { name: 'Open timeline' })).not.toBeInTheDocument();
+      expect(within(sheet).getByText(reading(/ · Old tent · worst 71 % · above 60 % · back on target since then$/))).toBeInTheDocument();
+      expect(within(sheet).queryByRole('link', { name: 'Open Timeline' })).not.toBeInTheDocument();
       fireEvent.click(await within(sheet).findByRole('button', { name: 'Delete' }));
       fireEvent.click(within(sheet).getAllByRole('button', { name: 'Delete' })[1]);
 
@@ -1110,7 +1110,7 @@ describe('the inbox', () => {
     server.rules = [rule()];
     draw();
 
-    expect(await screen.findByText('The demo has no inbox; open a place to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no alerts of its own; open a place to see its alarms.')).toBeInTheDocument();
     expect(screen.queryByText('Nothing is open right now.')).not.toBeInTheDocument();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -1123,7 +1123,7 @@ describe('the inbox', () => {
     state.who = 'demo';
     draw();
 
-    expect(await screen.findByText('The demo has no inbox; open a place to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no alerts of its own; open a place to see its alarms.')).toBeInTheDocument();
     expect(readsOf('/v1/me')).toHaveLength(0);
   });
 
@@ -1268,7 +1268,7 @@ describe('a member who may only log', () => {
     expect(await screen.findByText(reading(`${since} · Flower room B · 68 % · above 60 %`))).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(reading(/^Humidity high · critical/))).toBeInTheDocument());
     expect(openCards()).toHaveLength(1);
-    expect(within(openCards()[0]).getByRole('link', { name: 'Open timeline' })).toHaveAttribute(
+    expect(within(openCards()[0]).getByRole('link', { name: 'Open Timeline' })).toHaveAttribute(
       'href',
       `/timeline?space=space-1&device=device-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
     );
@@ -1284,7 +1284,7 @@ describe('a member who may only log', () => {
     draw();
 
     const sheet = await openRow(/^alarm/);
-    expect(within(sheet).getByRole('link', { name: 'Open timeline' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('link', { name: 'Open Timeline' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
@@ -1541,7 +1541,7 @@ describe('what is due', () => {
       </>,
     );
 
-    expect(await screen.findByText('The demo has no inbox; open a place to see its alarms.')).toBeInTheDocument();
+    expect(await screen.findByText('The demo has no alerts of its own; open a place to see its alarms.')).toBeInTheDocument();
     await waitFor(() => expect(readsOf('/v1/home')).not.toHaveLength(0));
     expect(screen.queryByRole('heading', { name: 'Tasks' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /tasks/i })).not.toBeInTheDocument();

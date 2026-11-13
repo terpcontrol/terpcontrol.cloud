@@ -188,12 +188,12 @@ describe('naming a device and moving it', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { spaceId: 'space-2' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(told.map(one => one.label)).toEqual(['Fridge 1: Plantalytix Socket now stands here']);
+    expect(told.map(one => one.label)).toEqual(['Fridge 1: Plantalytix Socket is here now']);
 
     // Taken back, it stands where it stood, and the toast is handed where that is.
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { spaceId: 'space-1' });
-    expect(told).toMatchObject([{ undone: 'Tent 1: Plantalytix Socket now stands here' }]);
+    expect(told).toMatchObject([{ undone: 'Tent 1: Plantalytix Socket is here now' }]);
   });
 
   /** The scrap of an id is for telling two apart in one list: the toast names the device as the place it then stands in lists it. */
@@ -207,8 +207,8 @@ describe('naming a device and moving it', () => {
 
     await waitFor(() => expect(told).toHaveLength(1));
     expect(told[0]).toMatchObject({
-      label: 'Fridge 1: Plantalytix Socket\u00a0·\u00a0ICE1 now stands here',
-      undone: 'Tent 1: Plantalytix Socket now stands here',
+      label: 'Fridge 1: Plantalytix Socket\u00a0·\u00a0ICE1 is here now',
+      undone: 'Tent 1: Plantalytix Socket is here now',
     });
   });
 
@@ -260,13 +260,13 @@ describe('naming a device and moving it', () => {
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { name: 'Fridge module', spaceId: 'space-2' }));
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual([
-        'East tent is now called Fridge module · Fridge 1: Fridge module now stands here · with camera Canopy cam, 2 sockets',
+        'East tent is now called Fridge module · Fridge 1: Fridge module is here now · with camera Canopy cam, 2 sockets',
       ]),
     );
     await told[0].undo!();
     expect(api.patch).toHaveBeenLastCalledWith('/devices/device-1', { name: 'East tent', spaceId: 'space-1' });
     expect(told).toMatchObject([
-      { undone: 'Fridge module is now called East tent · Tent 1: East tent now stands here · with camera Canopy cam, 2 sockets' },
+      { undone: 'Fridge module is now called East tent · Tent 1: East tent is here now · with camera Canopy cam, 2 sockets' },
     ]);
   });
 
@@ -280,7 +280,7 @@ describe('naming a device and moving it', () => {
 
     expect((await sheet.findByText(/Moves with it/)).closest('p')).toHaveTextContent(/^Moves with it: camera Terp Cam$/);
     fireEvent.click(sheet.getByRole('button', { name: 'Move' }));
-    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Fridge 1: East tent now stands here · with camera Terp Cam']));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Fridge 1: East tent is here now · with camera Terp Cam']));
   });
 
   /**
@@ -306,7 +306,7 @@ describe('naming a device and moving it', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'fridge', name: 'KS Black', roomId: 'room-1' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1', { spaceId: 'space-new' }));
-    await waitFor(() => expect(told).toMatchObject([{ label: 'KS Black: Fridge module now stands here', undo: null, from: 'device-device-1' }]));
+    await waitFor(() => expect(told).toMatchObject([{ label: 'KS Black: Fridge module is here now', undo: null, from: 'device-device-1' }]));
   });
 
   it('keeps the sheet open with what the server said when the move is refused, and makes no second place on the next try', async () => {

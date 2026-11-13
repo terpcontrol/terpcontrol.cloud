@@ -117,7 +117,7 @@ describe('the grow´s menu', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn />);
     open();
 
-    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and kind', 'Tips for this stage']);
+    expect(offered()).toEqual(['Phase', 'Share', 'Measurements', 'Move', 'Split', 'Harvest', 'Name and kind', 'Tips for this phase']);
     expect(screen.getByRole('link', { name: 'Measurements' })).toHaveAttribute('href', `/grows/${grow.id}/measurements`);
   });
 
@@ -125,15 +125,15 @@ describe('the grow´s menu', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
     open();
 
-    expect(offered()).toEqual(['Measurements', 'Tips for this stage']);
+    expect(offered()).toEqual(['Measurements', 'Tips for this phase']);
   });
 
   it('opens four tips for the stage the grow is in', () => {
     drawAt(<GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} />);
     open();
-    fireEvent.click(screen.getByRole('button', { name: 'Tips for this stage' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tips for this phase' }));
 
-    const tips = screen.getByRole('dialog', { name: 'Tips for this stage' });
+    const tips = screen.getByRole('dialog', { name: 'Tips for this phase' });
     expect(within(tips).getAllByRole('listitem')).toHaveLength(4);
     expect(tips).toHaveTextContent(/Keep humidity at or below 50 %/);
   });
@@ -402,14 +402,14 @@ describe('the move sheet of a grow that has ended', () => {
   it('names the place it stood in, as the header behind it and its own history do', () => {
     drawAt(<MoveSheet grow={finished} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
-    expect(screen.getByText('stood in Blue Dream tent')).toBeInTheDocument();
-    expect(screen.queryByText('Standing in No fixed place')).not.toBeInTheDocument();
+    expect(screen.getByText('last place: Blue Dream tent')).toBeInTheDocument();
+    expect(screen.queryByText('Place now: No fixed place')).not.toBeInTheDocument();
   });
 
   it('still says in the present where a running grow stands', () => {
     drawAt(<MoveSheet grow={grow} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
-    expect(screen.getByText('Standing in Blue Dream tent')).toBeInTheDocument();
+    expect(screen.getByText('Place now: Blue Dream tent')).toBeInTheDocument();
   });
 
   it('offers no move of its own, only the rows of where it stood', () => {
@@ -434,7 +434,7 @@ describe('the move sheet of a grow that has ended', () => {
   it('says a running grow stands in no fixed place where that is what it does', () => {
     drawAt(<MoveSheet grow={{ ...grow, summary: { ...grow.summary, locations: [] } }} plants={plants} spaces={[tent]} onClose={() => {}} />);
 
-    expect(screen.getByText('Standing in No fixed place')).toBeInTheDocument();
+    expect(screen.getByText('Place now: No fixed place')).toBeInTheDocument();
   });
 });
 

@@ -114,7 +114,7 @@ describe('the privacy agreement on an install that publishes no statement of its
 
     const link = screen.getByRole('link', { name: 'privacy policy' });
     expect(link).toHaveAttribute('href', '/privacy');
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
@@ -145,8 +145,8 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    expect(await screen.findByText(/An invitation to Blue Dream tent is waiting/)).toBeInTheDocument();
-    fillIn('Email', 'mara@example.com');
+    expect(await screen.findByText(/An invitation is waiting: Blue Dream tent/)).toBeInTheDocument();
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', '@mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -167,7 +167,7 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -197,7 +197,7 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -235,7 +235,7 @@ describe('the window´s title outside the shell', () => {
     document.title = 'Blue Dream tent – Terp Control';
     draw('/sign-up');
 
-    await screen.findByLabelText('Email');
+    await screen.findByLabelText('E-mail');
     expect(document.title).toBe('Create account – Terp Control');
   });
 

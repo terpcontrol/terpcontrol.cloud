@@ -213,8 +213,10 @@ describe('what a stranger finds', () => {
     await drawLoaded();
 
     const help = screen.getByRole('button', { name: 'About Public grows' });
-    expect(help).toHaveAccessibleDescription(/the camera's pictures/);
-    expect(help).toHaveAccessibleDescription(/It never shows the place's live values, its devices, its alarms or its tasks, and never your e-mail/);
+    expect(help).toHaveAccessibleDescription(/the camera’s pictures/);
+    expect(help).toHaveAccessibleDescription(
+      /It never shows the place’s current readings, its devices, its alarms or its tasks, and never your e-mail/,
+    );
     expect(help).toHaveAccessibleDescription(/nobody can write/);
   });
 

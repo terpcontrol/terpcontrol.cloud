@@ -587,7 +587,7 @@ describe('who sees a place, as somebody who was let in', () => {
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave Blue Dream tent' }));
 
     const sheet = screen.getByRole('dialog', { name: 'Leave Blue Dream tent?' });
-    expect(within(sheet).getByText(/Blue Dream tent goes off your home/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/Blue Dream tent disappears from Home/)).toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Leave' }));
 
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/$/));
@@ -631,7 +631,7 @@ describe('who sees a place, as somebody who was let in', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Leave Grow room' }));
     expect(
-      within(screen.getByRole('dialog', { name: 'Leave Grow room?' })).getByText(/Every place of this room goes off your home/),
+      within(screen.getByRole('dialog', { name: 'Leave Grow room?' })).getByText(/Every place of this room disappears from Home/),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
 

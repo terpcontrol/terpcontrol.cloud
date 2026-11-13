@@ -438,7 +438,7 @@ describe('adding a device', () => {
     ]);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/of 5$/);
     // What a question is about stands behind the help button beside it; a step still ahead is its title and no more.
-    expect(screen.getByRole('button', { name: 'About Climate preset' })).toHaveAccessibleDescription(/^A ready climate for a stage/);
+    expect(screen.getByRole('button', { name: 'About Climate preset' })).toHaveAccessibleDescription(/^A ready climate for a phase/);
     expect(document.querySelectorAll('[data-state="ahead"] p')).toHaveLength(0);
     // Under the button stands nothing: what can wait is not explained on the way past it.
     expect(document.querySelector('footer')).toHaveTextContent(/^Next · sockets and cam\?$/);
@@ -575,7 +575,7 @@ describe('adding a device', () => {
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
-    await screen.findByText('The targets went to 1 controller.');
+    await screen.findByText('The targets went to 1 device.');
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
     fireEvent.click(await screen.findByRole('button', { name: /Next/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Next · what grows?' }));
@@ -733,8 +733,8 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering' }));
-    expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
-    expect(screen.getByText('No grow entered the stage; only the climate was written.')).toBeInTheDocument();
+    expect(await screen.findByText('The targets went to 1 device.')).toBeInTheDocument();
+    expect(screen.getByText('No grow entered the phase; only the climate was written.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Only the climate/ })).not.toBeInTheDocument();
   });
@@ -759,7 +759,7 @@ describe('adding a device', () => {
     expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
-    expect(await screen.findByText('The targets went to 1 controller.')).toBeInTheDocument();
+    expect(await screen.findByText('The targets went to 1 device.')).toBeInTheDocument();
     expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.').tagName).toBe('LI');
   });
 
@@ -767,7 +767,7 @@ describe('adding a device', () => {
     await drawClaimed();
     fireEvent.click(screen.getByRole('button', { name: 'just measure' }));
 
-    expect(screen.getByText(/Nothing is written to the controller/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is written to the device/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Put it on/ })).not.toBeInTheDocument();
     expect(api.post).toHaveBeenCalledTimes(1);
   });
@@ -982,11 +982,11 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
-    expect(await screen.findByText('No controller here took the targets.')).toBeInTheDocument();
-    expect(screen.getByText('No grow entered the stage, and no climate was written.')).toBeInTheDocument();
+    expect(await screen.findByText('No device here took the targets.')).toBeInTheDocument();
+    expect(screen.getByText('No grow entered the phase, and no climate was written.')).toBeInTheDocument();
     // Said to a screen reader too, in the region that was on the page before the write.
     expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
-      'No controller here took the targets. No grow entered the stage, and no climate was written.',
+      'No device here took the targets. No grow entered the phase, and no climate was written.',
     );
   });
 
@@ -1055,7 +1055,7 @@ describe('adding a device', () => {
     // The answer that holds is marked, and the other is there to change it.
     expect(tent).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('button', { name: /^At a new place/ })).not.toHaveAttribute('aria-current');
-    expect(screen.getByText('A drying tent, say, where no other device stands.')).toBeInTheDocument();
+    expect(screen.getByText('A drying tent, say, with no other device in it.')).toBeInTheDocument();
     expect(address()).toBe('/claim?device=sim-fan-1&ask=place.hardware.notify.grow&at=place');
     // The claim is all that was written: nothing moved, nothing ended, nothing named.
     await settled(drawn);
@@ -1146,7 +1146,7 @@ describe('adding a device', () => {
     await hangQuestion('fan');
     // No climate anywhere: the first of the account's own places is the one the claim named.
     expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
-    expect(screen.getByText('No device stands there yet.')).toBeInTheDocument();
+    expect(screen.getByText('No device is there yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Blue Dream/ }));
 
     await waitFor(() => expect(openStep()).toHaveTextContent('Cam'));
@@ -1243,7 +1243,7 @@ describe('adding a device', () => {
     expect(offered()).toEqual(['At a new place', 'Mother tent']);
     expect(screen.getByRole('button', { name: /^At a new place/ })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('button', { name: /^Mother tent/ })).not.toHaveAttribute('aria-current');
-    expect(screen.getByText('No device stands there yet.')).toBeInTheDocument();
+    expect(screen.getByText('No device is there yet.')).toBeInTheDocument();
     expect(screen.getByText('A second tent, say, with a climate of its own.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
@@ -1511,7 +1511,7 @@ describe('adding a device', () => {
 
     await waitFor(() =>
       expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
-        'The targets went to 1 controller. No grow entered the stage; only the climate was written.',
+        'The targets went to 1 device. No grow entered the phase; only the climate was written.',
       ),
     );
   });
@@ -1544,6 +1544,6 @@ describe('adding a device', () => {
     expect(screen.getByText(/cannot claim hardware/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add a device$/);
     expect(screen.queryByRole('button', { name: 'Stop adding' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Start' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/');
   });
 });

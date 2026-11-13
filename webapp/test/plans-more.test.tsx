@@ -171,7 +171,7 @@ describe('light hours in a step', () => {
     expect(followsGermination([germination, after], 1, false)).toBe(true);
     expect(followsGermination([germination, after], 0, false)).toBe(false);
     expect(followsGermination([after, germination], 0, true)).toBe(true);
-    expect(stepMeta(t, after, null, true)).toBe('No stage · 1 wk · ends germination');
+    expect(stepMeta(t, after, null, true)).toBe('No phase · 1 wk · ends germination');
 
     drawAt(
       <PlanEditor
@@ -181,7 +181,7 @@ describe('light hours in a step', () => {
         onClose={() => {}}
       />,
     );
-    expect(screen.getByText('No stage · 1 wk · ends germination')).toBeInTheDocument();
+    expect(screen.getByText('No phase · 1 wk · ends germination')).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: /^Edit / })[1]);
     expect(screen.getByText(/This step ends the germination before it/)).toBeInTheDocument();
     expect(screen.queryByText(/This step writes nothing/)).not.toBeInTheDocument();
@@ -435,7 +435,7 @@ describe('the two ready-made plans', () => {
     const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
 
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
-    expect(screen.getByText(/^Starting puts a grow standing here into Veg,/)).toBeInTheDocument();
+    expect(screen.getByText(/^Starting puts a grow here into Veg,/)).toBeInTheDocument();
 
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
     view.unmount();

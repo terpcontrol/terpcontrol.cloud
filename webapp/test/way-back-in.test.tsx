@@ -89,10 +89,10 @@ afterEach(async () => {
 describe('a forgotten password', () => {
   it('is a link under the password that carries the address already typed', async () => {
     draw('/sign-in');
-    fillIn('Email', 'you@example.com');
+    fillIn('E-mail', 'you@example.com');
     fireEvent.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
-    expect(await screen.findByLabelText('Email')).toHaveValue('you@example.com');
+    expect(await screen.findByLabelText('E-mail')).toHaveValue('you@example.com');
   });
 
   it('asks for the mail and says it is on its way, whether or not the address has an account', async () => {

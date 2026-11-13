@@ -503,8 +503,8 @@ describe('the fleet table', () => {
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
     const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(2);
-    expect(within(rows[1]).getByText(/No device matches "Blue Dream"/)).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/not the place it stands in/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/No device matches “Blue Dream”/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/not the place it is in/)).toBeInTheDocument();
 
     // One press shows everything again, the search included.
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Show everything' }));
@@ -688,7 +688,7 @@ describe('the health card', () => {
     server.stats = () => json(BROKEN, 500);
     await drawFleet();
 
-    expect(await screen.findByText("Could not read the install's own figures.")).toBeInTheDocument();
+    expect(await screen.findByText('Could not read the install’s own figures.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
     // Nothing that only the stats route answers is drawn from anything else.
     expect(screen.queryByText(/pictures \d/)).not.toBeInTheDocument();
@@ -763,7 +763,7 @@ describe('the accounts', () => {
     await screen.findByText('@mo');
 
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-    expect(await screen.findByText(/This is somebody else's account: @mo/)).toBeInTheDocument();
+    expect(await screen.findByText(/This is somebody else’s account: @mo/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'a new one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -881,7 +881,7 @@ describe("the administrator's own row", () => {
     const rows = await drawUsers();
 
     fireEvent.click(within(rows[2]).getByRole('button', { name: 'Delete' }));
-    expect(await screen.findByText(/What they wrote in other people's places stays there and loses their name/)).toBeInTheDocument();
+    expect(await screen.findByText(/What they wrote in other people’s places stays there and loses their name/)).toBeInTheDocument();
     expect(screen.queryByText(/the server keeps it/)).not.toBeInTheDocument();
     // The prompt is set in small caps and a phone capitalises the first
     // letter, so the handle counts however it is cased.

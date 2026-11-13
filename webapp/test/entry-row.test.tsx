@@ -74,7 +74,7 @@ describe('a diary row', () => {
     );
 
     expect(screen.getByText(/Super Cropping/)).toBeInTheDocument();
-    expect(screen.queryByText(/Plant log entry/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Plant entry/)).not.toBeInTheDocument();
   });
 
   it('keeps the line breaks in a note that was written in several lines', () => {
@@ -255,7 +255,7 @@ describe('a diary row', () => {
       </ul>,
     );
 
-    expect(screen.getByText(/Low CO2/)).toBeInTheDocument();
+    expect(screen.getByText(/Low CO₂/)).toBeInTheDocument();
   });
 });
 
@@ -303,7 +303,7 @@ describe('what a machine´s line says under its headline', () => {
   it('says nothing more where the key carries no parameters, because its text only restates its title', () => {
     const { container } = said({ kind: 'system', message: { key: 'message-diary-plant-log', params: [] } });
 
-    expect(container.textContent).toContain('Plant log entry');
+    expect(container.textContent).toContain('Plant entry');
     expect(container.textContent).not.toContain('A line written in the diary of the plants.');
   });
 

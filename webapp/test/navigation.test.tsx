@@ -629,7 +629,7 @@ describe('the choice of place', () => {
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
     const sheet = await screen.findByRole('dialog', { name: 'Place' });
-    expect(within(sheet).getByText('holds for Grow, Timeline and Control')).toBeInTheDocument();
+    expect(within(sheet).getByText('applies to Grow, Timeline and Control')).toBeInTheDocument();
 
     const room = await within(sheet).findByRole('region', { name: 'Cellar' });
     const [fridge, tent] = within(room).getAllByRole('button');
@@ -749,7 +749,9 @@ describe('the choice of place', () => {
     server.ended = [['space-9', 'Old tent']];
     const router = open(`${item}?space=space-9`);
 
-    expect(await screen.findByText('Old tent has been removed. You see its curves only with grows that stood there.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('The place Old tent has been removed. Its curves are now only with the grows that grew there.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(where(router)).toBe(`${item}?space=space-9`);
@@ -881,7 +883,7 @@ describe('a change to the shape of the app', () => {
     // A window without `matchMedia` counts as wide, where the bar is the rail.
     const notice = await screen.findByRole('status', { name: 'What changed' });
     expect(notice).toHaveTextContent('The app has a new layout. The bar on the left holds Home, Timeline, and Control: Timeline shows the curves');
-    expect(notice).toHaveTextContent('Alerts and Me are at its foot.');
+    expect(notice).toHaveTextContent('Alerts and Me are at the bottom of it.');
     // Nothing came in for it, so nothing is said to have, and there is no diary to turn off.
     expect(notice).not.toHaveTextContent('The grow diary is on');
     expect(within(notice).queryByRole('link')).not.toBeInTheDocument();
@@ -927,7 +929,7 @@ describe('a change to the shape of the app', () => {
 
     const notice = await screen.findByRole('status', { name: 'What changed' });
     expect(notice).toHaveTextContent('There are 2 places now');
-    expect(notice).toHaveTextContent('The place named at the top holds for Grow, Timeline and Control');
+    expect(notice).toHaveTextContent('The place named at the top applies to Grow, Timeline and Control');
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: true } } });
 
     fireEvent.click(within(notice).getByRole('button', { name: 'Got it' }));

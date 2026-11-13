@@ -420,7 +420,7 @@ describe('the head of a grow´s page', () => {
       // An ended grow has no open placement, so "where the plants are" is empty.
       draw(<GrowHead grow={finished} spaces={tent} />);
 
-      expect(screen.getByRole('link', { name: 'stood in Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
+      expect(screen.getByRole('link', { name: 'last place: Tent 1' })).toHaveAttribute('href', '/spaces/space-1');
     });
   });
 });
@@ -595,7 +595,7 @@ describe('a day of the diary', () => {
 
     const sheet = await screen.findByRole('dialog', { name: 'Photo' });
     expect(within(sheet).getByRole('textbox')).toHaveValue('First flowers');
-    expect(within(sheet).getByRole('button', { name: 'Take this line back' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Take this entry back' })).toBeInTheDocument();
   });
 
   it('says of a camera´s picture somebody made a line of that it was kept, not taken', () => {

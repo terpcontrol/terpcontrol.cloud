@@ -264,8 +264,8 @@ describe('the CO2 cylinder, under the device that doses from it', () => {
 
     expect(await screen.findByText('About 225 g left (53 %)', { exact: false })).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/spaces/space-1/co2-report', undefined, expect.anything());
-    expect(screen.getByText('5.0 valve openings a gram, from 1 empty cylinder')).toBeInTheDocument();
-    expect(screen.getByText(/400 g used · 5.0 openings a g/)).toBeInTheDocument();
+    expect(screen.getByText('5.0 ticks a gram, from 1 empty cylinder')).toBeInTheDocument();
+    expect(screen.getByText(/400 g used · 5.0 ticks a g/)).toBeInTheDocument();
   });
 
   /** An estimate at nothing read "About 0 g left (0 %) · lasts about 0 days" while the valve held its target. */
