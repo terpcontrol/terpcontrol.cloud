@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-13
-source: the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -61,9 +61,10 @@ second list below is that session's decision, not Chris's word, until he confirm
 - **Verlauf**: one page of curves with its whole view in the address, points from 5 s with each window's lowest
   and highest, outputs counted from their samples; `/charts` and the page "Graphen" are gone
   ([app-ux.md §7](knowledge/app-ux.md#7-verlauf-day-and-night); [data.md](knowledge/data.md#influxdb);
-  [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** six walks' lists are built. The
-  sixth list was seen by its builder - in a browser, in tests and against the store's samples - and by no critic
-  yet; what of it nobody saw stands in the last list.
+  [server-engines.md](knowledge/server-engines.md#read-models)). **Its state:** six walks' lists are built. A
+  seventh walk found the sixth list built and holding against the samples (rest on the reading in 180 of 180
+  loads, no sideways scroll at 37 widths, a silence's edges 0 s off, the 120-day read of a place 836-889 ms in the
+  median) and left five minors, decided and not yet built - the last bullet of Verlauf's rules below.
 - **Place and room**: a device keeps where it stood, names are unique, a room is a field of the place, "Ort
   bearbeiten" and "Ort entfernen" as pages, the claim outside the bar asking once where a device hangs, five
   migration steps `026` to `030` (the amendment to
@@ -196,6 +197,15 @@ Each is built unless it says otherwise, and each can be refused by itself.
   beside a silence the series read found ([data.md](knowledge/data.md#influxdb)).
 - Verlauf's page is never wider than the room beside the shell's margin; a help text too tall for its side is cut
   between two lines.
+- **Decided after the seventh walk, not yet built.** What a gap is follows the device's own cadence, not the
+  step: a device that reports slower than the step (thinned history at three days, a slow socket) is one line
+  with whole band and lanes, not dots and stripes with a lamp stretch per point. "x % der Zeit an" is a share of
+  time, each point weighed by the time the device was heard in it, not a share of samples. The card keeps its
+  height under the finger and says a silence once ("keine Messung · 10:59 bis 16:00"); a named dash is for one
+  value missing among present ones. A point of one sample is stamped with that sample's time, never the point's
+  start, and no mean's stamp runs past the window. A stretch that begins where a silence ends is "Lücke bis
+  13:11 · an", not "an seit"; "durchgehend an" drops the share and names the level only below 100 %. Known and
+  left: a silence about one step long can vanish at 30 days, and an output's own last report is read to the grid.
 
 **Place and room** (the amendment to [ADR 0001](adr/0001-app-rewrite-data-model.md#places-rooms-and-where-a-device-stood))
 - `devices.placements[]` beside `devices.spaceId`; a stay under five minutes leaves no trace; a device's first
@@ -385,11 +395,15 @@ Each with what stands until he answers, and the session's recommendation where i
 
 **Left by the clearing-up round and its critic's walk**
 46. The firmware screen's rename sheet is not on the shared name sheet, and the ideas still built twice named
-    under "The weight" above.
+    under "The weight" above. The fix pass after the critic's walk grew `webapp/src` by 336 lines to 71,542
+    (undo answers, toasts for writes that said nothing, alerts on Start), so the session runs one consolidation
+    pass over what is plainly one thing built twice; a plant's chart and the shared place's page stay apart.
+    The same pass closes the last three ways into an ended place (a camera, a diary line, a preset).
 47. **"automatic" as the English tag** for what a device or a plan did without a person (German "von allein");
     inside a sentence English still says "by itself". Recommendation: confirm.
 48. **Rows under "Vorbei" of different rules with the same sentence read alike** now that a row folds one rule
-    only ("Temperatur 7 Min zu hoch", five times). Recommendation: the rule's name as the row's second fact.
+    only ("Temperatur 7 Min zu hoch", five times). The session has the rule's name built as the row's second
+    fact in the next pass; refuse it if the row should stay bare.
 49. **`PATCH /v1/spaces/{id}` refuses the whole request on an ended place**, not only a name and a kind - its
     room, its retention and its preset prompt too. Recommendation: keep.
 50. **No unsaved editor has a leave guard** - the feeding scheme's draft survives a change of tab inside the app
@@ -420,9 +434,8 @@ Each with what stands until he answers, and the session's recommendation where i
 - **Verlauf**: the CSV download was opened in no browser; the widths between 900 and 1200 px; whose lamp is read
   across a change of device with different schedules; a device change older than a day and a plug's schedule in
   a grain in which it switched (each has a unit test and no staged place); "Kein Bild um diese Zeit" at 320 px;
-  an unknown grow "asked once" has no test. Of the sixth list: no critic has walked it; the edges read was run
-  through its functions against the store and in the suites, and the route's time with it was not measured on a
-  running server; rest in a zoom was seen on simulated tents, one of them kept live, not on a real device. The integration fake windows `(start, stop]` where the store windows
+  an unknown grow "asked once" has no test. Of the sixth list, after its critic's walk: rest in a zoom was seen on simulated tents, not on a real device;
+  the oldest device change the stack could stage was 14.7 hours old. The integration fake windows `(start, stop]` where the store windows
   `[start, stop)` ([data.md](knowledge/data.md#influxdb)).
 - **Of the clearing-up round and the pass after its walk, not seen on a screen**: a folded alert of an output
   that ran too long; a germinating device's pill; the claim's place question and a claim whose places cannot
