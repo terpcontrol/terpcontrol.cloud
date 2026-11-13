@@ -36,7 +36,7 @@ export function AppShell() {
   return (
     <LogProvider>
       {bare ? (
-        <main className={styles.setup} ref={main} id="main" tabIndex={-1}>
+        <main className={styles.setup} ref={main} id="main" tabIndex={-1} data-bare>
           <Outlet />
         </main>
       ) : (

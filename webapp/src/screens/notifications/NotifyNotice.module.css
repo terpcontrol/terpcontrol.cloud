@@ -51,9 +51,14 @@
   gap: var(--space-2) var(--space-4);
 }
 
+/* A finger high, with the room for its words on one line at 320 px - and on two rather than out of its card where a
+   card or a face leaves less. */
 .button {
-  height: var(--action-height);
+  height: auto;
   min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+  line-height: var(--line-tight);
+  white-space: normal;
 }
 
 .later {
@@ -144,7 +149,6 @@
 }
 
 .offer[data-compact] .button {
-  height: var(--control-height);
   font-size: var(--text-sm);
 }
 

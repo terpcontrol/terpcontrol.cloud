@@ -2360,7 +2360,6 @@
         "gatesNothing": "Premium is not charged on this installation, so an RTSP camera costs you nothing here.",
         "address": "Stream address",
         "placeholder": "rtsp://192.168.1.40:554/stream1",
-        "direct": "No device stands there, so the cloud opens the stream itself: an address on your home network will not answer it.",
         "where": "Where does it look?",
         "nowhere": "There is no place to put a camera in yet. Name the one it looks at and it is made here.",
         "name": "Name",
@@ -2372,7 +2371,6 @@
         "worked": "A picture came back · {{age}}",
         "failed": "No picture: {{reason}}",
         "shotAlt": "The picture the test came back with",
-        "pickAPlace": "Pick the place it looks at below: where a device stands there, the cloud pulls the stream from your network through it.",
         "carrier": {
           "stale": "{{device}} last said something {{age}} ago",
           "offline": "{{device}} is offline · last heard {{age}} ago, so the stream will not answer until it is back"
@@ -2397,9 +2395,7 @@
         "open": "Open the camera",
         "username": "User",
         "password": "Password",
-        "loginInAddress": "The login is already written into the address and is used as it is.",
-        "throughDevice": "Pulled through {{device}} from your network; a still every 30 s.",
-        "directByChoice": "The cloud opens the stream itself (Advanced), so the address has to be reachable from the internet."
+        "loginInAddress": "The login is already written into the address and is used as it is."
       }
     }
   },
@@ -3947,7 +3943,7 @@
     },
     "streamAddress": {
       "title": "Stream address",
-      "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera's app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings."
+      "text": "Where the camera offers its video stream, with its IP on your network (shown in your router or in the camera's app). Common addresses:\nTapo: rtsp://IP:554/stream1\nReolink: rtsp://IP:554/h264Preview_01_main\nHikvision: rtsp://IP:554/Streaming/Channels/101\nUser and password go into the fields below. For Tapo that is the camera account from the Tapo app (Camera Settings › Advanced Settings › Camera Account), not your TP-Link account. A Reolink camera needs RTSP switched on in its network settings.\nWhere a device stands in the place the camera looks at, the cloud pulls the stream from your network through it. Otherwise it opens the stream itself, and the address has to be reachable from the internet."
     },
     "stepLightHours": {
       "title": "Light on for (in a step)",

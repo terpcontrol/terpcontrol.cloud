@@ -51,7 +51,7 @@ export function ZoneAdoption() {
   return (
     <p className={ui.note} role="status">
       {t('shell.zoneAdopted', adopted)} <Link to="/me/appearance">{t('shell.zoneAdoptedChange')}</Link>{' '}
-      <button type="button" className={`${ui.button} ${ui.quiet}`} onClick={() => setAdopted(null)}>
+      <button type="button" className={ui.button} onClick={() => setAdopted(null)}>
         {t('shell.zoneAdoptedDismiss')}
       </button>
     </p>

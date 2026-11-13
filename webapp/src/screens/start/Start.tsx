@@ -6,6 +6,7 @@ import { failingSince } from '@/api/read';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { isPlace } from '@/app/places';
+import { NoLongerHere } from '@/ui/PageState';
 import { EmptyStart } from './EmptyStart';
 import { GrowStart } from './GrowStart';
 import { Places } from './Places';
@@ -57,6 +58,7 @@ export function Start() {
  */
 export function StartOfPlace() {
   const { spaceId = '' } = useParams();
+  const { user } = useSession();
   const home = useHome();
   const spaces = useSpaces();
   const cards = home.data?.spaces ?? [];
@@ -66,6 +68,11 @@ export function StartOfPlace() {
   if (room && home.data && !cards.some(card => card.spaceId === spaceId)) return <Navigate to="/" replace />;
   // Whether the address names a room is known once the places have answered; until then nothing of a place is drawn for it.
   if (spaces.isPending || home.isPending) return <StartWaiting />;
+  // A place that has ended still answers its own read, so the account's places say that it is gone, as they do
+  // where it is edited and removed. Support reads a place that is not its own, which only that read answers for.
+  if (spaces.data && !user?.isAdmin && !spaces.data.items.some(space => space.id === spaceId && space.archivedAt === null)) {
+    return <NoLongerHere what="space" />;
+  }
 
   return <PlaceStart key={spaceId} spaceId={spaceId} back={cards.length > 1} />;
 }

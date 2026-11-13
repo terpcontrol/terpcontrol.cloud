@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Device, GrowListItem, Space } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
@@ -200,10 +200,17 @@ describe('the form a grow is started with', () => {
     stack.sockets = ['humidifier'];
     await drawLoaded('space-1');
     expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
+    // On a short screen they open behind the sheet's foot, so they are brought into view - again with the humidifier's switch.
+    const intoView = vi.fn();
+    Element.prototype.scrollIntoView = intoView;
+    onTestFinished(() => void Reflect.deleteProperty(Element.prototype, 'scrollIntoView'));
 
     fireEvent.click(stage('Germination'));
     const choices = screen.getByRole('group', { name: 'During germination' });
+    expect(intoView.mock.contexts[0]).toBe(choices);
+    const shown = intoView.mock.calls.length;
     expect(await within(choices).findByText('The humidifier holds 75 % – it never makes it wetter than that.')).toBeInTheDocument();
+    expect(intoView.mock.calls.length).toBeGreaterThan(shown);
     fireEvent.click(within(choices).getByRole('switch', { name: 'Warn when it gets too humid' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start and set the climate to Germination\u00a0·\u00a0dark' }));
 

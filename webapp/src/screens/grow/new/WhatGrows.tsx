@@ -1,4 +1,4 @@
-import { useId, useState, type ComponentProps } from 'react';
+import { useEffect, useId, useRef, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { GerminationChoices as Choices, GrowthStage } from '@fg2/shared-types/v1';
@@ -97,6 +97,12 @@ export function WhatGrows({
   const germinates = climate && stage === 'germination';
   // Asked of the place's sockets only once the choices are on the form.
   const humidifier = useHumidifier(germinates ? controller : null);
+  // The choices open under the stage that was tapped, which on a short screen is behind the sheet's foot: they are
+  // brought into view, and again when the humidifier's switch joins them.
+  const choices = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (germinates) choices.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [germinates, humidifier]);
 
   const submit = async () => {
     // Not before the place has said which stage it is on: what is chosen is told apart from it.
@@ -204,6 +210,7 @@ export function WhatGrows({
       </div>
       {germinates ? (
         <GerminationChoices
+          ref={choices}
           value={{ ...choicesOf(controller), ...germination }}
           onChange={change => setGermination({ ...germination, ...change })}
           humidifier={humidifier}

@@ -42,10 +42,12 @@ const PLACE_KINDS: SpaceKind[] = ['tent', 'balcony', 'other'];
  * Where a Terp Control device stands in the place - a fridge module as much as
  * a controller - the stream is pulled through its tunnel, which is what makes
  * an address on a home network reachable at all; where none does, the cloud
- * opens the stream itself. Which device that is is said before the test rather
- * than found out after it, because a place may hold more than one and an
- * offline one is a stream that will not answer. Turning the tunnel off for a
- * camera the internet reaches, and how the stream is read, are under Erweitert.
+ * opens the stream itself - which the help beside the address explains and no
+ * line under the field repeats. Under it stands only what will keep the stream
+ * from answering, before the test rather than after it: a device that has gone
+ * quiet, by name. Which device carries it is asked where a place holds more
+ * than one. Turning the tunnel off for a camera the internet reaches, and how
+ * the stream is read, are under Erweitert.
  *
  * The login has fields of its own rather than being typed into the address:
  * the server writes it in, so a password with an `@` in it arrives intact. An
@@ -221,7 +223,6 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
             />
           </div>
         )}
-        <p className={styles.text}>{wayIn(t, placeId, carrier, pulled)}</p>
         {carrier && liveness && liveness !== 'live' ? (
           <p className={styles.text} {...ageAttribute(liveness)}>
             {t(`cameras.add.rtsp.carrier.${liveness}`, {
@@ -396,23 +397,6 @@ function NewPlace({ onMade }: { onMade: (space: Space) => void }) {
 
 /** What the place the camera was put into is called, or nothing where the list no longer holds it. */
 const placeOf = (spaces: Space[], spaceId: string | null): string | null => spaces.find(space => space.id === spaceId)?.name ?? null;
-
-/**
- * How the cloud will reach this address, which is a fact about the place the
- * camera looks at rather than about the address: a place with a device in it
- * is reached through that device's tunnel, and one without is not reachable at
- * all unless the stream is already open to the internet - which is also what
- * turning the tunnel off under Erweitert says. Before a place is picked neither
- * is true yet, so the line says which question is still open instead of
- * promising a tunnel through a device nobody has named.
- */
-const wayIn = (t: Translate, spaceId: string | null, carrier: Device | null, pulled: boolean): string => {
-  if (spaceId === null) return t('cameras.add.rtsp.pickAPlace');
-  if (carrier && pulled) return t('cameras.add.rtsp.throughDevice', { device: deviceName(carrier, t) });
-  if (carrier) return t('cameras.add.rtsp.directByChoice');
-
-  return t('cameras.add.rtsp.direct');
-};
 
 /** Where the camera now stands, named where the place is still known and left unnamed where it is not. */
 const madeLine = (t: Translate, place: string | null): string =>

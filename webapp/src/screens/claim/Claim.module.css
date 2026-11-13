@@ -102,6 +102,13 @@
   outline: none;
 }
 
+/* The question names the place, and a word of a name that is longer than its line breaks inside it. */
+.growTitle {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
+}
+
 /* A step still ahead says what it will ask and reads as not yet its turn. */
 .step[data-state='ahead'] .stepTitle {
   color: var(--muted);
@@ -111,6 +118,7 @@
   font-size: var(--text-sm);
   line-height: var(--line-body);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .stepFields {

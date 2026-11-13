@@ -90,12 +90,14 @@
   overflow-wrap: anywhere;
 }
 
-/* The way to the place is a finger high where it is tapped, without its line growing by it. */
-.where a {
+/* The way to the place and the terms of the line are a finger high where they are tapped, without the line growing by it. */
+.where a,
+.facts button {
   position: relative;
 }
 
-.where a::after {
+.where a::after,
+.facts button::after {
   position: absolute;
   inset: -14px -8px;
   content: '';

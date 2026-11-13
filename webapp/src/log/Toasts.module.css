@@ -85,6 +85,13 @@
   }
 }
 
+/* A page outside the bar and the rail (`BARE`) has neither to stand clear of: there the toasts sit at the window's
+   foot, over the middle of the page's one column. */
+:root:has(main[data-bare]) .toasts:not([data-in-sheet]) {
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
+  padding-inline: var(--space-4);
+}
+
 /* In a sheet's foot (`ui/Sheet.tsx`) the toasts are part of the sheet: as wide as it, above its button row. */
 .toasts[data-in-sheet] {
   position: static;

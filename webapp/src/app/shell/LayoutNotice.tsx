@@ -64,7 +64,7 @@ export function LayoutNotice() {
         {news.news.diary ? <p>{t('shell.layout.diary')}</p> : null}
         {news.news.places ? <p>{t('shell.layout.places', { count: news.places })}</p> : null}
         <p className={styles.actions}>
-          <button type="button" className={`${ui.button} ${styles.ok}`} onClick={() => setNews(null)}>
+          <button type="button" className={ui.button} onClick={() => setNews(null)}>
             {t('shell.layout.ok')}
           </button>
           {news.news.diary ? (

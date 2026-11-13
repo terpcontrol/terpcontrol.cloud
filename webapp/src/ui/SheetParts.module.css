@@ -7,9 +7,15 @@
   gap: var(--space-2);
 }
 
-/* A choice is pressed with a finger. */
+/* A choice is pressed with a finger, and one that carries a name longer than its row breaks inside it. */
 .choices > button {
+  height: auto;
   min-height: var(--control-height);
+  max-width: 100%;
+  padding-block: var(--space-1);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .when {

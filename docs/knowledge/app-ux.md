@@ -242,7 +242,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *A guest is offered nothing of the host's.* Only places the account owns are offered, and the server refuses a
     device in a place of another account whoever asks (ADR 0001).
   - *Adding a device leaves the bar* (`handle: BARE` on the route, `app/shell/AppShell.tsx`, as editing and ending a
-    place do): a cross ("Hinzufügen abbrechen") and "Lüfter hinzufügen · Schritt 2 von 5" over a bar. **The count is
+    place do; on such a page the toasts stand at the window's foot - `:root:has(main[data-bare])`,
+    `log/Toasts.module.css` - and the bare frame keeps a two-change toast's room under the last control,
+    `.setup`): a cross ("Hinzufügen abbrechen") and "Lüfter hinzufügen · Schritt 2 von 5" over a bar. **The count is
     said once it is fixed**: before the code is taken the head says "Gerät hinzufügen" and no count; then the steps
     that will be asked are worked out once and kept in the address (`?device=&ask=&at=&made=`), so a reload and an
     answer that makes a later step unnecessary do not change it. **Each step after the code is a history entry**:
@@ -596,7 +598,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   (`usePlaceClimate`, `screens/grow/phase-climate.ts`), so a humidifier socket there is asked about here too,
   whichever device stands first in the place - and nothing is asked where the stage is only recorded. As a
   sheet its button is the sheet's foot and stays in view while the questions scroll, and the stage's name
-  stands whole on it. Nothing is explained in it. The kind of
+  stands whole on it. Choosing germination brings its two switches into view, again when the humidifier's
+  joins them: at 390x600 they stood behind the foot. Nothing is explained in it. The kind of
   plant, the strains and the scheme are the grow page's: "Name und Art" in the grow's menu, Pflanzen, Düngung.
 - **Where nothing grows** in the chosen place, Grow offers to start a grow, and to move one there only where one
   runs somewhere else. After a harvest it says that the grow has ended and leads to its report.
@@ -646,7 +649,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   does not report is neither of the two causes - the device is there and the reader reads it - so the socket's
   page says it (`screens/devices/SocketPage.tsx`; after the critic's second walk found "smarte Steckdose" for a
   heading and nothing to tap): the heading "Steckdose" from the same catalogue group, that the device no longer
-  reports this socket, the arrow back and a row on to the device's page. `/devices` names nothing - devices are found
+  reports this socket, the arrow back and a row on to the device's page. A place that has ended still answers its
+  overview, so a place's own address asks the account's places first, as the pages for editing, ending and its
+  people do (`StartOfPlace`, `screens/start/Start.tsx`; the critic of the redesign's sixth round saw a removed
+  place's Start with a heading "Ort 1" and "+ Ort hinzufügen"); support reads places that are not its own, and
+  there the overview's 404 alone decides. `/devices` names nothing - devices are found
   under Steuerung - and is the app's not-found page inside the shell (`app/routes.tsx`): without a route of its
   own the address is read as somebody's handle and drawn outside the shell.
 - **A refresh that fails ages the page, not the device** (the redesign session of 2026-11-12). While a place's
@@ -742,14 +749,22 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   one sentence, "Noch kein Plan.", with the help beside it and the buttons), what an update channel and a pinned
   version mean (`firmwareChannel`, `advanced.updateChannel`, `advanced.firmwarePin` - the firmware card has no
   sentence under its controls), how long an alarm rule waits, how it repeats and that the next stage moves a
-  stage's rule (`alarmFor`, `alarmRepeat`, `presetRules` - the rule sheet has no sentence under its fields). A
+  stage's rule (`alarmFor`, `alarmRepeat`, `presetRules` - the rule sheet has no sentence under its fields), how
+  the cloud reaches a stream camera's address (`streamAddress` - under the field stand only states: a login
+  already in the address, a carrying device that is quiet or offline; `screens/camera/add/RtspCamera.tsx`). A
   paragraph over a button was read by nobody and pushed the button off a short screen.
 - **What a finger is offered is 44 px high** where it is tapped: a toast's buttons, the chips of a sheet, a tab, a
   filter, the links of a notice, the ways and the lengths of a hold, the link of an empty page, the two ways on
   the add-camera page. Where a row must
   not grow by it, the control reaches into the row's own air - a rule card's switch through its `::after`, the
-  header's logo beside the place chip out to the screen's edge, the place under a grow's name, and a day card's
-  climate line up over its title (on a phone, where nothing else to tap stands there).
+  header's logo beside the place chip out to the screen's edge, the place under a grow's name. A day card's way
+  to its curves is a finger high round its middle, reaching over the title and the share; today's share, tapped
+  for its explanation, stands 21 px clear of it with the same reach (`screens/grow/diary/Diary.module.css`). The
+  terms of a grow's head line ("Tag 35", "Woche 2") reach 14 px up and down (`.facts button`,
+  `screens/grow/GrowPage.module.css`), a stepper's typed figure is as high as its buttons (`.stepInput`,
+  `screens/control/targets/DayNight.module.css`), a switch in a settings row is lent its 44 px by the row with
+  the inset counted from inside the switch's rule (`screens/devices/DevicePage.module.css`), and the once-only
+  notices' "Verstanden" is the outlined button, not the 36 px quiet one (the redesign session of 2026-11-12).
   **That reach ends where an ancestor cuts**: a row of `Facts` clips what leaves its box (the clip that hides a
   line's leading "·"), so the link under a device's or a socket's name was 33 px high behind an `::after` of 45
   (the redesign session of 2026-11-12, its critic's second walk). The row takes the room as padding it gives back
@@ -1112,6 +1127,12 @@ page the same day ("after the walk" below) - none of those is Chris's.
   its own (the day's targets, the night's), which stays together while it fits a line. In running text a figure is
   bound to the unit after it (`unbroken`, `ui/fact-text.ts`). Start's lines, a diary line's words wherever one is
   drawn (`EntryWords`, `ui/EntryRow.tsx`), the diary's week rows and the lines of "Alle Grows" are set this way.
+- **A name a person gave breaks inside its box** (the redesign session of 2026-11-12, after a 36-letter word in a
+  place's name widened Start by 43 px and the claim's last step by 172 at 320 px): the element that holds it
+  breaks a word longer than its line, with a hyphen where the browser knows one and only in words of 16 letters
+  or more (`hyphens: auto; hyphenate-limit-chars: 16` - Safari and Firefox ignore the limit and hyphenate any
+  word): a place's h1, its card, "Was wächst in …?" on Start, in the claim and as a sheet's title. A choice chip
+  wraps its name (`ui/SheetParts.module.css`).
 - A picture as bright as the page - a lit tent - keeps a hairline edge against it (`screens/start/Start.module.css`).
 - **A primary button that cannot be pressed** takes the card's second surface, and its words step back towards
   that surface (`.primary:disabled`, `ui/ui.module.css`; the redesign session of 2026-11-12): the muted ink alone

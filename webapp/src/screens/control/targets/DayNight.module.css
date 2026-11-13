@@ -315,6 +315,8 @@
 .stepInput {
   width: 100%;
   min-width: 0;
+  /* The figure is typed where it stands: its field is as high as the buttons beside it. */
+  height: var(--control-height);
   padding: 0;
   background: none;
   border: 0;

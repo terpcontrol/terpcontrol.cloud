@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GerminationChoices as Choices } from '@fg2/shared-types/v1';
 import { GERMINATION_TOO_HUMID } from '@fg2/shared-types/v1-schemas/climate-presets.js';
@@ -24,19 +25,21 @@ export function GerminationChoices({
   humidifier,
   humidity,
   disabled = false,
+  ref,
 }: {
   value: Choices;
   onChange: (change: Partial<Choices>) => void;
   humidifier: boolean;
   humidity: number | null;
   disabled?: boolean;
+  ref?: Ref<HTMLDivElement>;
 }) {
   const { t } = useTranslation();
   const held = humidity === null ? null : targetWithUnit(humidity, 'humidity');
   const clashes = humidifier && value.humidifierHolds && value.warnTooHumid && humidity !== null && humidity > GERMINATION_TOO_HUMID;
 
   return (
-    <div className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
+    <div ref={ref} className={styles.choices} role="group" aria-label={t('germinationChoices.label')}>
       <span className="label">{t('germinationChoices.label')}</span>
       <SwitchRow
         label={t('germinationChoices.alarm')}

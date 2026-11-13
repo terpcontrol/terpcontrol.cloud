@@ -933,6 +933,17 @@ describe('the states of Start', () => {
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });
+
+  it('says the same of a place that was removed, whose own read still answers', async () => {
+    server.home = homeOf([cardOf(), cardOf({ spaceId: 'space-2', name: 'Tent 2' })]);
+    server.overviews.set('space-9', overviewOf({ spaceId: 'space-9', name: 'Removed tent', deviceIds: [] }));
+    draw('/spaces/space-9');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
+    expect(screen.getByText('This place cannot be opened.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.queryByText('Removed tent')).not.toBeInTheDocument();
+  });
 });
 
 describe('Start with several places', () => {

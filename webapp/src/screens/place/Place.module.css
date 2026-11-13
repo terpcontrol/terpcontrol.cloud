@@ -44,20 +44,6 @@
   gap: var(--space-4);
 }
 
-/* "Ort bearbeiten" ends in a control, and a toast stands over the foot of the
-   window - on a phone a bar's height up, also where the page has no bar: the
-   page keeps a toast's room under it, so its last control can be scrolled
-   clear of one that names two changes. */
-.saving {
-  padding-bottom: calc(var(--tabbar-height) + var(--space-8) + var(--space-7));
-}
-
-@media (min-width: 900px) {
-  .saving {
-    padding-bottom: calc(var(--space-8) + var(--space-7));
-  }
-}
-
 .fields {
   display: flex;
   flex-direction: column;
@@ -178,6 +164,7 @@
   border-radius: var(--radius);
   font-size: var(--text-lg);
   white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Out of reach it gives the alarm colour up rather than fading into pink: drawn as every button that cannot be pressed. */

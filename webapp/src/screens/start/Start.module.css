@@ -19,11 +19,19 @@
   min-height: var(--control-height);
 }
 
-/* A name is as wide as the screen at most: a word longer than that breaks inside it. */
-.head h1 {
-  flex: 1 1 auto;
+/* A name is as wide as the screen at most: a word longer than its line breaks inside it, with a hyphen where the
+   browser knows one - and only such a word, so that an ordinary name is not cut up to fill its lines. */
+.head h1,
+.offerTitle,
+.placeName {
   min-width: 0;
   overflow-wrap: break-word;
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
+}
+
+.head h1 {
+  flex: 1 1 auto;
 }
 
 /* How fresh the place is and its menu go together: where the name leaves them no room, both move to the row under it. */
@@ -904,8 +912,6 @@ a.tileLabel::after {
 
 .placeName {
   flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
   font-size: var(--text-name);
   font-weight: var(--weight-bold);
 }
