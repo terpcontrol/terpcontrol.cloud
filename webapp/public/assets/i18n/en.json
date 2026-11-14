@@ -5022,6 +5022,7 @@
     "offline": {
       "title": "The device has not reported since {{time}}.",
       "text": "It keeps holding the last targets. What you see below is the last there is.",
+      "textOwn": "It keeps running on its last settings. What you see below is the last there is.",
       "textOff": "Control was off when it last reported. What you see below is the last there is."
     },
     "demo": {

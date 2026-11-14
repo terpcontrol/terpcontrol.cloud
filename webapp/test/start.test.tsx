@@ -1167,6 +1167,30 @@ describe('the states of Start', () => {
     const box = (await screen.findByRole('heading', { name: /^The device has not reported since/ })).closest('section')!;
     await waitFor(() => expect(box).toHaveTextContent(`Control off saved at ${hhmm(ago(40))}, not with the device yet`));
     expect(box).not.toHaveTextContent('Control was off when it last reported.');
+    // The card under it said "Control off" of a device the box says still regulates.
+    const card = screen.getByRole('link', { name: /^Change targets and light/ });
+    expect(card).toHaveTextContent('Control off saved, not with the device yet');
+    expect(card).not.toHaveTextContent(/Control off(?! saved)/);
+  });
+
+  /** An offline fan's card read "Change targets and light", and its box that it held the last targets. */
+  it('keeps an offline fan´s card its own title, and says it runs on its last settings', async () => {
+    server.devices = [
+      fridge({
+        type: 'fan',
+        name: 'Air fan',
+        configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } as never,
+        control: null,
+        state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never,
+      } as never),
+    ];
+    onePlace(overviewOf({ values: values(42), setpoints: [], targets: null as never }));
+    draw();
+
+    const box = (await screen.findByRole('heading', { name: /^The device has not reported since/ })).closest('section')!;
+    expect(box).toHaveTextContent('It keeps running on its last settings.');
+    expect(screen.getByRole('link', { name: /^Speed/ })).toHaveTextContent(/^SpeedDay 70 % · Night 40 %/);
+    expect(screen.queryByRole('link', { name: /^Change targets and light/ })).not.toBeInTheDocument();
   });
 
   /**

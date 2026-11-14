@@ -36,6 +36,7 @@ import { leadOf, leadValuesOf } from '@/screens/control/lead';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { heldWords } from '@/screens/control/held-light';
 import { offNotTaken, onNotTaken } from '@/screens/control/rows';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
@@ -253,7 +254,13 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             ? t('control.pending.off', { saved: savedWords(t, offStored.savedAt, now, zone), device: deviceName(device, t) })
             : onStored
               ? t('control.pending.on', { saved: savedWords(t, onStored.savedAt, now, zone) })
-              : t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
+              : t(
+                  controlOff
+                    ? 'start.offline.textOff'
+                    : device && !OWN_CLIMATE_TYPES.includes(device.type)
+                      ? 'start.offline.textOwn'
+                      : 'start.offline.text',
+                )}
         </OfflineBox>
       ) : null}
 
@@ -332,6 +339,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               device={device}
               humidifierHold={humidifierHold}
               offline={offline}
+              offStored={offStored !== null}
               mayManage={mayManage}
               guest={guest}
               now={now}

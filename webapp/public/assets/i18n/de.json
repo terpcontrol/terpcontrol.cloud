@@ -5032,6 +5032,7 @@
     "offline": {
       "title": "Das Gerät meldet sich seit {{time}} nicht.",
       "text": "Es regelt mit den letzten Zielwerten weiter. Was unten steht, ist der letzte Stand.",
+      "textOwn": "Es läuft mit seinen letzten Einstellungen weiter. Was unten steht, ist der letzte Stand.",
       "textOff": "Die Regelung war aus, als es sich zuletzt gemeldet hat. Was unten steht, ist der letzte Stand."
     },
     "demo": {

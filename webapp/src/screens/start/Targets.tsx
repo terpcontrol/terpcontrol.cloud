@@ -3,6 +3,7 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, Device, Metric, OverviewTargets } from '@fg2/shared-types/v1';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useDevicePlans } from '@/api/plans';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
@@ -109,6 +110,7 @@ export function Targets({
   device,
   humidifierHold,
   offline,
+  offStored = false,
   mayManage,
   guest,
   now,
@@ -119,6 +121,8 @@ export function Targets({
   device: Device | null;
   humidifierHold: HumidifierHold | null;
   offline: boolean;
+  /** Regulation off is stored but not yet taken by the device, which still regulates: the card does not call it off. */
+  offStored?: boolean;
   mayManage: boolean;
   /** Let in by the place's owner, who is the one to ask for a change. */
   guest: boolean;
@@ -148,9 +152,15 @@ export function Targets({
       <Facts facts={factsOf(lamp)} />
     ) : (
       <span>
-        {t(
-          darkReasonOf(device) === 'off' ? 'control.state.off' : device && awaitingClimate(device) ? 'start.targets.awaiting' : 'start.targets.none',
-        )}
+        {offStored
+          ? t('start.latest.stored', { what: t('control.state.off') })
+          : t(
+              darkReasonOf(device) === 'off'
+                ? 'control.state.off'
+                : device && awaitingClimate(device)
+                  ? 'start.targets.awaiting'
+                  : 'start.targets.none',
+            )}
       </span>
     );
 
@@ -172,7 +182,8 @@ export function Targets({
       {offline ? (
         // What the device was left on is still said - "Regelung aus" above all, which the offline note does not undo.
         <span className={styles.rowText} data-tone="brand">
-          {t('start.targets.changeOffline')}
+          {/* A fan or a lamp holds no climate: its card keeps its own title offline too. */}
+          {!device || OWN_CLIMATE_TYPES.includes(device.type) ? t('start.targets.changeOffline') : title}
           <span className={styles.rowNote}>{line}</span>
           <span className={styles.rowNote}>{t('start.targets.offlineNote')}</span>
         </span>
