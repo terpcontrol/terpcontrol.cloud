@@ -37,7 +37,8 @@ import type { DeviceChange } from '../timeline/place-history';
  * **What a page costs.** Once: the grow and its owner, the grow's lines and
  * the plan's over the page, the cameras and the controllers where it stood,
  * the week films, each controller's target record and the people named. Per
- * week and controller one history read of the store, and per page one read of
+ * week and controller one history read of the store - and, where its readings
+ * left their band, one of the raw samples around those runs - and per page one read of
  * the stills around every day's midday plus two per day that had none there.
  * The weeks' reads run side by side.
  */

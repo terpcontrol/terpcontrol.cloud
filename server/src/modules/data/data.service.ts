@@ -18,7 +18,7 @@ import {
   OUTPUT_LEVEL,
   STORED_FIELDS,
 } from '@common/v1/metrics';
-import { reportsNoSensor } from '@common/v1/sentinels';
+import { isSentinel, reportsNoSensor } from '@common/v1/sentinels';
 import { metricValueOf } from '@common/v1/value-age';
 import { DeviceSample, DeviceSampleSink } from '@modules/device-protocol/device-sinks';
 import { LightStateReader } from '@modules/v1/camera/light-state';
@@ -616,6 +616,29 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
   public async points(deviceId: string, metric: Metric, window: Omit<SeriesRequest, 'metrics' | 'outputs'>): Promise<SeriesPoint[]> {
     const { metrics } = await this.series(deviceId, { ...window, metrics: [metric] });
     return metrics[0].points;
+  }
+
+  /**
+   * Every raw sample of some metrics over a few short stretches, by metric and
+   * oldest first: what a mean cannot say - the instant a reading crossed a
+   * line. A metric worked out from others has none, and neither has a stretch
+   * whose samples were summarised away.
+   */
+  public async rawSamples(deviceId: string, metrics: readonly Metric[], stretches: readonly TimeWindow[]): Promise<Map<Metric, SeriesPoint[]>> {
+    const fields = metrics.flatMap(name => fieldOfMetric(name) ?? []);
+    const samples = new Map<Metric, SeriesPoint[]>();
+    if (fields.length === 0 || stretches.length === 0) return samples;
+
+    for (const row of await this.samplesIn(deviceId, fields, stretches)) {
+      const name = row._field ? metricOfField(row._field) : null;
+      const value = finiteOrNull(row._value);
+      if (!name || !row._time || value === null || isSentinel(row._field!, value)) continue;
+      const points = samples.get(name) ?? [];
+      points.push({ measuredAt: row._time, value });
+      samples.set(name, points);
+    }
+    for (const points of samples.values()) points.sort((one, other) => Date.parse(one.measuredAt) - Date.parse(other.measuredAt));
+    return samples;
   }
 
   /** The same, for an output: what an alarm on one reads back after a restart. */

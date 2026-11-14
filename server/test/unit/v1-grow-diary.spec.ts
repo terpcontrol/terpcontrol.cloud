@@ -70,6 +70,18 @@ interface FakeRequest {
   outputs?: readonly OutputMetric[];
 }
 
+/** A sample a minute: what the store's windows are the means of. */
+const SAMPLE_MS = 60 * 1000;
+
+/** The instants the device sampled at over a stretch. */
+const sampledIn = (startsAt: number, endsAt: number): number[] => {
+  const first = Math.ceil(startsAt / SAMPLE_MS) * SAMPLE_MS;
+  return Array.from({ length: Math.max(0, Math.ceil((endsAt - first) / SAMPLE_MS)) }, (_, index) => first + index * SAMPLE_MS);
+};
+
+const sampleOf = (metric: Metric, at: number): number | null =>
+  metric === 'temperature' ? measured(new Date(at)).temperature : metric === 'humidity' ? measured(new Date(at)).humidity : null;
+
 /** The store's windows over a read: aligned to the step, each stamped at its end. */
 const windowsIn = (request: FakeRequest): number[] => {
   const step = STEP_SECONDS * 1000;
@@ -83,7 +95,10 @@ const fakeData = {
     const windows = windowsIn(request);
     const points = (value: (startsAt: number) => number | null): SeriesPoint[] =>
       windows.map(startsAt => ({ measuredAt: new Date(startsAt + STEP_SECONDS * 1000).toISOString(), value: value(startsAt) }));
-    const heard = (startsAt: number) => measured(new Date(startsAt));
+    const meanOf = (metric: Metric, startsAt: number): number | null => {
+      const values = sampledIn(startsAt, startsAt + STEP_SECONDS * 1000).flatMap(at => sampleOf(metric, at) ?? []);
+      return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
+    };
 
     return {
       series: {
@@ -93,9 +108,7 @@ const fakeData = {
         stepSeconds: STEP_SECONDS,
         metrics: request.metrics.map(metric => ({
           metric,
-          points: points(startsAt =>
-            metric === 'temperature' ? heard(startsAt).temperature : metric === 'humidity' ? heard(startsAt).humidity : null,
-          ),
+          points: points(startsAt => meanOf(metric, startsAt)),
         })),
         outputs: (request.outputs ?? []).map(output => ({ output, points: points(startsAt => (lit(startsAt) ? 100 : 0)) })),
       } as DeviceSeries,
@@ -109,6 +122,18 @@ const fakeData = {
       lastSampleAt: (silentFrom && silentFrom < request.endsAt ? silentFrom : request.endsAt).toISOString(),
     };
   },
+  rawSamples: async (_deviceId: string, metrics: readonly Metric[], stretches: readonly { startsAt: Date; endsAt: Date }[]) =>
+    new Map(
+      metrics.map(metric => [
+        metric,
+        stretches.flatMap(stretch =>
+          sampledIn(stretch.startsAt.getTime(), stretch.endsAt.getTime()).flatMap(at => {
+            const value = sampleOf(metric, at);
+            return value === null ? [] : [{ measuredAt: new Date(at).toISOString(), value }];
+          }),
+        ),
+      ]),
+    ),
 } as unknown as DataService;
 
 const entry = (over: Partial<EntryDocument>): EntryDocument =>
@@ -498,6 +523,21 @@ describe('what a day says about its climate', () => {
         above: true,
         extremeValue: 70,
       },
+    ]);
+  });
+
+  it('dates a stretch outside the band by its samples, not by the windows they were averaged into', async () => {
+    // Too warm and too damp from the sample at 17:08 to the one at 17:26. The window from 17:05 averaged too
+    // warm, its humidity still inside the band; the one from 17:25 averaged inside both.
+    measured = at => {
+      const out = at >= berlin(10, '17:08') && at < berlin(10, '17:26');
+      return { temperature: out ? 30 : lit(at.getTime()) ? 25 : 20, humidity: out ? 62 : 55 };
+    };
+
+    const stretch = { at: berlin(10, '17:08').toISOString(), endedAt: berlin(10, '17:26').toISOString(), above: true };
+    expect(dayOf(await read(), 9).events.filter(event => event.kind === 'excursion')).toEqual([
+      { kind: 'excursion', ...stretch, metric: 'temperature', extremeValue: 30 },
+      { kind: 'excursion', ...stretch, metric: 'humidity', extremeValue: 62 },
     ]);
   });
 

@@ -13,7 +13,7 @@ import { targetsOf } from '../phase/phase-targets';
 import { climateOf, cyclesOf, recordOf } from '../phase/target-record';
 import { DeviceChange, changesOf, predecessorsOf } from '../timeline/place-history';
 import { steeringOf } from '../timeline/timeline-window';
-import { DayDevice } from './day-climate';
+import { DayDevice, edgesOf } from './day-climate';
 import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climate';
 
 /**
@@ -31,6 +31,10 @@ import { ClimateSummary, CLIMATE_METRICS, summariseClimate } from './week-climat
  * it ran for, on a scale that differs per output. A day of the diary of a tent with one
  * controller is two reads; a page of eight weeks is sixteen, and the second read
  * is a scan of one field that comes back with as many rows as the lamp switched.
+ * A stretch a controller's readings left their band in costs a third read, after
+ * those two: its raw samples over the ten minutes around where each run began
+ * and ended, one script for up to sixty of them - a few hundred rows and
+ * about a millisecond a run edge, and nothing for a stretch that held its band.
  * The report reads one window per phase instead - five or six for a whole grow -
  * which is why it carries no days of its own. The reads of one page run
  * together, so the page is as slow as its slowest week rather than as the sum of
@@ -57,6 +61,13 @@ const DAY_STEP_SECONDS = 300;
  * switching.
  */
 const LEAD_MS = 2 * DAY_STEP_SECONDS * 1000;
+
+/**
+ * A safety net, not a budget: a sensor flapping at its band's edge all week
+ * must not become a read of every sample of it. Past this many stretches of a
+ * week, its runs keep the edges of their windows.
+ */
+const MAX_EDGES = 240;
 
 /** A device that steers a climate, where it stood and when, and which sensors it says it has. */
 export interface Controller {
@@ -132,7 +143,8 @@ export class GrowClimateService {
    * inside them to be read from (`dayClimateOf`): the curve at a day's grain
    * with the lamp's switchings, and the device's target record over all of
    * them. One history read per stretch per controller, side by side, and the
-   * record once per controller. A controller is read over the part of a stretch
+   * record once per controller; then, where the readings left their band, the
+   * raw samples around each run's edges. A controller is read over the part of a stretch
    * it stood in one of these places, and not at all for a stretch it stood
    * elsewhere.
    */
@@ -171,11 +183,23 @@ export class GrowClimateService {
       ),
     ]);
 
-    return histories.map(perController =>
-      perController.flatMap((history, index) =>
-        history
-          ? [{ history, record: records[index].map(climateOf), hardware: controllers[index].hardware, placements: controllers[index].placements }]
-          : [],
+    return Promise.all(
+      histories.map((perController, at) =>
+        Promise.all(
+          perController.flatMap((history, index): Promise<RecordedController>[] => {
+            if (!history) return [];
+
+            const { deviceId, hardware, placements } = controllers[index];
+            const device: RecordedController = { history, record: records[index].map(climateOf), hardware, placements };
+            // The samples around where its readings left their band and came back, which say the minute of it (`dayClimateOf`).
+            const edges = edgesOf(device, stretches[at]);
+            return [
+              edges.length === 0 || edges.length > MAX_EDGES
+                ? Promise.resolve(device)
+                : this.data.rawSamples(deviceId, STEERED, edges).then(samples => ({ ...device, samples })),
+            ];
+          }),
+        ),
       ),
     );
   }
