@@ -117,3 +117,21 @@ export const filmOf = (films: Media[], span: Span, dayAt: string | null): Media 
         dayAt === null ||
         (Date.parse(film.capturedAt) <= Date.parse(dayAt) && (!film.endsAt || Date.parse(dayAt) <= Date.parse(film.endsAt)))),
   ) ?? null;
+
+/** How far a film of a span still going may stop short of the newest picture and still be the one asked for, as the server reads it. */
+const FRESH_FILM_MS = 10 * 60 * 1000;
+
+/**
+ * Where today's film stops short of the camera's newest picture - by more than the server reads as current -, the
+ * instant it reaches to: a later tap films the rest. A film of today ends at its last frame, so a film made before a
+ * gap in the pictures played "00:00 → 08:55" all afternoon with no way to the rest. Null where it reaches the newest
+ * picture, and for any other day.
+ */
+export const filmReachesTo = (film: Media, camera: Camera, now: DateTime, zone: string | null): string | null => {
+  const newest = camera.state.lastStillAt;
+  if (film.window !== 'day' || !film.endsAt || !newest) return null;
+  const today = (zone ? now.setZone(zone) : now).startOf('day');
+  if (Date.parse(film.capturedAt) < today.toMillis() || Date.parse(film.endsAt) > now.toMillis()) return null;
+
+  return Date.parse(newest) - Date.parse(film.endsAt) >= FRESH_FILM_MS ? film.endsAt : null;
+};

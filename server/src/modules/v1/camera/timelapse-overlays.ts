@@ -271,9 +271,18 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
 /** The width of a curve's line. */
 const STROKE = 2;
 
-/** The diary line of this moment, as the board draws it: "Day 26 · topped". */
+/**
+ * The diary line of this moment, as the board draws it: "Day 26 · topped" - the one nearest the frame, within half an
+ * hour of it. Taken as the first line of that hour, a line written ten minutes after another never stood on a frame.
+ */
+export const captionAt = (at: Date, captions: TimelapseContext['captions']): TimelapseContext['captions'][number] | null =>
+  captions.reduce<TimelapseContext['captions'][number] | null>((best, entry) => {
+    const off = Math.abs(entry.at.getTime() - at.getTime());
+    return off <= CAPTION_WINDOW_MS && (best === null || off < Math.abs(best.at.getTime() - at.getTime())) ? entry : best;
+  }, null);
+
 const caption = (frame: OverlayFrame, context: TimelapseContext): string | null => {
-  const line = context.captions.find(entry => Math.abs(entry.at.getTime() - frame.at.getTime()) <= CAPTION_WINDOW_MS);
+  const line = captionAt(frame.at, context.captions);
   if (!line) return null;
 
   const size = Math.round(shortSide(frame) / 26);
@@ -291,24 +300,48 @@ const caption = (frame: OverlayFrame, context: TimelapseContext): string | null 
     <rect x="${left}" y="${top}" width="${width}" height="${height}" rx="${Math.round(size / 3)}"
           fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${left + box.pad}" y="${top + height / 2}" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeText(line.text, charactersIn(width - box.pad * 2, size))}</text>
+          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeXml(fitted(line.text, width - box.pad * 2, size))}</text>
   </g>`;
 };
 
-/** About how wide a character of the face is at a size. */
-const CHARACTER = 0.55;
+/**
+ * How wide Albert Sans sets each character at its regular weight, in thousandths of its size: the face's advance
+ * widths, read from its `hmtx` table. A caption is fitted to its bar by these: guessed as 0.55 of the size each,
+ * its "…" came a fifth before the bar's end. A character not measured here counts as a wide letter, and one of a
+ * script set a whole size wide (CJK, emoji) as that.
+ */
+const MEASURED = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·–—…°€äöüÄÖÜß';
+const ADVANCES = [
+  280, 261, 305, 811, 574, 758, 704, 190, 408, 409, 476, 636, 264, 521, 235, 319, 629, 306, 601, 599, 655, 624, 599, 556, 632, 599, 244, 280, 497,
+  667, 496, 548, 983, 672, 660, 765, 729, 609, 587, 770, 705, 250, 508, 607, 520, 864, 705, 781, 612, 781, 625, 574, 610, 697, 677, 971, 708, 649,
+  596, 298, 320, 298, 653, 515, 234, 528, 606, 556, 606, 564, 324, 606, 567, 258, 251, 518, 228, 896, 563, 590, 606, 606, 360, 475, 352, 562, 527,
+  754, 491, 513, 479, 377, 284, 376, 545, 221, 634, 837, 596, 394, 785, 528, 590, 562, 672, 781, 697, 620,
+];
+const ADVANCE = new Map([...MEASURED].map((character, index) => [character, ADVANCES[index]]));
+const WIDE_LETTER = 700;
+const WHOLE_SIZE = 1000;
 
-/** About how wide a line of the face is at a size. */
-const textWidth = (text: string, size: number): number => text.length * size * CHARACTER;
+const advanceOf = (character: string): number => ADVANCE.get(character) ?? ((character.codePointAt(0) ?? 0) >= 0x1100 ? WHOLE_SIZE : WIDE_LETTER);
 
-/** About how many characters of the face fit a width at a size: a caption is cut rather than run past its bar. */
-const charactersIn = (width: number, size: number): number => Math.max(Math.floor(width / (size * CHARACTER)), 8);
+/** How wide a line of the face is at a size. */
+export const textWidth = (text: string, size: number): number => [...text].reduce((sum, character) => sum + advanceOf(character), 0) * (size / 1000);
+
+/** A caption as much of it as fits a width at a size, cut with "…" where it does not: it is cut rather than run past its bar. */
+export const fitted = (text: string, width: number, size: number): string => {
+  if (textWidth(text, size) <= width) return text;
+  const room = width - textWidth('…', size);
+  let used = 0;
+  let kept = '';
+  for (const character of text) {
+    used += advanceOf(character) * (size / 1000);
+    if (used > room) break;
+    kept += character;
+  }
+  return `${kept.trimEnd()}…`;
+};
 
 /** Text somebody typed, being put into an XML document. */
 export const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/** A caption is whatever somebody typed, and its bar has room for a line of it. */
-const escapeText = (text: string, room: number): string => escapeXml(text.length > room ? `${text.slice(0, room - 1).trimEnd()}…` : text);
 
 const clamp = (value: number): number => Math.min(Math.max(value, 0), 1);
 

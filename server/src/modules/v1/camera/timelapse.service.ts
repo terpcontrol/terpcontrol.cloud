@@ -66,7 +66,7 @@ const STILL_RETENTION_DAYS = 3 * 365;
 const DEFAULT_FRAME_RATE = 25;
 
 /** Half a second of film. Fewer frames than this is a flicker, not a timelapse. */
-const MINIMUM_FRAMES = DEFAULT_FRAME_RATE / 2;
+const MINIMUM_FRAMES = Math.ceil(DEFAULT_FRAME_RATE / 2);
 
 const DAY_FRAME_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -290,17 +290,21 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       return { film: existing, queued: false };
     }
 
-    // A span whose every picture was taken in the dark leaves the film nothing: said now, by the render's own rule,
-    // rather than by a render that fails after somebody was told it was being made.
-    if (!render.includeLightsOff) {
-      const { light } = await this.context.contextFor(camera, span, { dayCounter: false, climate: false, captions: false, light: true });
-      const { all, frames } = await this.framesFor(camera.id, span, render.framesPerSecond, light);
-      if (whyNoFilm(all.length, frames.length) === RENDER_FAILURE_TEXT.allDark) {
-        throw unprocessable(
-          'all_dark',
-          'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.',
-        );
-      }
+    // A span that leaves the film nothing - too few pictures, or every one taken in the dark - is said now, by the
+    // render's own rule, rather than by a render that fails after somebody was told it was being made.
+    const light = render.includeLightsOff
+      ? null
+      : (await this.context.contextFor(camera, span, { dayCounter: false, climate: false, captions: false, light: true })).light;
+    const { all, frames } = await this.framesFor(camera.id, span, render.framesPerSecond, light);
+    const nothing = frames.length >= MINIMUM_FRAMES ? null : whyNoFilm(all.length, frames.length);
+    if (nothing === RENDER_FAILURE_TEXT.allDark) {
+      throw unprocessable(
+        'all_dark',
+        'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.',
+      );
+    }
+    if (nothing !== null) {
+      throw unprocessable('too_few_pictures', `That span holds fewer than ${MINIMUM_FRAMES} pictures, which is too few for a film.`);
     }
 
     if (existing) await this.media.delete(existing.id);

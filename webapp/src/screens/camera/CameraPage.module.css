@@ -158,7 +158,7 @@
   color: var(--warning);
 }
 
-.darkRefused {
+.spanRefused {
   font-size: var(--text-sm);
   color: var(--warning);
 }

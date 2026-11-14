@@ -2316,7 +2316,8 @@
       "playIt": "Play the film",
       "make": "Make the film",
       "asking": "Requesting …",
-      "asked": "{{film}} is being made"
+      "asked": "{{film}} is being made",
+      "filmTheRest": "Film the rest from {{time}}"
     },
     "noFilms": "No film of this camera yet.",
     "firstWeekEnds": "The weekly film shows the last complete week. This camera’s first complete week ends on {{date}}.",
@@ -3620,7 +3621,8 @@
       "current_password_wrong": "That is not your current password.",
       "name_taken": "Another place or room already carries that name. Choose another.",
       "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
-      "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on."
+      "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.",
+      "too_few_pictures": "That span holds too few pictures for a film."
     }
   },
   "alarmLine": {

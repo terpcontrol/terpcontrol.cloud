@@ -27,6 +27,7 @@ import { Film } from '@/screens/camera/Film';
 import { reachesBackTo } from '@/screens/grow/diary/read-back';
 import { forgetKept } from '@/ui/kept';
 import ui from '@/ui/ui.module.css';
+import { clock } from '@/ui/zone';
 import { drawAt, NOT_FOUND, reading } from './harness';
 import { THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -1334,6 +1335,43 @@ describe('the films', () => {
     expect(screen.getByRole('button', { name: 'Play the film' }).className).toMatch(/primary/);
   });
 
+  /** A zone where it is the middle of the day now, so today has hours behind it whenever the test runs. */
+  const midday = () => {
+    const offset = 12 - serverNow().toUTC().hour;
+    state.zone = `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
+  };
+
+  /**
+   * "Film abspielen" at 13:56 played today's film "00:00 → 08:55", made before a gap in the pictures, with no way to
+   * the rest: where today's film stops short of the newest picture, a tap films the rest.
+   */
+  it('offers to film the rest of today where its film stops short of the newest picture', () => {
+    midday();
+    const endsAt = serverNow().minus({ hours: 3 }).toISO()!;
+    state.films = [{ id: 'film-today', window: 'day', capturedAt: serverNow().minus({ hours: 6 }).toISO()!, endsAt }];
+    drawPage({ state: { ...camera.state, lastStillAt: serverNow().toISO()! } });
+
+    expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: `Film the rest from ${clock(endsAt, state.zone)}` }));
+    expect(state.asked).toEqual([{ window: 'day', startsAt: expect.any(String) }]);
+  });
+
+  it('offers no rest where today´s film reaches the newest picture, nor to a reader who may not make films', () => {
+    midday();
+    state.films = [
+      { id: 'film-today', window: 'day', capturedAt: serverNow().minus({ hours: 6 }).toISO()!, endsAt: serverNow().minus({ minutes: 2 }).toISO()! },
+    ];
+    const current = drawPage({ state: { ...camera.state, lastStillAt: serverNow().toISO()! } });
+    expect(screen.queryByRole('button', { name: /^Film the rest/ })).not.toBeInTheDocument();
+    current.unmount();
+
+    state.films = [{ ...state.films[0], endsAt: serverNow().minus({ hours: 3 }).toISO()! }];
+    state.youMay = 'view';
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: THE_HOST, state: { ...camera.state, lastStillAt: serverNow().toISO()! } }} />);
+    expect(screen.getByRole('button', { name: 'Play the film' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Film the rest/ })).not.toBeInTheDocument();
+  });
+
   /**
    * The span of a "Week" is the server's to work out, and it works one out
    * around whatever instant it is handed - an instant of now names the week
@@ -1504,7 +1542,20 @@ describe('the films', () => {
       'Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.',
     );
     expect(refused).not.toHaveClass(ui.problem);
-    expect(refused.className).toMatch(/darkRefused/);
+    expect(refused.className).toMatch(/spanRefused/);
+  });
+
+  /** A day film with too few pictures was said to be on its way and failed 8 ms later: refused at the press, said here. */
+  it('says a span with too few pictures for a film where the button is, before anything is said to be on its way', () => {
+    const said = 'That span holds fewer than 13 pictures, which is too few for a film.';
+    state.askError = new ApiError({ status: 422, code: 'too_few_pictures', title: 'Unprocessable', detail: said, errors: [] });
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...delivering }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+    expect(state.told).toEqual([]);
+    const refused = screen.getByRole('alert');
+    expect(refused).toHaveTextContent('That span holds too few pictures for a film.');
+    expect(refused).not.toHaveClass(ui.problem);
   });
 
   it('says that a film is being made, and plays it from the button once it is done', () => {

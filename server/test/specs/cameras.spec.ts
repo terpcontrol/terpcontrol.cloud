@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
-import { joinSpace, setRow } from '../support/fixtures';
+import { joinSpace, seedStillRows, setRow } from '../support/fixtures';
 import { takeTestPicture } from '../support/test-picture';
 
 /**
@@ -655,9 +655,13 @@ describe('the composer', () => {
   let camera: string;
 
   const span = { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-20T00:00:00.000Z' };
+  /** A picture every `hours` from half past midnight of one August day up to another: a film is asked only of pictures. */
+  const every = (hours: number, from: number, to: number): Date[] =>
+    Array.from({ length: Math.floor(((to - from) * 24) / hours) }, (_, index) => new Date(Date.UTC(2026, 7, from, 0, 30) + index * hours * 3600_000));
 
   beforeAll(async () => {
     camera = await addCamera(rtsp({ name: 'Composer cam' }));
+    await seedStillRows(camera, every(12, 1, 20));
   });
 
   it('answers a job that is polled, because a render does not finish inside a request', async () => {
@@ -712,6 +716,7 @@ describe('the composer', () => {
    */
   it('gives a link reader only the films that lie inside its window from first frame to last', async () => {
     const filmed = await addCamera(rtsp({ name: 'Windowed cam' }));
+    await seedStillRows(filmed, [...every(6, 1, 5), ...every(6, 8, 10), ...every(1, 10, 11), ...every(6, 11, 14)]);
     const film = async (startsAt: string, endsAt: string): Promise<string> =>
       (await owner.client.post(`/v1/cameras/${filmed}/timelapses`).send({ window: 'custom', startsAt, endsAt }).expect(202)).body.media.id;
     const inside = await film('2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z');

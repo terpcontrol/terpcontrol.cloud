@@ -13,17 +13,20 @@ import { Refused } from '@/ui/PageState';
 import { refusalCode } from '@/api/problem';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
-import { DATED_CLOCK, zoned } from '@/ui/zone';
+import { DATED_CLOCK, clock, zoned } from '@/ui/zone';
 import { Film } from './Film';
-import { filmOf, filmSpans, filmsOfEachSpan, phaseStart, type Span } from './film-spans';
+import { filmOf, filmReachesTo, filmSpans, filmsOfEachSpan, phaseStart, type Span } from './film-spans';
 import styles from './CameraPage.module.css';
 
 /**
  * The films of a camera, by name: the day's, the week's, the phase's and the
  * whole grow's. A chip chooses which, and the one button under them plays the
  * newest film of that kind - or, for whoever may steer the place, makes it
- * where there is none yet and says where the render has got to. A film that
- * cannot be made stays a chip and says why once chosen.
+ * where there is none yet and says where the render has got to, and films the
+ * rest of today where its film stops short of the newest picture. A film that
+ * cannot be made stays a chip and says why once chosen, and one the server
+ * refuses at the press - too few pictures, or all of them dark - says why under
+ * the buttons.
  *
  * `beside` is the page's second button, `below` what that button last
  * answered: the two share a row and its receipt.
@@ -75,6 +78,8 @@ export function Films({
   const span = offered.find(one => one.span === chosen) ?? offered[0] ?? null;
   const film = span ? filmOf(known, span.span, at(span.span)) : null;
   const shown = film !== null && pressed?.id === film.id && pressed.playing;
+  const rest = film && span?.span === 'day' && dayAt === null && mayManage ? filmReachesTo(film, camera, now, zone) : null;
+  const refused = refusalCode(ask.error);
   // Where the camera is younger than the phase or the grow it would film, those films begin where its pictures do.
   const begun = phaseStart(grow) ?? grow?.startedAt ?? null;
   const younger = span !== null && (span.span === 'phase' || span.span === 'grow') && begun !== null && camera.createdAt > begun;
@@ -113,6 +118,11 @@ export function Films({
           {beside}
         </div>
       ) : null}
+      {rest && span ? (
+        <button type="button" className={styles.textLink} disabled={ask.pending} onClick={() => ask.make(span.body)}>
+          {t('camera.film.filmTheRest', { time: clock(rest, zone) })}
+        </button>
+      ) : null}
       {below}
 
       {span?.reason && !film ? <p className={ui.note}>{span.reason}</p> : null}
@@ -124,11 +134,11 @@ export function Films({
       {younger && mayManage ? (
         <p className={ui.note}>{t('camera.picturesSince', { date: zoned(camera.createdAt, zone).toFormat(DATED_CLOCK) })}</p>
       ) : null}
-      {/* A span filmed in the dark is no fault: it is said in the warning's colour, and in the app's own words in any
-          language, since they name the controls where such a film is put together. */}
-      {refusalCode(ask.error) === 'all_dark' ? (
-        <p className={styles.darkRefused} role="alert">
-          {t('problem.code.all_dark')}
+      {/* A span filmed in the dark, or one holding too few pictures, is no fault: it is said in the warning's colour, and
+          in the app's own words in any language, since they name the controls where such a film is put together. */}
+      {refused === 'all_dark' || refused === 'too_few_pictures' ? (
+        <p className={styles.spanRefused} role="alert">
+          {t(`problem.code.${refused}`)}
         </p>
       ) : (
         <Refused error={ask.error} fallback={t('camera.askFailed')} />

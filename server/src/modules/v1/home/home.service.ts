@@ -24,7 +24,7 @@ import { DataService } from '@modules/data/data.service';
 import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
 import { diaryTail } from '../diary/diary-entries';
-import { growsMoved } from '../grow/grow-moved';
+import { coveredBy, growsMoved } from '../grow/grow-moved';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
@@ -286,7 +286,7 @@ export class HomeService {
       this.users
         .find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1, 'preferences.timezone': 1 })
         .lean<StoredUser[]>(),
-      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices }),
+      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices, media: this.media }),
     ]);
 
     return follows.flatMap(follow => {
@@ -296,7 +296,7 @@ export class HomeService {
 
       return [
         serialisePublicCard(
-          grow,
+          coveredBy(grow, moved.get(grow.id)!),
           plants.filter(plant => plant.growId === grow.id),
           owner.handle,
           redactionOf(true, owner.privacy),

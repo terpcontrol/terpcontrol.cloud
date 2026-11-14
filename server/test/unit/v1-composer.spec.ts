@@ -8,7 +8,18 @@ import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { OverlayFrame, composeFrame, curveStrokes, overlayLayer, readingIn, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import {
+  OverlayFrame,
+  captionAt,
+  composeFrame,
+  curveStrokes,
+  fitted,
+  overlayLayer,
+  readingIn,
+  sizeFor,
+  textWidth,
+  wasDark,
+} from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { session } from './support/callers';
@@ -82,6 +93,21 @@ const build = (): void => {
   controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, db.spaces);
 };
 
+/** Pictures of a camera every `everyMs` between two instants, as the poller stores them. */
+const pictures = (cameraId: string, from: number, to: number, everyMs: number) =>
+  db.media.insertMany(
+    Array.from({ length: Math.floor((to - from) / everyMs) + 1 }, (_, index) => ({
+      id: `picture-${cameraId}-${from + index * everyMs}`,
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: 1,
+      cameraId,
+      capturedAt: new Date(from + index * everyMs),
+    })),
+  );
+
+const HOUR_MS = 3600_000;
+
 const world = async (entitledUntil: Date | null): Promise<void> => {
   await db.spaces.create([
     { id: TENT, ownerId: OWNER, kind: 'tent', name: 'Tent 1', roomId: null },
@@ -93,6 +119,10 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
     { id: BESIDE, ownerId: OWNER, kind: 'rtsp', spaceId: TENT, name: 'Cam 2', entitlement: { validUntil: null, grant: null } },
     { id: ELSEWHERE, ownerId: OWNER, kind: 'rtsp', spaceId: BALCONY, name: 'Cam 3', entitlement: { validUntil: null, grant: null } },
   ]);
+  // Enough pictures for a film of the phase, half past every hour, and of the last two days every four minutes: a span
+  // with too few is refused before anything is queued.
+  await pictures(CAMERA, Date.parse(PHASE.startsAt) + HOUR_MS / 2, Date.parse(PHASE.endsAt), HOUR_MS);
+  await pictures(CAMERA, Date.now() - 48 * HOUR_MS, Date.now() - 1000, 4 * 60_000);
 };
 
 beforeEach(async () => {
@@ -144,7 +174,7 @@ describe('what a film costs', () => {
 
     // Somebody handed SD without a word would think that is what HD looks like.
     await expect(compose({ ...PHASE, quality: 'hd' })).rejects.toThrow(/part of Premium/);
-    expect(await db.media.countDocuments()).toBe(0);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
   });
 
   it('refuses a film of a whole grow to a camera without entitlement', async () => {
@@ -224,6 +254,20 @@ describe('what is asked of a render', () => {
     expect((await compose({ ...PHASE, aspect: '1_1' })).queued).toBe(true);
   });
 
+  /** A day film with too few pictures was said to be on its way and failed 8 ms later: refused at once, as the dark one is. */
+  it('refuses at once a span with too few pictures for a film, lights-off frames or not', async () => {
+    const few = { window: 'custom' as const, startsAt: '2026-07-01T00:00:00.000Z', endsAt: '2026-07-02T00:00:00.000Z' };
+    await pictures(CAMERA, Date.parse(few.startsAt), Date.parse(few.startsAt) + 4 * HOUR_MS, HOUR_MS);
+
+    const refused = await compose(few).then(
+      () => null,
+      error => (error as { problem?: { status: number; code: string } }).problem,
+    );
+    expect(refused).toMatchObject({ status: 422, code: 'too_few_pictures' });
+    await expect(compose({ ...few, includeLightsOff: true })).rejects.toThrow(/too few for a film/);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
+  });
+
   it('needs both ends of a span it cannot work out for itself', async () => {
     await expect(compose({ window: 'phase' })).rejects.toThrow(/needs both ends/);
     await expect(compose({ window: 'custom', startsAt: PHASE.endsAt, endsAt: PHASE.startsAt })).rejects.toThrow(/ends after it begins/);
@@ -250,7 +294,7 @@ describe('asking twice', () => {
     expect(status).toBe(200);
     expect(again.queued).toBe(false);
     expect(again.media.id).toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   it('answers the film the other tap made when two of them race for it', async () => {
@@ -270,7 +314,7 @@ describe('asking twice', () => {
     expect(status).toBe(200);
     expect(raced.queued).toBe(false);
     expect(raced.media.id).toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   it('replaces it when the same span is composed differently', async () => {
@@ -279,7 +323,7 @@ describe('asking twice', () => {
 
     expect(reel.queued).toBe(true);
     expect(reel.media.id).not.toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   /**
@@ -338,7 +382,7 @@ describe('asking twice', () => {
     const composed = await compose({ window: 'day', overlays: { dayCounter: true } });
     expect(composed.queued).toBe(true);
     expect(composed.media.window).toBe('custom');
-    expect(await db.media.countDocuments()).toBe(2);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(2);
   });
 });
 
@@ -549,6 +593,53 @@ describe('what the builder makes of it', () => {
     const [, widest] = [...long.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => Number(found[2]));
     expect(long).toMatch(/…<\/text>/);
     expect(widest).toBeGreaterThan(portrait.width * 0.9);
+  });
+
+  /**
+   * Lines at 17:09 and 17:22 in a film of 17:07 to 17:40: every frame took the first line within half an hour of it,
+   * and the second never stood on one.
+   */
+  it('captions a frame with the diary line nearest it', () => {
+    const at = (clock: string) => new Date(`2026-11-13T${clock}:00.000Z`);
+    const captions = [
+      { at: at('17:09'), text: 'Erste Trichome milchig.' },
+      { at: at('17:22'), text: 'Spitzen gelb.' },
+    ];
+
+    expect(captionAt(at('17:12'), captions)?.text).toBe('Erste Trichome milchig.');
+    expect(captionAt(at('17:20'), captions)?.text).toBe('Spitzen gelb.');
+    expect(captionAt(at('17:40'), captions)?.text).toBe('Spitzen gelb.');
+    expect(captionAt(at('18:00'), captions)).toBeNull();
+    const frame = { at: at('17:30'), width: 1280, height: 720 };
+    expect(
+      overlayLayer(
+        frame,
+        { dayCounter: false, climate: false, entries: true },
+        { growStartedAt: null, temperature: [], humidity: [], light: [], captions },
+      ),
+    ).toContain('>Spitzen gelb.</text>');
+  });
+
+  /**
+   * Guessed at 0.55 of its size a letter, a caption's "…" came about a fifth before its bar ended. It is measured by
+   * Albert Sans's own advance widths, and cut only where the next letter would run past the bar.
+   */
+  it('runs a caption to its bar´s end by the face´s own widths before it cuts it', () => {
+    // H and i as the face sets them: 705 and 258 thousandths of the size.
+    expect(textWidth('Hi', 100)).toBeCloseTo(96.3);
+    const text = 'Erste Trichome milchig, die Blätter an der Spitze werden gelb und die Buds wachsen.';
+    for (const [room, size] of [
+      [575, 28],
+      [900, 28],
+      [640, 41],
+    ]) {
+      const cut = fitted(text, room, size);
+      expect(cut.endsWith('…')).toBe(true);
+      expect(textWidth(cut, size)).toBeLessThanOrEqual(room);
+      // Not a letter's width left over: the next one would not have fitted.
+      expect(room - textWidth(cut, size)).toBeLessThan(size);
+    }
+    expect(fitted('Spitzen gelb.', 575, 28)).toBe('Spitzen gelb.');
   });
 
   /** A film across seven hours offline drew a straight slope from the last reading to the first after it. */

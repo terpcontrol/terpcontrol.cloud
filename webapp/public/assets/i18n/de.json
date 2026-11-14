@@ -2326,7 +2326,8 @@
       "playIt": "Film abspielen",
       "make": "Film erstellen",
       "asking": "Wird angefordert …",
-      "asked": "{{film}} wird erstellt"
+      "asked": "{{film}} wird erstellt",
+      "filmTheRest": "Rest ab {{time}} filmen"
     },
     "noFilms": "Von dieser Kamera gibt es noch keinen Film.",
     "firstWeekEnds": "Der Wochenfilm zeigt die letzte volle Woche. Die erste volle Woche dieser Kamera endet am {{date}}.",
@@ -3630,7 +3631,8 @@
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
       "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
-      "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen."
+      "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
+      "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film."
     }
   },
   "alarmLine": {

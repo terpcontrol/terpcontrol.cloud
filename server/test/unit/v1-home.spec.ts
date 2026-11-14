@@ -611,6 +611,42 @@ describe('following', () => {
     expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ updatedBy: 'start' });
   });
 
+  /** A profile's card said "Bild vor 3 Std" beside a leaf: it is drawn over the picture its age is of. */
+  it('draws a card without a cover of its own over the newest picture lit of a camera where the grow stands', async () => {
+    const STRANGER_TENT = 'space-stranger-cam';
+    await db.spaces.create({ id: STRANGER_TENT, ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null, createdAt: STARTED_AT });
+    await db.grows.updateOne(
+      { id: PUBLIC_GROW },
+      { $set: { placements: [{ id: 'placement-4', spaceId: STRANGER_TENT, startedAt: STARTED_AT, endedAt: null, plantIds: null }] } },
+    );
+    await db.cameras.create({
+      id: 'camera-lit',
+      ownerId: STRANGER,
+      kind: 'terpcam_controller',
+      spaceId: STRANGER_TENT,
+      name: 'Cam',
+      state: { lastStillAt: new Date(NOW.getTime() - 60_000) },
+    });
+    const still = (id: string, minutesAgo: number, lit: boolean | null) => ({
+      id,
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: 1,
+      cameraId: 'camera-lit',
+      capturedAt: new Date(NOW.getTime() - minutesAgo * 60_000),
+      lit,
+    });
+    await db.media.create([still('still-lit', 180, true), still('still-dark', 1, false), still('still-before', 60 * 24 * 400, true)]);
+
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ coverMediaId: 'still-lit', updatedBy: 'picture' });
+
+    // A cover of its own stays the card's; a page that leaves the cameras out draws none of theirs.
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { coverMediaId: 'photo-cover' } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0].coverMediaId).toBe('photo-cover');
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { coverMediaId: null, publicCameras: false } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0].coverMediaId).toBeNull();
+  });
+
   it('drops a grow that has been made private since', async () => {
     await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { visibility: 'private' } });
 

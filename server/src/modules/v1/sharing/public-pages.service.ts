@@ -33,7 +33,7 @@ import { MediaService } from '../camera/media.service';
 import { readingNamesOf } from '../diary/diary-entries';
 import { GrowReportService } from '../diary/report.service';
 import { GrowDiaryService } from '../diary/grow-diary.service';
-import { growsMoved } from '../grow/grow-moved';
+import { coveredBy, growsMoved } from '../grow/grow-moved';
 import { spacesDuring } from '../grow/grow-places';
 import { growUpTo, harvestLinesOf, harvestOf, labelOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
@@ -214,14 +214,14 @@ export class PublicPagesService {
 
     const [plants, moved] = await Promise.all([
       this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
-      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices }),
+      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices, media: this.media }),
     ]);
     const hide = redactionOf(true, author.privacy);
 
     return grows
       .map(grow =>
         serialisePublicCard(
-          grow,
+          coveredBy(grow, moved.get(grow.id)!),
           plants.filter(plant => plant.growId === grow.id),
           author.handle,
           hide,
