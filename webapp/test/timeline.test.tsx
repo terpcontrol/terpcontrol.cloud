@@ -329,6 +329,19 @@ describe('Verlauf as it opens', () => {
     }
   });
 
+  /** At 320 CO₂'s short name kept its low and high beside it, where every other panel's stood under its name. */
+  it('puts every panel´s low and high under its name on a phone, CO₂´s too', async () => {
+    draw('/timeline?show=temperature,humidity,vpd,co2');
+    await settled();
+
+    for (const name of ['Temperature', 'Humidity', 'VPD', 'CO₂']) {
+      const label = panel(name).querySelector('header')!.firstElementChild!;
+      expect([...label.children].map(child => child.textContent)).toEqual([name, expect.stringMatching(/^Low .* · High /)]);
+    }
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/timeline/Timeline.module.css'), 'utf8');
+    expect(sheet).toMatch(/@media \(max-width: 599px\) \{\s*\.panelRange \{\s*flex-basis: 100%;/);
+  });
+
   it('asks for the last 24 hours by their name, with every panel a place can have', async () => {
     draw();
     await settled();
@@ -1316,6 +1329,23 @@ describe('the diary of the window', () => {
     expect(ctrl).not.toMatch(/ over/);
     // The run stands at its first firing and says until its clearing.
     expect(plug).toMatch(/Device offline · .* · 2× until \d\d:\d\d · over/);
+  });
+
+  /** A maintenance that began before the window was lost from its list, or read "is on" where it ended after it. */
+  it('tells a stretch the window cuts with its true start and length, in one form of a stamp, and sets the cursor where the window begins', async () => {
+    server.over = { stretches: [{ kind: 'maintenance', at: ago(30), endedAt: ago(23) }] };
+    draw();
+    await settled();
+
+    const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
+    expect(lines.map(line => line.textContent)).toEqual([
+      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, Set the cursor on this momentMaintenance · 7 h/),
+      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, .*Device rebooted/),
+      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, .*You watered/),
+    ]);
+    fireEvent.click(within(lines[0]).getByRole('button', { name: /Set the cursor on this moment/ }));
+
+    await waitFor(() => expect(address().searchParams.get('at')).toBe(iso(NOW - 24 * HOUR)));
   });
 
   it('sets the cursor on a line`s moment when its stamp is tapped', async () => {

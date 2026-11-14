@@ -19,7 +19,16 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, stretchEvent, toldOfRecord, writtenFor } from '../diary/diary-entries';
+import {
+  DIARY_KINDS,
+  MACHINE_KINDS,
+  TOLD_OF_MACHINES,
+  readingNamesOf,
+  serialiseDiaryEntry,
+  stretchEvent,
+  toldOfRecord,
+  writtenFor,
+} from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -38,10 +47,12 @@ import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretches
  * would draw six windows that disagree at their edges and would have to scrub
  * them into agreement afterwards.
  *
- * **What the whole answer costs, for every range.** Up to thirteen reads of
+ * **What the whole answer costs, for every range.** Up to fifteen reads of
  * Mongo - the space, the devices standing in it, the grows that have stood in
  * it, the alerts overlapping the window, the metrics their rules watch, the
- * diary over the window and the machines' own lines over it, the cameras, one
+ * diary over the window and the machines' own lines over it, the lines of a
+ * maintenance or a regulation off before the window and from its start on (a
+ * stretch the window cuts is told whole), the cameras, one
  * aggregation for the frames, the people the lines name, and two or three of
  * the steering device's target record - and two time-series reads per device
  * in the space, the curve and the switchings behind it. The frames and the
@@ -87,6 +98,13 @@ const MAX_EVENTS = 500;
  * line by line, and because lines this close together share one mark anyway.
  */
 const MAX_MACHINE_EVENTS = 200;
+
+/**
+ * How many of the lines that begin and end a maintenance or regulation off are read before the window: enough for the
+ * last switching of every device of a place and a maintenance renewed a few times over, which is what a stretch cut
+ * by the window's start is told from.
+ */
+const EDGE_LINES = 50;
 
 @Injectable()
 export class TimelineService {
@@ -157,7 +175,7 @@ export class TimelineService {
         })
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
-      this.eventsOf(grant, spaceId, growIds, window),
+      this.eventsOf(grant, spaceId, growIds, window, now),
       shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
       recordAcross(this.targetRecord, present.find(one => one.device.id === steering?.id) ?? null, before, window),
     ]);
@@ -260,7 +278,7 @@ export class TimelineService {
    * and the page drew two hundred of them with nothing on the screen to say that
    * the first months carried more than nothing.
    */
-  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<SpaceEvents> {
+  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow, now: Date): Promise<SpaceEvents> {
     const recordedHere = { $or: [{ spaceId }, { growId: { $in: growIds } }] };
     const of = (kinds: readonly string[]) => ({
       $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window), writtenFor(grant)],
@@ -272,21 +290,40 @@ export class TimelineService {
 
     if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), stretches: [], machine: { shown: 0, total: 0 } };
 
-    const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
+    // The lines a stretch is told from, read across both edges of the window: before it, the newest; from its start
+    // on, the oldest, through the window and on past its end.
+    const switched = (occurredAt: Record<string, Date>, order: 1 | -1, net: number) =>
+      this.entries
+        .find({
+          $and: [recordedHere, { kind: 'system' }, TOLD_OF_MACHINES, { occurredAt }, withinRange('occurredAt', grant.range), writtenFor(grant)],
+        })
+        .sort({ occurredAt: order, id: order })
+        .limit(net)
+        .lean<EntryDocument[]>();
+    const [diary, machine, before, since] = await Promise.all([
+      newest(DIARY_KINDS, MAX_EVENTS),
+      newest(MACHINE_KINDS, MAX_MACHINE_EVENTS),
+      switched({ $lt: window.startsAt }, -1, EDGE_LINES),
+      switched({ $gte: window.startsAt }, 1, MAX_EVENTS),
+    ]);
     // Counted only where the net actually bit. Under the net the read is the
     // count, and the alternative would be a second pass over the entries of
     // every tent on every refresh to learn a number nothing would draw.
     const total = machine.length < MAX_MACHINE_EVENTS ? machine.length : await this.entries.countDocuments(of(MACHINE_KINDS));
-    // Maintenance and regulation off are told as the stretches they were, as Start and the grow's diary tell them.
+    // Maintenance and regulation off are told as the stretches they were, as Start and the grow's diary tell them -
+    // whole where the window cuts one: a maintenance begun before it was lost, and one that ended after it read as
+    // still running. Each is told from its true start to its true end; only one that has not ended by now runs on.
     const told = toldOfRecord(machine);
+    const runs = toldOfRecord([...before, ...since]);
+    const across = (run: Span) => run.startsAt <= window.endsAt && run.endsAt >= window.startsAt;
 
     return {
       entries: [...diary, ...told.lines].sort(
         (one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id),
       ),
       stretches: [
-        ...told.maintenance.map(run => stretchEvent('maintenance', run, window.endsAt)),
-        ...told.controlOff.map(run => stretchEvent('controlOff', run, window.endsAt)),
+        ...runs.maintenance.filter(across).map(run => stretchEvent('maintenance', run, now)),
+        ...runs.controlOff.filter(across).map(run => stretchEvent('controlOff', run, now)),
       ].sort((one, other) => one.at.localeCompare(other.at)),
       machine: { shown: machine.length, total },
     };

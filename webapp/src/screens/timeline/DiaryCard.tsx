@@ -44,6 +44,9 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
   const events = shown.machine ? [...data.deviceChanges, ...(data.stretches ?? [])] : [];
   const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone));
   const listed = all ? lines : lines.slice(-SHOWN);
+  // A stretch the window cuts stands at its true start, before the window: the stamps are of the span they reach, in
+  // one form, and its stamp sets the cursor where the window begins.
+  const reached = { from: Math.min(window.from, ...lines.map(line => at(line.at))), to: window.to };
 
   return (
     <section className={styles.card} aria-labelledby="timeline-diary">
@@ -65,15 +68,15 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
               <DiaryLine
                 key={line.key}
                 line={line}
-                stamp={cursorStamp(at(line.at), window, 60, zone)}
-                moment={instant => cursorStamp(at(instant), window, 60, zone)}
+                stamp={cursorStamp(at(line.at), reached, 60, zone)}
+                moment={instant => cursorStamp(at(instant), reached, 60, zone)}
                 zone={zone}
                 now={now}
                 people={data.people}
                 measurements={entry ? readingNamesOf(data.readingNames, entry.growId) : []}
                 byline={byline}
                 onOpen={entry ? (correct?.(entry) ?? null) : null}
-                onStamp={() => onCursor(at(line.at))}
+                onStamp={() => onCursor(Math.max(window.from, at(line.at)))}
                 forwards
                 stampDoes={t('timeline.diary.toMoment')}
               />

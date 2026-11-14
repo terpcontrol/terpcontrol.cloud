@@ -779,6 +779,14 @@
   overflow-wrap: anywhere;
 }
 
+/* On a phone a panel's low and high stand under its name, in every panel alike: left to fit, CO₂'s short name kept
+   them beside it while the others' wrapped. */
+@media (max-width: 599px) {
+  .panelRange {
+    flex-basis: 100%;
+  }
+}
+
 /* On the narrowest phones the card's words keep the width: a smaller picture, and the zoom in a row under them. */
 @media (max-width: 359px) {
   .cursorCard {

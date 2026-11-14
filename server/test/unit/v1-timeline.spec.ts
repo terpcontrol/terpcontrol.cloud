@@ -1161,6 +1161,51 @@ describe('the rail and the frames', () => {
     expect((await readAs(visitor('stretches-token'))).stretches).toEqual([]);
   });
 
+  /**
+   * A window that cut a stretch read it from the window's own lines alone: a maintenance that began in it and ended
+   * after it was "läuft", one that began before it was lost, and a regulation off switched on inside it said nothing.
+   * Each is told whole, with its true ends; only one not ended by now runs on.
+   */
+  it('tells a stretch the window cuts at either edge whole, with its true start and end', async () => {
+    const said = (id: string, at: string, key: string, params: string[]) =>
+      entry({
+        id,
+        spaceId: TENT,
+        source: 'device',
+        authorId: null,
+        deviceId: CONTROLLER,
+        kind: 'system',
+        occurredAt: new Date(at),
+        message: { key, params },
+      });
+    await db.entries.create([
+      said('maintenance-on', '2026-06-10T02:48:00.000Z', 'message-maintenance-mode-activated-remote', ['15']),
+      said('maintenance-off', '2026-06-10T02:50:00.000Z', 'message-maintenance-mode-activated-remote', ['0']),
+      said('switched-off', '2026-06-10T08:48:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+      said('switched-on', '2026-06-10T09:34:00.000Z', 'message-device-configuration-updated', ['workmode: off → small', '', 'controller']),
+      said('off-again', '2026-06-10T11:00:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+    ]);
+    const stretchesIn = async (from: string, to: string) =>
+      (await readAs(session(OWNER), { range: '24h', window: { startsAt: new Date(from), endsAt: new Date(to) } })).stretches;
+    const maintenance = { kind: 'maintenance', at: '2026-06-10T02:48:00.000Z', endedAt: '2026-06-10T02:50:00.000Z' };
+    const off = { kind: 'controlOff', at: '2026-06-10T08:48:00.000Z', endedAt: '2026-06-10T09:34:00.000Z' };
+
+    // Ending as the maintenance began, beginning after it began, and holding the whole of it.
+    expect(await stretchesIn('2026-06-10T02:18:00.000Z', '2026-06-10T02:48:30.000Z')).toEqual([maintenance]);
+    expect(await stretchesIn('2026-06-10T02:49:00.000Z', '2026-06-10T03:20:00.000Z')).toEqual([maintenance]);
+    expect(await stretchesIn('2026-06-10T02:00:00.000Z', '2026-06-10T04:00:00.000Z')).toEqual([maintenance]);
+    // A regulation off cut at its start and at its end; one reaching past both edges.
+    expect(await stretchesIn('2026-06-10T09:00:00.000Z', '2026-06-10T10:00:00.000Z')).toEqual([off]);
+    expect(await stretchesIn('2026-06-10T08:00:00.000Z', '2026-06-10T09:10:00.000Z')).toEqual([off]);
+    expect(await stretchesIn('2026-06-10T09:00:00.000Z', '2026-06-10T09:10:00.000Z')).toEqual([off]);
+    // Off since 11:00 and not on again: a window that ends before now still says it runs.
+    expect(await stretchesIn('2026-06-10T10:30:00.000Z', '2026-06-10T11:30:00.000Z')).toEqual([
+      { kind: 'controlOff', at: '2026-06-10T11:00:00.000Z', endedAt: null },
+    ]);
+    // A window between two stretches holds neither.
+    expect(await stretchesIn('2026-06-10T04:00:00.000Z', '2026-06-10T08:00:00.000Z')).toEqual([]);
+  });
+
   it('counts the machines´ lines as shown where the net did not bite', async () => {
     expect((await readAs(session(OWNER))).machineEvents).toEqual({ shown: 2, total: 2 });
   });
