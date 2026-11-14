@@ -271,7 +271,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.alerts.deleteMany({ deviceId: { $in: deviceIds } });
     tally.entries += await this.deleteEntries({ deviceId: { $in: deviceIds } });
 
-    for (const id of deviceIds) await this.devices.releaseClaim(id);
+    for (const id of deviceIds) await this.devices.releaseClaim(id, 'account_deleted');
     tally.devices += deviceIds.length;
   }
 

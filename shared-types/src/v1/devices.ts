@@ -135,11 +135,24 @@ export const deviceControl = named(
   }),
 );
 
+/** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
+export const deviceRelease = named('DeviceRelease', z.enum(['given_up', 'account_deleted']));
+
 export const deviceState = named(
   'DeviceState',
   z.object({
     lastSeenAt: instant().nullable().describe('Last sample or status; what `offline` is decided from.'),
     claimedAt: instant().nullable(),
+    released: z
+      .object({
+        at: instant(),
+        by: deviceRelease,
+      })
+      .nullable()
+      .optional()
+      .describe(
+        'When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.',
+      ),
     firmwareId: id().nullable().describe('What the device reports it is running, which is the build uuid.'),
     updateStartedAt: instant().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: instant().nullable(),

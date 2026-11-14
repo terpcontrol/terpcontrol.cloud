@@ -456,3 +456,9 @@
   width: 45%;
   color: var(--muted);
 }
+
+/* Where the firmware keeps a figure the row names in words: what support matches against the document. */
+.stored {
+  display: block;
+  font-size: var(--text-xs);
+}

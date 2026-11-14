@@ -9,6 +9,7 @@ import {
   DeviceClaimCreate,
   DeviceClaimResult,
   DeviceControl,
+  DeviceRelease,
   DeviceUpdate,
   SpaceKind,
 } from '@fg2/shared-types/v1';
@@ -309,7 +310,11 @@ export class DevicesService {
     // display cannot both end up owning it, and nothing is created for a claim
     // that lost the race.
     const claimed = await this.devices
-      .findOneAndUpdate({ id: device.id, ownerId: null }, { $set: { ownerId, name, 'state.claimedAt': new Date() } }, { new: true })
+      .findOneAndUpdate(
+        { id: device.id, ownerId: null },
+        { $set: { ownerId, name, 'state.claimedAt': new Date(), 'state.released': null } },
+        { new: true },
+      )
       .lean<StoredDevice>();
     if (!claimed) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
@@ -367,11 +372,26 @@ export class DevicesService {
    * Where it stood stays on the record, closed: the readings it took there are
    * still in the store, and the grows of the account that gives it up keep
    * their curves. The next owner's places begin with a placement of their own.
+   * When and how it was let go is kept until the next claim (`by`): an account
+   * deleted with it is not somebody giving one device up.
    */
-  public async releaseClaim(id: string): Promise<void> {
+  public async releaseClaim(id: string, by: DeviceRelease = 'given_up'): Promise<void> {
     await this.place(id, null);
     const released = await this.devices
-      .findOneAndUpdate({ id }, { $set: { ownerId: null, spaceId: null, name: null, isDemo: false, scheduleClock: null, 'state.claimedAt': null } })
+      .findOneAndUpdate(
+        { id },
+        {
+          $set: {
+            ownerId: null,
+            spaceId: null,
+            name: null,
+            isDemo: false,
+            scheduleClock: null,
+            'state.claimedAt': null,
+            'state.released': { at: new Date(), by },
+          },
+        },
+      )
       .lean<StoredDevice>();
     if (!released) throw notFound('device_not_found', 'There is no device with that id.');
 
@@ -466,6 +486,7 @@ export class DevicesService {
       state: {
         lastSeenAt: device.state.lastSeenAt?.toISOString() ?? null,
         claimedAt: device.state.claimedAt?.toISOString() ?? null,
+        released: device.state.released ? { at: device.state.released.at.toISOString(), by: device.state.released.by } : null,
         firmwareId: device.state.firmwareId,
         updateStartedAt: device.state.updateStartedAt?.toISOString() ?? null,
         updateEndedAt: device.state.updateEndedAt?.toISOString() ?? null,

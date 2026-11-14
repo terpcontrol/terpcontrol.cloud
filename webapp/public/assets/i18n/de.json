@@ -3626,6 +3626,10 @@
       "owner": "Besitzer",
       "zone": "Zeitzone des Kunden",
       "noZone": "keine gewählt (Zeitzone seines Browsers)",
+      "released": {
+        "given_up": "niemand – am {{date}} vom Besitzer abgegeben",
+        "account_deleted": "niemand – der Besitzer hat am {{date}} sein Konto gelöscht"
+      },
       "lastSeen": "Zuletzt gehört",
       "firmware": "Firmware · Kanal",
       "place": "Ort",

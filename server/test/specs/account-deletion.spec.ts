@@ -264,6 +264,13 @@ describe('deleting an account', () => {
     expect(await diaryEntriesOf(home.deviceId)).toEqual([]);
   });
 
+  it('tells support the device was let go with the account, not that nobody ever added it', async () => {
+    const read = (await admin.client.get(`/v1/devices/${home.deviceId}`).expect(200)).body;
+
+    expect(read.ownerId).toBeNull();
+    expect(read.state.released).toEqual({ at: expect.any(String), by: 'account_deleted' });
+  });
+
   it('hands the device back, so somebody else can claim it', async () => {
     const next = await createAccount('deletion-next');
 
@@ -275,6 +282,7 @@ describe('deleting an account', () => {
     ).body;
 
     expect(claimed.device.ownerId).toBe(next.userId);
+    expect(claimed.device.state.released).toBeNull();
     // A claim always ends in a space, and the one the previous owner stood it in
     // is gone - so the claim makes one rather than finding it.
     expect(claimed.spaceCreated).toBe(true);

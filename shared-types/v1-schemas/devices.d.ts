@@ -122,9 +122,21 @@ export declare const deviceControl: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
+/** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
+export declare const deviceRelease: z.ZodEnum<{
+    given_up: "given_up";
+    account_deleted: "account_deleted";
+}>;
 export declare const deviceState: z.ZodObject<{
     lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
     claimedAt: z.ZodNullable<z.ZodISODateTime>;
+    released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        at: z.ZodISODateTime;
+        by: z.ZodEnum<{
+            given_up: "given_up";
+            account_deleted: "account_deleted";
+        }>;
+    }, z.core.$strip>>>;
     firmwareId: z.ZodNullable<z.ZodString>;
     updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
     updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -208,6 +220,13 @@ export declare const device: z.ZodObject<{
     state: z.ZodObject<{
         lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
         claimedAt: z.ZodNullable<z.ZodISODateTime>;
+        released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            at: z.ZodISODateTime;
+            by: z.ZodEnum<{
+                given_up: "given_up";
+                account_deleted: "account_deleted";
+            }>;
+        }, z.core.$strip>>>;
         firmwareId: z.ZodNullable<z.ZodString>;
         updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
         updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -288,6 +307,13 @@ export declare const devicePage: z.ZodObject<{
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -515,6 +541,13 @@ export declare const provisionedDevice: z.ZodObject<{
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -801,6 +834,13 @@ export declare const deviceClaimResult: z.ZodObject<{
         state: z.ZodObject<{
             lastSeenAt: z.ZodNullable<z.ZodISODateTime>;
             claimedAt: z.ZodNullable<z.ZodISODateTime>;
+            released: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                at: z.ZodISODateTime;
+                by: z.ZodEnum<{
+                    given_up: "given_up";
+                    account_deleted: "account_deleted";
+                }>;
+            }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;

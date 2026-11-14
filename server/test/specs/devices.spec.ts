@@ -317,6 +317,11 @@ describe('giving a device up', () => {
     // Gone from the owner's listing, and nobody's again.
     const listed = await owner.client.get('/v1/devices').expect(200);
     expect(listed.body.items.some((entry: { id: string }) => entry.id === device.deviceId)).toBe(false);
+    // Support reads it as given up, not as hardware nobody ever added.
+    const admin = await loginAsAdmin();
+    const read = (await admin.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body;
+    expect(read.ownerId).toBeNull();
+    expect(read.state.released).toEqual({ at: expect.any(String), by: 'given_up' });
 
     const next = await createAccount('devices-next-owner');
     const claimed = await next.client
@@ -324,6 +329,8 @@ describe('giving a device up', () => {
       .send({ code: await claimCodeOf(device.deviceId) })
       .expect(201);
     expect(claimed.body.device.ownerId).toBe(next.userId);
+    // The next owner is not told what became of the one before.
+    expect(claimed.body.device.state.released).toBeNull();
 
     // The rules the first owner wrote did not come with it.
     const rules = await next.client.get(`/v1/devices/${device.deviceId}/alarm-rules`).expect(200);

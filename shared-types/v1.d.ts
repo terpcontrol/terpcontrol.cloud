@@ -75,6 +75,8 @@ export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export type OperatingMode = 'standard' | 'greenhouse' | 'germination';
 
+export type DeviceRelease = 'given_up' | 'account_deleted';
+
 export type SocketState = 'on' | 'off' | 'unknown';
 
 export type SocketOverrideState = 'on' | 'off' | 'auto';
@@ -926,6 +928,13 @@ export interface DeviceState {
    */
   lastSeenAt: string | null;
   claimedAt: string | null;
+  /**
+   * When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.
+   */
+  released?: {
+    at: string;
+    by: DeviceRelease;
+  } | null;
   /**
    * What the device reports it is running, which is the build uuid.
    */

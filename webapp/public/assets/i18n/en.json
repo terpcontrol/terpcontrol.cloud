@@ -3616,6 +3616,10 @@
       "owner": "Owner",
       "zone": "Customer’s time zone",
       "noZone": "none chosen (their browser’s)",
+      "released": {
+        "given_up": "nobody – given up by its owner on {{date}}",
+        "account_deleted": "nobody – its owner deleted their account on {{date}}"
+      },
       "lastSeen": "Last heard",
       "firmware": "Firmware · channel",
       "place": "Place",

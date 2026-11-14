@@ -247,6 +247,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (path === '/devices/tc-7f3a') {
     return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800 }, workmode: 'small' } });
   }
+  // Nobody's: its owner deleted their account with it two days ago.
+  if (path === '/devices/tc-00d4') {
+    return json({ ...DEVICES[2], state: { ...DEVICES[2].state, released: { at: NOW.minus({ days: 2 }).toISO()!, by: 'account_deleted' } } });
+  }
   if (path.startsWith('/entries')) return json({ items: server.lines, nextCursor: null });
   if (path === '/spaces/space-1/overview') return json({ spaceId: 'space-1', name: 'Blue Dream tent' });
 
@@ -598,23 +602,47 @@ describe('support for a customer', () => {
       { at: '/admin/devices/tc-7f3a' },
     );
 
-    expect(await screen.findByText('day.temperature')).toBeInTheDocument();
+    // Each setting in the words the app gives it, with where the firmware keeps it.
+    const row = (stored: string) => screen.getByText(stored).closest('tr')!;
+    expect(await screen.findByText('day.temperature = 26')).toBeInTheDocument();
+    expect(row('day.temperature = 26')).toHaveTextContent(/^Day temperature.*26 °C$/);
+    expect(row('workmode = small')).toHaveTextContent(/^Operation.*standard$/);
     // One device of the fleet's: it leads back there, and is none of the four tabs.
     expect(screen.getByRole('link', { name: 'Back to the fleet' })).toHaveAttribute('href', '/admin/fleet');
     // What the window is titled from: the view and whose it is, as two parts.
     expect(screen.getByRole('heading', { level: 1, name: 'Support view' })).toHaveAttribute('data-title', 'Support view · tc-7f3a');
     expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
-    expect(screen.getByText('26')).toBeInTheDocument();
-    expect(screen.getByText('workmode')).toBeInTheDocument();
     expect(await screen.findByText('@mo · mo@example.invalid')).toBeInTheDocument();
-    // A time of day is kept as seconds past midnight UTC, and read beside them as the clock times they are, the customer's included.
-    expect(await screen.findByText('21600 · 06:00 UTC · 06:00 for the customer')).toBeInTheDocument();
-    expect(screen.getByText('64800 · 18:00 UTC · 18:00 for the customer')).toBeInTheDocument();
+    // A time of day is kept as seconds past midnight UTC, and read as the clock times it is, the customer's included.
+    expect(await screen.findByText('06:00 UTC · 06:00 for the customer')).toBeInTheDocument();
+    expect(row('daynight.day = 21600')).toHaveTextContent(/^Light on at/);
+    expect(row('daynight.night = 64800')).toHaveTextContent(/^Light off at.*18:00 UTC · 18:00 for the customer$/);
     expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
     expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);
+  });
+
+  it('says of a device nobody owns that its owner deleted their account with it, not that nobody ever added it', async () => {
+    drawAt(
+      <ThemeProvider>
+        <Routes>
+          <Route
+            path="/admin/devices/:deviceId"
+            element={
+              <AdminOnly>
+                <DeviceDiagnosis />
+              </AdminOnly>
+            }
+          />
+        </Routes>
+      </ThemeProvider>,
+      { at: '/admin/devices/tc-00d4' },
+    );
+
+    expect(await screen.findByText(/^nobody – its owner deleted their account on \d+ \w+ \d{4}$/)).toBeInTheDocument();
+    expect(screen.queryByText('not added by anyone yet')).not.toBeInTheDocument();
   });
 
   /**

@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { AppliedClimate, Device, DeviceSettings, DeviceState, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
+import type { AppliedClimate, Device, DeviceRelease, DeviceSettings, DeviceState, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
 import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -36,6 +36,7 @@ export interface StoredDeviceState extends Omit<
   DeviceState,
   | 'lastSeenAt'
   | 'claimedAt'
+  | 'released'
   | 'updateStartedAt'
   | 'updateEndedAt'
   | 'updateFailedAt'
@@ -45,6 +46,8 @@ export interface StoredDeviceState extends Omit<
 > {
   lastSeenAt: Date | null;
   claimedAt: Date | null;
+  /** Absent on a row from before it was kept, which reads as never released. */
+  released?: { at: Date; by: DeviceRelease } | null;
   updateStartedAt: Date | null;
   updateEndedAt: Date | null;
   updateFailedAt: Date | null;
@@ -214,6 +217,12 @@ const stateSchema = new Schema<StoredDeviceState>(
   {
     lastSeenAt: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
+    // When its last owner let it go and how, until somebody claims it again: support tells a device given up from
+    // one nobody ever added by it, which `ownerId: null` alone cannot say.
+    released: {
+      type: new Schema({ at: { type: Date, required: true }, by: { type: String, required: true } }, { _id: false, versionKey: false }),
+      default: null,
+    },
     firmwareId: { type: String, default: null },
     updateStartedAt: { type: Date, default: null },
     updateEndedAt: { type: Date, default: null },

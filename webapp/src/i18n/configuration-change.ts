@@ -280,6 +280,23 @@ const nameOf = (i18n: I18n, place: string, field: Field, context: ChangeContext)
     : i18n.t(`configChange.field.${field.as ?? place}`);
 };
 
+/**
+ * One figure of a device's document as the app names it and writes it out - what support reads a document by -
+ * or null for one the app does not set, which is read as it is stored. `clock` says the value is a time of day
+ * on the context's wall clock.
+ */
+export const settingWords = (
+  i18n: I18n,
+  place: string,
+  raw: string,
+  context: ChangeContext = {},
+): { name: string; value: string; clock: boolean } | null => {
+  const field = fieldOf(context.type, place);
+  const value = field ? valueOf(i18n, field, raw, context) : null;
+  if (!field || value === null) return null;
+  return { name: nameOf(i18n, place, field, context), value, clock: field.kind === 'time' && (figureIn(raw) ?? 0) < ALWAYS_LIT_FROM };
+};
+
 /** One line of the change, named and written out where the figure is one the app sets. */
 const lineOf = (i18n: I18n, line: string, context: ChangeContext): string => {
   const match = LINE.exec(line);
