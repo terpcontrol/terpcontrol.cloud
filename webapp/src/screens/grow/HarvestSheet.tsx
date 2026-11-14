@@ -272,7 +272,7 @@ export function Weight({
 /**
  * What ending a grow leads to: the sheet closes onto the grow's report - Grow
  * shows what runs, and this one no longer does - and a toast says that it has
- * ended. Nothing takes an end back, so the toast offers no undo.
+ * ended. An end is taken back by reopening the grow from its ⋯, not by an undo, so the toast offers none.
  */
 const useGrowEnded = (grow: GrowListItem, onClose: () => void) => {
   const { t } = useTranslation();

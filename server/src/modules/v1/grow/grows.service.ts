@@ -284,12 +284,41 @@ export class GrowsService {
     }
     if (span && body.startedAt !== undefined) Object.assign(changes, await this.moveStart(span.grow, span.startedAt));
     if (span && body.endedAt !== undefined) changes.endedAt = span.endedAt;
+    if (span && span.endedAt === null && span.grow.endedAt !== null) {
+      const placements = (changes.placements as PlacementDocument[] | undefined) ?? span.grow.placements;
+      Object.assign(changes, { placements: await this.reopenedPlacements(placements, span.grow.endedAt) });
+    }
 
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
     if (body.endedAt !== undefined) await this.restReminders(id, changed.endedAt);
 
     return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
+  }
+
+  /**
+   * A grow reopened (Chris, 2026-11-14) runs on where it stood when it ended - unless that place has been removed
+   * since, as "Ort entfernen" with "Grow beenden" does: an ended grow keeps the placement it ended in open as the
+   * record of where it stood last, and reopened there it would run in a place nobody can open. Such a placement is
+   * closed at the grow's end, and the plants it held stand at no fixed place from then on.
+   */
+  private async reopenedPlacements(placements: PlacementDocument[], endedAt: Date): Promise<PlacementDocument[]> {
+    const open = placements.filter(placement => placement.endedAt === null && placement.spaceId !== null);
+    const gone = new Set(
+      (
+        await this.spaces
+          .find({ id: { $in: open.map(placement => placement.spaceId) }, archivedAt: { $ne: null } }, { id: 1 })
+          .lean<SpaceDocument[]>()
+      ).map(space => space.id),
+    );
+    const left = open.filter(placement => gone.has(placement.spaceId!));
+    if (left.length === 0) return placements;
+
+    const plantIds = left.some(placement => placement.plantIds === null) ? null : [...new Set(left.flatMap(placement => placement.plantIds!))];
+    return [
+      ...placements.map(placement => (left.includes(placement) ? { ...placement, endedAt } : placement)),
+      { id: uuidv4(), spaceId: null, startedAt: endedAt, endedAt: null, plantIds },
+    ];
   }
 
   /**

@@ -1120,11 +1120,17 @@
         "split": "Split",
         "harvest": "Harvest",
         "rename": "Name and type",
-        "delete": "Delete grow"
+        "delete": "Delete grow",
+        "reopen": "Reopen the grow"
       },
       "delete": {
         "ask": "Delete {{name}}? The grow goes with its plants and the line of its phase. This cannot be undone.",
         "yes": "Delete"
+      },
+      "reopen": {
+        "ask": "Reopen {{name}}? It runs on where it stood: entries, phases and harvests can be written again, and its reminders come back.",
+        "askNowhere": "Reopen {{name}}? Its place has been removed, so it runs on at no fixed place. Entries, phases and harvests can be written again, and its reminders come back.",
+        "yes": "Reopen"
       },
       "when": "On",
       "cancel": "Cancel",
@@ -1584,7 +1590,10 @@
       "split_other": "{{count}} plants go their own way",
       "started": "{{name}} started",
       "start": "Start: {{date}}",
-      "deleted": "{{name}} deleted"
+      "deleted": "{{name}} deleted",
+      "reopened": "{{name}} is running again",
+      "reopenedNowhere": "{{name}} is running again · no fixed place",
+      "endedAgain": "{{name}} has ended"
     },
     "alsoHere": "Also growing here:"
   },

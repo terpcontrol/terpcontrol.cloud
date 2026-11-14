@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
-import { useGrowDiary, useRemoveGrow } from '@/api/grows';
+import { useGrowDiary, useRemoveGrow, useUpdateGrow } from '@/api/grows';
 import { useWithdrawPhase } from '@/api/lifecycle';
 import { ALL_GROWS } from '@/app/places';
 import { useLog } from '@/log/log-context';
@@ -19,7 +19,7 @@ import { ShareSheet } from './ShareSheet';
 import { SplitSheet } from './SplitSheet';
 import styles from './GrowPage.module.css';
 
-type GrowSheet = 'phase' | 'share' | 'move' | 'split' | 'harvest' | 'rename' | 'tips' | 'delete';
+type GrowSheet = 'phase' | 'share' | 'move' | 'split' | 'harvest' | 'rename' | 'tips' | 'delete' | 'reopen';
 
 /** The stages' tips, four each; curing is where the drying tips end, in the jar. */
 const TIP_NUMBERS = [1, 2, 3, 4];
@@ -37,8 +37,9 @@ const TIP_NUMBERS = [1, 2, 3, 4];
  * them - and sharing a diary is its owner's alone. A grow that has ended takes
  * nothing that happens after its end, so it is offered neither a split nor a
  * harvest; phase and move stay, because their sheets are where its record is
- * repaired. A grow started by mistake - nothing in its diary but the line of
- * its phase - is offered to its owner to delete.
+ * repaired; and it can be opened again (Chris, 2026-11-14). A grow started by
+ * mistake - nothing in its diary but the line of its phase - is offered to its
+ * owner to delete.
  */
 export function GrowMenu({
   grow,
@@ -88,6 +89,7 @@ export function GrowMenu({
         {mayManage && running ? item('split', t('grow.lifecycle.actions.split')) : null}
         {mayManage && running ? item('harvest', t('grow.lifecycle.actions.harvest')) : null}
         {mayManage ? item('rename', t('grow.lifecycle.actions.rename')) : null}
+        {mayManage && !running ? item('reopen', t('grow.lifecycle.actions.reopen')) : null}
         {tips ? item('tips', t('assistant.tipsTitle')) : null}
         {deletable ? item('delete', t('grow.lifecycle.actions.delete')) : null}
       </Menu>
@@ -99,6 +101,7 @@ export function GrowMenu({
       {open === 'harvest' ? <HarvestSheet grow={grow} plants={plants} onClose={close} /> : null}
       {open === 'rename' ? <RenameSheet grow={grow} onClose={close} /> : null}
       {open === 'delete' ? <DeleteSheet grow={grow} onClose={close} /> : null}
+      {open === 'reopen' ? <ReopenSheet grow={grow} spaces={spaces} onClose={close} /> : null}
       {open === 'tips' && tips ? (
         <Sheet title={t('assistant.tipsTitle')} onClose={close}>
           <ul className={`${ui.sheetBody} ${styles.tips}`}>
@@ -162,6 +165,52 @@ function DeleteSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => voi
           onCancel={onClose}
         >
           <Refused error={withdraw.error ?? remove.error} />
+        </Asking>
+      </div>
+    </Sheet>
+  );
+}
+
+/**
+ * An ended grow opened again, asked first: it runs on where it stood, takes entries, phases and harvests again, and
+ * its resting reminders come back, each rhythm counted on from today. Where its place was removed with it, it runs on
+ * at no fixed place - the server closes the placement in the place that is gone -, and the question and the toast
+ * say so. Ending it again is the way back.
+ */
+function ReopenSheet({ grow, spaces, onClose }: { grow: GrowListItem; spaces: Space[]; onClose: () => void }) {
+  const { t } = useTranslation();
+  const { tell } = useLog();
+  const update = useUpdateGrow(grow.id);
+  const stood = grow.placements.filter(placement => placement.endedAt === null && placement.spaceId !== null);
+  const nowhere = stood.length > 0 && stood.every(placement => !spaces.some(space => space.id === placement.spaceId));
+  const endedAt = grow.endedAt;
+
+  const yes = () =>
+    update.mutate(
+      { endedAt: null },
+      {
+        onSuccess: () => {
+          onClose();
+          tell({
+            label: t(nowhere ? 'grow.told.reopenedNowhere' : 'grow.told.reopened', { name: grow.name }),
+            undo: () => update.mutateAsync({ endedAt }),
+            undone: t('grow.told.endedAgain', { name: grow.name }),
+          });
+        },
+      },
+    );
+
+  return (
+    <Sheet title={t('grow.lifecycle.actions.reopen')} onClose={onClose}>
+      <div className={ui.sheetBody}>
+        <Asking
+          note={t(nowhere ? 'grow.lifecycle.reopen.askNowhere' : 'grow.lifecycle.reopen.ask', { name: grow.name })}
+          yes={t('grow.lifecycle.reopen.yes')}
+          busy={update.isPending}
+          onYes={yes}
+          onCancel={onClose}
+        >
+          <Refused error={update.error} />
         </Asking>
       </div>
     </Sheet>

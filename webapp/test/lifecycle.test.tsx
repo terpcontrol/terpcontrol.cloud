@@ -221,6 +221,76 @@ describe('deleting a grow', () => {
 });
 
 /**
+ * An ended grow could be reopened through the API alone: its resting reminders came back only there (Chris,
+ * 2026-11-14: "Grow wieder öffnen" under its ⋯, with a question).
+ */
+describe('reopening a grow', () => {
+  const ended: GrowListItem = { ...grow, endedAt: at(2) };
+  const wire = () => {
+    const sent: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname.replace(/^\/v1/, '');
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') sent.push({ method, path, body: JSON.parse(String(init?.body ?? 'null')) });
+        if (method === 'PATCH') return json({ ...ended, endedAt: null });
+        return json({ items: [], nextCursor: null, people: [], earlier: [] });
+      }),
+    );
+    return sent;
+  };
+  const drawMenu = (spaces: ReturnType<typeof spaceWhere>[], running = ended) =>
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={running} plants={plants} spaces={spaces} mayManage mayOwn />
+      </LogProvider>,
+    );
+  const menu = () => fireEvent.click(screen.getByRole('button', { name: `More about ${grow.name}` }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks, opens the grow again where it stood, and offers to end it again', async () => {
+    const sent = wire();
+    drawMenu([spaceWhere('own', { id: 'space-1', name: 'Tent' })]);
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Reopen the grow' });
+    expect(sheet).toHaveTextContent(
+      'Reopen Spring run? It runs on where it stood: entries, phases and harvests can be written again, and its reminders come back.',
+    );
+    expect(sent).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Reopen' }));
+
+    await waitFor(() => expect(sent).toEqual([{ method: 'PATCH', path: '/grows/grow-1', body: { endedAt: null } }]));
+    expect(await screen.findByText('Spring run is running again')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
+  });
+
+  it('says that a grow whose place was removed with it runs on at no fixed place', async () => {
+    wire();
+    drawMenu([]);
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+    expect(screen.getByRole('dialog', { name: 'Reopen the grow' })).toHaveTextContent(
+      /Its place has been removed, so it runs on at no fixed place\./,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }));
+
+    expect(await screen.findByText('Spring run is running again')).toBeInTheDocument();
+    expect(screen.getByText('no fixed place')).toBeInTheDocument();
+  });
+
+  it('is offered to an ended grow alone', () => {
+    wire();
+    drawMenu([], grow);
+    menu();
+    expect(screen.queryByRole('button', { name: 'Reopen the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
  * The name, which is the one thing about a grow the app could not change.
  *
  * It is invented by the sheet that makes the grow - "Mimosa Sunrise XXL Auto
@@ -680,7 +750,7 @@ describe('the move sheet of a grow that has ended', () => {
     expect(screen.getByText(/This grow has ended, so it does not move any more/)).toBeInTheDocument();
   });
 
-  it('is offered a phase, a move and a new name, but no split, no harvest and no tips for a stage it is no longer in', () => {
+  it('is offered a phase, a move, a new name and to be opened again, but no split, no harvest and no tips for a stage it is no longer in', () => {
     drawAt(<GrowMenu grow={finished} plants={plants} spaces={[tent]} mayManage mayOwn={false} />);
     const menu = screen.getByRole('button', { name: `More about ${finished.name}` });
     fireEvent.click(menu);
@@ -688,7 +758,7 @@ describe('the move sheet of a grow that has ended', () => {
     const offered = within(document.getElementById(menu.getAttribute('aria-controls')!)!)
       .getAllByRole('button')
       .map(button => button.textContent);
-    expect(offered).toEqual(['Phase', 'Move', 'Name and type']);
+    expect(offered).toEqual(['Phase', 'Move', 'Name and type', 'Reopen the grow']);
   });
 
   /** "No fixed place" is a place a grow can be in, and a running grow that is in it says so. */

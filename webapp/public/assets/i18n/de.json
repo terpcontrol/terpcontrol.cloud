@@ -1130,11 +1130,17 @@
         "split": "Aufteilen",
         "harvest": "Ernten",
         "rename": "Name und Art",
-        "delete": "Grow löschen"
+        "delete": "Grow löschen",
+        "reopen": "Grow wieder öffnen"
       },
       "delete": {
         "ask": "{{name}} löschen? Der Grow verschwindet mit seinen Pflanzen und der Zeile seiner Phase. Das lässt sich nicht zurücknehmen.",
         "yes": "Löschen"
+      },
+      "reopen": {
+        "ask": "{{name}} wieder öffnen? Er läuft dann weiter, wo er stand: Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
+        "askNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
+        "yes": "Wieder öffnen"
       },
       "when": "Am",
       "cancel": "Abbrechen",
@@ -1594,7 +1600,10 @@
       "split_other": "{{count}} Pflanzen gehen ihren eigenen Weg",
       "started": "{{name}} gestartet",
       "start": "Start: {{date}}",
-      "deleted": "{{name}} ist gelöscht"
+      "deleted": "{{name}} ist gelöscht",
+      "reopened": "{{name}} läuft wieder",
+      "reopenedNowhere": "{{name}} läuft wieder · kein fester Ort",
+      "endedAgain": "{{name}} ist beendet"
     },
     "alsoHere": "Hier wächst auch:"
   },

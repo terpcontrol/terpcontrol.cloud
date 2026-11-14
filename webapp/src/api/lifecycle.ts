@@ -133,7 +133,7 @@ export const useWeighAgain = () =>
 
 /**
  * A harvest that did not end the grow, taken back: its plants stand again and its line goes. The one that ended the
- * grow is not - nothing takes an end back.
+ * grow is not - an end is taken back by reopening the grow.
  */
 export const useTakeHarvestBack = () =>
   useWrite(

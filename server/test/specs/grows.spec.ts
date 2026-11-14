@@ -538,6 +538,34 @@ describe('ending a grow', () => {
     expect(moved.body.endedAt).toBe(endedAt);
   });
 
+  /**
+   * An ended grow can be reopened (Chris, 2026-11-14): it runs on where it stood. One whose place was removed with
+   * it - "Ort entfernen" with "Grow beenden" - stood in a place nobody can open any more, and runs on at no fixed place.
+   */
+  it('reopens where it stood, and at no fixed place where its place was removed with it', async () => {
+    const { grow, endedAt } = await anEndedGrow();
+    const reopened = (await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200)).body;
+    expect(reopened.endedAt).toBeNull();
+    expect(reopened.placements.filter((placement: { endedAt: string | null }) => placement.endedAt === null)).toMatchObject([{ spaceId: tent }]);
+
+    const place = (
+      await owner.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('Removed with its grow') })
+        .expect(201)
+    ).body.id;
+    const gone = await startAGrow({ spaceId: place, startedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() });
+    await owner.client.patch(`/v1/grows/${gone.id}`).send({ endedAt }).expect(200);
+    await owner.client.delete(`/v1/spaces/${place}`).expect(204);
+
+    const open = (await owner.client.patch(`/v1/grows/${gone.id}`).send({ endedAt: null }).expect(200)).body.placements.filter(
+      (placement: { endedAt: string | null }) => placement.endedAt === null,
+    );
+    expect(open).toEqual([expect.objectContaining({ spaceId: null, startedAt: endedAt, plantIds: null })]);
+    // Running again, it takes what happens to it.
+    await owner.client.post(`/v1/grows/${gone.id}/placements`).send({ spaceId: tent }).expect(201);
+  });
+
   it('cannot end before it began, nor start or end in the future', async () => {
     const grow = await startAGrow({ startedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() });
     const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000).toISOString();
