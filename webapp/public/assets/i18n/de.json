@@ -644,6 +644,7 @@
     },
     "entrySchemeWeek": "Schema-Woche {{week}}",
     "entryRepeatsUntil": "{{count}}× bis {{until}}",
+    "readingOfGone": "{{reading}} einer gelöschten Pflanze",
     "retrying": "Versucht es …"
   },
   "me": {
@@ -1981,6 +1982,7 @@
     "targetLabel": "Worum es in dem Eintrag geht",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
     "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf Start · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
+    "growEnded": "{{grow}} ist beendet und nimmt keine neuen Einträge an: Dieser geht an {{target}}.",
     "litres": "{{litres}} L",
     "tile": {
       "water": "Gießen",
@@ -2008,6 +2010,7 @@
     "takeBackYes": "Löschen",
     "logAsPlanned": "Wie geplant eintragen",
     "saveFailed": "Der Eintrag konnte nicht gespeichert werden",
+    "draftKept": "Die App wurde gerade aktualisiert. Was du hier geschrieben hattest, ist noch da.",
     "photoTitle": "Fotoeintrag",
     "pictureAlt": "Bild {{n}} zu diesem Eintrag",
     "choosePicture": "Foto machen oder auswählen",
@@ -2056,6 +2059,9 @@
     "waterLitres": "Wasser in Litern",
     "lastTime": "Zuletzt {{ago}} · {{litres}} L",
     "plantLabel": "Welche Pflanze",
+    "plantGone": "gelöschte Pflanze",
+    "plantsGone_one": "Dazu eine gelöschte Pflanze: Die Zeile nennt sie weiter, wie geschrieben.",
+    "plantsGone_other": "Dazu {{count}} gelöschte Pflanzen: Die Zeile nennt sie weiter, wie geschrieben.",
     "linePlants": "Welche Pflanzen",
     "alongGone_one": "der Eintrag davor nicht mehr im Tagebuch",
     "alongGone_other": "die {{count}} Einträge davor nicht mehr im Tagebuch",

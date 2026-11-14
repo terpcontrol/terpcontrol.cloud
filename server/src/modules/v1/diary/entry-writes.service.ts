@@ -126,7 +126,10 @@ export class EntryWritesService {
       plantIds: body.plantIds ?? entry.plantIds,
       mediaIds: body.mediaIds ?? entry.mediaIds,
     };
-    await requireLogOn(this.access, ctx, targets);
+    // A plant deleted since the line was written is still what the line recorded: the line is corrected with it, and
+    // only a plant it is newly about has to be there to be written to. Refused, such a line could never be put right.
+    const gone = await this.goneOf(entry.plantIds);
+    await requireLogOn(this.access, ctx, { ...targets, plantIds: targets.plantIds.filter(plantId => !gone.has(plantId)) });
     // Moved onto an ended place it would be a new line there; a line that already stands on one stays correctable.
     if (body.spaceId && body.spaceId !== entry.spaceId) await refuseEndedId(this.spaces, body.spaceId);
 
@@ -229,6 +232,13 @@ export class EntryWritesService {
     const [first] = dueTasksOf(reminders, completions, at, CLOSES_AHEAD_MS).sort((one, other) => one.dueAt.localeCompare(other.dueAt));
 
     return first?.id ?? null;
+  }
+
+  /** Which of these plants no longer exist. */
+  private async goneOf(plantIds: string[]): Promise<Set<string>> {
+    if (plantIds.length === 0) return new Set();
+    const there = await this.plants.find({ id: { $in: plantIds } }, { id: 1 }).lean<Pick<PlantDocument, 'id'>[]>();
+    return new Set(plantIds.filter(plantId => !there.some(plant => plant.id === plantId)));
   }
 
   /** The grow a feed is resolved against: the one named, else the one the plants belong to. */

@@ -239,6 +239,55 @@ describe('writing the diary', () => {
     await owner.client.delete(`/v1/entries/${entry.id}`).expect(404);
   });
 
+  /**
+   * A plant deleted after a line named it: the line still records it, and correcting the line's words or figures sent
+   * that plant again and was refused 404 - the line could never be put right. A plant it is newly about still has to
+   * be there.
+   */
+  it('corrects a line that names a plant deleted since, keeping what it recorded', async () => {
+    const plants: string[] = (await owner.client.get(`/v1/grows/${growId}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    const extra = (await owner.client.post(`/v1/grows/${growId}/plants`).send({ strain: 'Amnesia' }).expect(201)).body.id as string;
+    const readings = [
+      { key: 'ph', value: 6.2, plantId: plants[0] },
+      { key: 'ph', value: 5.9, plantId: extra },
+    ];
+    const measured = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'measurement', growId, plantIds: [plants[0], extra], values: { kind: 'measurement', readings } })
+        .expect(201)
+    ).body;
+    const watered = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'water', growId, plantIds: [plants[0], extra], values: { kind: 'water', litres: 1.5 } })
+        .expect(201)
+    ).body;
+    await owner.client.delete(`/v1/plants/${extra}`).expect(204);
+
+    const corrected = await owner.client
+      .patch(`/v1/entries/${measured.id}`)
+      .send({ growId, plantIds: [plants[0], extra], text: 'Second plant gone', values: { kind: 'measurement', readings } })
+      .expect(200);
+    expect(corrected.body).toMatchObject({ text: 'Second plant gone', plantIds: [plants[0], extra], values: { readings } });
+    await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ growId, plantIds: [plants[0], extra], values: { kind: 'water', litres: 2 } })
+      .expect(200);
+
+    // A gone plant is no new subject of a line.
+    const fresh = await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ plantIds: [plants[1], extra] })
+      .expect(200);
+    expect(fresh.body.plantIds).toEqual([plants[1], extra]);
+    const refused = await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ plantIds: ['no-such-plant'] })
+      .expect(404);
+    expect(refused.body.code).toBe('plant_not_found');
+  });
+
   it('refuses a watering of no water or of more than a tent is given, and names the end it broke', async () => {
     for (const [kind, litres, code] of [
       ['water', 999, 'too_big'],

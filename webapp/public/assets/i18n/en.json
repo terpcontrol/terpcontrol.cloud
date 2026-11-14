@@ -632,6 +632,7 @@
     },
     "entrySchemeWeek": "scheme week {{week}}",
     "entryRepeatsUntil": "{{count}}× until {{until}}",
+    "readingOfGone": "{{reading}} of a deleted plant",
     "retrying": "Trying …"
   },
   "me": {
@@ -1971,6 +1972,7 @@
     "targetLabel": "What the entry is about",
     "nowhere": "Nothing to log against yet · start a grow or add a device first",
     "notHere": "The grow or place this link names is not on Home · it may have finished, or it may not be yours to write in · pick where the entry should go",
+    "growEnded": "{{grow}} has ended and takes no new entries: this one goes to {{target}}.",
     "litres": "{{litres}} L",
     "tile": {
       "water": "Water",
@@ -1998,6 +2000,7 @@
     "takeBackYes": "Delete",
     "logAsPlanned": "Log as planned",
     "saveFailed": "Could not save that entry",
+    "draftKept": "The app was just updated. What you had typed here is kept.",
     "photoTitle": "Photo entry",
     "pictureAlt": "Picture {{n}} for this entry",
     "choosePicture": "Take or choose a picture",
@@ -2046,6 +2049,9 @@
     "waterLitres": "Water in litres",
     "lastTime": "Last time {{ago}} · {{litres}} L",
     "plantLabel": "Which plant",
+    "plantGone": "deleted plant",
+    "plantsGone_one": "And one deleted plant: the line still names it, as written.",
+    "plantsGone_other": "And {{count}} deleted plants: the line still names them, as written.",
     "linePlants": "Which plants",
     "alongGone_one": "the entry before it no longer in the diary",
     "alongGone_other": "the {{count}} entries before it no longer in the diary",

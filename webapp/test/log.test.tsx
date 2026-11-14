@@ -4,7 +4,9 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Entry, EntryUpdate, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import { ApiError } from '@/api/problem';
 import { useCorrecting } from '@/log/corrections';
+import { keepDraft } from '@/log/draft';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog, type LogOpening } from '@/log/log-context';
 import { openingTarget } from '@/log/targets';
@@ -1374,7 +1376,7 @@ describe('correcting a line that was recorded', () => {
     const fieldsOf = async (entry: Entry) => {
       const sheet = await opened(entry);
       await waitFor(() => expect(within(sheet).getAllByRole('textbox').length).toBeGreaterThan(1));
-      const names = [...sheet.querySelectorAll('label > span')].map(name => name.textContent);
+      const names = [...sheet.querySelectorAll('label > span:first-child')].map(name => name.textContent);
       fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
       cleanup();
       return names;
@@ -1407,5 +1409,106 @@ describe('correcting a line that was recorded', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect((vi.mocked(api.patch).mock.calls[0][1] as EntryUpdate).plantIds).toEqual([]);
+  });
+
+  /**
+   * A plant deleted after the line named it: the sheet showed its reading as a bare "pH", and saving the line unchanged
+   * was refused with "Could not save that entry" - the line could never be corrected again. It says the plant is gone,
+   * saves the line as it recorded it (the server takes a recorded plant as recorded), and says a refusal in its words.
+   */
+  it('corrects a line that names a plant deleted since, saying so, and says a refusal in its own words', async () => {
+    const measured = stored({
+      kind: 'measurement',
+      plantIds: ['plant-1', 'plant-gone'],
+      values: {
+        kind: 'measurement',
+        readings: [
+          { key: 'height', value: 40, plantId: 'plant-1' },
+          { key: 'height', value: 41, plantId: 'plant-gone' },
+        ],
+      },
+    });
+    let sheet = await opened(measured);
+    await waitFor(() =>
+      expect([...sheet.querySelectorAll('label > span:first-child')].map(name => name.textContent)).toContain('Height · deleted plant'),
+    );
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect(vi.mocked(api.patch).mock.calls[0][1]).toMatchObject({
+      plantIds: ['plant-1', 'plant-gone'],
+      values: { readings: measured.values.kind === 'measurement' ? measured.values.readings : [] },
+    });
+    cleanup();
+
+    const watered = stored({ kind: 'water', plantIds: ['plant-1', 'plant-gone'], values: { kind: 'water', litres: 1.5, readings: [] } });
+    vi.mocked(api.patch).mockRejectedValueOnce(
+      new ApiError({ status: 404, code: 'plant_not_found', title: 'Not found', detail: 'There is no plant with that id.', errors: [] }),
+    );
+    sheet = await opened(watered);
+    expect(await within(sheet).findByText('And one deleted plant: the line still names it, as written.')).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('There is no plant with that id.');
+  });
+
+  /** A filled reading field dropped its unit: "Height 40", where the empty field showed "cm". */
+  it('keeps a reading´s unit beside its figure, filled or not', async () => {
+    const sheet = await opened(LINES[2]);
+    const height = await within(sheet).findByRole('textbox', { name: /^Height · Amnesia 1/ });
+    expect(height).toHaveValue('40');
+    expect(height.closest('label')).toHaveTextContent(/cm$/);
+  });
+});
+
+/** At 320 the moment's chip lost its pencil, the one sign that the time of a line can be changed. */
+it('keeps the moment´s pencil on the narrowest phones', () => {
+  const sheet = readFileSync(resolve(__dirname, '../src/log/Moment.module.css'), 'utf8');
+  expect(sheet).not.toMatch(/\.button svg \{[^}]*display: none/);
+});
+
+describe('what the sheet keeps and says', () => {
+  /** Eintrag over an ended grow offered only the place and said nothing: a note dated in the grow's weeks went to the place. */
+  it('says that an ended grow takes no new entries, and where this one goes', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/grows/grow-old' ? { ...grow, id: 'grow-old', name: 'Old run', endedAt: daysAgo(3) } : answers(path)) as never,
+    );
+    function OverAnEndedGrow() {
+      const { openSheet } = useLog();
+      return (
+        <button type="button" onClick={() => openSheet({ growId: 'grow-old', underneath: true })}>
+          open over it
+        </button>
+      );
+    }
+    drawAt(
+      <LogProvider>
+        <OverAnEndedGrow />
+      </LogProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open over it' }));
+
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    expect(await within(sheet).findByText('Old run has ended and takes no new entries: this one goes to Spring run.')).toBeInTheDocument();
+  });
+
+  /**
+   * A release reloads at once, and the app looks for one whenever it comes back to the front - just when a note is
+   * half written. The sheet and its words were gone with no notice; the open view is kept for this tab and opens again.
+   */
+  it('opens a view a release reloaded on again, with what was typed into it, and says why', async () => {
+    sessionStorage.clear();
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Note' }));
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.change(within(note).getByRole('textbox'), { target: { value: 'Half a thought about the' } });
+    act(() => keepDraft());
+    cleanup();
+
+    draw();
+    const again = await screen.findByRole('dialog', { name: 'Note' });
+    expect(within(again).getByRole('textbox')).toHaveValue('Half a thought about the');
+    expect(within(again).getByRole('status')).toHaveTextContent('The app was just updated. What you had typed here is kept.');
+    // Once open again it is the view's: another reload keeps what is typed then, and nothing older comes back.
+    expect(sessionStorage.getItem('terp.draft')).toBeNull();
   });
 });

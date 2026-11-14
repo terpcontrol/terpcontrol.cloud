@@ -71,6 +71,10 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   // tiles are dead until a chip is pressed, and an unexplained dead sheet is
   // read as a broken one.
   const missed = aim.missed && place === null;
+  // Opened over a grow that has ended, which the sheet offers no chip of: it says why, and where the line goes instead
+  // - a note dated inside the grow's weeks went to the place and was missed in its diary.
+  const { data: underneath } = useGrow(opening.growId && place && place.growId !== opening.growId ? opening.growId : null);
+  const ended = underneath?.endedAt != null && place ? underneath : null;
 
   const { data: grow } = useGrow(place?.growId ?? null);
   const { data: plants } = useGrowPlants(place?.growId ?? null);
@@ -126,6 +130,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
               {t('log.notHere')}
             </p>
           ) : null}
+          {ended && place ? <p className={ui.note}>{t('log.growEnded', { grow: ended.name, target: place.label })}</p> : null}
           {/* The places in one row, and under it the plants of the chosen one: which place, then whether the line
               is about one plant of it. Pressed rather than linked, so the sheet stays where it is. */}
           {choosable || missed ? (

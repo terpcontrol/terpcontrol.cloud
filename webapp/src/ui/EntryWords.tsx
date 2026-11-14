@@ -74,6 +74,7 @@ export function EntryWords({
   const named = byline && entry.source === 'human' && (doneBy !== null || !byYou);
   const amount = amountOf(t, entry);
   const about = plantsOf(entry, plants);
+  const known = plants.some(plant => plant.growId === entry.growId);
   // The line as facts side by side: who did what, how much of it, how often, each reading. No line of it ends on
   // the dot between two, and no figure leaves its unit or its label.
   const facts: ReactNode[] = [
@@ -104,9 +105,13 @@ export function EntryWords({
     ) : null,
     ...readings.map(reading => {
       const definition = measurements.find(one => one.key === reading.key) ?? ownReading(t, reading.key);
+      const said = `${definition?.name ?? reading.key} ${unbroken(`${looseFigure(reading.value)}${definition?.unit ? ` ${definition.unit}` : ''}`)}`;
+      // A reading of a plant deleted since says so, where the grow's plants are known: a bare "pH 5,9" stood beside the
+      // plants the line still names.
+      const gone = reading.plantId !== null && known && !plants.some(plant => plant.id === reading.plantId);
       return (
         <span key={`${reading.key}-${reading.plantId ?? ''}`} className={styles.readings}>
-          {definition?.name ?? reading.key} {unbroken(`${looseFigure(reading.value)}${definition?.unit ? ` ${definition.unit}` : ''}`)}
+          {gone ? t('home.readingOfGone', { reading: said }) : said}
         </span>
       );
     }),

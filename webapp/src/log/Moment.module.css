@@ -29,15 +29,13 @@
   color: var(--muted);
 }
 
-/* On the narrowest phones the moment leaves the sheet's title its room: closer set, and without the pencil. */
+/* On the narrowest phones the moment leaves the sheet's title its room: closer set - and with its pencil, the one
+   sign that the time can be changed. */
 @media (max-width: 359px) {
   .button {
+    gap: 2px;
     padding: 0 var(--space-2);
     font-size: var(--text-xs);
-  }
-
-  .button svg {
-    display: none;
   }
 }
 

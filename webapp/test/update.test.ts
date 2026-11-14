@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { followReleases } from '@/app/update';
+import { holdDraft, keptDraft, type Draft } from '@/log/draft';
 
 /**
  * A new release: the page reloads once its worker has taken over, but not on
@@ -46,6 +47,23 @@ describe('followReleases', () => {
     worker.dispatchEvent(new Event('controllerchange'));
     worker.dispatchEvent(new Event('controllerchange'));
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  /** A note half written when a release took the page over was gone with the sheet, without a word. */
+  it('keeps the open sheet´s draft for this tab before it reloads', () => {
+    sessionStorage.clear();
+    const draft = { kind: 'note', text: 'Half a thought' } as Draft;
+    const letGo = holdDraft(() => draft);
+    const { worker, reload } = fakeWorker({});
+    let atReload: Draft | null = null;
+    reload.mockImplementation(() => (atReload = keptDraft()));
+    followReleases();
+    worker.dispatchEvent(new Event('controllerchange'));
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(atReload).toEqual(draft);
+    letGo();
+    sessionStorage.clear();
   });
 
   it('looks for a new release when the app comes back to the front', () => {

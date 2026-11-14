@@ -207,6 +207,12 @@
   outline: none;
 }
 
+.fieldUnit {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 .more {
   display: flex;
   align-items: center;

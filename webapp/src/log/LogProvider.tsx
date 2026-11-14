@@ -8,6 +8,7 @@ import { ApiError } from '@/api/problem';
 import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind, type Told } from './log-context';
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
+import { forgetDraft, keptDraft, type Draft } from './draft';
 import { PhotoEntry } from './PhotoEntry';
 import { HarvestWeights } from '@/screens/grow/HarvestWeights';
 import { lastUsed, withRoom } from './toast-room';
@@ -60,12 +61,30 @@ interface Details {
   from: LogOpening | null;
   /** The task the line closes, where a task's "Eintragen" opened it. */
   taskId?: string | null;
+  /** What was typed before a release reloaded the page, which the view opens on again. */
+  draft?: Draft | null;
 }
+
+/** The view a release's reload left open, on what was typed into it; a photo's pictures are not kept, so not its view. */
+const reopened = (draft: Draft | null): Details | null =>
+  draft && (draft.kind !== 'photo' || draft.entry)
+    ? {
+        kind: draft.kind,
+        target: draft.target,
+        entry: draft.entry,
+        at: draft.at ? new Date(draft.at) : null,
+        from: null,
+        taskId: draft.taskId,
+        draft,
+      }
+    : null;
 
 export function LogProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const [opening, setOpening] = useState<LogOpening | null>(null);
-  const [details, setDetails] = useState<Details | null>(null);
+  const [details, setDetails] = useState<Details | null>(() => reopened(keptDraft()));
+  // Read once, then the open view's: a later reload keeps what is typed then.
+  useEffect(forgetDraft, []);
   const [weighing, setWeighing] = useState<Entry | null>(null);
   const [lines, setLines] = useState<LoggedLine[]>([]);
   // What stands now, for an undo that takes along what was written on it.
@@ -273,6 +292,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
           entry={details.entry}
           at={details.at}
           taskId={details.taskId}
+          draft={details.draft ?? null}
           onBack={back}
           onClose={close}
         />

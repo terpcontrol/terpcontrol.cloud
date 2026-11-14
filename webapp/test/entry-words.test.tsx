@@ -330,4 +330,27 @@ describe('a line about some of a grow´s plants', () => {
     expect(container.textContent).not.toMatch(/X1/);
     cleanup();
   });
+
+  /** A round of readings after one of its plants was deleted read "A1 · pH 6.2 · pH 5.9": the second figure of nobody. */
+  it('says a reading of a plant deleted since is of a deleted plant, where the grow´s plants are known', () => {
+    const measured = entryOf({
+      kind: 'measurement',
+      plantIds: ['a1', 'gone'],
+      values: {
+        kind: 'measurement',
+        readings: [
+          { key: 'ph', value: 6.2, plantId: 'a1' },
+          { key: 'ph', value: 5.9, plantId: 'gone' },
+        ],
+      },
+    });
+    const ph = [{ key: 'ph', name: 'pH', unit: '' }];
+    const { container, rerender } = render(<Words entry={measured} people={[]} measurements={ph} plants={plants} />);
+    expect(container.textContent).toMatch(/A1 · pH 6\.2 · pH 5\.9 of a deleted plant/);
+
+    // A reader not told the grow's plants cannot say which are gone, and says nothing of it.
+    rerender(<Words entry={measured} people={[]} measurements={ph} plants={[]} />);
+    expect(container.textContent).not.toMatch(/deleted/);
+    cleanup();
+  });
 });

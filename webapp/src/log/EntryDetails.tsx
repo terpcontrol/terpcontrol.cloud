@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Minus, Plus } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Entry,
@@ -20,6 +20,7 @@ import { MAX_LITRES } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { api } from '@/api/client';
+import { ApiError } from '@/api/problem';
 import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
@@ -36,6 +37,7 @@ import { Asking } from '@/ui/Asking';
 import { looseFigure, typedFigure, unitShown } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { PictureStrip, PictureViewer } from '@/ui/PictureViewer';
+import { refusalText } from '@/ui/refusal';
 import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
@@ -53,6 +55,7 @@ import {
   stoppedAfter,
   useGrowBegins,
 } from './defaults';
+import { holdDraft, type Draft } from './draft';
 import { about, lineLabel, occurredAt } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
 import { Moment } from './Moment';
@@ -97,9 +100,11 @@ interface DetailsProps {
   /** Back to the tiles the kind was chosen on, where it was chosen there. */
   onBack?: (() => void) | null;
   onClose: () => void;
+  /** What was typed here before a release reloaded the page: the view opens on it again, and says why. */
+  draft?: Draft | null;
 }
 
-export function EntryDetails({ kind, target, entry, at, taskId, onBack, onClose }: DetailsProps) {
+export function EntryDetails({ kind, target, entry, at, taskId, onBack, onClose, draft = null }: DetailsProps) {
   // Measuring has a sheet of its own: it is the one tile whose fields are the
   // grow's own definitions, and it is used with one hand in front of a plant.
   // Correcting a line that already exists stays here, where every kind is
@@ -108,10 +113,10 @@ export function EntryDetails({ kind, target, entry, at, taskId, onBack, onClose 
   // says.
   if (kind === 'measurement' && !entry) return <MeasureSheet target={target} at={at} onBack={onBack} onClose={onClose} />;
 
-  return <Details kind={kind} target={target} entry={entry} at={at} taskId={taskId} onBack={onBack} onClose={onClose} />;
+  return <Details kind={kind} target={target} entry={entry} at={at} taskId={taskId} onBack={onBack} onClose={onClose} draft={draft} />;
 }
 
-function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: DetailsProps) {
+function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draft = null }: DetailsProps) {
   const { t, i18n } = useTranslation();
   const { log, tell } = useLog();
   const client = useQueryClient();
@@ -130,7 +135,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
   const [dated, setDated] = useState<Date | null>(given);
   const said = dated ?? (entry ? new Date(entry.occurredAt) : null);
   const at = said ?? serverNow().toJSDate();
-  const [litres, setLitres] = useState<number | null>(entry ? litresOf(entry) : opensOn);
+  const [litres, setLitres] = useState<number | null>(draft ? draft.litres : entry ? litresOf(entry) : opensOn);
   // What stands in the field while it is typed in: "4," is not a figure yet and must not be put right under the finger.
   const [typedLitres, setTypedLitres] = useState<string | null>(null);
   // Refused with a word rather than dropped: what was typed is no number, no amount at all, or more water than a
@@ -146,21 +151,24 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
           : null;
   // Which of the grow's plants the line is about - none is the whole of what it was written against. A correction can
   // change it: a training named with the wrong plant was kept as it was and could not be put right.
-  const [plantIds, setPlantIds] = useState<string[]>(target.plantIds);
+  const [plantIds, setPlantIds] = useState<string[]>(draft?.plantIds ?? target.plantIds);
+  // A plant of the line deleted since is still what it recorded, and stays in it: the server takes it as recorded.
+  const there = (plantId: string): boolean => !plants || plants.items.some(plant => plant.id === plantId);
+  const gone = plantIds.filter(plantId => !there(plantId));
   const aimed = { ...target, plantIds };
   const begins = useGrowBegins(grow, aimed);
   // A field is a key for one plant or for the whole line: a round of readings across several plants is one line, and
   // its correction shows every reading of it where it was taken.
-  const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
-  const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry), target));
+  const [readings, setReadings] = useState<Record<string, string>>(() => draft?.readings ?? typed(readingsOf(entry)));
+  const [shown, setShown] = useState<string[]>(() => draft?.shown ?? firstFields(definitions, readingsOf(entry), target));
   // The grow's measurements arrive after the sheet: a new line, or a correction, opens on the first few of them as well.
-  const [settled, setSettled] = useState(definitions.length > 0);
+  const [settled, setSettled] = useState(draft !== null || definitions.length > 0);
   if (!settled && definitions.length > 0) {
     setSettled(true);
     setShown(firstFields(definitions, readingsOf(entry), target));
   }
-  const [text, setText] = useState(entry?.text ?? '');
-  const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
+  const [text, setText] = useState(draft?.text ?? entry?.text ?? '');
+  const [stage, setStage] = useState<GrowthStage | null>(draft?.stage ?? nextStage(grow));
   /**
    * Whether the phase moves the tent's climate too: asked beside the stage, and
    * kept until the stage changes. Null until somebody picks, because what it
@@ -173,11 +181,31 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
   /** The corner's pop-up stands open on a moment it refuses: nothing is saved under a moment nobody chose. */
   const [refusedMoment, setRefusedMoment] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
-  /** Which of the two writes went wrong, so the line under the button says the right thing. */
+  /** Which of the two writes went wrong, so the line under the button says the right thing - a refusal in its own words. */
   const [failed, setFailed] = useState<'save' | 'back' | null>(null);
+  const [refusedWith, setRefusedWith] = useState<string | null>(null);
   const [askingBack, setAskingBack] = useState(false);
   /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
   const [startingGrow, setStartingGrow] = useState(false);
+
+  // What is typed here, for a release that reloads the page while the view stands open (`app/update.ts`).
+  const typedHere = useRef<Draft | null>(null);
+  useEffect(() => {
+    typedHere.current = {
+      kind,
+      target,
+      entry,
+      at: dated?.toISOString() ?? null,
+      taskId: taskId ?? null,
+      litres,
+      readings,
+      shown,
+      text,
+      plantIds,
+      stage,
+    };
+  });
+  useEffect(() => holdDraft(() => typedHere.current), []);
 
   // A feed that was recorded is corrected from what it recorded - the week its doses were read from and the doses -,
   // never from the week its date falls in now: the grid or the grow's start may have moved since.
@@ -197,6 +225,8 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
   const fieldName = (slot: string): string => {
     const [key, plantId] = slot.split('|');
     const name = definitions.find(one => one.key === key)?.name ?? key;
+    // A reading of a plant deleted since is said as such: a bare "pH" stood beside "pH · Gorilla Glue 1".
+    if (plantId && !there(plantId)) return `${name} · ${t('log.plantGone')}`;
     // A reading of one plant on a line about more than that plant says whose it is.
     const plant = plantId && plantIds.join() !== plantId ? plants?.items.find(one => one.id === plantId) : undefined;
     return plant ? `${name} · ${plant.label}` : name;
@@ -283,9 +313,11 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
       onClose();
       // The sheet is gone and the line may be days up the page: the toast says it was taken.
       tell({ label: t('log.corrected'), undo: null });
-    } catch {
+    } catch (error) {
       setSaving(false);
       setFailed('save');
+      // What the server refused is said in its words ("Diese Pflanze gibt es nicht mehr."); a fault, generally.
+      setRefusedWith(error instanceof ApiError && error.problem.status < 500 ? refusalText(error) : null);
     }
   };
 
@@ -356,6 +388,12 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
         </button>
       }
     >
+      {draft ? (
+        <p className={ui.note} role="status">
+          {t('log.draftKept')}
+        </p>
+      ) : null}
+
       {/* Which grid the doses come from, and which week of it, sits with what the line is about: the corner is the moment's. */}
       <p className={styles.subject}>
         <Facts
@@ -381,6 +419,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
           ))}
         </div>
       ) : null}
+      {choosesPlants && gone.length > 0 ? <p className={ui.note}>{t('log.plantsGone', { count: gone.length })}</p> : null}
 
       {showsWater ? (
         <div className={`${ui.card} ${styles.waterRow}`}>
@@ -458,9 +497,11 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
                     aria-invalid={slot === unread || undefined}
                     aria-describedby={slot === unread && !refusedLitres ? refusal : undefined}
                     value={readings[slot] ?? ''}
-                    placeholder={definition?.unit || undefined}
+                    placeholder="—"
                     onChange={event => setReadings(current => ({ ...current, [slot]: event.target.value }))}
                   />
+                  {/* The unit stands beside the figure, filled or not, as the litres do: a placeholder went with the first digit. */}
+                  {definition?.unit ? <span className={styles.fieldUnit}>{unitShown(definition.unit)}</span> : null}
                 </label>
               );
             })}
@@ -524,7 +565,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
 
       {failed ? (
         <p className={ui.problem} role="alert">
-          {t(failed === 'back' ? 'log.deleteFailed' : 'log.saveFailed')}
+          {failed === 'back' ? t('log.deleteFailed') : (refusedWith ?? t('log.saveFailed'))}
         </p>
       ) : null}
 
