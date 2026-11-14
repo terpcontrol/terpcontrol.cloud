@@ -24,6 +24,7 @@ import type {
   SplitCreate,
   SplitResult,
 } from '@fg2/shared-types/v1';
+import { nameKey } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
 import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
@@ -419,13 +420,12 @@ export class GrowsService {
   /** One plant, which is what replaces a dead one; a whole row of the sheet is created with the grow. */
   public async addPlant(growId: string, body: PlantCreate, hide: Redaction): Promise<Plant> {
     const standing = await this.plantsOf(growId);
-    const taken = standing.filter(plant => plant.strain === body.strain).length;
 
     const plant: PlantDocument = {
       id: uuidv4(),
       growId,
       strain: body.strain,
-      label: body.label ?? `${body.strain} ${taken + 1}`,
+      label: body.label ?? nextLabel(body.strain, standing),
       status: 'active',
       harvest: null,
       createdAt: new Date(),
@@ -1028,6 +1028,23 @@ const requireDistinctKeys = (definitions: MeasurementDefinition[]): void => {
 
 const storedHarvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;
+
+/**
+ * What a plant added without a name is called: its strain with the number after the highest one in use. Counting
+ * the strain's plants put a new one into a name still taken once one before it was deleted - two "OG Kush 3" in the
+ * harvest sheet and the diary. A name somebody gave by hand to another plant is passed over as well.
+ */
+const nextLabel = (strain: string, plants: readonly Pick<PlantDocument, 'label'>[]): string => {
+  const taken = new Set(plants.map(plant => nameKey(plant.label)));
+  const stem = nameKey(strain);
+  const used = plants.flatMap(plant => {
+    const counted = /^(.*\S)\s+(\d{1,6})$/u.exec(nameKey(plant.label));
+    return counted && counted[1] === stem ? [Number(counted[2])] : [];
+  });
+  let number = Math.max(0, ...used) + 1;
+  while (taken.has(nameKey(`${strain} ${number}`))) number += 1;
+  return `${strain} ${number}`;
+};
 
 /** Where the plants a request is about stand: the open placement that still covers them. */
 const spaceOf = (grow: GrowDocument, plantIds: string[]): string | null => {

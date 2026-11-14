@@ -149,13 +149,19 @@ export class AlarmEngineService implements MetricSampleSink {
    * while nothing is being said, and an all-clear afterwards naming a gentler
    * extreme than the tent actually reached would be the record lying about the
    * one stretch nobody was watching.
+   *
+   * The quiet holds back what is said, not an episode ending: a reading back in
+   * its band while somebody works on the tent ends the alert then, with nothing
+   * sent. Held until the settle ran out, an alert stood open over a good
+   * reading for up to ten minutes after the door shut, and the record called a
+   * stretch of eighteen minutes twenty-seven.
    */
   private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
     if (this.saysNothingNew(rule, at)) return;
 
     const workedOn = device.state.maintenanceUntil && device.state.maintenanceUntil.getTime() + MAINTENANCE_COOLDOWN_MS > Date.now();
-    if (outOfBand !== rule.state.triggered && !workedOn) {
-      await this.turn(rule, device, value, at, outOfBand);
+    if (outOfBand !== rule.state.triggered && (!workedOn || !outOfBand)) {
+      await this.turn(rule, device, value, at, outOfBand, !workedOn);
       return;
     }
 
@@ -202,15 +208,15 @@ export class AlarmEngineService implements MetricSampleSink {
     if (alert) await this.alerts.quieten(alert, new Date());
   }
 
-  /** The turn itself: what is written down first, and what is said afterwards. */
-  private async turn(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
+  /** The turn itself: what is written down first, and what is said afterwards - an end during maintenance is not `told`. */
+  private async turn(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean, told = true): Promise<void> {
     const now = new Date();
     const subject = subjectOf(rule, device);
 
     if (!outOfBand) {
       const alert = await this.alerts.openOfRule(rule.id);
       await this.write(rule, at, { 'state.triggered': false, 'state.extremeValue': null, 'state.lastResolvedAt': now });
-      if (alert) await this.alerts.settle(subject, alert, value, now);
+      if (alert) await this.alerts.settle(subject, alert, value, now, told);
       return;
     }
 

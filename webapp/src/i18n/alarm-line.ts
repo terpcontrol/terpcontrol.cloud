@@ -96,7 +96,8 @@ export const alarmLineParts = (i18n: I18n, param: string, triggered: boolean): A
   thresholdLine(i18n, param, triggered) ?? silenceLine(i18n, param, triggered);
 
 const THRESHOLD = /^(.*) \(([A-Za-z0-9_]+)\), value=([^,]+?)(?:, upper threshold=([^,]+?), lower threshold=([^,]+?))?(?:, extreme value=([^,]+?))?$/;
-const SILENT = /^(.*), last heard (.+) ago$/;
+/** A silence raised, with the seconds the span rounds where the server wrote them (`silent=`): the line dates its start by them. */
+const SILENT = /^(.*), last heard (.+?) ago(?:, silent=(\d+(?:\.\d+)?))?$/;
 const BACK_AFTER = /^(.*), back after (.+)$/;
 const BACK = /^(.*), back$/;
 
@@ -166,7 +167,9 @@ const silenceLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine |
 
   if (triggered) {
     const silent = SILENT.exec(param);
-    const quiet = silent ? secondsOf(silent[2]) : null;
+    // The span is rounded - "11 min" of 11 min 40 s dated the start a minute later than Meldungen did; a line from
+    // before the seconds were written is read by its span.
+    const quiet = !silent ? null : silent[3] !== undefined ? Number(silent[3]) : secondsOf(silent[2]);
     return silent
       ? { ...line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })), ...(quiet === null ? {} : { silentFor: quiet }) }
       : null;

@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { alarmLineText } from '@/i18n/alarm-line';
+import { alarmLineParts, alarmLineText } from '@/i18n/alarm-line';
 import { translate } from './translations';
 
 /**
@@ -38,6 +38,19 @@ describe('an alarm line', () => {
 
     await i18next.changeLanguage('en');
     expect(alarmLineText(i18next, 'Device offline, last heard 5 d 6 h ago', true)).toBe('Device offline · silent for 5 d 6 h');
+  });
+
+  /**
+   * The span is rounded, so the diary dated a silence's start from "11 min" a minute later than Meldungen, which
+   * dates it from the alert's own seconds: "01:22" against "01:21" for one incident. The seconds come with the line.
+   */
+  it('dates a silence by the seconds the server wrote with it, and an older line by its span', () => {
+    expect(alarmLineParts(i18next, 'Device offline, last heard 11 min ago, silent=700.25', true)).toMatchObject({
+      rule: 'Gerät offline',
+      said: ['11 Min ohne Meldung'],
+      silentFor: 700.25,
+    });
+    expect(alarmLineParts(i18next, 'Device offline, last heard 11 min ago', true)?.silentFor).toBe(660);
   });
 
   it('leaves a line of another shape to be shown as it came', () => {

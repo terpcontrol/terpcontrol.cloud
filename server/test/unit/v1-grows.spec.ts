@@ -1050,6 +1050,23 @@ describe('plants', () => {
     expect(added.label).toBe('Amnesia 3');
   });
 
+  /**
+   * Counting the strain's plants put a plant added after a deletion into a name still taken: OG Kush 1, 2 and 3, the
+   * 2 deleted, and the new one was a second "OG Kush 3" in the harvest sheet and the diary.
+   */
+  it('numbers a plant past the highest number in use, never into a name still taken', async () => {
+    const grow = await started();
+    const third = await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN);
+    await grows.removePlant((await plantsOfGrow(grow.id)).find(plant => plant.label === 'Amnesia 2')!.id);
+
+    expect((await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN)).label).toBe('Amnesia 4');
+    expect(third.label).toBe('Amnesia 3');
+
+    // A name given by hand that the next number would take is passed over.
+    await grows.addPlant(grow.id, { strain: 'Amnesia', label: 'amnesia 5' }, NOTHING_HIDDEN);
+    expect((await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN)).label).toBe('Amnesia 6');
+  });
+
   it('records what a plant weighed, days after it was cut', async () => {
     const grow = await started();
     const plant = (await plantsOfGrow(grow.id))[0];

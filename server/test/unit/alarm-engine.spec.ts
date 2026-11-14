@@ -237,6 +237,52 @@ describe('what keeps an alarm quiet', () => {
     expect((await storedRule()).state.lastTriggeredAt!.getTime()).toBeGreaterThan(announcedAt.getTime());
   });
 
+  /**
+   * The quiet holds back what is said, not the end of an episode: an alert open when maintenance began, whose
+   * reading came back while the door was open, stood open over a good reading until the settle ran out - and the
+   * record called eighteen minutes twenty-seven. It ends when the reading recovers, says so in the diary, and sends
+   * nobody the all-clear.
+   */
+  it('ends an episode whose reading recovers during maintenance then, with its true length and nothing sent', async () => {
+    const startedAt = new Date(Date.now() - 18 * 60_000);
+    await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() + 10 * 60_000) } });
+    await db.alarmRules.create(
+      ruleFor({
+        delivery: { mode: 'custom', custom: { channel: 'email', target: 'somebody@example.com', includeDetails: false, webhook: null } },
+        state: { triggered: true, lastTriggeredAt: startedAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
+      }),
+    );
+    await db.alerts.create({
+      id: 'alert-1',
+      createdAt: startedAt,
+      ruleId: 'rule-1',
+      deviceId: DEVICE,
+      cameraId: null,
+      spaceId: SPACE,
+      kind: 'threshold',
+      severity: 'warning',
+      startedAt,
+      resolvedAt: null,
+      value: 32,
+      extremeValue: 32,
+      watched: null,
+    });
+
+    await reads(25, new Date());
+
+    expect(await openAlert()).toBeNull();
+    const alert = await db.alerts.findOne({ id: 'alert-1' }).lean<StoredAlert>();
+    expect(alert!.resolvedAt!.getTime() - startedAt.getTime()).toBeLessThan(18 * 60_000 + 5_000);
+    expect(alert!.rested).not.toBe(true);
+    expect((await storedRule()).state.triggered).toBe(false);
+    expect((await db.entries.find({}).lean()).map(entry => entry.message?.key)).toEqual(['message-alarm-resolved']);
+    expect(mailed).toEqual([]);
+
+    // A reading out of its band again while the quiet lasts raises nothing.
+    await reads(33, new Date(Date.now() + 1_000));
+    expect(await openAlert()).toBeNull();
+  });
+
   it('says the all-clear once, rather than repeating it for as long as nothing goes wrong', async () => {
     const clearedAt = new Date(Date.now() - 120_000);
     await device();
@@ -604,7 +650,9 @@ describe('the health loop', () => {
     await health.run(at);
 
     expect(await openAlert()).toMatchObject({ kind: 'offline', value: 4 * 24 * 3600 + 90 * 60 });
-    expect((await db.entries.find({}).lean()).map(entry => entry.message?.params[0])).toEqual(['Device offline, last heard 4 d 1 h ago']);
+    expect((await db.entries.find({}).lean()).map(entry => entry.message?.params[0])).toEqual([
+      'Device offline, last heard 4 d 1 h ago, silent=351000',
+    ]);
   });
 
   it('calls no device gone that the store heard from since the note was written', async () => {
@@ -735,7 +783,11 @@ describe('the line an alarm writes into the diary', () => {
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Device offline, last heard 4 d 7 h ago']);
+    // The span is what a person reads; the seconds after it are what the diary dates the silence's start by, as Meldungen does.
+    const [line] = await said();
+    expect(line).toMatch(/^Device offline, last heard 4 d 7 h ago, silent=374021\.\d+$/);
+    const alert = (await openAlert())!;
+    expect(Number(/silent=(.+)$/.exec(line)![1])).toBe(alert.value);
   });
 
   it('says the same for a camera that has stopped delivering stills, which has no rule to name it', async () => {
@@ -753,7 +805,7 @@ describe('the line an alarm writes into the diary', () => {
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Fridgegrow, last heard 2 h ago']);
+    expect(await said()).toEqual([expect.stringMatching(/^Fridgegrow, last heard 2 h ago, silent=7200(\.\d+)?$/)]);
   });
 
   it('dates the end of an absence from the episode rather than from the silence it was resolved on', async () => {
@@ -774,7 +826,7 @@ describe('the line an alarm writes into the diary', () => {
     // not the twelve seconds that ended it.
     await episodes.settle(subject, alert, 12, new Date());
 
-    expect(await said()).toEqual(['Device offline, last heard 11 min ago', 'Device offline, back after 1 h 30 min']);
+    expect(await said()).toEqual(['Device offline, last heard 11 min ago, silent=660', 'Device offline, back after 1 h 30 min']);
   });
 
   it('leaves a threshold alarm in the words it has always used', async () => {

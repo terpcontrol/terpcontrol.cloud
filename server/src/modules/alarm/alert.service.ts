@@ -83,11 +83,16 @@ export class AlertService {
     return alert;
   }
 
-  /** It is over. The worst of it stays on the alert, which is the record of the episode. */
-  public async settle(subject: AlertSubject, alert: StoredAlert, value: number | null, at: Date): Promise<void> {
+  /**
+   * It is over. The worst of it stays on the alert, which is the record of the episode. `told` false ends it while
+   * somebody works on the device: the diary says it is over, and nobody is sent the all-clear.
+   */
+  public async settle(subject: AlertSubject, alert: StoredAlert, value: number | null, at: Date, told = true): Promise<void> {
     const extremeValue = subject.rule?.state.extremeValue ?? alert.extremeValue;
+    const settled = { ...alert, resolvedAt: at, extremeValue };
     await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at, extremeValue } });
-    await this.announce('resolved', subject, { ...alert, resolvedAt: at, extremeValue }, value);
+    if (told) await this.announce('resolved', subject, settled, value);
+    else await this.writeEntry('resolved', subject, settled, value);
   }
 
   /**
@@ -192,6 +197,11 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
  * the loop resolves an episode from a fresh measurement of the silence, which is
  * a few seconds by the time anything has been heard again, and "last heard 12 s
  * ago" is not what a four-day absence should be remembered as.
+ *
+ * The raise carries the silence in seconds as well (`silent=`), which the span
+ * rounds: the diary dates when the device fell silent from it, as Meldungen
+ * dates it from the alert's own `value`, and read back from "11 min" the two
+ * said 01:21 and 01:22 of one silence - an hour apart for one of days.
  */
 const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (event === 'resolved') {
@@ -199,7 +209,7 @@ const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null
     return episode === null ? `${subject.name}, back` : `${subject.name}, back after ${spanWords(episode)}`;
   }
 
-  return value === null ? subject.name : `${subject.name}, last heard ${spanWords(value)} ago`;
+  return value === null ? subject.name : `${subject.name}, last heard ${spanWords(value)} ago, silent=${value}`;
 };
 
 const MINUTE = 60;
