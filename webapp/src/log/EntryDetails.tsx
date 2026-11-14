@@ -13,6 +13,7 @@ import type {
   GrowthStage,
   MeasurementDefinition,
 } from '@fg2/shared-types/v1';
+import { MAX_LITRES } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { api } from '@/api/client';
@@ -68,9 +69,6 @@ const WATER_KEY = 'water_l';
 const FIELDS_SHOWN = 3;
 
 const LITRE_STEP = 0.5;
-
-/** More water than any tent takes at once: a figure beyond it is a slip of the finger, and is refused rather than written. */
-const MAX_LITRES = 1000;
 
 interface DetailsProps {
   kind: TileKind;

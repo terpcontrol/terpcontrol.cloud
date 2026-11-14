@@ -15,18 +15,18 @@
   margin-bottom: var(--space-4);
 }
 
-/* A finger high, and a name longer than the sheet cut with an ellipsis. */
+/* A finger high, and a name longer than the sheet wrapped as a sheet's choices are: a plant's number stands at the
+   end of its name, and cut away it left every chip of a long strain reading alike. */
 .targets > button {
-  display: block;
   max-width: 100%;
   height: auto;
   min-height: var(--control-height);
-  padding: 0 14px;
-  overflow: hidden;
+  padding: var(--space-1) 14px;
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 /* Four to a row, and the tiles of a last row that is short share its width: a row has no hole. */

@@ -865,12 +865,13 @@ describe('the log sheet', () => {
     expect(within(details).getByRole('alert')).toHaveTextContent('That is not a number.');
     expect(within(details).getByRole('button', { name: /^Save/ })).toBeDisabled();
 
-    fireEvent.change(litres, { target: { value: '99999' } });
+    // 999 L went through as a watering: the bound is the contract's, the one the route holds to too.
+    fireEvent.change(litres, { target: { value: '999' } });
     expect(
       within(details)
         .getByRole('alert')
         .textContent?.replace(/\u00a0/g, ' '),
-    ).toBe('At most 1000 L.');
+    ).toBe('At most 100 L.');
     expect(within(details).getByRole('button', { name: /^Save/ })).toBeDisabled();
 
     // No amount at all is refused as well: "-3" once saved a watering of nothing.
@@ -923,6 +924,14 @@ describe('the log sheet', () => {
     expect(tiles).toMatch(/display: grid;/);
     expect(tiles).toMatch(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
     expect(/\.tile \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/flex:/);
+  });
+
+  /** A long strain's plants are told apart by the number at the end of their names: a chip wraps, it never cuts it away. */
+  it('wraps a long name on a place´s or a plant´s chip rather than cutting off its end', () => {
+    const css = readFileSync(resolve(__dirname, '../src/log/Log.module.css'), 'utf8');
+    const chip = /\.targets > button \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(chip).toMatch(/white-space: normal;/);
+    expect(chip).not.toMatch(/ellipsis|nowrap/);
   });
 
   it('answers a correction and a line taken back with a toast, once the sheet is gone', async () => {

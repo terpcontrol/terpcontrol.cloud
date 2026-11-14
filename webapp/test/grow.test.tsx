@@ -17,6 +17,7 @@ import { growStanding } from '@/ui/session-access';
 import { GrowHead } from '@/screens/grow/GrowPage';
 import { Pictures } from '@/screens/grow/pictures/Pictures';
 import { Report } from '@/screens/grow/Report';
+import { AlsoHere } from '@/screens/space/AlsoHere';
 import { drawAt, json, reading } from './harness';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 import { catalogue, translate } from './translations';
@@ -197,6 +198,7 @@ const wire = {
   grows: [] as GrowListItem[],
   entries: [] as Entry[],
   report: REPORT as unknown,
+  plants: [] as { id: string; growId: string; label: string }[],
   /** The diary's pages by cursor; the first under ''. */
   diary: {} as Record<string, { items: GrowDiaryWeek[]; nextCursor: string | null; people: { id: string; handle: string }[]; earlier?: Entry[] }>,
 };
@@ -217,6 +219,7 @@ vi.stubGlobal(
       return json({ earlier: [], ...(wire.diary[url.searchParams.get('cursor') ?? ''] ?? { items: [], nextCursor: null, people: [] }) });
 
     if (path === '/grows/grow-1/report') return json(wire.report);
+    if (path === '/grows/grow-1/plants') return json({ items: wire.plants, nextCursor: null });
     if (path === '/grows') return json({ items: wire.grows, nextCursor: null });
     if (path === '/entries') return json({ items: wire.entries, nextCursor: null });
     if (path === '/spaces') return json({ items: [{ id: 'space-1', name: 'Tent 1', kind: 'tent', roomId: null }], nextCursor: null });
@@ -236,6 +239,7 @@ beforeEach(() => {
   forgetKept();
   wire.job = EXPORT_ROW('queued');
   wire.report = REPORT;
+  wire.plants = [];
   wire.grows = [];
   wire.entries = [];
   session.user = SIGNED_IN;
@@ -320,6 +324,19 @@ describe('the report tab', () => {
     expect(await screen.findByText('Geerntet · nass 60 g · trocken 12,5 g')).toBeInTheDocument();
     expect(screen.getByText('Tag')).toBeInTheDocument();
     expect(screen.getByText('Eintrag')).toBeInTheDocument();
+  });
+
+  /** One plant of three cut is that plant's harvest; the grow is harvested when its last plant is. */
+  it('names the plants a harvest is of while others still grow, and says the grow´s harvest once none does', async () => {
+    wire.plants = [{ id: 'plant-2', growId: 'grow-1', label: 'B2' }];
+    wire.report = { ...REPORT, harvest: { harvestedAt: at(0), wetWeightG: 60, dryWeightG: null, plantIds: ['plant-2'] } };
+    const { unmount } = drawReport();
+    expect(await screen.findByText('B2 harvested · wet 60 g')).toBeInTheDocument();
+    unmount();
+
+    wire.report = { ...REPORT, harvest: { harvestedAt: at(0), wetWeightG: 60, dryWeightG: null, plantIds: [] } };
+    drawReport();
+    expect(await screen.findByText('Harvested · wet 60 g')).toBeInTheDocument();
   });
 
   it('asks for the zip and says where the job has got to, with nothing to download until there is', async () => {
@@ -442,6 +459,18 @@ describe('the head of a grow´s page', () => {
 
     expect(screen.getByText(/· 1 Seedling, 1 Veg, 1 harvested/)).toBeInTheDocument();
     expect(screen.queryByText(/2 Seedling/)).not.toBeInTheDocument();
+  });
+
+  /** A second grow started in its place pushed this one out of sight: each grow's page names the other, as the way to it. */
+  it('names the other grow running in its place under the head, as the way to its page', async () => {
+    const gelato = { ...grow, id: 'grow-2', name: 'Gelato', summary: { ...grow.summary, dayNumber: 1 } };
+    const elsewhere = { ...grow, id: 'grow-3', name: 'Balcony run', summary: { ...grow.summary, locations: [{ spaceId: 'space-9', plantIds: [] }] } };
+    wire.grows = [grow, gelato, elsewhere, { ...grow, id: 'grow-4', name: 'Done', endedAt: at(1) }];
+    draw(<AlsoHere growId="grow-1" spaceId="space-1" />);
+
+    const link = await screen.findByRole('link', { name: /^Gelato · Day 1\s›$/ });
+    expect(link).toHaveAttribute('href', '/grows/grow-2');
+    expect(link.closest('p')).toHaveTextContent(/^Also growing here: Gelato · Day 1\s›$/);
   });
 
   it('is one head under both of the grow´s addresses: the way to every grow beside its name, and nothing leading back', () => {
@@ -687,6 +716,54 @@ describe('a day of the diary', () => {
     expect(screen.queryByRole('link', { name: /Too warm/ })).not.toBeInTheDocument();
   });
 
+  /** A card that folds shows an alarm's end wherever it shows its start: an alarm that ended is no alarm standing open. */
+  it('folds an alarm that ended as a device´s line, its end before its start', () => {
+    const alarm = (id: string, hour: number, rule: string, fired: boolean) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        severity: 'critical',
+        occurredAt: at(1, hour),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [`${rule} (temperature), value=31.2, upper threshold=28, lower threshold=n/a`],
+        },
+        values: { kind: 'alarm' },
+      });
+    const lines = dayLines(
+      i18next.t.bind(i18next) as never,
+      i18next,
+      day(1, {
+        entries: [note('c', 14), note('b', 13), note('a', 12), alarm('hot-over', 9, 'Too warm', false), alarm('hot', 8, 'Too warm', true)].concat(
+          alarm('dry-over', 7, 'Too dry', false),
+          alarm('dry', 6, 'Too dry', true),
+        ),
+      }),
+      null,
+    );
+
+    expect(shownLines(lines).map(line => line.key)).toEqual(['c', 'b', 'a', 'hot-over']);
+  });
+
+  /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */
+  it('marks no line a person´s doing that a device wrote as the device´s own', () => {
+    const switched = (key: string, params: string[] = []) =>
+      entry({ id: key, kind: 'system', source: 'device', authorId: null, message: { key, params }, values: { kind: 'system' } as never });
+    drawDay(
+      day(1, {
+        entries: [
+          switched('message-maintenance-mode-activated-remote', ['15']),
+          switched('message-device-booted', ['REMOTE']),
+          switched('message-device-booted', ['BROWNOUT']),
+        ],
+      }),
+    );
+
+    expect(screen.getAllByRole('listitem').map(line => line.textContent?.endsWith('automatic'))).toEqual([false, false, true]);
+  });
+
   it('offers no way into a line on the demo, which reads the whole account and writes nothing to it', () => {
     session.user = ON_THE_DEMO;
     drawDay(day(1, { entries: [entry({ kind: 'training', text: 'Defoliated', values: { kind: 'training' } })] }));
@@ -866,14 +943,32 @@ describe('the diary', () => {
       'Wednesday · Day 33',
     ]);
     // The rest of the week the cards began in, then the week before with what it holds.
-    expect(screen.getByRole('button', { name: reads(/^Day 32 to 29 · Flower, week 2/) })).toHaveTextContent('1 entry');
-    expect(screen.getByRole('button', { name: reads(/^Day 28 to 26 · Flower, week 1/) })).toHaveTextContent('3 pictures · Weekly film');
+    expect(screen.getByRole('button', { name: reads(/^Day 29 to 32 · Flower, week 2/) })).toHaveTextContent('1 entry');
+    expect(screen.getByRole('button', { name: reads(/^Day 26 to 28 · Flower, week 1/) })).toHaveTextContent('3 pictures · Weekly film');
+  });
+
+  /** The week still running is named by today's stage; the days of it folded away are named by most of their own. */
+  it('names a row of folded days by the stage most of them lay in, not by the week´s', async () => {
+    const lay = (stage: 'vegetative' | 'flowering', stageWeek: number) => ({ phase: { stage, preset: null, stageWeek } });
+    wire.diary[''] = {
+      items: [
+        diaryWeek(
+          5,
+          [0, 1, 2, 3, 4, 5, 6].map(back => day(back, { climate, ...(back < 4 ? lay('flowering', 1) : lay('vegetative', 4)) })),
+        ),
+      ],
+      nextCursor: null,
+      people,
+    };
+    drawDiary();
+
+    expect(await screen.findByRole('button', { name: reads(/^Day 29 to 32 · Veg, week 4/) })).toBeInTheDocument();
   });
 
   it('opens a week´s days where they stand, with its film', async () => {
     drawDiary();
 
-    const row = await screen.findByRole('button', { name: reads(/^Day 28 to 26/) });
+    const row = await screen.findByRole('button', { name: reads(/^Day 26 to 28/) });
     expect(row).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(row);
 
@@ -884,13 +979,13 @@ describe('the diary', () => {
 
   it('is found as it was left by whoever comes back to it: the week opened stays open', async () => {
     const first = drawDiary();
-    fireEvent.click(await screen.findByRole('button', { name: reads(/^Day 28 to 26/) }));
+    fireEvent.click(await screen.findByRole('button', { name: reads(/^Day 26 to 28/) }));
     first.unmount();
 
     // The same entry of the history, come back to.
     drawDiary();
 
-    expect(await screen.findByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('button', { name: reads(/^Day 26 to 28/) })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('heading', { name: 'Fri 11 Sep · Day 28' })).toBeInTheDocument();
   });
 
@@ -915,8 +1010,8 @@ describe('the diary', () => {
       drawOn(27);
 
       const card = await screen.findByRole('article', { name: 'Thu 10 Sep · Day 27' });
-      expect(screen.getByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'true');
-      expect(screen.getByRole('button', { name: reads(/^Day 32 to 29/) })).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByRole('button', { name: reads(/^Day 26 to 28/) })).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: reads(/^Day 29 to 32/) })).toHaveAttribute('aria-expanded', 'false');
       expect(into).toHaveBeenCalledTimes(1);
       expect(into.mock.contexts[0]).toBe(card);
     });
@@ -934,7 +1029,7 @@ describe('the diary', () => {
 
       const card = await screen.findByRole('article', { name: 'Yesterday · Day 34' });
       expect(into.mock.contexts).toEqual([card]);
-      expect(screen.getByRole('button', { name: reads(/^Day 28 to 26/) })).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByRole('button', { name: reads(/^Day 26 to 28/) })).toHaveAttribute('aria-expanded', 'false');
     });
 
     it('is left where it was scrolled to for whoever comes back to it', async () => {

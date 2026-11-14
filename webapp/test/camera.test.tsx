@@ -43,6 +43,8 @@ const state = vi.hoisted(() => ({
   asked: [] as TimelapseCreate[],
   /** The film row a request is answered with; null is a request still out. */
   accepted: null as unknown,
+  /** What the server refused a request with. */
+  askError: null as unknown,
   /** The cameras standing where this one does, itself among them. */
   beside: [] as Camera[],
   film: null as unknown,
@@ -168,7 +170,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
       state.asked.push(body);
       if (state.accepted) options?.onSuccess?.({ media: state.accepted });
     },
-    error: null,
+    error: state.askError,
     isPending: false,
   }),
   useTimelapses: () => ({
@@ -283,6 +285,7 @@ beforeEach(() => {
   forgetKept();
   state.asked.length = 0;
   state.accepted = null;
+  state.askError = null;
   state.beside = [];
   state.film = null;
   window.history.replaceState(null, '', '/');
@@ -629,7 +632,7 @@ describe('the camera page, by who is reading', () => {
     // The camera's last picture is as old as the fixture: the pill says what it waits for rather than an age.
     expect(screen.getByText('waiting for Controller')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText('Possible again once the device is back online.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a picture now' })).toHaveAccessibleDescription('waiting for Controller');
     drawn.unmount();
 
     state.devices = [carrier(5)];
@@ -642,7 +645,8 @@ describe('the camera page, by who is reading', () => {
   /**
    * A device that has missed its reports opens no relay: a press then waited out the server's whole read (the critic
    * watched "Taking a picture …" for 45 s beside a camera that had not delivered for minutes). Not offered while the
-   * device is not heard, with the reason beside it, and a press it fell silent under is dropped rather than left hanging.
+   * device is not heard, and a press it fell silent under is dropped rather than left hanging. It is said once, by the
+   * pill, which is the held button's reason too: the page said it four times, once as the relay's own failure.
    */
   it('holds the picture button while the device it is read through is late with its reports, and drops a press made before', async () => {
     const carrier = (secondsAgo: number) =>
@@ -654,14 +658,27 @@ describe('the camera page, by who is reading', () => {
         state: { lastSeenAt: serverNow().minus({ seconds: secondsAgo }).toISO()! },
       }) as unknown as Device;
     state.devices = [carrier(5 * 60)];
+    state.lastError = 'the device did not open the relay in time';
     const drawn = drawPage();
 
     const button = screen.getByRole('button', { name: 'Take a picture now' });
     expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText('Controller is not reporting just now – possible again once it does.')).toBeInTheDocument();
+    expect(button).toHaveAccessibleDescription('waiting for Controller');
+    expect(screen.getAllByText(/Controller/)).toHaveLength(1);
+    expect(screen.queryByText(/did not open the way to the camera/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/is not reporting just now/)).not.toBeInTheDocument();
     // Not the box of a device that is gone: it is late, not offline.
     expect(screen.queryByText(/is read through the device/)).not.toBeInTheDocument();
     drawn.unmount();
+    state.lastError = null;
+
+    // A picture from just before it fell silent does not make the pill say online over a button held for the device.
+    const fresh = drawAt(
+      <CameraScreen camera={{ ...camera, ownerId: YOU, state: { ...camera.state, lastStillAt: serverNow().minus({ seconds: 20 }).toISO()! } }} />,
+    );
+    expect(document.querySelector('[data-liveness]')).toHaveTextContent('waiting for Controller');
+    expect(document.querySelector('[data-liveness]')).toHaveAttribute('data-liveness', 'stale');
+    fresh.unmount();
 
     // A press made while it was heard, and still waiting when it fell silent: the button says it can be pressed again later.
     state.capturing = true;
@@ -1455,6 +1472,17 @@ describe('the films', () => {
    * asked for is followed by its own row, and once that plays it is the film
    * of its kind - the button plays it rather than offering to make it again.
    */
+  /** At night the day's film was said to be on its way and then failed: the server now refuses it at once, and nothing says it is coming. */
+  it('says a film of pictures all taken in the dark cannot be made where the button is, and not that it is being made', () => {
+    const said = 'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.';
+    state.askError = new ApiError({ status: 422, code: 'all_dark', title: 'Unprocessable', detail: said, errors: [] });
+    drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...delivering }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
+    expect(state.told).toEqual([]);
+    expect(screen.getByText(said)).toBeInTheDocument();
+  });
+
   it('says that a film is being made, and plays it from the button once it is done', () => {
     const asked = { id: 'film-new', window: 'day', capturedAt: serverNow().startOf('day').toISO()!, endsAt: serverNow().toISO()!, quality: 'sd' };
     state.accepted = { ...asked, render: { status: 'queued', error: null } };

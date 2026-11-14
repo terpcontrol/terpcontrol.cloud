@@ -9,7 +9,8 @@ import { useSpaces } from '@/api/spaces';
 import { ALL_GROWS, GROW, placePath, usePageOfGrow } from '@/app/places';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, growStanding, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
+import { AlsoHere } from '@/screens/space/AlsoHere';
 import { stageLabel } from '@/ui/presets';
 import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
@@ -56,12 +57,13 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   // "Grow teilen" in a place's menu opens the grow on its share sheet.
   const [params] = useSearchParams();
 
+  // While the grow is on its way the page is already Grow, under its own heading.
   if (grow.isPending) {
     return (
-      <section className={`${ui.stack3} ${styles.page}`}>
+      <NoGrow>
         <Waiting lines={2} />
         <Waiting lines={4} />
-      </section>
+      </NoGrow>
     );
   }
   if (!grow.data) {
@@ -96,6 +98,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
         />
       </GrowHead>
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />
+      <AlsoHere growId={growId} spaceId={grow.data.endedAt === null ? standsIn(grow.data) : null} />
       <Tabs items={tabs} label={t('grow.tabsLabel')} />
       {tab === 'diary' ? <Diary grow={grow.data} now={now} picturesTo={growTabPath(base, 'pictures')} /> : null}
       {tab === 'pictures' ? <Pictures grow={grow.data} now={now} /> : null}

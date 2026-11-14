@@ -12,7 +12,7 @@ import { SplitSheet } from '@/screens/grow/SplitSheet';
 import { PhaseSheet } from '@/screens/grow/PhaseSheet';
 import { correctionEffect, withdrawalEffect } from '@/screens/grow/phase-effect';
 import { deviceWith } from './fixtures';
-import { drawAt, json, reading } from './harness';
+import { drawAt, testClient, json, reading } from './harness';
 import { spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -386,6 +386,37 @@ describe('the harvest sheet', () => {
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
   });
 
+  /** Every write answers: a plant cut while others still stand says which, and is taken back by its plants and its line. */
+  it('answers a harvest that leaves the grow running with a toast naming the plants, and takes it back on Undo', async () => {
+    const asked: { method: string; url: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', url: String(input), body: init?.body ? JSON.parse(String(init.body)) : null });
+        if (init?.method === 'DELETE') return new Response(null, { status: 204 });
+        return init?.method === 'POST'
+          ? json({
+              plants: [{ ...plants[1], status: 'harvested', harvest: { harvestedAt: at(0), wetWeightG: null, dryWeightG: null } }],
+              entryId: 'entry-9',
+            })
+          : json(plants[1]);
+      }),
+    );
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} preselect={['plant-2']} onClose={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Harvest 1 plant' }));
+    expect(await screen.findByText(reading('Amnesia 2 harvested'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'DELETE' && call.url.endsWith('/entries/entry-9'))).toBe(true));
+    expect(asked.find(call => call.method === 'PATCH')).toMatchObject({
+      url: expect.stringMatching(/\/plants\/plant-2$/),
+      body: { status: 'active', harvest: null },
+    });
+    expect(await screen.findByText(reading('Undone · Amnesia 2 is standing again'))).toBeInTheDocument();
+    expect(screen.queryByText('What was written')).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('keeps a plant that has already come down on the list, dimmed and unpickable, with what it weighed', () => {
     const down = [
       plants[0],
@@ -673,6 +704,21 @@ describe('the phase sheet over a grow that has ended', () => {
     // Not today: a phase filed a month after the plants came down would be a
     // stage the grow never stood in.
     expect(screen.getByLabelText('On')).toHaveValue('2026-09-18');
+  });
+
+  /** A phase some plants were split into is theirs: listed as the grow's, it said the whole grow had gone back to Veg. */
+  it('names the plants a split phase is of among the phases so far', () => {
+    const client = testClient();
+    client.setQueryData(['grow', 'grow-1', 'plants'], { items: plants, nextCursor: null });
+    const split = { ...phase('p3', 'vegetative', 5), plantIds: ['plant-3'] };
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={{ ...grow, phases: [...grow.phases, split] }} onClose={() => {}} />
+      </LogProvider>,
+      { client },
+    );
+
+    expect(screen.getByText('Veg · for Gelato 1')).toBeInTheDocument();
   });
 
   it('speaks in the present over a grow that is still running, which is what the ended wording is told against', () => {

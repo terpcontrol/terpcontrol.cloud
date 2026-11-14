@@ -324,6 +324,15 @@ describe('a plant of a grow', () => {
     expect(within(move).getByRole('button', { name: 'Mother tent' })).toBeInTheDocument();
   });
 
+  /** Three of the five carried an icon: one form for all, words alone. */
+  it('says its actions in one form, words without icons', async () => {
+    await drawLoaded();
+
+    const actions = screen.getByRole('group', { name: 'What happens to this plant' });
+    expect(within(actions).getAllByRole('button')).toHaveLength(5);
+    expect(actions.querySelector('svg')).toBeNull();
+  });
+
   it('will not offer a harvest for a plant that is already down', async () => {
     state.plants = [{ ...plants[0], status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 100, dryWeightG: null } }, plants[1]];
     await drawLoaded();

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
 import { exportFilename, useAskExport, useDownloadExport } from '@/api/exports';
-import { useGrowReport } from '@/api/grows';
+import { useGrowPlants, useGrowReport } from '@/api/grows';
 import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
@@ -22,7 +22,7 @@ import ui from '@/ui/ui.module.css';
 import { stageLabel } from '@/ui/presets';
 import { useNow } from '@/ui/useNow';
 import { DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
-import { writtenLine } from './diary/days';
+import { harvestWord, writtenLine } from './diary/days';
 import { DiaryLine } from './diary/DiaryLine';
 import { placeName } from './placement';
 import styles from './Report.module.css';
@@ -52,6 +52,7 @@ export function Report({
 }) {
   const { t } = useTranslation();
   const report = useGrowReport(grow.id);
+  const plants = useGrowPlants(grow.id);
 
   if (report.isPending) return <Waiting lines={4} />;
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
@@ -80,7 +81,7 @@ export function Report({
 
       {harvest ? (
         <p className={styles.harvest}>
-          {t('grow.report.harvest')}
+          {harvestWord(t, harvest, plants.data?.items ?? [])}
           {harvest.wetWeightG !== null ? ` · ${t('grow.report.wet', { grams: looseFigure(harvest.wetWeightG) })}` : ''}
           {harvest.dryWeightG !== null ? ` · ${t('grow.report.dry', { grams: looseFigure(harvest.dryWeightG) })}` : ''}
         </p>

@@ -30,7 +30,13 @@ export function CurrentGrow() {
   const tab = growTabOf(segment);
 
   if (tab === null) return <Navigate to={GROW} replace />;
-  if (home.isPending || ended === undefined) return <Waiting lines={4} />;
+  if (home.isPending || ended === undefined) {
+    return (
+      <NoGrow>
+        <Waiting lines={4} />
+      </NoGrow>
+    );
+  }
   if (!home.data) return <LoadFailed title={t('shell.tabs.grow')} read={home} />;
   // An address naming a place the account has not got, or one of its own that has ended, says so and draws no other.
   if (stray) return <NoLongerHere what="space" />;

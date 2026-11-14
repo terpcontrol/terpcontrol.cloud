@@ -35,6 +35,7 @@ export function DiaryLine({
   plants,
   onPictures = null,
   thumbnails,
+  moment = instant => sinceLabel(instant, now, zone),
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -61,6 +62,8 @@ export function DiaryLine({
   onPictures?: ((index: number) => void) | null;
   /** The addresses of the line's pictures, where they are drawn in the line. */
   thumbnails?: string[];
+  /** How the list says a moment, which a folded run's other end is said in: one form of a date in a row. */
+  moment?: (instant: string) => string;
 }) {
   const { t } = useTranslation();
   const mark = line.own ? null : t('grow.diary.byItself');
@@ -82,8 +85,8 @@ export function DiaryLine({
             what.rule,
             what.count > 1
               ? forwards
-                ? t('home.entryRepeatsUntil', { count: what.count, until: sinceLabel(what.since, now, zone) })
-                : t('home.entryRepeats', { count: what.count, since: sinceLabel(what.since, now, zone) })
+                ? t('home.entryRepeatsUntil', { count: what.count, until: moment(what.since) })
+                : t('home.entryRepeats', { count: what.count, since: moment(what.since) })
               : null,
             what.over ? t('grow.diary.alarmOver') : null,
           ]}
@@ -114,6 +117,7 @@ export function DiaryLine({
         zone={zone}
         byline={byline}
         repeats={forwards ? { ...what, until: what.since } : what}
+        moment={moment}
         brief
         pictures={carried === null}
         plants={plants}

@@ -321,6 +321,25 @@ describe('a public diary', () => {
     expect(screen.queryByText(/wet/)).not.toBeInTheDocument();
   });
 
+  /** One plant of three cut is that plant's harvest, not the grow's: the grow is harvested when its last plant is. */
+  it('names the plants a harvest is of while others still grow, and says only that it is a part where it may not name them', () => {
+    const cut = { harvestedAt: at(1), wetWeightG: 60, dryWeightG: null, plantIds: ['plant-2'] };
+    const plants = [1, 2, 3].map(n => ({ id: `plant-${n}`, growId: 'grow-1', label: `B${n}` }));
+    const { unmount } = drawAt(<Diary page={{ ...page, plants, harvest: cut }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText(/^B2 harvested · /)).toBeInTheDocument();
+    unmount();
+
+    drawAt(<Diary page={{ ...page, plants: [], harvest: cut }} picture={publicPicture(page.slug)} now={NOW} />);
+    expect(screen.getByText(/^Partly harvested · /)).toBeInTheDocument();
+    expect(screen.queryByText(/^Harvested/)).not.toBeInTheDocument();
+  });
+
+  it('says its day as it is read, the word before the figure', () => {
+    drawAt(<Diary page={page} picture={publicPicture(page.slug)} now={NOW} />);
+
+    expect(screen.getAllByText('35')[0].previousElementSibling).toHaveTextContent(/^day$/);
+  });
+
   it('offers the weeks from before the ones it was given, and nothing where the diary fits on its page', () => {
     const asked = vi.fn();
     const older: GrowDiaryWeek = {

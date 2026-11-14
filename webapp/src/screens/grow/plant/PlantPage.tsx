@@ -1,4 +1,3 @@
-import { Move, Scissors, Split } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -164,10 +163,10 @@ export function PlantPage() {
         </ul>
       )}
 
+      {/* One form for the plant's five actions: words alone, as a grow's own. */}
       {mayManage ? (
         <div className={ui.wrap} role="group" aria-label={t('grow.plant.actionsLabel')}>
           <button type="button" className={ui.button} onClick={() => setSheet('move')}>
-            <Move size={16} strokeWidth={1.75} aria-hidden />
             {t('grow.plant.move')}
           </button>
           {/* Splitting every plant out of a grow splits nothing, and a plant
@@ -175,13 +174,11 @@ export function PlantPage() {
               neither is offered. */}
           {all.length > 1 ? (
             <button type="button" className={ui.button} onClick={() => setSheet('split')}>
-              <Split size={16} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.split')}
             </button>
           ) : null}
           {standing(plant) ? (
             <button type="button" className={ui.button} onClick={() => setSheet('harvest')}>
-              <Scissors size={16} strokeWidth={1.75} aria-hidden />
               {t('grow.plant.harvest')}
             </button>
           ) : null}

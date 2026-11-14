@@ -91,6 +91,8 @@ vi.stubGlobal(
 
     if (path === '/home/grows') return json({ items: wire.grows, nextCursor: null });
     if (path === '/grows/spring') return json({ status: 404, code: 'not_found', title: 'not_found', detail: '', errors: [] }, 404);
+    // A grow whose read is still on its way.
+    if (path.startsWith('/grows/slow')) return new Promise<Response>(() => {});
     if (path === '/share-links' || path === '/follows' || path === '/schemes' || path === '/grows') return json({ items: [], nextCursor: null });
     return json({ status: 404, code: 'not_found', title: 'not_found', detail: `No stub for ${path}`, errors: [] }, 404);
   }),
@@ -236,6 +238,13 @@ describe('the address of a grow opened by its id', () => {
 
     await waitFor(() => expect(wire.calls).toContain('/grows/spring'));
     expect(router.state.location.pathname).toBe('/grows/spring');
+  });
+
+  it('stands under its own heading while the grow is on its way, with the way to every grow', async () => {
+    drawRoute('/grows/slow');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Grow' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'All grows' })).toHaveAttribute('href', '/grows');
   });
 
   it('leads a tab the grow has not got to its diary', async () => {

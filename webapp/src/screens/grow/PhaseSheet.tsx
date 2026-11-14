@@ -2,9 +2,10 @@ import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { GrowListItem, GrowthStage, Phase } from '@fg2/shared-types/v1';
+import type { GrowListItem, GrowthStage, Phase, Plant } from '@fg2/shared-types/v1';
 import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
+import { useGrowPlants } from '@/api/grows';
 import { useAddPhase, useCorrectPhase, useWithdrawPhase } from '@/api/lifecycle';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
@@ -52,6 +53,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const zone = useZone();
   const add = useAddPhase();
   const withdraw = useWithdrawPhase(grow.id);
+  const plants = useGrowPlants(grow.id);
   const { tell } = useLog();
 
   const ended = grow.endedAt !== null;
@@ -146,6 +148,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
                   key={phase.id}
                   grow={grow}
                   phase={phase}
+                  plants={plants.data?.items ?? []}
                   open={open?.phaseId === phase.id ? open.as : null}
                   onOpen={as => setOpen(as === null ? null : { phaseId: phase.id, as })}
                 />
@@ -194,21 +197,29 @@ const label = (t: Translate, stage: GrowthStage, preset: string | null): string 
 function PhaseRow({
   grow,
   phase,
+  plants,
   open,
   onOpen,
 }: {
   grow: GrowListItem;
   phase: Phase;
+  plants: readonly Plant[];
   open: 'correct' | 'withdraw' | null;
   onOpen: (as: 'correct' | 'withdraw' | null) => void;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
+  // A phase some plants were split into is theirs, and says so: it is not the grow's.
+  const of = plants.filter(plant => phase.plantIds?.includes(plant.id)).map(plant => plant.label);
 
   return (
     <li className={styles.row}>
       <div className={ui.headRow}>
-        <span className={styles.rowTitle}>{label(t, phase.stage, phase.preset)}</span>
+        <span className={styles.rowTitle}>
+          {[label(t, phase.stage, phase.preset), of.length > 0 ? t('grow.lifecycle.phase.ofPlants', { plants: of.join(', ') }) : null]
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
         <span className={styles.rowMeta}>
           {calendarDay(phase.startedAt, zone)} · {t(`grow.lifecycle.phase.source.${phase.source}`)}
         </span>

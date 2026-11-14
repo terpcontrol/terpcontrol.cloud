@@ -8,7 +8,7 @@ import { PUBLIC_WIDTH, type EarlierWeeks, type Picture } from '@/api/public';
 import { initials } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
 import { Days } from '@/screens/grow/diary/Diary';
-import { picturesOfDay, type DiaryReader } from '@/screens/grow/diary/days';
+import { harvestWord, picturesOfDay, type DiaryReader } from '@/screens/grow/diary/days';
 import { Photo } from '@/ui/Photo';
 import { PictureViewer } from '@/ui/PictureViewer';
 import { calendarDay, DAY } from '@/ui/zone';
@@ -96,8 +96,8 @@ export function Diary({ page, picture, now, banner, aside, curves, earlier }: Di
             <Author author={page.author} picture={picture} aside={aside} />
           </div>
           {page.dayNumber !== null ? (
+            // Read in its order, "Tag 14": the word over the figure.
             <div className={styles.day}>
-              <span className={`figure ${styles.dayFigure}`}>{page.dayNumber}</span>
               {/* A grow that is over stopped counting on the day it ended, and
                   the figure beside this word is frozen there - so "day" reads
                   as a count still running on a diary the line underneath
@@ -106,6 +106,7 @@ export function Diary({ page, picture, now, banner, aside, curves, earlier }: Di
                   diary that had not ended, exactly as the days on this page
                   are. */}
               <span className="label">{t(page.endedAt ? 'grow.finalDay' : 'home.card.day')}</span>
+              <span className={`figure ${styles.dayFigure}`}>{page.dayNumber}</span>
             </div>
           ) : null}
         </div>
@@ -124,7 +125,7 @@ export function Diary({ page, picture, now, banner, aside, curves, earlier }: Di
       ) : null}
 
       <Totals page={page} />
-      {page.harvest ? <Harvest harvest={page.harvest} /> : null}
+      {page.harvest ? <Harvest harvest={page.harvest} plants={page.plants} /> : null}
 
       <section className={ui.stack3} aria-label={t('publicPage.weeks')}>
         {weeks.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('publicPage.nothingInWindow')}</p> : null}
@@ -236,7 +237,7 @@ function Total({ value, label }: { value: number; label: string }) {
  * themselves is not here at all rather than dashed out, which is why a null
  * weight simply drops its half of the line.
  */
-function Harvest({ harvest }: { harvest: GrowHarvest }) {
+function Harvest({ harvest, plants }: { harvest: GrowHarvest; plants: PublicGrowPage['plants'] }) {
   const { t } = useTranslation();
   const weights = [
     harvest.wetWeightG !== null ? t('grow.report.wet', { grams: looseFigure(harvest.wetWeightG) }) : null,
@@ -245,7 +246,7 @@ function Harvest({ harvest }: { harvest: GrowHarvest }) {
 
   return (
     <p className={styles.harvest}>
-      {t('grow.report.harvest')}
+      {harvestWord(t, harvest, plants)}
       {harvest.harvestedAt ? ` · ${calendarDay(harvest.harvestedAt, null)}` : ''}
       {weights.length > 0 ? ` · ${weights.join(' · ')}` : ''}
     </p>

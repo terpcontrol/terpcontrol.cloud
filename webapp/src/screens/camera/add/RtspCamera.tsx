@@ -96,10 +96,19 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   // which cannot be pressed says why instead of being grey for no stated
   // reason. Readiness is the absence of a reason rather than a second condition
   // beside it, because the two would drift apart the moment either changed. An
-  // address on its way to `rtsp://` is still being typed; one that cannot become
-  // an address is refused. A test needs no name.
+  // address on its way to `rtsp://` is still being typed, and is no address yet -
+  // which is not the same as nothing typed; one that cannot become an address is
+  // refused. A test needs no name.
   const refused = !isStreamAddress(url) && !beginsStreamAddress(url);
-  const forTest = refused ? 'badAddress' : !isStreamAddress(url) ? 'needAddress' : placeId === null ? 'needPlace' : null;
+  const forTest = refused
+    ? 'badAddress'
+    : !isStreamAddress(url)
+      ? url.trim() === ''
+        ? 'needAddress'
+        : 'notYetAddress'
+      : placeId === null
+        ? 'needPlace'
+        : null;
   const missing = forTest ?? (name.trim() === '' ? 'needName' : null);
   const working = create.isPending || capture.isPending;
   const reasonOf = (why: string | null) => (why === 'badAddress' ? REFUSED : why ? REASON : undefined);

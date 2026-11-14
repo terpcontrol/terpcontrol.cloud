@@ -845,7 +845,8 @@ describe('Grow, the bar´s item', () => {
     const router = open('/grow?space=space-2');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grow' })).toBeInTheDocument();
-    expect(screen.getByText('Nothing growing here yet')).toBeInTheDocument();
+    // The heading stands while the place is read; what grows there follows it.
+    expect(await screen.findByText('Nothing growing here yet')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
 
     // Started here, the grow is drawn here: the address stays Grow's.

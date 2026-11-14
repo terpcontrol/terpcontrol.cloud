@@ -1109,7 +1109,8 @@
         "failedPlain": "Die Datei konnte nicht erstellt werden.",
         "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
       },
-      "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase"
+      "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase",
+      "harvestPart": "Teilweise geerntet"
     },
     "presetName": {
       "late_flowering": "Späte Blüte",
@@ -1178,7 +1179,8 @@
           "corrected": "Phase berichtigt · {{phase}} ab {{day}}",
           "asWas": "{{phase}} ab {{day}}",
           "withdrawn": "{{phase}} zurückgenommen"
-        }
+        },
+        "ofPlants": "für {{plants}}"
       },
       "move": {
         "title": "Umzug",
@@ -1230,7 +1232,10 @@
         "alreadyDown": "Bereits geerntet",
         "noWeight": "kein Gewicht",
         "belowZero": "{{name}}: Ein Gewicht ist 0 g oder mehr.",
-        "ended": "{{name}} ist beendet · hier ist sein Bericht"
+        "ended": "{{name}} ist beendet · hier ist sein Bericht",
+        "standingAgain_one": "{{plants}} steht wieder",
+        "standingAgain_other": "{{plants}} stehen wieder",
+        "told": "{{plants}} geerntet"
       },
       "split": {
         "title": "Aufteilen",
@@ -2257,8 +2262,6 @@
     "testNoPicture": "Kein Bild: {{reason}}",
     "testFailed": "Das hat die Kamera nicht erreicht.",
     "testNoAnswer": "Auch nach über {{minutes}} Minuten keine Antwort. Bitte erneut versuchen.",
-    "testOffline": "Geht wieder, sobald das Gerät online ist.",
-    "testSilent": "{{device}} meldet sich gerade nicht – geht wieder, sobald es sich meldet.",
     "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
     "connectedVia": "Verbunden über",
     "reachedAt": "Kamera-ID",
@@ -2479,7 +2482,8 @@
         "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet.",
         "noCarrier": "{{place}}: Hier steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse aus dem Heimnetz antwortet der Cloud nicht",
         "badAddress": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
-        "testOnly": "Der Test holt ein Bild und fügt nichts hinzu."
+        "testOnly": "Der Test holt ein Bild und fügt nichts hinzu.",
+        "notYetAddress": "Das ist noch keine Stream-Adresse: Es fehlt die Kamera, etwa rtsp://192.168.1.40:554/stream1."
       },
       "noOwnPlace": "Eine Kamera kommt an einen eigenen Ort, und du siehst bisher nur Orte anderer: Leg zuerst einen an."
     }
@@ -3614,7 +3618,8 @@
       "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
       "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
-      "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1."
+      "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
+      "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film mit diesen Bildern gibt es über „Bilder aus der Dunkelphase“."
     }
   },
   "alarmLine": {

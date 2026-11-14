@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Metric, Plant, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowHarvest, GrowListItem, Metric, Plant, ReadingName } from '@fg2/shared-types/v1';
 import type { i18n as I18n } from 'i18next';
 import { alarmLineParts } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
@@ -89,6 +89,33 @@ export const stageOfWeek = (t: Translate, week: Pick<GrowDiaryWeek, 'stage' | 'p
     ? [stageLabel(t, week.stage, week.preset), week.stageWeek !== null ? t('grow.week', { week: week.stageWeek }) : null].filter(Boolean).join(', ')
     : null;
 
+/**
+ * What a row of folded days is named by: the stage most of them lay in, with that stage's week at their middle. A
+ * row holds a part of the week still running - its newest days stand open as cards - and the week's own stage is
+ * today's. Days from a server that does not say their stage are named by their week.
+ */
+export const stageOfDays = (t: Translate, week: GrowDiaryWeek, days: GrowDiaryDay[]): string | null => {
+  if (days.some(day => day.phase === undefined)) return stageOfWeek(t, week);
+  const kindOf = (day: GrowDiaryDay) => (day.phase ? `${day.phase.stage}:${day.phase.preset ?? ''}` : '');
+  // Newest first, so a tie goes to the newer stage.
+  const most = days
+    .map(kindOf)
+    .reduce((best, kind, _, all) => (all.filter(one => one === kind).length > all.filter(one => one === best).length ? kind : best));
+  const lay = days.filter(day => kindOf(day) === most);
+  const middle = lay[Math.floor(lay.length / 2)].phase;
+
+  return middle ? stageOfWeek(t, middle) : null;
+};
+
+/** "Geerntet", or the plants it is of while others still grow - "B2 geerntet": one plant of three cut is not the grow's harvest. */
+export const harvestWord = (t: Translate, harvest: GrowHarvest, plants: readonly Pick<Plant, 'id' | 'label'>[]): string => {
+  // A server that does not name the plants named none.
+  const ids = harvest.plantIds ?? [];
+  const named = plants.filter(plant => ids.includes(plant.id)).map(plant => plant.label);
+  if (ids.length === 0) return t('grow.report.harvest');
+  return named.length === ids.length ? t('grow.lifecycle.harvest.told', { plants: named.join(', ') }) : t('grow.report.harvestPart');
+};
+
 /** One thing a day's card says happened. */
 export interface DayLine {
   key: string;
@@ -99,8 +126,11 @@ export interface DayLine {
   routine: boolean;
   what:
     | { kind: 'entry'; entry: Entry; count: number; since: string }
-    /** An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. */
-    | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean }
+    /**
+     * An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. `over` is
+     * the line that says it ended; `stands`, that the rule's alarm was still open when the day's lines end.
+     */
+    | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean; stands: boolean }
     /**
      * Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance, another
      * device measuring. `moment` says the line leads to the curves of its moment where it names no reading of its own.
@@ -205,8 +235,11 @@ export const writtenLine = (entry: Entry, count = 1, since = entry.occurredAt): 
 const OWN_SHOWN = 6;
 const LINES_SHOWN = 4;
 
-/** An alarm that stands open: what the day's card never folds away. */
-const openAlarm = (line: DayLine): boolean => line.what.kind === 'alarm' && !line.what.over;
+/**
+ * An alarm that stands open: what the day's card never folds away. One that ended is a device's line like any other,
+ * and its end, the newer line, is shown before its start is.
+ */
+const openAlarm = (line: DayLine): boolean => line.what.kind === 'alarm' && line.what.stands;
 
 /** How many of these lines are an alarm's: what the row that unfolds a card says it hides. */
 export const alarmsIn = (lines: DayLine[]): number => lines.filter(line => line.what.kind === 'alarm').length;
@@ -230,8 +263,18 @@ export const shownLines = (lines: DayLine[]): DayLine[] => {
   return lines.length - shown.length === 1 ? lines : shown;
 };
 
-/** Whether somebody did what a line says: a person wrote it, or confirmed the plan's step it records. */
-const byAPerson = (entry: Entry): boolean => entry.source === 'human' || entry.authorId !== null;
+/**
+ * What a device writes when somebody did it: maintenance switched at the device or in the app, a restart asked for in
+ * the app. Its line names no person, and is no device's doing either.
+ */
+const DONE_BY_SOMEBODY = ['message-maintenance-mode-activated', 'message-maintenance-mode-activated-remote', 'message-device-booted:REMOTE'];
+
+/** Whether somebody did what a line says: a person wrote it, confirmed the plan's step it records, or switched the device. */
+const byAPerson = (entry: Entry): boolean =>
+  entry.source === 'human' ||
+  entry.authorId !== null ||
+  (entry.message !== null &&
+    [entry.message.key, `${entry.message.key}:${entry.message.params[0] ?? ''}`].some(key => DONE_BY_SOMEBODY.includes(key)));
 
 const FIRED = 'message-alarm-triggered';
 const CLEARED = 'message-alarm-resolved';
@@ -248,12 +291,12 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
     const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
     return parts ? [{ entry, parts, fired: key === FIRED }] : [];
   });
-  const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean): DayLine => ({
+  const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean, stands: boolean): DayLine => ({
     key: entry.id,
     at: entry.occurredAt,
     own: false,
     routine: false,
-    what: { kind: 'alarm', entry, rule: parts.rule, count, since, limit: over ? null : parts.limit, over },
+    what: { kind: 'alarm', entry, rule: parts.rule, count, since, limit: over ? null : parts.limit, over, stands },
   });
   const often = foldSame(
     read.filter(one => one.fired),
@@ -263,8 +306,10 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
   // Newest first: a rule whose newest line is its clearing is over, however often it fired before.
   const overNow = (rule: string) => read.find(one => one.parts.rule === rule)?.fired === false;
   const lines = [
-    ...often.map(run => line(run.newest, run.count, run.since, overNow(run.newest.parts.rule))),
-    ...read.filter(one => !often.some(run => run.newest.parts.rule === one.parts.rule)).map(one => line(one, 1, one.entry.occurredAt, !one.fired)),
+    ...often.map(run => line(run.newest, run.count, run.since, overNow(run.newest.parts.rule), !overNow(run.newest.parts.rule))),
+    ...read
+      .filter(one => !often.some(run => run.newest.parts.rule === one.parts.rule))
+      .map(one => line(one, 1, one.entry.occurredAt, !one.fired, one.fired && !overNow(one.parts.rule))),
   ];
 
   return { lines, told: new Set(read.map(one => one.entry.id)) };

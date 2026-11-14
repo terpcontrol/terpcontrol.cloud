@@ -22,7 +22,7 @@ import { useZone } from '@/ui/zone';
 import { PictureShow } from '../pictures/PictureShow';
 import { dayWindow } from '@/screens/timeline/view';
 import { DayCard } from './DayCard';
-import { OPEN_DAYS, hasFilm, hasSomething, picturesOfDay, placeAt, stageOfWeek, writtenIn, type DiaryReader, type GrowPicture } from './days';
+import { OPEN_DAYS, hasFilm, hasSomething, picturesOfDay, placeAt, stageOfDays, writtenIn, type DiaryReader, type GrowPicture } from './days';
 import { FilmCard } from './Film';
 import { dayNamed, useReadBackTo } from './read-back';
 import styles from './Diary.module.css';
@@ -224,8 +224,7 @@ export function Days({
           key={week.weekNumber}
           week={week}
           days={inWeek}
-          from={covered[0].dayNumber}
-          to={covered[covered.length - 1].dayNumber}
+          covered={covered}
           picture={reader.picture}
           opened={inWeek.some(day => day.dayNumber === named)}
         >
@@ -275,16 +274,15 @@ export function Days({
 function WeekRow({
   week,
   days,
-  from,
-  to,
+  covered,
   picture,
   opened,
   children,
 }: {
   week: GrowDiaryWeek;
   days: GrowDiaryDay[];
-  from: number;
-  to: number;
+  /** Every day of the week the row stands for, newest first: what it is named by. */
+  covered: GrowDiaryDay[];
   picture: DiaryReader['picture'];
   /** Whether it stands open before anybody opened it: it holds the day a link named. */
   opened: boolean;
@@ -292,6 +290,8 @@ function WeekRow({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useKept(`week-${week.weekNumber}`, opened);
+  // A span of days runs forwards wherever it is said: "Tag 8 bis 11".
+  const [from, to] = [covered[covered.length - 1].dayNumber, covered[0].dayNumber];
   const pictures = days.reduce((sum, day) => sum + picturesOfDay(day).length, 0);
   const written = writtenIn(days);
   const holds = [
@@ -304,7 +304,7 @@ function WeekRow({
     <section className={`${ui.stack3} ${styles.week}`}>
       <button type="button" className={ui.rowCard} aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className={styles.rowText}>
-          <Facts facts={[from === to ? t('home.card.dayN', { day: from }) : t('grow.diary.days', { from, to }), stageOfWeek(t, week)]} />
+          <Facts facts={[from === to ? t('home.card.dayN', { day: from }) : t('grow.diary.days', { from, to }), stageOfDays(t, week, covered)]} />
           {holds.length > 0 ? <Facts facts={holds} className={styles.rowLine} /> : null}
         </span>
         <ChevronRight size={20} strokeWidth={2} className={styles.chevron} data-open={open || undefined} aria-hidden />

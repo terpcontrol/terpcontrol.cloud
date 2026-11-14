@@ -64,6 +64,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
                 key={line.key}
                 line={line}
                 stamp={cursorStamp(at(line.at), window, 60, zone)}
+                moment={instant => cursorStamp(at(instant), window, 60, zone)}
                 zone={zone}
                 now={now}
                 people={data.people}

@@ -1,5 +1,5 @@
 import type { DateTime } from 'luxon';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router';
 import type { Camera, GrowListItem, Media, TimelapseCreate } from '@fg2/shared-types/v1';
@@ -164,6 +164,11 @@ function Watch({
   // A device that has missed its reports opens no relay either: a press would wait out the whole read for nothing.
   const carrierSilent = carrierHeard !== null && carrierHeard !== 'live';
   const freshness = cameraFreshness(camera, now);
+  // A silent device is said once, by the pill: what the camera waits for, in the device's own age. The held button
+  // points at it for its reason.
+  const waits = carrier && carrierSilent ? deviceName(carrier, t) : null;
+  const age = waits ? carrierHeard : freshness;
+  const pill = useId();
 
   const [asked, setAsked] = useDayInAddress();
   const lastDay = grow?.summary.dayNumber ?? null;
@@ -232,9 +237,9 @@ function Watch({
     <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
       {/* The camera belongs to the place it watches: the way back leads there, as Start's picture led here. */}
       <PageHead title={called(camera.name)} back={{ to: place ? placePath(place.id) : '/', label: place?.name ?? t('shell.tabs.home') }}>
-        <span className={`${ui.live} ${styles.pill} ${styles.cut}`} data-liveness={freshness}>
-          {freshness === 'live' ? <span className={ui.liveDot} aria-hidden /> : null}
-          {pillOf(t, camera, freshness, carrierOffline && carrier ? deviceName(carrier, t) : null, now, zone)}
+        <span id={pill} className={`${ui.live} ${styles.pill} ${styles.cut}`} data-liveness={age}>
+          {age === 'live' ? <span className={ui.liveDot} aria-hidden /> : null}
+          {pillOf(t, camera, freshness, waits, now, zone)}
         </span>
       </PageHead>
 
@@ -242,7 +247,9 @@ function Watch({
       {/* Why a capture failed names the camera's address and its tunnel, which
           are the owner's: somebody who shares the tent is told by the pill
           that it is not delivering. What is said is the kind of failure; the
-          server's own words stay a tap below for the one who can fix it. */}
+          server's own words stay a tap below for the one who can fix it. While
+          the device it is read through is not heard, that is the reason, and
+          the pill has said it. */}
       {carrier && carrierOffline ? (
         <OfflineBox
           title={t('offline.title', {
@@ -253,7 +260,7 @@ function Watch({
         >
           {t('camera.carrierOffline', { device: deviceName(carrier, t) })}
         </OfflineBox>
-      ) : mayOwn && camera.state.lastError ? (
+      ) : mayOwn && camera.state.lastError && !carrierSilent ? (
         <div className={styles.said} role="alert">
           <p className={ui.problem}>{t('camera.lastError', { reason: t(causeOf(camera.state.lastError)) })}</p>
           <Raw summary={t('camera.whatItSaid')}>{camera.state.lastError}</Raw>
@@ -329,11 +336,12 @@ function Watch({
           beside={
             mayManage ? (
               // Held while the device is silent, and dropped from a press it fell silent under, which then never answers:
-              // the box above says it in full where the device is offline, the sentence under the row says it short.
+              // its reason is what the pill says.
               <button
                 type="button"
                 className={ui.button}
                 aria-disabled={carrierSilent || undefined}
+                aria-describedby={carrierSilent ? pill : undefined}
                 disabled={test.isPending && !carrierSilent}
                 onClick={carrierSilent ? undefined : shoot}
               >
@@ -341,15 +349,7 @@ function Watch({
               </button>
             ) : null
           }
-          below={
-            mayManage ? (
-              <Shot
-                test={test}
-                mayOwn={mayOwn}
-                silent={carrier && carrierSilent ? { device: deviceName(carrier, t), offline: carrierOffline } : null}
-              />
-            ) : null
-          }
+          below={mayManage && !carrierSilent ? <Shot test={test} mayOwn={mayOwn} /> : null}
         />
 
         <Rows>
@@ -380,16 +380,17 @@ function Watch({
 
 /**
  * How old the camera's read is, as the pill in the head says it: online with
- * the age of its newest picture, late with that age alone, and once it has
- * stopped - by the stills it has missed (`cameraFreshness`) - whether it
- * waits for its device or since when nothing came.
+ * the age of its newest picture, the device it waits for where that is not
+ * heard, late with that age alone, and once it has stopped - by the stills it
+ * has missed (`cameraFreshness`) - since when nothing came.
  */
 const pillOf = (t: Translate, camera: Camera, freshness: string, waitsFor: string | null, now: DateTime, zone: string | null): string => {
   const last = camera.state.lastStillAt;
   if (!last) return t('camera.pill.never');
+  if (waitsFor) return t('camera.pill.waits', { device: waitsFor });
   if (freshness === 'live') return t('camera.pill.live', { age: ageLabel(last, now) });
   if (freshness === 'stale') return t('camera.pill.late', { age: ageLabel(last, now) });
-  return waitsFor ? t('camera.pill.waits', { device: waitsFor }) : t('camera.pill.since', { time: sinceLabel(last, now, zone) });
+  return t('camera.pill.since', { time: sinceLabel(last, now, zone) });
 };
 
 /**
@@ -398,20 +399,10 @@ const pillOf = (t: Translate, camera: Camera, freshness: string, waitsFor: strin
  * never reached the server is not that: the camera was not asked. The press
  * waits as long as the server's read may take and a little longer.
  */
-function Shot({
-  test,
-  mayOwn,
-  silent,
-}: {
-  test: ReturnType<typeof useTestCapture>;
-  mayOwn: boolean;
-  /** The device the camera is read through, where it is not heard: offline, or late with its reports. */
-  silent: { device: string; offline: boolean } | null;
-}) {
+function Shot({ test, mayOwn }: { test: ReturnType<typeof useTestCapture>; mayOwn: boolean }) {
   const { t } = useTranslation();
   const failed = test.data?.state === 'failed' ? test.data : null;
 
-  if (silent) return <p className={ui.note}>{t(silent.offline ? 'camera.testOffline' : 'camera.testSilent', { device: silent.device })}</p>;
   if (test.isPending) return null;
   if (test.error) {
     return (

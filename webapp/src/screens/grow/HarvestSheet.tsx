@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
-import { useHarvest } from '@/api/lifecycle';
+import { useHarvest, useTakeHarvestBack } from '@/api/lifecycle';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
@@ -59,6 +59,8 @@ export function HarvestSheet({
   const { t } = useTranslation();
   const zone = useZone();
   const harvest = useHarvest(grow.id);
+  const takeBack = useTakeHarvestBack();
+  const { tell } = useLog();
 
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   // Now as the server reckons it, which is the clock the day field's cap is on.
@@ -151,6 +153,13 @@ export function HarvestSheet({
                 onSuccess: result => {
                   // The last plants down end the grow: its page is its report now, and the toast says why it moved.
                   if (endsTheGrow) return ended();
+                  const named = { plants: result.plants.map(plant => plant.label).join(', '), count: result.plants.length };
+                  tell({
+                    label: t('grow.lifecycle.harvest.told', named),
+                    // Taken back, what the sheet said was written is not written any more.
+                    undo: () => takeBack.mutateAsync(result).then(() => setDone(null)),
+                    undone: t('grow.lifecycle.harvest.standingAgain', named),
+                  });
                   setDone(result);
                   setChosen(null);
                   setWet('');

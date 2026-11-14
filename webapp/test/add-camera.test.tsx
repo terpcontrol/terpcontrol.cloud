@@ -712,6 +712,12 @@ describe('a camera at a stream address', () => {
     // Still on its way to rtsp://: not refused yet, only not there.
     expect(screen.getByLabelText('Stream address')).not.toHaveAttribute('aria-invalid');
     fill();
+    // The scheme alone is no address yet - it was told "Type the stream address first" over a field that held one.
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp://' } });
+    expect(screen.getByRole('button', { name: 'Test' })).toHaveAccessibleDescription(
+      'That is no stream address yet: the camera is missing, such as rtsp://192.168.1.40:554/stream1.',
+    );
+    expect(screen.queryByText('Type the stream address first.')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'quatsch' } });
 
     const refusal = 'A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.';

@@ -103,13 +103,15 @@
 
 /* What the picture shows, left, and when it was taken, right, as Start's
    picture carries them, each the shared caption moved to the top edge: the
-   moment is never cut, the grow's name gives way to it and to its day. */
+   moment is never cut, and where the two do not fit side by side it goes under
+   rather than cutting the grow's name to a few letters. */
 .labels {
   position: absolute;
   top: 10px;
   right: 10px;
   left: 10px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-2);
 }

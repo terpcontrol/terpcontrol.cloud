@@ -1099,7 +1099,8 @@
         "failedPlain": "The file could not be built.",
         "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
       },
-      "noPhase": "No phase yet · the report begins with the first phase"
+      "noPhase": "No phase yet · the report begins with the first phase",
+      "harvestPart": "Partly harvested"
     },
     "presetName": {
       "late_flowering": "Late flower",
@@ -1168,7 +1169,8 @@
           "corrected": "Phase corrected · {{phase}} from {{day}}",
           "asWas": "{{phase}} from {{day}}",
           "withdrawn": "{{phase}} withdrawn"
-        }
+        },
+        "ofPlants": "for {{plants}}"
       },
       "move": {
         "title": "Move",
@@ -1220,7 +1222,10 @@
         "alreadyDown": "Already down",
         "noWeight": "no weight",
         "belowZero": "{{name}}: a weight is 0 g or more.",
-        "ended": "{{name}} has ended · this is its report"
+        "ended": "{{name}} has ended · this is its report",
+        "standingAgain_one": "{{plants}} is standing again",
+        "standingAgain_other": "{{plants}} are standing again",
+        "told": "{{plants}} harvested"
       },
       "split": {
         "title": "Split",
@@ -2247,8 +2252,6 @@
     "testNoPicture": "No picture: {{reason}}",
     "testFailed": "That did not reach the camera.",
     "testNoAnswer": "Still no answer after more than {{minutes}} minutes. Please try again.",
-    "testOffline": "Possible again once the device is back online.",
-    "testSilent": "{{device}} is not reporting just now – possible again once it does.",
     "carrierOffline": "This camera is read through the device ({{device}}). No pictures arrive until it is back online.",
     "connectedVia": "Connected via",
     "reachedAt": "Camera ID",
@@ -2469,7 +2472,8 @@
         "loginInAddress": "The login is already written into the address and is used as it is.",
         "noCarrier": "{{place}}: no device here fetches the stream from your network · an address on your home network will not answer the cloud",
         "badAddress": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
-        "testOnly": "“Test” asks for one picture and adds nothing."
+        "testOnly": "“Test” asks for one picture and adds nothing.",
+        "notYetAddress": "That is no stream address yet: the camera is missing, such as rtsp://192.168.1.40:554/stream1."
       },
       "noOwnPlace": "A camera goes into a place of your own, and so far you only see other people’s places: make one first."
     }
@@ -3604,7 +3608,8 @@
       "room_ended": "That room is gone: it ended with its last place.",
       "current_password_wrong": "That is not your current password.",
       "name_taken": "Another place or room already carries that name. Choose another.",
-      "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1."
+      "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
+      "all_dark": "Every picture in that span was taken with the light off. To keep them, request the film with “Lights-off frames” on."
     }
   },
   "alarmLine": {
