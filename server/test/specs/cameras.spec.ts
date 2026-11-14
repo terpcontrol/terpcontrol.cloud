@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
 import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
 import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
@@ -389,6 +390,95 @@ describe('a test picture', () => {
 
     const refused = await owner.client.post(`/v1/cameras/${id}/test-captures`).expect(404);
     expect(refused.body.code).toBe('camera_not_found');
+  });
+});
+
+/**
+ * A stream's address tested before any camera is made of it. The test made a
+ * camera of its own and took it away again, which left a removed camera behind
+ * for every press; this route reads the address as the camera would be read
+ * and writes nothing at all.
+ */
+describe('a test of a stream´s address', () => {
+  /** The test the form starts, asked after until it is over. */
+  const testAddress = async (session: Session, body: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const until = Date.now() + 20_000;
+    let capture = (await session.client.post('/v1/cameras/test-captures').send(body).expect(202)).body;
+    while (capture.state === 'running') {
+      if (Date.now() > until) throw new Error(`The test of an address ${capture.id} was still running after 20 s.`);
+      await settle(100);
+      capture = (await session.client.get(`/v1/cameras/test-captures/${capture.id}`).expect(200)).body;
+    }
+    return capture;
+  };
+  const cameraRows = async () => (await owner.client.get('/v1/cameras').query({ includeRemoved: 'true', limit: 100 }).expect(200)).body.items.length;
+
+  it('answers the picture a good address gave, and makes no camera and stores no picture', async () => {
+    const picture = await sharp({ create: { width: 1280, height: 720, channels: 3, background: '#3a6' } })
+      .jpeg()
+      .toBuffer();
+    resetFfmpeg();
+    armFfmpeg([{ match: 'good-address', stdout: picture.toString('base64') }]);
+    const before = await cameraRows();
+
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://10.0.0.81:554/good-address', username: 'cam', password: 'p@ss' });
+
+    expect(answer).toMatchObject({ state: 'done', reason: null, error: null, picture: { capturedAt: expect.any(String) } });
+    expect(answer).not.toHaveProperty('cameraId');
+    // Handed over whole, since it is kept nowhere, and no wider than the form draws it.
+    const handed = await sharp(Buffer.from((answer.picture as { jpeg: string }).jpeg, 'base64')).metadata();
+    expect(handed).toMatchObject({ format: 'jpeg', width: 720, height: 405 });
+    // Opened as the camera would be, the login written into the address.
+    expect(openedAt('good-address')).toBe('rtsp://cam:p%40ss@10.0.0.81:554/good-address');
+    expect(await cameraRows()).toBe(before);
+  });
+
+  it('refuses an address no stream is opened at before anything is read', async () => {
+    resetFfmpeg();
+    const refused = await owner.client.post('/v1/cameras/test-captures').send({ spaceId: tent, url: 'quatsch' }).expect(422);
+
+    expect(refused.body).toMatchObject({ code: 'not_a_stream_address', errors: [expect.objectContaining({ field: 'url' })] });
+    expect(ffmpegCalls()).toEqual([]);
+  });
+
+  it('says an address that does not answer is a failed test, what kind of failure, and what the stream said', async () => {
+    resetFfmpeg();
+    const before = await cameraRows();
+
+    // The harness answers an address on another machine as ffmpeg does one it cannot reach.
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://viewer:hunter2@192.168.1.82:554/unreachable' });
+
+    expect(answer).toMatchObject({ state: 'failed', picture: null, reason: 'noAnswer', error: expect.stringContaining('No route to host') });
+    expect(answer.error).not.toContain('hunter2');
+    expect(await cameraRows()).toBe(before);
+  });
+
+  it('is refused to whoever may not manage the place, and asked after by the account that started it alone', async () => {
+    const reader = await createAccount('cameras-address-reader');
+    await joinSpace(owner, tent, reader, 'can_log');
+    const stranger = await createAccount('cameras-address-stranger');
+    resetFfmpeg();
+    const body = { spaceId: tent, url: 'rtsp://10.0.0.83:554/not-theirs' };
+
+    const read = await reader.client.post('/v1/cameras/test-captures').send(body).expect(403);
+    expect(read.body.code).toBe('insufficient_access');
+    expect((await stranger.client.post('/v1/cameras/test-captures').send(body).expect(404)).body.code).toBe('space_not_found');
+    expect(ffmpegCalls()).toEqual([]);
+
+    const started = (await owner.client.post('/v1/cameras/test-captures').send(body).expect(202)).body;
+    expect((await reader.client.get(`/v1/cameras/test-captures/${started.id}`).expect(404)).body.code).toBe('test_capture_not_found');
+    await owner.client.get('/v1/cameras/test-captures/not-a-test').expect(404);
+    await owner.client.get(`/v1/cameras/test-captures/${started.id}`).expect(200);
+  });
+
+  it('through a device that is offline, is answered at once with the device being offline', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    resetFfmpeg();
+
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://10.0.0.84:554/never-heard', deviceId: fridge.deviceId, tunnel: true });
+
+    expect(answer).toMatchObject({ state: 'failed', picture: null, reason: 'deviceOffline' });
+    expect(ffmpegCalls().some(args => args.join(' ').includes('never-heard'))).toBe(false);
   });
 });
 

@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { CameraTransport, Device, RtspCameraCreate, Space, SpaceKind } from '@fg2/shared-types/v1';
+import type { CameraTransport, Device, RtspCameraCreate, Space, SpaceKind, StreamTestCreate } from '@fg2/shared-types/v1';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas/capture.js';
 import { useMe } from '@/api/account';
-import { gaveUp, useCaptureOnce, useCreateCamera, useRemoveCamera } from '@/api/cameras';
-import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
+import { gaveUp, useCreateCamera, useStreamTest } from '@/api/cameras';
 import type { Translate } from '@/i18n/i18n';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { placesFor } from '@/app/places';
@@ -38,11 +37,10 @@ const CAMERA_PLACES = PLACE_KINDS.filter(kind => kind !== 'fridge');
  * refused under the field before anything is written - as the server refuses
  * it: "quatsch" made a camera that could never show a picture. Whether the
  * address answers is found out by asking it for a picture, which is what the
- * test button does, and the test adds nothing: a test capture is a camera's own
- * route, so it asks through a camera made for the test alone - silent, it
- * writes no line and raises no alert - and takes it away again once the
- * picture is in or refused. "Hinzufügen" adds the camera, after a test or
- * without one, and opens its page.
+ * test button does, and the test adds nothing: the server tries the address as
+ * the camera would be read, in the place and through the device chosen, and
+ * hands the picture back without storing it or making a camera. "Hinzufügen"
+ * adds the camera, after a test or without one, and opens its page.
  *
  * Where a Terp Control device stands in the place - a fridge module as much as
  * a controller - the stream is pulled through its tunnel, which is what makes
@@ -65,8 +63,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const me = useMe();
   const spaces = useSpaces();
   const create = useCreateCamera();
-  const capture = useCaptureOnce();
-  const drop = useRemoveCamera();
+  const capture = useStreamTest();
 
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
@@ -104,7 +101,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
   const refused = !isStreamAddress(url) && !beginsStreamAddress(url);
   const forTest = refused ? 'badAddress' : !isStreamAddress(url) ? 'needAddress' : placeId === null ? 'needPlace' : null;
   const missing = forTest ?? (name.trim() === '' ? 'needName' : null);
-  const working = create.isPending || capture.isPending || drop.isPending;
+  const working = create.isPending || capture.isPending;
   const reasonOf = (why: string | null) => (why === 'badAddress' ? REFUSED : why ? REASON : undefined);
 
   /** A different place is a different set of devices, so the one picked here does not follow. */
@@ -119,13 +116,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
     if (next && transport === 'udp') setTransport('tcp');
   };
 
-  /** The camera as the form stands: the login apart from an address that carries none, the device worked out again. */
-  const body = (): RtspCameraCreate => {
+  /** The stream as the form stands: the login apart from an address that carries none, the device worked out again. */
+  const stream = (): Omit<StreamTestCreate, 'spaceId'> => {
     const address = url.trim();
     return {
-      kind: 'rtsp',
-      name: name.trim(),
-      spaceId: placeId,
       url: address,
       ...(hasLogin(address) ? {} : { username: username.trim(), password }),
       deviceId: carrier?.id ?? null,
@@ -133,21 +127,14 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       transport,
     };
   };
+  const body = (): RtspCameraCreate => ({ kind: 'rtsp', name: name.trim(), spaceId: placeId, ...stream() });
 
   // A refusal is drawn from the mutation that carries it, so nothing is done
   // with the rejection here beyond not letting it escape the handler.
   const test = () => {
+    if (placeId === null) return;
     setPressed('test');
-    void create
-      .mutateAsync({ ...body(), name: name.trim() || t('cameras.add.rtsp.nameHint'), logErrors: false, staleWarning: false })
-      .then(async camera => {
-        try {
-          await capture.mutateAsync(camera.id);
-        } finally {
-          drop.mutate(camera.id);
-        }
-      })
-      .catch(() => undefined);
+    void capture.mutateAsync({ spaceId: placeId, ...stream() }).catch(() => undefined);
   };
 
   const save = () => {
@@ -158,7 +145,6 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       .catch(() => undefined);
   };
 
-  const shot = capture.data?.still ? mediaUrl(capture.data.still.mediaId, THUMBNAIL_WIDTH.frame) : null;
   const liveness = pulled && carrier ? deviceLiveness(carrier.state.lastSeenAt, now) : null;
 
   return (
@@ -283,7 +269,7 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
       </AdvancedFold>
 
       {/* This side giving up on the answer is not the server refusing anything, so it is not drawn as a refusal. */}
-      <Refused error={create.error ?? (gaveUp(capture.error) ? null : capture.error) ?? drop.error} />
+      <Refused error={create.error ?? (gaveUp(capture.error) ? null : capture.error)} />
 
       <p className={ui.note}>{t('cameras.add.rtsp.testOnly')}</p>
 
@@ -316,10 +302,10 @@ export function RtspCamera({ devices }: { devices: Device[] }) {
 
       {capture.data ? (
         <section className={ui.stack2} role="status">
-          {capture.data.still ? (
+          {capture.data.picture ? (
             <>
-              {shot ? <img className={styles.shot} src={shot} alt={t('cameras.add.rtsp.shotAlt')} /> : null}
-              <p className={styles.shotNote}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.still.capturedAt, now) })}</p>
+              <img className={styles.shot} src={`data:image/jpeg;base64,${capture.data.picture.jpeg}`} alt={t('cameras.add.rtsp.shotAlt')} />
+              <p className={styles.shotNote}>{t('cameras.add.rtsp.worked', { age: ageLabel(capture.data.picture.capturedAt, now) })}</p>
             </>
           ) : (
             <>

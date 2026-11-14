@@ -3392,6 +3392,61 @@ export interface TestCapture {
   error: string | null;
 }
 
+export interface StreamTestCreate {
+  /**
+   * The login name the stream is opened with, written into the URL; empty takes it away.
+   */
+  username?: string;
+  /**
+   * The password the stream is opened with, written into the URL; empty takes it away.
+   */
+  password?: string;
+  /**
+   * The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
+   */
+  deviceId?: string | null;
+  /**
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.
+   */
+  tunnel?: boolean;
+  transport?: CameraTransport | null;
+  /**
+   * The place the camera would hang in, which whoever tests it has to manage.
+   */
+  spaceId: string;
+  /**
+   * The stream URL. A login written into it is used; `username` and `password` replace its halves.
+   */
+  url: string;
+}
+
+export interface StreamTestPicture {
+  capturedAt: string;
+  /**
+   * The picture as a JPEG, base64, at most 720 pixels wide.
+   */
+  jpeg: string;
+}
+
+export interface StreamTestCapture {
+  id: string;
+  state: TestCaptureState;
+  startedAt: string;
+  finishedAt: string | null;
+  /**
+   * What kind of failure it was, once `failed`.
+   */
+  reason: CaptureFailure | null;
+  /**
+   * Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.
+   */
+  error: string | null;
+  /**
+   * The picture it took, once `done`.
+   */
+  picture: StreamTestPicture | null;
+}
+
 export interface TimelapseCreate {
   window: MediaWindow;
   /**

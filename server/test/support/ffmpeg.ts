@@ -27,6 +27,8 @@ interface ScriptedRun {
   delayMs?: number;
   /** Bytes to send to whatever `-i` points at, hex, before answering. */
   writeToInput?: string;
+  /** What the run writes on stdout, base64 - a camera's picture, which is what a still is read from. */
+  stdout?: string;
 }
 
 /** Answers the next runs from this plan; later runs reach the real ffmpeg again. */

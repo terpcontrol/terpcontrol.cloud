@@ -1541,6 +1541,69 @@ export declare const testCapture: z.ZodObject<{
     error: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
+ * `POST /cameras/test-captures`: a stream's address tried before any camera is
+ * made of it - the place the camera would hang in and how its stream would be
+ * pulled, said as `RtspCameraCreate` says them, and judged as that body is:
+ * managing the place, an address that is a stream's, a device to tunnel
+ * through. A test makes no camera, stores no picture and writes nothing.
+ */
+export declare const streamTestCreate: z.ZodObject<{
+    transport: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        tcp: "tcp";
+        udp: "udp";
+        http: "http";
+        https: "https";
+    }>>>;
+    username: z.ZodOptional<z.ZodString>;
+    password: z.ZodOptional<z.ZodString>;
+    deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tunnel: z.ZodOptional<z.ZodBoolean>;
+    spaceId: z.ZodString;
+    url: z.ZodString;
+}, z.core.$strip>;
+/** The picture a test of an address took, handed over whole because it is stored nowhere. */
+export declare const streamTestPicture: z.ZodObject<{
+    capturedAt: z.ZodISODateTime;
+    jpeg: z.ZodString;
+}, z.core.$strip>;
+/**
+ * How a test of an address goes, asked through `GET /cameras/test-captures/{captureId}`
+ * until it is no longer `running`. It is the read a camera's test capture is -
+ * through the device's tunnel where the stream is pulled through one, within
+ * `CAPTURE_BUDGET_SECONDS` - and a failed one is an answer, not an error, as
+ * there. Only the account that started it may ask after it, for a few minutes.
+ */
+export declare const streamTestCapture: z.ZodObject<{
+    reason: z.ZodNullable<z.ZodEnum<{
+        unknown: "unknown";
+        deviceOffline: "deviceOffline";
+        damaged: "damaged";
+        aborted: "aborted";
+        otherCamera: "otherCamera";
+        refusedRecently: "refusedRecently";
+        stoppedEarly: "stoppedEarly";
+        refusedLogin: "refusedLogin";
+        relayNotOpened: "relayNotOpened";
+        noAnswer: "noAnswer";
+        noDevice: "noDevice";
+        noAddress: "noAddress";
+        noStream: "noStream";
+    }>>;
+    error: z.ZodNullable<z.ZodString>;
+    id: z.ZodString;
+    state: z.ZodEnum<{
+        failed: "failed";
+        running: "running";
+        done: "done";
+    }>;
+    startedAt: z.ZodISODateTime;
+    finishedAt: z.ZodNullable<z.ZodISODateTime>;
+    picture: z.ZodNullable<z.ZodObject<{
+        capturedAt: z.ZodISODateTime;
+        jpeg: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+/**
  * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
  * span is meant: `day`, `week` and `month` are the calendar day, the Monday-to-
  * Monday week and the calendar month holding `startsAt`, in the zone of the

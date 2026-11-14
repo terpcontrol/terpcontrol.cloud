@@ -794,6 +794,44 @@ export const testCapture = named(
 );
 
 /**
+ * `POST /cameras/test-captures`: a stream's address tried before any camera is
+ * made of it - the place the camera would hang in and how its stream would be
+ * pulled, said as `RtspCameraCreate` says them, and judged as that body is:
+ * managing the place, an address that is a stream's, a device to tunnel
+ * through. A test makes no camera, stores no picture and writes nothing.
+ */
+export const streamTestCreate = named(
+  'StreamTestCreate',
+  rtspCameraCreate.pick({ username: true, password: true, deviceId: true, tunnel: true, transport: true }).extend({
+    spaceId: id().describe('The place the camera would hang in, which whoever tests it has to manage.'),
+    url: z.string().describe('The stream URL. A login written into it is used; `username` and `password` replace its halves.'),
+  }),
+);
+
+/** The picture a test of an address took, handed over whole because it is stored nowhere. */
+export const streamTestPicture = named(
+  'StreamTestPicture',
+  z.object({
+    capturedAt: instant(),
+    jpeg: z.string().describe('The picture as a JPEG, base64, at most 720 pixels wide.'),
+  }),
+);
+
+/**
+ * How a test of an address goes, asked through `GET /cameras/test-captures/{captureId}`
+ * until it is no longer `running`. It is the read a camera's test capture is -
+ * through the device's tunnel where the stream is pulled through one, within
+ * `CAPTURE_BUDGET_SECONDS` - and a failed one is an answer, not an error, as
+ * there. Only the account that started it may ask after it, for a few minutes.
+ */
+export const streamTestCapture = named(
+  'StreamTestCapture',
+  testCapture.omit({ cameraId: true, still: true }).extend({
+    picture: streamTestPicture.nullable().describe('The picture it took, once `done`.'),
+  }),
+);
+
+/**
  * `POST /cameras/{id}/timelapses`, which is the composer. `window` says which
  * span is meant: `day`, `week` and `month` are the calendar day, the Monday-to-
  * Monday week and the calendar month holding `startsAt`, in the zone of the

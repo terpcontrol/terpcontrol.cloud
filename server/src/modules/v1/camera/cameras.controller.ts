@@ -4,18 +4,31 @@ import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
 import { Model } from 'mongoose';
 import { z } from 'zod';
-import { Camera, CameraCreate, CameraUpdate, MediaPage, TestCapture, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
+import {
+  Camera,
+  CameraCreate,
+  CameraUpdate,
+  MediaPage,
+  StreamTestCapture,
+  StreamTestCreate,
+  TestCapture,
+  TimelapseAccepted,
+  TimelapseCreate,
+} from '@fg2/shared-types/v1';
 import {
   camera,
   cameraCreate,
   cameraPage,
   cameraUpdate,
   mediaPage,
+  streamTestCapture,
+  streamTestCreate,
   testCapture,
   timelapseAccepted,
   timelapseCreate,
 } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
+import { RateLimitGuard, RateLimited } from '@common/rate-limit.guard';
 import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
@@ -76,6 +89,13 @@ type SpanQuery = z.infer<typeof spanQuery>;
 
 /** The pipeline asks a camera for a picture every 30 seconds at most, so a shorter interval is a promise it cannot keep. */
 const MINIMUM_STILL_INTERVAL_SECONDS = 30;
+
+/**
+ * Tests of an address one client may start a minute. Each is a run of ffmpeg
+ * at an address of the caller's choosing, and the runs share a few lanes with
+ * every camera's stills; somebody trying addresses out presses a few times.
+ */
+const STREAM_TESTS_PER_MINUTE = 10;
 
 @ApiTags('cameras')
 @Controller('v1/cameras')
@@ -149,6 +169,51 @@ export class CamerasController {
     // own: a manager of somebody's tent may add a camera to it, and what comes
     // back is then still the host's.
     return this.cameras.serialise(camera, this.cameras.granteeOf(ctx, camera));
+  }
+
+  /**
+   * A stream's address tried before any camera is made of it, so that whoever
+   * is adding one learns whether it answers without a camera - and the row that
+   * outlives it - being made for the try. It is judged as adding that camera
+   * is: the address is a stream's, a device it is pulled through is the
+   * caller's to manage and carries a tunnel, and the place it would hang in is
+   * the caller's to manage and has not ended. Then it is the read a camera's
+   * test is, answered at once and asked after below, and nothing is written.
+   */
+  @Post('test-captures')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UseGuards(RateLimitGuard, AuthGuard)
+  @RateLimited({ limit: STREAM_TESTS_PER_MINUTE, message: 'Too many tests of a stream address, please try again in a minute.' })
+  @ApiOperation({ summary: "Read one picture from a stream's address without making a camera of it" })
+  @V1Answer(streamTestCapture, {
+    status: HttpStatus.ACCEPTED,
+    description: 'Running, and asked after through `GET /cameras/test-captures/{captureId}`.',
+  })
+  public async testStream(@Caller() ctx: AccessContext, @V1Body(streamTestCreate) body: StreamTestCreate): Promise<StreamTestCapture> {
+    const account = accountOf(ctx, 'A test of an address is asked after by the account that started it, and this session is none.');
+    refuseNoStreamAddress(body.url);
+    if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
+    if (body.tunnel) {
+      await this.requireATunnel(body.deviceId);
+      refuseUdpThroughATunnel(body.transport);
+    }
+    const { grantee } = await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    await refuseEndedId(this.spaces, body.spaceId);
+
+    const draft = await this.cameras.draft(account, { kind: 'rtsp', name: '', ...body });
+    return this.tests.startStream(account, grantee === 'owner' || grantee === 'admin', { ...draft, secret: null });
+  }
+
+  /** How a test of an address went, for the account that started it alone: nobody else knows the address. */
+  @Get('test-captures/:captureId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "How a test of a stream's address went: running, done with its picture, or failed and why" })
+  @V1Answer(streamTestCapture)
+  public streamTestState(@Caller() ctx: AccessContext, @Param('captureId') captureId: string): StreamTestCapture {
+    const capture = this.tests.findStream(accountOf(ctx), captureId);
+    if (!capture) throw notFound('test_capture_not_found', 'There is no test of an address of yours with that id, or it finished too long ago.');
+
+    return capture;
   }
 
   /**

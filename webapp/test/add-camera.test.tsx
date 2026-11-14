@@ -88,8 +88,6 @@ const lamp = device({ id: 'device-8', name: 'Lamp', type: 'light', spaceId: 'spa
 
 /** What every stream body says beyond the place, the name and the address, where nothing else was chosen. */
 const plainStream = { username: '', password: '', transport: 'tcp' };
-/** What the camera a test asks through says beside: it writes no line and raises no alert. */
-const testOnly = { logErrors: false, staleWarning: false };
 
 // A camera is put into a place by managing it, so the tents on offer carry the
 // standing that decides whether they are offered at all.
@@ -111,14 +109,13 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
-/** Already over, which a capture the server could not even start - a refused stream - can be as it answers. */
+/** Already over, which a test the server could not even start - a refused stream - can be as it answers. */
 const refusedStream = {
   id: 'capture-1',
-  cameraId: 'camera-rtsp',
   state: 'failed',
   startedAt: '2026-09-23T12:00:00.000Z',
   finishedAt: '2026-09-23T12:00:00.000Z',
-  still: null,
+  picture: null,
   reason: 'noAnswer',
   error: 'Connection refused',
 };
@@ -374,7 +371,7 @@ describe('a camera at a stream address', () => {
     await screen.findByLabelText('Stream address');
   };
 
-  /** A test capture is a camera's own route: the test asks through a silent camera of its own and takes it away again. */
+  /** A test of an address has a route of its own, which makes no camera: the test made one and took it away, a row each time. */
   it('asks for one picture through the device standing in the chosen tent, and adds nothing', async () => {
     await openRtsp();
     fill();
@@ -382,18 +379,15 @@ describe('a camera at a stream address', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
 
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', {
-      kind: 'rtsp',
-      name: 'Balcony cam',
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/cameras/test-captures', {
       spaceId: 'space-1',
       url: 'rtsp://192.168.1.40/stream1',
       deviceId: 'device-1',
       tunnel: true,
       ...plainStream,
-      ...testOnly,
     });
-    expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures');
-    expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
+    expect(api.delete).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
     // A wrong address is an ordinary outcome of this button, so the kind of
     // failure is what is drawn, in the screen's language - and the camera's
@@ -403,6 +397,28 @@ describe('a camera at a stream address', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('Connection refused');
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('Connection refused')).toBeInTheDocument();
+  });
+
+  it('shows the picture a good address came back with, which is stored nowhere', async () => {
+    const answered = {
+      ...refusedStream,
+      state: 'done',
+      reason: null,
+      error: null,
+      picture: { capturedAt: new Date(Date.now() - 4_000).toISOString(), jpeg: '/9j/4AAQ' },
+    };
+    vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(path === '/cameras/test-captures' ? answered : posts(path)) as never);
+    await openRtsp();
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+    });
+
+    const shot = await screen.findByRole('img', { name: 'The picture the test came back with' });
+    expect(shot).toHaveAttribute('src', 'data:image/jpeg;base64,/9j/4AAQ');
+    expect(screen.getByText(/^A picture came back · /)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalledWith('/cameras', expect.anything());
   });
 
   it('keeps the camera´s own words back where the server did not hand them over', async () => {
@@ -470,15 +486,12 @@ describe('a camera at a stream address', () => {
     });
 
     // Every Terp Control device carries the tunnel, the fridge module included.
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', {
-      kind: 'rtsp',
-      name: 'Balcony cam',
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', {
       spaceId: 'space-1',
       url: 'rtsp://192.168.1.40/stream1',
       deviceId: 'device-5',
       tunnel: true,
       ...plainStream,
-      ...testOnly,
     });
   });
 
@@ -531,7 +544,7 @@ describe('a camera at a stream address', () => {
 
     expect(api.post).toHaveBeenNthCalledWith(
       1,
-      '/cameras',
+      '/cameras/test-captures',
       expect.objectContaining({ url: 'rtsp://192.168.1.40/stream1', username: 'tapo', password: 'p@ss:word' }),
     );
   });
@@ -565,7 +578,7 @@ describe('a camera at a stream address', () => {
     });
 
     // The device still stands there, and still pauses the camera in maintenance.
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', expect.objectContaining({ deviceId: 'device-1', tunnel: false }));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', expect.objectContaining({ deviceId: 'device-1', tunnel: false }));
   });
 
   it('offers UDP only to a stream the cloud opens itself, and reads it the way chosen', async () => {
@@ -588,7 +601,7 @@ describe('a camera at a stream address', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
 
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', expect.objectContaining({ tunnel: true, transport: 'http' }));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', expect.objectContaining({ tunnel: true, transport: 'http' }));
   });
 
   it('adds the camera as the form stands when the place is changed after a test, and opens it', async () => {
@@ -646,9 +659,9 @@ describe('a camera at a stream address', () => {
     }
   });
 
-  it('says what the server said when the camera was refused', async () => {
+  it('says what the server said when the test was refused', async () => {
     vi.mocked(api.post).mockRejectedValue(
-      new ApiError({ status: 403, title: 'Refused', detail: 'That tent is not yours to hang a camera in.', code: 'forbidden', errors: [] }),
+      new ApiError({ status: 403, title: 'Refused', detail: 'That tent is not yours to hang a camera in.', code: 'insufficient_access', errors: [] }),
     );
     await openRtsp();
     fill();

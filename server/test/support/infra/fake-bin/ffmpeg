@@ -112,7 +112,9 @@ writeFileSync(planFile, JSON.stringify(plan.slice(1)));
 const answer = () => {
   const write = () => {
     if (run.stderr) process.stderr.write(run.stderr);
-    process.exit(run.exit ?? 0);
+    // A camera that answers: the picture goes out on stdout, as ffmpeg's does, before the run ends.
+    if (run.stdout) process.stdout.write(Buffer.from(run.stdout, 'base64'), () => process.exit(run.exit ?? 0));
+    else process.exit(run.exit ?? 0);
   };
 
   // A camera that accepts the connection and then says nothing, which is what

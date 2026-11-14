@@ -8,6 +8,8 @@ import type {
   CameraPage,
   CameraUpdate,
   MediaPage,
+  StreamTestCapture,
+  StreamTestCreate,
   TestCapture,
   TimelapseAccepted,
   TimelapseCreate,
@@ -147,30 +149,41 @@ const pause = (ms: number, signal: AbortSignal) =>
 
 /**
  * A test picture from start to finish. The press is answered at once and the
- * capture asked after every couple of seconds until it is over: a read can take
- * minutes, and a request held open for that long is one every proxy on the way
- * would have to be told to allow.
+ * capture asked after at `at(id)` every couple of seconds until it is over: a
+ * read can take minutes, and a request held open for that long is one every
+ * proxy on the way would have to be told to allow.
  *
  * A poll that did not get through is simply asked again; only a refusal - the
  * capture forgotten by a restarted server, the camera gone - ends the wait
  * early, and a capture still running once the wait is over ends it as
  * `NoAnswerInTime`.
  */
-const takeTestPicture = async (cameraId: string, signal: AbortSignal): Promise<TestCapture> => {
+const followCapture = async <T extends { id: string; state: TestCapture['state'] }>(
+  start: () => Promise<T>,
+  at: (id: string) => string,
+  signal: AbortSignal,
+): Promise<T> => {
   // A stopwatch, so it is read off the monotonic clock rather than either side's hour.
   const until = performance.now() + CAPTURE_WAIT_MS;
-  let capture = await api.post<TestCapture>(`/cameras/${cameraId}/test-captures`);
+  let capture = await start();
   while (capture.state === 'running') {
     if (performance.now() >= until) throw new NoAnswerInTime();
     await pause(CAPTURE_POLL_MS, signal);
     try {
-      capture = await api.get<TestCapture>(`/cameras/${cameraId}/test-captures/${capture.id}`, undefined, signal);
+      capture = await api.get<T>(at(capture.id), undefined, signal);
     } catch (error) {
       if (error instanceof ApiError || signal.aborted) throw error;
     }
   }
   return capture;
 };
+
+const takeTestPicture = (cameraId: string, signal: AbortSignal): Promise<TestCapture> =>
+  followCapture(
+    () => api.post<TestCapture>(`/cameras/${cameraId}/test-captures`),
+    id => `/cameras/${cameraId}/test-captures/${id}`,
+    signal,
+  );
 
 /** A signal for each wait, aborted with the screen that started it, so nothing is asked after for a page nobody has open. */
 const useWaitSignal = () => {
@@ -212,11 +225,22 @@ export const useTestCapture = (cameraId: string) => {
   );
 };
 
-/** A picture from a camera named as the request is made, for the same reason `useUpdateCamera` takes its camera in the call. */
-export const useCaptureOnce = () => {
+/**
+ * A stream's address tried before any camera is made of it, waited for as a
+ * camera's test picture is. It writes nothing, so nothing is asked again after
+ * it; the picture comes back in the answer.
+ */
+export const useStreamTest = () => {
   const signal = useWaitSignal();
 
-  return useMutation({ mutationFn: (cameraId: string) => takeTestPicture(cameraId, signal()) });
+  return useMutation({
+    mutationFn: (body: StreamTestCreate) =>
+      followCapture(
+        () => api.post<StreamTestCapture>('/cameras/test-captures', body),
+        id => `/cameras/test-captures/${id}`,
+        signal(),
+      ),
+  });
 };
 
 /**

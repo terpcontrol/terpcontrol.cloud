@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-14
-source: a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
+source: a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -240,10 +240,13 @@ way and what the code has to respect. Internal notes on the camera exist.
   whatever else was changed. UDP does not pass through a tunnel, so turning the tunnel on for a stream read over
   UDP sends `transport: null` (`webapp/src/screens/camera/CameraSettings.tsx`).
 - Adding a stream camera (`webapp/src/screens/camera/add/RtspCamera.tsx`; the redesign session of 2026-11-13):
-  "Test" never adds - no route tests an address without a camera, so it makes a silent camera for the test alone
-  (`logErrors` and `staleWarning` off), takes one picture and removes it again in a `finally`, which leaves a
-  tombstone row per test; "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and
-  opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
+  "Test" never adds. It asks `POST /v1/cameras/test-captures` (Chris, 2026-11-14: a route of its own that makes no
+  camera; before, the form made a silent camera for the test and removed it, a tombstone row per press), which
+  drafts the camera as a create would store it (`CamerasService.draft`) and reads it as a camera's test does
+  (`CameraPollerService.readUnstored`: offline device refused at once, the same budget), stores nothing and hands
+  the picture back in the answer, at most 720 pixels wide (`TestCapturesService.startStream`). Only the account that
+  started a test asks after it; a press with the same stream while one runs joins it; ten starts a minute per
+  client. "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
   with the form for one, instead of the pairing guide (`AddCamera.tsx`); pairing is offered only at devices in
   places the reader manages.
 
@@ -259,7 +262,7 @@ way and what the code has to respect. Internal notes on the camera exist.
 
 ## Limits and failure modes
 - Firmware older than PR #124 ignores the relay `url` and gets no stills; the cloud no longer sends `cam_capture`.
-  Refusal holds, test captures and reads in flight live in server memory; a restart clears them.
+  Refusal holds, test captures, tests of an address and reads in flight live in server memory; a restart clears them.
 - Supported are cameras that answer the LAN search and send H.264 on the main stream; one with another P2P scheme
   (seen with H.265 cameras on newer camera firmware) never delivers - supporting it is a change of its own.
 - "capture attempt N failed (camera did not accept the session ...); retrying on a fresh session" is mostly noise

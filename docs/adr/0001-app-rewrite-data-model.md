@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-14
-source: Chris's answers of 2026-11-14 (six kinds of a place); Chris's answers of 2026-11-13 (what nothing asks removed, more kinds of a place, hand-set phases migrated to their person, plants named on a share link, a paired camera called Terp Cam); the final fix round's second part - refusals, a window link's curves (the redesign session of 2026-11-13, not Chris); Chris's confirmation of the amendment on places, rooms and where a device stood (2026-11-13); the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, confirmed by him on 2026-11-13; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, confirmed by him the same day; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: Chris's answers of 2026-11-14 (six kinds of a place, a stream's address tested by a route that makes no camera); Chris's answers of 2026-11-13 (what nothing asks removed, more kinds of a place, hand-set phases migrated to their person, plants named on a share link, a paired camera called Terp Cam); the final fix round's second part - refusals, a window link's curves (the redesign session of 2026-11-13, not Chris); Chris's confirmation of the amendment on places, rooms and where a device stood (2026-11-13); the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, confirmed by him on 2026-11-13; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, confirmed by him the same day; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -633,7 +633,7 @@ removed together with the Angular app.
 | Alarms | `GET/POST /devices/{id}/alarm-rules`, `PATCH/DELETE /alarm-rules/{id}`, `PUT/DELETE /alarm-rules/{id}/silence`, `GET /alerts`, `GET/DELETE /alerts/{id}` |
 | Grows | `GET/POST /grows`, `GET/PATCH/DELETE /grows/{id}`, `GET/POST /grows/{id}/plants`, `PATCH/DELETE /plants/{id}`, `POST /grows/{id}/phases`, `PATCH/DELETE /grows/{id}/phases/{phaseId}`, `POST /grows/{id}/placements` (a move), `PATCH/DELETE /grows/{id}/placements/{placementId}`, `POST /grows/{id}/harvests`, `POST /grows/{id}/splits`, `GET /grows/{id}/diary`, `GET /grows/{id}/report`, `GET /grows/{id}/series` (a grow's own measurements), `GET /grows/{id}/export` |
 | Diary | `GET/POST /entries`, `GET/PATCH/DELETE /entries/{id}`, `GET/POST /reminders`, `PATCH/DELETE /reminders/{id}`, `GET /tasks`, `POST /tasks/{id}/completions` |
-| Cameras | `GET/POST /cameras`, `GET/PATCH/DELETE /cameras/{id}`, `POST /cameras/{id}/test-captures` (answered at once), `GET /cameras/{id}/test-captures/{captureId}`, `GET /cameras/{id}/frames`, `GET/POST /cameras/{id}/timelapses` |
+| Cameras | `GET/POST /cameras`, `GET/PATCH/DELETE /cameras/{id}`, `POST /cameras/{id}/test-captures` (answered at once), `GET /cameras/{id}/test-captures/{captureId}`, `POST /cameras/test-captures` (a stream's address tested without a camera, answered at once), `GET /cameras/test-captures/{captureId}`, `GET /cameras/{id}/frames`, `GET/POST /cameras/{id}/timelapses` |
 | Media | `POST /media` (a photo), `GET /media/{id}`, `GET /media/{id}/content`, `DELETE /media/{id}` |
 | Schemes, charts | `GET/POST /schemes`, `PATCH/DELETE /schemes/{id}`, `GET/POST /chart-views`, `PATCH/DELETE /chart-views/{id}` |
 | Sharing | `GET/POST /share-links`, `PATCH/DELETE /share-links/{id}`, `PUT /share-links/{id}/revocation`, `GET /shared/{token}` (resolve), `GET /shared/{token}/weeks`, `GET /follows`, `PUT/DELETE /follows/{growId}` |
@@ -703,6 +703,20 @@ reaches the places the grow stood in during that window, each only over the grow
 `server/src/common/v1/access.service.ts`) - their Verlauf and their overview, clamped to that stay - and its
 resolution names them (`SharedGrow.curves`: `SharedCurves` of place, name and stay, oldest first); a link onto a
 running grow reaches no place.
+
+*Amended 2026-11-14 (Chris):* **a stream camera's address is tested by a route of its own that makes no
+camera** - before, the form made a silent camera for the test and removed it, a tombstone row per press.
+`POST /cameras/test-captures` takes `StreamTestCreate`, the place the camera would hang in and its stream as
+`RtspCameraCreate` says it, and judges it as that create does: an address that is a stream's (422
+`not_a_stream_address`), a device it is pulled through managed by the caller and carrying a tunnel, no UDP through
+it, the place managed by the caller (403 `insufficient_access`, 404 `space_not_found`) and not ended. It answers 202
+with a `StreamTestCapture`, asked after through `GET /cameras/test-captures/{captureId}` by the account that started
+it alone (404 `test_capture_not_found` for anybody else), for five minutes after it ends. It is the read a camera's
+test is - the camera drafted as the create would store it (`CamerasService.draft`), through an online device,
+within `CAPTURE_BUDGET_SECONDS` - and nothing is written: no camera, no media row, no diary line; the picture comes
+back in the answer (`picture.jpeg`, base64, at most 720 pixels wide). A guest who manages the place is told the kind
+of failure and not what the camera said, as on a camera's test. Each start is an ffmpeg run at an address of the
+caller's choosing, so a client starts at most ten a minute (`@RateLimited`).
 
 *Amended 2026-10-14 (Chris):* `DELETE /alerts/{id}` takes an alert that is over off the record, for whoever may
 manage what it is about; an open one is refused (409 `alert_open`), since stopping it is the rule's business. Before,

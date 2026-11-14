@@ -10491,6 +10491,143 @@
       "error"
     ]
   },
+  "StreamTestCreate": {
+    "type": "object",
+    "properties": {
+      "username": {
+        "description": "The login name the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "password": {
+        "description": "The password the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "deviceId": {
+        "description": "The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "tunnel": {
+        "type": "boolean",
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel."
+      },
+      "transport": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CameraTransport"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "spaceId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The place the camera would hang in, which whoever tests it has to manage."
+      },
+      "url": {
+        "type": "string",
+        "description": "The stream URL. A login written into it is used; `username` and `password` replace its halves."
+      }
+    },
+    "required": [
+      "spaceId",
+      "url"
+    ]
+  },
+  "StreamTestPicture": {
+    "type": "object",
+    "properties": {
+      "capturedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "jpeg": {
+        "type": "string",
+        "description": "The picture as a JPEG, base64, at most 720 pixels wide."
+      }
+    },
+    "required": [
+      "capturedAt",
+      "jpeg"
+    ]
+  },
+  "StreamTestCapture": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "state": {
+        "$ref": "#/components/schemas/TestCaptureState"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "finishedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "reason": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CaptureFailure"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What kind of failure it was, once `failed`."
+      },
+      "error": {
+        "description": "Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "picture": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StreamTestPicture"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The picture it took, once `done`."
+      }
+    },
+    "required": [
+      "id",
+      "state",
+      "startedAt",
+      "finishedAt",
+      "reason",
+      "error",
+      "picture"
+    ]
+  },
   "TimelapseCreate": {
     "type": "object",
     "properties": {

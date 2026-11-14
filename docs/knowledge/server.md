@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-14
-source: the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -205,7 +205,10 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - `DELETE /v1/sessions` and `PUT /v1/me/password` end every other session of the account.
 - `@RateLimited` (per address and route, in memory) guards only the doors without a session: sign-in, sign-up,
   password reset, recovery and change, the demo and automation logins (each with its own budget, so demo visitors
-  cannot throttle sign-ins), invite lookups, the public and Open Graph routes.
+  cannot throttle sign-ins), invite lookups, the public and Open Graph routes. One door with a session has a budget
+  too: testing a stream's address (`POST /v1/cameras/test-captures`, ten a minute), because each start is an ffmpeg
+  run at an address of the caller's choosing that writes nothing to look back at (Chris, 2026-11-14, gave the
+  route; the budget is the redesign session's).
 - Sign-in, password reset, adding a member by handle and invite previews answer alike whether or not the account or
   code exists. An inactive account gets 403 `account_not_activated` and its code mailed again (at most every 10 min).
 - `DELETE /v1/me` and `DELETE /v1/admin/users/{id}` run one resumable cascade (`account-deletion.service.ts`). It

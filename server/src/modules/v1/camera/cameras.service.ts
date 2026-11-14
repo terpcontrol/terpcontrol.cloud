@@ -157,12 +157,23 @@ export class CamerasService {
    * found out by the first capture.
    */
   public async create(ownerId: string, body: CameraCreate): Promise<CameraDocument> {
+    const camera = await this.draft(ownerId, body);
+    await this.cameras.create(camera);
+    return camera;
+  }
+
+  /**
+   * The camera a create body describes, as it would be stored and without
+   * storing it - which is also what a test of a stream's address reads, so the
+   * test opens the stream exactly as the camera would be opened.
+   */
+  public async draft(ownerId: string, body: CameraCreate): Promise<CameraDocument> {
     const isTerpCam = body.kind !== 'rtsp';
     const createdAt = new Date();
     const deviceId = body.kind === 'terpcam_standalone' ? null : (body.deviceId ?? null);
     const device = deviceId ? await this.devices.findOne({ id: deviceId }, { spaceId: 1, isDemo: 1 }).lean() : null;
 
-    const camera: CameraDocument = {
+    return {
       id: uuidv4(),
       createdAt,
       ownerId,
@@ -195,9 +206,6 @@ export class CamerasService {
       removedAt: null,
       state: { lastStillAt: null, lastError: null, firmwareVersion: null },
     };
-
-    await this.cameras.create(camera);
-    return camera;
   }
 
   /**
