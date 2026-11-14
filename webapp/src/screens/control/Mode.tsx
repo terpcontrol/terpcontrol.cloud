@@ -108,10 +108,12 @@ function DeviceMode({ device, mayManage }: { device: Device; mayManage: boolean 
 
 /**
  * A device whose control is switched off, said where its climate would stand -
- * on Steuerung, and on the page of a device that leads a place - in one
+ * on Steuerung, and on the page of a device that leads a place - in a
  * sentence that lists what stands still, as the question that switched it off
- * listed it, with the one tap that switches it on; the rest is behind the help.
- * Off is switched on the device's page.
+ * listed it, and one that says what that question says of the way back: any
+ * change to the light or the targets switches it on. Then the one tap that
+ * switches it on; the rest is behind the help. Off is switched on the device's
+ * page.
  *
  * Switched off while the device was not heard (`storedAt`), off is a setting
  * it has not been handed like any other: the sentence says since when it is
@@ -131,7 +133,8 @@ export function ControlOff({ device, mayManage, storedAt = null }: { device: Dev
           t('control.pending.off', { saved: savedWords(t, storedAt, now, zone), device: deviceName(device, t) })
         ) : (
           <>
-            <strong>{t('control.state.off')}.</strong> {t(mayManage ? `climateControl.offLine.${kind}` : 'climateControl.offLineRead')}
+            <strong>{t('control.state.off')}.</strong>{' '}
+            {mayManage ? `${t(`climateControl.offLine.${kind}`)} ${t('climateControl.offBack')}` : t('climateControl.offLineRead')}
           </>
         )}
         <Help topic="climateControl" />

@@ -3907,7 +3907,7 @@
     },
     "climateControl": {
       "title": "Control",
-      "text": "Switches the device’s whole climate control off and on again: heater, cooling or dehumidifying, light, CO₂ and fans, on the smart sockets too. While it is off the device keeps measuring and reporting, but holds no targets. Meant for an empty cabinet, for cleaning or for the time between two grows. It comes back on here, when you save the light or the targets, apply a preset, or with the next plan step; a plan that switching off paused goes on once control is on. If the device is offline, that applies once it is back online."
+      "text": "Switches the device’s whole climate control off and on again: heater, cooling or dehumidifying, light, CO₂ and fans, on the smart sockets too. While it is off the device keeps measuring and reporting, but holds no targets. Meant for an empty cabinet, for cleaning or for the time between two grows. It comes back on here, with any change to the light, the light limit, the targets or the climate preset under Control, or with the next plan step; a plan that switching off paused goes on once control is on. If the device is offline, that applies once it is back online."
     },
     "energySaving": {
       "title": "Energy saving",
@@ -4329,7 +4329,7 @@
     },
     "measures": "The device keeps measuring and reporting, and your alarms stay on.",
     "plan": "The running plan “{{name}}” is paused, or its next step would switch control back on.",
-    "back": "Back on: here, or by saving the light or the targets or applying a climate preset.",
+    "back": "Any change to the light, the light limit, the targets or the climate preset under Control switches control back on – or you switch it on here.",
     "yes": "Switch off",
     "pauseReason": "Control was switched off.",
     "offLine": {
@@ -4337,8 +4337,9 @@
       "controller": "Heater, dehumidifier, light, CO₂ and fans are off, on the smart sockets too – the device only measures.",
       "other": "The device only measures and holds no targets."
     },
+    "offBack": "Any change to the light or the targets switches control back on.",
     "offLineRead": "The device only measures and holds no targets right now.",
-    "cardsWhenOn": "Applies once control is on again – whatever you change here switches it on.",
+    "cardsWhenOn": "The light and the targets apply once control is on again.",
     "saveSwitchesOn": "This switches control back on."
   },
   "energySaving": {

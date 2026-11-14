@@ -430,10 +430,11 @@ otherwise - where it is described now in brackets)
   smart socket's override is, on every new command - a firmware change of its own.
 - Asked again after the second part (2026-11-14): the kind "Raum" went again - a place has six kinds (Zelt,
   Kühlschrank, Balkon, Trockenbox, Gewächshaus, Sonstiges) and "Raum" is only the room that groups places; the
-  contract refuses `grow_room`, which no release stored (ADR 0001, app-wording). The link "Ort entfernen …" is red
-  like every irreversible way, as the second part built it. **Not built yet**: any change on Steuerung switches
-  regulation back on while it is off, the light limit included, as the switch-off question is to say; a stream
-  camera's address is tested by a route of its own that makes no camera.
+  contract refuses `grow_room`, which no release stored (ADR 0001, app-wording). Any change on Steuerung switches
+  regulation back on while it is off, the light limit included, as built, and the switch-off question now says
+  so, the banner while it is off in a few words (app-ux §5). The link "Ort entfernen …" is red like every
+  irreversible way, as the second part built it. **Not built yet**: a stream camera's address is tested by a route
+  of its own that makes no camera.
 
 **The contract**
 4. **Migration steps 026 to 030 on a copy of production data** (the redesign session, 2026-11-13, as Chris asked):

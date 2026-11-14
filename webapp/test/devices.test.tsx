@@ -683,6 +683,12 @@ describe('a device on its own page', () => {
       const asked = await screen.findByRole('dialog', { name: 'Switch control off?' });
       expect(within(asked).getByText(/Heater, compressor, light, CO₂ valve and fans go off/)).toBeInTheDocument();
       expect(within(asked).getByText(/is paused, or its next step would switch control back on/)).toBeInTheDocument();
+      // Any change on Steuerung switches it back on, the light limit included, and the question says so.
+      expect(
+        within(asked).getByText(
+          'Any change to the light, the light limit, the targets or the climate preset under Control switches control back on – or you switch it on here.',
+        ),
+      ).toBeInTheDocument();
       expect(api.patch).not.toHaveBeenCalled();
       // The one danger style: filled in the alarm's red, never the brand green of a primary action.
       expect(within(asked).getByRole('button', { name: 'Switch off' }).className).toMatch(/dangerFilled/);
@@ -718,9 +724,9 @@ describe('a device on its own page', () => {
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
       // One control switches it on, the one Steuerung has: no second row for it among the device's rows.
-      // One sentence, listing what stands still as the question that switched it off listed it; the rest is behind the help.
+      // What stands still, as the question that switched it off listed it, and its way back in a few words; the rest is behind the help.
       expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(
-        /^Control off\. Heater, compressor, light, CO₂ valve and fans are off; the device only measures\.$/,
+        /^Control off\. Heater, compressor, light, CO₂ valve and fans are off; the device only measures\. Any change to the light or the targets switches control back on\.$/,
       );
       fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
 
@@ -778,8 +784,10 @@ describe('a device on its own page', () => {
       await draw('/devices/device-1', 'Fridge module');
 
       expect(screen.getByText('Control off')).toBeInTheDocument();
-      // Switched on, the answer says it is not with the device yet: the note itself stays one sentence.
-      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(/^Control off\. [^.]+\.$/);
+      // Switched on, the answer says it is not with the device yet: the note itself stays what stands still and the way back.
+      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(
+        /^Control off\. [^.]+\. Any change to the light or the targets switches control back on\.$/,
+      );
       expect(screen.queryByText(/not with the device yet/)).not.toBeInTheDocument();
     });
 

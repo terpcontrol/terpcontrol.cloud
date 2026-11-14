@@ -991,14 +991,16 @@ describe('the climate under Steuerung', () => {
     });
 
     /**
-     * The question that switched control off says it comes back on by saving targets, so the light and the targets
-     * stay in view while it is off - read as what holds once it is on, and saving them switches it on and says so.
+     * The question that switched control off says any change to the light or the targets switches it back on, so
+     * they stay in view while it is off - read as what holds once it is on, and saving them switches it on and says
+     * so. The banner says the way back as the question does.
      */
     it('keeps the light and the targets while control is off, and a save switches it on and says so', async () => {
       await drawn(device({ type: 'fridge', control: { ...CONTROL, running: false } }));
 
+      expect(screen.getByText('Control off.').closest('p')).toHaveTextContent(/Any change to the light or the targets switches control back on\.$/);
       expect(screen.getByRole('region', { name: 'Light' })).toBeInTheDocument();
-      expect(screen.getAllByText('Applies once control is on again – whatever you change here switches it on.')).toHaveLength(1);
+      expect(screen.getAllByText('The light and the targets apply once control is on again.')).toHaveLength(1);
       // Nothing holds while it is off, so no column is marked as the one in effect.
       expect(screen.getAllByRole('columnheader').map(head => head.textContent)).toEqual(['', 'Day', 'Night']);
 

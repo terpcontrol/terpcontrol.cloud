@@ -3917,7 +3917,7 @@
     },
     "climateControl": {
       "title": "Regelung",
-      "text": "Schaltet die ganze Regelung des Geräts ab und wieder an: Heizung, Kühlung bzw. Entfeuchtung, Licht, CO₂ und Lüfter, auch an den Steckdosen. Ausgeschaltet misst das Gerät weiter und meldet seine Werte, hält aber keine Zielwerte. Gedacht für einen leeren Schrank, zum Putzen oder für die Zeit zwischen zwei Grows. Wieder an geht sie hier, wenn du Licht oder Zielwerte speicherst, ein Preset anwendest oder mit dem nächsten Planschritt; ein Plan, den das Ausschalten pausiert hat, läuft mit dem Einschalten weiter. Ist das Gerät gerade offline, gilt das, sobald es wieder online ist."
+      "text": "Schaltet die ganze Regelung des Geräts ab und wieder an: Heizung, Kühlung bzw. Entfeuchtung, Licht, CO₂ und Lüfter, auch an den Steckdosen. Ausgeschaltet misst das Gerät weiter und meldet seine Werte, hält aber keine Zielwerte. Gedacht für einen leeren Schrank, zum Putzen oder für die Zeit zwischen zwei Grows. Wieder an geht sie hier, mit jeder Änderung an Licht, Lichtgrenze, Zielwerten oder Klima-Preset unter Steuerung oder mit dem nächsten Planschritt; ein Plan, den das Ausschalten pausiert hat, läuft mit dem Einschalten weiter. Ist das Gerät gerade offline, gilt das, sobald es wieder online ist."
     },
     "energySaving": {
       "title": "Energiespar-Modus",
@@ -4339,7 +4339,7 @@
     },
     "measures": "Das Gerät misst weiter und meldet seine Werte, und deine Alarme bleiben an.",
     "plan": "Der laufende Plan „{{name}}“ wird pausiert, sonst würde sein nächster Schritt die Regelung wieder einschalten.",
-    "back": "Wieder an: hier, oder indem du Licht oder Zielwerte speicherst oder ein Klima-Preset anwendest.",
+    "back": "Jede Änderung an Licht, Lichtgrenze, Zielwerten oder Klima-Preset unter Steuerung schaltet die Regelung wieder ein – oder du schaltest sie hier ein.",
     "yes": "Ausschalten",
     "pauseReason": "Die Regelung wurde ausgeschaltet.",
     "offLine": {
@@ -4347,8 +4347,9 @@
       "controller": "Heizung, Entfeuchter, Licht, CO₂ und Lüfter stehen still, auch an den Steckdosen – das Gerät misst nur noch.",
       "other": "Das Gerät misst nur noch und hält keine Zielwerte."
     },
+    "offBack": "Jede Änderung an Licht oder Zielwerten schaltet die Regelung wieder ein.",
     "offLineRead": "Das Gerät misst nur noch und hält gerade keine Zielwerte.",
-    "cardsWhenOn": "Gilt, sobald die Regelung wieder an ist – was du hier änderst, schaltet sie ein.",
+    "cardsWhenOn": "Licht und Zielwerte gelten, sobald die Regelung wieder an ist.",
     "saveSwitchesOn": "Das schaltet die Regelung wieder ein."
   },
   "energySaving": {
