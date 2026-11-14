@@ -9,6 +9,7 @@ import { useMembers, useRoomsMembers } from '@/api/members';
 import { useSavePlace, useSpaces } from '@/api/spaces';
 import { cameraPath, devicePath, membersPath, placePath, placesOf, removePath, usePageOfPlace } from '@/app/places';
 import { useLog } from '@/log/log-context';
+import { climateHeldBy, inOrder, useLead } from '@/screens/control/lead';
 import { DeviceSettingsSheet } from '@/screens/devices/DeviceSettingsSheet';
 import { Members } from '@/screens/space/members/Members';
 import { inSentence, mentionsOn } from '@/screens/space/members/people';
@@ -18,7 +19,6 @@ import { Help } from '@/ui/Help';
 import { cameraTitle, deviceTitle, givenName, PLACE_KINDS, typeName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Refused, Waiting } from '@/ui/PageState';
-import { usePlaceDevices } from '@/ui/place-devices';
 import { Row, Rows } from '@/ui/Rows';
 import rows from '@/ui/Rows.module.css';
 import { useMayIn, useMayManage } from '@/ui/session-access';
@@ -336,10 +336,15 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
  * own sheet - which says what goes with it and takes it back - and a new one
  * is added by its code. A device or a Terp Cam nobody named is told from
  * another of its kind within the list it stands in, not within the account.
+ * The place's climate comes first, as on Steuerung. A place has one climate
+ * (Chris, 2026-11-14): a controller or fridge module standing elsewhere is not
+ * brought into a place that holds one, and says why; a second one standing
+ * here from before says that it is to move.
  */
 function DevicesHere({ space }: { space: Space }) {
   const { t } = useTranslation();
-  const here = usePlaceDevices(space.id).items;
+  const { devices, lead } = useLead(space.id);
+  const here = inOrder(devices.items, lead);
   const every = useDevices().data?.items;
   const cameras = useCameras(space.id).data?.items.filter(camera => camera.removedAt === null) ?? [];
   const called = camerasCalled(cameras.map(camera => cameraTitle(camera, here.find(device => device.id === camera.deviceId) ?? null, t)));
@@ -360,14 +365,18 @@ function DevicesHere({ space }: { space: Space }) {
         {t('place.edit.devices')}
       </h2>
       <Rows>
-        {here.map(device => (
-          <Row
-            key={device.id}
-            title={deviceTitle(device, t, here)}
-            line={givenName(device) ? typeName(device.type, t) : undefined}
-            to={devicePath(device.id)}
-          />
-        ))}
+        {here.map(device => {
+          const second = lead !== null && device.id !== lead.id && climateHeldBy(here, space.id, device) !== null;
+          return (
+            <Row
+              key={device.id}
+              title={deviceTitle(device, t, here)}
+              line={second ? t('place.edit.secondClimate') : givenName(device) ? typeName(device.type, t) : undefined}
+              warn={second}
+              to={devicePath(device.id)}
+            />
+          );
+        })}
         {cameras.map((camera, at) => (
           <Row key={camera.id} title={called[at]} line={t('place.edit.camera')} to={cameraPath(camera.id)} />
         ))}
@@ -385,17 +394,22 @@ function DevicesHere({ space }: { space: Space }) {
         <Sheet title={t('place.edit.bringTitle', { name: space.name })} onClose={() => setBringing(false)}>
           <div className={ui.sheetBody}>
             <Rows>
-              {elsewhere.map(device => (
-                <Row
-                  key={device.id}
-                  title={deviceTitle(device, t, elsewhere)}
-                  line={spaces.find(one => one.id === device.spaceId)?.name ?? t('place.edit.nowhere')}
-                  onOpen={() => {
-                    setBringing(false);
-                    setMoving(device);
-                  }}
-                />
-              ))}
+              {elsewhere.map(device => {
+                const held = climateHeldBy(here, space.id, device);
+                const from = spaces.find(one => one.id === device.spaceId)?.name ?? t('place.edit.nowhere');
+                return (
+                  <Row
+                    key={device.id}
+                    title={deviceTitle(device, t, elsewhere)}
+                    line={held ? t('place.edit.climateHeld', { from, device: deviceTitle(held, t, here) }) : from}
+                    waits={held !== null}
+                    onOpen={() => {
+                      setBringing(false);
+                      setMoving(device);
+                    }}
+                  />
+                );
+              })}
               <Row title={t('place.edit.claim')} to={claim} />
             </Rows>
           </div>

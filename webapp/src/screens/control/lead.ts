@@ -47,6 +47,16 @@ export const leadValuesOf = <C extends { deviceId: string | null; values: CardVa
   return { climate, values: own.length > 0 ? own : live === undefined || placeWide ? merged : [], placeWide };
 };
 
+/**
+ * The controller or fridge module holding a place's climate besides `device`, where `device` would hold one too: a
+ * place has one climate (Chris, 2026-11-14), so a second is offered no place that has one - the server refuses it,
+ * `place_holds_a_climate` - and one that stands beside another from before is told to move.
+ */
+export const climateHeldBy = (devices: readonly Device[], spaceId: string | null, device: Pick<Device, 'id' | 'type'>): Device | null =>
+  spaceId !== null && OWN_CLIMATE_TYPES.includes(device.type)
+    ? (devices.find(other => other.spaceId === spaceId && other.id !== device.id && OWN_CLIMATE_TYPES.includes(other.type)) ?? null)
+    : null;
+
 /** The devices of a place in the order Steuerung lists them: the place's climate first, the others as they stand. */
 export const inOrder = (devices: Device[], lead: Device | null): Device[] =>
   [...devices].sort((one, other) => Number(other.id === lead?.id) - Number(one.id === lead?.id));

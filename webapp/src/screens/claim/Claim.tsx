@@ -208,12 +208,16 @@ export function Claim() {
 
   // Where the claim puts the device, in its one write: the place the flow was opened from, else - for a fan, a socket
   // or a lamp, which the server tells apart - the first answer the question of where it hangs will give; and what a
-  // place it makes is called, in the reader's language, which the server has none of. A code is not spent on places
-  // that could not be read: the claim would stand the device somewhere by guesswork.
+  // place it makes is called, in the reader's language, which the server has none of. A place that holds a climate
+  // takes no second controller or fridge module, so one opened from such a place is joined only by what holds none,
+  // and the server stands the rest in a place of its own. A code is not spent on places that could not be read: the
+  // claim would stand the device somewhere by guesswork.
   const whereTo = async () => {
-    const join = joinOrder(own((await known(spaces, true))?.items ?? []), (await known(devices, true))?.items ?? [])[0];
+    const listed = (await known(devices, true))?.items ?? [];
+    if (opened && !climateIn(listed, opened.id, '')) return { spaceId: opened.id };
+    const join = opened ?? joinOrder(own((await known(spaces, true))?.items ?? []), listed)[0];
     const spaceNames = { tent: t('claim.place.newName.tent'), fridge: t('claim.place.newName.fridge') };
-    return opened ? { spaceId: opened.id } : { spaceNames, ...(join ? { joinSpaceId: join.id } : {}) };
+    return { spaceNames, ...(join ? { joinSpaceId: join.id } : {}) };
   };
 
   // What a claim sets in motion before anything is asked: the place it made - for a controller or a fridge module,
@@ -225,7 +229,9 @@ export function Claim() {
     setMade(madeId);
 
     if (opened && beside && !OWN_CLIMATE_TYPES.includes(got.type)) return joined(got, opened);
-    const asking = planOf(got, !opened && others.length > 0, beside, await known(me));
+    // A controller opened from a place with a climate stands in a place of its own: where it hangs is asked, and why said.
+    const turnedAway = opened !== null && got.spaceId !== opened.id;
+    const asking = planOf(got, (!opened || turnedAway) && others.length > 0, beside, await known(me));
     entering.current = addressOf(got.id, asking, asking[0], madeId);
     setParams({ device: got.id }, { replace: true });
   };

@@ -7,6 +7,7 @@ import { useCameras } from '@/api/cameras';
 import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { refusalCode } from '@/api/problem';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
+import { climateHeldBy } from '@/screens/control/lead';
 import { useSession } from '@/api/session';
 import { placesOf } from '@/app/places';
 import { useLog } from '@/log/log-context';
@@ -41,7 +42,9 @@ const NEW = 'new';
  *
  * Two devices of one place are never called alike: a name another device of
  * the place it will stand in already has is refused under the field, from what
- * the page holds and from the server's own refusal (`name_taken`).
+ * the page holds and from the server's own refusal (`name_taken`). And a place
+ * has one climate: a controller or fridge module is not moved into a place
+ * that holds one, which is said under the places (`place_holds_a_climate`).
  */
 export function DeviceSettingsSheet({ device, to = null, onClose }: { device: Device; to?: string | null; onClose: () => void }) {
   const { t } = useTranslation();
@@ -83,6 +86,7 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
           other => other.id !== device.id && other.spaceId === target && nameKey(deviceName(other, t)) === nameKey(wanted),
         ) ?? null);
   const taken = neighbour ? deviceName(neighbour, t) : refusalCode(write.error) === 'name_taken' && wanted !== null ? wanted : null;
+  const held = moving ? climateHeldBy(devices.data?.items ?? [], target, device) : null;
 
   // A Terp Cam nobody named needs what is printed on it only to be told from a second one going along.
   const cams = (cameras.data?.items ?? []).filter(camera => camera.deviceId === device.id && camera.removedAt === null);
@@ -134,8 +138,8 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}
-          disabled={busy || !(renamed || moving) || (chosen === NEW && placeName.trim() === '') || neighbour !== null}
-          aria-describedby={neighbour ? 'device-name-taken' : undefined}
+          disabled={busy || !(renamed || moving) || (chosen === NEW && placeName.trim() === '') || neighbour !== null || held !== null}
+          aria-describedby={neighbour ? 'device-name-taken' : held ? 'device-climate-held' : undefined}
           onClick={() => void save()}
         >
           {t(moving ? (busy ? 'devices.settings.moving' : 'devices.settings.move') : busy ? 'devices.settings.saving' : 'devices.settings.save')}
@@ -190,7 +194,12 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
                 }}
               />
             ) : null}
-            {moving && along.length > 0 ? (
+            {held ? (
+              <p id="device-climate-held" className={ui.problem} role="alert">
+                {t('devices.settings.climateHeld', { place: listed.find(space => space.id === target)?.name ?? '', device: deviceName(held, t) })}
+              </p>
+            ) : null}
+            {moving && along.length > 0 && !held ? (
               <p className={styles.along}>
                 <Facts facts={[`${t('devices.settings.with')} ${along[0]}`, ...along.slice(1)]} />
               </p>

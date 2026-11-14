@@ -597,6 +597,9 @@ describe('Steuerung of a place with several devices', () => {
     // The lead's silence is the box's under the head to say, once.
     expect(await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / })).toBeInTheDocument();
     expect(head).not.toHaveTextContent('Control on');
+    // A place has one climate (Chris, 2026-11-14): the second one from before keeps working, and is told to move.
+    const others = screen.getAllByRole('note').map(one => one.textContent);
+    expect(others).toEqual([expect.stringMatching(/^A place has one climate, and Blue Dream tent holds it: .* Move it to a place of its own\.$/)]);
   });
 
   /** On a phone the head's pill, the box under it and the lead's card each said "offline", one under the other. */

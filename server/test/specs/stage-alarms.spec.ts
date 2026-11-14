@@ -28,9 +28,9 @@ const aRule = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** A controller claimed into a space, or into a space of its own when none is named. */
-const claimAController = async (spaceId?: string): Promise<{ deviceId: string; spaceId: string }> => {
-  const device = await registerDevice('controller');
+/** A controller claimed into a space, or into a space of its own when none is named; a plug, where a tent already holds a climate. */
+const claimAController = async (spaceId?: string, type: 'controller' | 'plug' = 'controller'): Promise<{ deviceId: string; spaceId: string }> => {
+  const device = await registerDevice(type);
   const claimed = await owner.client
     .post('/v1/devices/claims')
     .send({ code: await claimCodeOf(device.deviceId), ...(spaceId ? { spaceId } : {}) })
@@ -113,11 +113,12 @@ describe('the rules a stage writes', () => {
   });
 });
 
+/** A place has one climate, so what arrives in the tent beside its controller is a plug, which measures the same air. */
 describe('a device that arrives in a tent already in a stage', () => {
   it('takes the thresholds of that stage when claimed into the tent', async () => {
     await enterPhase('vegetative');
 
-    const { deviceId } = await claimAController(tent);
+    const { deviceId } = await claimAController(tent, 'plug');
 
     const rules = byName(await presetRulesOf(deviceId));
     expect(Object.keys(rules)).toHaveLength(4);
@@ -125,7 +126,7 @@ describe('a device that arrives in a tent already in a stage', () => {
   });
 
   it('takes them when moved into the tent, and keeps them when moved out', async () => {
-    const { deviceId, spaceId: shelf } = await claimAController();
+    const { deviceId, spaceId: shelf } = await claimAController(undefined, 'plug');
     expect(await presetRulesOf(deviceId)).toEqual([]);
 
     await owner.client.patch(`/v1/devices/${deviceId}`).send({ spaceId: tent }).expect(200);

@@ -1163,8 +1163,8 @@ describe('adding a device', () => {
     claim();
 
     await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
-    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/^Mother tentFan\W+0001, Fan\W+0002: one climate/);
-    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one climate/);
+    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/^Mother tentFan\W+0001, Fan\W+0002: one maintenance/);
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one maintenance/);
   });
 
   /** "One camera" stood under a tent no camera looks into: a place is said by what it has. */
@@ -1180,10 +1180,9 @@ describe('adding a device', () => {
     claim();
 
     await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/one climate, one camera, one maintenance window\.$/),
-    );
-    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one climate, one maintenance window\.$/);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/one camera, one maintenance window\.$/));
+    // A fan alone is no climate: the place is said by what it has.
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one maintenance window\.$/);
   });
 
   /** The place's Start judged the device by a read cut before it was heard: "waiting for the first values" under a claim that said "online". */
@@ -1364,34 +1363,23 @@ describe('adding a device', () => {
   });
 
   /**
-   * A stage is written to the place, and so to every device there that takes targets. A second controller hung
-   * beside the first is therefore not asked for one - and a step that is not asked is not counted and not ticked.
+   * A place has one climate (Chris, 2026-11-14): a second controller hung beside the first was written to by nothing
+   * and paused by no maintenance. It is offered no place that holds one, and told why in one sentence; a place where
+   * only a lamp hangs is offered, and not called a climate.
    */
-  it('asks a controller hung beside another for no climate: the step is neither counted nor drawn', async () => {
-    state.me = keepingADiary(state.me);
-    state.spaces = [space, mother];
-    state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, device];
-    const drawn = claim();
+  it('offers a second controller no place that holds a climate, says why, and calls a lamp no climate', async () => {
+    const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };
+    state.spaces = [space, mother, drying];
+    state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, { ...light, spaceId: 'space-drying' }, device];
+    claim();
 
     await hangQuestion('controller');
-    fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
-
-    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
-    expect(moves()).toContainEqual(['/devices/sim-controller-7f3a', { spaceId: 'space-mother' }]);
-    expect(api.delete).toHaveBeenCalledWith('/spaces/space-new');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 5$/);
-    expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
-      'Added · Terp Controller',
-      'Where it hangs',
-      'Sockets and camera',
-      'How will you hear about problems?',
-      'What grows here?',
-    ]);
-    // The name says what kind of place it is, so the kind is not said after it.
-    expect(screen.getByText('Mother tent')).toBeInTheDocument();
-    expect(address()).toBe('/claim?device=sim-controller-7f3a&ask=place.hardware.notify.grow&at=hardware');
-    await settled(drawn);
-    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(offered()).toEqual(['At a new place', 'Drying tent']);
+    expect(
+      screen.getByText('Mother tent already has a controller or fridge module. A place has one climate, so this device gets a place of its own.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentLight: one maintenance window\.$/);
+    expect(screen.queryByText(/one climate, one maintenance window/)).not.toBeInTheDocument();
   });
 
   it('offers neither a room nor a place that was put away', async () => {
@@ -1438,6 +1426,8 @@ describe('adding a device', () => {
     state.spaces = [mother, { ...mother, id: 'space-drying', name: 'Drying tent' }];
     state.claim = { device: { ...device, spaceId: 'space-mother' }, spaceCreated: false };
     state.hangs = { [device.id]: 'space-mother' };
+    // Before its claim the device is on no list of the account's.
+    state.devices = [];
     const drawn = draw('/claim?space=space-mother');
 
     // The place's name by itself, after what it is.
@@ -1456,20 +1446,17 @@ describe('adding a device', () => {
     expect(address()).toBe(left('doing'));
   });
 
-  it('counts no climate step for a controller brought to a place another one stands in', async () => {
-    state.spaces = [mother];
-    state.claim = { device: { ...device, spaceId: 'space-mother' }, spaceCreated: false };
-    state.hangs = { [device.id]: 'space-mother' };
+  /** Opened from a place that holds a climate, a controller stands in a place of its own, and where it hangs says why. */
+  it('claims a controller opened from a place another one stands in into a place of its own, and asks where it hangs', async () => {
+    state.spaces = [space, mother];
     state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, device];
-    draw('/claim?space=space-mother');
+    claim('/claim?space=space-mother');
 
-    await screen.findByText('Place: Mother tent');
-    fireEvent.change(screen.getByRole('textbox', { name: 'Code on the display' }), { target: { value: 'ABCD1234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-
-    await waitFor(() => expect(openStep()).toHaveTextContent('Sockets and camera'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 2 of 3$/);
-    expect(screen.queryByRole('heading', { level: 2, name: 'What is it doing right now?' })).not.toBeInTheDocument();
+    await hangQuestion('controller');
+    expect(api.post).toHaveBeenCalledWith('/devices/claims', { code: 'ABCD1234', spaceNames: WORDS, joinSpaceId: 'space-mother' });
+    expect(offered()).toEqual(['At a new place']);
+    expect(screen.getByText(/^Mother tent already has a controller or fridge module\./)).toBeInTheDocument();
+    expect(moves()).toEqual([]);
   });
 
   it('is done at once where a fan is brought to a place a controller stands in', async () => {

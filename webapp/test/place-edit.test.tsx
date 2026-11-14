@@ -440,7 +440,32 @@ describe('editing a place', () => {
     expect(screen.getByRole('link', { name: /^Terp Cam\s?Camera$/ })).toHaveAttribute('href', '/cameras/cam-1');
 
     fireEvent.click(screen.getByRole('button', { name: '+ Bring a device here' }));
-    expect(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Controller\s?KS Black$/ })).toBeInTheDocument();
+    expect(within(await screen.findByRole('dialog')).getByRole('button', { name: /^Controller\s?KS Black/ })).toBeInTheDocument();
+  });
+
+  /**
+   * A place has one climate (Chris, 2026-11-14): a second controller in a tent was written to by nothing and paused by
+   * no maintenance. One standing elsewhere is not brought into a place that holds one, and says why; a fan still is.
+   */
+  it('brings no second controller into a place that holds a climate, says why, and lists the place´s climate first', async () => {
+    state.devices = [
+      device({ id: 'device-fan', type: 'fan', name: 'fan' }),
+      device({}),
+      device({ id: 'sim-controller-77x2', spaceId: 'fridge' }),
+      device({ id: 'device-2', type: 'fan', name: 'fan', spaceId: 'fridge' }),
+    ];
+    draw('/spaces/tent/edit');
+
+    const listed = within(await screen.findByRole('region', { name: 'Devices here' }));
+    await waitFor(() => expect(listed.getAllByRole('link').map(one => one.textContent)).toEqual(['Controller', 'Fan']));
+    fireEvent.click(screen.getByRole('button', { name: '+ Bring a device here' }));
+    const sheet = within(await screen.findByRole('dialog', { name: 'Tent: bring a device here' }));
+    const refused = sheet.getByRole('button', { name: /^Controller/ });
+    expect(refused).toHaveTextContent('KS Black · Controller already holds the climate here, a place has one');
+    expect(refused).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(refused);
+    expect(screen.queryByRole('dialog', { name: 'Rename or move' })).not.toBeInTheDocument();
+    expect(sheet.getByRole('button', { name: /^Fan/ })).not.toHaveAttribute('aria-disabled');
   });
 
   it('brings a device standing elsewhere through its own sheet, with this place chosen and nothing written yet', async () => {

@@ -250,7 +250,8 @@
         "nowhere": "{{name}} steht jetzt an keinem Ort"
       },
       "rename": "Umbenennen",
-      "taken": "Ein anderes Gerät an diesem Ort heißt schon „{{name}}“."
+      "taken": "Ein anderes Gerät an diesem Ort heißt schon „{{name}}“.",
+      "climateHeld": "In {{place}} regelt schon {{device}}: Ein Ort hat ein Klima. Dieses Gerät braucht einen eigenen Ort."
     },
     "unnamed": "{{type}} · {{tag}}",
     "hold": {
@@ -3342,7 +3343,11 @@
         "other": "Zum Beispiel ein Trockenzelt, in dem sonst kein Gerät steht."
       },
       "back": "Zurück",
-      "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung."
+      "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung.",
+      "hereNoClimate": "{{devices}}: eine Kamera, eine Wartung.",
+      "hereNoClimateNoCamera": "{{devices}}: eine Wartung.",
+      "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen.",
+      "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen."
     },
     "adding": {
       "fan": "Lüfter hinzufügen",
@@ -3660,7 +3665,8 @@
       "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
-      "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film."
+      "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film.",
+      "place_holds_a_climate": "Ein Ort hat ein Klima, und dort hält es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort."
     }
   },
   "alarmLine": {
@@ -4261,6 +4267,8 @@
       "bring": "Gerät hierher holen",
       "bringTitle": "{{name}}: Gerät hierher holen",
       "nowhere": "an keinem Ort",
+      "climateHeld": "{{from}} · hier regelt schon {{device}}, ein Ort hat ein Klima",
+      "secondClimate": "Zweites Klima hier: an einen eigenen Ort umziehen",
       "claim": "Neues Gerät hinzufügen",
       "people": "Wer {{name}} sieht",
       "remove": "{{name}} entfernen",
@@ -5237,7 +5245,8 @@
     },
     "device": {
       "firmware": "Firmware vom {{day}}",
-      "all": "{{name}}: alles Weitere"
+      "all": "{{name}}: alles Weitere",
+      "secondClimate": "Ein Ort hat ein Klima, und das hält {{lead}}: Steuerung und Wartung erreichen dieses Gerät hier nicht. Zieh es an einen eigenen Ort."
     },
     "camera": {
       "none": "noch kein Bild"

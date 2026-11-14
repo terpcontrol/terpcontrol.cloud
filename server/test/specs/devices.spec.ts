@@ -139,6 +139,42 @@ describe('claiming a device', () => {
     expect(await places()).toBe(before + 1);
   });
 
+  /**
+   * A place has one climate (Chris, 2026-11-14): a second controller in a tent was written to by nothing, paused by no
+   * maintenance and raised its own alarms under the first one's figures. A claim and a move are refused with a code
+   * of their own; a fan still joins; a place that holds two from before keeps both.
+   */
+  it('refuses a second controller or fridge module in one place, by a claim and by a move, and lets a fan join', async () => {
+    const first = await registerDevice('controller');
+    const tent = (
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(first.deviceId) })
+        .expect(201)
+    ).body.device.spaceId;
+
+    const second = await registerDevice('fridge');
+    const code = await claimCodeOf(second.deviceId);
+    const refused = await owner.client.post('/v1/devices/claims').send({ code, spaceId: tent }).expect(409);
+    expect(refused.body).toMatchObject({ code: 'place_holds_a_climate', errors: [{ field: 'spaceId', code: 'climate_held' }] });
+
+    // The code is not spent: the module is claimed into a place of its own, and cannot be moved in either.
+    const own = (await owner.client.post('/v1/devices/claims').send({ code }).expect(201)).body.device;
+    expect((await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ spaceId: tent }).expect(409)).body.code).toBe('place_holds_a_climate');
+    expect((await owner.client.get(`/v1/devices/${second.deviceId}`).expect(200)).body.spaceId).toBe(own.spaceId);
+
+    const fan = await registerDevice('fan');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(fan.deviceId), spaceId: tent })
+      .expect(201);
+
+    // Two that stand together from before: either is still renamed where it stands, and one moves out to a place of its own.
+    await setRow('devices', { id: second.deviceId }, { spaceId: tent });
+    await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ name: 'Second climate' }).expect(200);
+    await owner.client.patch(`/v1/devices/${second.deviceId}`).send({ spaceId: own.spaceId }).expect(200);
+  });
+
   it('refuses a place to join that is another account´s or has ended, and the code still claims afterwards', async () => {
     const host = await createAccount('devices-join-host');
     const theirs = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'A tent to manage' }).expect(201)).body;
@@ -223,7 +259,8 @@ describe('claiming a device', () => {
       .send({ code: await claimCodeOf(first.deviceId) })
       .expect(201);
 
-    const second = await registerDevice('controller');
+    // A fan: a second controller or fridge module is refused a place that holds a climate.
+    const second = await registerDevice('fan');
     const joined = await owner.client
       .post('/v1/devices/claims')
       .send({ code: await claimCodeOf(second.deviceId), spaceId: made.body.device.spaceId })

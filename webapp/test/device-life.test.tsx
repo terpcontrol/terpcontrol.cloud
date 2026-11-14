@@ -34,7 +34,7 @@ vi.mock('@/log/log-context', async importOriginal => ({
   ...(await importOriginal<object>()),
   useLog: () => ({ tell: (one: Told) => told.push(one) }),
 }));
-vi.mock('@/screens/control/lead', () => ({ useLeads: () => true }));
+vi.mock('@/screens/control/lead', async importOriginal => ({ ...(await importOriginal<object>()), useLeads: () => true }));
 vi.mock('@/screens/control/OwnSettings', () => ({ OwnSettings: () => null }));
 
 const NOW = DateTime.fromISO('2026-09-19T12:00:00.000Z');
@@ -326,6 +326,24 @@ describe('naming a device and moving it', () => {
 
     await waitFor(() => expect(told).toHaveLength(1));
     expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * A place has one climate (Chris, 2026-11-14): a second fridge module in a fridge was written to by nothing and
+   * paused by no maintenance. A move into a place that holds one is said under the places, and not offered.
+   */
+  it('moves no second fridge module or controller into a place that holds a climate, and says why', async () => {
+    const module = { ...THE_PLUG, id: 'device-2', type: 'fridge', name: null, spaceId: 'space-2' } as Device;
+    answer([{ ...THE_PLUG, type: 'controller' }, module], [spaceWhere('own'), ELSEWHERE]);
+    await drawPage('Controller');
+    const sheet = await openSheet();
+    fireEvent.click(sheet.getByRole('button', { name: 'Fridge 1' }));
+
+    expect(sheet.getByRole('alert')).toHaveTextContent(
+      'Fridge module already holds the climate in Fridge 1: a place has one. This device needs a place of its own.',
+    );
+    expect(sheet.getByRole('button', { name: 'Move' })).toBeDisabled();
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
   /** "Abluft" twice in one place made Steuerung, its toasts and its alarms say one name for two devices. */

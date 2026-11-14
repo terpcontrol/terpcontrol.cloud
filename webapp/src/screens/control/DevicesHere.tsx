@@ -28,6 +28,7 @@ import { useWideWindow } from '@/ui/wide-window';
 import { useZone } from '@/ui/zone';
 import { isOutputPath, MODE_PATHS, SAID_ON_CARDS } from './climate/figures';
 import { ownFactOf } from './devices/own-summary';
+import { climateHeldBy } from './lead';
 import { standOf } from './rows';
 import styles from './Control.module.css';
 
@@ -77,6 +78,7 @@ export function DevicesHere({
           device={device}
           among={devices}
           leads={device.id === lead?.id}
+          lead={lead}
           spokeAt={spokeAt(device)}
           silenceSaid={silenceSaid && device.id === lead?.id}
           mayManage={mayManage}
@@ -135,6 +137,7 @@ function DeviceCard({
   device,
   among,
   leads,
+  lead,
   spokeAt,
   silenceSaid,
   mayManage,
@@ -143,6 +146,8 @@ function DeviceCard({
   device: Device;
   among: Device[];
   leads: boolean;
+  /** The place's climate, which a second controller or fridge module standing here from before is told to leave to. */
+  lead: Device | null;
   spokeAt: string | null;
   silenceSaid: boolean;
   mayManage: boolean;
@@ -163,6 +168,8 @@ function DeviceCard({
   // What a device that is not the place's climate is set to, which its own page changes.
   const own = leads ? null : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
+  // A place has one climate (Chris, 2026-11-14): a second one here from before is reached by nothing on this page.
+  const second = lead !== null && !leads && climateHeldBy(among, device.spaceId, device) !== null;
 
   return (
     <section className={`${ui.panel} ${styles.device}`} aria-label={title} data-short={!leads || undefined}>
@@ -176,6 +183,11 @@ function DeviceCard({
       </div>
       {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}
       {leads && mayManage ? <DeviceActions device={device} offline={offline || waiting} /> : null}
+      {second ? (
+        <p className={styles.pendingLine} role="note">
+          {t('control.device.secondClimate', { lead: deviceTitle(lead, t, among) })}
+        </p>
+      ) : null}
       {elsewhere > 0 ? (
         <p className={styles.pendingLine} role="status">
           {t('control.pending.more', { count: elsewhere })}

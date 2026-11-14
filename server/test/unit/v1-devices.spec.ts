@@ -100,6 +100,8 @@ describe('the devices a caller is shown', () => {
   it('takes the demo along when a demo device moves to another place', async () => {
     await db.devices.updateOne({ id: IN_THE_TENT }, { isDemo: true });
     await db.spaces.updateOne({ id: TENT }, { isDemo: true });
+    // A place has one climate: the balcony's controller stands elsewhere for the tent's to move in.
+    await db.devices.updateOne({ id: ON_THE_BALCONY }, { spaceId: null });
 
     await devices.update(IN_THE_TENT, { spaceId: BALCONY });
 

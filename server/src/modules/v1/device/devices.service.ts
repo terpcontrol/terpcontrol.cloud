@@ -113,7 +113,10 @@ export class DevicesService {
     const before = await this.devices
       .findOne({ id }, { firmware: 1, state: 1, spaceId: 1, ownerId: 1, name: 1, type: 1 })
       .lean<StoredDevice | null>();
-    if (body.spaceId && before && body.spaceId !== before.spaceId) await this.requireAPlaceOf(before.ownerId, body.spaceId);
+    if (body.spaceId && before && body.spaceId !== before.spaceId) {
+      await this.requireAPlaceOf(before.ownerId, body.spaceId);
+      await this.refuseSecondClimate(before, body.spaceId);
+    }
     if (before) await this.refuseTakenName(before, body);
     // Where it stands is the placement writer's, below.
     const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
@@ -220,6 +223,24 @@ export class DevicesService {
   }
 
   /**
+   * A place has one climate, and so one controller or fridge module (Chris, 2026-11-14): Steuerung writes its targets
+   * to the lead, maintenance pauses the lead, the place shows the lead's figures - a second one stood there written
+   * to by nothing, paused by no maintenance, raising its own alarms under the first one's figures. Fans, sockets and
+   * lights still join a place with one. A place that holds two from before keeps working: its lead is the first.
+   */
+  private async refuseSecondClimate(device: Pick<StoredDevice, 'id' | 'type'>, spaceId: string): Promise<void> {
+    if (!OWN_CLIMATE_TYPES.includes(device.type)) return;
+    const held = await this.devices
+      .findOne({ spaceId, id: { $ne: device.id }, type: { $in: OWN_CLIMATE_TYPES } }, { name: 1, type: 1 })
+      .lean<Pick<StoredDevice, 'name' | 'type'> | null>();
+    if (!held) return;
+
+    throw conflict('place_holds_a_climate', 'A place has one climate, and a controller or fridge module already holds this one.', [
+      { field: 'spaceId', code: 'climate_held', detail: `${held.name ?? held.type} stands there. Give this device a place of its own.` },
+    ]);
+  }
+
+  /**
    * A demo device takes the demo with it. The tour reads the spaces flagged as
    * demo ones, and `demo on` flags only the space the device stood in then, so
    * a demo device moved into a place of its own - the "Umbenennen oder
@@ -279,6 +300,7 @@ export class DevicesService {
     if (named) await this.access.require(ctx, subjectRef('space', named), 'manage');
     // The claimer is about to own the device, and a device stands only in a place of its owner.
     if (named) await this.requireAPlaceOf(ownerId, named);
+    if (named) await this.refuseSecondClimate(device, named);
     // A claim is never refused for a name: a second "Abluft" in the place is "Abluft 2".
     const name =
       given === null ? device.type : named && given !== device.type ? numbered(given, new Set((await this.namesIn(named, device.id)).keys())) : given;

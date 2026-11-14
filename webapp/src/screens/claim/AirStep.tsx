@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Space } from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useCamerasShape } from '@/api/cameras';
+import { climateHeldBy } from '@/screens/control/lead';
+import { inSentence } from '@/screens/space/members/people';
 import { deviceTitle } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { FlowHead } from './FlowHead';
@@ -15,8 +17,10 @@ import ui from '@/ui/ui.module.css';
  * account that already has a place: in the air of a place that exists - by
  * its name alone, what stands there under it - or at a new place of its own.
  *
- * What hanging there means is said by what the place has: its climate and its maintenance, which the device shares,
- * and its camera only where one looks in - "eine Kamera" stood under a tent with none.
+ * What hanging there means is said by what the place has: its climate where a controller or fridge module holds
+ * one, its maintenance, which the device shares, and its camera only where one looks in - "eine Kamera" stood under
+ * a tent with none, "ein Klima" under a lamp alone. A place has one climate (Chris, 2026-11-14): a second controller
+ * or fridge module is offered no place that holds one, and one sentence says why it stands in a place of its own.
  *
  * The device hangs somewhere before the question is put - a fan, a socket or
  * a lamp in the place listed first, where its claim put it, a second
@@ -44,7 +48,7 @@ export function AirStep({
   onBack: () => void;
   onLeave: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [refused, setRefused] = useState<unknown>(null);
   const ownClimate = OWN_CLIMATE_TYPES.includes(device.type);
@@ -71,18 +75,18 @@ export function AirStep({
     </button>
   );
 
-  const existing = places.map(one => {
-    const here = every.filter(other => other.spaceId === one.id && other.id !== device.id);
-    // What holds the climate is named first: it is what the device joins.
-    const there = [true, false].flatMap(climate => here.filter(other => OWN_CLIMATE_TYPES.includes(other.type) === climate));
-    const devices = there.map(other => deviceTitle(other, t, there)).join(', ');
-    const seen = cameras.some(camera => camera.spaceId === one.id);
-    return answer(
-      one,
-      one.name,
-      there.length > 0 ? t(seen ? 'claim.air.hereNote' : 'claim.air.hereNoteNoCamera', { devices }) : t('claim.air.hereEmpty'),
-    );
-  });
+  const held = places.filter(one => climateHeldBy(every, one.id, device) !== null);
+  const existing = places
+    .filter(one => !held.includes(one))
+    .map(one => {
+      const here = every.filter(other => other.spaceId === one.id && other.id !== device.id);
+      // What holds the climate is named first: it is what the device joins.
+      const there = [true, false].flatMap(climate => here.filter(other => OWN_CLIMATE_TYPES.includes(other.type) === climate));
+      const devices = there.map(other => deviceTitle(other, t, there)).join(', ');
+      const shares = `claim.air.${there.some(other => OWN_CLIMATE_TYPES.includes(other.type)) ? 'hereNote' : 'hereNoClimate'}`;
+      const seen = cameras.some(camera => camera.spaceId === one.id);
+      return answer(one, one.name, there.length > 0 ? t(seen ? shares : `${shares}NoCamera`, { devices }) : t('claim.air.hereEmpty'));
+    });
   const fresh = answer(null, t('claim.air.new'), t(`claim.air.newNote.${ownClimate ? device.type : 'other'}`));
 
   return (
@@ -93,6 +97,17 @@ export function AirStep({
       </h2>
       {/* A second climate is a place of its own more often than not, so that answer stands first for it. */}
       {ownClimate ? [fresh, ...existing] : [...existing, fresh]}
+      {held.length > 0 ? (
+        <p className={ui.note}>
+          {t('claim.air.oneClimate', {
+            count: held.length,
+            places: inSentence(
+              held.map(one => one.name),
+              i18n.language,
+            ),
+          })}
+        </p>
+      ) : null}
       <Refused error={refused} />
       <button type="button" className={styles.growSkip} onClick={onBack}>
         {t('claim.air.back')}
