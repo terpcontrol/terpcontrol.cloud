@@ -62,7 +62,7 @@ export class DevicesService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     private readonly access: AccessService,
     @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
-    @Optional() private readonly hardwareReport: HardwareReportService | null = null,
+    @Optional() @Inject(HardwareReportService) private readonly hardwareReport: HardwareReportService | null = null,
   ) {}
 
   public async require(id: string): Promise<StoredDevice> {

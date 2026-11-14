@@ -12,11 +12,12 @@ import { invalidate, useWrite } from './write';
  * a fan, a socket or a lamp joins (`joinSpaceId`) - and the server makes a
  * place only for a device that holds a climate, or in an account without one.
  *
- * It changes the device list, the places and the home cards at once, and all
- * three are read again rather than patched: the answer is the device as it
- * stood at that instant, and a place it made is not in the answer at all.
+ * It changes the device list, the places, the home cards and the cameras - the
+ * server makes the Terp Cam a controller paired before it was anybody's - at
+ * once, and all are read again rather than patched: the answer is the device as
+ * it stood at that instant, and what it made is not in the answer at all.
  */
-const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home']);
+const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home'], ['cameras']);
 
 export const useClaimDevice = () =>
   useWrite(

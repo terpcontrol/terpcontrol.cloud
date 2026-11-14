@@ -74,7 +74,7 @@ export class SessionsService {
     @InjectModel(MODEL_V1.session) private readonly sessions: Model<StoredSession>,
     private readonly accounts: AccountsService,
     @Inject(authConfig.KEY) private readonly auth: ConfigType<typeof authConfig>,
-    @Optional() private readonly mails: AccountMailService | null = null,
+    @Optional() @Inject(AccountMailService) private readonly mails: AccountMailService | null = null,
   ) {}
 
   /** When each account waiting for its code was last sent it again, so a sign-in tried twice is not two mails. */

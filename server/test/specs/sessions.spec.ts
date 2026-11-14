@@ -1,4 +1,6 @@
 import { anonymous, context, createAccount, demoSession, login, loginAsAdmin, Session, unique } from '../support/api';
+import { waitForMail } from '../support/control';
+import { setRow } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
 
 /**
@@ -156,6 +158,17 @@ describe('an account an administrator changes underneath it', () => {
 
     await admin.client.patch(`/v1/admin/users/${user.userId}`).send({ isActive: true }).expect(200);
     await user.client.get('/v1/me').expect(200);
+  });
+
+  it('sends a code that was never used again when its account signs in, as the refusal says', async () => {
+    const user = await createAccount('unactivated');
+    await setRow('users', { id: user.userId }, { isActive: false, activationCode: 'resent-activation-code' });
+
+    const refused = await anonymous().post('/v1/sessions').send({ email: user.username, password: user.password }).expect(403);
+    expect(refused.body.code).toBe('account_not_activated');
+
+    const mail = await waitForMail(one => one.to.includes(user.username));
+    expect(mail.body).toContain('resent-activation-code');
   });
 
   it('is an administrator for exactly as long as the row says so', async () => {

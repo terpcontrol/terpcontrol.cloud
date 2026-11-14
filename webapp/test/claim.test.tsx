@@ -479,6 +479,16 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: 'About Climate preset' })).toHaveAccessibleDescription(/^A ready climate for a phase/);
   });
 
+  /** The server makes the Terp Cam a controller paired before the claim, so Start and Steuerung read the cameras again. */
+  it('reads the cameras again once the claim has answered, so a paired Terp Cam is shown at once', async () => {
+    const { client } = claim();
+    client.setQueryData(['cameras', null], { items: [], nextCursor: null });
+    expect(client.getQueryState(['cameras', null])?.isInvalidated).toBe(false);
+
+    await screen.findByRole('heading', { level: 2, name: /Added/ });
+    expect(client.getQueryState(['cameras', null])?.isInvalidated).toBe(true);
+  });
+
   /** A camera is said as what it is and whether it answers, never by the tail of its id ("Cam F33B"). */
   it('says a coupled camera as a Terp Cam, and offers to couple one only where none is', async () => {
     const coupled = { ...device, state: { ...device.state, hardware: { ...device.state.hardware, webcam_did: 'VSTB123456F33B' } } };

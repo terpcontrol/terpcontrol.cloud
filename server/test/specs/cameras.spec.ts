@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
-import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
 import { joinSpace, setRow } from '../support/fixtures';
 import { takeTestPicture } from '../support/test-picture';
@@ -114,6 +114,35 @@ describe('adding a camera', () => {
         .send({ kind: 'terpcam_controller', deviceId: fridge.deviceId, name: 'Fridge cam' })
         .expect(201);
       expect(named.body).toMatchObject({ id: paired.id, name: 'Fridge cam' });
+    } finally {
+      await simulator.close();
+    }
+  });
+
+  it('makes the Terp Cam a controller paired while it was nobody´s at the claim, not when the device next says it', async () => {
+    // A device says its camera once per boot, and the boot came before the
+    // claim, so the claim is the only moment left to make the row in.
+    const controller = await registerDevice('controller');
+    const simulator = await startSimulator(controller);
+    await settle();
+
+    try {
+      await simulator.publish('log', { severity: 0, message: 'hardware-info:webcam_did=TERPCAMUNOWNED' });
+      await settle(600);
+
+      const claimed = await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(controller.deviceId) })
+        .expect(201);
+
+      const [paired] = (await owner.client.get(`/v1/cameras?deviceId=${controller.deviceId}`).expect(200)).body.items;
+      expect(paired).toMatchObject({
+        kind: 'terpcam_controller',
+        name: 'Terp Cam',
+        did: 'TERPCAMUNOWNED',
+        deviceId: controller.deviceId,
+        spaceId: claimed.body.device.spaceId,
+      });
     } finally {
       await simulator.close();
     }
