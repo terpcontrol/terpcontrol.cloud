@@ -173,12 +173,15 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
         if (pauses) await move.mutateAsync({ kind: 'resume' });
         if (switchedOff) await configure.mutateAsync({ control: false });
       };
-      // Into the document as it stands at the tap, so a setting saved since stays as it is.
+      // Into the document as it stands at the tap, so a setting saved since stays as it is - and with the preset the
+      // device was named by before, which the figures put back are again.
+      const wasNamed = device.control?.preset ?? undefined;
       const put = async (figures: Partial<TargetsDraft>, extra: { germination?: boolean; germinationChoices?: Partial<ChoiceValues> } = {}) => {
         const current = (await readConfiguration(device.id)) ?? answer.configuration;
         return save.mutateAsync({
           deviceId: device.id,
           configuration: withDraft(current, { ...draftOf(current), ...figures }, climateOnly),
+          preset: wasNamed,
           ...extra,
         });
       };

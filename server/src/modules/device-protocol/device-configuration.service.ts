@@ -143,15 +143,17 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * drying stage dries, germination germinates in the dark, and anything else
    * puts a device that was off, drying or germinating back on its own mode.
    * `choices` is what germination does about the humidity, where the climate
-   * says so. The stage and its `preset` are kept as what the device was put on,
-   * which is what names a preset on Steuerung.
+   * says so. `applied` is the climate preset the write puts the device on,
+   * which names it on Steuerung from then on; null says the write names none and
+   * clears the name, as a plan step without a preset does; left out, the name
+   * goes only where a figure a preset sets moves.
    */
   public async applyConfiguration(
     deviceId: string,
     settings: DeviceConfiguration,
     stage: GrowthStage | null = null,
     choices?: ChoicesSaid,
-    preset: string | null = null,
+    applied?: AppliedClimate | null,
   ): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
@@ -160,7 +162,6 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // and so does a climate of nothing for a device that germinates: only
     // germination is dark, so any other climate brings it back into the light
     // (a plan step that names nothing after a germination step).
-    const applied = stage === null ? undefined : { stage, preset };
     const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices, applied };
     const written = await this.store(deviceId, intent, current =>
       !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null && current.workmode !== 'breed')
@@ -634,19 +635,20 @@ const CLIMATE_PATHS = [...Object.keys(TARGET_RANGES), 'daynight.day', 'daynight.
 
 /**
  * The climate preset a device is named by afterwards. A preset applied - from
- * Steuerung, by a phase, by a plan step that names one - is kept. Anything else
- * that moves a figure a preset sets - the targets or the light saved by hand, a
- * plan step without a preset, a spell ended by its own button - clears it: the
- * figures are then the grower's own, and a name would claim a preset they no
- * longer are. A write that moves none of them (regulation switched, the clock
- * moved) leaves it as it was.
+ * Steuerung, by a phase, by a plan step that names one - is kept. A plan step
+ * that names none clears it, whatever it moves: its stage only decides the work
+ * mode, and naming that stage would claim a preset nobody applied. Anything
+ * else that moves a figure a preset sets - the targets or the light saved by
+ * hand, a spell ended by its own button - clears it too: the figures are then
+ * the grower's own. A write that moves none of them (regulation switched, the
+ * clock moved) leaves it as it was.
  */
 const appliedOf = (
   intent: WriteIntent,
   before: Record<string, unknown> | null,
   after: Record<string, unknown>,
 ): { appliedClimate?: AppliedClimate | null } => {
-  if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied) return { appliedClimate: intent.applied };
+  if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied !== undefined) return { appliedClimate: intent.applied };
   if (intent.kind === 'clock') return {};
   return CLIMATE_PATHS.some(path => valueAt(before, path) !== valueAt(after, path)) ? { appliedClimate: null } : {};
 };

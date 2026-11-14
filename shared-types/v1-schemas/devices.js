@@ -84,7 +84,7 @@ exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
     preset: exports.appliedClimate
         .nullable()
         .optional()
-        .describe("The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step - which is what names one on Steuerung, never figures that happen to match one. Figures set by hand afterwards leave it standing. Null, or absent from an older server, where none was applied since it is kept."),
+        .describe("The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept."),
 }));
 exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     lastSeenAt: (0, common_js_1.instant)().nullable().describe('Last sample or status; what `offline` is decided from.'),
@@ -184,7 +184,9 @@ exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfiguratio
         .partial()
         .optional()
         .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
-    preset: exports.appliedClimate.optional().describe('The climate preset the targets saved are, where one was applied with them; left out, the preset last applied stands.'),
+    preset: exports.appliedClimate
+        .optional()
+        .describe('The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.'),
 }));
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on

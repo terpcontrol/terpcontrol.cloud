@@ -695,7 +695,7 @@ describe('what the cloud tells a device', () => {
     );
     expect(await applied()).toEqual(veg);
 
-    // Regulation switched, the clock kept, a plan step re-sent as it stands: nothing a preset sets has moved.
+    // Regulation switched, the clock kept, the same figure written again: nothing a preset sets has moved.
     await configuration.configure(DEVICE, { control: false }, OWNER);
     await configuration.keepOnClock(DEVICE);
     await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } });
@@ -705,8 +705,25 @@ describe('what the cloud tells a device', () => {
     await configuration.applyConfiguration(DEVICE, { day: { temperature: 27 } });
     expect(await applied()).toBeNull();
 
-    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, 'late_flowering');
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, {
+      stage: 'flowering',
+      preset: 'late_flowering',
+    });
     expect(await applied()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+
+    // A plan step with a stage and no preset clears the name though it moves nothing: its stage only decides the mode.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, null);
+    expect(await applied()).toBeNull();
+    expect((await stored())?.configuration).toMatchObject({ day: { temperature: 24 } });
+
+    // A preset applied to the place names it again; the name a hand edit cleared comes back with an undo that names it.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } }, 'vegetative', undefined, veg);
+    expect(await applied()).toEqual(veg);
+    const named = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...named, day: { temperature: 28, humidity: 60 } }, OWNER);
+    expect(await applied()).toBeNull();
+    await configuration.replace(DEVICE, named, OWNER, undefined, undefined, undefined, veg);
+    expect(await applied()).toEqual(veg);
 
     // The light's hours saved by hand are a figure a preset sets too.
     const now = (await stored())?.configuration as Record<string, unknown>;

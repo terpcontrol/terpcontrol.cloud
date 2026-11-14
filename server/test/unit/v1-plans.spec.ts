@@ -43,7 +43,7 @@ let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
 let appliedFor: (string | null | undefined)[];
-let presetsFor: (string | null | undefined)[];
+let presetsFor: ({ stage: string; preset: string | null } | null | undefined)[];
 let choicesFor: unknown[];
 let mailed: { to: string; subject: string; text: string }[];
 let stages: { deviceId: string; stage: string; preset: string | null }[];
@@ -239,7 +239,21 @@ describe('what the step is applied to', () => {
     await engine.run(NOW);
 
     expect(appliedFor).toEqual(['flowering']);
-    expect(presetsFor).toEqual(['late_flowering']);
+    expect(presetsFor).toEqual([{ stage: 'flowering', preset: 'late_flowering' }]);
+  });
+
+  /**
+   * A Veg step with "Lassen, wie sie sind" and 25 °C left the device named "Klima-Preset: Veg" over the step's own
+   * figures: a step's stage decides the work mode and names no preset (Chris, 2026-11-14).
+   */
+  it('names no preset for a step that names none, whatever its stage', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg', stage: 'vegetative', preset: null, settings: { day: { temperature: 25 } } })]);
+
+    await engine.run(NOW);
+
+    expect(appliedFor).toEqual(['vegetative']);
+    expect(presetsFor).toEqual([null]);
   });
 
   it('sends a step that names only a stage, because the stage decides the work mode', async () => {

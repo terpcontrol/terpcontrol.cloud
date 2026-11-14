@@ -129,7 +129,9 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
       // A germination step's choices go with it, every hour: the plan holds what
       // germination does about the humidity as it holds the figures it writes.
       const choices = step.stage === 'germination' ? (step.germinationChoices ?? undefined) : undefined;
-      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, sent, step.stage, choices, step.preset))) {
+      // A step names a preset only where it says one; its stage alone decides the work mode and names nothing.
+      const applied = step.stage !== null && step.preset !== null ? { stage: step.stage, preset: step.preset } : null;
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, sent, step.stage, choices, applied))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 

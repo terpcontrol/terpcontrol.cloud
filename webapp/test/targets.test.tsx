@@ -358,6 +358,22 @@ describe('the climate under Steuerung', () => {
     expect((sent('PUT')[1].body as { configuration: DeviceConfiguration }).configuration.night).toEqual({ temperature: 20, humidity: 55 });
   });
 
+  /** A figure set by hand clears the preset's name on the server; taking it back puts the name back with the figures. */
+  it('takes a figure back with the preset the device was named by before', async () => {
+    await drawn(device({ control: { ...CONTROL, preset: { stage: 'vegetative', preset: null } } }));
+    fireEvent.click(figure('Night humidity'));
+    type('Night humidity', 50);
+    save();
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect((sent('PUT')[0].body as { preset?: unknown }).preset).toBeUndefined();
+
+    await act(async () => {
+      await told[0].undo!();
+    });
+
+    expect((sent('PUT')[1].body as { preset?: unknown }).preset).toEqual({ stage: 'vegetative', preset: null });
+  });
+
   /** The route replaces the document whole, so the way back reads it again: what was saved after the figure is not its to take back. */
   it('takes back only the figure that save moved, and keeps a setting saved after it', async () => {
     await drawn();

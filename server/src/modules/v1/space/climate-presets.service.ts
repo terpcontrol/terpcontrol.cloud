@@ -61,7 +61,7 @@ export class ClimatePresetsService implements ClimatePresets {
       if (!settings) continue;
 
       try {
-        await this.configuration.applyConfiguration(device.id, settings, stage, germination, preset);
+        await this.configuration.applyConfiguration(device.id, settings, stage, germination, { stage, preset });
       } catch (error) {
         logger.error(`Could not put device ${device.id} on the ${stage} preset: ${error}`);
         continue;

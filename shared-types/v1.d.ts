@@ -874,7 +874,7 @@ export interface DeviceControl {
   afterGermination?: DryingReturn2;
   germinationChoices: GerminationChoices1;
   /**
-   * The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step - which is what names one on Steuerung, never figures that happen to match one. Figures set by hand afterwards leave it standing. Null, or absent from an older server, where none was applied since it is kept.
+   * The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept.
    */
   preset?: AppliedClimate | null;
 }
@@ -1029,7 +1029,7 @@ export interface DeviceConfigurationEnvelope {
 }
 
 /**
- * The climate preset the targets saved are, where one was applied with them; left out, the preset last applied stands.
+ * The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.
  */
 
 export interface AppliedClimate1 {

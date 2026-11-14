@@ -52,9 +52,17 @@ export type WriteIntent =
    * `stated` names the night's figures the write brings of its own, which
    * coming out of germination otherwise puts back (see
    * `DeviceConfigurationService.store`). `applied` - here and on the targets -
-   * is the preset the write puts the device on, kept to name it by.
+   * is the preset the write puts the device on, kept to name it by; null is a
+   * write that names none and clears the name.
    */
-  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; stated?: readonly string[]; choices?: ChoicesSaid; applied?: AppliedClimate }
+  | {
+      kind: 'climate';
+      stage: GrowthStage | null;
+      requested?: unknown;
+      stated?: readonly string[];
+      choices?: ChoicesSaid;
+      applied?: AppliedClimate | null;
+    }
   /** The settings a person changed one at a time, of which these are about the work mode and germination. */
   | { kind: 'fields'; control?: boolean; drying?: boolean; mode?: OperatingMode; energySaving?: boolean; choices?: ChoicesSaid }
   /** The times of day moved onto the owner's clock, which decides nothing else. */
