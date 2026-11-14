@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
 updated: 2026-11-14
-source: one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+source: giving a device up and removing a socket confirmed in the danger style, a switch's own target (the third whole-app walk's fix round, 2026-11-14); one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -313,16 +313,18 @@ a card has no shadow and a raised thing a deep one. A field is 44 px tall, a car
 The one primary action on a screen is filled green; the quieter actions a card repeats (Photo, Note, Alarms off)
 are a filled tint with no outline; everything else is a ghost button - the card's surface, its words in the navy,
 a hairline edge. **One danger style** (the redesign session of 2026-11-13, after the third critic found four): the
-yes to a step that cannot be taken back - removing a member or a place, switching regulation off, deleting an
-alarm, a scheme, a build or the account - is filled with `--alarm-fill` under white `--on-alarm` (6.4:1) in both
+yes to a step that cannot be taken back - removing a member, a place or a socket, giving a device up, switching
+regulation off, deleting an alarm, a scheme, a build or the account - is filled with `--alarm-fill` under white `--on-alarm` (6.4:1) in both
 modes, never the brand green, and is armed in one step; it is the yes of the shared `Asking` with `danger`
 (`.dangerFilled`, `ui/ui.module.css`). Every question's yes - danger, primary or quiet - stands with
 "Abbrechen" beside it in one part, `Answer` (`ui/Asking.tsx`), at a control's 44 px and 12 px radius (the redesign
-session of 2026-11-14). The control that opens such a question is outlined in the alarm red; a yes
+session of 2026-11-14). The control that opens such a question is outlined in the alarm red (`.dangerOutline`), and
+nothing else is; a yes
 that waits for something typed (the handle before deleting the account) looks like a primary that cannot be
 pressed. A dotted term (`Term`, `ui/Help.module.css`) is a box of its own, 9 px of room above and below its words
 held out of its line by a margin as deep, so it is a finger's target without growing its line; a page's row of
-tabs fits from 320 px and has no veil at its edge (the redesign session of 2026-11-14).
+tabs fits from 320 px and has no veil at its edge (the redesign session of 2026-11-14). A switch is drawn 42×24 and
+tapped as 44 px both ways, its target its own (`.switch::after`), so no page adds one (the third whole-app walk).
 
 **Spacing.** A 4 px unit: 4, 8, 12, 16, 24 and 36 inside a page, 48 and 64 between the sections of a long one;
 a card's padding is 16 on a phone and 20 from 900 px.

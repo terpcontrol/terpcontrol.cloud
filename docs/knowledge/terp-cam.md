@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-14
-source: a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
+source: a stream test's details, the film's caption, curve and type by the frame, the dark film's refusal worded (the third whole-app walk's fix round, 2026-11-14); a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -221,11 +221,19 @@ way and what the code has to respect. Internal notes on the camera exist.
   overlays and the mark are SVG composited with sharp, because ffmpeg's text filter needs fonts and freetype. A film
   of a span still running ends at its last frame, so the hourly pass carries it on and a later tap films the rest.
   The climate overlay draws its curves and cursor below its row of readings (`timelapse-overlays.ts`), so a spike
-  does not run through a figure.
+  does not run through a figure. Type, plates and margins are sized by the frame's short side, so a portrait
+  (9:16) film reads as a landscape one does; a diary caption over the climate box widens past the box as far as
+  its words need, up to the frame's margins, and is cut only there. The curve runs by time from the first reading
+  to the last, so it fills its box, and breaks where readings stop for longer than two windows or `VALUE_AGE`'s
+  stale limit, as Verlauf breaks at a gap (`curveStrokes`; the third whole-app walk found a 9:16 caption cut at
+  62 % of the frame, a 16:9 curve in the middle of its box and a 7-hour gap bridged by a line).
 - **A film whose every frame in the span was taken in the dark is refused at the request** (the redesign session
   of 2026-11-14): 422 `all_dark`, decided by the render's own frame choice (`framesFor`, `whyNoFilm`), so nothing
   is queued that would fail later; asked with the lights-off frames it is made. The camera page says the reason
-  under its buttons. The button is still offered: no route says beforehand whether a span is dark.
+  under its buttons, in the warning's colour and in the app's own words, naming where the dark pictures are
+  chosen ("Eigenen Zeitraffer zusammenstellen" › "Bilder aus der Dunkelphase"). The button is still offered: no
+  route says beforehand whether a span is dark. While a film plays on a desktop it is as wide as the still beside
+  it.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
 
 ## Health, diary, app
@@ -258,7 +266,11 @@ way and what the code has to respect. Internal notes on the camera exist.
   (`CameraPollerService.readUnstored`: offline device refused at once, the same budget), stores nothing and hands
   the picture back in the answer, at most 720 pixels wide (`TestCapturesService.startStream`). Only the account that
   started a test asks after it; a press with the same stream while one runs joins it; ten starts a minute per
-  client. "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
+  client. A failed test's details - and a capture's last error, and its diary line - name the address the person
+  typed, its login as `<credentials>`, never the tunnel's own local port, and carry no ffmpeg memory addresses
+  (`saidOfStream`, `modules/v1/camera/stream-url.ts`; the third whole-app walk found `rtsp://127.0.0.1:32967/…`
+  under an address typed with `:8554`). The name field's placeholder is an example that trails off ("Zeltkamera,
+  Seitenkamera …"), never a word that reads as a value. "Kamera hinzufügen" adds the camera as the form stands, after a test or without one, and opens its page. An account that manages no place but sees others' is told it needs a place of its own first,
   with the form for one, instead of the pairing guide (`AddCamera.tsx`); pairing is offered only at devices in
   places the reader manages.
 

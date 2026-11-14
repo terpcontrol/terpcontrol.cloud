@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-14
-source: the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -251,7 +251,12 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   Graph shell 120 s; a link's open counter is written at most once a minute.
 - A share card's line over the title leaves out what the line under it says already, and a grow without a
   description of its own gets none (`metaLineOf`, `growSentence`, `modules/v1/sharing/link-card.ts`; the redesign
-  session of 2026-11-14, after a card said "@handle · Tag 13 · Veg" twice).
+  session of 2026-11-14, after a card said "@handle · Tag 13 · Veg" twice); nor does a profile's card repeat the
+  handle its title is (the third whole-app walk).
+- A grow on a public profile and a followed one is dated by its newest sign of life, labelled by what it was
+  ("Bild / Messwert / Eintrag vor …"; `updatedBy`, `growsMoved` in `modules/v1/grow/grow-moved.ts`), and a grow
+  nothing moved since its start shows no age; the grow row's `updatedAt` had said "vor 20 T" beside today's
+  picture ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
 
 ## Media serving
 - `GET /v1/media/{id}/content` (a session, the media token as `?token=`, or a share link) and

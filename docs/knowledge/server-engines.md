@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-14
-source: a target changed by hand clears the preset's name (Chris, 2026-11-14); the climate preset a device was put on, kept (the redesign session's fix round of 2026-11-14); no night shorter than a minute, alarm limits that contradict each other refused (the redesign session's final fix round, second part, 2026-11-13); regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: a plan step without a preset clears the preset's name, built as Chris answered (the third whole-app walk's fix round, 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); the climate preset a device was put on, kept (the redesign session's fix round of 2026-11-14); no night shorter than a minute, alarm limits that contradict each other refused (the redesign session's final fix round, second part, 2026-11-13); regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -128,13 +128,16 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
 - **The climate preset a device was put on is kept** (`devices.appliedClimate`, served as `control.preset`,
   `AppliedClimate`: the stage and the preset on it; the redesign session of 2026-11-14), so Steuerung names a
   preset by what was applied and never by figures that happen to equal one. It is written with the figures by a
-  configuration `PUT` that names one (`DeviceConfigurationEnvelope.preset`), a plan step's stage, and the
+  configuration `PUT` that names one (`DeviceConfigurationEnvelope.preset`), a plan step that names one, and the
   climate-presets service - a preset applied to a place, a phase with its climate (`applyConfiguration`,
-  `DeviceConfigurationService`). A write that moves a figure a preset sets without naming one - a target, the
-  light's limit, hours or ramps saved by hand, a plan step that names no preset, a spell ended by its own button -
-  clears it, since the figures are then the grower's own (Chris, 2026-11-14); one that moves none of them -
-  regulation switched, the clock moved, a step re-sent as it stands - leaves it (`appliedOf`,
-  `device-configuration.service.ts`). A device none was applied to since has none.
+  `DeviceConfigurationService`). **A plan step that names no preset clears it**, whatever the step moves and at
+  every hourly re-send: its stage decides only the work mode, so the device read never carries a stage without a
+  preset from a step (Chris, 2026-11-14; the third whole-app walk found "Klima-Preset: Veg" over a step's own
+  25 °C). Any other write that moves a figure a preset sets without naming one - a target, the light's limit,
+  hours or ramps saved by hand, a spell ended by its own button - clears it too, since the figures are then the
+  grower's own; one that moves none of them - regulation switched, the clock moved - leaves it (`appliedOf`,
+  `device-configuration.service.ts`). A hand edit taken back from its toast names the preset again: the undo's
+  `PUT` carries the name the device had before. A device none was applied to since has none.
 - A step's clock - its length (none: it runs until moved on by hand), what it has served across pauses, whether it
   is over, which step follows - is read by `shared-types/src/v1/plan-clock.ts`, by the engine and the plan and task
   screens alike, or a screen offers a Confirm the server refuses. Served time is unclamped: "more time" pushes

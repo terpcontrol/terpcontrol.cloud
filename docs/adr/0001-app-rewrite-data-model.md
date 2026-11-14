@@ -1,7 +1,7 @@
 ---
 summary: The /v1 data model, the API conventions and routes, the access rule, the frozen device protocol and the migration from the old database - read before changing a collection, a route, a migration step or anything a device touches
 updated: 2026-11-14
-source: a target changed by hand clears the preset's name (Chris, 2026-11-14); the second whole-app walk's lists built - a diary day's stage, a harvest's plants, the climate preset a device was put on, the watering's bound, a film of the dark refused (the redesign session's fix round of 2026-11-14); Chris's answers of 2026-11-14 (six kinds of a place, a stream's address tested by a route that makes no camera); Chris's answers of 2026-11-13 (what nothing asks removed, more kinds of a place, hand-set phases migrated to their person, plants named on a share link, a paired camera called Terp Cam); the final fix round's second part - refusals, a window link's curves (the redesign session of 2026-11-13, not Chris); Chris's confirmation of the amendment on places, rooms and where a device stood (2026-11-13); the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, confirmed by him on 2026-11-13; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, confirmed by him the same day; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: the third whole-app walk's lists built - a correction's recorded doses, a task named by its line, a plant's harvest taken along, a followed grow's newest sign of life (the redesign session's fix round of 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); the second whole-app walk's lists built - a diary day's stage, a harvest's plants, the climate preset a device was put on, the watering's bound, a film of the dark refused (the redesign session's fix round of 2026-11-14); Chris's answers of 2026-11-14 (six kinds of a place, a stream's address tested by a route that makes no camera); Chris's answers of 2026-11-13 (what nothing asks removed, more kinds of a place, hand-set phases migrated to their person, plants named on a share link, a paired camera called Terp Cam); the final fix round's second part - refusals, a window link's curves (the redesign session of 2026-11-13, not Chris); Chris's confirmation of the amendment on places, rooms and where a device stood (2026-11-13); the final fix round's contract additions (the redesign session of 2026-11-13, not Chris); Chris (decisions 2026-09-17, backend sign-off 2026-09-19, a still's colour 2026-10-08, several climates per place 2026-10-11); rewrite sessions and the commits of PR #104 (2026-09-16..10-04); PR #141; checked against server/, shared-types/ and firmware/ on 2026-10-08; the diary read of the navigation redesign (2026-11-12); places, rooms and device placements: the redesign session of 2026-11-12 within Chris's brief for the redesign, confirmed by him on 2026-11-13; an ended place's refusals, the archive routes' `own` and alerts by `resolvedAt`: the redesign session's clearing-up round of 2026-11-13, confirmed by him the same day; the wider refusal of an ended place (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/src/database/**
   - server/src/migrations/**
@@ -545,9 +545,20 @@ test stack, a self-hosted one on master - are what the second and third are for)
   scheme is edited: litres without doses resolve against the scheme row of the week the feed happened in, doses
   given are stored as given, `schemeWeek` records the row, doses are rounded to two decimals. The arithmetic
   (`shared-types/src/v1/feeding.ts`) is shared by the sheet, which draws the figures before anybody taps, and the
-  server, which resolves "log as planned".
+  server, which resolves "log as planned". A correction of a feed sends the `schemeWeek` and the doses it
+  recorded (scaled per litre for another can), so a line saved unchanged stays as it was, whatever week its date
+  falls in now (the third whole-app walk).
 - **Tasks are derived**, never stored: from reminders, the grow's scheme grid, the plan's step end and plan
-  suggestions, with deterministic ids. "Done" is an entry with that `taskId`.
+  suggestions, with deterministic ids. "Done" is an entry with that `taskId`. A watering or a feed that names
+  none closes the one of its kind due on its grow or place; one written from a task's "Eintragen" names that
+  task, and where somebody closed it meanwhile the line is still written, without it (`entry-writes.service.ts`).
+- **A plant deleted takes its harvest line along**: a harvest of it alone is deleted; one of several plants keeps
+  the others in `plantIds`, its typed totals less that plant's share (`removePlant`, `grows.service.ts`; the third
+  whole-app walk found nameless "Geerntet" lines that nobody could correct).
+- **A followed or public grow is dated by its newest sign of life** (`FollowedGrowCard.updatedAt` and
+  `updatedBy`: a camera's still where the grow stands and its page shows the cameras, a device's last word there,
+  the newest diary line, else its start; `growsMoved`, `server/src/modules/v1/grow/grow-moved.ts`), never by the
+  grow row's `updatedAt`, which a grow nothing edits keeps for weeks.
 - **Pictures belong to a camera, a grow or a space, never to a device.** The bytes stay where they are, in the
   GridFS bucket, whose file id is the media id.
 - **Time series** stay in InfluxDB, measurement `status`, tagged by `device_id`. The `user_id` tag, which
