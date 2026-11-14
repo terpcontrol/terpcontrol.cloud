@@ -1,7 +1,9 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type {
+  Entry,
   EntryPage,
   HarvestCreate,
+  HarvestEntryValues,
   HarvestResult,
   Phase,
   PhaseCreate,
@@ -9,13 +11,14 @@ import type {
   Placement,
   PlacementCreate,
   PlacementUpdate,
+  Plant,
   PresetApplication,
   PresetApplicationCreate,
   SplitCreate,
   SplitResult,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { startPhase, takeEntryBack } from './entries';
+import { correctEntry, startPhase, takeEntryBack } from './entries';
 import { useRead } from './read';
 import { invalidate, useWrite } from './write';
 
@@ -103,11 +106,30 @@ const HARVEST_LINES = 200;
  * What came down so far, as the diary says it: each harvest with the plants it names and the amounts typed in -
  * the yield every page states, never the plants' shares added up.
  */
-export const useHarvests = (growId: string) =>
+export const useHarvests = (growId: string, enabled = true) =>
   useRead({
     queryKey: ['entries', 'harvests', growId],
     queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'harvest', limit: HARVEST_LINES }, signal),
+    enabled,
   });
+
+/** What a harvest's weights are corrected on: its line, or the plant no line names - a harvest from before the lines. */
+export type Weighed = { line: Entry } | { plant: Plant };
+
+/**
+ * A harvest's weights added or corrected later - the dry weight comes days after the cut: on its line, the yield every
+ * page states, whose plants the server gives their shares of it; on the plant itself where no line names it.
+ */
+export const useWeighAgain = () =>
+  useWrite(
+    ({ about, weights }: { about: Weighed; weights: Pick<HarvestEntryValues, 'wetWeightG' | 'dryWeightG'> }): Promise<unknown> =>
+      'line' in about
+        ? correctEntry(about.line.id, { values: { kind: 'harvest', ...weights } })
+        : api.patch<Plant>(`/plants/${about.plant.id}`, {
+            harvest: { harvestedAt: about.plant.harvest?.harvestedAt ?? about.plant.createdAt, ...weights },
+          }),
+    growChanged,
+  );
 
 /**
  * A harvest that did not end the grow, taken back: its plants stand again and its line goes. The one that ended the

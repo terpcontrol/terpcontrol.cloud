@@ -3063,7 +3063,7 @@ export interface EntryUpdate {
    */
   text?: string | null;
   mediaIds?: string[];
-  values?: EntryValuesDraft;
+  values?: EntryValuesDraft | HarvestEntryValues;
 }
 
 export interface MediaOverlays {

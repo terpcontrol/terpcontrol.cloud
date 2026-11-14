@@ -2,20 +2,20 @@ import { DateTime } from 'luxon';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { Entry, GrowListItem, Plant } from '@fg2/shared-types/v1';
+import type { GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest, useHarvests, useTakeHarvestBack } from '@/api/lifecycle';
-import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
-import { looseFigure, typedFigure } from '@/ui/figures';
+import { typedFigure } from '@/ui/figures';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Block, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, DAY, useZone } from '@/ui/zone';
+import { namesOf, shareNote, weightLine, weightRefusal, weightsOf } from './harvest';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -182,7 +182,7 @@ export function HarvestSheet({
                   <div className={ui.headRow}>
                     <span className={styles.rowTitle}>{namesOf(line, plants)}</span>
                     <span className={styles.rowMeta}>
-                      {calendarDay(line.occurredAt, zone)} · {weightLine(t, line)}
+                      {calendarDay(line.occurredAt, zone)} · {weightLine(t, weightsOf(line))}
                     </span>
                   </div>
                 </li>
@@ -241,7 +241,7 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
   );
 }
 
-function Weight({
+export function Weight({
   label,
   value,
   onChange,
@@ -268,46 +268,6 @@ function Weight({
     </label>
   );
 }
-
-/** Why a typed weight cannot be sent, or null where it can: nothing typed is no weight, which is allowed. */
-const weightRefusal = (typed: string): 'number' | 'negative' | null => {
-  if (typed.trim() === '') return null;
-  const value = typedFigure(typed);
-  return value === null ? 'number' : value < 0 ? 'negative' : null;
-};
-
-/** "300 g wet over 3 plants · 100 g each": what the server will do with the total, before it does it. */
-const shareNote = (t: Translate, count: number, wet: number | null, dry: number | null): string => {
-  if (count === 0) return t('grow.lifecycle.harvest.pickSomething');
-  if (wet === null && dry === null) return '';
-
-  const each = (total: number) => looseFigure(Math.round((total / count) * 100) / 100);
-  const parts = [
-    wet === null ? '' : t('grow.lifecycle.harvest.eachWet', { total: looseFigure(wet), each: each(wet), count }),
-    dry === null ? '' : t('grow.lifecycle.harvest.eachDry', { total: looseFigure(dry), each: each(dry), count }),
-  ];
-
-  return parts.filter(Boolean).join(' · ');
-};
-
-/** The plants a harvest line names, as they are called now. */
-const namesOf = (line: Entry, plants: Plant[]): string =>
-  plants
-    .filter(plant => line.plantIds.includes(plant.id))
-    .map(plant => plant.label)
-    .join(', ');
-
-/** "nass 100 g · trocken 22 g": what was typed in for a harvest, as its line in the diary says it. */
-const weightLine = (t: Translate, line: Entry): string => {
-  if (line.values.kind !== 'harvest') return '';
-  const { wetWeightG, dryWeightG } = line.values;
-  const parts = [
-    wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(wetWeightG) }),
-    dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(dryWeightG) }),
-  ].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(' · ') : t('grow.lifecycle.harvest.noWeight');
-};
 
 /**
  * What ending a grow leads to: the sheet closes onto the grow's report - Grow

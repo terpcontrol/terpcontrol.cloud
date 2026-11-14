@@ -384,6 +384,67 @@ describe('a plant of a grow', () => {
   });
 });
 
+/**
+ * The harvest sheet's help says both weights may stay empty and be filled in later on the plant - and nothing in the
+ * app could add or correct a weight once the harvest was written.
+ */
+describe('a harvest´s weights, later', () => {
+  const cut = entry({
+    id: 'cut',
+    kind: 'harvest',
+    occurredAt: at(4),
+    plantIds: ['plant-1', 'plant-2'],
+    values: { kind: 'harvest', wetWeightG: 1000, dryWeightG: null } as never,
+  });
+  const down = (plant: Plant): Plant => ({ ...plant, status: 'harvested', harvest: { harvestedAt: at(4), wetWeightG: 500, dryWeightG: null } });
+
+  beforeEach(() => {
+    state.plants = plants.map(down);
+    state.lines = [cut];
+  });
+
+  it('adds the dry weight and puts a typo right on the harvest´s line, for the plants weighed together', async () => {
+    vi.mocked(api.patch).mockResolvedValue(cut as never);
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add the weight' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Harvest weight' });
+    expect(within(sheet).getByText(/^Amnesia 1, Amnesia 2 · harvested on/)).toBeInTheDocument();
+    expect((within(sheet).getByLabelText('Wet') as HTMLInputElement).value).toMatch(/^1,?000$/);
+    fireEvent.change(within(sheet).getByLabelText('Wet'), { target: { value: '100' } });
+    fireEvent.change(within(sheet).getByLabelText('Dry'), { target: { value: '22' } });
+    expect(within(sheet).getByText(/100 g wet shared over 2 plants/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/entries/cut', { values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } }));
+    expect(await screen.findByText('dry 22 g saved')).toBeInTheDocument();
+    expect(screen.getByText('Harvest Amnesia 1, Amnesia 2: wet 100 g')).toBeInTheDocument();
+  });
+
+  it('opens the harvest´s own line on its weights', async () => {
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    fireEvent.click(within(own[0]).getByRole('button', { name: 'Correct this line' }));
+    expect(await screen.findByRole('dialog', { name: 'Harvest weight' })).toBeInTheDocument();
+  });
+
+  it('corrects a plant no harvest line names on the plant itself', async () => {
+    state.lines = [];
+    state.plants = [{ ...down(plants[0]), harvest: { harvestedAt: at(4), wetWeightG: 500, dryWeightG: 120 } }, plants[1]];
+    await drawLoaded();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Correct the weight' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Harvest weight' });
+    fireEvent.change(within(sheet).getByLabelText('Dry'), { target: { value: '110' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith('/plants/plant-1', { harvest: { harvestedAt: expect.any(String), wetWeightG: 500, dryWeightG: 110 } }),
+    );
+  });
+});
+
 /** A plant put in by mistake is taken out again: asked first, since nothing brings it back. */
 /** Its "Neue Pflanze" taken back on its own page left "This plant is not part of this grow." with no title and no way back. */
 describe('a plant that is gone', () => {

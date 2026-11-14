@@ -5,6 +5,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { usePageOfGrow } from '@/app/places';
 import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries, useRemovePlant } from '@/api/grows';
+import { useHarvests } from '@/api/lifecycle';
 import { noLongerThere } from '@/api/problem';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -19,7 +20,9 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
+import { weightsOf } from '../harvest';
 import { HarvestSheet } from '../HarvestSheet';
+import { HarvestWeights } from '../HarvestWeights';
 import { withUnit } from '../measurements/definitions';
 import { MoveSheet } from '../MoveSheet';
 import { SplitSheet } from '../SplitSheet';
@@ -60,6 +63,8 @@ export function PlantPage() {
   const [sheet, setSheet] = useState<PlantSheet | null>(null);
   const [removing, setRemoving] = useState(false);
   const remove = useRemovePlant();
+  // Asked of a plant that came down, which is what has a harvest's line to be weighed on.
+  const harvests = useHarvests(growId, plants.data?.items.some(one => one.id === plantId && one.harvest !== null) === true);
   const navigate = useNavigate();
   const { tell } = useLog();
 
@@ -100,6 +105,11 @@ export function PlantPage() {
   const cutWith = all
     .filter(one => one.id !== plant.id && lines.some(entry => entry.values.kind === 'harvest' && entry.plantIds.includes(one.id)))
     .map(one => one.label);
+  // The line of the harvest it came down in carries its weights, the yield every page states; a plant no line names its own.
+  const harvestLine = harvests.data?.items.find(entry => entry.plantIds.includes(plant.id)) ?? null;
+  const weighed = harvestLine
+    ? weightsOf(harvestLine)
+    : { wetWeightG: plant.harvest?.wetWeightG ?? null, dryWeightG: plant.harvest?.dryWeightG ?? null };
   const removeAsk =
     plant.harvest === null
       ? t('grow.plant.removeAsk', { name: plant.label })
@@ -177,7 +187,7 @@ export function PlantPage() {
         </ul>
       )}
 
-      {/* One form for the plant's five actions: words alone, as a grow's own. */}
+      {/* One form for the plant's actions: words alone, as a grow's own. */}
       {mayManage ? (
         <div className={ui.wrap} role="group" aria-label={t('grow.plant.actionsLabel')}>
           <button type="button" className={ui.button} onClick={() => setSheet('move')}>
@@ -194,6 +204,12 @@ export function PlantPage() {
           {standing(plant) ? (
             <button type="button" className={ui.button} onClick={() => setSheet('harvest')}>
               {t('grow.plant.harvest')}
+            </button>
+          ) : null}
+          {/* A harvest's weights come later, the dry one days after the cut: added and corrected where the help says. */}
+          {plant.harvest !== null && harvests.isSuccess ? (
+            <button type="button" className={ui.button} onClick={() => setSheet('weigh')}>
+              {t(Object.values(weighed).includes(null) ? 'grow.plant.weigh' : 'grow.plant.reweigh')}
             </button>
           ) : null}
           <button type="button" className={ui.button} onClick={() => setSheet('rename')}>
@@ -235,6 +251,7 @@ export function PlantPage() {
         <SplitSheet grow={grow.data} plants={all} spaces={spaces.data?.items ?? []} preselect={[plant.id]} onClose={() => setSheet(null)} />
       ) : null}
       {sheet === 'harvest' ? <HarvestSheet grow={grow.data} plants={all} preselect={[plant.id]} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'weigh' ? <HarvestWeights about={harvestLine ? { line: harvestLine } : { plant }} onClose={() => setSheet(null)} /> : null}
       {sheet === 'rename' ? (
         <RenameSheet growId={growId} plant={plant} others={all.filter(one => one.id !== plant.id)} onClose={() => setSheet(null)} />
       ) : null}
@@ -243,7 +260,7 @@ export function PlantPage() {
 }
 
 /** What the plant's own actions row can open. */
-type PlantSheet = 'move' | 'split' | 'harvest' | 'rename';
+type PlantSheet = 'move' | 'split' | 'harvest' | 'weigh' | 'rename';
 
 /** Still in the ground, which is what the harvest sheet means by a plant it can cut. */
 const standing = (plant: Plant): boolean => plant.status === 'active' && plant.harvest === null;

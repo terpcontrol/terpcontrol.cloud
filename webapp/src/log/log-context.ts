@@ -108,6 +108,8 @@ interface LogState {
   openSheet: (opening?: LogOpening) => void;
   /** Opens one kind's view: on a line to correct, or on a new one dated to `at` where the sheet was told when, closing `taskId`. */
   openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null, at?: Date | null, taskId?: string | null) => void;
+  /** Opens a harvest's line on its weights, added or corrected after the cut. */
+  openWeights: (line: Entry) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */

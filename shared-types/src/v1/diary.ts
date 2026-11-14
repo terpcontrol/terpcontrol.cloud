@@ -356,9 +356,17 @@ export const entryCreate = named(
 /**
  * `PATCH /entries/{id}`: the same fields, each only if it changes. An entry's
  * `kind` is what the entry is and is not patched - correcting a reading is
- * `values`, whose own `kind` still has to be the entry's.
+ * `values`, whose own `kind` still has to be the entry's. A harvest's line takes
+ * its weights corrected here too - the dry weight comes days later -, and the
+ * plants it names take their shares of them; no harvest is written this way.
  */
-export const entryUpdate = named('EntryUpdate', entryCreate.omit({ kind: true }).partial());
+export const entryUpdate = named(
+  'EntryUpdate',
+  entryCreate
+    .omit({ kind: true })
+    .partial()
+    .extend({ values: z.union([entryValuesDraft, harvestEntryValues]).optional() }),
+);
 
 // ---------------------------------------------------------------------------
 // Media

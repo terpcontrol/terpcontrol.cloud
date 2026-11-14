@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { Entry, EntryCreate, EntryUpdate } from '@fg2/shared-types/v1';
+import type { Entry, EntryCreate, EntryUpdate, HarvestEntryValues } from '@fg2/shared-types/v1';
 import { MAINTENANCE_VISIT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Need } from '@common/v1/access.types';
@@ -22,6 +22,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DEMO_WRITE_MESSAGE } from '@utils/demo';
 import { spacesNow } from '../grow/grow-places';
+import { shareOut } from '../grow/harvest-shares';
 import { completionsOf, dueTasksOf, remindersAbout } from './due-tasks';
 import { requireLogOn } from './entry-targets';
 import { requireMatchingKind, resolveEntryValues } from './entry-values';
@@ -146,7 +147,29 @@ export class EntryWritesService {
     };
 
     await this.entries.updateOne({ id }, { $set: changed });
+    if (entry.values.kind === 'harvest' && changed.values?.kind === 'harvest') await this.reshare(entry, entry.values, changed.values);
     return serialiseEntry({ ...entry, ...changed });
+  }
+
+  /**
+   * A harvest's weights corrected on its line - the dry weight typed in days later, a typo put right - are shared out
+   * again over the plants the line names, as the harvest shared them: the line is the yield every page states, and
+   * a plant's share is what the export lists.
+   */
+  private async reshare(line: EntryDocument, before: HarvestEntryValues, after: HarvestEntryValues): Promise<void> {
+    const plants = await this.plants.find({ id: { $in: line.plantIds }, harvest: { $ne: null } }, { id: 1 }).lean<Pick<PlantDocument, 'id'>[]>();
+    const shares = (field: 'wetWeightG' | 'dryWeightG') => (before[field] === after[field] ? null : shareOut(after[field], plants.length));
+    const [wet, dry] = [shares('wetWeightG'), shares('dryWeightG')];
+    if (plants.length === 0 || (!wet && !dry)) return;
+
+    await this.plants.bulkWrite(
+      plants.map((plant, index) => ({
+        updateOne: {
+          filter: { id: plant.id },
+          update: { $set: { ...(wet ? { 'harvest.wetWeightG': wet[index] } : {}), ...(dry ? { 'harvest.dryWeightG': dry[index] } : {}) } },
+        },
+      })),
+    );
   }
 
   /**

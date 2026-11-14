@@ -307,6 +307,54 @@ describe('harvesting', () => {
   });
 
   /**
+   * The dry weight comes days later, and a typo is put right: on the harvest's line, which every page reads, its
+   * plants taking their shares of it. Nothing in the app could add or correct a weight once the harvest was written.
+   */
+  it('takes a weight left empty days later, and a typo put right, on the harvest´s line', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    const shared = await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0], plants[1]], wetWeightG: 1000 })
+      .expect(201);
+    const last = await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 40 }).expect(201);
+
+    await owner.client
+      .patch(`/v1/entries/${shared.body.entryId}`)
+      .send({ values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/entries/${last.body.entryId}`)
+      .send({ values: { kind: 'harvest', wetWeightG: 40, dryWeightG: 9 } })
+      .expect(200);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const lines = (await owner.client.get(`/v1/entries?growId=${grow.id}&kinds=harvest`).expect(200)).body.items;
+    const weighed = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map(
+      (plant: { harvest: { wetWeightG: number; dryWeightG: number } }) => [plant.harvest.wetWeightG, plant.harvest.dryWeightG],
+    );
+    expect(report.harvest).toMatchObject({ wetWeightG: 140, dryWeightG: 31 });
+    expect(lines.map((line: { values: unknown }) => line.values)).toEqual(
+      expect.arrayContaining([
+        { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 },
+        { kind: 'harvest', wetWeightG: 40, dryWeightG: 9 },
+      ]),
+    );
+    expect(weighed).toEqual([
+      [50, 11],
+      [50, 11],
+      [40, 9],
+    ]);
+
+    // No harvest is written through the diary: its weights are a harvest's line's alone.
+    const refused = await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'harvest', growId: grow.id, values: { kind: 'harvest', wetWeightG: 1, dryWeightG: null } })
+      .expect(400);
+    expect(refused.body.code).toBe('validation_failed');
+  });
+
+  /**
    * The one thing a harvest leaves behind that a stranger could read. The page
    * is asserted against rather than for: a weight that reached it would be a
    * setting somebody turned on and the server ignored.

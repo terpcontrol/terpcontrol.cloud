@@ -29,11 +29,12 @@ const CORRECTABLE: TileKind[] = ['water', 'feed', 'photo', 'note', 'measurement'
 
 /**
  * Which sheet this line would be corrected in, or null where it is not a
- * person's line to correct. What a device, the plan or an alarm recorded is not
+ * person's line to correct. A harvest is somebody's line, its weights the
+ * part of it that is put right later. What a device, the plan or an alarm recorded is not
  * ours to rewrite.
  */
-const correctableKind = (entry: Entry): TileKind | null =>
-  entry.source === 'human' ? (CORRECTABLE.find(kind => kind === entry.kind) ?? null) : null;
+const correctableKind = (entry: Entry): TileKind | 'harvest' | null =>
+  entry.source !== 'human' ? null : entry.kind === 'harvest' ? 'harvest' : (CORRECTABLE.find(kind => kind === entry.kind) ?? null);
 
 /**
  * What the correction is about, taken from the line rather than from the screen
@@ -77,7 +78,7 @@ interface LineOn {
  */
 export const useCorrecting = (): ((entry: Entry, on: LineOn) => (() => void) | undefined) => {
   const { user } = useSession();
-  const { openDetails } = useLog();
+  const { openDetails, openWeights } = useLog();
   const mayWith = useMayWith();
 
   return (entry, on) => {
@@ -87,6 +88,8 @@ export const useCorrecting = (): ((entry: Entry, on: LineOn) => (() => void) | u
     const mine = user !== null && !user.isDemo && entry.authorId === user.id;
     if (!enough(mayWith({ ownerId: on.ownerId ?? null, spaceId: on.spaceId }), mine ? 'log' : 'manage')) return undefined;
 
+    // A harvest's line is corrected in its weights, which its own sheet holds: the dry weight comes days later.
+    if (kind === 'harvest') return () => openWeights(entry);
     return () => openDetails(kind, targetOf(entry, on.label, on.dayNumber ?? null), entry);
   };
 };

@@ -1229,6 +1229,13 @@
         "standingAgain_one": "{{plants}} is standing again",
         "standingAgain_other": "{{plants}} are standing again"
       },
+      "weigh": {
+        "title": "Harvest weight",
+        "cutOn": "harvested on {{date}}",
+        "said": "Harvest {{plants}}: {{weights}}",
+        "saved": "{{what}} saved",
+        "save": "Save"
+      },
       "split": {
         "title": "Split",
         "what": "Some plants go their own way while the rest of the grow carries on.",
@@ -1381,6 +1388,8 @@
       "move": "Move this plant",
       "split": "Split off from the rest",
       "harvest": "Harvest this plant",
+      "weigh": "Add the weight",
+      "reweigh": "Correct the weight",
       "renameTitle": "Rename {{label}}",
       "label": "Label",
       "strain": "Strain",
@@ -4116,7 +4125,7 @@
     },
     "harvestWeights": {
       "title": "Weight",
-      "text": "The dry weight only comes days later: both fields may stay empty and be filled in on the plant afterwards. A plant that really weighed something else is corrected on the plant itself."
+      "text": "The dry weight only comes days later: both fields may stay empty and be filled in afterwards, on the plant or on the harvest's line in the diary. A typo is corrected there too. What was weighed together stands as one amount and is shared over its plants."
     },
     "socketAddress": {
       "title": "Pairing by IP",

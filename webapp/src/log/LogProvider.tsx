@@ -9,6 +9,7 @@ import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, typ
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
 import { PhotoEntry } from './PhotoEntry';
+import { HarvestWeights } from '@/screens/grow/HarvestWeights';
 import { lastUsed, withRoom } from './toast-room';
 import { Toasts, type LoggedLine } from './Toasts';
 import { undoneLabel } from './lines';
@@ -65,6 +66,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
   const [opening, setOpening] = useState<LogOpening | null>(null);
   const [details, setDetails] = useState<Details | null>(null);
+  const [weighing, setWeighing] = useState<Entry | null>(null);
   const [lines, setLines] = useState<LoggedLine[]>([]);
   // What stands now, for an undo that takes along what was written on it.
   const standing = useRef(lines);
@@ -213,6 +215,11 @@ export function LogProvider({ children }: { children: ReactNode }) {
       },
       [sheetOpen],
     ),
+    openWeights: useCallback((line: Entry) => {
+      setOpening(null);
+      setDetails(null);
+      setWeighing(line);
+    }, []),
     log,
     complete: useCallback(
       (taskId: string, label: string, options: CompleteOptions = {}) => {
@@ -270,6 +277,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
           onClose={close}
         />
       ) : null}
+      {weighing ? <HarvestWeights about={{ line: weighing }} onClose={() => setWeighing(null)} /> : null}
       <Toasts lines={lines} onUndo={undo} onRetry={retry} onDismiss={dismiss} onDetails={openDetailsOf(setDetails)} />
     </LogContext>
   );

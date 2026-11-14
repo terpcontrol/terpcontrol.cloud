@@ -47,6 +47,7 @@ import { PhaseWriterService } from '../phase/phase-writer.service';
 import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
 import { zoneOfOwner, zonesOfOwners } from '@common/v1/owner-zone';
 import { NOTHING_HIDDEN, Redaction, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
+import { round, shareOut } from './harvest-shares';
 import { grantRedaction, ownerRedactions } from './redactions';
 import { growsVisibleTo } from './visible-grows';
 import { accountOf } from '../caller';
@@ -1009,23 +1010,6 @@ const requireSpan = (grow: GrowDocument, body: GrowUpdate): { grow: GrowDocument
 
   return { grow, startedAt, endedAt };
 };
-
-/**
- * The harvest sheet weighs what came down, while the model keeps a weight per
- * plant so that a staggered harvest adds up rather than being counted twice.
- * So the figure is shared out evenly over the plants it was weighed for, and the
- * last of them takes whatever rounding left over, which keeps the total exactly
- * what somebody typed in. A plant that really weighed something else is
- * corrected on the plant, which is what `PATCH /plants/{id}` is for.
- */
-const shareOut = (total: number | null, count: number): (number | null)[] => {
-  if (total === null || count === 0) return Array.from({ length: count }, () => null);
-
-  const each = round(total / count);
-  return Array.from({ length: count }, (_, index) => (index < count - 1 ? each : round(total - each * (count - 1))));
-};
-
-const round = (value: number): number => Math.round(value * 100) / 100;
 
 /**
  * A key is what a reading is filed under, so two definitions sharing one would

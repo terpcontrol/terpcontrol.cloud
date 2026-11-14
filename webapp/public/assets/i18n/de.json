@@ -1239,6 +1239,13 @@
         "standingAgain_one": "{{plants}} steht wieder",
         "standingAgain_other": "{{plants}} stehen wieder"
       },
+      "weigh": {
+        "title": "Gewicht der Ernte",
+        "cutOn": "geerntet am {{date}}",
+        "said": "Ernte {{plants}}: {{weights}}",
+        "saved": "{{what}} gespeichert",
+        "save": "Speichern"
+      },
       "split": {
         "title": "Aufteilen",
         "what": "Einige Pflanzen gehen ihren eigenen Weg, während der Rest des Grows weiterläuft.",
@@ -1391,6 +1398,8 @@
       "move": "Diese Pflanze umziehen",
       "split": "Vom Rest abspalten",
       "harvest": "Diese Pflanze ernten",
+      "weigh": "Gewicht nachtragen",
+      "reweigh": "Gewicht korrigieren",
       "renameTitle": "{{label}} umbenennen",
       "label": "Bezeichnung",
       "strain": "Sorte",
@@ -4126,7 +4135,7 @@
     },
     "harvestWeights": {
       "title": "Gewicht",
-      "text": "Das Trockengewicht kommt erst Tage später: Beide Felder dürfen leer bleiben und später an der Pflanze nachgetragen werden. Eine Pflanze, die wirklich anders gewogen hat, wird an der Pflanze selbst korrigiert."
+      "text": "Das Trockengewicht kommt erst Tage später: Beide Felder dürfen leer bleiben und später nachgetragen werden, an der Pflanze oder an der Zeile der Ernte im Tagebuch. Dort wird auch ein Tippfehler korrigiert. Was zusammen gewogen wurde, steht als eine Menge und wird auf die Pflanzen verteilt."
     },
     "socketAddress": {
       "title": "Per IP koppeln",

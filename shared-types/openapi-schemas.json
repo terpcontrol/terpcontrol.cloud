@@ -9251,7 +9251,14 @@
         }
       },
       "values": {
-        "$ref": "#/components/schemas/EntryValuesDraft"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/EntryValuesDraft"
+          },
+          {
+            "$ref": "#/components/schemas/HarvestEntryValues"
+          }
+        ]
       }
     }
   },

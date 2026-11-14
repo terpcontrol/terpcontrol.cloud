@@ -645,10 +645,21 @@ export declare const entryCreate: z.ZodObject<{
 /**
  * `PATCH /entries/{id}`: the same fields, each only if it changes. An entry's
  * `kind` is what the entry is and is not patched - correcting a reading is
- * `values`, whose own `kind` still has to be the entry's.
+ * `values`, whose own `kind` still has to be the entry's. A harvest's line takes
+ * its weights corrected here too - the dry weight comes days later -, and the
+ * plants it names take their shares of them; no harvest is written this way.
  */
 export declare const entryUpdate: z.ZodObject<{
-    values: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
+    text: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    cameraId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
+    growId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    occurredAt: z.ZodOptional<z.ZodOptional<z.ZodISODateTime>>;
+    taskId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    mediaIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
+    values: z.ZodOptional<z.ZodUnion<readonly [z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
         readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
@@ -686,16 +697,11 @@ export declare const entryUpdate: z.ZodObject<{
         kind: z.ZodLiteral<"training">;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"visit">;
-    }, z.core.$strip>], "kind">>;
-    text: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    cameraId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
-    growId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    occurredAt: z.ZodOptional<z.ZodOptional<z.ZodISODateTime>>;
-    taskId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    mediaIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
+    }, z.core.$strip>], "kind">, z.ZodObject<{
+        kind: z.ZodLiteral<"harvest">;
+        wetWeightG: z.ZodNullable<z.ZodNumber>;
+        dryWeightG: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>]>>;
 }, z.core.$strip>;
 /**
  * What a timelapse covers. `day`, `week` and `month` are the rolling films the
