@@ -1372,7 +1372,6 @@
       "chartAlt": "{{name}} of {{label}} over the grow",
       "nothingMeasured": "Nothing measured for this plant yet",
       "readingsUnread": "The readings could not be read just now, so nothing is said about what was measured.",
-      "notHere": "This plant is not part of this grow.",
       "rename": "Rename",
       "actionsLabel": "What happens to this plant",
       "move": "Move this plant",

@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import type { Entry, GrowListItem, GrowSeries, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { usePageOfGrow } from '@/app/places';
 import { useGrow, useGrowPlants, useMeasurementSeries, usePlantEntries, useRemovePlant } from '@/api/grows';
@@ -85,7 +85,9 @@ export function PlantPage() {
 
   const all = plants.data.items;
   const plant = all.find(one => one.id === plantId);
-  if (!plant) return <NothingHere>{t('grow.plant.notHere')}</NothingHere>;
+  // A plant that is gone - deleted here, taken back with its toast's undo, or never of this grow - leaves its grow's
+  // Pflanzen open in its place, with that page's own title and way back, rather than a sentence with neither.
+  if (!plant) return <Navigate to={`/grows/${growId}/plants`} replace />;
 
   // Moving, splitting, harvesting and renaming a plant are the grow's own
   // moves, which are `manage` where the grow stands today.

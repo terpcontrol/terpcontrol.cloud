@@ -435,6 +435,46 @@ export class GrowsService {
     if (!removed) throw notFound('plant_not_found', 'There is no plant with that id.');
 
     await this.forgetPlant(removed.growId, id);
+    await this.forgetHarvest(removed);
+  }
+
+  /**
+   * A plant that is gone takes its harvest out of the diary with it. A harvest
+   * of that plant alone goes; one of several plants keeps the others and the
+   * totals of theirs - what the plant that went weighed is taken off them. Left
+   * standing, the line said "Geerntet" of nobody, and nothing could correct it.
+   */
+  private async forgetHarvest(plant: PlantDocument): Promise<void> {
+    const lines = await this.entryRows.find({ growId: plant.growId, kind: 'harvest', plantIds: plant.id }).lean<EntryDocument[]>();
+
+    for (const line of lines) {
+      const kept = line.plantIds.filter(one => one !== plant.id);
+      if (kept.length === 0) {
+        await this.entryRows.deleteOne({ id: line.id });
+        continue;
+      }
+
+      const values = line.values.kind === 'harvest' ? line.values : null;
+      const less = (total: number | null, share: number | null | undefined): number | null =>
+        total === null || share === null || share === undefined ? total : Math.max(round(total - share), 0);
+      await this.entryRows.updateOne(
+        { id: line.id },
+        {
+          $set: {
+            plantIds: kept,
+            ...(values
+              ? {
+                  values: {
+                    ...values,
+                    wetWeightG: less(values.wetWeightG, plant.harvest?.wetWeightG),
+                    dryWeightG: less(values.dryWeightG, plant.harvest?.dryWeightG),
+                  },
+                }
+              : {}),
+          },
+        },
+      );
+    }
   }
 
   /**

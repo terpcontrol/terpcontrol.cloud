@@ -1037,6 +1037,24 @@ describe('plants', () => {
     expect(read.summary.locations.flatMap(where => where.plantIds)).not.toContain(plants[0].id);
   });
 
+  /**
+   * "Pflanze löschen" after a harvest, or the undo of "Neue Pflanze", left a nameless "Geerntet" line in the diary
+   * that nothing could correct: the plant's harvest goes with it, and a harvest of several keeps the others' share.
+   */
+  it('takes its harvest out of the diary with it, and keeps the rest of a harvest of several', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.harvest(grow.id, { plantIds: [plants[0].id], wetWeightG: 60, dryWeightG: 12.5 }, OWNER, NOTHING_HIDDEN);
+    await grows.harvest(grow.id, { plantIds: [plants[1].id, plants[2].id], wetWeightG: 200, dryWeightG: 41 }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlant(plants[0].id);
+    await grows.removePlant(plants[1].id);
+
+    const lines = await db.entries.find({ growId: grow.id, kind: 'harvest' }).lean();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ plantIds: [plants[2].id], values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 20.5 } });
+  });
+
   it('takes a scope that was only that plant away with it', async () => {
     const grow = await started();
     const plants = await plantsOfGrow(grow.id);

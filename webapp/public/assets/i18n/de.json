@@ -1382,7 +1382,6 @@
       "chartAlt": "{{name}} von {{label}} über den Grow",
       "nothingMeasured": "Für diese Pflanze wurde noch nichts gemessen",
       "readingsUnread": "Die Messwerte konnten gerade nicht gelesen werden, deshalb steht hier nichts über das Gemessene.",
-      "notHere": "Diese Pflanze gehört nicht zu diesem Grow.",
       "rename": "Umbenennen",
       "actionsLabel": "Was mit dieser Pflanze geschieht",
       "move": "Diese Pflanze umziehen",

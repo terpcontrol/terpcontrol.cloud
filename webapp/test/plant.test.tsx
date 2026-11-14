@@ -367,6 +367,24 @@ describe('a plant of a grow', () => {
 });
 
 /** A plant put in by mistake is taken out again: asked first, since nothing brings it back. */
+/** Its "Neue Pflanze" taken back on its own page left "This plant is not part of this grow." with no title and no way back. */
+describe('a plant that is gone', () => {
+  it('leaves its grow´s Pflanzen open in its place', async () => {
+    state.plants = plants.filter(one => one.id !== 'plant-1');
+    drawAt(
+      <LogProvider>
+        <Routes>
+          <Route path="/grows/:growId/plants/:plantId" element={<PlantPage />} />
+          <Route path="/grows/:growId/plants" element={<h1>Plants of the grow</h1>} />
+        </Routes>
+      </LogProvider>,
+      { at: '/grows/grow-1/plants/plant-1' },
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Plants of the grow' })).toBeInTheDocument();
+  });
+});
+
 describe('taking a plant out of its grow', () => {
   it('asks, deletes it and says so, with no way back', async () => {
     vi.mocked(api.delete).mockResolvedValue(undefined as never);
