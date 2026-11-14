@@ -90,6 +90,11 @@ export interface CompleteOptions {
 export interface Back {
   undo: () => Promise<unknown>;
   undone: string;
+  /**
+   * The lines written after it that stand on what it did - a line dated before a grow's old start, written once the
+   * start was moved back for it: taken back with it, rather than left behind "Vor dem Start".
+   */
+  along?: (entry: Entry) => boolean;
 }
 
 /** Something that was done already, said in the toast with the way to take it back - where it can be taken back whole. */

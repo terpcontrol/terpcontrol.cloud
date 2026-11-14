@@ -89,7 +89,9 @@ const growBegan = (grow: GrowListItem): Date => DateTime.fromJSDate(growOriginOf
  * and how its start is moved there by somebody who may manage it. Null for a
  * line about a place, which has no first day. A start moved is answered with
  * the day it is now and the start it had, one write away: what stood on the
- * start moves back with it, as it moved with it.
+ * start moves back with it, as it moved with it - and a line written onto the
+ * days it gained, the one the start was moved for, is taken back with it rather
+ * than left before the start.
  */
 export const useGrowBegins = (grow: GrowListItem | undefined, target: LogTarget | null): MomentBegins | null => {
   const { t } = useTranslation();
@@ -104,7 +106,14 @@ export const useGrowBegins = (grow: GrowListItem | undefined, target: LogTarget 
   const moveTo = async (to: Date) => {
     const startedAt = instantOf(DateTime.fromJSDate(to));
     await startOn(startedAt);
-    tell({ label: said(startedAt), undo: () => startOn(grow.startedAt), undone: said(grow.startedAt), from: `start-${grow.id}` });
+    const began = growBegan(grow).getTime();
+    tell({
+      label: said(startedAt),
+      undo: () => startOn(grow.startedAt),
+      undone: said(grow.startedAt),
+      along: entry => entry.growId === grow.id && Date.parse(entry.occurredAt) < began,
+      from: `start-${grow.id}`,
+    });
   };
 
   return { at: growBegan(grow), move: mayManage ? moveTo : null };

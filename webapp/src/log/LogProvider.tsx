@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import type { Entry } from '@fg2/shared-types/v1';
@@ -66,6 +66,11 @@ export function LogProvider({ children }: { children: ReactNode }) {
   const [opening, setOpening] = useState<LogOpening | null>(null);
   const [details, setDetails] = useState<Details | null>(null);
   const [lines, setLines] = useState<LoggedLine[]>([]);
+  // What stands now, for an undo that takes along what was written on it.
+  const standing = useRef(lines);
+  useLayoutEffect(() => {
+    standing.current = lines;
+  }, [lines]);
   const takenBack = useRef(new Set<number>());
   /** The tasks whose tick is still on its way, so that one card writes one line. */
   const ticking = useRef(new Set<string>());
@@ -84,24 +89,30 @@ export function LogProvider({ children }: { children: ReactNode }) {
    * Takes a line back - by its own way where it only told of something, else by deleting what it wrote - and answers
    * where the Undo stood with what holds again: in the teller's words, and of a written line that the diary no
    * longer has it. A refusal is said there too. A line still on its way has no id yet and is taken back the moment
-   * the server answers with one.
+   * the server answers with one. The lines written after it that stand on it (`along`) go first, and are said.
    */
   const undo = useCallback(
-    ({ key, entry, revert }: Pick<LoggedLine, 'key' | 'entry' | 'revert'>) => {
+    ({ key, entry, revert, along }: Pick<LoggedLine, 'key' | 'entry' | 'revert' | 'along'>) => {
       if (!revert && !entry) {
         takenBack.current.add(key);
         return change(key, { undoing: true });
       }
+      const riders = along ? standing.current.filter(line => line.key > key && line.entry !== null && along(line.entry)) : [];
+      const ridden = riders.length > 0 ? i18n.t('log.alongGone', { count: riders.length }) : null;
       change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
-      void (revert?.() ?? takeEntryBack(entry!.id).then(() => diaryChanged(client))).then(
-        () => {
-          change(key, line => saying(undoneLabel(i18n.t, line.undone ?? i18n.t('log.gone'))));
-          // What was said after it may have built on what is now taken back - a harvest of the plant whose adding
-          // was undone: its toast goes, rather than offering to take back what no longer exists.
-          setLines(current => current.filter(line => line.key <= key || line.state !== 'saved'));
-        },
-        error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
-      );
+      void Promise.all(riders.map(line => takeEntryBack(line.entry!.id)))
+        .then(() => revert?.() ?? takeEntryBack(entry!.id))
+        // A change told of reads again what it changed itself; a line taken back, or one taken along, is the diary's.
+        .then(() => (revert && riders.length === 0 ? undefined : diaryChanged(client)))
+        .then(
+          () => {
+            change(key, line => saying(undoneLabel(i18n.t, [line.undone ?? i18n.t('log.gone'), ridden].filter(Boolean).join(' · '))));
+            // What was said after it may have built on what is now taken back - a harvest of the plant whose adding
+            // was undone: its toast goes, rather than offering to take back what no longer exists.
+            setLines(current => current.filter(line => line.key <= key || line.state !== 'saved'));
+          },
+          error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
+        );
     },
     [change, client, i18n],
   );
@@ -224,7 +235,13 @@ export function LogProvider({ children }: { children: ReactNode }) {
     tell: useCallback(({ label, from, ...back }: Told) => {
       const told = { ...saying(label), key: nextKey.current++, send: () => Promise.reject(new Error('nothing to send')), from, answers: lastUsed() };
       setLines(current =>
-        withRoom(current, { ...told, revert: back.undo, undone: back.undo ? back.undone : undefined, undoable: back.undo !== null }),
+        withRoom(current, {
+          ...told,
+          revert: back.undo,
+          undone: back.undo ? back.undone : undefined,
+          along: back.undo ? back.along : undefined,
+          undoable: back.undo !== null,
+        }),
       );
     }, []),
   };

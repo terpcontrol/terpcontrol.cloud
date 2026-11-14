@@ -30,6 +30,8 @@ export interface LoggedLine {
   revert: (() => Promise<unknown>) | null;
   /** What holds again once it is taken back, in the teller's words. */
   undone?: string;
+  /** The lines written after it that stand on it, taken back with it (`Back.along`). */
+  along?: (entry: Entry) => boolean;
   /** The control a toast that tells of something came from, whose next toast takes its place. */
   from?: string;
   /** The control that was used when the line began (`lastUsed`): what the toast must not stand over. */

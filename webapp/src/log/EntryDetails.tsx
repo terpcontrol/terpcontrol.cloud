@@ -144,11 +144,21 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
         : (litres ?? 0) > MAX_LITRES
           ? 'log.litresTooMuch'
           : null;
-  const begins = useGrowBegins(grow, target);
+  // Which of the grow's plants the line is about - none is the whole of what it was written against. A correction can
+  // change it: a training named with the wrong plant was kept as it was and could not be put right.
+  const [plantIds, setPlantIds] = useState<string[]>(target.plantIds);
+  const aimed = { ...target, plantIds };
+  const begins = useGrowBegins(grow, aimed);
   // A field is a key for one plant or for the whole line: a round of readings across several plants is one line, and
   // its correction shows every reading of it where it was taken.
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
   const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry), target));
+  // The grow's measurements arrive after the sheet: a new line, or a correction, opens on the first few of them as well.
+  const [settled, setSettled] = useState(definitions.length > 0);
+  if (!settled && definitions.length > 0) {
+    setSettled(true);
+    setShown(firstFields(definitions, readingsOf(entry), target));
+  }
   const [text, setText] = useState(entry?.text ?? '');
   const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
   /**
@@ -175,7 +185,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
   const step = recorded ? null : schemeStep(grow, at);
   const week = recorded ? recorded.schemeWeek : (step?.week ?? null);
   // What the line will say it is: the day it is dated to, not the day it is being written on.
-  const filed = said ? { ...target, dayNumber: dayAt(grow, target, said) } : target;
+  const filed = said ? { ...aimed, dayNumber: dayAt(grow, aimed, said) } : aimed;
   const showsWater = kind === 'water' || kind === 'feed';
   const showsReadings = kind === 'water' || kind === 'feed' || kind === 'measurement';
   const showsText = kind === 'note' || kind === 'training' || kind === 'photo';
@@ -188,7 +198,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
     const [key, plantId] = slot.split('|');
     const name = definitions.find(one => one.key === key)?.name ?? key;
     // A reading of one plant on a line about more than that plant says whose it is.
-    const plant = plantId && target.plantIds.join() !== plantId ? plants?.items.find(one => one.id === plantId) : undefined;
+    const plant = plantId && plantIds.join() !== plantId ? plants?.items.find(one => one.id === plantId) : undefined;
     return plant ? `${name} · ${plant.label}` : name;
   };
   const unreadName = unread === undefined ? null : fieldName(unread);
@@ -197,6 +207,9 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
   const refusal = useId();
   const refused = (showsWater && refusedLitres !== null) || unread !== undefined;
   const pictures = (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []);
+  // A correction names the plants the line is about and lets them be put right; a reading names its own plant instead.
+  const offered = (plants?.items ?? []).filter(plant => plant.status === 'active' || plantIds.includes(plant.id));
+  const choosesPlants = entry !== null && kind !== 'measurement' && Boolean(target.growId) && offered.length > 0;
 
   const values = (): EntryValuesDraft => {
     const taken = readingsFrom(readings, shown);
@@ -259,6 +272,8 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
       // Words left empty are none, as the line had them.
       const body: EntryUpdate = {
         ...about(target),
+        // Said whether or not it changed: a line set back to the whole grow sends no plant, which a missing field would not say.
+        ...(choosesPlants ? { plantIds } : {}),
         ...occurredAt(dated),
         text: showsText ? (text.trim() === '' ? null : text) : entry.text,
         values: values(),
@@ -303,7 +318,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
     // back, is still of this moment.
     const body: EntryCreate = {
       kind,
-      ...about(target),
+      ...about(aimed),
       ...occurredAt(dated ?? serverNow().toJSDate()),
       text: showsText && text ? text : undefined,
       values: values(),
@@ -312,7 +327,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
     log({ label: lineLabel(t, kind, filed), details: { kind, target }, send: () => writeEntry(body) });
   };
 
-  const add = (key: string) => setShown(current => [...current, slotOf(key, perPlantSlot(definitions, key, target))]);
+  const add = (key: string) => setShown(current => [...current, slotOf(key, perPlantSlot(definitions, key, aimed))]);
   const stepBy = (by: number) => {
     setTypedLitres(null);
     setLitres(next(litres, by));
@@ -352,6 +367,20 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: De
         />
         {kind === 'feed' && week !== null ? <Help topic="mixing" /> : null}
       </p>
+
+      {choosesPlants ? (
+        <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-label={t('log.linePlants')}>
+          {offered.map(plant => (
+            <Choice
+              key={plant.id}
+              chosen={plantIds.includes(plant.id)}
+              onChoose={() => setPlantIds(current => (current.includes(plant.id) ? current.filter(id => id !== plant.id) : [...current, plant.id]))}
+            >
+              {plant.label}
+            </Choice>
+          ))}
+        </div>
+      ) : null}
 
       {showsWater ? (
         <div className={`${ui.card} ${styles.waterRow}`}>
@@ -610,11 +639,18 @@ const typed = (readings: EntryReading[]): Record<string, string> =>
 const perPlantSlot = (definitions: MeasurementDefinition[], key: string, target: LogTarget): string | null =>
   (definitions.find(definition => definition.key === key)?.perPlant ?? false) ? (target.plantIds[0] ?? null) : null;
 
-/** The fields a kind opens with: every reading the line already says, else the first few the grow measures. */
-const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[], target: LogTarget): string[] =>
-  readings.length > 0
-    ? readings.map(reading => slotOf(reading.key, reading.plantId))
-    : definitions.slice(0, FIELDS_SHOWN).map(definition => slotOf(definition.key, perPlantSlot(definitions, definition.key, target)));
+/**
+ * The fields a kind opens with: every reading the line already says, and the first few the grow measures beside
+ * them - the same fields whether a line holds one reading or none, so a correction is not a smaller sheet than a new
+ * line for having one figure.
+ */
+const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[], target: LogTarget): string[] => [
+  ...readings.map(reading => slotOf(reading.key, reading.plantId)),
+  ...definitions
+    .slice(0, FIELDS_SHOWN)
+    .filter(definition => !readings.some(reading => reading.key === definition.key))
+    .map(definition => slotOf(definition.key, perPlantSlot(definitions, definition.key, target))),
+];
 
 /** What was typed, as readings: a field left empty is not a reading of nothing, so it is left out. */
 const readingsFrom = (typedIn: Record<string, string>, shown: string[]): EntryReading[] =>

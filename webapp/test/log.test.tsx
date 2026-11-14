@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, Entry, EntryUpdate, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { useCorrecting } from '@/log/corrections';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog, type LogOpening } from '@/log/log-context';
+import { openingTarget } from '@/log/targets';
 import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -996,6 +997,57 @@ describe('the log sheet', () => {
     await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/grows/grow-1', { startedAt: grow.startedAt }));
   });
 
+  /**
+   * The start was moved back for a line, and the line written; taken back from the start's toast, the start went and
+   * the line stayed - under "Vor dem Start", though its own toast had called it day 1. It goes with the start now.
+   */
+  it('takes the line written onto a start moved back along when the start is taken back, and says so', async () => {
+    vi.mocked(api.post).mockImplementation((_path, body) => Promise.resolve({ ...written, ...(body as object) }) as never);
+    vi.mocked(api.patch).mockResolvedValue(grow as never);
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.click(within(note).getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(within(note).getByLabelText('Date'), { target: { value: '2026-08-10' } });
+    fireEvent.click(within(note).getByRole('button', { name: 'Move the start to 10 Aug 2026' }));
+    await within(note).findByRole('button', { name: /^Change when: 10 Aug \d\d:\d\d$/ });
+    fireEvent.change(within(note).getByRole('textbox'), { target: { value: 'Seeds soaked' } });
+    fireEvent.click(within(note).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ kind: 'note', text: 'Seeds soaked' })));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Undo' })).toHaveLength(2));
+
+    const start = screen.getByText(reading(/^Start: (9|10) Aug 2026/)).closest('[data-key]') as HTMLElement;
+    fireEvent.click(within(start).getByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/entries/entry-new'));
+    await waitFor(() => expect(api.patch).toHaveBeenLastCalledWith('/grows/grow-1', { startedAt: grow.startedAt }));
+    expect(await screen.findByText(reading('Undone · Start: 15 Aug 2026 · the entry before it no longer in the diary'))).toBeInTheDocument();
+  });
+
+  it('takes along nothing written on the start´s own days', async () => {
+    vi.mocked(api.post).mockImplementation((_path, body) => Promise.resolve({ ...written, ...(body as object) }) as never);
+    vi.mocked(api.patch).mockResolvedValue(grow as never);
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Note/ }));
+    const note = await screen.findByRole('dialog', { name: 'Note' });
+    fireEvent.click(within(note).getByRole('button', { name: /^Change when/ }));
+    fireEvent.change(within(note).getByLabelText('Date'), { target: { value: '2026-08-10' } });
+    fireEvent.click(within(note).getByRole('button', { name: 'Move the start to 10 Aug 2026' }));
+    await within(note).findByRole('button', { name: /^Change when: 10 Aug \d\d:\d\d$/ });
+    // Dated back to today after all: the line stands on a day the grow had before.
+    fireEvent.click(within(note).getByRole('button', { name: /^Change when/ }));
+    fireEvent.click(within(note).getByRole('button', { name: 'Now' }));
+    fireEvent.change(within(note).getByRole('textbox'), { target: { value: 'Topped' } });
+    fireEvent.click(within(note).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Undo' })).toHaveLength(2));
+
+    const start = screen.getByText(reading(/^Start: (9|10) Aug 2026/)).closest('[data-key]') as HTMLElement;
+    fireEvent.click(within(start).getByRole('button', { name: 'Undo' }));
+
+    expect(await screen.findByText(reading('Undone · Start: 15 Aug 2026'))).toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+  });
+
   it('says there is no connection, keeps the moment the line was written at, and sends it by itself once the connection is back', async () => {
     // What a browser answers a request that never got out with.
     vi.mocked(api.post).mockRejectedValueOnce(new TypeError('Failed to fetch'));
@@ -1170,6 +1222,19 @@ describe('the log sheet in a place where two grows stand', () => {
  * sends back what the line already says - so the line stays as it was. A feed of scheme week 4 written yesterday
  * stays week 4 with its doses, though its date falls in week 5 of the grid today.
  */
+describe('where the sheet opens', () => {
+  /** An empty tent listed first was chosen over the place where the grows stand. */
+  it('opens on a place where something grows, where nothing names one and nothing was chosen before', () => {
+    const empty = { key: 'space:space-2', label: 'Place 2', growId: null, spaceId: 'space-2', plantIds: [], dayNumber: null, standsIn: 'space-2' };
+    const growing = { key: 'grow:grow-1', label: 'Spring run', growId: 'grow-1', spaceId: null, plantIds: [], dayNumber: 34, standsIn: 'space-1' };
+
+    expect(openingTarget([empty, growing], {}, null).target).toBe(growing);
+    // What was chosen last time still wins, and a sheet with nothing growing anywhere opens on the first place.
+    expect(openingTarget([empty, growing], {}, 'space:space-2').target).toBe(empty);
+    expect(openingTarget([empty], {}, null).target).toBe(empty);
+  });
+});
+
 describe('correcting a line that was recorded', () => {
   const stored = (over: Partial<Entry>): Entry => ({ ...lastWater, id: `entry-${over.kind}`, spaceId: 'space-1', occurredAt: daysAgo(1), ...over });
   const LINES: Entry[] = [
@@ -1283,5 +1348,64 @@ describe('correcting a line that was recorded', () => {
     expect(await within(sheet).findByText('Height · Amnesia 1')).toBeInTheDocument();
     expect(within(sheet).getByText('Height · Gelato 1')).toBeInTheDocument();
     expect(within(sheet).getByText('pH')).toBeInTheDocument();
+  });
+
+  /**
+   * Three readings in a row left a reading named with its plant a field 4 px wide on a phone, and 6,1 could not be
+   * seen: each reading is a row of its own, its name beside a field as wide as a figure.
+   */
+  it('gives every reading a row of its own, with a field that holds its figure', async () => {
+    const sheet = await opened(LINES[2]);
+    await within(sheet).findByText('Height · Amnesia 1');
+    const css = readFileSync(resolve(__dirname, '../src/log/Log.module.css'), 'utf8');
+    const rule = (name: string) => new RegExp(`\\.${name} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+
+    const field = within(sheet).getByText('Height · Amnesia 1').closest('label')!;
+    const rows = [...field.parentElement!.children];
+    expect(rows.map(row => row.querySelectorAll('input').length)).toEqual([1, 1, 1]);
+    expect(within(field).getByRole('textbox')).toHaveValue('40');
+    expect(rule('fields')).toMatch(/grid-template-columns: minmax\(0, 1fr\);/);
+    expect(rule('fieldInput')).toMatch(/flex: none;[\s\S]*width: 7ch;/);
+    expect(rule('fieldName')).not.toMatch(/nowrap/);
+  });
+
+  /** One reading stored hid the others behind their chips, while a line with none showed them as fields. */
+  it('shows the same measurement fields whether the line holds one reading or none', async () => {
+    const fieldsOf = async (entry: Entry) => {
+      const sheet = await opened(entry);
+      await waitFor(() => expect(within(sheet).getAllByRole('textbox').length).toBeGreaterThan(1));
+      const names = [...sheet.querySelectorAll('label > span')].map(name => name.textContent);
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+      cleanup();
+      return names;
+    };
+
+    const one = await fieldsOf(LINES[0]);
+    const none = await fieldsOf(stored({ kind: 'water', values: { kind: 'water', litres: 3.5, readings: [] } }));
+    expect([...one].sort()).toEqual([...none].sort());
+    expect(one).toEqual(['pH', 'Height']);
+  });
+
+  /** A training named with one plant said so in the diary and nowhere in its correction, and the plant could not be put right. */
+  it('names the plants a line is about and puts them right', async () => {
+    const sheet = await opened(LINES[4]);
+    const chips = await within(sheet).findByRole('group', { name: 'Which plants' });
+
+    expect(within(chips).getByRole('button', { name: 'Amnesia 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(chips).getByRole('button', { name: 'Gelato 1' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(within(chips).getByRole('button', { name: 'Gelato 1' }));
+    fireEvent.click(within(chips).getByRole('button', { name: 'Amnesia 1' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect((vi.mocked(api.patch).mock.calls[0][1] as EntryUpdate).plantIds).toEqual(['plant-2']);
+  });
+
+  it('puts a line about one plant back onto the whole grow, by sending no plant', async () => {
+    const sheet = await opened(LINES[4]);
+    const chips = await within(sheet).findByRole('group', { name: 'Which plants' });
+    fireEvent.click(within(chips).getByRole('button', { name: 'Amnesia 1' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect((vi.mocked(api.patch).mock.calls[0][1] as EntryUpdate).plantIds).toEqual([]);
   });
 });

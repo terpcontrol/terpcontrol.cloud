@@ -93,8 +93,10 @@ interface Aim {
 
 /**
  * Which chip starts chosen: the grow or tent the screen underneath is about,
- * then whatever was chosen last time, then the first place there is. A sheet
- * opened on the grow page is already pointed at that grow.
+ * then whatever was chosen last time, then the first place where something
+ * grows - an empty tent listed first is not where a line is most likely about -,
+ * then the first place there is. A sheet opened on the grow page is already
+ * pointed at that grow.
  *
  * The fallback is for an opening that named nothing, and for that only. A link
  * that did name a subject and missed is a different answer and not a smaller
@@ -114,5 +116,8 @@ export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: s
 
   if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };
 
-  return { target: targets.find(target => target.key === last) ?? targets[0] ?? null, missed: false };
+  return {
+    target: targets.find(target => target.key === last) ?? targets.find(target => target.growId !== null) ?? targets[0] ?? null,
+    missed: false,
+  };
 };
