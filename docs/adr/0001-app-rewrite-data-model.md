@@ -553,8 +553,9 @@ test stack, a self-hosted one on master - are what the second and third are for)
   none closes the one of its kind due on its grow or place; one written from a task's "Eintragen" names that
   task, and where somebody closed it meanwhile the line is still written, without it (`entry-writes.service.ts`).
 - **A plant deleted takes its harvest line along**: a harvest of it alone is deleted; one of several plants keeps
-  the others in `plantIds`, its typed totals less that plant's share (`removePlant`, `grows.service.ts`; the third
-  whole-app walk found nameless "Geerntet" lines that nobody could correct).
+  the others in `plantIds` and its typed amounts as they were, which is what the scale said (Chris, 2026-11-14;
+  `removePlant`, `grows.service.ts`; the third whole-app walk found nameless "Geerntet" lines that nobody could
+  correct).
 - **A followed or public grow is dated by its newest sign of life** (`FollowedGrowCard.updatedAt` and
   `updatedBy`: a camera's still where the grow stands and its page shows the cameras, a device's last word there,
   the newest diary line, else its start; `growsMoved`, `server/src/modules/v1/grow/grow-moved.ts`), never by the

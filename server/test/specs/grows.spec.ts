@@ -244,6 +244,27 @@ describe('harvesting', () => {
     expect(refused.body.code).toBe('plants_already_harvested');
   });
 
+  /** A plant deleted after a harvest takes its harvest line along; one of several keeps the others, as typed. */
+  it('takes a deleted plant out of its harvest, and its own harvest out of the diary', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0]], wetWeightG: 60 })
+      .expect(201);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[1], plants[2]], wetWeightG: 200, dryWeightG: 41 })
+      .expect(201);
+
+    await owner.client.delete(`/v1/plants/${plants[0]}`).expect(204);
+    await owner.client.delete(`/v1/plants/${plants[1]}`).expect(204);
+
+    const lines = (await owner.client.get(`/v1/entries?growId=${grow.id}&kinds=harvest`).expect(200)).body.items;
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ plantIds: [plants[2]], values: { kind: 'harvest', wetWeightG: 200, dryWeightG: 41 } });
+  });
+
   /**
    * The one thing a harvest leaves behind that a stranger could read. The page
    * is asserted against rather than for: a weight that reached it would be a

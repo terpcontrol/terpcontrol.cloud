@@ -1039,9 +1039,10 @@ describe('plants', () => {
 
   /**
    * "Pflanze löschen" after a harvest, or the undo of "Neue Pflanze", left a nameless "Geerntet" line in the diary
-   * that nothing could correct: the plant's harvest goes with it, and a harvest of several keeps the others' share.
+   * that nothing could correct: the plant's harvest goes with it, and a harvest of several keeps the others - with
+   * its typed amounts as they were, which is what the scale said (Chris, 2026-11-14).
    */
-  it('takes its harvest out of the diary with it, and keeps the rest of a harvest of several', async () => {
+  it('takes its harvest out of the diary with it, and keeps the rest of a harvest of several as it was typed', async () => {
     const grow = await started();
     const plants = await plantsOfGrow(grow.id);
     await grows.harvest(grow.id, { plantIds: [plants[0].id], wetWeightG: 60, dryWeightG: 12.5 }, OWNER, NOTHING_HIDDEN);
@@ -1052,7 +1053,7 @@ describe('plants', () => {
 
     const lines = await db.entries.find({ growId: grow.id, kind: 'harvest' }).lean();
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ plantIds: [plants[2].id], values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 20.5 } });
+    expect(lines[0]).toMatchObject({ plantIds: [plants[2].id], values: { kind: 'harvest', wetWeightG: 200, dryWeightG: 41 } });
   });
 
   it('takes a scope that was only that plant away with it', async () => {

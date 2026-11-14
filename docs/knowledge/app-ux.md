@@ -941,7 +941,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     harvested plant is counted as harvested, not among the stages ("2 Veg, 1 geerntet").
   - *Plants after the start*: "Pflanze hinzufügen" on the Pflanzen tab (strain prefilled, a taken name refused,
     the toast takes it back), "Pflanze löschen" on its page after a question. A plant deleted takes its harvest
-    line along - a harvest of several keeps the others -, and its page's address opens its grow's Pflanzen (the
+    line along - a harvest of several keeps the others, its typed amounts as they were (Chris, 2026-11-14) -, and
+    its page's address opens its grow's Pflanzen (the
     third whole-app walk). A harvest of some plants closes its sheet and answers with its toast, so "… und Grow
     beenden" never stands where the person just pressed. A grow whose diary holds nothing
     but its phase lines is offered to its owner to delete under ⋯; its phases are taken back first, so no line of
