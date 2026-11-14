@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Entry, GrowDayEvent, GrowReadingNames, Person, PlantLabel } from '@fg2/shared-types/v1';
+import { useGrowPlants } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { GROW } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
@@ -58,13 +59,25 @@ export function Latest({
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const correcting = useCorrecting();
-  const stored = offStored ? notTaken(t, t('control.state.off'), offStored, now, zone) : null;
   const open = events.find(event => event.kind === 'controlOff' && event.endedAt === null);
+  // Under the line's own stamp the switch saved in that minute needs no time of its own: "17:12 … gespeichert um 17:12".
+  const stored = !offStored
+    ? null
+    : open && Math.floor(Date.parse(open.at) / 60_000) === Math.floor(Date.parse(offStored) / 60_000)
+      ? t('start.latest.stored', { what: t('control.state.off') })
+      : notTaken(t, t('control.state.off'), offStored, now, zone);
   const lines = dayLines(t, i18n, { entries: onTheirDay(i18n, entries, zone), events, endsAt: now.toISO() ?? '' }, zone)
     .slice(0, LATEST)
     .map(line =>
       stored && open && line.key === `controlOff-${open.at}` ? { ...line, what: { kind: 'said' as const, words: stored, metric: null } } : line,
     );
+  // The plants of a grow that ended here are none of the place's now, and its harvest lines read "Geerntet" of nobody:
+  // they are read from the grow itself.
+  const ended = lines
+    .flatMap(line => (line.what.kind === 'entry' ? [line.what.entry] : []))
+    .find(entry => entry.growId !== null && entry.plantIds.length > 0 && !plants.some(plant => plant.growId === entry.growId))?.growId;
+  const theirs = useGrowPlants(ended ?? null).data?.items;
+  const named = ended && theirs ? [...plants, ...theirs] : plants;
   const [viewing, setViewing] = useState<{ pictures: string[]; from: number } | null>(null);
   // A place where nothing has happened yet has no card saying so: the page under it is short enough.
   if (lines.length === 0) return null;
@@ -88,7 +101,7 @@ export function Latest({
               measurements={entry ? readingNamesOf(readingNames, entry.growId) : []}
               byline={byline}
               onOpen={entry ? correcting(entry, on) : null}
-              plants={plants}
+              plants={named}
               onPictures={from =>
                 setViewing({ pictures: (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []), from })
               }

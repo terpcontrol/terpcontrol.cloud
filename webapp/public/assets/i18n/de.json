@@ -4959,7 +4959,8 @@
       "diary": "Ganzes Tagebuch",
       "pictures_one": "{{count}} Bild",
       "pictures_other": "{{count}} Bilder",
-      "title": "Zuletzt"
+      "title": "Zuletzt",
+      "stored": "{{what}} gespeichert, noch nicht am Gerät"
     },
     "targets": {
       "window": "{{on}} bis {{off}}",
@@ -4980,6 +4981,7 @@
     "grow": {
       "title": "{{name}}: Was wächst hier?",
       "text": "Mit einem Grow schreibt die App das Tagebuch mit: Klima, Phasen und deine Einträge.",
+      "textByHand": "Mit einem Grow führst du hier dein Tagebuch: Phasen, Pflanzen und deine Einträge.",
       "textPictured": "Dann schreibt die App das Tagebuch mit: jeden Tag ein Bild und das Klima.",
       "name": "Sorte oder Name",
       "since": "Seit wann?",
@@ -5042,6 +5044,7 @@
       "lowNow": "{{metric}} gerade {{delta}} zu niedrig",
       "since": "seit {{time}}",
       "maintenance": "Wartung bis {{until}} · Regelung und Alarme pausiert",
+      "maintenanceUntil": "bis {{until}} · Regelung und Alarme pausiert",
       "settling": "Wartung vorbei · Alarme ruhen noch bis {{until}}",
       "stale": "Letzte Werte von {{time}} · das Gerät meldet sich verzögert",
       "noTargets": "Werte kommen an · noch keine Zielwerte",
@@ -5053,7 +5056,8 @@
       "mode": {
         "drying": "Das Gerät trocknet, der Grow ist in der Phase {{stage}}",
         "germination": "Das Gerät keimt im Dunkeln, der Grow ist in der Phase {{stage}}"
-      }
+      },
+      "changing": "{{metrics}} im Übergang bis {{time}}"
     },
     "metric": {
       "light": "Licht"

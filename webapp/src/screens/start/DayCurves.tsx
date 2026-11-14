@@ -25,12 +25,13 @@ const GAP_MS = HOUR_MS;
  * The last day of temperature and humidity as two small curves, where a
  * desktop has the room: the night shaded, the band each stretch was held to
  * behind the line. No axis and no figures - the readings state the values, and
- * the card leads to Verlauf, where a curve is read.
+ * the card leads to Verlauf, where a curve is read. They are the lead's, as the
+ * readings are: a day drawn from another device of the place is no day of it.
  */
-export function DayCurves({ spaceId, targets }: { spaceId: string; targets: OverviewTargets | null }) {
+export function DayCurves({ spaceId, targets, lead }: { spaceId: string; targets: OverviewTargets | null; lead: string | null }) {
   const { t } = useTranslation();
   const timeline = useTimeline(spaceId, LAST_DAY).data;
-  if (!timeline) return null;
+  if (!timeline || (lead !== null && timeline.deviceId && timeline.deviceId !== lead)) return null;
 
   return (
     <Link to={timelinePath(spaceId)} className={styles.day}>

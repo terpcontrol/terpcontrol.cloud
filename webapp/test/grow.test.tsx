@@ -861,6 +861,36 @@ describe('a day of the diary', () => {
     expect(shownLines(lines).map(line => line.key)).toEqual(['c', 'b', 'a', 'mould-over']);
   });
 
+  /** Zuletzt listed "Zu warm" above "Schimmelgefahr" when the warning fired seconds after the critical alarm. */
+  it('lists a critical alarm above a warning of the same minute, and keeps the minutes in their order', () => {
+    const fired = (id: string, rule: string, severity: 'warning' | 'critical', when: string) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        severity,
+        occurredAt: when,
+        message: { key: 'message-alarm-triggered', params: [`${rule} (temperature), value=31.2, upper threshold=28, lower threshold=n/a`] },
+        values: { kind: 'alarm' },
+      });
+    const minute = (hour: number, second: number) => NOW.minus({ days: 1 }).set({ hour, minute: 39, second }).toUTC().toISO()!;
+    const lines = dayLines(
+      i18next.t.bind(i18next) as never,
+      i18next,
+      day(1, {
+        entries: [
+          fired('warm-later', 'Too warm', 'warning', minute(18, 2)),
+          fired('warm', 'Too warm again', 'warning', minute(17, 20)),
+          fired('mould', 'Mould risk', 'critical', minute(17, 5)),
+        ],
+      }),
+      null,
+    );
+
+    expect(lines.map(line => line.key)).toEqual(['warm-later', 'mould', 'warm']);
+  });
+
   /**
    * A rule is its device's: a controller and a socket of one place both carry "Device offline", and the socket's
    * clearing made the controller's open alarm read "resolved". Each is a line of its own, open or over by its own

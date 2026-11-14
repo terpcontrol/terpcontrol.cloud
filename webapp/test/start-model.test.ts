@@ -161,7 +161,11 @@ describe('the sentence a place says', () => {
     ];
     const warm = (value: number) => values().map(one => (one.metric === 'temperature' ? { ...one, value } : one));
 
-    expect(statusOf({ ...place, values: warm(24.6), setpoints: changing }, now).kind).toBe('good');
+    // On target, and said as on its way: "Alles im Ziel" stood over a tile saying "im Übergang bis 18:16".
+    const between = statusOf({ ...place, values: warm(24.6), setpoints: changing }, now);
+    expect(between).toEqual({ kind: 'changing', metrics: ['temperature'], until });
+    expect(toneOf(between)).toBe('good');
+    expect(statusOf({ ...place, values: warm(25.8), setpoints: [{ metric: 'temperature', value: 25, band: 1 }] }, now).kind).toBe('good');
     expect(statusOf({ ...place, values: warm(27.5), setpoints: changing }, now)).toMatchObject({ kind: 'off', metric: 'temperature', high: true });
   });
 

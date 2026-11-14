@@ -236,7 +236,12 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
       : [],
   );
 
-  return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside, ...measuring].sort((one, other) => other.at.localeCompare(one.at));
+  // Within one minute a critical alarm stands above the rest: a warning fired seconds later read as the worse of the two.
+  const minute = (line: DayLine) => line.at.slice(0, 16);
+  const worse = (line: DayLine) => (line.what.kind === 'alarm' && line.what.critical ? 0 : 1);
+  return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside, ...measuring].sort(
+    (one, other) => minute(other).localeCompare(minute(one)) || worse(one) - worse(other) || other.at.localeCompare(one.at),
+  );
 };
 
 /**

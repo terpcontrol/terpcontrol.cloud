@@ -506,20 +506,27 @@ a.tileLabel::after {
   color: var(--warning);
 }
 
+/*
+ * Each further reading is the way to its own curve, a finger high; the dot between two stands at their middle. The
+ * line is a line of text, so a reading that wraps at 320 px stands a line under the others and not a finger's height
+ * lower: each reading reaches up and down into the line's padding, under the words of the one beside it, so a tap on
+ * a reading's words is that reading's and two reaches share no strip (app-ux §5).
+ */
 .extras {
   font-size: var(--text-sm);
   color: var(--muted);
-}
-
-/* Each further reading is the way to its own curve, a finger high; the dot between two stands at their middle. */
-.extras > * {
-  align-items: center;
+  padding-block: calc((var(--control-height) - 1lh) / 2);
 }
 
 .extra {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--control-height);
+  position: relative;
+}
+
+.extra::after {
+  position: absolute;
+  z-index: -1;
+  inset: calc((var(--control-height) - 1lh) / -2) -4px;
+  content: '';
 }
 
 /* --- the grow: phase, week, and how far along --- */

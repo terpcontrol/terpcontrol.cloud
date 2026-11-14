@@ -173,15 +173,24 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const lit = offline ? null : lamp.lit;
   const held = offline ? null : lamp.held;
   const readings = readingsOf(t, { values, setpoints, device, lit, held, hold: humidifierHold, now, zone });
-  const extras = offline ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
+  // A lead that has yet to speak leaves the place without figures: a socket's CO₂ is no reading of the place's.
+  const extras = offline || waiting ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
   const measuredAt = measuredAtOf(judging.values) ?? silentSince;
   const ownMedia = kept ? (ownPhotoOf(overview.entries, kept.growId)?.mediaIds[0] ?? kept.coverMediaId) : null;
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
-  // Offered once the account and the place have been read, to whoever may start a grow here and has not said no.
+  // Offered once the account and the place have been read, to whoever may start a grow here and has not said no - in a
+  // place kept by hand too, where the diary is kept: a grow that ended there left its lines and nothing leading on.
   const declined = diary ? space?.presetPrompt === 'never' : me.data?.preferences.diary === 'off';
   const offerGrow =
-    !visiting && mayManage && hasDevice && !growing && me.data !== undefined && space !== undefined && !declined && !growPutOff(spaceId, now);
+    !visiting &&
+    mayManage &&
+    (hasDevice || diary) &&
+    !growing &&
+    me.data !== undefined &&
+    space !== undefined &&
+    !declined &&
+    !growPutOff(spaceId, now);
   const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} parks={parks} />;
   const further = extras.length > 0 ? <Extras spaceId={spaceId} extras={extras} /> : null;
@@ -292,7 +301,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {also.map(one => (
             <GrowHead key={one.growId} grow={one} to={`/grows/${one.growId}`} />
           ))}
-          {wide && hasDevice && !byHand ? <DayCurves spaceId={spaceId} targets={targets} /> : null}
+          {/* The day's curves are the lead's: a place waiting for it has none, whatever else of it reported. */}
+          {wide && hasDevice && !byHand && !waiting ? <DayCurves spaceId={spaceId} targets={targets} lead={device?.id ?? null} /> : null}
         </div>
 
         <div className={`${ui.stack3} ${styles.column}`}>
@@ -329,7 +339,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           ) : null}
           {/* Offered only where it can do what it says: a device that is silent or has yet to speak would not hear it, and a plug parks nothing. */}
           {parks ? <MaintenanceControl devices={here} now={now} /> : null}
-          {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} /> : null}
+          {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} byHand={!hasDevice} /> : null}
           {offerDevice ? <DeviceOffer /> : null}
           {demo || visiting ? null : <AddPlace />}
         </div>

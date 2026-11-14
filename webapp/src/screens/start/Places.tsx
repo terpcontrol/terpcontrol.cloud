@@ -13,7 +13,7 @@ import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { useZone } from '@/ui/zone';
+import { clock, useZone } from '@/ui/zone';
 import type { Translate } from '@/i18n/i18n';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { AddPlace } from './AddPlace';
@@ -191,8 +191,15 @@ function PlaceCard({
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, held, hold: null, now, zone });
   const figures = readingFacts(t, readings);
   const pill = pillOf(t, status);
-  // The pill says "offline"; the line beside it says since when, and not the word a second time.
-  const said = status.kind === 'offline' ? (status.since ? t('start.status.since', { time: sinceLabel(status.since, judged, zone) }) : null) : words;
+  // The pill says "offline" or "Wartung"; the line beside it says since or until when, and not the word a second time.
+  const said =
+    status.kind === 'offline'
+      ? status.since
+        ? t('start.status.since', { time: sinceLabel(status.since, judged, zone) })
+        : null
+      : status.kind === 'maintenance' && status.quiet.parked
+        ? t('start.status.maintenanceUntil', { until: clock(status.quiet.until, zone) })
+        : words;
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
   // A place that holds two grows names both: the card's answer carries the newer one alone.
   const others = alsoIn(useGrows(diary && card.grow !== null).data?.items, card.spaceId, card.grow?.growId);

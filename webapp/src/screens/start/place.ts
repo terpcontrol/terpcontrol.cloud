@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { DateTime } from 'luxon';
 import type {
   Alert,
@@ -34,6 +35,7 @@ import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '@/screens/c
 import { windowWords } from '@/screens/control/targets/schedule-words';
 import { draftOf } from '@/screens/control/targets/targets-draft';
 import { worstFirst } from '@/screens/alerts/inbox';
+import { inSentence } from '@/screens/space/members/people';
 import { livenessOf, measuredAtOf, type Liveness } from './attention';
 
 /**
@@ -327,6 +329,8 @@ export type Status =
   | { kind: 'noTargets' }
   /** The device dries or germinates while the grow standing here is in another phase: "Alles im Ziel" would deny it. */
   | ({ kind: 'mode' } & ContradictedMode)
+  /** Every reading on target, some only on their way between day and night: "Alles im Ziel" over "im Übergang" was two things. */
+  | { kind: 'changing'; metrics: Steered[]; until: string }
   | { kind: 'good' };
 
 /** What stands open behind a status that does not name it: how many alerts, and whether one of them is critical. */
@@ -414,14 +418,18 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
 
   if (alerted) return alerted;
 
-  const off = STEERED.flatMap(metric => {
+  const verdicts = STEERED.map(metric => {
     const setpoint = setpointOf(place.setpoints, metric);
     const hold = metric === 'humidity' && setpoint?.value == null ? (place.humidifierHold ?? null) : null;
-    const verdict = judgedOf(valueOf(place.values, metric), setpoint, hold, now);
-    if (verdict?.kind !== 'high' && verdict?.kind !== 'low') return [];
-    const band = hold?.band ?? setpoint?.band ?? 1;
-    return [{ metric, high: verdict.kind === 'high', delta: verdict.delta, weight: verdict.delta / band, held: hold !== null }];
-  }).sort((one, other) => other.weight - one.weight)[0];
+    return { metric, setpoint, hold, verdict: judgedOf(valueOf(place.values, metric), setpoint, hold, now) };
+  });
+  const off = verdicts
+    .flatMap(({ metric, setpoint, hold, verdict }) => {
+      if (verdict?.kind !== 'high' && verdict?.kind !== 'low') return [];
+      const band = hold?.band ?? setpoint?.band ?? 1;
+      return [{ metric, high: verdict.kind === 'high', delta: verdict.delta, weight: verdict.delta / band, held: hold !== null }];
+    })
+    .sort((one, other) => other.weight - one.weight)[0];
 
   if (off) {
     const status = { kind: 'off' as const, metric: off.metric, high: off.high, delta: off.delta };
@@ -437,6 +445,18 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   if (!place.setpoints.some(setpoint => setpoint.value !== null)) return { kind: 'noTargets' };
   if (place.mode) return { kind: 'mode', ...place.mode };
 
+  const changing = verdicts.flatMap(({ metric, verdict }) => (verdict?.kind === 'settling' ? [{ metric, until: verdict.until }] : []));
+  if (changing.length > 0) {
+    return {
+      kind: 'changing',
+      metrics: changing.map(one => one.metric),
+      until: changing
+        .map(one => one.until)
+        .sort()
+        .at(-1)!,
+    };
+  }
+
   return { kind: 'good' };
 };
 
@@ -444,6 +464,7 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
 export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
   switch (status.kind) {
     case 'good':
+    case 'changing':
       return 'good';
     case 'alert':
       return status.alert.severity === 'critical' ? 'alarm' : 'warn';
@@ -513,6 +534,14 @@ const statusWords = (t: Translate, status: Status, now: DateTime, zone: string |
       return t('start.status.stale', { time: status.at ? sinceLabel(status.at, now, zone) : '' });
     case 'mode':
       return t(`start.status.mode.${status.mode}`, { stage: t(`home.stage.${status.stage}`) });
+    case 'changing':
+      return t('start.status.changing', {
+        metrics: inSentence(
+          status.metrics.map(metric => t(`home.metric.${metric}`)),
+          i18next.language,
+        ),
+        time: clock(status.until, zone),
+      });
     default:
       return t(`start.status.${status.kind}`);
   }

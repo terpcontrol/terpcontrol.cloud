@@ -23,9 +23,10 @@ import ui from '@/ui/ui.module.css';
  * off and where it is switched on, with the way to take the tap back.
  *
  * "Grow starten" opens the one form a grow is started with; "Grow hierher" moves in one that runs elsewhere - the
- * one that left this place for no fixed place chosen, where there is one.
+ * one that left this place for no fixed place chosen, where there is one. A place kept by hand, whose grow ended, is
+ * offered its next one in the words of a diary with no climate to keep.
  */
-export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: string; diary: boolean }) {
+export function GrowOffer({ spaceId, name, diary, byHand = false }: { spaceId: string; name: string; diary: boolean; byHand?: boolean }) {
   const { t } = useTranslation();
   const account = useChooseDiary();
   const place = useSetPresetPrompt(spaceId);
@@ -60,7 +61,7 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
       <h2 className={styles.offerTitle} id="start-grow-offer">
         {t('start.grow.here')}
       </h2>
-      <p className={styles.cardText}>{t('start.grow.text')}</p>
+      <p className={styles.cardText}>{t(byHand ? 'start.grow.textByHand' : 'start.grow.text')}</p>
       <div className={styles.pair}>
         <button type="button" className={styles.go} onClick={() => setAsking('start')}>
           {t('home.invite.startGrow')}

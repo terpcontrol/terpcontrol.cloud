@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router';
@@ -199,7 +201,10 @@ describe('Start of a place whose controller was never heard beside a socket that
       configuration: { workmode: 'heater' },
       state: { lastSeenAt: ago(0.2), hardware: {}, maintenanceUntil: null },
     } as never);
-    const live = [{ metric: 'temperature' as const, value: 24.5, measuredAt: ago(0.2), state: 'live' as const }];
+    const live = [
+      { metric: 'temperature' as const, value: 24.5, measuredAt: ago(0.2), state: 'live' as const },
+      { metric: 'co2' as const, value: 933, measuredAt: ago(0.2), state: 'live' as const },
+    ];
     server.devices = [socket, never];
     onePlace(
       overviewOf({
@@ -214,6 +219,10 @@ describe('Start of a place whose controller was never heard beside a socket that
     expect(document.querySelector('[data-liveness]')).toHaveTextContent('waiting for first values · Tent controller');
     expect(screen.queryByText('24.5 °C')).not.toBeInTheDocument();
     expect(screen.queryByText(/Readings arriving/)).not.toBeInTheDocument();
+    // Nor under the head: the socket's CO₂ unnamed, and at a desktop its day as the place's last 24 hours.
+    await waitFor(() => expect(server.calls).toContain('GET /devices/device-1/live'));
+    expect(screen.queryByText(/CO₂/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Last 24 h')).not.toBeInTheDocument();
   });
 });
 
@@ -270,6 +279,34 @@ describe('Start of one place with a camera and a grow', () => {
     expect(screen.getByText('online')).toBeInTheDocument();
     expect(screen.getByText('· 18 s ago')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All on target.');
+  });
+
+  /** "Alles im Ziel." stood over a temperature tile saying "im Übergang bis 18:16": the sentence says it on its way. */
+  it('says a reading on its way between day and night as that, never "all on target" over it', async () => {
+    const until = ago(-40);
+    const changing = [
+      { metric: 'temperature' as const, value: 21, band: 1, transition: { from: 'day' as const, to: 'night' as const, until, low: 20, high: 26 } },
+      ...setpoints.slice(1),
+    ];
+    onePlace(overviewOf({ cameras: [camera()], grows: [growOf()], setpoints: changing }), true);
+    draw();
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(`Temperature changing over until ${hhmm(until)}`));
+    expect(screen.queryByText('All on target.')).not.toBeInTheDocument();
+  });
+
+  /**
+   * At 320 px "PPFD 600" wrapped onto a row of its own 44 px lower: every reading was a finger high. The line is a line
+   * of text and each reading reaches into its padding, under the words of the one beside it (measured in a browser: a
+   * wrapped reading 20 px lower, every reading's words its own, one row 44 px high as before).
+   */
+  it('keeps the further readings one line of text, each a finger high by its reach', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/start/Start.module.css'), 'utf8');
+    expect(/\n\.extra \{([^}]*)\}/.exec(sheet)?.[1]).not.toMatch(/min-height/);
+    expect(/\.extras \{([^}]*)\}/.exec(sheet)?.[1]).toMatch(/padding-block: calc\(\(var\(--control-height\) - 1lh\) \/ 2\)/);
+    const reach = /\.extra::after \{([^}]*)\}/.exec(sheet)?.[1] ?? '';
+    expect(reach).toMatch(/inset: calc\(\(var\(--control-height\) - 1lh\) \/ -2\)/);
+    expect(reach).toMatch(/z-index: -1/);
   });
 
   it('says phase and week over the bar, and leads to the grow', async () => {
@@ -1165,8 +1202,10 @@ describe('the states of Start', () => {
     draw();
 
     const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
-    await waitFor(() => expect(latest).toHaveTextContent(`Control off saved at ${hhmm(ago(40))}, not with the device yet`));
+    await waitFor(() => expect(latest).toHaveTextContent('Control off saved, not with the device yet'));
     expect(latest).not.toHaveTextContent('Control is off');
+    // Under the line's stamp the time is said once: "17:12 Regelung aus gespeichert um 17:12" said it twice.
+    expect(latest.textContent?.split(hhmm(ago(40)))).toHaveLength(2);
   });
 
   /** Regulation off is never hidden behind maintenance: it is what the place is while the window runs, and after it. */
@@ -1367,6 +1406,61 @@ describe('the states of Start', () => {
     await waitFor(() => expect(server.bodies.get('PATCH /me')).toEqual({ preferences: { deviceOfferDeclined: true } }));
   });
 
+  /** Its grow harvested, a place kept by hand showed three "Geerntet …" lines of nobody, and nothing leading on. */
+  it('leads a diary kept by hand whose grow just ended to the next one, and names the plants its last lines are about', async () => {
+    const cut = (id: string, plantIds: string[], minutes: number) =>
+      entry(id, {
+        kind: 'harvest',
+        text: null,
+        growId: 'grow-old',
+        plantIds,
+        values: { kind: 'harvest', wetWeightG: 30, dryWeightG: 6 } as never,
+        occurredAt: ago(minutes),
+      });
+    onePlace(
+      overviewOf({
+        name: 'Grow tent',
+        kind: 'tent',
+        deviceIds: [],
+        values: [],
+        setpoints: [],
+        targets: null,
+        grows: [],
+        entries: [cut('cut-3', [], 1), cut('cut-2', ['plant-2'], 2), cut('cut-1', ['plant-1'], 3)],
+      }),
+      true,
+    );
+    server.devices = [];
+    // The ended grow's plants, which the place no longer lists: they are read from the grow.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        new URL(String(input), 'http://localhost').pathname.endsWith('/grows/grow-old/plants')
+          ? Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  items: [
+                    { id: 'plant-1', growId: 'grow-old', label: 'OG Kush 1' },
+                    { id: 'plant-2', growId: 'grow-old', label: 'OG Kush 2' },
+                  ],
+                  nextCursor: null,
+                }),
+                { headers: { 'Content-Type': 'application/json' } },
+              ),
+            )
+          : fetchStub(input, init),
+      ),
+    );
+    draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(latest).toHaveTextContent('dry 6 g · OG Kush 2'));
+    expect(latest).toHaveTextContent('dry 6 g · OG Kush 1');
+    const offer = (await screen.findByRole('heading', { name: 'What grows here?' })).closest('section')!;
+    expect(offer).toHaveTextContent('With a grow you keep your diary here');
+    expect(within(offer).getByRole('button', { name: 'Start a grow' })).toBeInTheDocument();
+  });
+
   it('draws a grow that stands in no place as Start, from the home´s own card', async () => {
     server.me = meOf(true);
     server.home = homeOf(
@@ -1541,6 +1635,10 @@ describe('Start with several places', () => {
     await waitFor(() => expect(pill('space-1')).toHaveTextContent(/^Maintenance$/));
     expect(pill('space-2')).toHaveTextContent(/^stale$/);
     expect(screen.queryByText('check')).not.toBeInTheDocument();
+    // The line beside the pill says until when, and not "Maintenance" a second time.
+    const card = screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;
+    expect(card.textContent?.match(/Maintenance/g)).toHaveLength(1);
+    expect(card).toHaveTextContent(`until ${hhmm(ago(-10))} · control and alarms paused`);
   });
 
   /** The pill says "offline", and the line beside it since when - not "offline" a second time. */
