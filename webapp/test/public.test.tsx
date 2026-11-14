@@ -150,6 +150,7 @@ const sharedTimeline = {
   alarms: [],
   outputs: [],
   events: [],
+  stretches: [],
   deviceChanges: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],

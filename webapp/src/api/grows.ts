@@ -199,12 +199,14 @@ export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRan
  * Everything written about one plant alone. A plant's page shows these apart
  * from the grow's own lines, because a line about the whole grow applies to
  * this plant as well and a list that mixed the two would say the plant was
- * watered by itself.
+ * watered by itself. `enabled` once the plant is known to be the grow's: a deleted one's address asked and was
+ * answered 404.
  */
-export const usePlantEntries = (plantId: string) =>
+export const usePlantEntries = (plantId: string, enabled = true) =>
   useRead({
     queryKey: ['entries', 'plant', plantId],
     queryFn: ({ signal }) => api.get<EntryPage>('/entries', { plantId, limit: PLANT_ENTRIES }, signal),
+    enabled,
   });
 
 /**

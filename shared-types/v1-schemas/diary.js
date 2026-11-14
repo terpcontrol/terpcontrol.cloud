@@ -1463,7 +1463,12 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
         .describe('The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device.'),
     alarms: zod_1.z.array(exports.timelineAlarm),
     outputs: zod_1.z.array(exports.timelineOutputLane),
-    events: zod_1.z.array(exports.entry).describe('The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    events: zod_1.z
+        .array(exports.entry)
+        .describe('The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead.'),
+    stretches: zod_1.z
+        .array(exports.growDayEvent)
+        .describe('When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read.'),
     deviceChanges: zod_1.z
         .array(deviceChange)
         .describe('When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.'),

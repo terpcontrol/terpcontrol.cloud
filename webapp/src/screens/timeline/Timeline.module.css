@@ -385,11 +385,21 @@
 
 /* ----------------------------------------------------------------- panel */
 
+/* The figure keeps the end of the name's row whatever wraps before it: in one row of name, range and figure a short
+   name ("CO₂") kept its figure on the row at 320 px while every longer one put it under the name. */
 .panelHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+
+.panelLabel {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 var(--space-2);
+  min-width: 0;
 }
 
 .panelHead h2,

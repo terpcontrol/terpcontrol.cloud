@@ -38,6 +38,15 @@
   min-width: 0;
 }
 
+/* A long name takes two lines and is cut there, as a grow's own; its whole text stays what a screen reader says. */
+.titles h1 {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .subtitle {
   color: var(--muted);
   font-size: var(--text-sm);

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -210,6 +212,12 @@ describe('a member who may only log', () => {
 });
 
 describe('a plant of a grow', () => {
+  /** A long name made a title of three lines at 390 px: it takes two and is cut there, as a grow's own does. */
+  it('gives a long name two lines of title at most', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/grow/plant/Plant.module.css'), 'utf8');
+    expect(sheet).toMatch(/\.titles h1 \{[^}]*-webkit-line-clamp: 2;/);
+  });
+
   it('names the plant, the grow and which of its plants this is', async () => {
     await drawLoaded();
 
@@ -243,6 +251,16 @@ describe('a plant of a grow', () => {
     expect(own[0]).toHaveTextContent('Height 58 cm');
     expect(own[1]).toHaveTextContent('Topped above node 5');
     expect(screen.getByText('grow entries apply too')).toBeInTheDocument();
+  });
+
+  /** "1 / own entries" stood as a figure over a second heading "Own entries": one heading says it, singular for one. */
+  it('heads its own lines once, with how many there are, singular for one', async () => {
+    state.lines = [entry({})];
+    await drawLoaded();
+
+    expect(screen.getByText('1 own entry')).toBeInTheDocument();
+    expect(screen.queryByText('Own entries')).not.toBeInTheDocument();
+    expect(screen.queryByText('own entries')).not.toBeInTheDocument();
   });
 
   it('says what is missing rather than drawing an empty frame', async () => {
@@ -382,6 +400,8 @@ describe('a plant that is gone', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Plants of the grow' })).toBeInTheDocument();
+    // It asked nothing about the plant on the way: its lines answered 404.
+    expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/entries')).toEqual([]);
   });
 });
 

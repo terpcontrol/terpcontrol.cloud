@@ -498,6 +498,11 @@ describe('the head of a grow´s page', () => {
     const link = await screen.findByRole('link', { name: /^Gelato · Day 1\s›$/ });
     expect(link).toHaveAttribute('href', '/grows/grow-2');
     expect(link.closest('p')).toHaveTextContent(/^Also growing here: Gelato · Day 1\s›$/);
+    // A 36 px target, not the 16 px of its words.
+    expect(link).toHaveClass(/grow/);
+    expect(readFileSync(resolve(__dirname, '../src/screens/space/AlsoHere.module.css'), 'utf8')).toMatch(
+      /\.grow \{[^}]*min-height: var\(--action-height\);/,
+    );
   });
 
   it('is one head under both of the grow´s addresses: the way to every grow beside its name, and nothing leading back', () => {

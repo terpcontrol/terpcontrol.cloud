@@ -87,22 +87,25 @@ export function Panel(props: PanelProps) {
       <header className={styles.panelHead}>
         {alone ? (
           <>
-            {/* The (i) beside the heading rather than in it, which a screen reader would read as part of the name. */}
-            <span className={styles.panelName} style={inked(first)}>
-              <h2>{first.name}</h2>
-              {first.key === 'vpd' ? <Help topic="vpd" /> : explain ? <Help topic="nightBand" /> : null}
-            </span>
-            <span className={styles.panelRange}>
-              <Facts
-                facts={[
-                  ...(first.low === null || first.high === null
-                    ? []
-                    : [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]),
-                  // Said beside the figures, so a low that rises when the window widens by a minute contradicts nothing.
-                  ...(first.of ? [first.of] : []),
-                  ...(compared !== null && compared !== undefined ? [t('timeline.comparedAt', { value: first.written(compared) })] : []),
-                ]}
-              />
+            {/* The name and its low and high wrap beside the figure, which keeps the end of the name's row at every width. */}
+            <span className={styles.panelLabel}>
+              {/* The (i) beside the heading rather than in it, which a screen reader would read as part of the name. */}
+              <span className={styles.panelName} style={inked(first)}>
+                <h2>{first.name}</h2>
+                {first.key === 'vpd' ? <Help topic="vpd" /> : explain ? <Help topic="nightBand" /> : null}
+              </span>
+              <span className={styles.panelRange}>
+                <Facts
+                  facts={[
+                    ...(first.low === null || first.high === null
+                      ? []
+                      : [t('timeline.lowAt', { value: first.written(first.low) }), t('timeline.highAt', { value: first.written(first.high) })]),
+                    // Said beside the figures, so a low that rises when the window widens by a minute contradicts nothing.
+                    ...(first.of ? [first.of] : []),
+                    ...(compared !== null && compared !== undefined ? [t('timeline.comparedAt', { value: first.written(compared) })] : []),
+                  ]}
+                />
+              </span>
             </span>
             <strong className={styles.panelValue} data-rest={read[0].rest}>
               <span>{read[0].written}</span>

@@ -4330,9 +4330,13 @@ export interface SpaceTimeline {
   alarms: TimelineAlarm[];
   outputs: TimelineOutputLane[];
   /**
-   * The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
+   * The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead.
    */
   events: Entry[];
+  /**
+   * When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read.
+   */
+  stretches: GrowDayEvent[];
   /**
    * When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.
    */

@@ -1926,7 +1926,16 @@ export const spaceTimeline = named(
       ),
     alarms: z.array(timelineAlarm),
     outputs: z.array(timelineOutputLane),
-    events: z.array(entry).describe('The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.'),
+    events: z
+      .array(entry)
+      .describe(
+        'The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead.',
+      ),
+    stretches: z
+      .array(growDayEvent)
+      .describe(
+        'When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read.',
+      ),
     deviceChanges: z
       .array(deviceChange)
       .describe(

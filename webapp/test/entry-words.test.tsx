@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Entry } from '@fg2/shared-types/v1';
 import { EntryWords } from '@/ui/EntryWords';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN } = await import('./session');
@@ -137,6 +137,18 @@ describe('what a diary line says', () => {
     expect(screen.queryByText(/no fixed place/)).not.toBeInTheDocument();
     // A line written before a move named its places says what it always said.
     expect(screen.getByText(/moved it$/)).toBeInTheDocument();
+  });
+
+  /** "Du hast von Zelt Eins nach Zelt Zwei umgestellt" said a move as a rearrangement: the plants moved, "umgezogen". */
+  it('says a move in German as the word the move sheet uses, "umgezogen"', async () => {
+    const done = ((await catalogue('de')).home as { entryDone: Record<string, string> }).entryDone;
+
+    expect([done.move, done.move_you, done.moveFromTo, done.moveFromTo_you]).toEqual([
+      'hat umgezogen',
+      'hast umgezogen',
+      'hat von {{from}} nach {{to}} umgezogen',
+      'hast von {{from}} nach {{to}} umgezogen',
+    ]);
   });
 
   it('still translates what a device wrote, which is a key and not words', () => {

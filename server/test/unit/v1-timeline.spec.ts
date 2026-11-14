@@ -1102,6 +1102,65 @@ describe('the rail and the frames', () => {
     expect(page.machineEvents).toEqual({ shown: 200, total: 522 });
   });
 
+  /**
+   * Maintenance and regulation off are said as Start and the grow's diary say them, one stretch for on and off
+   * together: Verlauf's list read "Wartung in der App gestartet" and "… beendet" as two lines each. A save that moved
+   * other figures with the work mode keeps its line, since those figures are said nowhere else.
+   */
+  it('tells maintenance and regulation off as the stretches they were, not as the lines that said so', async () => {
+    const said = (id: string, at: string, key: string, params: string[]) =>
+      entry({
+        id,
+        spaceId: TENT,
+        source: 'device',
+        authorId: null,
+        deviceId: CONTROLLER,
+        kind: 'system',
+        occurredAt: new Date(at),
+        message: { key, params },
+      });
+    await db.entries.create([
+      said('maintenance-on', '2026-06-10T10:00:00.000Z', 'message-maintenance-mode-activated-remote', ['15']),
+      said('maintenance-off', '2026-06-10T10:04:00.000Z', 'message-maintenance-mode-activated-remote', ['0']),
+      said('switched-off', '2026-06-10T10:10:00.000Z', 'message-device-configuration-updated', ['workmode: small → off', '', 'controller']),
+      said('switched-on', '2026-06-10T10:20:00.000Z', 'message-device-configuration-updated', ['workmode: off → small', '', 'controller']),
+      said('off-and-warmer', '2026-06-10T10:30:00.000Z', 'message-device-configuration-updated', [
+        'day.temperature: 25 → 26\nworkmode: small → off',
+        '',
+        'controller',
+      ]),
+    ]);
+
+    const page = await readAs(session(OWNER));
+
+    expect(page.stretches).toEqual([
+      { kind: 'maintenance', at: '2026-06-10T10:00:00.000Z', endedAt: '2026-06-10T10:04:00.000Z' },
+      { kind: 'controlOff', at: '2026-06-10T10:10:00.000Z', endedAt: '2026-06-10T10:20:00.000Z' },
+      { kind: 'controlOff', at: '2026-06-10T10:30:00.000Z', endedAt: null },
+    ]);
+    expect(page.events.map(line => line.id)).toEqual([
+      'entry-water',
+      'entry-training',
+      'entry-space',
+      'entry-system',
+      'entry-plan',
+      'off-and-warmer',
+    ]);
+    // A reader from outside is told neither.
+    await db.shareLinks.create({
+      id: 'link-stretches',
+      token: 'stretches-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('stretches-token'))).stretches).toEqual([]);
+  });
+
   it('counts the machines´ lines as shown where the net did not bite', async () => {
     expect((await readAs(session(OWNER))).machineEvents).toEqual({ shown: 2, total: 2 });
   });

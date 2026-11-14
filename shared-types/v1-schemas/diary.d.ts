@@ -5303,6 +5303,41 @@ export declare const spaceTimeline: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    stretches: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        kind: z.ZodLiteral<"light">;
+        at: z.ZodISODateTime;
+        on: z.ZodBoolean;
+        still: z.ZodBoolean;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"excursion">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+        metric: z.ZodEnum<{
+            offline: "offline";
+            co2: "co2";
+            temperature: "temperature";
+            humidity: "humidity";
+            leafTemperature: "leafTemperature";
+            lux: "lux";
+            vpd: "vpd";
+            ppfd: "ppfd";
+        }>;
+        above: z.ZodBoolean;
+        extremeValue: z.ZodNullable<z.ZodNumber>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"maintenance">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"controlOff">;
+        at: z.ZodISODateTime;
+        endedAt: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>, z.ZodObject<{
+        kind: z.ZodLiteral<"device">;
+        at: z.ZodISODateTime;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
+    }, z.core.$strip>], "kind">>;
     deviceChanges: z.ZodArray<z.ZodObject<{
         kind: z.ZodLiteral<"device">;
         at: z.ZodISODateTime;

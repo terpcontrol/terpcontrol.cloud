@@ -47,7 +47,8 @@ export function PlantPage() {
   const grow = useGrow(growId);
   usePageOfGrow(grow.data);
   const plants = useGrowPlants(growId);
-  const entries = usePlantEntries(plantId);
+  // Asked once the plant is known to be the grow's: a deleted plant's address leads to Pflanzen and asks nothing.
+  const entries = usePlantEntries(plantId, plants.data?.items.some(one => one.id === plantId) === true);
   const perPlant = (grow.data?.measurements ?? []).filter(definition => definition.perPlant);
   const series = useMeasurementSeries(
     growId,
@@ -149,7 +150,8 @@ export function PlantPage() {
       ) : null}
 
       <header className={styles.sectionHead}>
-        <span className="label">{t('grow.plant.ownEntries')}</span>
+        {/* The one heading of its own lines, with how many there are. */}
+        <span className="label">{lines.length > 0 ? t('grow.plant.ownEntriesCount', { count: lines.length }) : t('grow.plant.ownEntries')}</span>
         <span className={styles.aside}>{t('grow.plant.growEntriesToo')}</span>
       </header>
 
@@ -271,9 +273,9 @@ interface FiguresProps {
 }
 
 /**
- * The four figures the page opens on: where its first measurement stands and
- * how far it has moved, the last thing done to it, how much has been written
- * about it alone, and how far into the grow it is.
+ * The figures the page opens on: where its first measurement stands and how
+ * far it has moved, the last thing done to it, and how far into the grow it
+ * is. How much was written about it alone is said by the heading of its lines.
  */
 function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const { t } = useTranslation();
@@ -284,13 +286,15 @@ function Figures({ grow, plant, entries, definitions, series }: FiguresProps) {
   const training = entries.find(entry => entry.kind === 'training');
   const trainedOn = training ? growDayOf(grow, training.occurredAt) : null;
 
+  // A plant with nothing measured, never trained, of a grow without a day count has no figure: no empty strip either.
+  if (!(newest && definition) && trainedOn === null && grow.summary.dayNumber === null) return null;
+
   return (
     <dl className={ui.strip}>
       {newest && definition ? (
         <Figure value={looseFigure(newest.value)} label={[definition.unit, movement(t, newest, before)].filter(Boolean).join(' · ')} />
       ) : null}
       {training && trainedOn !== null ? <Figure value={t('grow.dayShort', { day: trainedOn })} label={t('grow.plant.lastTraining')} /> : null}
-      <Figure value={String(entries.length)} label={t('grow.plant.entryCount')} />
       {grow.summary.dayNumber !== null ? (
         <Figure value={t('grow.plant.day', { day: grow.summary.dayNumber })} label={t('grow.plant.withTheGrow')} />
       ) : null}

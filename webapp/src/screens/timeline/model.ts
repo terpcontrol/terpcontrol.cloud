@@ -72,7 +72,7 @@ export const offeredOf = (data: SpaceTimeline, measured: readonly { definition: 
   measurements: measured.map(one => one.definition),
   light: data.outputs.some(lane => lane.output === 'light'),
   outputs: data.outputs.some(lane => lane.output !== 'light'),
-  machine: data.events.some(entry => entry.source !== 'human') || data.machineEvents.total > 0,
+  machine: data.events.some(entry => entry.source !== 'human') || data.machineEvents.total > 0 || (data.stretches ?? []).length > 0,
 });
 
 /** What is ticked where nobody chose, by its keys - also what a place does not have, which a tick elsewhere must not untick. */

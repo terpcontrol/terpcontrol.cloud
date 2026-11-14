@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
+import type { GrowDayEvent, Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { Grant, isOutsider } from '@common/v1/access.types';
 import { Stood } from '@common/v1/device-placements';
@@ -19,7 +19,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, writtenFor } from '../diary/diary-entries';
+import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry, stretchEvent, toldOfRecord, writtenFor } from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
@@ -221,6 +221,7 @@ export class TimelineService {
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       events: told,
+      stretches: recorded.stretches,
       // Which device measured when is the hardware in the tent as well.
       deviceChanges: isOutsider(grant) ? [] : changesOf(present, steering?.id ?? null, before),
       machineEvents: recorded.machine,
@@ -269,16 +270,24 @@ export class TimelineService {
     const newest = (kinds: readonly string[], net: number) =>
       this.entries.find(of(kinds)).sort({ occurredAt: -1, id: -1 }).limit(net).lean<EntryDocument[]>();
 
-    if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), machine: { shown: 0, total: 0 } };
+    if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), stretches: [], machine: { shown: 0, total: 0 } };
 
     const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
     // Counted only where the net actually bit. Under the net the read is the
     // count, and the alternative would be a second pass over the entries of
     // every tent on every refresh to learn a number nothing would draw.
     const total = machine.length < MAX_MACHINE_EVENTS ? machine.length : await this.entries.countDocuments(of(MACHINE_KINDS));
+    // Maintenance and regulation off are told as the stretches they were, as Start and the grow's diary tell them.
+    const told = toldOfRecord(machine);
 
     return {
-      entries: [...diary, ...machine].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id)),
+      entries: [...diary, ...told.lines].sort(
+        (one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id),
+      ),
+      stretches: [
+        ...told.maintenance.map(run => stretchEvent('maintenance', run, window.endsAt)),
+        ...told.controlOff.map(run => stretchEvent('controlOff', run, window.endsAt)),
+      ].sort((one, other) => one.at.localeCompare(other.at)),
       machine: { shown: machine.length, total },
     };
   }
@@ -330,6 +339,8 @@ export class TimelineService {
 /** The lines of the window, and how many of the machines' own the window held behind the two hundred it was given. */
 interface SpaceEvents {
   entries: EntryDocument[];
+  /** Maintenance and regulation off, oldest first. */
+  stretches: GrowDayEvent[];
   machine: { shown: number; total: number };
 }
 

@@ -13673,7 +13673,14 @@
         "items": {
           "$ref": "#/components/schemas/Entry"
         },
-        "description": "The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
+        "description": "The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead."
+      },
+      "stretches": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read."
       },
       "deviceChanges": {
         "type": "array",
@@ -13763,6 +13770,7 @@
       "alarms",
       "outputs",
       "events",
+      "stretches",
       "deviceChanges",
       "machineEvents",
       "grows",

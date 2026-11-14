@@ -239,6 +239,23 @@ export const stretchEvent = (kind: 'maintenance' | 'controlOff', run: Span, unti
   endedAt: run.endsAt > until ? null : run.endsAt.toISOString(),
 });
 
+/**
+ * A device's whole record told the way the diary tells it, which is what Verlauf reads: maintenance and regulation
+ * switched off as the stretches they were, the lines that said so taken out, and every other line as it stands. A save
+ * that moved other figures with the work mode keeps its line, since those figures are said nowhere else.
+ */
+export const toldOfRecord = (entries: readonly EntryDocument[]): { lines: EntryDocument[]; maintenance: Span[]; controlOff: Span[] } => {
+  const maintenance = entries.filter(entry => entry.kind === 'system' && MAINTENANCE_LINES.includes(entry.message?.key ?? ''));
+  const switching = entries.filter(entry => entry.kind === 'system' && switchedBy(entry) !== null);
+  const told = new Set([...maintenance, ...switching.filter(entry => linesOf(entry.message!.params[0]).length === 1)]);
+
+  return {
+    lines: entries.filter(entry => !told.has(entry)),
+    maintenance: maintenanceRuns(maintenance),
+    controlOff: controlOffRuns(switching),
+  };
+};
+
 /** How many entries the tail reads for each line it answers: a maintenance is two lines of every device of the place. */
 const READ_PER_LINE = 3;
 

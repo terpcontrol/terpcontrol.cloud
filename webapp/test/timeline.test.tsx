@@ -112,6 +112,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
       },
     ],
     events: [restart, watered],
+    stretches: [],
     deviceChanges: [],
     machineEvents: { shown: 1, total: 1 },
     grows: [{ growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null }],
@@ -312,6 +313,22 @@ describe('Verlauf as it opens', () => {
     expect(within(panel('VPD')).getByRole('heading', { level: 2 })).toHaveAccessibleName('VPD');
   });
 
+  /**
+   * One row of name, range and figure wrapped where the row ran out: at 320 px a short name ("CO₂") kept its figure
+   * on the name's row and every longer one put it under the name. The figure stands beside the name and its range,
+   * which wrap among themselves, so it ends the name's row in every panel.
+   */
+  it('sets every panel´s figure beside its name and range, never among them', async () => {
+    draw();
+    await settled();
+
+    for (const name of ['Temperature', 'Humidity', 'VPD']) {
+      const head = panel(name).querySelector('header')!;
+      expect([...head.children].map(child => child.tagName)).toEqual(['SPAN', 'STRONG']);
+      expect(head.firstElementChild).toContainElement(within(panel(name)).getByRole('heading', { level: 2 }));
+    }
+  });
+
   it('asks for the last 24 hours by their name, with every panel a place can have', async () => {
     draw();
     await settled();
@@ -474,6 +491,26 @@ describe('Verlauf as it opens', () => {
       // The stamp says when, and the line does not say the hour again.
       expect.stringMatching(/^\d\d:\d\d, Set the cursor on this momentController B measures from here onautomatic$/),
       expect.stringMatching(/You watered/),
+    ]);
+  });
+
+  /** Start and the grow's diary say a maintenance as one line; the list read "started" and "ended" as two lines of each. */
+  it('says a maintenance and regulation switched off as one line each, as the grow´s diary does', async () => {
+    server.over = {
+      stretches: [
+        { kind: 'maintenance', at: ago(4), endedAt: iso(NOW - 4 * HOUR + 2 * 60_000) },
+        { kind: 'controlOff', at: ago(2), endedAt: null },
+      ],
+    };
+    draw();
+    await settled();
+
+    const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
+    expect(lines.map(line => line.textContent)).toEqual([
+      expect.stringMatching(/Device rebooted/),
+      expect.stringMatching(/Maintenance · 2 min/),
+      expect.stringMatching(/You watered/),
+      expect.stringMatching(/Control is off/),
     ]);
   });
 });
