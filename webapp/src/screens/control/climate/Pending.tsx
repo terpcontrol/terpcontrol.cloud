@@ -22,12 +22,21 @@ export function PendingNote({ items }: { items: readonly PendingItem[] }) {
   if (items.length === 1) {
     return (
       <p className={styles.pending} role="status">
-        {t(first.held === null ? 'control.pending.unknown' : first.one ? 'control.pending.window' : 'control.pending.figure', {
-          name: first.name,
-          value: first.value,
-          saved: saved(first.savedAt),
-          held: first.held ?? '',
-        })}
+        {t(
+          first.switchedOn
+            ? 'control.pending.on'
+            : first.held === null
+              ? 'control.pending.unknown'
+              : first.one
+                ? 'control.pending.window'
+                : 'control.pending.figure',
+          {
+            name: first.name,
+            value: first.value,
+            saved: saved(first.savedAt),
+            held: first.held ?? '',
+          },
+        )}
       </p>
     );
   }

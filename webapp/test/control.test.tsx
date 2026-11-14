@@ -9,7 +9,7 @@ import type { Told } from '@/log/log-context';
 import { Control } from '@/screens/control/Control';
 import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
-import { alarmsLine, followsPlan, modeLine, notTaken, offNotTaken, outputsLine, outputsOf, planLine } from '@/screens/control/rows';
+import { alarmsLine, followsPlan, modeLine, notTaken, offNotTaken, onNotTaken, outputsLine, outputsOf, planLine } from '@/screens/control/rows';
 import { elapsedMs, leftMs, movesOf, throughStep } from '@/screens/control/plan-clock';
 import {
   asWritableBy,
@@ -1025,6 +1025,13 @@ describe('what a row says about the page behind it', () => {
     expect(offNotTaken({ ...fridge, control: { ...control, running: false } } as Device, held('small'))?.held).toBe('small');
     expect(offNotTaken({ ...fridge, control: { ...control, running: false } } as Device, held('off'))).toBeNull();
     expect(offNotTaken(fridge, held('small'))).toBeNull();
+    // Switched on while it held none, it is "Control on" that waits, not the mode it comes back to.
+    const on = { ...fridge, control: { ...control, mode: 'standard' } } as Device;
+    expect(modeLine(t, on, NOW, null, held('off')).text).toBe(
+      'Standard · also Greenhouse, Energy saving · Control on saved at 11:40, not with the device yet',
+    );
+    expect(onNotTaken(on, held('off'))?.savedAt).toBe(NOW.minus({ minutes: 20 }).toISO());
+    expect(onNotTaken(on, held('small'))).toBeNull();
   });
 });
 

@@ -2,10 +2,12 @@ import { Inject, Injectable, Module } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { ModelsModule } from '@database/models.module';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { AwaitedClimate, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { DeviceSettingsSink } from '../../device-protocol/device-sinks';
 import { AppliedPreset, ClimatePresets } from '../grow/climate-presets.port';
 import { targetsOf } from '../phase/phase-targets';
 import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from '../plan/device-configuration.port';
@@ -22,7 +24,7 @@ import { presetConfiguration } from './climate-presets';
  * other to be built.
  */
 @Injectable()
-export class ClimatePresetsService implements ClimatePresets {
+export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
@@ -53,6 +55,15 @@ export class ClimatePresetsService implements ClimatePresets {
     const applied: AppliedPreset[] = [];
     const germination = stage === 'germination' ? choices : undefined;
 
+    // A controller or a fridge module that has not sent its settings has nothing to write the climate into yet: it
+    // waits for them, and is put on the climate as they arrive (`settingsArrived`) - a phase chosen at the claim
+    // before the device first reported was never written, and Start called its own figures "Alles im Ziel".
+    const awaiting = here.filter(device => device.configuration === null && OWN_CLIMATE_TYPES.includes(device.type)).map(device => device.id);
+    if (awaiting.length > 0) {
+      const awaited: AwaitedClimate = { spaceId, stage, preset, choices: germination ?? null };
+      await this.devices.updateMany({ id: { $in: awaiting }, configuration: null }, { $set: { awaitedClimate: awaited } });
+    }
+
     for (const device of here) {
       const settings =
         targetsOf(device.configuration) === null
@@ -71,6 +82,33 @@ export class ClimatePresetsService implements ClimatePresets {
     }
 
     return applied;
+  }
+
+  /**
+   * A device's first settings have arrived: it is put on the climate its place was put on while it had none, if it
+   * still stands there - the climate is the place's, not the device's to take along.
+   */
+  public async settingsArrived(deviceId: string): Promise<void> {
+    const device = await this.devices
+      .findOneAndUpdate({ id: deviceId }, { $set: { awaitedClimate: null } })
+      .lean<Pick<StoredDevice, 'id' | 'type' | 'spaceId' | 'configuration' | 'state' | 'awaitedClimate'>>();
+    const awaited = device?.awaitedClimate ?? null;
+    if (!device || !awaited || awaited.spaceId !== device.spaceId) return;
+
+    const settings =
+      targetsOf(device.configuration) === null
+        ? null
+        : presetConfiguration(awaited.stage, awaited.preset, device.configuration, device.type === 'fridge' || device.state?.hardware?.co2 === 'on');
+    if (!settings) return;
+
+    try {
+      await this.configuration.applyConfiguration(device.id, settings, awaited.stage, awaited.choices ?? undefined, {
+        stage: awaited.stage,
+        preset: awaited.preset,
+      });
+    } catch (error) {
+      logger.error(`Could not put device ${device.id} on the ${awaited.stage} preset its place waited with: ${error}`);
+    }
   }
 }
 

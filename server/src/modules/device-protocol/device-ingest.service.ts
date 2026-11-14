@@ -19,10 +19,12 @@ import {
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
+  DEVICE_SETTINGS_SINK,
   DEVICE_TUNNEL_SINK,
   DevicePresenceSink,
   DeviceSample,
   DeviceSampleSink,
+  DeviceSettingsSink,
   DeviceTunnelSink,
   MetricSampleSink,
 } from './device-sinks';
@@ -92,6 +94,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     @Optional() @Inject(DEVICE_METRIC_SINK) private readonly metrics: MetricSampleSink | null = null,
     @Optional() @Inject(DEVICE_TUNNEL_SINK) private readonly tunnel: DeviceTunnelSink | null = null,
     @Optional() @Inject(DEVICE_PRESENCE_SINK) private readonly presence: DevicePresenceSink | null = null,
+    @Optional() @Inject(DEVICE_SETTINGS_SINK) private readonly settings: DeviceSettingsSink | null = null,
   ) {}
 
   /**
@@ -394,6 +397,8 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
+    // The first settings it sends are what a climate chosen for its place before then can be written into.
+    if (device.configuration === null && device.awaitedClimate) await this.settings?.settingsArrived(device.id);
   }
 }
 

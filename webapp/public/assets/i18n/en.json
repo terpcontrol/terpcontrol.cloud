@@ -5152,6 +5152,7 @@
       "one": "{{name}}: {{value}} · the device still holds {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Control off saved {{saved}}, not with the device yet: {{device}} goes on controlling until it is back online.",
+      "on": "Control on saved {{saved}}, not with the device yet: control stays off at the device until it is back online.",
       "stored": "{{what}} saved {{saved}}, not with the device yet"
     },
     "offline": {

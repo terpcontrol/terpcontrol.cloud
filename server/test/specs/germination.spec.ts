@@ -499,3 +499,33 @@ describe('the choices germination makes about the humidity', () => {
     }
   });
 });
+
+/**
+ * A phase chosen at the claim, before the device first reported, had nothing to be written into: the device kept its
+ * own figures, nothing said so, and Start called them "Alles im Ziel". The place keeps the climate it was put on, and
+ * the device is put on it as its first settings arrive.
+ */
+describe('a climate chosen before the device first sent its settings', () => {
+  it('reaches the device with its first settings, and names the preset it was put on', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+    const applied = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(applied.body.deviceIds).toEqual([]);
+
+    const sim = await startSimulator(device);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'awaited-climate', configuration: document() });
+      for (let tries = 0; tries < 50 && (await controlOf(device))?.preset?.stage !== 'seedling'; tries++) await settle(100);
+
+      expect(await controlOf(device)).toMatchObject({ preset: { stage: 'seedling' } });
+      expect(await configurationOf(device)).toMatchObject({
+        day: { temperature: 24, humidity: 70 },
+        night: { temperature: 21, humidity: 65 },
+        lights: { limit: 40 },
+      });
+    } finally {
+      await sim.close();
+    }
+  });
+});

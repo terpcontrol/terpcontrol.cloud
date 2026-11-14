@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { AppliedClimate, Device, DeviceSettings, DeviceState } from '@fg2/shared-types/v1';
+import type { AppliedClimate, Device, DeviceSettings, DeviceState, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
 import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -18,6 +18,15 @@ interface StoredDeviceMqtt {
 }
 
 /** A zone and its offset from UTC in minutes: the clock a device's times of day were meant on. */
+
+/** A preset waiting for a device's first settings (`StoredDevice.awaitedClimate`). */
+export interface AwaitedClimate {
+  spaceId: string;
+  stage: GrowthStage;
+  preset: string | null;
+  choices: Partial<GerminationChoices> | null;
+}
+
 export interface ScheduleClock {
   zone: string;
   offset: number;
@@ -121,6 +130,14 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * Absent on a device none was applied to since it is kept.
    */
   appliedClimate?: AppliedClimate | null;
+  /**
+   * A climate preset put on the device's place before it had sent its settings,
+   * which it is put on as they arrive (`ClimatePresetsService.settingsArrived`):
+   * a phase chosen at the claim reached no device and was never written. Kept
+   * with the place it was asked for, so a device moved since is not put on it.
+   * Absent where none was waiting since it is kept.
+   */
+  awaitedClimate?: AwaitedClimate | null;
   /**
    * The humidity band of the document - `daynight.targetHumidityDiff`, which a
    * controller's dehumidifier switches by - from before a humidifier was rested
@@ -246,6 +263,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     beforeGermination: { type: Schema.Types.Mixed, default: null },
     germinationChoices: { type: Schema.Types.Mixed, default: null },
     appliedClimate: { type: Schema.Types.Mixed, default: null },
+    awaitedClimate: { type: Schema.Types.Mixed, default: null },
     restedHumidityBand: { type: Number, default: null },
     // Never served, and not read unless asked for: the camera's password.
     cameraSecret: { type: String, default: null, select: false },

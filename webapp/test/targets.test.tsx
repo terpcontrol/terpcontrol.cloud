@@ -981,6 +981,18 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(said()).toBe('Control on saved, not with the device yet'));
     });
 
+    /** Switched on while it was silent with control off, it is "Control on" that waits - never "Operating mode: Standard". */
+    it('says a switch-on a silent device has not been handed as control on, stored', async () => {
+      wire.live = {};
+      wire.pending = { since: HEARD, settings: [{ field: 'workmode', held: 'off', savedAt: '2026-09-19T14:31:00.000Z' }] };
+      await drawn({ ...silent(), type: 'fridge', control: { ...CONTROL, running: true } });
+
+      expect(
+        await screen.findByText('Control on saved at 14:31, not with the device yet: control stays off at the device until it is back online.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/^Operating mode: Standard saved/)).not.toBeInTheDocument();
+    });
+
     it('still saves, and the toast says when the device takes it over', async () => {
       await drawn(silent());
 

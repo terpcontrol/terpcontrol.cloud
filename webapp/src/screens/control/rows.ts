@@ -45,6 +45,12 @@ export const offNotTaken = (device: Device, pending: ReadonlyMap<string, Pending
   return device.control?.running === false && held !== undefined && held.held !== 'off' ? held : null;
 };
 
+/** Control switched on for a device that was not there to hear it and still holds none: the stored switch, else null. */
+export const onNotTaken = (device: Device, pending: ReadonlyMap<string, PendingSetting>): PendingSetting | null => {
+  const held = pending.get(MODE_PATHS[0]);
+  return device.control?.running === true && held?.held === 'off' ? held : null;
+};
+
 /** The work modes a person picks on Betriebsart: the ones no climate preset sets. Germination and drying follow the stage. */
 export const modesOf = (device: Device): readonly WorkMode[] => workModesOf(device.type).filter(mode => mode !== 'germination' && mode !== 'drying');
 
@@ -212,7 +218,13 @@ export const modeLine = (
   const running = device.control?.drying ? 'drying' : (device.control?.mode ?? 'standard');
   const mode = modeWord(t, device);
   const held = pendingMode(t, device, pending);
-  const what = held ? (held.name === t('operatingMode.label') ? held.value : `${held.name} ${held.value}`) : null;
+  const what = held
+    ? held.name === t('operatingMode.label')
+      ? held.value
+      : held.switchedOn
+        ? t('control.state.on')
+        : `${held.name} ${held.value}`
+    : null;
   const waits = held && what ? notTaken(t, what, held.savedAt, now, zone) : null;
   const others = modesOf(device)
     .filter(one => one !== running)

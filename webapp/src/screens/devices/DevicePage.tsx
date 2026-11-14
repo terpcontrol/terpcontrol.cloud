@@ -12,7 +12,7 @@ import { ControlOff } from '@/screens/control/Mode';
 import { OwnSettings } from '@/screens/control/OwnSettings';
 import { PageRows } from '@/screens/control/PageRows';
 import { useLeads } from '@/screens/control/lead';
-import { notTaken, offNotTaken } from '@/screens/control/rows';
+import { notTaken, offNotTaken, onNotTaken } from '@/screens/control/rows';
 import advancedStyles from '@/ui/advanced/Advanced.module.css';
 import type { DeviceContext } from '@/ui/advanced/item';
 import { itemsFor } from '@/ui/advanced/registry';
@@ -180,7 +180,13 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   const offBox = leads && mayManage && device.control?.running === false;
   const dark = offBox ? null : darkReasonOf(device);
   const regulation = dark ? `${t('climateControl.label')} ${t(`climateControl.state.${dark}`)}` : null;
-  const stored = regulation && off ? notTaken(t, regulation, off.savedAt, now, zone) : null;
+  // Switched on while nobody heard it, the device still holds no targets: "Regelung an" is what is stored, said as Steuerung says it.
+  const on = onNotTaken(device, pendingByPath(live.data?.pending));
+  const stored = on
+    ? notTaken(t, t('control.state.on'), on.savedAt, now, zone)
+    : regulation && off
+      ? notTaken(t, regulation, off.savedAt, now, zone)
+      : null;
   const groups = GROUP_ORDER.filter(group => advanced.some(item => GROUPS[item.id] === group)).map(group => t(`device.advanced.${group}`));
 
   return (

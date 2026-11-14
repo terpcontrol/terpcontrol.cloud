@@ -777,6 +777,20 @@ describe('a device on its own page', () => {
       expect(screen.queryByText('Control off')).not.toBeInTheDocument();
     });
 
+    /** Switched on while nobody heard it, the device still holds no targets: "Control on" is what waits, said under the title. */
+    it('says control switched on for a silent device as stored and not with the device yet', async () => {
+      const silent = { ...regulating({ running: true }), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } };
+      wire.devices = [silent];
+      wire.pending = {
+        since: silent.state.lastSeenAt!,
+        settings: [{ field: 'workmode', held: 'off', savedAt: NOW.minus({ minutes: 9 }).toISO()! }],
+      };
+      await draw('/devices/device-1', 'Fridge module');
+
+      expect(await screen.findByText(/^Control on saved at \d\d:\d\d, not with the device yet$/)).toBeInTheDocument();
+      expect(screen.queryByText(/Operating mode: Standard saved/)).not.toBeInTheDocument();
+    });
+
     /** Off that the device was there to hear, or has been handed since, is what it does: said plainly, and on waits for it. */
     it('says plainly that control is off once nothing of it is waiting for the device', async () => {
       wire.devices = [{ ...regulating({ running: false }), state: { ...regulating().state, lastSeenAt: NOW.minus({ minutes: 25 }).toISO()! } }];

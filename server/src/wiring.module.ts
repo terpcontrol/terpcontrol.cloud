@@ -14,6 +14,7 @@ import {
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
+  DEVICE_SETTINGS_SINK,
   DEVICE_TUNNEL_SINK,
 } from '@modules/device-protocol/device-sinks';
 import { TunnelModule } from '@modules/tunnel/tunnel.module';
@@ -79,6 +80,9 @@ const PORTS: ExistingProvider[] = [
   // A grow entering a phase with a preset puts the tent it stands in on that
   // climate, which is the space slice's table and the space slice's write.
   { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+  // And a device that had no settings to write that climate into is put on it as they arrive, which the protocol
+  // module only knows to tell.
+  { provide: DEVICE_SETTINGS_SINK, useExisting: ClimatePresetsService },
   // And the same phase moves the thresholds the stage binds, which are rules
   // the alarms own and the phase writer only knows the stage of.
   { provide: STAGE_ALARMS, useExisting: StageAlarmsService },

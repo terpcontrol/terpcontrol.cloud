@@ -1113,6 +1113,43 @@ describe('the states of Start', () => {
     expect(box).not.toHaveTextContent('Control was off when it last reported.');
   });
 
+  /**
+   * Switched on after the device went quiet with its control off: it still holds no targets, as it last reported. The
+   * box said it went on regulating with its last targets, and nothing named the switch that waits for it.
+   */
+  it('says of a switch-on a silent device was never handed that it is saved, and that control is still off at the device', async () => {
+    server.devices = [
+      fridge({
+        control: { running: true, drying: false, mode: 'standard', energySaving: false } as never,
+        state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never,
+      }),
+    ];
+    server.live = { ...server.live, pending: { since: ago(42), settings: [{ field: 'workmode', held: 'off', savedAt: ago(10) }] } } as never;
+    onePlace(overviewOf({ values: values(42) }));
+    draw();
+
+    const box = (await screen.findByRole('heading', { name: /^The device has not reported since/ })).closest('section')!;
+    await waitFor(() => expect(box).toHaveTextContent(`Control on saved at ${hhmm(ago(10))}, not with the device yet`));
+    expect(box).not.toHaveTextContent('keeps holding the last targets');
+  });
+
+  /** A switch-off the silent device was not handed is not said in Zuletzt as a regulation that is off. */
+  it('says a stored switch-off in Zuletzt as stored, not as regulation off', async () => {
+    server.devices = [
+      fridge({
+        control: { running: false, drying: false, mode: 'standard', energySaving: false } as never,
+        state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never,
+      }),
+    ];
+    server.live = { ...server.live, pending: { since: ago(42), settings: [{ field: 'workmode', held: 'small', savedAt: ago(40) }] } } as never;
+    onePlace(overviewOf({ values: values(42), setpoints: [], targets: null, events: [{ kind: 'controlOff', at: ago(40), endedAt: null }] }));
+    draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(latest).toHaveTextContent(`Control off saved at ${hhmm(ago(40))}, not with the device yet`));
+    expect(latest).not.toHaveTextContent('Control is off');
+  });
+
   /** Regulation off is never hidden behind maintenance: it is what the place is while the window runs, and after it. */
   it('says control is off before maintenance', async () => {
     server.devices = [

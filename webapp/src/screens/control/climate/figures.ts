@@ -145,6 +145,8 @@ export interface PendingItem {
   savedAt: string;
   /** What is held is one thing rather than a figure - a mode, a window - which German says in the singular. */
   one?: boolean;
+  /** Regulation switched on, which has its own sentence as a switch-off has. */
+  switchedOn?: boolean;
 }
 
 /** The firmware's word for a work mode, in the app's: the one catalogue key both the stored and the held mode are said with. */
@@ -169,6 +171,10 @@ export const pendingMode = (t: Translate, device: Device, pending: ReadonlyMap<s
   const heldKey = MODE_KEYS[String(held.held)] ?? null;
   const storedKey = !control.running ? MODE_KEYS.off : `operatingMode.${control.drying ? 'drying' : control.mode}`;
   const onOff = (on: boolean) => t(`climateControl.state.${on ? 'on' : 'off'}`);
+  // Switched on while the device held none, it is named as what it is - "Regelung an" - and not as the mode it comes back to.
+  if (heldKey === MODE_KEYS.off && control.running) {
+    return { name: t('climateControl.label'), value: onOff(true), held: onOff(false), savedAt: held.savedAt, one: true, switchedOn: true };
+  }
 
   return heldKey === storedKey && storedKey === MODE_KEYS.small
     ? { name: t('energySaving.label'), value: onOff(control.energySaving), held: onOff(held.held === 'full'), savedAt: held.savedAt, one: true }

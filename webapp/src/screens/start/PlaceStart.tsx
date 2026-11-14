@@ -35,7 +35,7 @@ import { pendingByPath, savedWords } from '@/screens/control/climate/figures';
 import { leadOf, leadValuesOf } from '@/screens/control/lead';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { heldWords } from '@/screens/control/held-light';
-import { offNotTaken } from '@/screens/control/rows';
+import { offNotTaken, onNotTaken } from '@/screens/control/rows';
 import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
@@ -147,6 +147,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const controlOff = controlOffOf(here);
   // A switch-off the device was not heard to take is a setting it has not been handed: said as Steuerung says it.
   const offStored = device ? offNotTaken(device, pendingByPath(lamp.live?.pending)) : null;
+  // And a switch-on stored the same way: the device still holds no targets, as it last reported.
+  const onStored = device ? onNotTaken(device, pendingByPath(lamp.live?.pending)) : null;
   const quiet = quietOf(here, now);
   const status = statusOf(
     {
@@ -240,7 +242,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {/* A device that held no targets when it went quiet does not go on holding them. */}
           {offStored && device
             ? t('control.pending.off', { saved: savedWords(t, offStored.savedAt, now, zone), device: deviceName(device, t) })
-            : t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
+            : onStored
+              ? t('control.pending.on', { saved: savedWords(t, onStored.savedAt, now, zone) })
+              : t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
         </OfflineBox>
       ) : null}
 
@@ -308,6 +312,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             byline={!demo}
             plants={overview.plants}
             now={now}
+            offStored={offStored?.savedAt ?? null}
           />
           {hasDevice ? (
             <Targets

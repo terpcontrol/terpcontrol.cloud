@@ -5162,6 +5162,7 @@
       "one": "{{name}}: {{value}} · am Gerät noch {{held}}",
       "oneUnknown": "{{name}}: {{value}}",
       "off": "Regelung aus gespeichert {{saved}}, noch nicht am Gerät: {{device}} regelt weiter, bis es wieder online ist.",
+      "on": "Regelung an gespeichert {{saved}}, noch nicht am Gerät: Am Gerät ist die Regelung noch aus, bis es wieder online ist.",
       "stored": "{{what}} gespeichert {{saved}}, noch nicht am Gerät"
     },
     "offline": {
