@@ -2538,7 +2538,6 @@
       "balcony": "Balkon",
       "dry_box": "Trockenbox",
       "greenhouse": "Gewächshaus",
-      "grow_room": "Raum",
       "other": "Sonstiges"
     },
     "noDiary": {
@@ -4190,7 +4189,6 @@
         "balcony": "Balkon",
         "dry_box": "Trockenbox",
         "greenhouse": "Gewächshaus",
-        "grow_room": "Raum",
         "other": "Sonstiges"
       },
       "room": "Raum",

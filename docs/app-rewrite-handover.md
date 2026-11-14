@@ -405,8 +405,8 @@ otherwise - where it is described now in brackets)
   decision about its route.
 - Migration steps 029 and 030 are tested on a local copy of production data before the pull request (done, item
   4 below; step 031 of this part ran in unit tests only).
-- The kinds of a place are seven: Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges - the
-  model's four stay and three are added; no place is migrated (ADR 0001, app-wording).
+- The kinds of a place were seven: Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges - the
+  model's four stay and three are added; no place is migrated. "Raum" went again on 2026-11-14 (below).
 - The owner may read an ended place's curves, read only (app-ux §2, Meldungen's "Verlauf öffnen" too).
 - The unit choice (°F, oz, gal) is removed until views convert (app-ux §2, app-wording). No minimum length for a
   password.
@@ -428,11 +428,12 @@ otherwise - where it is described now in brackets)
 - **Not in this pull request**: "Erledigt" on an open alert, and what an alert delivered stored when it is raised
   - a small round of their own after the final fix round; a light output's hold reported by the firmware, as a
   smart socket's override is, on every new command - a firmware change of its own.
-- Asked again after the second part (2026-11-14): the kind "Raum" goes again - a place has six kinds (Zelt,
-  Kühlschrank, Balkon, Trockenbox, Gewächshaus, Sonstiges) and "Raum" is only the room that groups places. Any
-  change on Steuerung switches regulation back on while it is off, the light limit included, as the switch-off
-  question says. A stream camera's address is tested by a route of its own that makes no camera. The link
-  "Ort entfernen …" is red like every irreversible way. Not built yet.
+- Asked again after the second part (2026-11-14): the kind "Raum" went again - a place has six kinds (Zelt,
+  Kühlschrank, Balkon, Trockenbox, Gewächshaus, Sonstiges) and "Raum" is only the room that groups places; the
+  contract refuses `grow_room`, which no release stored (ADR 0001, app-wording). The link "Ort entfernen …" is red
+  like every irreversible way, as the second part built it. **Not built yet**: any change on Steuerung switches
+  regulation back on while it is off, the light limit included, as the switch-off question is to say; a stream
+  camera's address is tested by a route of its own that makes no camera.
 
 **The contract**
 4. **Migration steps 026 to 030 on a copy of production data** (the redesign session, 2026-11-13, as Chris asked):
@@ -570,7 +571,7 @@ otherwise - where it is described now in brackets)
   page (the rows there are covered by tests only).
 - **The final fix round's second part, seen in tests only** (the stack ran an older server image throughout): the
   server's refusals (400 out of range, 422 `limits_contradict` and `not_a_stream_address`, 409 `name_taken` for a
-  device), the seven kinds saved, a stage's week from its own start, a camera named "Terp Cam", migration step 031
+  device), the new kinds of a place saved, a stage's week from its own start, a camera named "Terp Cam", migration step 031
   (on no copy of production data), a window link's curves against the new server (seen in a browser only with
   the answer laid in), the share card with its logo (rendered by its unit test and looked at as an image), the
   night guard, the browser's own leave dialog (headless Chrome draws none), "vor 1 T" kept whole, B11's refusal

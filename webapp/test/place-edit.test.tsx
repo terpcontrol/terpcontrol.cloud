@@ -173,7 +173,7 @@ describe('editing a place', () => {
     expect(told).toMatchObject([{ undone: 'Flower tent is now called Tent · Kind: Tent · Room: Grow room' }]);
   });
 
-  it('is titled as what it does, with the name in its field, and offers the seven kinds of a place', async () => {
+  it('is titled as what it does, with the name in its field, and offers the six kinds of a place', async () => {
     draw('/spaces/tent/edit');
 
     // A long name made the title six lines of the page's largest type: it stands in its field.
@@ -183,7 +183,7 @@ describe('editing a place', () => {
       within(screen.getByRole('combobox', { name: 'Kind' }))
         .getAllByRole('option')
         .map(option => option.textContent),
-    ).toEqual(['Tent', 'Fridge', 'Balcony', 'Drying box', 'Greenhouse', 'Room', 'Other']);
+    ).toEqual(['Tent', 'Fridge', 'Balcony', 'Drying box', 'Greenhouse', 'Other']);
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Kind' }), { target: { value: 'dry_box' } });
     fireEvent.click(await saveReady());

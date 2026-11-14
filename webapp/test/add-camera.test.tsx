@@ -721,12 +721,12 @@ describe('a camera at a stream address', () => {
 
     expect(screen.getByText(/There is no place to put a camera in yet/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name of the place'), { target: { value: 'Attic' } });
-    // The kinds of a place a camera looks into: a room that groups places is none of them, a room that is the place is.
+    // The kinds of a place a camera looks into: a room that groups places is none of them, nor a fridge.
     expect(
       within(screen.getByRole('group', { name: 'Kind of place' }))
         .getAllByRole('button')
         .map(chip => chip.textContent),
-    ).toEqual(['Tent', 'Balcony', 'Drying box', 'Greenhouse', 'Room', 'Other']);
+    ).toEqual(['Tent', 'Balcony', 'Drying box', 'Greenhouse', 'Other']);
     fireEvent.click(screen.getByRole('button', { name: 'Other' }));
     state.spaces = [madeSpace];
     await act(async () => {

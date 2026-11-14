@@ -482,8 +482,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   bearbeiten" and "Gerät hinzufügen" (`/claim?space=<id>`; `screens/start/PlaceStart.tsx`; the redesign session
   of 2026-11-13: one tent, add a fan, was six taps and is three), and reads "Mehr" on a desktop. The page is
   titled "Ort bearbeiten" and the name stands in its field (the redesign session of 2026-11-13: a long name and
-  "bearbeiten" made six lines of title). In this order: the name, the kind - one of the seven, Zelt, Kühlschrank,
-  Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges (Chris, 2026-11-13; `PLACE_KINDS`, `ui/naming.ts`) - and the
+  "bearbeiten" made six lines of title). In this order: the name, the kind - one of the six, Zelt, Kühlschrank,
+  Balkon, Trockenbox, Gewächshaus, Sonstiges (Chris, 2026-11-13 and 11-14; `PLACE_KINDS`, `ui/naming.ts`) - and the
   room with the page's one button "Speichern" in its head; "Geräte hier"; "Wer … sieht"; "… entfernen …". It replaced the place's
   menu with its sheets for renaming, the room, a device brought here and the removal, and the page "Mitglieder &
   Teilen".

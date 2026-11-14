@@ -292,12 +292,11 @@ export const grantKind = named('GrantKind', z.enum(['included', 'migration', 'pu
 export const planStatus = named('PlanStatus', z.enum(['running', 'paused', 'stopped', 'completed']));
 
 /**
- * What a place is: a tent, a fridge, a balcony, a dry box, a greenhouse, a grow
- * room (`grow_room`, a room grown in as a place) or something else. `room`
- * is no place but the grouping of places, one level deep; a grow needs no space
- * at all.
+ * What a place is: a tent, a fridge, a balcony, a dry box, a greenhouse or
+ * something else. `room` is no place but the grouping of places, one level
+ * deep; a grow needs no space at all.
  */
-export const spaceKind = named('SpaceKind', z.enum(['tent', 'fridge', 'room', 'balcony', 'dry_box', 'greenhouse', 'grow_room', 'other']));
+export const spaceKind = named('SpaceKind', z.enum(['tent', 'fridge', 'room', 'balcony', 'dry_box', 'greenhouse', 'other']));
 
 export const growType = named('GrowType', z.enum(['photoperiod', 'autoflower']));
 

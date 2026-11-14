@@ -83,8 +83,8 @@ describe('making a space', () => {
     await stranger.client.post('/v1/spaces').send({ kind: 'tent', name: 'Named once' }).expect(201);
   });
 
-  it('takes each of the seven kinds of a place, and changes one kind into another', async () => {
-    const kinds = ['tent', 'fridge', 'balcony', 'dry_box', 'greenhouse', 'grow_room', 'other'];
+  it('takes each of the six kinds of a place, and changes one kind into another', async () => {
+    const kinds = ['tent', 'fridge', 'balcony', 'dry_box', 'greenhouse', 'other'];
     for (const kind of kinds) {
       const made = (
         await owner.client
@@ -99,11 +99,19 @@ describe('making a space', () => {
     expect((await owner.client.patch(`/v1/spaces/${id}`).send({ kind: 'dry_box' }).expect(200)).body.kind).toBe('dry_box');
   });
 
-  it('refuses a kind the contract does not have, and says which field', async () => {
-    const refused = await owner.client.post('/v1/spaces').send({ kind: 'shed', name: 'The shed' }).expect(400);
+  /** A room is what groups places, so the kind of a place that is a room was taken out of the contract again. */
+  it('refuses a kind the contract does not have, a place that is a room among them, and says which field', async () => {
+    for (const kind of ['shed', 'grow_room']) {
+      const refused = await owner.client
+        .post('/v1/spaces')
+        .send({ kind, name: `A ${kind}` })
+        .expect(400);
 
-    expect(refused.body.code).toBe('validation_failed');
-    expect(refused.body.errors.map((error: { field: string }) => error.field)).toContain('kind');
+      expect(refused.body.code).toBe('validation_failed');
+      expect(refused.body.errors.map((error: { field: string }) => error.field)).toContain('kind');
+    }
+    const id = await makeSpace(owner, { kind: 'tent', name: 'Never a room' });
+    expect((await owner.client.patch(`/v1/spaces/${id}`).send({ kind: 'grow_room' }).expect(400)).body.code).toBe('validation_failed');
   });
 
   it('refuses a room inside somebody else´s room as if it were not there', async () => {

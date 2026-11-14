@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-14
-source: Chris's answers of 2026-11-13 - "Kamera" in sentences and "Cam" only in "Terp Cam", a stage's week from its own start, litres as "L", seven kinds of a place, no unit choice; the final fix round's second part - one toast form for a save, range refusals, "Weiter · <noun>", "Speichern" everywhere (the redesign session of 2026-11-13, not Chris); after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
+source: Chris's answers of 2026-11-14 - six kinds of a place, "Raum" only the room; Chris's answers of 2026-11-13 - "Kamera" in sentences and "Cam" only in "Terp Cam", a stage's week from its own start, litres as "L", more kinds of a place, no unit choice; the final fix round's second part - one toast form for a save, range refusals, "Weiter · <noun>", "Speichern" everywhere (the redesign session of 2026-11-13, not Chris); after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -77,7 +77,7 @@ string exists in English and German, with no English left in the German catalogu
 | the stand-alone device type `plug` | Plantalytix Socket | der Plantalytix Socket |
 | the brand | Terp Control, Terp Cam | Terp Control, Terp Cam |
 | a camera, in a sentence | camera | Kamera ("Cam" only in "Terp Cam") |
-| what a place is | tent, fridge, balcony, drying box, greenhouse, grow room, other | Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Raum, Sonstiges |
+| what a place is | tent, fridge, balcony, drying box, greenhouse, other | Zelt, Kühlschrank, Balkon, Trockenbox, Gewächshaus, Sonstiges |
 
 - The brand is two words in every user-visible text (Chris, 2026-06-25). **A camera is "Kamera" / "camera" in a
   sentence, and "Cam" stands only in the product's name "Terp Cam"** (Chris, 2026-11-13): "Kamera prüfen",
@@ -85,9 +85,9 @@ string exists in English and German, with no English left in the German catalogu
   "cam ready") are quoted as the display shows them. The server names a camera paired from then on "Terp Cam"
   (`PAIRED_CAMERA_NAME`, `server/src/modules/device-protocol/hardware-report.service.ts`), so an unnamed one no
   longer reads by a fragment of its id; the claim says "Terp Cam gekoppelt" or "keine Kamera".
-- **The seven kinds of a place** (Chris, 2026-11-13; `PLACE_KINDS`, `ui/naming.ts`) are named in that order;
-  "Anderer Ort" became "Sonstiges". "Raum" is both the kind of a place that is a room (`grow_room`) and the room
-  that groups places - his word for both; English says "Grow room" for the kind. Factual references to the original product
+- **The six kinds of a place** (Chris, 2026-11-13 and 2026-11-14; `PLACE_KINDS`, `ui/naming.ts`) are named in that
+  order; "Anderer Ort" became "Sonstiges". "Raum" / "room" is only the room that groups places, never a kind of
+  place: a kind "Raum" was added on 2026-11-13 and taken out again the next day. Factual references to the original product
   (where the app came from, the privacy text) keep its name.
 - "Abluft", "Umluft" and "Lüfter" are only roles a smart socket is given (an AIR is the Lüfter); the fan device
   type is "Lüfter" everywhere.

@@ -292,10 +292,9 @@ export declare const planStatus: z.ZodEnum<{
     running: "running";
 }>;
 /**
- * What a place is: a tent, a fridge, a balcony, a dry box, a greenhouse, a grow
- * room (`grow_room`, a room grown in as a place) or something else. `room`
- * is no place but the grouping of places, one level deep; a grow needs no space
- * at all.
+ * What a place is: a tent, a fridge, a balcony, a dry box, a greenhouse or
+ * something else. `room` is no place but the grouping of places, one level
+ * deep; a grow needs no space at all.
  */
 export declare const spaceKind: z.ZodEnum<{
     other: "other";
@@ -305,7 +304,6 @@ export declare const spaceKind: z.ZodEnum<{
     balcony: "balcony";
     dry_box: "dry_box";
     greenhouse: "greenhouse";
-    grow_room: "grow_room";
 }>;
 export declare const growType: z.ZodEnum<{
     photoperiod: "photoperiod";

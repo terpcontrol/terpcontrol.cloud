@@ -50,7 +50,6 @@ export declare const space: z.ZodObject<{
         balcony: "balcony";
         dry_box: "dry_box";
         greenhouse: "greenhouse";
-        grow_room: "grow_room";
     }>;
     name: z.ZodString;
     roomId: z.ZodNullable<z.ZodString>;
@@ -714,7 +713,6 @@ export declare const spaceCreate: z.ZodObject<{
         balcony: "balcony";
         dry_box: "dry_box";
         greenhouse: "greenhouse";
-        grow_room: "grow_room";
     }>;
     presetPrompt: z.ZodOptional<z.ZodEnum<{
         never: "never";
@@ -741,7 +739,6 @@ export declare const spaceUpdate: z.ZodObject<{
         balcony: "balcony";
         dry_box: "dry_box";
         greenhouse: "greenhouse";
-        grow_room: "grow_room";
     }>>;
     presetPrompt: z.ZodOptional<z.ZodOptional<z.ZodEnum<{
         never: "never";
@@ -896,7 +893,6 @@ export declare const invitePreview: z.ZodObject<{
         balcony: "balcony";
         dry_box: "dry_box";
         greenhouse: "greenhouse";
-        grow_room: "grow_room";
     }>>;
     role: z.ZodNullable<z.ZodEnum<{
         can_log: "can_log";
@@ -940,7 +936,6 @@ export declare const inviteAcceptance: z.ZodObject<{
             balcony: "balcony";
             dry_box: "dry_box";
             greenhouse: "greenhouse";
-            grow_room: "grow_room";
         }>;
         name: z.ZodString;
         roomId: z.ZodNullable<z.ZodString>;
@@ -1352,7 +1347,6 @@ export declare const spacePage: z.ZodObject<{
             balcony: "balcony";
             dry_box: "dry_box";
             greenhouse: "greenhouse";
-            grow_room: "grow_room";
         }>;
         name: z.ZodString;
         roomId: z.ZodNullable<z.ZodString>;
