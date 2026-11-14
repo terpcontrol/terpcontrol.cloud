@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-14
-source: a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -249,6 +249,9 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - Redacted readers get pictures re-encoded without metadata (migrated photos carried GPS), `null` device ids and
   camera owner, and only the diary kinds on the timeline. The share card is cached `public, max-age=300`, the Open
   Graph shell 120 s; a link's open counter is written at most once a minute.
+- A share card's line over the title leaves out what the line under it says already, and a grow without a
+  description of its own gets none (`metaLineOf`, `growSentence`, `modules/v1/sharing/link-card.ts`; the redesign
+  session of 2026-11-14, after a card said "@handle · Tag 13 · Veg" twice).
 
 ## Media serving
 - `GET /v1/media/{id}/content` (a session, the media token as `?token=`, or a share link) and

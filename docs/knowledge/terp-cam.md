@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-14
-source: a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
+source: a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -148,7 +148,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   at a time. Tests run asynchronously (202, polled every 2 s for 210 s), so no proxy needs a long timeout. The
   camera page holds the button while the device it is read through is not live - offline or late with its
   reports, not only offline - and drops a press the device fell silent under rather than waiting it out (the
-  redesign session of 2026-11-13; a press on a silent device said "Bild wird aufgenommen …" for over 45 s).
+  redesign session of 2026-11-13; a press on a silent device said "Bild wird aufgenommen …" for over 45 s). A
+  late device is said once, by the page's pill, which the held button points at; no sentence about the relay
+  ([app-ux.md §2](app-ux.md#2-navigation-and-the-place-page), "The camera page").
 - ffmpeg lanes (`ffmpeg.ts`, beside `runFfmpeg`, which every still, decode and film runs through): one shared pool let
   Terp Cam decodes queue behind hanging streams past the test button's wait. Hanging RTSP cameras can still delay
   other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).
@@ -159,6 +161,10 @@ way and what the code has to respect. Internal notes on the camera exist.
 - A camera a device pairs from 2026-11-13 on is named "Terp Cam" by the server (`PAIRED_CAMERA_NAME`; Chris), so
   an unnamed one never reads by a fragment of its id; a row that comes back keeps its name, and nothing already
   named was renamed.
+- A device nobody owns gets no camera row, and it says its camera once per boot. So the claim makes the row of a
+  camera the device reported while it was nobody's (`cameraOf`, `devices.service.ts`), in the place the claim put
+  the device, and the app reads its cameras again once the claim has answered: the Terp Cam is on Start and Steuerung
+  at once, not after the device's next restart.
 - The device is the source of truth for a Terp Cam, and a report reaches only rows of the reporting device's owner:
   the row live on this device, or one this owner buried for this `did`. Rows are never taken across accounts, so
   after an owner change the new owner gets a fresh row (own twelve months) and the old one keeps its stills.
@@ -214,6 +220,12 @@ way and what the code has to respect. Internal notes on the camera exist.
 - The composer (`POST /v1/cameras/{id}/timelapses`) queues a render and answers 202 (200 when that film exists);
   overlays and the mark are SVG composited with sharp, because ffmpeg's text filter needs fonts and freetype. A film
   of a span still running ends at its last frame, so the hourly pass carries it on and a later tap films the rest.
+  The climate overlay draws its curves and cursor below its row of readings (`timelapse-overlays.ts`), so a spike
+  does not run through a figure.
+- **A film whose every frame in the span was taken in the dark is refused at the request** (the redesign session
+  of 2026-11-14): 422 `all_dark`, decided by the render's own frame choice (`framesFor`, `whyNoFilm`), so nothing
+  is queued that would fail later; asked with the lights-off frames it is made. The camera page says the reason
+  under its buttons. The button is still offered: no route says beforehand whether a span is dark.
 - A good pass logs nothing; check `media` rows of kind `timelapse` per `window` instead.
 
 ## Health, diary, app

@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-14
-source: the final fix round's second part - every page centred (Chris, 2026-11-13), a range refused in one place, one guard for unsaved edits, a page leading to Start when its place goes, a sheet out of an admin table's row, Verlauf's keyboard order (the redesign session of 2026-11-13); the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: the second whole-app walk's lists built - one failed read of several, an ask's quiet yes, a state said (the redesign session's fix round of 2026-11-14); the final fix round's second part - every page centred (Chris, 2026-11-13), a range refused in one place, one guard for unsaved edits, a page leading to Start when its place goes, a sheet out of an admin table's row, Verlauf's keyboard order (the redesign session of 2026-11-13); the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -84,7 +84,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   through one `write()` that pauses a plan where it has to and answers with the toast), `LightCard.tsx` with
   `LightSheet.tsx`, `PresetSheet.tsx`, `ValueSheet.tsx` (the sheet any figure of a device is changed on),
   `Pending.tsx` (the note on what a device has not been handed) and `saved.ts` - **the one save path**:
-  `useSaved(device).say(what, undo, from)` answers a write with the toast, `useSettings(device)` writes the
+  `useSaved(device).say(what, undo, from, also, state)` answers a write with the toast - with `state`, a state
+  switched said as the state ("Regelung aus") where the device is heard -, `useSettings(device)` writes the
   settings beyond the targets and reads what is pending of them. `devices/Settings.tsx` holds the lines every
   such setting is drawn with (`SettingsBlock`, `NumberSetting`, `ChoiceSetting`, `SwitchSetting`), of which the
   panels of a Plantalytix Socket, a LIGHT, an AIR fan and a fridge's fans are made. `Mode.tsx` and `Outputs.tsx`
@@ -123,7 +124,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - **What exists once - look here before writing a second** (the redesign session's clearing-up round and its
   consolidation pass of 2026-11-13; the audit before the redesign had found such ideas built three to nine times):
   - *places*: where a thing may be put is `placesFor` (the places the session may manage), an owner's places in
-    use `placesOf`, both in `app/places.ts`; the kinds of a place `PLACE_KINDS` and the kind a device's new
+    use `placesOf`, both in `app/places.ts`; the grows running in a place besides one `alsoIn`
+    (`screens/space/movable-grows.ts`); an invite link set to break only after a slash `InviteAddress`
+    (`screens/space/members/InviteTerms.tsx`); the kinds of a place `PLACE_KINDS` and the kind a device's new
     place gets `placeKindOf` (`ui/naming.ts`); the chip row that chooses a place in a sheet `ui/PlaceChoices.tsx`
     (what a sheet offers beyond places - "+ Neuer Ort" - is its children; "Ort entfernen" and "Neuer Grow" keep
     selects, as the prototype draws them); a device is moved by one write, `PATCH /devices/{id}` (`useUpdateDevice`,
@@ -162,7 +165,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     sentence and the cards' rank; a place's alerts with the device each is about are `placeAlerts`
     (`screens/start/place.ts`), read by `usePlaceAlerts` (`screens/start/reads.ts`) from the bell's own read;
   - *asking and answering*: an inline question is `ui/Asking.tsx` (it brings itself into view and takes
-    Escape; with `danger` its yes is the one danger style, `.dangerFilled`), edits by hand that must not be lost
+    Escape; with `danger` its yes is the one danger style, `.dangerFilled`; with `quiet` its yes is outlined,
+    where the button that asked stays filled beside it), and every question's yes with "Abbrechen" beside it is
+    `Answer` there, which the asks that are not inline use too; edits by hand that must not be lost
     unasked are guarded by `LeaveGuard` (`screens/grow/scheme/LeaveGuard.tsx`: the router's `useBlocker` and
     `beforeunload`), a sheet opened from an admin table's row renders outside the row (`OutOfTheRow`,
     `screens/admin/parts.tsx` - the pinned actions cell is a stacking context, and a sheet inside it lay under the
@@ -178,8 +183,11 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     and the bell.
   - *nothing here*: `NothingHere` (`ui/PageState.tsx`) is the dashed note that says so, with a way on where
     there is one; a page that could not be read is `LoadFailed` with its read and its title (Start's
-    `StartFailed` is it, with when the page last loaded under it), an address that names nothing `NoLongerHere`,
-    and an address the app has no page for `screens/NotFound.tsx`;
+    `StartFailed` is it, with when the page last loaded under it), a page waiting for its whole read `Waiting`
+    with its `title`, an address that names nothing `NoLongerHere`, and an address the app has no page for
+    `screens/NotFound.tsx`. A read as a page holds it is `Read` (`api/read.ts`) - `useSocketTables` and
+    `usePlaceDevices` hand it over too -, and several a page waits for fail as one with `together(...reads)`;
+    an "as of" under ten seconds is `isJustNow` (`ui/age.ts`);
   - *a stream address*: `isStreamAddress` (`screens/camera/stream.ts`), the server's own rule (`rtsp://` or
     `rtsps://` with a host);
   - *units*: a dose's or a litre's unit is drawn through `unitShown` (`ui/figures.ts`), which writes the litre
@@ -238,7 +246,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `setSearchParams` with `replace`, which React Router applies as a transition: what has to show at once - a tick
   in the sheet, the cursor under a thumb - is held in state beside it. `terp.curves` remembers the last ticks for
   an address that names none. The page a share link shows (`SharedTimeline`) is the same screen without the
-  account's half (`Own`).
+  account's half (`Own`), held inside a link's window where it ends (`bounds`, through `inside` of `view.ts`;
+  [app-ux.md §7](app-ux.md#7-verlauf-day-and-night)).
 - The old Angular app's addresses still work (`OldAddresses.tsx`, `old-charts.ts`, redirects at the end of
   `screens`): `/login?recovery=|?code=` from old mails, `/demo` (website buttons; a signed-in user goes straight in),
   `/list`, `/account`, `/shares`, `/diagnostics`, `/device/<id>/<page>` (the same page of the device's place) and

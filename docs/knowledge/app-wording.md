@@ -1,7 +1,7 @@
 ---
 summary: How the app speaks - du-form and plain words, one name per thing in English and German, grow days and weeks, numbers, dates and units; read before writing or changing a string in the i18n catalogues
 updated: 2026-11-14
-source: Chris's answers of 2026-11-14 - six kinds of a place, "Raum" only the room; Chris's answers of 2026-11-13 - "Kamera" in sentences and "Cam" only in "Terp Cam", a stage's week from its own start, litres as "L", more kinds of a place, no unit choice; the final fix round's second part - one toast form for a save, range refusals, "Weiter · <noun>", "Speichern" everywhere (the redesign session of 2026-11-13, not Chris); after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
+source: the second whole-app walk's lists built - an undo's answer, a state said as the state, a span of days forwards, a part harvested, the watering's bound (the redesign session's fix round of 2026-11-14); Chris's answers of 2026-11-14 - six kinds of a place, "Raum" only the room; Chris's answers of 2026-11-13 - "Kamera" in sentences and "Cam" only in "Terp Cam", a stage's week from its own start, litres as "L", more kinds of a place, no unit choice; the final fix round's second part - one toast form for a save, range refusals, "Weiter · <noun>", "Speichern" everywhere (the redesign session of 2026-11-13, not Chris); after the whole-app walk - "L" for a litre, one caption form, the move line from and to no place, regulation off as a line, the refusals, open alerts in words (the redesign session of 2026-11-13, not Chris); Chris (naming decisions 2025-11 to 2026-10-12; the diary's day cards 2026-11-11); app sessions and redesign review 2026-08-24 to 2026-10-04; codebase cleanup (2026-10-08); checked against webapp/public/assets/i18n on 2026-10-08; online, Klima-Preset against Vorlage and the English of Steuerung (the redesign session of 2026-11-12, after its critic's walk); one English word for the regulation, "von allein" against "auto" and "Eingebaut" (the same session after its critic's second walk); one name per alarm rule (the same session, 2026-11-12); the one wording pass over both catalogues - phase, Meldung and Alarm, Start and Home, typography (the redesign session of 2026-11-13); hinzufügen for adding a device, abgeben, löschen against widerrufen and the English its critic read as translated (the same session after its critic's walk; "Gerät hinzufügen" is the word of the prototype Chris accepted on 2026-11-12); the one form of an undo's answer (the same walk)
 paths:
   - webapp/public/assets/i18n/**
   - webapp/src/ui/figures.ts
@@ -20,10 +20,14 @@ string exists in English and German, with no English left in the German catalogu
   Tipp schreibt den Eintrag mit sinnvollen Vorgaben"; "auf diesem Server nicht verfügbar", not "diese Installation hat
   keinen Push-Schlüssel".
 - No machine key reaches the screen: slugs, type keys (`fridge`), model codes (`terp_cam`), firmware setting keys.
+  The fleet names a device by the name it was given, else by its type in words ("Controller"; `givenName`,
+  `ui/naming.ts`). A switched-off e-mail channel names the address it would send to ("aus · An <Adresse>"), never
+  "nicht eingerichtet" (the redesign session of 2026-11-14).
 - Diary lines read "Du hast gegossen" / "<Name> hat gegossen"; one's own words stand without a name. A watering says
   how much, a feed also the week of the scheme it was dosed by: "Du hast gegossen · 1,5 L", "Du hast gedüngt · 5 L ·
   Schema-Woche 5" (`amountOf`, `ui/entries.ts`); a line about some plants of a grow of several names them ("Du hast
-  gegossen · B2 · 1,5 L"). A move names from where to where: "Du hast von Zelt Eins nach Zelt 1 umgestellt"
+  gegossen · B2 · 1,5 L"), and so does a harvest of some of them while others still grow ("B2 geerntet"; the
+  grow's own is "Geerntet", [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page)). A move names from where to where: "Du hast von Zelt Eins nach Zelt 1 umgestellt"
   (`home.entryDone.moveFromTo`; the redesign session of 2026-11-12); from no fixed place it reads "Du hast nach
   Zweitzelt gestellt", into none "Du hast aus Zelt genommen" - no fixed place is never named in the line (the same
   session after the whole-app walk). Regulation switched off is one line for off and on, like maintenance:
@@ -35,8 +39,10 @@ string exists in English and German, with no English left in the German catalogu
   the names people give (the redesign session of 2026-11-13). The forms in use: the name in front with a colon
   ("Zelt: Grow starten", "Zelt: das neueste Bild"), behind a noun that says what it is ("Den Ort Zelt gibt es
   nicht mehr", "über den Raum Keller"), behind a colon or a dot as a fact ("neuer Ort: Zelt", "Klima · Zelt"), or
-  the sentence says "hier" and "dieser Ort". A room is called a room where its name is said. The one sentence
-  that keeps its prepositions is the diary's move line below, which names two places. English follows the same
+  the sentence says "hier" and "dieser Ort". A room is called a room where its name is said. The sentences that
+  keep their prepositions are the diary's move line below, which names two places, and the destinations of "Ort
+  entfernen", where a place that exists is named by its name ("nach B2 Zweit", "… zieht nach B2 Zweit um") and
+  "neuer Ort" / "bekommt einen neuen Ort" is said only of a new one (the redesign session of 2026-11-14). English follows the same
   forms, and nothing "stands in" a place there: a device "is in" it, a grow "grew there".
 - A machine line says only what is known: the firmware's update line is "Update angefordert" - the device was told;
   whether it took is a line of its own ("Firmware-Update abgeschlossen", "Update kam nicht an").
@@ -44,8 +50,10 @@ string exists in English and German, with no English left in the German catalogu
   are written out (Temperatur, Luftfeuchte; not Temp, rF).
 - **One word for one button**: a form is saved with "Speichern" everywhere ("Sichern" went from "Ort bearbeiten" and
   Verlauf's saved views); a step of a flow goes on with "Weiter · <noun>" ("Weiter · Klima", "Weiter · Steckdosen
-  und Kamera", "Weiter · Benachrichtigungen", "Weiter · Grow"). A page that edits a thing is titled by what it
-  does, "Ort bearbeiten", with the name in its field rather than in the title.
+  und Kamera", "Weiter · Benachrichtigungen", "Weiter · Grow"); a plan is kept with "Als Vorlage speichern". A
+  page that edits a thing is titled by what it does, "Ort bearbeiten", with the name in its field rather than in
+  the title. A thing is named once in a line: a plan step with only its default name is "Als Nächstes · Schritt
+  2", not "Schritt 2, Schritt 2".
 
 ## One word per thing
 
@@ -149,16 +157,20 @@ string exists in English and German, with no English left in the German catalogu
 - **Giving a device up** asks "Gerät abgeben?", answers yes with "Abgeben" and says "… ist abgegeben und kann
   von jemand anderem hinzugefügt werden" - one verb, no "entfernen". **Deleting an entry** is "Eintrag löschen"
   with "Löschen": "Widerrufen" is the word of an undo and of nothing that is final (the same session).
-- **An undo's answer has one form and says what holds now**: "Widerrufen · <what holds again>", English
-  "Undone · …" (`undoneLabel`, `webapp/src/log/lines.ts`; the same session) - never the thing undone behind a
-  colon, which is the opposite of what holds ("Widerrufen: Alarm … aus" of an alarm that is on again). A
-  setting names its value again ("Widerrufen · Sprache: Deutsch"); an entry taken back is "nicht mehr im
+- **An undo's answer has one form and says what holds now**: "Zurückgenommen · <what holds again>", English
+  "Undone · …" (`undoneLabel`, `webapp/src/log/lines.ts`; the same session, and the opening word since
+  2026-11-14) - never the button's own word "Widerrufen", which read as a second button, and never the thing undone
+  behind a colon, which is the opposite of what holds ("Widerrufen: Alarm … aus" of an alarm that is on again). A
+  setting names its value again ("Zurückgenommen · Sprache: Deutsch"); an entry taken back is "nicht mehr im
   Tagebuch" (`log.gone`), a task unticked "Aufgabe wieder offen" (`log.reopened`), a thing just made "… gibt es
   nicht mehr" (`log.noMore`), a phase begun "wieder die Phase davor" (`log.phaseBefore`), and where the earlier
   words are not at hand "… wie zuvor" (`log.asBefore`). **A save has one form** (the redesign session of
   2026-11-13, after the third critic read it with and without a "·"): "Temperatur am Tag 26,0 °C gespeichert", for a
   device not heard "… gespeichert, noch nicht am Gerät" (`control.saved`, `useSaved`), and what else the save did
-  follows after " · ": "· Plan pausiert", "· Plan läuft wieder", "· Regelung an". The offline suffix holds on the
+  follows after " · ": "· Plan pausiert", "· Plan läuft wieder", "· Regelung an". **A state switched is said as
+  the state** (the redesign session of 2026-11-14; `useSaved().say(…, state)`): "Regelung aus", "Regelung an",
+  "Trocknung beendet", "Keimung beendet", "Lüfter wird nicht mehr gedrosselt" - not "… gespeichert"; for a device
+  not heard it stays "… gespeichert, noch nicht am Gerät". The offline suffix holds on the
   undo's answer too. An undo that fails says "Das ließ sich nicht widerrufen"; an entry's
   delete that fails has its own sentence.
 - English, from the same walk: what applies at a time "applies" or is "in effect now" - a device "holds" its
@@ -183,17 +195,22 @@ string exists in English and German, with no English left in the German catalogu
 - **The diary is told in those dates** (Chris, 2026-11-11, with the day cards): a card is called "Heute",
   "Gestern", the weekday while it names one day ("Montag"), then the date, each with its number - "Heute ·
   Tag 29". A diary that has ended, and one read from outside past its window, has no today: its cards are dates.
-  A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 26 bis 22 ·
+  A line of a card carries its hour and no day. Weeks of the diary are seven of those dates: "Tag 22 bis 26 ·
   Blüte, Woche 2".
 - **A stage is counted in weeks from its own start** (Chris, 2026-11-13): days 1 to 7 of the stage are "Blüte,
   Woche 1", day 8 begins week 2 - the server counts it (`stageWeek`, from `stageWeekOf` in
   `shared-types/src/v1/grow-days.ts`) and no client counts it again; it replaced counting the grow's weeks the
   stage had touched, which said "Woche 3" on a stage's 13th day. A week of the diary stays seven days of the grow,
-  named by its days, and carries the stage most of it lay in with that stage's week at its middle (today's for the
-  week still running); a feeding scheme's own week is always "Schema-Woche".
+  named by its days; the week as a whole (Bilder, its film) carries the stage at its middle, today's for the week
+  still running. **A row of folded days carries the stage most of its days lay in**, with that stage's week at
+  their middle, read from each day's own stage (the redesign session of 2026-11-14, after "Tag 11 bis 8 · Veg,
+  Woche 1" for days that were Sämling; `GrowDiaryDay.phase`, `stageOfDays` in `screens/grow/diary/days.ts`). A
+  feeding scheme's own week is always "Schema-Woche".
 - What a device or the plan did without a person is marked "von allein" (English "automatic" as a tag; "by
   itself" read translated there and stays only inside a sentence - the redesign session of 2026-11-13) - not what somebody
-  switched, such as maintenance ("Wartung · 2 Min") -, in a diary line, as the author of an entry a plan or a
+  switched, such as maintenance ("Wartung · 2 Min"), nor a line a device wrote of somebody's doing: maintenance
+  started at the device or in the app, a restart from the app (`DONE_BY_SOMEBODY`, `screens/grow/diary/days.ts`;
+  the redesign session of 2026-11-14) -, in a diary line, as the author of an entry a plan or a
   preset wrote and as the tag on a phase they set in the grow's head: "auto" was a second word for it and reads
   as autoflower (the redesign session of 2026-11-12); a share of a day inside its targets reads "96 % der Zeit im
   Ziel". An alarm is named by its rule, and the edge it crossed is said in words - "Luftfeuchte über 60 %",
@@ -225,21 +242,25 @@ string exists in English and German, with no English left in the German catalogu
   writes ("5 d 10 h") are rewritten into the reader's units. The symbol stands beside a figure in a tile or a pill;
   **in a line of words the day is written out** - "Tag 23" in front of a line of the report, "vor 1 Tag" under a
   measurement (`spokenAgo`, `ui/age.ts`) - because "T 23" and "vor 1 T" ask to be worked out (the redesign session
-  of 2026-11-12).
+  of 2026-11-12). An age under ten seconds is "gerade eben" (`isJustNow`, `ui/age.ts`): the admin screens say
+  "Stand: gerade eben" and "Zahlen von gerade eben", never "vor 0 s".
 - **A litre is "L" in both languages**, alone and in a dose ("1,5 L", "2 ml/L", "0,4 g/L"; the redesign session of
   2026-11-13, after the whole-app walk read "4 l" as "4 I" in Albert Sans, whose small "l" is a capital "I" and a
   text cursor to the eye). The catalogues write it so; a scheme's own unit stays stored as published (`ml/l`) and is
   drawn through `unitShown` (`ui/figures.ts`). The Messen keypad, the Düngen sheet's doses and the Bericht's
   weights go through the one number format too.
-- A span of days is "Tag 1 bis 18" / "Day 1 to 18", as "Tag 19 bis heute" is.
-- A refusal names the field and says what it takes: "pH: Das ist keine Zahl.", "Mehr als 0 L.", "Ein Gewicht ist
+- A span of days runs forwards everywhere: "Tag 1 bis 18" / "Day 1 to 18", as "Tag 19 bis heute" is.
+- A refusal names the field and says what it takes: "pH: Das ist keine Zahl.", "Mehr als 0 L.", "Höchstens
+  100 L." (`MAX_LITRES`, [app-ux.md §2](app-ux.md#2-navigation-and-the-place-page)), "Ein Gewicht ist
   0 g oder mehr.", "Eine Dosis ist 0 oder mehr. Die Zelle bleibt, wie sie war.", "Pflanzen: eine ganze Zahl ab 1.";
   a disabled Save says "Zum Speichern fehlt noch …". A reminder to water or feed is called by its kind ("Gießen")
   until it is named. **A figure out of its range names the range** (the redesign session of 2026-11-13, after the
   third critic saw 99 written as 35,0 °C): "Temperatur am Tag: Das geht nur zwischen 15 und 35 °C." under a
   target's field (`rangeRefusal`, `screens/control/climate/range.ts`), "Schritt 1 – Tag · Temperatur: zwischen 15
   und 35 °C, oder leer lassen." in the plan editor, "Ein anderes Gerät an diesem Ort heißt schon „…“." for a
-  device's name, and a stream address that is none says what one looks like (rtsp://192.168.1.40:554/stream1).
+  device's name, and a stream address that is none says what one looks like (rtsp://192.168.1.40:554/stream1) -
+  "rtsp://" without a host is "Das ist noch keine Stream-Adresse: Es fehlt die Kamera, etwa
+  rtsp://192.168.1.40:554/stream1.", and "Trag zuerst die Stream-Adresse ein." is said of an empty field alone.
 - **No figure stands on a line without what it counts** (the redesign session of 2026-11-12): a figure is bound to
   its unit (`unbroken`, `ui/fact-text.ts`), and a sentence made of facts with "·" between them is set as those
   facts (`Facts`, `factsOf`), so it breaks between two of them and "3 l" or "1 Bild" stays whole - a toast, the

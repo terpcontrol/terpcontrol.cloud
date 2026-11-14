@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-11-13
-source: printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+updated: 2026-11-14
+source: a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -81,6 +81,13 @@ hardware, the development devices and copies of production data are in
   --noEmit -p tsconfig.json --pretty false`.
 - **"Cannot use import statement outside a module" in a file that compiles** means the two server suites share a jest
   cache again. Each config has its own `cacheDirectory`; keep it so.
+- **A server spec that passes from the sources can fail on the image.** swc writes a union type's
+  `design:paramtypes` as `Object`, so `@Optional() private readonly x: Service | null` is the service under ts-node,
+  which the suite runs by default, and nothing in `dist/`: the claim never made the Terp Cam its controller had
+  paired, and the activation code was never sent again on a sign-in, while every spec passed (2026-11-14). An
+  `@Optional()` parameter names its token (`@Inject(Service)`, `@InjectModel(...)`), `npm run lint` refuses one
+  that does not (`server/eslint.config.mjs`), and `HARNESS_BUILT=1 npm test` after `npm run build` runs a spec as
+  the image would.
 
 ## Flakes we have had
 - *A spec file fails with "didn't exit with signal SIGINT within 10 seconds" while every test passed:* mongod's clean
