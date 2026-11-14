@@ -8,7 +8,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, type PlaceCard as Place } from '@/app/places';
-import { ageAttribute } from '@/ui/age';
+import { ageAttribute, sinceLabel } from '@/ui/age';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
@@ -183,15 +183,16 @@ function PlaceCard({
 }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const { here, device, values, status, words, behind } = useCardStatus(card, devices, judged);
+  const { here, device, values, setpoints, status, words, behind } = useCardStatus(card, devices, judged);
   const { lit, held } = useLamp(device, here, now);
   const tone = toneOf(status);
   const asks = tone === 'warn' || tone === 'alarm';
   const offline = status.kind === 'offline';
-  const setpoints = card.climates[0]?.setpoints ?? card.setpoints;
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, held, hold: null, now, zone });
   const figures = readingFacts(t, readings);
   const pill = pillOf(t, status);
+  // The pill says "offline"; the line beside it says since when, and not the word a second time.
+  const said = status.kind === 'offline' ? (status.since ? t('start.status.since', { time: sinceLabel(status.since, judged, zone) }) : null) : words;
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
   // A place that holds two grows names both: the card's answer carries the newer one alone.
   const others = alsoIn(useGrows(diary && card.grow !== null).data?.items, card.spaceId, card.grow?.growId);
@@ -219,7 +220,7 @@ function PlaceCard({
           <span className={styles.placeStatus} data-tone={tone}>
             <Facts
               facts={[
-                ...factsOf(words).map(unbroken),
+                ...factsOf(said ?? '').map(unbroken),
                 behind ? (
                   <span
                     key="open"

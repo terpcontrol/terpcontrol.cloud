@@ -179,6 +179,44 @@ describe('Start of a place whose controller fell silent beside a socket that rep
   });
 });
 
+/**
+ * A controller never heard leaves its place waiting, whatever else of it reports (Chris): a socket that reported made
+ * the server's first climate, and Start read "online · 21 s ago" with the socket's figures as the place's, its
+ * settings and its maintenance, while the controller stood nowhere.
+ */
+describe('Start of a place whose controller was never heard beside a socket that reports', () => {
+  it('waits for the controller by name and shows none of the socket´s figures as the place´s', async () => {
+    const never = fridge({
+      type: 'controller',
+      name: 'Tent controller',
+      configuration: null,
+      state: { lastSeenAt: null, hardware: {}, maintenanceUntil: null },
+    } as never);
+    const socket = fridge({
+      id: 'plug-1',
+      type: 'plug',
+      name: 'Socket',
+      configuration: { workmode: 'heater' },
+      state: { lastSeenAt: ago(0.2), hardware: {}, maintenanceUntil: null },
+    } as never);
+    const live = [{ metric: 'temperature' as const, value: 24.5, measuredAt: ago(0.2), state: 'live' as const }];
+    server.devices = [socket, never];
+    onePlace(
+      overviewOf({
+        deviceIds: ['plug-1', 'device-1'],
+        values: live,
+        climates: [{ deviceId: 'plug-1', values: live, setpoints, targets: overviewOf().targets, verdict: overviewOf().verdict }],
+      }),
+    );
+    draw('/spaces/space-1');
+
+    await waitFor(() => expect(document.querySelector('[data-liveness]')).toHaveAttribute('data-liveness', 'waiting'));
+    expect(document.querySelector('[data-liveness]')).toHaveTextContent('waiting for first values · Tent controller');
+    expect(screen.queryByText('24.5 °C')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Readings arriving/)).not.toBeInTheDocument();
+  });
+});
+
 describe('Start of one place with a camera and a grow', () => {
   beforeEach(() => onePlace(overviewOf({ cameras: [camera()], grows: [growOf()] }), true));
 
@@ -1449,13 +1487,14 @@ describe('Start with several places', () => {
     expect(screen.queryByText('check')).not.toBeInTheDocument();
   });
 
-  it('says a place gone quiet is offline, and judges none of its figures', async () => {
+  /** The pill says "offline", and the line beside it since when - not "offline" a second time. */
+  it('says a place gone quiet is offline, once, and judges none of its figures', async () => {
     server.home = homeOf([cardOf({ values: values(30) }), tent()], true);
     draw();
 
     // Asked for again on every look: the card is drawn anew once the rooms are known.
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;
-    await waitFor(() => expect(card()).toHaveTextContent(`Fridge 1offlineOffline since ${hhmm(ago(30))}25.1 °C · 61 %`));
+    await waitFor(() => expect(card()).toHaveTextContent(`Fridge 1offlinesince ${hhmm(ago(30))}25.1 °C · 61 %`));
   });
 
   it('opens a grow that stands in no place at the grow, because there is no place to open', async () => {

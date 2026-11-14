@@ -2887,7 +2887,8 @@
   },
   "targets": {
     "title": "Targets",
-    "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Changing any setting on the device itself sends them; connecting alone does not, and nothing written here can stand in for them.",
+    "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Until they arrive, nothing can be set here.",
+    "unheard": "{{device}} has not been heard from yet. As soon as it is online it sends its settings, and a climate can be set here.",
     "presets": "Climate presets",
     "aria": {
       "dayTemperature": "Day temperature",
@@ -4605,7 +4606,8 @@
   },
   "ownPanel": {
     "title": "Settings",
-    "waiting": "{{device}} has not sent its settings yet, so there is nothing to change here. Changing any setting on the device itself sends them; connecting alone does not.",
+    "waiting": "{{device}} has not sent its settings yet, so there is nothing to change here.",
+    "unheard": "{{device}} has not been heard from yet. As soon as it is online it sends its settings, and they can be changed here.",
     "status": "Readings arriving · Plantalytix Socket: {{mode}}",
     "statusLight": "Readings arriving · light {{on}}–{{off}}",
     "statusFan": "Readings arriving · fan: {{mode}}"

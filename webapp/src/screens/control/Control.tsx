@@ -95,7 +95,8 @@ export function Control({
       title={title}
       here={here}
       place={several ? place : null}
-      deviceId={lead?.id ?? null}
+      lead={lead}
+      devices={items}
       state={lead ? stateOf(t, lead, items, spoke, now, zone) : null}
       // The box under the title says since when the climate's device has been quiet; the pill and its card do not again.
       silenceSaid={silentSince !== null}

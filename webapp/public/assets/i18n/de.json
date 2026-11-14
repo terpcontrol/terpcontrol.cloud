@@ -2897,7 +2897,8 @@
   },
   "targets": {
     "title": "Zielwerte",
-    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht, und was hier stünde, kann sie nicht ersetzen.",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Bis sie da sind, lässt sich hier nichts setzen.",
+    "unheard": "{{device}} hat sich noch nicht gemeldet. Sobald es online ist, schickt es seine Einstellungen, und hier lässt sich ein Klima setzen.",
     "presets": "Klima-Presets",
     "aria": {
       "dayTemperature": "Temperatur am Tag",
@@ -4615,7 +4616,8 @@
   },
   "ownPanel": {
     "title": "Einstellungen",
-    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern. Wird am Gerät selbst eine beliebige Einstellung geändert, schickt es sie; ein neuer Verbindungsaufbau allein tut das nicht.",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern.",
+    "unheard": "{{device}} hat sich noch nicht gemeldet. Sobald es online ist, schickt es seine Einstellungen, und hier lässt sich etwas ändern.",
     "status": "Werte kommen an · Plantalytix Socket: {{mode}}",
     "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
     "statusFan": "Werte kommen an · Lüfter läuft: {{mode}}"

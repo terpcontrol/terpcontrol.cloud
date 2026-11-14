@@ -2,12 +2,14 @@ import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Device, HomeSpaceCard } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { useDeviceLive } from '@/api/devices';
 import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
+import { leadOf, leadValuesOf } from '@/screens/control/lead';
 import { judgedBy } from './attention';
-import { climateDeviceOf, contradictedModeOf, controlOffOf, openWords, statusOf, statusText } from './place';
+import { contradictedModeOf, controlOffOf, openWords, statusOf, statusText } from './place';
 import { useHumidifierHold, usePlaceAlerts } from './reads';
 
 /**
@@ -15,17 +17,16 @@ import { useHumidifierHold, usePlaceAlerts } from './reads';
  * and in the header's choice of place: the status sentence of its Start, from
  * the same arithmetic, so the three never disagree about a tent.
  *
- * A place has one climate: the first device the server names as holding one
- * speaks for it, and what else stands there is listed under Steuerung.
+ * A place has one climate, its lead device's (`leadOf`), and what else stands
+ * there is listed under Steuerung.
  */
 export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices: Device[] | undefined, now: DateTime) => {
   const { t } = useTranslation();
   const zone = useZone();
   const here = (devices ?? []).filter(device => card.deviceIds.includes(device.id));
-  const climate = card.climates[0] ?? null;
-  const device = here.find(one => one.id === climate?.deviceId) ?? climateDeviceOf(here, card.deviceIds);
-  const values = climate?.values ?? card.values;
-  const setpoints = climate?.setpoints ?? card.setpoints;
+  const device = leadOf(here, card.climates);
+  const { climate, values, placeWide } = leadValuesOf(device, card.climates, card.values, useDeviceLive(device?.id ?? null).data);
+  const setpoints = climate?.setpoints ?? (placeWide ? card.setpoints : []);
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
   // The place lives and falls silent with the device that holds its climate, as its own Start judges it.
@@ -53,5 +54,5 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const words = own ?? statusText(t, status, now, zone, false);
   const behind = openWords(t, status);
 
-  return { here, device, values, status, said: [words, behind].filter(Boolean).join(' · '), words, behind };
+  return { here, device, values, setpoints, status, said: [words, behind].filter(Boolean).join(' · '), words, behind };
 };

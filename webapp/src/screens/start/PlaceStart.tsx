@@ -32,6 +32,7 @@ import { offsetOf } from '@/ui/wall-clock';
 import { useWideWindow } from '@/ui/wide-window';
 import { clock, useZone } from '@/ui/zone';
 import { pendingByPath, savedWords } from '@/screens/control/climate/figures';
+import { leadOf, leadValuesOf } from '@/screens/control/lead';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { heldWords } from '@/screens/control/held-light';
 import { offNotTaken } from '@/screens/control/rows';
@@ -47,7 +48,6 @@ import { growPutOff } from './loaded';
 import { GrowHead, PhaseLine } from './Phase';
 import { OwnPhoto, Picture } from './Picture';
 import {
-  climateDeviceOf,
   contradictedModeOf,
   controlOffOf,
   openWords,
@@ -111,13 +111,12 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const spaceId = overview.spaceId;
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const here = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice).items;
-  // A place is one climate: the first device the server names as holding one speaks for it.
-  const climate = overview.climates[0] ?? null;
-  const device = here.find(one => one.id === climate?.deviceId) ?? climateDeviceOf(here, overview.deviceIds);
-  const values = climate?.values ?? overview.values;
-  const setpoints = climate?.setpoints ?? overview.setpoints;
-  const targets = climate?.targets ?? overview.targets;
+  // A place is one climate: its lead device's - the controller, heard or not - whose figures alone are the place's.
+  const device = leadOf(here, overview.climates);
   const lamp = useLamp(device, here, now);
+  const { climate, values, placeWide } = leadValuesOf(device, overview.climates, overview.values, lamp.live);
+  const setpoints = climate?.setpoints ?? (placeWide ? overview.setpoints : []);
+  const targets = climate?.targets ?? (placeWide ? overview.targets : null);
   const mayManage = useMayManage(spaceId);
   const visiting = useVisiting(spaceId);
   const demo = user?.isDemo === true;
@@ -156,7 +155,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       deviceIds: overview.deviceIds,
       openAlerts,
       leadId: device?.id,
-      verdict: climate?.verdict ?? overview.verdict,
+      verdict: climate?.verdict ?? (placeWide ? overview.verdict : null),
       quiet,
       controlOff,
       humidifierHold,
@@ -199,7 +198,16 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         <h1 id={`${spaceId}-name`}>{overview.name}</h1>
         {wide ? sentence : null}
         <div className={styles.headEnd}>
-          {hasDevice ? <LivenessPill liveness={liveness} measuredAt={measuredAt} now={now} explain waiting={waiting} /> : null}
+          {hasDevice ? (
+            <LivenessPill
+              liveness={liveness}
+              measuredAt={measuredAt}
+              now={now}
+              explain
+              waiting={waiting}
+              awaited={waiting && device && here.length > 1 ? deviceName(device, t) : null}
+            />
+          ) : null}
           {menu ? (
             <span className={styles.menu}>
               {/* A device stands in a place of its owner's, so the owner's ⋯ also adds one here; a guest's leads to the one page. */}

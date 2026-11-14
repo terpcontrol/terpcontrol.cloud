@@ -19,7 +19,7 @@ import { PlugPanel } from './devices/PlugPanel';
  *
  * What may be done is asked of the device rather than of the screen: the same
  * reader owns one tent and only reads the next. A device whose document has
- * not arrived is waited for by name.
+ * not arrived is waited for by name - one never heard until it is online.
  */
 export function OwnSettings({ device }: { device: Device }) {
   const { t } = useTranslation();
@@ -28,7 +28,17 @@ export function OwnSettings({ device }: { device: Device }) {
   const configuration = device.configuration;
 
   if (configuration === null) {
-    const key = awaitingClimate(device) ? 'targets.waiting' : device.type === 'plug' || device.type === 'light' ? 'ownPanel.waiting' : null;
+    // A current device sends its settings as it connects: one never heard is waited for, and nobody is sent to the device.
+    const unheard = device.state.lastSeenAt === null;
+    const key = awaitingClimate(device)
+      ? unheard
+        ? 'targets.unheard'
+        : 'targets.waiting'
+      : device.type === 'plug' || device.type === 'light'
+        ? unheard
+          ? 'ownPanel.unheard'
+          : 'ownPanel.waiting'
+        : null;
     // Named as its card under the place names it: by the tail of its id only beside another of its kind standing there.
     const here = all.data?.items.filter(other => other.spaceId === device.spaceId);
     return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, { device: deviceTitle(device, t, here) })}</p> : null;

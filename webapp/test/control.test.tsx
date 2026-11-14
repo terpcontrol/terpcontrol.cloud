@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -541,14 +541,43 @@ describe('Steuerung of a place with several devices', () => {
     ]);
   });
 
-  it('says a silent lead´s state as of when it was known, not in green, also while another device keeps the place live', async () => {
+  /** The place lives and falls silent with its lead: a socket still reporting keeps no "Control on" in the head. */
+  it('says a silent lead silent, once in its box, and claims no state of it, also while another device keeps the place live', async () => {
     const silent = { ...device(NOW.minus({ hours: 2 })), control: regulating };
     state.devices = [silent, plug()];
     drawTab(null, '/control', here(['device-1', 'device-2']));
 
-    const pill = (await screen.findByText('Control on')).closest('[data-tone]');
-    expect(pill).toHaveAttribute('data-tone', 'warn');
-    expect(pill).toHaveTextContent('Control on · as of 10:00');
+    expect(await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / })).toBeInTheDocument();
+    const head = screen.getByRole('heading', { level: 1 }).closest('header')!;
+    expect(head).not.toHaveTextContent('Control on');
+    expect(head).not.toHaveTextContent('online');
+  });
+
+  /**
+   * A controller never heard leaves its place waiting, whatever else of it reports: a socket that reported first made
+   * the server's first climate, and the head read "online · 2 s ago" over "Controller · waiting for first readings".
+   */
+  it('waits for a controller never heard, named, while a socket beside it reports, and lists the controller first', async () => {
+    const never = { ...device(), configuration: null, state: { ...device().state, lastSeenAt: null } } as unknown as Device;
+    const socket = { ...plug(), configuration: { workmode: 'heater', heat: { on: 20, off: 22 } } } as unknown as Device;
+    state.devices = [socket, never];
+    drawTab(
+      null,
+      '/control',
+      here(['device-2', 'device-1'], [
+        { deviceId: 'device-2', values: [{ metric: 'temperature', value: 24, measuredAt: NOW.toISO(), state: 'live' }], setpoints: [] },
+      ] as PlaceCard['climates']),
+    );
+
+    const head = (await screen.findByRole('heading', { level: 1 })).closest('header')!;
+    await waitFor(() => expect(head).toHaveTextContent('waiting for first values · Blue Dream tent'));
+    expect(head).not.toHaveTextContent('online');
+    // Its note waits for it to be heard; nobody is sent to change a setting at the device.
+    expect(await screen.findByText(/Blue Dream tent has not been heard from yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/on the device itself/)).not.toBeInTheDocument();
+    // "Geräte hier" lists the lead first.
+    const listed = document.body.textContent ?? '';
+    expect(listed.lastIndexOf('Blue Dream tent')).toBeLessThan(listed.lastIndexOf('Pump socket'));
   });
 
   it('dates the device the page leads with in a place of two climates, not whichever of them spoke last', async () => {

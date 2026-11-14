@@ -15,7 +15,8 @@ import ui from '@/ui/ui.module.css';
  * pill can honestly date.
  *
  * A place whose devices have sent nothing yet is `waiting` for its first
- * values, and says that rather than "offline". `explain` makes the word the
+ * values, and says that rather than "offline" - with the device it waits for
+ * where several stand there (`awaited`). `explain` makes the word the
  * term that says what online and stale mean, on the one pill of a page that
  * does.
  */
@@ -25,19 +26,22 @@ export function LivenessPill({
   now,
   explain,
   waiting = false,
+  awaited = null,
 }: {
   liveness: Liveness;
   measuredAt: string | null;
   now: DateTime;
   explain?: boolean;
   waiting?: boolean;
+  /** The device waited for, named where the place holds several: "wartet auf erste Werte · Controller". */
+  awaited?: string | null;
 }) {
   const { t } = useTranslation();
   if (liveness === 'none') return null;
   if (waiting) {
     return (
       <span className={ui.live} data-liveness="waiting">
-        {t('liveness.waiting')}
+        {awaited ? `${t('liveness.waiting')} · ${awaited}` : t('liveness.waiting')}
       </span>
     );
   }

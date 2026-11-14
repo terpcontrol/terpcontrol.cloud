@@ -2,13 +2,16 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { PlaceCard } from '@/app/places';
-import { useDevices } from '@/api/devices';
+import type { Device } from '@fg2/shared-types/v1';
+import { useDeviceLive } from '@/api/devices';
 import { noLongerThere } from '@/api/problem';
 import { useSession } from '@/api/session';
 import { useEndedSpaces, useSpaceOverview } from '@/api/spaces';
 import { NoLongerHere, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { livenessOf, measuredAtOf, silenceOf } from '@/screens/start/attention';
+import { judgedBy, livenessOf, measuredAtOf } from '@/screens/start/attention';
+import { leadValuesOf } from '@/screens/control/lead';
+import { deviceName } from '@/ui/naming';
 import { LivenessPill } from '@/ui/LivenessPill';
 import ui from '@/ui/ui.module.css';
 import place from './Place.module.css';
@@ -32,7 +35,8 @@ export function PlaceTitle({
   here,
   place = null,
   state = null,
-  deviceId = null,
+  lead = null,
+  devices = [],
   silenceSaid = false,
 }: {
   title: string;
@@ -40,21 +44,19 @@ export function PlaceTitle({
   place?: string | null;
   state?: ReactNode;
   silenceSaid?: boolean;
-  /** The device the page is about, where the place holds several climates: the pill dates that one, not whichever spoke last. */
-  deviceId?: string | null;
+  /** The device the place is judged by (`leadOf`): the pill dates its figures, and waits for it while it was never heard. */
+  lead?: Device | null;
+  /** The devices standing in the place. */
+  devices?: Device[];
 }) {
+  const { t } = useTranslation();
   const now = useNow();
-  const values = here.climates.find(climate => climate.deviceId === deviceId)?.values ?? here.values;
-  const devices = useDevices(here.deviceIds.length > 0 && values.length === 0).data?.items ?? [];
-  // As on the place's Start: no value at all is a device waiting for its first one, unless it was heard and went quiet.
-  const silence = silenceOf(
-    values,
-    devices.filter(device => (deviceId ? device.id === deviceId : here.deviceIds.includes(device.id))),
-    now,
-  );
-  const silentSince = silence && !silence.waiting ? silence.since : null;
-  const liveness = livenessOf({ values, deviceIds: here.deviceIds }, now);
-  const waiting = liveness === 'offline' && values.length === 0 && silentSince === null;
+  const { values } = leadValuesOf(lead, here.climates, here.values, useDeviceLive(lead?.id ?? null).data);
+  // As on the place's Start: it lives and falls silent with its lead, and no value at all is a lead waiting for its first one.
+  const judging = judgedBy(values, devices, lead, now);
+  const silentSince = judging.silence && !judging.silence.waiting ? judging.silence.since : null;
+  const liveness = livenessOf({ values: judging.values, deviceIds: here.deviceIds }, now);
+  const waiting = liveness === 'offline' && judging.values.length === 0 && silentSince === null;
 
   return (
     <header className={styles.head}>
@@ -65,7 +67,14 @@ export function PlaceTitle({
       {state && !waiting && (liveness === 'live' || liveness === 'stale') ? (
         state
       ) : silenceSaid && liveness === 'offline' && !waiting ? null : (
-        <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values) ?? silentSince} now={now} explain waiting={waiting} />
+        <LivenessPill
+          liveness={liveness}
+          measuredAt={measuredAtOf(judging.values) ?? silentSince}
+          now={now}
+          explain
+          waiting={waiting}
+          awaited={waiting && lead && devices.length > 1 ? deviceName(lead, t) : null}
+        />
       )}
     </header>
   );
