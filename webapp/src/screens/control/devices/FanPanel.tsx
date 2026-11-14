@@ -93,10 +93,13 @@ function Slowed({ fan, settings, mayManage }: { fan: Device; settings: Settings;
   const uncouple = async () => {
     try {
       await couple.mutateAsync({ fanId: null, speed: 100 });
-      settings.say(t('fanSettings.uncoupled'), {
-        undo: () => couple.mutateAsync({ fanId: fan.id, speed }),
-        undone: t('log.asBefore', { what: t('fanSettings.title') }),
-      });
+      settings.say(
+        t('fanSettings.uncoupled'),
+        { undo: () => couple.mutateAsync({ fanId: fan.id, speed }), undone: t('log.asBefore', { what: t('fanSettings.title') }) },
+        undefined,
+        undefined,
+        true,
+      );
     } catch {
       // Said under the button, from the write that was refused.
     }

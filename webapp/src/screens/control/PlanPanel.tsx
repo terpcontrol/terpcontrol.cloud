@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
 import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
+import type { Translate } from '@/i18n/i18n';
 import { useLog, type Back } from '@/log/log-context';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
@@ -145,7 +146,7 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
             ) : null}
           </div>
         ) : (
-          <LoadFailed retry={() => void plan.refetch()} />
+          <LoadFailed read={plan} />
         )}
 
         {sheets}
@@ -289,9 +290,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           ? t(plan.state.status === 'completed' ? 'space.control.next.completed' : 'space.control.next.atRest')
           : next === null
             ? t('space.control.next.ends')
-            : next === 0
-              ? t('space.control.next.loops', { name: plan.steps[0]?.name ?? '' })
-              : t('space.control.next.step', { number: next + 1, name: plan.steps[next]?.name ?? '' })}
+            : t(next === 0 ? 'space.control.next.loops' : 'space.control.next.step', { number: next + 1, name: ownName(t, plan.steps[next], next) })}
       </p>
 
       {plan.state.status === 'paused' && plan.state.pauseReason ? (
@@ -444,6 +443,8 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         <Asking
           note={t(paused ? 'space.control.ask.resumeOn' : 'space.control.ask.startOn', { plan: plan.name })}
           yes={t(paused ? 'space.control.ask.resumeOnYes' : 'space.control.ask.startOnYes')}
+          // The one filled green stays "Fortsetzen": what also switches regulation on is not the obvious tap.
+          quiet
           busy={busy}
           onYes={resume}
           onCancel={close}
@@ -541,3 +542,9 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
     </ol>
   );
 }
+
+/** A step's name where it has one of its own, after its number; ", Schritt 2" after "Schritt 2" says the number twice. */
+const ownName = (t: Translate, step: { name: string } | undefined, index: number): string => {
+  const name = step?.name.trim() ?? '';
+  return name === '' || name === t('space.control.step.defaultName', { number: index + 1 }) ? '' : `, ${name}`;
+};

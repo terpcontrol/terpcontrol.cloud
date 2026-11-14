@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { Device } from '@fg2/shared-types/v1';
 import { Control } from '@/screens/control/Control';
 import { ControlTab } from '@/screens/place/ControlTab';
+import { drawDevicePages } from './device-pages';
 import { drawAt, json } from './harness';
 import { SIGNED_IN, spacePage, spaceWhere } from './session';
 import { Toast } from './toast';
@@ -94,5 +95,60 @@ describe('Steuerung of a customer´s place, read by support', () => {
     expect(await screen.findByRole('heading', { name: /Control · Kundenzelt/ })).toHaveTextContent("support view of a customer's place");
     expect(await screen.findByRole('table', { name: 'Targets' })).toHaveTextContent('25.0 °C');
     expect(screen.queryByText(/Nothing to control yet/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A page under Steuerung that could not be read stood under Steuerung's title, without its own name or the way
+ * back; and Steuerung waited for its places without a title at all.
+ */
+describe('Steuerung while its places are read, and when they cannot be', () => {
+  const page = (at: string) =>
+    drawAt(
+      <Toast>
+        <Routes>
+          <Route path="/control" element={<ControlTab />} />
+          <Route path="/control/:page" element={<ControlTab />} />
+        </Routes>
+      </Toast>,
+      { at },
+    );
+
+  it('keeps a page´s own name and its way back where the server is not reached, and Steuerung its title', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+
+    page('/control/alarms?space=space-1');
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(/^No connection to the server/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Alarms');
+    expect(screen.getByRole('link', { name: 'Back to Control' })).toHaveAttribute('href', '/control?space=space-1');
+  });
+
+  it('keeps the name of a page under a device, and the way back to the device, where the device cannot be read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
+    );
+
+    drawDevicePages('/devices/device-9/advanced');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Advanced');
+    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent(/^No connection to the server/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Advanced');
+    expect(screen.getByRole('link', { name: 'Back: Device' })).toHaveAttribute('href', '/devices/device-9');
+  });
+
+  it('says its title while it waits', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+
+    const { unmount } = page('/control');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Control');
+    unmount();
+    page('/control/plan?space=space-1');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Grow plan');
   });
 });

@@ -59,7 +59,7 @@ export function SocketPage() {
   if (!found.device) return <LoadFailed title={t('shell.gone.title.socket')} read={found} />;
 
   const table = tables.tables.get(deviceId);
-  if (!table) return tables.isError ? <LoadFailed retry={found.refetch} /> : <Waiting lines={4} />;
+  if (!table) return tables.isError ? <LoadFailed read={tables} /> : <Waiting lines={4} />;
 
   return <Socket device={found.device} among={found.among} row={rowOf(rowsOf(table.items), socket)} capabilities={table.capabilities} />;
 }

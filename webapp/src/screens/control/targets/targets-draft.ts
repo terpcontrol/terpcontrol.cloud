@@ -145,22 +145,6 @@ export const prefilled = (draft: TargetsDraft, preset: ClimatePreset): TargetsDr
   co2: preset.co2 ?? draft.co2,
 });
 
-/** Whether a figure of the draft is what the preset says, where the preset says anything about it. */
-const fits = (value: number, wanted: number | null): boolean => wanted === null || value === wanted;
-
-/**
- * Whether the draft is what a preset would prefill, which is what draws its
- * chip chosen. A tent without a CO2 sensor has no CO2 field, so its figure is
- * not held against the draft there: the firmware forces it to nothing anyway.
- */
-export const equalsPreset = (draft: TargetsDraft, preset: ClimatePreset, hasCo2: boolean, climateOnly = false): boolean =>
-  fits(draft.dayTemperature, preset.dayTemperature) &&
-  fits(draft.dayHumidity, preset.dayHumidity) &&
-  draft.nightTemperature === preset.nightTemperature &&
-  fits(draft.nightHumidity, preset.nightHumidity) &&
-  (climateOnly ||
-    (fits(draft.lightLimit, preset.lightLimit) && fits(draft.lightHours, preset.lightHours) && (!hasCo2 || fits(draft.co2, preset.co2))));
-
 /* ------------------------------------------------------------- the figures */
 
 /**

@@ -76,7 +76,8 @@ export type SheetValues = Readonly<Record<string, number>>;
  * "Speichern" is live as soon as a figure differs from what is stored, typed
  * or stepped, and what saving does stands under the field from the first
  * keystroke. A figure outside its range is refused under the field in words
- * that name the range, and the save waits; nothing but what was typed is sent.
+ * that name the range - once the field is left or "Speichern" pressed, not on
+ * the "2" of a "26" - and the save waits; nothing but what was typed is sent.
  */
 export function ValueSheet({
   title,
@@ -109,13 +110,15 @@ export function ValueSheet({
 }) {
   const { t } = useTranslation();
   const [moved, setMoved] = useState<SheetValues>({});
+  // The figure still being typed, which is not refused before its field is left.
+  const [typing, setTyping] = useState<string | null>(null);
   const [asked, setAsked] = useState(false);
   const whyId = useId();
   const values: SheetValues = Object.fromEntries(figures.map(figure => [figure.key, moved[figure.key] ?? figure.value]));
   const changed = figures.some(figure => !Object.is(values[figure.key], figure.value));
   const rangeOf = (figure: SheetFigure) => ({ min: figure.min ?? 0, max: figure.max ?? 100, decimals: figure.decimals ?? 0, unit: figure.unit });
-  const refused =
-    figures.map(figure => (figure.clock ? null : rangeRefusal(t, figure.label, values[figure.key], rangeOf(figure)))).find(Boolean) ?? null;
+  const refusalOf = (figure: SheetFigure) => (figure.clock ? null : rangeRefusal(t, figure.label, values[figure.key], rangeOf(figure)));
+  const refused = figures.map(figure => (figure.key === typing ? null : refusalOf(figure))).find(Boolean) ?? null;
   const why = refused ?? invalid?.(values) ?? null;
   // What the figures amount to is said of a figure that reads, and of the stored one where the text is none.
   const readable: SheetValues = Object.fromEntries(
@@ -126,6 +129,9 @@ export function ValueSheet({
   const rangeRefused = asked && ranged && refusedForRange(error) ? rangeSaid(t, ranged.label, rangeOf(ranged)) : null;
 
   const save = async () => {
+    // Pressed while a refused figure is still being typed: it is said now, and nothing is sent.
+    setTyping(null);
+    if (figures.some(refusalOf)) return;
     setAsked(true);
     if (await onSave(values)) onClose();
   };
@@ -154,7 +160,10 @@ export function ValueSheet({
         <div className={figures.length > 1 ? fields.fields : undefined}>
           {figures.map(figure => {
             const name = figures.length > 1 ? `${title}: ${figure.label}` : figure.label;
-            const set = (value: number) => setMoved({ ...moved, [figure.key]: value });
+            const set = (value: number, typed = false) => {
+              setMoved({ ...moved, [figure.key]: value });
+              setTyping(typed ? figure.key : null);
+            };
             const stepper = figure.clock ? (
               <ClockStepper
                 name={name}

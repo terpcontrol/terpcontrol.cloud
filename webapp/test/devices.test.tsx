@@ -211,6 +211,8 @@ describe('a device on its own page', () => {
       ).toBe(true),
     );
     if (!/\/(advanced|details)$/.test(at)) await screen.findAllByRole('link', { name: /Tent 1$/ });
+    // A page under the device has its head while it waits, so it is drawn once nothing waits under it any more.
+    await waitFor(() => expect(document.querySelector('[aria-busy="true"]')).toBeNull());
   };
 
   const BUILD = {
@@ -696,7 +698,7 @@ describe('a device on its own page', () => {
       fireEvent.click(within(asked).getByRole('button', { name: 'Switch off' }));
 
       // Answered as every setting of a device is: the sheet goes, the toast says it is stored and that the plan paused.
-      await waitFor(() => expect(said()).toEqual(['Control off saved · plan paused']));
+      await waitFor(() => expect(said()).toEqual(['Control off · plan paused']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(moves).toEqual([{ kind: 'pause', reason: 'Control was switched off.' }]);
       expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: false } });
@@ -731,7 +733,7 @@ describe('a device on its own page', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
 
       await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
-      await waitFor(() => expect(said()).toEqual(['Control on saved']));
+      await waitFor(() => expect(said()).toEqual(['Control on']));
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
@@ -747,7 +749,7 @@ describe('a device on its own page', () => {
 
       await waitFor(() => expect(moves).toEqual([{ kind: 'resume' }]));
       // Said in the answer, not in a second sentence of the note.
-      await waitFor(() => expect(said()).toEqual(['Control on saved · plan running again']));
+      await waitFor(() => expect(said()).toEqual(['Control on · plan running again']));
     });
 
     /**

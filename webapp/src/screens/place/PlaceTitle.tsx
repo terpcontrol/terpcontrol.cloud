@@ -21,7 +21,9 @@ import styles from './PlaceTitle.module.css';
  *
  * `state` is what a page says in the pill's place while the place is heard:
  * Steuerung's "Regelung ein". A place gone quiet, or waiting for its first
- * values, says that instead - no state is claimed for a device nobody hears.
+ * values, says that instead - no state is claimed for a device nobody hears -
+ * unless the page says the silence itself (`silenceSaid`), in its box under
+ * the title: then the pill is left out rather than said twice.
  */
 export function PlaceTitle({
   title,
@@ -29,11 +31,13 @@ export function PlaceTitle({
   place = null,
   state = null,
   deviceId = null,
+  silenceSaid = false,
 }: {
   title: string;
   here: PlaceCard;
   place?: string | null;
   state?: ReactNode;
+  silenceSaid?: boolean;
   /** The device the page is about, where the place holds several climates: the pill dates that one, not whichever spoke last. */
   deviceId?: string | null;
 }) {
@@ -58,7 +62,7 @@ export function PlaceTitle({
       </div>
       {state && !waiting && (liveness === 'live' || liveness === 'stale') ? (
         state
-      ) : (
+      ) : silenceSaid && liveness === 'offline' && !waiting ? null : (
         <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values) ?? silentSince} now={now} explain waiting={waiting} />
       )}
     </header>

@@ -200,7 +200,7 @@ describe('control switched off', () => {
     expect(screen.queryByRole('button', { name: /^Change Operating mode/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Switch control on' }));
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/device-1/configuration', { set: { control: true } }));
-    await waitFor(() => expect(said()).toBe('Control on saved'));
+    await waitFor(() => expect(said()).toBe('Control on'));
   });
 
   /** A control the reader may not use is absent: the mode is a fact, and no choice is drawn that they could not make. */

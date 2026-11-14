@@ -63,6 +63,7 @@ function ControlOffSheet({ device, onClose }: { device: Device; onClose: () => v
         { undo, undone: `${t('climateControl.label')} ${t('climateControl.state.on')}` },
         'control',
         running ? { now: t('control.saved.planPaused'), back: t('control.saved.planGoesOn') } : undefined,
+        true,
       );
       onClose();
     } catch {

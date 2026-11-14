@@ -34,7 +34,7 @@ import {
 import { ControlOff } from '../Mode';
 import { offNotTaken } from '../rows';
 import { scheduleTitle } from '../targets/schedule-words';
-import { draftOf, equalsPreset, leafOffset, presetOf, vpdOf, withDraft, type LightSchedule, type TargetsDraft } from '../targets/targets-draft';
+import { draftOf, leafOffset, vpdOf, withDraft, type LightSchedule, type TargetsDraft } from '../targets/targets-draft';
 import {
   FIGURES,
   figureName,
@@ -169,6 +169,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
         configuration: withDraft(stored, next, climateOnly, dryingChange === 'starts' ? heldOf(after.regime) : 'both'),
         drying,
         germination,
+        preset: chip ? { stage: chip.stage, preset: chip.preset } : undefined,
         germinationChoices: after.regime === 'germination' && choices ? choicesSaid(choices, humidifier) : undefined,
       });
       const resume = async () => {
@@ -225,7 +226,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
     try {
       if (status === 'running') await move.mutateAsync({ kind: 'pause', reason: t('targets.pauseReason') });
       await configure.mutateAsync(spell === 'drying' ? { drying: false } : { mode: 'standard' });
-      saved.say(t(`control.preset.ended.${spell}`), null, 'preset');
+      saved.say(t(`control.preset.ended.${spell}`), null, 'preset', undefined, true);
       return true;
     } catch {
       return false;
@@ -234,16 +235,19 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
 
   if (plan.isPending) return <Waiting lines={4} />;
   // Whether a save has to pause a plan first is not guessed at: a plan that could not be read is a card that cannot be drawn yet.
-  if (!plan.data && !isMissing(plan.error)) return <LoadFailed retry={() => void plan.refetch()} />;
+  if (!plan.data && !isMissing(plan.error)) return <LoadFailed read={plan} />;
 
   const halves = halvesOf(regime);
-  const preset = CLIMATE_CHOICES.find(chip => chosenBy(chip, baseline, shape, hasCo2, climateOnly)) ?? null;
-  // The button names the preset the figures are. One figure set by hand later it still names what the server knows the
-  // place is on: the spell the device runs, else the stage of the grow standing here.
+  // The button names the preset the device was put on - here, by a phase, by a plan step - and never one its figures
+  // happen to match; one figure set by hand later it still names it. A spell's preset names it while the spell runs.
+  // Without one, what the server knows the place is on: the spell the device runs, else the stage of the grow here.
   const spell = regime === 'drying' || regime === 'germination' ? regime : null;
+  const kept = device.control?.preset ?? null;
+  const applied = kept && (kept.stage === 'drying' || kept.stage === 'germination' ? kept.stage === spell : spell === null) ? kept : null;
+  const preset = applied ? (CLIMATE_CHOICES.find(chip => chip.stage === applied.stage && chip.preset === applied.preset) ?? null) : null;
   const staged = grow?.stage && writesClimate(grow.stage) && grow.stage !== 'drying' && grow.stage !== 'germination' ? grow : null;
   const named: ClimateChoice | null =
-    preset ?? (spell ? { stage: spell, preset: null } : staged?.stage ? { stage: staged.stage, preset: staged.preset } : null);
+    applied ?? (spell ? { stage: spell, preset: null } : staged?.stage ? { stage: staged.stage, preset: staged.preset } : null);
   const rows = [
     { key: 'temperature', label: t('targets.table.temperature'), fields: { day: 'dayTemperature', night: 'nightTemperature' } },
     ...(holdsHumidity(shape)
@@ -540,19 +544,6 @@ const vpdText = (device: Device, draft: TargetsDraft, half: Half): string =>
     ),
     'vpd',
   );
-
-/**
- * Whether the stored figures are what a preset writes, which names it on the
- * button. Germination is told by the dark it runs in as much as by its
- * figures, and its humidity counts only where a humidifier holds it.
- */
-const chosenBy = (chip: ClimateChoice, draft: TargetsDraft, shape: Shape, hasCo2: boolean, climateOnly: boolean): boolean => {
-  const preset = presetOf(chip);
-  if (preset === null || (chip.stage === 'germination') !== (shape.regime === 'germination')) return false;
-  if ((chip.stage === 'drying') !== (shape.regime === 'drying')) return false;
-  const shown = chip.stage === 'germination' && !holdsHumidity(shape) ? { ...preset, nightHumidity: null } : preset;
-  return equalsPreset(draft, shown, hasCo2, climateOnly);
-};
 
 /**
  * The light schedule a running plan's step puts back within the hour, where

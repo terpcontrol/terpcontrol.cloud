@@ -31,6 +31,7 @@ export const useSwitchOn = (device: Device) => {
         null,
         'control',
         resumes ? { now: t('control.saved.planGoesOn') } : undefined,
+        true,
       );
     } catch {
       // Shown beside the button, from the mutation that refused.

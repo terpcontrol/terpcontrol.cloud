@@ -166,7 +166,7 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
   }, [highlighted, mayManage, rules.data]);
 
   if (rules.isPending) return <Waiting lines={3} />;
-  if (!rules.data) return <LoadFailed retry={() => void rules.refetch()} />;
+  if (!rules.data) return <LoadFailed read={rules} />;
 
   // The name of the stage's group: the preset the grow stands on where the
   // catalogue has a name for it, otherwise the stage itself - and the bare
@@ -210,6 +210,7 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
                 toldAbove={toldAbove}
                 mayManage={mayManage}
                 highlighted={rule.id === highlighted || rule.id === made}
+                made={rule.id === made}
                 busy={update.isPending}
                 now={now}
                 // Among all the device's rules, whatever group each stands in.
@@ -331,6 +332,8 @@ interface RuleCardProps {
   toldAbove: boolean;
   mayManage: boolean;
   highlighted: boolean;
+  /** Just written by a template, which took the focus with it: the rule's card holds it, and the toast's undo is next. */
+  made: boolean;
   busy: boolean;
   now: DateTime;
   /** Whether another rule of the list carries the same name. */
@@ -350,14 +353,20 @@ interface RuleCardProps {
  * the rule watches - a CO2 rule the stage wrote for a controller with no
  * sensor - and the reason stands under it.
  */
-function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
+function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, made, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
+  const opens = useRef<HTMLButtonElement>(null);
   const silence = useSilence(rule, device.id, now);
 
   useEffect(() => {
     if (highlighted) card.current?.scrollIntoView?.({ block: 'center' });
   }, [highlighted]);
+  // The template that wrote it is gone with the tap, and the focus with it: it would fall to the next template, which
+  // writes again on Enter. The rule's own card takes it, which only opens.
+  useEffect(() => {
+    if (made) opens.current?.focus();
+  }, [made]);
 
   const missing = missingSensor(rule.watch, device);
   const told = willTell(t, rule.severity, rule, me, now);
@@ -397,7 +406,7 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, busy, n
   return (
     <li ref={card} className={`${ui.card} ${styles.card}`} data-highlight={highlighted || undefined}>
       {mayManage ? (
-        <button type="button" className={styles.open} onClick={onOpen}>
+        <button ref={opens} type="button" className={styles.open} onClick={onOpen}>
           {summary}
         </button>
       ) : (

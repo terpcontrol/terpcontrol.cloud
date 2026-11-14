@@ -100,9 +100,17 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
   const [leaving, setLeaving] = useState(false);
   // Escape, the backdrop and × all close the sheet; with edits in it they ask first, since Escape is pressed out of habit.
   const close = () => (JSON.stringify(draft) === first ? onClose() : setLeaving(true));
-  const refused = draft.steps.flatMap(step =>
-    refusalsOf(t, step, device, storedSettings(plan, step)).map(refusal => t('space.control.editor.refusedIn', { step: step.name, refusal })),
-  );
+  // The field still being typed in ("<step>:<figure>", "<step>:lightHours", "<step>:duration") is refused once it is
+  // left or the plan saved, not on the "2" of a "26".
+  const [typing, setTyping] = useState<string | null>(null);
+  const typedIn = (step: StepDraft) => (typing?.startsWith(`${step.key}:`) ? typing.slice(step.key.length + 1) : null);
+  const refusals = (settled: boolean) =>
+    draft.steps.flatMap(step =>
+      refusalsOf(t, step, device, storedSettings(plan, step), settled ? null : typedIn(step)).map(refusal =>
+        t('space.control.editor.refusedIn', { step: step.name, refusal }),
+      ),
+    );
+  const refused = refusals(false);
   const fits = refused.length === 0;
   const fromServer = serverRefusal(t, save.error, draft);
 
@@ -231,6 +239,8 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
                     stored={storedSettings(plan, step)}
                     device={device}
                     afterGermination={followsGermination(draft.steps, index, draft.loop)}
+                    typing={typedIn(step)}
+                    onTyping={field => setTyping(field === null ? null : `${step.key}:${field}`)}
                     onChange={over => change(step.key, over)}
                   />
                 ) : null}
@@ -259,7 +269,7 @@ export function PlanEditor({ device, plan, draft: opened, onClose }: { device: D
           className={`${ui.button} ${ui.primary} ${styles.submit}`}
           disabled={save.isPending || !fits}
           aria-describedby={fits ? undefined : 'plan-save-why'}
-          onClick={() => save.mutate(replaceBody(draft), { onSuccess: () => onClose() })}
+          onClick={() => (refusals(true).length > 0 ? setTyping(null) : save.mutate(replaceBody(draft), { onSuccess: () => onClose() }))}
         >
           {save.isPending ? t('grow.lifecycle.saving') : t('space.control.editor.save')}
         </button>
@@ -294,6 +304,8 @@ function StepFields({
   stored,
   device,
   afterGermination,
+  typing,
+  onTyping,
   onChange,
 }: {
   id: string;
@@ -303,6 +315,9 @@ function StepFields({
   device: Device;
   /** Whether the step follows a germination step, which it ends however little else it writes. */
   afterGermination: boolean;
+  /** The field of the step still being typed in, which is not refused before it is left. */
+  typing: string | null;
+  onTyping: (field: string | null) => void;
   onChange: (over: Partial<StepDraft>) => void;
 }) {
   const { t } = useTranslation();
@@ -326,7 +341,7 @@ function StepFields({
   // Held round the clock in the dark: drying, or germination.
   const dark = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
   const figures = figuresFor(device, step.stage);
-  const refused = figuresRefused(step, device, stored);
+  const refused = figuresRefused(step, device, stored).filter(one => one.figure.key !== typing);
   const rangeId = (figure: Figure) => `${id}-${figure.key}-range`;
   const pairOf = (figure: Figure) => Math.floor(figures.findIndex(one => one.key === figure.key) / 2);
 
@@ -376,7 +391,13 @@ function StepFields({
       ) : null}
 
       <span className="label">{t('space.control.step.duration')}</span>
-      <DurationField value={step.duration} min={0} fractional onChange={duration => onChange({ duration })} />
+      <DurationField
+        value={step.duration}
+        min={0}
+        fractional
+        onTyping={typed => onTyping(typed ? 'duration' : null)}
+        onChange={duration => onChange({ duration })}
+      />
       {step.duration.value === 0 ? <p className={ui.note}>{t('space.control.step.openEndedNote')}</p> : null}
 
       <span className="label">
@@ -396,6 +417,7 @@ function StepFields({
                 onChange={onChange}
                 held={dark}
                 refusedBy={refused.some(one => one.figure.key === figure.key) ? rangeId(figure) : null}
+                onTyping={onTyping}
               />
               {said.map(one => (
                 <p key={one.figure.key} id={rangeId(one.figure)} className={`${ui.problem} ${styles.figureWide}`} role="alert">
@@ -406,7 +428,7 @@ function StepFields({
           );
         })}
         {/* A drying room and a germination are dark round the clock: they have no light hours to set. */}
-        {dark ? null : <LightHoursField step={step} device={device} onChange={onChange} />}
+        {dark ? null : <LightHoursField step={step} device={device} typing={typing === 'lightHours'} onTyping={onTyping} onChange={onChange} />}
         {/* The figure this controller cannot run keeps its place and says what
             it needs, rather than leaving a gap that reads as a screen that
             forgot it. It is the row the manual targets page draws, in the same
@@ -498,10 +520,13 @@ export function DurationField({
   value,
   min,
   fractional = false,
+  onTyping,
   onChange,
 }: {
   value: StepDuration;
   min: 0 | 1;
+  /** Hears that a length is being typed, and that its field was left: a length is refused only then. */
+  onTyping?: (typing: boolean) => void;
   /**
    * Whether a fraction stands, as it does on a step: a recipe migrated from the
    * old app may hold half a day on one, and a browser that calls that invalid
@@ -513,7 +538,12 @@ export function DurationField({
   const { t } = useTranslation();
   const id = useId();
   const [typed, setTyped] = useState(() => String(value.value));
-  const fits = durationFits(value, min);
+  const [typing, setTyping] = useState(false);
+  const fits = durationFits(value, min) || typing;
+  const typingIs = (now: boolean) => {
+    setTyping(now);
+    onTyping?.(now);
+  };
 
   return (
     <div className={ui.stack1}>
@@ -529,8 +559,10 @@ export function DurationField({
           aria-describedby={fits ? undefined : `${id}-range`}
           onChange={event => {
             setTyped(event.target.value);
+            typingIs(true);
             onChange({ ...value, value: event.target.value.trim() === '' ? Number.NaN : Number(event.target.value) });
           }}
+          onBlur={() => typingIs(false)}
         />
         <Choices label={t('space.control.step.durationUnit')}>
           {DURATION_UNITS.map(unit => (
@@ -560,7 +592,20 @@ export function DurationField({
  * stands beside them to be moved, or handed back to the device so the hour set
  * under Zielwerte holds again.
  */
-function LightHoursField({ step, device, onChange }: { step: StepDraft; device: Device; onChange: (over: Partial<StepDraft>) => void }) {
+function LightHoursField({
+  step,
+  device,
+  typing,
+  onTyping,
+  onChange,
+}: {
+  step: StepDraft;
+  device: Device;
+  /** Still being typed in, so not refused yet. */
+  typing: boolean;
+  onTyping: (field: string | null) => void;
+  onChange: (over: Partial<StepDraft>) => void;
+}) {
   const { t } = useTranslation();
   const zone = useZone();
   const id = `step-light-${step.key}`;
@@ -568,7 +613,7 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
   const own = stepLightsOn(step.settings);
   const hours = stepLightHours(step);
   const lightsOn = own ?? (device.configuration ? targetsOf(device.configuration).lightsOn : null);
-  const outside = !lightHoursFit(step);
+  const outside = !lightHoursFit(step) && !typing;
 
   return (
     <>
@@ -589,7 +634,11 @@ function LightHoursField({ step, device, onChange }: { step: StepDraft; device: 
           aria-invalid={outside || undefined}
           aria-describedby={outside ? `${id}-range` : undefined}
           value={hours ?? ''}
-          onChange={event => onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) })}
+          onChange={event => {
+            onTyping('lightHours');
+            onChange({ lightHours: event.target.value === '' ? null : Number(event.target.value) });
+          }}
+          onBlur={() => onTyping(null)}
         />
         <span className={styles.figureUnit}>{t('planLight.unit')}</span>
       </span>
@@ -638,6 +687,7 @@ function FigureField({
   onChange,
   held = null,
   refusedBy,
+  onTyping,
 }: {
   figure: Figure;
   step: StepDraft;
@@ -646,6 +696,7 @@ function FigureField({
   held?: 'drying' | 'germination' | null;
   /** The id of the sentence that refuses the figure, where it lies outside its range. */
   refusedBy: string | null;
+  onTyping: (field: string | null) => void;
 }) {
   const { t } = useTranslation();
   const value = figureOf(step.settings, figure);
@@ -664,11 +715,11 @@ function FigureField({
         aria-invalid={refusedBy ? true : undefined}
         aria-describedby={refusedBy ?? undefined}
         value={value ?? ''}
-        onChange={event =>
-          onChange({
-            settings: withFigure(step.settings, figure, event.target.value === '' ? null : Number(event.target.value)),
-          })
-        }
+        onChange={event => {
+          onTyping(figure.key);
+          onChange({ settings: withFigure(step.settings, figure, event.target.value === '' ? null : Number(event.target.value)) });
+        }}
+        onBlur={() => onTyping(null)}
       />
       <span className={styles.figureUnit}>{t(`space.control.figureUnit.${figure.key}`)}</span>
     </label>
@@ -756,12 +807,15 @@ const figureRefusal = (t: Translate, refused: FigureRefused, held: 'drying' | 'g
   });
 
 /** Everything that keeps a step from being saved, in the words its fields say it in. */
-const refusalsOf = (t: Translate, step: StepDraft, device: Device, stored: DeviceConfiguration | null): string[] => {
+/** What keeps a step from being saved, in words; the field still being typed in (`typing`) is not judged yet. */
+const refusalsOf = (t: Translate, step: StepDraft, device: Device, stored: DeviceConfiguration | null, typing: string | null): string[] => {
   const held = isDarkStage(step.stage) ? (step.stage as 'drying' | 'germination') : null;
   return [
-    ...figuresRefused(step, device, stored).map(refused => figureRefusal(t, refused, held)),
-    ...(lightHoursFit(step) ? [] : [t('planLight.range', LIGHT_HOURS)]),
-    ...(durationFits(step.duration, 0) ? [] : [t('space.control.step.durationRange', { min: 0 })]),
+    ...figuresRefused(step, device, stored)
+      .filter(refused => refused.figure.key !== typing)
+      .map(refused => figureRefusal(t, refused, held)),
+    ...(lightHoursFit(step) || typing === 'lightHours' ? [] : [t('planLight.range', LIGHT_HOURS)]),
+    ...(durationFits(step.duration, 0) || typing === 'duration' ? [] : [t('space.control.step.durationRange', { min: 0 })]),
   ];
 };
 

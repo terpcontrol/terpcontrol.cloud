@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -565,8 +565,30 @@ describe('Steuerung of a place with several devices', () => {
     );
 
     const head = (await screen.findByRole('heading', { level: 1 })).closest('header')!;
-    await waitFor(() => expect(head).toHaveTextContent(/offline/));
+    // The lead's silence is the box's under the head to say, once.
+    expect(await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / })).toBeInTheDocument();
     expect(head).not.toHaveTextContent('Control on');
+  });
+
+  /** On a phone the head's pill, the box under it and the lead's card each said "offline", one under the other. */
+  it('says a silent lead is offline once: in the box, not again in the head´s pill or on its card', async () => {
+    state.devices = [{ ...device(NOW.minus({ hours: 2 })), control: regulating }];
+    drawTab(
+      null,
+      '/control',
+      here(['device-1'], [
+        {
+          deviceId: 'device-1',
+          values: [{ metric: 'temperature', value: 22, measuredAt: NOW.minus({ hours: 2 }).toISO(), state: 'offline' }],
+          setpoints: [],
+        },
+      ] as PlaceCard['climates']),
+    );
+
+    await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / });
+    const said = (document.body.textContent ?? '').match(/\boffline\b/g) ?? [];
+    expect(said).toHaveLength(1);
+    expect(screen.getByRole('region', { name: 'Blue Dream tent' })).not.toHaveTextContent(/offline/);
   });
 
   it('names a device that has not sent its settings as its card does: no tail of its id beside one of its kind standing elsewhere', async () => {
@@ -1295,6 +1317,22 @@ describe('the plan panel', () => {
     const buttons = screen.getAllByRole('button', { name: 'Remove the plan' });
     fireEvent.click(buttons[buttons.length - 1]);
     expect(state.removed).toBe(1);
+  });
+
+  /** "Als Nächstes · Schritt 2, Schritt 2": a step that kept the name it was given names its number once. */
+  it('names the next step by its number, and by its name only where it has one of its own', () => {
+    draw();
+    expect(screen.getByText('Next · step 2, Flower')).toBeInTheDocument();
+    cleanup();
+
+    state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Step 2' })] });
+    draw();
+    expect(screen.getByText('Next · step 2')).toBeInTheDocument();
+    cleanup();
+
+    state.plan = plan({ steps: [step({ name: 'Step 1' }), step({ id: 'step-2', name: 'Step 2' })], loop: true }, { activeStepIndex: 1 });
+    draw();
+    expect(screen.getByText('Next · back to step 1 – this plan loops.')).toBeInTheDocument();
   });
 
   it('puts a plan that has run every step at none of them', () => {

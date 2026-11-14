@@ -12,6 +12,7 @@ import { boundLabel, repeatsEvery, scaleNote, watchLabel, willTell } from '@/scr
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
 import type { Told } from '@/log/log-context';
+import { LogProvider } from '@/log/LogProvider';
 import { headersOf } from '@/ui/headers';
 import { rulePage } from './fixtures';
 import { announced, drawAt } from './harness';
@@ -1336,6 +1337,45 @@ describe('the alarm templates', () => {
     expect(screen.queryByRole('button', { name: /^Set up Too cold/ })).not.toBeInTheDocument();
     fireEvent.click(within(card).getByRole('button', { name: /^Too cold/ }));
     expect(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Name' })).toHaveValue('Too cold');
+  });
+
+  /**
+   * The template a tap wrote goes with the tap: the focus fell to the page and a Tab landed on the next template,
+   * where Enter wrote a second rule. The new rule's card takes it - Enter there opens, never writes - and the
+   * toast's undo is the next stop.
+   */
+  it('leaves the focus on the rule a template wrote by keyboard, with the toast´s undo the next stop', async () => {
+    const made = rule({
+      id: 'rule-made',
+      name: 'Too cold',
+      watch: { kind: 'reading', metric: 'temperature', upper: null, lower: 15 },
+      forSeconds: 900,
+    });
+    let written = false;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(written ? [...RULES, made] : RULES) : answers(path)) as never,
+    );
+    vi.mocked(api.post).mockImplementation(() => {
+      written = true;
+      return Promise.resolve(made) as never;
+    });
+    drawAt(
+      <LogProvider>
+        <Alarms spaceId="space-1" devices={[device()]} mayManage />
+      </LogProvider>,
+      { at: '/control/alarms?space=space-1' },
+    );
+
+    const template = await screen.findByRole('button', { name: /^Set up Too cold/ });
+    template.focus();
+    fireEvent.click(template);
+
+    const opens = await screen.findByRole('button', { name: /^Too cold/ });
+    await waitFor(() => expect(document.activeElement).toBe(opens));
+    await screen.findByRole('button', { name: 'Undo' });
+    fireEvent.keyDown(opens, { key: 'Tab' });
+    expect(document.activeElement).toHaveTextContent('Undo');
   });
 
   it('works each line out from the targets the device holds, and falls back where it states none', () => {

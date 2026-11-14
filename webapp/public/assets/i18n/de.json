@@ -1601,8 +1601,8 @@
         "since": "Steht seit {{age}} still: Der Plan geht erst weiter, wenn er bestätigt wird."
       },
       "next": {
-        "step": "Als Nächstes · Schritt {{number}}, {{name}}",
-        "loops": "Als Nächstes · zurück zu Schritt 1, {{name}} – dieser Plan wiederholt sich.",
+        "step": "Als Nächstes · Schritt {{number}}{{name}}",
+        "loops": "Als Nächstes · zurück zu Schritt 1{{name}} – dieser Plan wiederholt sich.",
         "ends": "Das ist der letzte Schritt: Danach ist der Plan abgeschlossen.",
         "atRest": "In Ruhe schreibt er nichts; gestartet beginnt er bei Schritt 1.",
         "completed": "Alle Schritte sind gelaufen; erneut gestartet beginnt er bei Schritt 1."
@@ -1769,7 +1769,7 @@
         "plan_step_gone": "Diesen Schritt hat der Plan nicht mehr – er wurde inzwischen geändert."
       },
       "template": {
-        "keepTitle": "Als Vorlage sichern",
+        "keepTitle": "Als Vorlage speichern",
         "startTitle": "Mit einer Vorlage beginnen",
         "name": "Name",
         "keepNote_one": "Der {{count}} Schritt dieses Plans wird kopiert, wie er ist. Plan und Vorlage wissen danach nichts voneinander.",

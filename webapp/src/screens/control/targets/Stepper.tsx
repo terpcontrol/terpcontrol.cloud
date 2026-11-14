@@ -80,9 +80,11 @@ interface StepperProps {
   describedBy?: string;
   /**
    * The figure as it was typed - outside the range too, never brought into it - or NaN for text that is no
-   * figure, which the field keeps. Whoever holds the figure says why it is refused and does not send it.
+   * figure, which the field keeps. Whoever holds the figure says why it is refused and does not send it. A live
+   * field hands each figure on `typing`, and the last once more as it is left: "2" on the way to "26" is refused
+   * only if the field is left at it.
    */
-  onChange: (value: number) => void;
+  onChange: (value: number, typing?: boolean) => void;
 }
 
 /**
@@ -146,7 +148,7 @@ export function Stepper({
   const commit = () => {
     if (typing === null) return;
     const typed = figureOf(typing);
-    if (!Object.is(typed, value)) onChange(typed);
+    if (live || !Object.is(typed, value)) onChange(typed, false);
     if (Number.isFinite(typed)) setTyping(null);
   };
 
@@ -191,7 +193,7 @@ export function Stepper({
           onFocus={event => event.currentTarget.select()}
           onChange={event => {
             setTyping(event.target.value);
-            if (live) onChange(figureOf(event.target.value));
+            if (live) onChange(figureOf(event.target.value), true);
           }}
           onBlur={commit}
           onKeyDown={keys}

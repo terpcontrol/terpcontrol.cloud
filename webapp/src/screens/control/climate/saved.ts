@@ -21,7 +21,9 @@ export interface Also {
  * ("· Plan pausiert"), with the way to take it back where that is one write,
  * and what then holds again, said the same way. A device acknowledges
  * nothing, so nothing here says that it took anything. `from` names the
- * setting, so saving it again answers in the same toast.
+ * setting, so saving it again answers in the same toast. A state switched
+ * (`state`: "Regelung aus", "Trocknung beendet") is said as the state, and
+ * stored only where the device is not heard to take it.
  */
 export const useSaved = (device: Device) => {
   const { t } = useTranslation();
@@ -30,9 +32,9 @@ export const useSaved = (device: Device) => {
 
   return {
     offline,
-    say: (what: string, back: Back | null = null, from?: string, also?: Also) => {
+    say: (what: string, back: Back | null = null, from?: string, also?: Also, state = false) => {
       const saved = (said: string, more?: string) =>
-        [t(offline ? 'control.saved.later' : 'control.saved.now', { what: said }), more].filter(Boolean).join(' · ');
+        [state && !offline ? said : t(offline ? 'control.saved.later' : 'control.saved.now', { what: said }), more].filter(Boolean).join(' · ');
       tell({
         label: saved(what, also?.now),
         ...(back ? { undo: back.undo, undone: saved(back.undone, also?.back) } : { undo: null }),

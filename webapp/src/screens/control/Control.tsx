@@ -86,6 +86,8 @@ export function Control({
   if (sub !== null && !isSub(sub)) return <Navigate to={controlPath(spaceId)} replace />;
 
   const title = t('shell.tabs.control');
+  // A device that has never been heard is waiting for its first values, not offline.
+  const silentSince = lead && spoke !== null && deviceLiveness(spoke, now) === 'offline' ? sinceLabel(spoke, now, zone) : null;
   const head = sub ? (
     <PageHead title={t(`control.page.${sub}`)} back={{ to: controlPath(spaceId), label: t('control.back') }} />
   ) : here ? (
@@ -95,6 +97,8 @@ export function Control({
       place={several ? place : null}
       deviceId={lead?.id ?? null}
       state={lead ? stateOf(t, lead, items, spoke, now, zone) : null}
+      // The box under the title says since when the climate's device has been quiet; the pill and its card do not again.
+      silenceSaid={silentSince !== null}
     />
   ) : (
     <VisitingTitle title={title} spaceId={spaceId} />
@@ -109,7 +113,7 @@ export function Control({
   const reader = mayManage ? null : <p className={ui.note}>{t(mayLog ? 'space.control.youMayLog' : 'targets.readOnly')}</p>;
 
   if (waiting) return framed(<Waiting lines={4} />);
-  if (devices.failed) return framed(<LoadFailed retry={devices.refetch} />);
+  if (devices.failed) return framed(<LoadFailed read={devices} />);
 
   if (sub === 'alarms') return framed(<Alarms spaceId={spaceId} devices={ordered} mayManage={mayManage} />);
   if (sub === 'plan') {
@@ -134,8 +138,6 @@ export function Control({
     );
   }
 
-  // A device that has never been heard is waiting for its first values, not offline.
-  const silentSince = spoke !== null && deviceLiveness(spoke, now) === 'offline' ? sinceLabel(spoke, now, zone) : null;
   // The page names its place once: beside the title where the account has several, else over the two columns.
   const over = several
     ? { climate: t('control.climate'), devices: t('control.devices') }
@@ -159,7 +161,7 @@ export function Control({
       </div>
       <div className={`${ui.stack3} ${styles.column}`}>
         <h2 className={styles.label}>{over.devices}</h2>
-        <DevicesHere spaceId={spaceId} devices={ordered} lead={lead} mayManage={mayManage} maySetUp={maySetUp} />
+        <DevicesHere spaceId={spaceId} devices={ordered} lead={lead} silenceSaid={silentSince !== null} mayManage={mayManage} maySetUp={maySetUp} />
       </div>
     </div>,
   );

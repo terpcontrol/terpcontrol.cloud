@@ -41,12 +41,15 @@ export function DevicesHere({
   spaceId,
   devices,
   lead,
+  silenceSaid = false,
   mayManage,
   maySetUp,
 }: {
   spaceId: string;
   devices: Device[];
   lead: Device | null;
+  /** The page says above, in its box, that the lead has gone quiet: its card does not say it again. */
+  silenceSaid?: boolean;
   mayManage: boolean;
   /** Whether the session may add hardware at all: an account of its own, not a guest's and not the demo. */
   maySetUp: boolean;
@@ -75,6 +78,7 @@ export function DevicesHere({
           among={devices}
           leads={device.id === lead?.id}
           spokeAt={spokeAt(device)}
+          silenceSaid={silenceSaid && device.id === lead?.id}
           mayManage={mayManage}
           now={now}
         />
@@ -132,6 +136,7 @@ function DeviceCard({
   among,
   leads,
   spokeAt,
+  silenceSaid,
   mayManage,
   now,
 }: {
@@ -139,6 +144,7 @@ function DeviceCard({
   among: Device[];
   leads: boolean;
   spokeAt: string | null;
+  silenceSaid: boolean;
   mayManage: boolean;
   now: DateTime;
 }) {
@@ -153,7 +159,7 @@ function DeviceCard({
   const firmware = running ? t('control.device.firmware', { day: madeOn(running) }) : null;
   // The pill's words; a device that is heard says no age, which would only count the seconds on every card.
   const [word, age] = livenessWords(liveness, spokeAt, now);
-  const says = waiting ? [t('liveness.waiting')] : [word, liveness === 'live' ? null : age];
+  const says = waiting ? [t('liveness.waiting')] : silenceSaid && offline ? [] : [word, liveness === 'live' ? null : age];
   // What a device that is not the place's climate is set to, which its own page changes.
   const own = leads ? null : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
@@ -161,7 +167,11 @@ function DeviceCard({
   return (
     <section className={`${ui.panel} ${styles.device}`} aria-label={title} data-short={!leads || undefined}>
       <div className={styles.deviceHead}>
-        <RowText title={title} line={<Facts facts={[...says, firmware, own ? `${own.label}: ${own.value}` : null]} />} warn={offline && !waiting} />
+        <RowText
+          title={title}
+          line={<Facts facts={[...says, firmware, own ? `${own.label}: ${own.value}` : null]} />}
+          warn={offline && !waiting && !silenceSaid}
+        />
         {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}
       </div>
       {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}

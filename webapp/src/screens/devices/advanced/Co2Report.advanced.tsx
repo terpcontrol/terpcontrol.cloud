@@ -55,7 +55,7 @@ function Co2Report({ device, mayManage }: DeviceContext) {
 
   const body = () => {
     if (report.isPending) return <Waiting lines={2} />;
-    if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
+    if (!report.data) return <LoadFailed read={report} />;
 
     const { cylinders, openingsPerGram, restGrams } = report.data;
     const current = cylinders.find(cylinder => cylinder.until === null) ?? null;

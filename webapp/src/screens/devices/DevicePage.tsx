@@ -31,6 +31,7 @@ import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import type { Translate } from '@/i18n/i18n';
 import { ControlRow } from './ControlSwitch';
 import { DeviceActions } from './DeviceActions';
 import { useDevice, useDeviceLiveness } from './device-read';
@@ -83,10 +84,28 @@ export function DevicePage() {
   const { deviceId = '', page = null } = useParams();
   const found = useDevice(deviceId);
   usePageOfPlace(found.device?.spaceId ?? null);
+  // A page under the device keeps its own name and its way back while the device is read, and when it cannot be.
+  const under = subTitle(t, page);
 
   if (found.gone) return <NoLongerHere what="device" />;
-  if (found.isPending) return <Waiting lines={5} />;
-  if (!found.device) return <LoadFailed title={t('shell.gone.title.device')} read={found} />;
+  if (found.isPending) {
+    return under ? (
+      <Under deviceId={deviceId} title={under}>
+        <Waiting lines={5} />
+      </Under>
+    ) : (
+      <Waiting lines={5} />
+    );
+  }
+  if (!found.device) {
+    return under ? (
+      <Under deviceId={deviceId} title={under}>
+        <LoadFailed read={found} />
+      </Under>
+    ) : (
+      <LoadFailed title={t('shell.gone.title.device')} read={found} />
+    );
+  }
 
   return <DeviceScreen key={deviceId} device={found.device} among={found.among} page={page} />;
 }
@@ -120,11 +139,20 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   const advanced = mayManage ? itemsFor('device', context) : [];
 
   // What the reader may do is asked of the places: until they are read, nothing is offered and no page is refused.
-  if (spaces.isPending) return <Waiting lines={5} />;
+  const under = subTitle(t, page);
+  if (spaces.isPending) {
+    return under ? (
+      <Under deviceId={device.id} name={name} title={under}>
+        <Waiting lines={5} />
+      </Under>
+    ) : (
+      <Waiting lines={5} />
+    );
+  }
 
   if (page === 'advanced' && advanced.length > 0) {
     return (
-      <Under device={device} name={name} title={t('advanced.title')}>
+      <Under deviceId={device.id} name={name} title={t('advanced.title')}>
         <div className={`${ui.card} ${styles.items}`} data-advanced="device">
           <div className={advancedStyles.items}>
             {advanced.map(({ id, Item }) => (
@@ -137,7 +165,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   }
   if (page === 'details') {
     return (
-      <Under device={device} name={name} title={t('devices.panel.technical')}>
+      <Under deviceId={device.id} name={name} title={t('devices.panel.technical')}>
         <Technical device={device} table={hosts ? table : undefined} />
       </Under>
     );
@@ -228,12 +256,21 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
 }
 
 /** A page under a device's own: whose it is, what it is, and the way back to the device. */
-function Under({ device, name, title, children }: { device: Device; name: string; title: string; children: ReactNode }) {
+/** The name of a page under a device, which its head keeps whatever the page itself can show. */
+const subTitle = (t: Translate, page: string | null): string | null =>
+  page === 'advanced' ? t('advanced.title') : page === 'details' ? t('devices.panel.technical') : null;
+
+/** A page under a device: its name, whose page it is - where the device has been read - and the way back to it. */
+function Under({ deviceId, name = null, title, children }: { deviceId: string; name?: string | null; title: string; children: ReactNode }) {
   const { t } = useTranslation();
 
   return (
     <section className={`${ui.stack3} ${ui.page}`}>
-      <PageHead title={title} of={name} back={{ to: devicePath(device.id), label: t('device.backTo', { name }) }} />
+      <PageHead
+        title={title}
+        of={name}
+        back={{ to: devicePath(deviceId), label: t('device.backTo', { name: name ?? t('shell.gone.title.device') }) }}
+      />
       {children}
     </section>
   );

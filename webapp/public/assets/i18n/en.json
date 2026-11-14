@@ -1591,8 +1591,8 @@
         "since": "Waiting for {{age}}: the plan goes no further until it is confirmed."
       },
       "next": {
-        "step": "Next · step {{number}}, {{name}}",
-        "loops": "Next · back to step 1, {{name}} – this plan loops.",
+        "step": "Next · step {{number}}{{name}}",
+        "loops": "Next · back to step 1{{name}} – this plan loops.",
         "ends": "This is the last step: the plan completes when it is over.",
         "atRest": "At rest it writes nothing; started, it begins at step 1.",
         "completed": "Every step has run; started again, it begins at step 1."

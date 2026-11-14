@@ -12,6 +12,7 @@ import { PlanPanel } from '@/screens/control/PlanPanel';
 import { emptyDraft, newStep, type PlanDraft } from '@/screens/control/plan-edit';
 import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
+import ui from '@/ui/ui.module.css';
 import { drawAt } from './harness';
 import { Toast } from './toast';
 import { translate } from './translations';
@@ -132,6 +133,9 @@ describe('a step’s figure', () => {
     const field = screen.getByRole('spinbutton', { name: /^Day · temperature/ });
 
     fireEvent.change(field, { target: { value: '99' } });
+    // Judged as the field is left, not on the way to a figure: "2" of a "26" is no refusal.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.blur(field);
 
     const said = 'Day · temperature: between 15 and 35 °C, or leave it empty.';
     expect(screen.getByRole('alert')).toHaveTextContent(said);
@@ -145,7 +149,11 @@ describe('a step’s figure', () => {
     expect(state.saved).toHaveLength(0);
 
     fireEvent.change(field, { target: { value: '3' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Saving while it is typed judges it then, and sends nothing.
+    fireEvent.click(save);
     expect(screen.getByRole('alert')).toHaveTextContent(said);
+    expect(state.saved).toHaveLength(0);
 
     fireEvent.change(field, { target: { value: '26' } });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -170,6 +178,7 @@ describe('a step’s figure', () => {
     expect(screen.getByRole('button', { name: 'Save the plan' })).toBeEnabled();
 
     fireEvent.change(screen.getByRole('spinbutton', { name: /^Day · temperature/ }), { target: { value: '39' } });
+    fireEvent.blur(screen.getByRole('spinbutton', { name: /^Day · temperature/ }));
     expect(screen.getByRole('alert')).toHaveTextContent('Day · temperature: between 15 and 35 °C, or leave it empty.');
   });
 
@@ -206,12 +215,14 @@ describe('a step’s length', () => {
     const length = screen.getByRole('spinbutton', { name: 'How long, as a number' });
 
     fireEvent.change(length, { target: { value: '-2' } });
+    fireEvent.blur(length);
     expect(length).toHaveValue(-2);
     expect(length).toBeInvalid();
     expect(screen.getByRole('alert')).toHaveTextContent('How long: 0 or more.');
     expect(save).toBeDisabled();
 
     fireEvent.change(length, { target: { value: '' } });
+    fireEvent.blur(length);
     expect(save).toBeDisabled();
 
     fireEvent.change(length, { target: { value: '0' } });
@@ -227,6 +238,7 @@ describe('a step’s length', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Extend' }));
     fireEvent.change(screen.getByRole('spinbutton', { name: 'How long, as a number' }), { target: { value: '0' } });
+    fireEvent.blur(screen.getByRole('spinbutton', { name: 'How long, as a number' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('How long: 1 or more.');
     expect(screen.getByRole('button', { name: /^Add/ })).toBeDisabled();
@@ -245,6 +257,9 @@ describe('going on while regulation is off', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(state.sent).toHaveLength(0);
     expect(screen.getByText('Control is off: continuing sends the step to the device and so switches it back on.')).toHaveFocus();
+    // One filled green while it asks: the button that asked, and not the yes that also switches control on.
+    expect(document.querySelectorAll(`.${ui.primary}`)).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Continue and switch control on' })).not.toHaveClass(ui.primary);
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue and switch control on' }));
     expect(state.sent).toEqual([{ kind: 'resume' }]);

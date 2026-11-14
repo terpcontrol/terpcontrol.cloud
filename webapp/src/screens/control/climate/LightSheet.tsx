@@ -61,12 +61,15 @@ export function LightSheet({
   const [draft, setDraft] = useState(baseline);
   const [asked, setAsked] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
+  // A length still being typed keeps the save live: pressed, it leaves the field, which refuses or takes the length.
+  const [typing, setTyping] = useState(false);
   const refusedId = useId();
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const paused = changed ? pauses(draft) : null;
   const planSays = planName ? planWords(t, planName, owned) : null;
 
   const save = async () => {
+    if (refused !== null) return;
     setAsked(true);
     if (await onSave(draft)) onClose();
   };
@@ -79,7 +82,7 @@ export function LightSheet({
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}
-          disabled={busy || !changed || refused !== null}
+          disabled={busy || !(changed || typing) || refused !== null}
           aria-describedby={refused ? refusedId : undefined}
           onClick={() => void save()}
         >
@@ -104,7 +107,10 @@ export function LightSheet({
           planSets={planSets}
           longest={longest}
           refusedId={refusedId}
-          onRefused={setRefused}
+          onRefused={(why, still) => {
+            setRefused(why);
+            setTyping(still);
+          }}
         />
         {planSays ? <p className={styles.note}>{planSays}</p> : null}
         {paused ? (

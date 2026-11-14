@@ -36,9 +36,9 @@ interface LightPlanProps {
   planSets?: { name: string; schedule: LightSchedule } | null;
   /** The longest day the lamp can be told, in hours: a stand-alone LIGHT keeps two times of day and has no word for a day that never ends. */
   longest?: number;
-  /** The id the refusal of a typed length stands under, and where the sheet hears of it. */
+  /** The id the refusal of a typed length stands under, and where the sheet hears of it - and of a length still being typed. */
   refusedId?: string;
-  onRefused?: (why: string | null) => void;
+  onRefused?: (why: string | null, typing: boolean) => void;
 }
 
 /**
@@ -55,13 +55,16 @@ interface LightPlanProps {
 export function LightPlan(props: LightPlanProps) {
   const { device, draft, baseline, set, readOnly, now, offset, planSets = null, longest = 24, refusedId, onRefused } = props;
   const { t } = useTranslation();
-  // A length typed outside what the lamp can be told stands in the field, refused, and never in the draft.
+  // A length typed outside what the lamp can be told stands in the field, refused once the field is left, and never
+  // in the draft: the plan goes on drawing the last length that was accepted, not the "3" on the way to a "30".
   const [typedHours, setTypedHours] = useState<number | null>(null);
+  const [typingHours, setTypingHours] = useState(false);
+  const [accepted, setAccepted] = useState(draft.lightHours);
   const hoursName = t('targets.aria.lightHours');
   const hoursRange = { min: 0, max: longest, decimals: 1, unit: t('targets.unit.hours') };
   // A refusal names the field as its label reads.
   const hoursRefusal = (value: number) => rangeRefusal(t, t('targets.plan.hours'), value, hoursRange);
-  const hoursRefused = typedHours === null ? null : hoursRefusal(typedHours);
+  const hoursRefused = typedHours === null || typingHours ? null : hoursRefusal(typedHours);
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
   const ramps = rampsFor(device, device.configuration, baseline);
@@ -145,11 +148,13 @@ export function LightPlan(props: LightPlanProps) {
             disabled={readOnly}
             live
             describedBy={refusedId}
-            onChange={lightHours => {
+            onChange={(lightHours, typing = false) => {
               const refused = hoursRefusal(lightHours);
               setTypedHours(refused ? lightHours : null);
-              onRefused?.(refused);
-              if (!refused) set({ ...draft, lightHours });
+              setTypingHours(typing);
+              onRefused?.(typing ? null : refused, typing);
+              if (!refused && !typing) setAccepted(lightHours);
+              set({ ...draft, lightHours: refused ? accepted : lightHours });
             }}
           />
         </div>

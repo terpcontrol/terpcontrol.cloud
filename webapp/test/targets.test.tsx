@@ -502,13 +502,42 @@ describe('the climate under Steuerung', () => {
       expect(sent('PUT')).toHaveLength(0);
     });
 
-    it('is refused for the light’s length on its sheet, and the save waits', async () => {
+    /** Typing "30" drew "3 h" as the plan's length on the way, and left it there under the refusal of the "30". */
+    it('is refused for the light’s length on its sheet once the field is left, the plan on the last length accepted, and the save waits', async () => {
       await drawn();
       tap('Change times');
       const sheet = screen.getByRole('dialog', { name: 'Light times' });
-      fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'Light on for' }), { target: { value: '25' } });
+      const field = within(sheet).getByRole('spinbutton', { name: 'Light on for' });
+      const title = () => within(sheet).getByRole('group', { name: 'Light plan' }).querySelector('p')!.textContent;
+      const before = title();
+      fireEvent.change(field, { target: { value: '3' } });
+      fireEvent.change(field, { target: { value: '30' } });
 
+      expect(within(sheet).queryByText(/Lasts: that has to be/)).not.toBeInTheDocument();
+      expect(title()).toBe(before);
+      fireEvent.blur(field);
       expect(within(sheet).getByText('Lasts: that has to be between 0 and 24 h.')).toBeInTheDocument();
+      expect(title()).toBe(before);
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
+      expect(sent('PUT')).toHaveLength(0);
+    });
+
+    /** The red sentence stood under "2" on the way to "26", a figure that was never going to be refused. */
+    it('is said once the field is left or Save pressed, not on the first digit of a figure in its range', async () => {
+      await drawn();
+      fireEvent.click(figure('Day temperature'));
+      const sheet = screen.getByRole('dialog');
+      const field = within(sheet).getByRole('spinbutton', { name: 'Day temperature' });
+      fireEvent.change(field, { target: { value: '2' } });
+      expect(within(sheet).queryByText(/that has to be between/)).not.toBeInTheDocument();
+      fireEvent.change(field, { target: { value: '26' } });
+      fireEvent.blur(field);
+      expect(within(sheet).queryByText(/that has to be between/)).not.toBeInTheDocument();
+
+      fireEvent.change(field, { target: { value: '2' } });
+      expect(within(sheet).getByRole('button', { name: 'Save' })).toBeEnabled();
+      save();
+      expect(within(sheet).getByText('Day temperature: that has to be between 15 and 35 °C.')).toBeInTheDocument();
       expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled();
       expect(sent('PUT')).toHaveLength(0);
     });
@@ -601,20 +630,25 @@ describe('the climate under Steuerung', () => {
   });
 
   describe('a preset', () => {
-    it('is named on its button where the figures are its own', async () => {
-      await drawn(
-        device({
-          configuration: {
-            ...CONFIGURATION,
-            day: { temperature: 25, humidity: 50 },
-            night: { temperature: 20, humidity: 50 },
-            co2: { target: 1000 },
-            'lights.limit': 100,
-          },
-        }),
-      );
+    /**
+     * A plan's Veg step happened to hold a flowering preset's figures, and Steuerung named that preset while the plan,
+     * Start and the grow said Veg: a preset is named by what the device was put on, never by figures that match one.
+     */
+    it('is named by the preset the device was put on, not by figures that happen to be a preset´s', async () => {
+      const flowerFigures = {
+        ...CONFIGURATION,
+        day: { temperature: 25, humidity: 50 },
+        night: { temperature: 20, humidity: 50 },
+        co2: { target: 1000 },
+        'lights.limit': 100,
+      };
+      const matching = draw(device({ configuration: flowerFigures }));
+      await screen.findByRole('table', { name: 'Targets' });
+      expect(screen.getByRole('button', { name: 'Climate preset' })).toBeInTheDocument();
+      matching.unmount();
 
-      expect(screen.getByRole('button', { name: 'Climate preset: Flower' })).toBeInTheDocument();
+      await drawn(device({ configuration: flowerFigures, control: { ...CONTROL, preset: { stage: 'vegetative', preset: null } } }));
+      expect(screen.getByRole('button', { name: 'Climate preset: Veg' })).toBeInTheDocument();
     });
 
     /** One figure set by hand does not make the place nameless: the server still knows what stage it is on. */
@@ -651,9 +685,11 @@ describe('the climate under Steuerung', () => {
 
       fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
       await waitFor(() => expect(sent('PUT')).toHaveLength(1));
-      const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; drying?: boolean; germination?: boolean };
+      const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; drying?: boolean; germination?: boolean; preset?: unknown };
       expect(body.configuration.day).toEqual({ temperature: 25, humidity: 50, heating: 'hard' });
       expect(body.configuration.co2).toEqual({ target: 1000, sunsetOff: 1 });
+      // Kept on the device as what it was put on, which names it from then on.
+      expect(body.preset).toEqual({ stage: 'flowering', preset: null });
       await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
       expect(told[0].undo).not.toBeNull();
     });
@@ -731,7 +767,7 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
       expect(sent('PATCH')[0]).toMatchObject({ path: '/devices/device-1/configuration', body: { set: { drying: false } } });
       expect(sent('PUT')).toHaveLength(0);
-      await waitFor(() => expect(said()).toBe('Drying ended saved'));
+      await waitFor(() => expect(said()).toBe('Drying ended'));
       expect(told[0].undo).toBeNull();
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
@@ -755,7 +791,7 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(sent('PATCH')).toHaveLength(1));
       expect(sent('POST')[0].body).toEqual({ kind: 'pause', reason: 'Targets set by hand' });
       expect(sent('PATCH')[0].body).toEqual({ set: { mode: 'standard' } });
-      await waitFor(() => expect(said()).toBe('Germination ended saved'));
+      await waitFor(() => expect(said()).toBe('Germination ended'));
     });
 
     it('offers to end nothing while no spell runs', async () => {
@@ -987,7 +1023,7 @@ describe('the climate under Steuerung', () => {
       expect(await screen.findByText('Control off.')).toBeInTheDocument();
       tap('Switch control on');
       await waitFor(() => expect(sent('PATCH')[0]?.body).toEqual({ set: { control: true } }));
-      await waitFor(() => expect(said()).toBe('Control on saved'));
+      await waitFor(() => expect(said()).toBe('Control on'));
     });
 
     /**
