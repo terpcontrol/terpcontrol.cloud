@@ -213,10 +213,11 @@ describe('what a grow´s phases and placements mean', () => {
     ]);
   });
 
-  it('counts nothing before the grow has entered a phase', () => {
+  /** The head said no day for a grow without a phase, nor how long it ran once ended, while its diary counted "Tag 21". */
+  it('counts the days from the start before the grow has entered a phase, as its diary does, and no stage', () => {
     const summary = summaryOf(grown({ placements: [placement({})] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
-    expect(summary).toMatchObject({ dayNumber: null, weekNumber: null, stage: null, phaseDay: null, isAuto: false, groups: [] });
+    expect(summary).toMatchObject({ dayNumber: 11, weekNumber: 2, stage: null, phaseDay: null, isAuto: false, groups: [] });
   });
 
   it('stops counting on the day the grow ended', () => {
@@ -351,10 +352,10 @@ describe('starting a grow', () => {
     expect(grow.summary.locations).toEqual([{ spaceId: null, plantIds: grow.summary.locations[0].plantIds }]);
   });
 
-  it('counts no day until the grow has entered a phase', async () => {
-    const grow = await started();
+  it('counts its days from its start before the grow has entered a phase', async () => {
+    const grow = await started({ startedAt: new Date().toISOString() });
 
-    expect(grow.summary.dayNumber).toBeNull();
+    expect(grow.summary.dayNumber).toBe(1);
     expect(grow.phases).toEqual([]);
   });
 

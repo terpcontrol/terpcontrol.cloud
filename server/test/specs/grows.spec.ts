@@ -65,10 +65,10 @@ describe('the new-grow sheet', () => {
     expect(plants.body.items.map((plant: { label: string }) => plant.label)).toEqual(['Amnesia 1', 'Amnesia 2', 'Gelato 1']);
   });
 
-  it('counts no day until the grow has entered a phase', async () => {
+  it('counts its days from its start before the grow has entered a phase, and names no stage', async () => {
     const grow = await startAGrow();
 
-    expect(grow.summary).toMatchObject({ dayNumber: null, stage: null, isAuto: false, groups: [] });
+    expect(grow.summary).toMatchObject({ dayNumber: 1, stage: null, isAuto: false, groups: [] });
   });
 
   it('refuses a body the contract does not describe', async () => {

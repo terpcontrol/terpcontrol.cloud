@@ -187,7 +187,8 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
   const origin = growOriginOf(grow);
   const groups = groupsOf(grow.phases, plants);
   const headline = groups[0]?.phase ?? latestPhase(grow.phases);
-  const dayNumber = grow.phases.length > 0 ? growDayUpTo(origin, asOf, zone) : null;
+  // Counted from the grow's start whether a phase was entered or not, as its diary counts: one count everywhere.
+  const dayNumber = growDayUpTo(origin, asOf, zone);
 
   const told: PhaseGroup[] = groups.map(group => ({
     stage: group.phase.stage,
