@@ -490,6 +490,20 @@ describe('Start of one place with a camera and a grow', () => {
 describe('Start of a place that only regulates', () => {
   beforeEach(() => onePlace(overviewOf()));
 
+  /** A lamp aims at no climate: its settings are its light, never "no targets yet". */
+  it('says what a lamp alone is set to, by its light', async () => {
+    server.devices = [
+      fridge({ type: 'light', name: 'Bar light', configuration: { day: 6 * 3600, night: 0, limit: 65 } as never, control: null } as never),
+    ];
+    onePlace(overviewOf({ setpoints: [], targets: null as never, values: [] }));
+    draw();
+
+    const row = await screen.findByRole('link', { name: /Settings/ });
+    await waitFor(() => expect(row).toHaveTextContent(/Light 06:00 to (24|00):00/));
+    expect(row).toHaveTextContent('65 %');
+    expect(row).not.toHaveTextContent(/No targets yet/i);
+  });
+
   it('draws the readings as tiles, each the way to its curve, with the verdict under the figure', async () => {
     draw();
 

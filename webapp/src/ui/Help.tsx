@@ -209,6 +209,24 @@ export function Help({ topic }: { topic: HelpTopic }) {
   );
 }
 
+/**
+ * A label with its (i): the mark stays with the label's last word, so a label that takes two lines keeps it beside
+ * the second rather than standing apart from the words - or alone on a third.
+ */
+export function Named({ label, topic }: { label: string; topic?: HelpTopic }) {
+  const last = label.lastIndexOf(' ') + 1;
+
+  return (
+    <>
+      {label.slice(0, last)}
+      <span className={styles.last}>
+        {label.slice(last)}
+        {topic ? <Help topic={topic} /> : null}
+      </span>
+    </>
+  );
+}
+
 /** A word in running text that explains itself: the word is the button, and stays the word in the sentence. */
 export function Term({ topic, children }: { topic: HelpTopic; children: ReactNode }) {
   const { triggerProps, parts } = useExplanation(topic);

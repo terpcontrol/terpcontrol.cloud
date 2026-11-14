@@ -126,6 +126,13 @@ describe('Steuerung while its places are read, and when they cannot be', () => {
     expect(screen.getByRole('link', { name: 'Back to Control' })).toHaveAttribute('href', '/control?space=space-1');
   });
 
+  /** The pages below Steuerung stood at the left of its wide frame, a page's width beside the rail with a column in it. */
+  it('frames a page below Steuerung as one reading column, which the shell centres, and Steuerung as its wide page', async () => {
+    page('/control/plan?space=space-customer');
+    expect((await screen.findByRole('heading', { level: 1, name: 'Grow plan' })).closest('section')?.className).toMatch(/reading/);
+    expect(screen.getByRole('heading', { level: 1 }).closest('section')?.className).not.toMatch(/steering/);
+  });
+
   it('keeps the name of a page under a device, and the way back to the device, where the device cannot be read', async () => {
     vi.stubGlobal(
       'fetch',

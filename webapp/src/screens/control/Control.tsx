@@ -33,7 +33,7 @@ import { OutputsPage } from './Outputs';
 import { OwnSettings } from './OwnSettings';
 import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
-import { usePauseReasons } from './plan-labels';
+import { usePlanWords } from './plan-labels';
 import { followsPlan, modeWord, planLine, standOf } from './rows';
 import styles from './Control.module.css';
 
@@ -113,7 +113,7 @@ export function Control({
   const reader = mayManage ? null : <p className={ui.note}>{t(mayLog ? 'space.control.youMayLog' : 'targets.readOnly')}</p>;
 
   if (waiting) return framed(<Waiting lines={4} />);
-  if (devices.failed) return framed(<LoadFailed read={devices} />);
+  if (devices.failed) return framed(<LoadFailed read={devices} values />);
 
   if (sub === 'alarms') return framed(<Alarms spaceId={spaceId} devices={ordered} mayManage={mayManage} />);
   if (sub === 'plan') {
@@ -169,7 +169,7 @@ export function Control({
 
 /**
  * What the place's climate is doing, in the head where a live place's age
- * would stand: "Regelung ein", or what is away from it. A lead with no control
+ * would stand: "Regelung an", or what is away from it. A lead with no control
  * of its own, or without its first values, leaves the place's age there. One
  * nobody hears is not said to regulate in green, also while another device
  * keeps the place live: its state stands as of when it was last heard.
@@ -203,7 +203,7 @@ const stateOf = (t: Translate, lead: Device, devices: Device[], spoke: string | 
 function PlanPage({ spaceId, devices, mayManage, now }: { spaceId: string; devices: Device[]; mayManage: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const plans = useDevicePlans(devices.map(device => device.id));
-  usePauseReasons(plans.plans);
+  usePlanWords(plans.plans);
   const of = (device: Device) => plans.plans.filter(plan => plan.deviceId === device.id);
   const planned = devices.filter(device => followsPlan(device) || of(device).length > 0);
 

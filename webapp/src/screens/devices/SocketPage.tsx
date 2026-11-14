@@ -56,10 +56,10 @@ export function SocketPage() {
 
   if (found.gone) return <NoLongerHere what="device" />;
   if (found.isPending) return <Waiting lines={4} />;
-  if (!found.device) return <LoadFailed title={t('shell.gone.title.socket')} read={found} />;
+  if (!found.device) return <LoadFailed title={t('shell.gone.title.socket')} read={found} values />;
 
   const table = tables.tables.get(deviceId);
-  if (!table) return tables.isError ? <LoadFailed read={tables} /> : <Waiting lines={4} />;
+  if (!table) return tables.isError ? <LoadFailed read={tables} values /> : <Waiting lines={4} />;
 
   return <Socket device={found.device} among={found.among} row={rowOf(rowsOf(table.items), socket)} capabilities={table.capabilities} />;
 }

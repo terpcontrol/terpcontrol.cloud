@@ -13,7 +13,7 @@ import { Row, Rows } from '@/ui/Rows';
 import { useZone } from '@/ui/zone';
 import { watchable } from './alarms/rules';
 import { pendingByPath } from './climate/figures';
-import { usePauseReasons } from './plan-labels';
+import { usePlanWords } from './plan-labels';
 import { alarmsLine, followsPlan, hasMode, hasOutputs, modeLine, outputsLine, outputsOf, planLine, standOf, type RowLine } from './rows';
 
 /**
@@ -47,7 +47,7 @@ export function PageRows({
   const reads = useLiveReads(ids);
   const held = useLightHolds(ids, now);
   const pending = pendingByPath(useDeviceLive(first?.id ?? null).data?.pending);
-  usePauseReasons(plans.plans);
+  usePlanWords(plans.plans);
   const outputs = devices
     .map(device => outputsOf(device, tables.tables.get(device.id), reads.levels.get(device.id) ?? null, device.id === first?.id))
     .filter(hasOutputs);

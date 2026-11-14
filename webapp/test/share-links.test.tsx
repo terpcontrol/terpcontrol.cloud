@@ -4,7 +4,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { GrowListItem, Me, ShareLink, ShareLinkCreate, Space } from '@fg2/shared-types/v1';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
+import type { Told } from '@/log/log-context';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -156,7 +158,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const draw = () => drawAt(<ShareLinks />, { at: '/me/share-links' });
+let told: Told[] = [];
+
+const draw = (at = '/me/share-links') =>
+  drawAt(
+    <Toast told={told}>
+      <ShareLinks />
+    </Toast>,
+    { at },
+  );
 
 const drawLoaded = async () => {
   draw();
@@ -165,11 +175,15 @@ const drawLoaded = async () => {
   await waitFor(() => expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument());
 };
 
-const card = (title: string) => screen.getByRole('button', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).closest('li')!;
+const card = (title: string, list?: string) =>
+  (list ? within(screen.getByRole('list', { name: list })) : screen)
+    .getByRole('button', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) })
+    .closest('li')!;
 
 beforeAll(() => translate());
 
 beforeEach(() => {
+  told = [];
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
   server.links = [publicPage, weekView, revoked, expired];
@@ -252,10 +266,14 @@ describe('the active list', () => {
     expect(page).toHaveTextContent('the grow’s permanent link · camera pictures on · weights hidden · 41 opens · last 2 h ago');
     expect(page).not.toHaveAttribute('data-dead');
 
-    const week = card('Tent 1 · Timeline · for 7 days');
+    // How long it lasts is said once, by the day it ends: "for 7 days" in the title said it again.
+    const week = card('Tent 1 · Timeline', 'Active');
+    expect(within(week).getByRole('button', { name: /^Tent 1 · Timeline/ }).firstElementChild).toHaveTextContent(/^Tent 1 · Timeline$/);
     expect(week).toHaveTextContent(
       `read-only view · expires ${dayOf(weekView.expiresAt!)} · camera pictures on · weights hidden · 6 opens · last 5 min ago`,
     );
+    // A date is one word to a line.
+    expect(week.textContent).toContain(`expires ${dayOf(weekView.expiresAt!).replace(' ', '\u00a0')}`);
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
   });
 
@@ -298,7 +316,10 @@ describe('links that have stopped', () => {
     expect(within(dead).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByText('Expired or revoked').nextElementSibling).toHaveTextContent('2');
 
-    const gone = card('Tent 1 · Timeline · for 14 days');
+    const gone = within(dead)
+      .getAllByRole('listitem')
+      .find(row => row.textContent?.includes('expired'))!;
+    expect(within(gone).getByRole('button')).toHaveAccessibleName(/^Tent 1 · Timeline/);
     expect(gone).toHaveAttribute('data-dead');
     expect(gone).toHaveTextContent(`expired ${dayOf(expired.expiresAt!)} · not opened yet`);
     expect(within(gone).queryByRole('button', { name: 'Copy the link' })).not.toBeInTheDocument();
@@ -330,9 +351,9 @@ describe('links that have stopped', () => {
 describe('a link’s own sheet', () => {
   it('shows the address of a live link and revokes it where it stands', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · Timeline · for 7 days/ }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Active' })).getByRole('button', { name: /^Tent 1 · Timeline/ }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · Timeline · for 7 days' });
+    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · Timeline' });
     expect(within(sheet).getByText(/\/shared\/tok-week$/)).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     // What it will do, to whom, and that there is no way back to a live link.
@@ -373,7 +394,7 @@ describe('copying', () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/shared\/tok-page$/));
 
     writeText.mockRejectedValueOnce(new Error('refused'));
-    fireEvent.click(within(card('Tent 1 · Timeline · for 7 days')).getByRole('button', { name: 'Copy the link' }));
+    fireEvent.click(within(card('Tent 1 · Timeline', 'Active')).getByRole('button', { name: 'Copy the link' }));
     await screen.findByText('Copy it by hand');
   });
 });
@@ -411,6 +432,16 @@ describe('the new-link sheet', () => {
     return screen.getByRole('dialog', { name: 'New link' });
   };
 
+  /** "Freigabelink erstellen ›" on a place's edit page led to the list, whose sheet then chose a grow. */
+  it('opens on the place a place´s page asked for, offered first and chosen', async () => {
+    draw('/me/share-links?place=space-1');
+
+    const sheet = await screen.findByRole('dialog', { name: 'New link' });
+    const subjects = within(sheet).getByRole('group', { name: 'Grow or place' });
+    expect(within(subjects).getAllByRole('button')[0]).toHaveTextContent('Tent 1');
+    expect(within(subjects).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('offers only what this account owns, grows and places and no room, and starts on a read-only view for a week', async () => {
     const sheet = await open();
 
@@ -440,6 +471,19 @@ describe('the new-link sheet', () => {
     expect(body).toMatchObject({ kind: 'view', subject: { type: 'space', id: 'space-1' }, includeCameras: true });
     expect(Math.abs(DateTime.fromISO(body.expiresAt!).diff(NOW.plus({ days: 30 }), 'minutes').minutes)).toBeLessThan(1);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Made, it answers: the sheet is gone and the card may be far down the list.
+    expect(told).toEqual([{ label: 'Link created · Tent 1', undo: null }]);
+  });
+
+  /** "camera pictures off" stood on the card of a link onto a place no camera has ever stood in. */
+  it('says nothing of camera pictures on the card of a link onto a place without a camera', async () => {
+    server.cameras = [];
+    server.links = [weekView];
+    await drawLoaded();
+
+    await waitFor(() => expect(server.asked).toContain('/cameras'));
+    await waitFor(() => expect(card('Tent 1 · Timeline', 'Active')).not.toHaveTextContent('camera pictures'));
+    expect(card('Tent 1 · Timeline', 'Active')).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · weights hidden`);
   });
 
   it('offers camera pictures only where a camera stands, and switches them from the words too', async () => {
@@ -484,13 +528,15 @@ describe('the new-link sheet from Verlauf', () => {
   const window = { startsAt: daysFromNow(-1), endsAt: NOW.toUTC().toISO()!, label: 'Yesterday 12:00 to today 12:00' };
   const openFrom = (fixed: boolean) =>
     drawAt(
-      <NewLinkSheet
-        grows={[grows[0]]}
-        spaces={spaces.filter(space => space.ownerId === 'user-1')}
-        window={{ ...window, fixed }}
-        first="space"
-        onClose={() => undefined}
-      />,
+      <Toast told={told}>
+        <NewLinkSheet
+          grows={[grows[0]]}
+          spaces={spaces.filter(space => space.ownerId === 'user-1')}
+          window={{ ...window, fixed }}
+          first="space"
+          onClose={() => undefined}
+        />
+      </Toast>,
     );
 
   it('chooses the place, names the window and holds the link to it once somebody chose that window', async () => {

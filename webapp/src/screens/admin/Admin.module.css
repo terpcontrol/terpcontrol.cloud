@@ -330,6 +330,11 @@
   accent-color: var(--green-fill);
 }
 
+/* Whether a class's rollout runs, switched beside its buttons: a step shorter than they are, not a chip's. */
+.runs {
+  height: var(--action-height);
+}
+
 .paused {
   color: var(--warning);
 }

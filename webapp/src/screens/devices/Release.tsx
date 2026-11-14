@@ -42,7 +42,7 @@ export function ReleaseSheet({ deviceId, onClose, onReleased }: { deviceId: stri
   const actions =
     sure || release.isSuccess ? (
       <SheetAnswer done={release.isSuccess} error={release.error} onClose={onClose} onDone={done}>
-        <button type="button" className={ui.dangerOutline} disabled={release.isPending} onClick={() => release.mutate()}>
+        <button type="button" className={`${ui.button} ${ui.dangerFilled}`} disabled={release.isPending} onClick={() => release.mutate()}>
           {t(release.isPending ? 'release.releasing' : 'release.yes')}
         </button>
       </SheetAnswer>

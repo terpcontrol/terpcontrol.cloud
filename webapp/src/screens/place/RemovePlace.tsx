@@ -44,6 +44,7 @@ import {
   type Fate,
   type Standing,
 } from './remove-plan';
+import { PlaceGone } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /**
@@ -73,7 +74,8 @@ export function RemovePlace() {
   if (spaces.isPending) return <Waiting lines={5} />;
   // Asked before anything else is read: a place that has ended, or never was, has nothing to try again for.
   const space = spaces.data?.items.find(one => one.id === spaceId && one.archivedAt === null) ?? null;
-  if (spaces.data && (!space || space.kind === 'room')) return <NoLongerHere what="space" />;
+  if (spaces.data && !space) return <PlaceGone spaceId={spaceId} title={name => t('place.remove.title', { name })} />;
+  if (space?.kind === 'room') return <NoLongerHere what="space" />;
   // Ending a place is its owner's.
   if (space && !owns) return <Navigate to={editPath(space.id)} replace />;
   const reads = [spaces, devices, cameras, grows, members, reminders];
@@ -250,8 +252,8 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
           standing.devices
             .filter(device => choices[device.id] === NEW_PLACE && !(device.id in done))
             .map(device => option(withDevice(device.id), t('place.remove.grow.with', { device: name(device.id) }))),
-          // The answer to where the plants stand is the place by its name.
-          elsewhere.map(place => option(moveTo(place.id), place.name)),
+          // A place is named one way in every select of the page: "nach Zelt", as a device's.
+          moves,
           option(NOWHERE, t('place.remove.grow.nowhere')),
           option(END, t('place.remove.grow.end')),
         ],

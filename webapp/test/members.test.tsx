@@ -476,7 +476,11 @@ describe('who sees a place, as its owner', () => {
     fireEvent.click(row);
     expect(row).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByLabelText('A username you already grow with')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create a share link ›' })).toBeInTheDocument();
+    // It leads to the new link's sheet on this place, not to the list whose sheet chooses a grow.
+    expect(screen.getByRole('link', { name: 'Create a share link ›' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/\/grows\/share-links\?place=/),
+    );
   });
 
   it('shows a link that is out without anything being opened, the place´s and the room´s each named', async () => {

@@ -4,7 +4,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import advanced from '@/ui/advanced/Advanced.module.css';
 import { fieldValue } from '@/ui/advanced/field-values';
 import type { HelpTopic } from '@/ui/explain';
-import { Help } from '@/ui/Help';
+import { Help, Named } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -62,7 +62,7 @@ export function SettingsBlock({
   );
 
   return title || label ? (
-    <section className={climate.card} aria-label={title ?? label}>
+    <section className={`${ui.panel} ${climate.card}`} aria-label={title ?? label}>
       {title ? (
         <h2 className={`${ui.cardHeading} ${climate.title}`}>
           {title}
@@ -82,17 +82,10 @@ export function SettingsBlock({
 
 /** One line of a block: what the setting is called, and beside it what it is set to. */
 export function SettingLine({ label, help, pending = false, children }: { label: string; help?: HelpTopic; pending?: boolean; children: ReactNode }) {
-  // The help mark stays with the name's last word, so a name of two lines does not leave it on a third.
-  const last = label.lastIndexOf(' ') + 1;
-
   return (
     <div className={styles.line} data-pending={pending || undefined}>
       <span className={styles.name}>
-        {label.slice(0, last)}
-        <span className={styles.last}>
-          {label.slice(last)}
-          {help ? <Help topic={help} /> : null}
-        </span>
+        <Named label={label} topic={help} />
       </span>
       <span className={styles.set}>{children}</span>
     </div>

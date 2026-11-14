@@ -5,12 +5,14 @@ import type { GrowListItem, GrowOrSpaceRef, ShareKind, ShareLink, Space } from '
 import { serverNow } from '@/api/clock';
 import { useCameras } from '@/api/cameras';
 import { useCreateShareLink } from '@/api/sharing';
+import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
+import { picturesPossible } from './links';
 import styles from './sharing.module.css';
 
 /**
@@ -50,6 +52,7 @@ export function NewLinkSheet({
   spaces,
   window = null,
   first = 'grow',
+  chosen = null,
   onClose,
   onCreated,
 }: {
@@ -59,16 +62,20 @@ export function NewLinkSheet({
   window?: ShareWindow | null;
   /** Which of the two is offered first and chosen: the place from its curves, a grow elsewhere. */
   first?: GrowOrSpaceRef['type'];
+  /** What the sheet opens on, where the page it was asked from is about one: a place's edit page. */
+  chosen?: GrowOrSpaceRef | null;
   onClose: () => void;
   /** Where the link just made is handed, for a screen that shows it at once rather than in the list of links. */
   onCreated?: (link: ShareLink) => void;
 }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const create = useCreateShareLink();
   const cameras = useCameras();
   const places = spaces.filter(space => space.kind !== 'room');
   const [limited, setLimited] = useState(window?.fixed === true);
   const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() => {
+    if (chosen && [...grows, ...places].some(row => row.id === chosen.id)) return chosen;
     const [grow, place] = [grows[0] && ({ type: 'grow', id: grows[0].id } as const), places[0] && ({ type: 'space', id: places[0].id } as const)];
     return (first === 'space' ? (place ?? grow) : (grow ?? place)) ?? null;
   });
@@ -78,7 +85,7 @@ export function NewLinkSheet({
 
   const grow = subject?.type === 'grow' ? grows.find(row => row.id === subject.id) : undefined;
   // Pictures are offered only where a camera could have taken any: a place with none has nothing to include.
-  const camerasHere = (cameras.data?.items ?? []).some(camera => subject?.type !== 'space' || camera.spaceId === subject.id);
+  const camerasHere = subject !== null && picturesPossible(cameras.data?.items ?? [], subject);
   const growIsPublic = grow?.visibility === 'public';
   const blocked = kind === 'public_page' && !growIsPublic;
   const ready = subject !== null && !blocked && !create.isPending;
@@ -105,7 +112,15 @@ export function NewLinkSheet({
         includeCameras: cams && camerasHere,
         expiresAt: kind === 'public_page' || days === null ? null : instantOf(serverNow().plus({ days })),
       },
-      { onSuccess: link => (onCreated ? onCreated(link) : onClose()) },
+      {
+        // A screen that shows the new link at once answers with it; anywhere else the toast says it was made, and of what.
+        onSuccess: link => {
+          if (onCreated) return onCreated(link);
+          onClose();
+          const name = subject.type === 'grow' ? grows.find(row => row.id === subject.id)?.name : places.find(row => row.id === subject.id)?.name;
+          tell({ label: t('me.shareLinks.made', { name: name ?? '' }), undo: null });
+        },
+      },
     );
   };
 

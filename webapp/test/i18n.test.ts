@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
 import { initReactI18next } from 'react-i18next';
@@ -41,5 +43,20 @@ describe('the dates follow the language', () => {
     await setLanguage('en');
     expect(DateTime.fromISO(day).toFormat('d LLL yyyy')).toBe('22 Oct 2026');
     expect(document.documentElement.lang).toBe('en');
+  });
+});
+
+/**
+ * One state is said one way (app-wording): the pill and the plan's toasts said "Regelung ein" beside the toasts of a
+ * target and the switch saying "Regelung an".
+ */
+describe('one word for one state', () => {
+  const values = (tree: unknown): string[] =>
+    typeof tree === 'string' ? [tree] : tree && typeof tree === 'object' ? Object.values(tree).flatMap(values) : [];
+  const german = values(JSON.parse(readFileSync(resolve(__dirname, '../public/assets/i18n/de.json'), 'utf8')));
+
+  it('says regulation on as "Regelung an" wherever the state is named', () => {
+    expect(german.filter(text => /Regelung ein\b/.test(text))).toEqual([]);
+    expect(german.filter(text => /Regelung an\b/.test(text)).length).toBeGreaterThanOrEqual(5);
   });
 });

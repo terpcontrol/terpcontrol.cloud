@@ -102,5 +102,5 @@ export const initI18n = async (): Promise<typeof i18next> => {
  * written from here is written in the language of whoever wrote it, and stays
  * ours after somebody reads it in the other one.
  */
-export const saidInAnyLanguage = (i18n: I18n, key: string, text: string | null | undefined): boolean =>
-  text != null && Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)(key) === text);
+export const saidInAnyLanguage = (i18n: I18n, key: string, text: string | null | undefined, params: Record<string, unknown> = {}): boolean =>
+  text != null && Object.keys(i18n.store?.data ?? {}).some(language => i18n.getFixedT(language)(key, params) === text);

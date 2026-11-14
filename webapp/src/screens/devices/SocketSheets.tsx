@@ -346,7 +346,7 @@ export function RemoveSocketSheet({
       onClose={onClose}
       actions={
         <SheetAnswer done={false} error={remove.error} onClose={onClose}>
-          <button type="button" className={ui.dangerOutline} onClick={send}>
+          <button type="button" className={`${ui.button} ${ui.dangerFilled}`} onClick={send}>
             {t('socketForm.remove.yes')}
           </button>
         </SheetAnswer>

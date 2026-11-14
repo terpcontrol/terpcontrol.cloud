@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
+import { useGrows } from '@/api/grows';
 import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
-import type { Translate } from '@/i18n/i18n';
 import { useLog, type Back } from '@/log/log-context';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
@@ -19,6 +19,7 @@ import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { deviceName, deviceTitle } from '@/ui/naming';
+import { alsoIn } from '@/screens/space/movable-grows';
 import { ContinuePlan } from './ContinuePlan';
 import { DurationField, PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
@@ -41,7 +42,7 @@ import {
 } from './plan-clock';
 import { draftOf, durationFits, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { followsGermination, pauseReasonOf, stepLengthLabel, stepMeta, usePauseReasons } from './plan-labels';
+import { followsGermination, ownStepName, pauseReasonOf, stepLengthLabel, stepMeta, stepTitle, usePlanWords } from './plan-labels';
 import styles from './Control.module.css';
 
 /**
@@ -59,7 +60,7 @@ import styles from './Control.module.css';
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(device.id);
-  usePauseReasons([plan.data]);
+  usePlanWords([plan.data]);
   const all = useDevices();
   // The beat re-renders the panel, and the reading is taken at the render: a
   // clock read up to a beat before the answer arrived puts a plan that was just
@@ -231,7 +232,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
         {[
           t(`space.control.status.${plan.state.status}`),
           plan.state.status !== 'completed' && step
-            ? `${t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })} ${step.name}`
+            ? `${t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })}${ownStepName(step.name, plan.state.activeStepIndex)}`
             : null,
         ]
           .filter(Boolean)
@@ -244,7 +245,8 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
             <span className={styles.stepNumber}>
               {t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })}
             </span>
-            <span className={styles.stepName}>{step.name}</span>
+            {/* A step whose name is its number is said once, by the number. */}
+            {ownStepName(step.name, plan.state.activeStepIndex) ? <span className={styles.stepName}>{step.name}</span> : null}
           </p>
           <p className={styles.stepMeta}>
             {stepMeta(t, step, offsetOf(serverNow(), zone), followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop))}
@@ -290,7 +292,10 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           ? t(plan.state.status === 'completed' ? 'space.control.next.completed' : 'space.control.next.atRest')
           : next === null
             ? t('space.control.next.ends')
-            : t(next === 0 ? 'space.control.next.loops' : 'space.control.next.step', { number: next + 1, name: ownName(t, plan.steps[next], next) })}
+            : t(next === 0 ? 'space.control.next.loops' : 'space.control.next.step', {
+                number: next + 1,
+                name: ownStepName(plan.steps[next]?.name ?? '', next),
+              })}
       </p>
 
       {plan.state.status === 'paused' && plan.state.pauseReason ? (
@@ -331,7 +336,9 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
-  const startStage = activeStep(plan)?.stage ?? null;
+  // Starting moves a grow standing here into the step's stage: said only where one stands.
+  const growsHere = alsoIn(useGrows(device.spaceId !== null).data?.items, device.spaceId, undefined).length > 0;
+  const startStage = growsHere ? (activeStep(plan)?.stage ?? null) : null;
   const busy = move.isPending || stop.isPending || remove.isPending;
   const close = () => setAsking(null);
   /**
@@ -343,7 +350,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
     close();
     tell({ label: said(what, params), ...back, from: `plan-${device.id}` });
   };
-  const stepName = (index: number | null) => (index === null ? '' : (plan.steps[index]?.name ?? ''));
+  const stepName = (index: number | null) => (index === null ? '' : stepTitle(t, plan.steps[index]?.name ?? '', index));
   const paused = plan.state.status === 'paused';
   // Going on sends the step, which switches regulation back on: the device is read again, so Steuerung says it is on.
   const resume = () =>
@@ -470,7 +477,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
               ? t('space.control.ask.skipEnds')
               : t(plan.state.status === 'paused' ? 'space.control.ask.skipPaused' : 'space.control.ask.skip', {
                   number: next + 1,
-                  name: plan.steps[next]?.name ?? '',
+                  name: ownStepName(plan.steps[next]?.name ?? '', next),
                 })
           }
           yes={t('space.control.ask.skipYes')}
@@ -528,7 +535,7 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
           <li key={step.id} className={styles.step} data-current={active ? (how === 'running' ? 'now' : 'held') : undefined}>
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
             <span className={`${ui.textColumn} ${styles.stepText}`}>
-              <span className={styles.stepTitle}>{step.name}</span>
+              <span className={styles.stepTitle}>{stepTitle(t, step.name, index)}</span>
               <span className={styles.stepNote}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
             </span>
             {active ? (
@@ -542,9 +549,3 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
     </ol>
   );
 }
-
-/** A step's name where it has one of its own, after its number; ", Schritt 2" after "Schritt 2" says the number twice. */
-const ownName = (t: Translate, step: { name: string } | undefined, index: number): string => {
-  const name = step?.name.trim() ?? '';
-  return name === '' || name === t('space.control.step.defaultName', { number: index + 1 }) ? '' : `, ${name}`;
-};

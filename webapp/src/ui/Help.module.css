@@ -30,6 +30,11 @@
   inset: -12px;
 }
 
+/* A label's last word and its mark, which break as one. */
+.last {
+  white-space: nowrap;
+}
+
 .info:hover,
 .info[aria-expanded='true'] {
   color: var(--brand);

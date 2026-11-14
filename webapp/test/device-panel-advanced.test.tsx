@@ -151,6 +151,9 @@ describe('the build a device is put on by hand', () => {
       return Promise.resolve(now) as never;
     });
     expect(screen.queryByRole('combobox', { name: 'Firmware version' })).not.toBeInTheDocument();
+    // Its (i) breaks with the label's last word: at 320 px the label took two lines and the mark stood apart from both.
+    const row = screen.getByRole('switch', { name: 'Update automatically' }).parentElement!;
+    expect(within(row).getByText('automatically')).toContainElement(within(row).getByRole('button', { name: /^About/ }));
     fireEvent.click(screen.getByRole('switch', { name: 'Update automatically' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/devices/sim-controller-1', { firmware: { channel: 'manual', targetId: 'fw-old' } }));
@@ -223,6 +226,8 @@ describe('giving a device up', () => {
 
     const second = await screen.findByRole('dialog', { name: 'Give this device up?' });
     expect(api.delete).not.toHaveBeenCalled();
+    // The one danger style of every step that cannot be taken back, at a control's height.
+    expect(within(second).getByRole('button', { name: 'Give up' }).className).toMatch(/button.*dangerFilled/);
     fireEvent.click(within(second).getByRole('button', { name: 'Give up' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/devices/sim-controller-1/claim'));

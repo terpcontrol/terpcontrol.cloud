@@ -9,6 +9,7 @@ import type { Told } from '@/log/log-context';
 import { leaveUnderSheet } from '@/app/places';
 import { EditPlace } from '@/screens/place/EditPlace';
 import { RemovePlace } from '@/screens/place/RemovePlace';
+import { PlaceMembers } from '@/screens/place/PlaceMembers';
 import {
   END,
   GUESTS,
@@ -97,6 +98,7 @@ const draw = (at: string) =>
       <Routes>
         <Route path="/spaces/:spaceId/edit" element={<EditPlace />} />
         <Route path="/spaces/:spaceId/remove" element={<RemovePlace />} />
+        <Route path="/spaces/:spaceId/members" element={<PlaceMembers />} />
         <Route path="*" element={<p>elsewhere</p>} />
       </Routes>
       <Watch />
@@ -112,7 +114,10 @@ beforeEach(() => {
   state.grows = [];
   state.members = [];
   for (const method of [api.get, api.post, api.patch, api.delete]) vi.mocked(method).mockReset();
-  vi.mocked(api.get).mockImplementation((path: string) => {
+  vi.mocked(api.get).mockImplementation((path: string, params?: unknown) => {
+    // The account's own places that have ended are a list of their own.
+    if (path === '/spaces' && (params as { archived?: boolean } | undefined)?.archived)
+      return Promise.resolve({ items: state.spaces.filter(one => one.archivedAt), nextCursor: null }) as never;
     if (path === '/spaces') return Promise.resolve({ items: state.spaces, nextCursor: null }) as never;
     if (path === '/devices') return Promise.resolve({ items: state.devices, nextCursor: null }) as never;
     if (path.startsWith('/cameras')) return Promise.resolve({ items: state.cameras, nextCursor: null }) as never;
@@ -483,8 +488,7 @@ describe('editing a place', () => {
     await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent('/spaces/tent/members'));
   });
 
-  it.each(['room', 'ended', 'nowhere'])('has one page for what is not there - a room, a place that has ended, an unknown id (%s)', async id => {
-    state.spaces = [...state.spaces, { ...FRIDGE, id: 'ended', archivedAt: '2026-11-01T00:00:00.000Z' }];
+  it.each(['room', 'nowhere'])('has one page for what is not there - a room, an unknown id (%s)', async id => {
     draw(`/spaces/${id}/edit`);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
@@ -492,6 +496,21 @@ describe('editing a place', () => {
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
+  });
+
+  /** They told the owner the place could not be opened or that somebody had taken them out, as if it were another's. */
+  it.each([
+    ['/spaces/ended/edit', 'Edit place'],
+    ['/spaces/ended/remove', 'Remove KS Black'],
+    ['/spaces/ended/members', 'Who sees KS Black'],
+  ])('tells the owner at %s that a place of theirs that has ended no longer exists, under the page´s title', async (at, title) => {
+    state.spaces = [...state.spaces, { ...FRIDGE, id: 'ended', archivedAt: '2026-11-01T00:00:00.000Z' }];
+    draw(at);
+
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(screen.getByText(/^The place KS Black no longer exists\./)).toBeInTheDocument();
+    expect(screen.queryByText('This place cannot be opened.')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 
   it('offers to read again where the places could not be read', async () => {
@@ -741,7 +760,9 @@ describe('removing a place', () => {
       within(plants)
         .getAllByRole('option')
         .map(option => option.textContent),
-    ).toEqual(['Where are the plants now?', 'at the new place of Tent controller', 'KS Black', 'in no fixed place', 'End the grow']);
+    ).toEqual(['Where do the plants go?', 'to the new place of Tent controller', 'to KS Black', 'to no fixed place', 'End the grow']);
+    // A place is named as the devices' select names it.
+    expect(within(select('Tent controller')).getByRole('option', { name: 'to KS Black' })).toBeInTheDocument();
     expect(screen.getByText('Curves and pictures up to today stay with the grow Spring run.')).toBeInTheDocument();
 
     fireEvent.change(plants, { target: { value: 'with:device-1' } });
@@ -1124,9 +1145,9 @@ describe('removing a place', () => {
   });
 
   it.each([
-    ['a place that has ended', '/spaces/tent/remove'],
-    ['an address nobody knows', '/spaces/nowhere/remove'],
-  ])('is one page for %s: a heading, the way on, and no retry that cannot help', async (_what, at) => {
+    ['a place that has ended', '/spaces/tent/remove', 'Remove Tent'],
+    ['an address nobody knows', '/spaces/nowhere/remove', 'Place'],
+  ])('is one page for %s: a heading, the way on, and no retry that cannot help', async (_what, at, title) => {
     state.spaces = [{ ...TENT, archivedAt: '2026-11-01T00:00:00.000Z' }, FRIDGE, LOFT];
     const read = vi.mocked(api.get).getMockImplementation()!;
     // The server knows no grows of a place that is not there.
@@ -1137,7 +1158,7 @@ describe('removing a place', () => {
     );
     draw(at);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
   });

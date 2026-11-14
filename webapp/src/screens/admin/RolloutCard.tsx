@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import type { Device, DeviceClass, Firmware, Fleet } from '@fg2/shared-types/v1';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Refused } from '@/ui/PageState';
+import { typeName } from '@/ui/naming';
 import { Label } from './parts';
 import ui from '@/ui/ui.module.css';
 import { channelStands, classSize, staged } from './rollout';
@@ -72,7 +73,7 @@ export function RolloutCard({
         return (
           <div key={deviceClass.id} className={styles.block}>
             <div className={styles.blockHead}>
-              <span className={styles.blockName}>{deviceClass.name}</span>
+              <span className={styles.blockName}>{typeName(deviceClass.name, t)}</span>
               <span className={styles.consequence}>
                 {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
               </span>

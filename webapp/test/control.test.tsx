@@ -1289,7 +1289,7 @@ describe('the plan panel', () => {
     draw();
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
 
-    expect(screen.getByText(/moves on to step 2, Flower, and stays paused/)).toBeInTheDocument();
+    expect(screen.getByText(/moves on to step 2, Flower and stays paused/)).toBeInTheDocument();
   });
 
   it('turns a refusal into the thing to do about it', () => {
@@ -1333,6 +1333,29 @@ describe('the plan panel', () => {
     state.plan = plan({ steps: [step({ name: 'Step 1' }), step({ id: 'step-2', name: 'Step 2' })], loop: true }, { activeStepIndex: 1 });
     draw();
     expect(screen.getByText('Next · back to step 1 – this plan loops.')).toBeInTheDocument();
+  });
+
+  /** The head said "Step 1 of 2 Step 1", and a step its German writer left as "Schritt 2" read so in English. */
+  it('says a step whose name is its number once, by the number, in the reader´s language whoever wrote it', async () => {
+    state.plan = plan({ steps: [step({ name: 'Step 1' }), step({ id: 'step-2', name: 'Flower' })] });
+    draw();
+    expect(screen.getByText('Step 1 of 2').closest('p')).toHaveTextContent(/^Step 1 of 2$/);
+    cleanup();
+
+    const german = await catalogue('de');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(german) })),
+    );
+    state.plan = plan({ steps: [step({ name: 'Schritt 1' }), step({ id: 'step-2', name: 'Schritt 2' })] });
+    draw();
+
+    expect(await screen.findByText('Next · step 2')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 2').closest('p')).toHaveTextContent(/^Step 1 of 2$/);
+    expect(screen.getAllByText('Step 2').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Schritt/)).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+    i18next.removeResourceBundle('de', 'translation');
   });
 
   it('puts a plan that has run every step at none of them', () => {

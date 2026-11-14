@@ -7,6 +7,7 @@ import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import { Members } from '../space/members/Members';
+import { PlaceGone } from './PlaceTitle';
 import styles from './Place.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -25,8 +26,9 @@ export function PlaceMembers() {
 
   if (spaces.isPending) return <Waiting lines={4} />;
   if (!spaces.data) return <LoadFailed read={spaces} />;
-  // A place that has ended is as little there as one that never was; a room has no page - who is in it stands on its places.
-  if (!space || space.kind === 'room') return <NoLongerHere what="space" />;
+  if (!space) return <PlaceGone spaceId={spaceId} title={name => t('place.edit.people', { name })} />;
+  // A room has no page: who is in it stands on its places.
+  if (space.kind === 'room') return <NoLongerHere what="space" />;
   if (mayManage) return <Navigate to={editPath(space.id)} replace />;
 
   return (

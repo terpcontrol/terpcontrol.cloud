@@ -24,6 +24,7 @@ import rows from '@/ui/Rows.module.css';
 import { useMayIn, useMayManage } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
+import { PlaceGone } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /** The room select's entries that are no room: none, one still to be made, and another name for the one the place stands in. */
@@ -55,8 +56,9 @@ export function EditPlace() {
   if (!spaces.data) return <LoadFailed title={t('place.edit.title')} read={spaces} />;
 
   const space = spaces.data.items.find(one => one.id === spaceId && one.archivedAt === null) ?? null;
+  if (!space) return <PlaceGone spaceId={spaceId} title={() => t('place.edit.title')} />;
   // A room is a field of the places in it and has no page of its own.
-  if (!space || space.kind === 'room') return <NoLongerHere what="space" />;
+  if (space.kind === 'room') return <NoLongerHere what="space" />;
   if (!mayManage) return <Navigate to={membersPath(space.id)} replace />;
 
   return <Editing space={space} listed={spaces.data.items} />;

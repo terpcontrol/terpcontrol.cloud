@@ -170,6 +170,17 @@ describe('a Plantalytix Socket where a controller’s climate stands', () => {
     expect(patches()[1].body.set).toEqual({ plugMode: 'heater' });
   });
 
+  /** Its own settings stood bare on the page between the firmware's card and the rows, where every other block is a card. */
+  it('stands its settings in cards, each under its heading, its help beside the last word of a label', () => {
+    draw(device('plug-1', 'plug', PLUG));
+
+    for (const heading of ['Switching', 'Switch points']) {
+      expect(screen.getByRole('region', { name: heading }).className).toMatch(/panel/);
+    }
+    const night = screen.getByRole('switch', { name: 'Own switch points at night' }).closest('div')!;
+    expect(within(night).getByText('night').closest('span')).toContainElement(within(night).getByRole('button', { name: /^About/ }));
+  });
+
   it('writes the night’s own points on the tap, and answers', async () => {
     draw(device('plug-1', 'plug', PLUG));
 

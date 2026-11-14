@@ -5,6 +5,7 @@ import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } fro
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
+import { typeName } from '@/ui/naming';
 import { Label } from './parts';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -135,10 +136,11 @@ export function ClassRollout({
   return (
     <div className={styles.block}>
       <div className={styles.blockHead}>
-        <span className={styles.blockName}>{deviceClass.name}</span>
+        <span className={styles.blockName}>{typeName(deviceClass.name, t)}</span>
         <span className={styles.consequence}>
           {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
-          {deviceClass.description ? ` · ${deviceClass.description}` : ''}
+          {/* The description where it says more than the heading: "Plantalytix Socket" under "Plantalytix Socket" did not. */}
+          {deviceClass.description && deviceClass.description !== typeName(deviceClass.name, t) ? ` · ${deviceClass.description}` : ''}
         </span>
       </div>
 
@@ -219,7 +221,7 @@ export function ClassRollout({
       <div className={ui.wrapRow}>
         <button
           type="button"
-          className={`${ui.chip} ${draft.paused ? styles.paused : ''}`}
+          className={`${ui.chip} ${styles.runs} ${draft.paused ? styles.paused : ''}`}
           role="switch"
           aria-checked={draft.paused}
           onClick={() => setDraft({ ...draft, paused: !draft.paused })}
@@ -248,7 +250,7 @@ export function ClassRollout({
 
       {asking ? (
         <Sheet
-          title={t('admin.firmware.confirmTitle', { name: deviceClass.name })}
+          title={t('admin.firmware.confirmTitle', { name: typeName(deviceClass.name, t) })}
           onClose={() => setAsking(false)}
           actions={
             <button

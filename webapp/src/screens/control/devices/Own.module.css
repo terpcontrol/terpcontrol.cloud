@@ -16,10 +16,6 @@
   overflow-wrap: anywhere;
 }
 
-.last {
-  white-space: nowrap;
-}
-
 /* A switch has no face of its own for what the device has not been handed: its name says it. */
 .line[data-pending] .name {
   font-weight: var(--weight-medium);
@@ -44,11 +40,4 @@
 .act {
   align-self: flex-start;
   min-height: var(--control-height);
-}
-
-/* The switch is a finger high where it is tapped, without making its line taller. */
-.set > button[role='switch']::after {
-  content: '';
-  position: absolute;
-  inset: -10px -6px;
 }

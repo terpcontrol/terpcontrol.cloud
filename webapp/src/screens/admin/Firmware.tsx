@@ -14,6 +14,7 @@ import {
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
+import { typeName } from '@/ui/naming';
 import { together } from '@/api/read';
 import { NothingHere, Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Label, OutOfTheRow } from './parts';
@@ -130,7 +131,7 @@ function Register({ classes }: { classes: DeviceClass[] }) {
           <select className={`${ui.input} ${ui.menu}`} value={classId} onChange={event => setClassId(event.target.value)}>
             {classes.map(deviceClass => (
               <option key={deviceClass.id} value={deviceClass.id}>
-                {deviceClass.name}
+                {typeName(deviceClass.name, t)}
               </option>
             ))}
           </select>
@@ -185,10 +186,10 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         {build.name ? <span>{build.name}</span> : <span className={styles.rowName}>{t('admin.firmware.unnamed')}</span>}
         <div className="mono">{build.version}</div>
       </td>
-      <td>{deviceClass?.name ?? <span className="mono">{build.classId}</span>}</td>
+      <td>{deviceClass ? typeName(deviceClass.name, t) : <span className="mono">{build.classId}</span>}</td>
       <td className="mono">{zoned(build.createdAt, zone).toFormat(`yyyy-LL-dd ${CLOCK}`)}</td>
       <td className="mono">
-        {pointers.length > 0 ? pointers.map(one => `${one.deviceClass.name} · ${t(`devices.channel.${one.channel}`)}`).join(', ') : '—'}
+        {pointers.length > 0 ? pointers.map(one => `${typeName(one.deviceClass.name, t)} · ${t(`devices.channel.${one.channel}`)}`).join(', ') : '—'}
         {build.wasStable ? ` · ${t('admin.firmware.wasStable')}` : ''}
       </td>
       <td className={`mono ${styles.numbers}`}>

@@ -141,7 +141,7 @@
       "serial": "Seriennummer"
     },
     "channel": {
-      "stable": "stabil",
+      "stable": "Stabil",
       "beta": "Beta",
       "alpha": "Alpha",
       "manual": "kein Kanal"
@@ -796,8 +796,6 @@
       },
       "days_one": "{{count}} Tag",
       "days_other": "{{count}} Tage",
-      "lasting_one": "gilt {{count}} Tag",
-      "lasting_other": "gilt {{count}} Tage",
       "permanentLink": "der dauerhafte Link des Grows",
       "growPrivate": "Grow jetzt privat · öffnet nicht mehr",
       "readOnly": "nur lesen",
@@ -837,7 +835,8 @@
         "never": "nie",
         "create": "Link erstellen",
         "wholeGrowNote": "Der Link zeigt das Tagebuch des Grows, wie es weitergeht."
-      }
+      },
+      "made": "Link erstellt · {{name}}"
     },
     "premium": {
       "title": "Premium",
@@ -1186,7 +1185,7 @@
         "title": "Umzug",
         "standsIn": "Ort jetzt: {{places}}",
         "moveTo": "Umziehen nach",
-        "note": "Der offene Ort dieser Pflanzen wird beendet und ein neuer eröffnet. Pflanzen, die nicht mitziehen, behalten ihren Ort.",
+        "note": "Ab diesem Tag stehen die Pflanzen am neuen Ort; ihre Zeit am alten endet. Pflanzen, die nicht mitziehen, bleiben, wo sie sind.",
         "nowhereNote": "„Kein fester Ort“ lässt den Grow nicht verschwinden: Er bleibt im Tagebuch und auf Start.",
         "submit": "Umziehen · {{place}}",
         "history": "Bisherige Orte",
@@ -1201,7 +1200,8 @@
         "withdrawEffect": "Die Zeile verschwindet, als wäre der Umzug nie aufgeschrieben worden.",
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
         "nowhereThenWithdraw": "Grow auf „kein fester Ort“ setzen und diese Zeile zurücknehmen",
-        "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren."
+        "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren.",
+        "hereNote": "Ab diesem Tag steht der Grow hier; seine Zeit am bisherigen Ort endet, und was dort aufgezeichnet wurde, bleibt bei ihm."
       },
       "harvest": {
         "title": "Ernte",
@@ -1632,8 +1632,8 @@
       "ask": {
         "extend": "Mehr Zeit für den Schritt, in dem der Ort steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt – ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
         "extendYes": "{{length}} draufgeben",
-        "skip": "Der Plan geht weiter zu Schritt {{number}}, {{name}}, und startet dessen Uhr. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
-        "skipPaused": "Der Plan geht weiter zu Schritt {{number}}, {{name}}, und bleibt pausiert: Dessen Uhr startet, wenn der Plan fortgesetzt wird. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
+        "skip": "Der Plan geht weiter zu Schritt {{number}}{{name}} und startet dessen Uhr. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
+        "skipPaused": "Der Plan geht weiter zu Schritt {{number}}{{name}} und bleibt pausiert: Dessen Uhr startet, wenn der Plan fortgesetzt wird. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
         "skipEnds": "Das ist der letzte Schritt, ihn zu überspringen schließt den Plan also ab. Das Gerät behält die Einstellungen, die dieser Schritt ihm gegeben hat.",
         "skipYes": "Schritt überspringen",
         "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Das Gerät behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was der Ort stattdessen tun soll.",
@@ -1803,8 +1803,8 @@
         "skippedLast": "„{{plan}}“ ist abgeschlossen",
         "stopped": "„{{plan}}“ gestoppt",
         "removed": "„{{plan}}“ entfernt",
-        "resumedOn": "„{{plan}}“ läuft wieder · {{step}} · Regelung ein",
-        "startedOn": "„{{plan}}“ gestartet · {{step}} · Regelung ein"
+        "resumedOn": "„{{plan}}“ läuft wieder · {{step}} · Regelung an",
+        "startedOn": "„{{plan}}“ gestartet · {{step}} · Regelung an"
       }
     },
     "noReadingsYet": "Noch nichts gemeldet",
@@ -2456,7 +2456,7 @@
         "where": "Wo schaut sie hin?",
         "nowhere": "Es gibt noch keinen Ort, an den eine Kamera passt. Benenne den, auf den sie schaut, und er wird hier angelegt.",
         "name": "Name",
-        "nameHint": "Kamera",
+        "nameHint": "Zeltkamera, Seitenkamera …",
         "test": "Test",
         "testing": "Bild wird geholt …",
         "save": "Kamera hinzufügen",
@@ -3400,7 +3400,7 @@
         "type": "Gerätetyp",
         "allTypes": "Alle Typen",
         "quiet": "Über einen Tag still",
-        "behind": "Nicht auf stable",
+        "behind": "Nicht auf Stabil",
         "search": "Suchen",
         "searchReads": "ID, Seriennummer, Name, Besitzer"
       },
@@ -3466,7 +3466,7 @@
       "version": "Version (UUID)",
       "registerIt": "Anlegen",
       "unnamed": "ohne Namen",
-      "wasStable": "war stable",
+      "wasStable": "war stabil",
       "runningCount": "{{total}} · {{online}} · {{installing}} · {{failed}} aufgegeben",
       "upload": "Datei hochladen",
       "rename": "Umbenennen",
@@ -4255,9 +4255,9 @@
         "remove": "entfernen"
       },
       "grow": {
-        "ask": "Wo stehen die Pflanzen jetzt?",
-        "with": "am neuen Ort von {{device}}",
-        "nowhere": "an keinem festen Ort",
+        "ask": "Wohin kommen die Pflanzen?",
+        "with": "an den neuen Ort von {{device}}",
+        "nowhere": "an keinen festen Ort",
         "end": "Grow beenden"
       },
       "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
@@ -4474,9 +4474,9 @@
     "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, die Zeit des jetzigen ist vergessen, und seine Werte gehen innerhalb einer Minute ans Gerät.",
     "askAtRest": "„{{plan}}“ startet bei {{step}} statt bei Schritt 1. Der Schritt beginnt von vorn, und seine Werte gehen innerhalb einer Minute ans Gerät.",
     "yes": "Bei Schritt {{number}} weitermachen",
-    "done": "Der Plan läuft jetzt bei Schritt {{number}}, {{name}}",
+    "done": "Der Plan läuft jetzt bei Schritt {{number}}{{name}}",
     "switchesOn": "Die Regelung ist aus und geht damit wieder an.",
-    "doneOn": "Der Plan läuft jetzt bei Schritt {{number}}, {{name}} · Regelung ein"
+    "doneOn": "Der Plan läuft jetzt bei Schritt {{number}}{{name}} · Regelung an"
   },
   "planLine": {
     "plan": "Plan:",
@@ -5163,7 +5163,7 @@
       "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}."
     },
     "state": {
-      "on": "Regelung ein",
+      "on": "Regelung an",
       "off": "Regelung aus"
     },
     "rows": {

@@ -94,10 +94,34 @@ export const pauseReasonOf = (t: Translate, reason: string | null): string | nul
   return own ? t(own) : reason;
 };
 
-/** Fetches the catalogues the session lacks once a paused plan gives a reason none of its own knows - an English session holds no German - and draws the caller again. */
-export const usePauseReasons = (plans: readonly (Plan | null | undefined)[]): void => {
+const DEFAULT_STEP = 'space.control.step.defaultName';
+
+/**
+ * Whether a step has no name of its own: left empty, or the default the editor wrote, in the language of whoever
+ * wrote it ("Schritt 2" read in English) - known by a catalogue the session holds, as a pause reason is.
+ */
+const unnamed = (name: string, index: number): boolean =>
+  name.trim() === '' || saidInAnyLanguage(i18next, DEFAULT_STEP, name.trim(), { number: index + 1 });
+
+/** A step as the reader reads it: the name a person gave it, else its number, in the reader's language. */
+export const stepTitle = (t: Translate, name: string, index: number): string =>
+  unnamed(name, index) ? t(DEFAULT_STEP, { number: index + 1 }) : name;
+
+/** What follows a step's number where it has a name of its own - ", Blüte" -, and nothing where its name is its number. */
+export const ownStepName = (name: string, index: number): string => (unnamed(name, index) ? '' : `, ${name.trim()}`);
+
+/**
+ * Fetches the catalogues the session lacks - an English session holds no German - once a plan says something none of
+ * its own knows: a paused plan's reason, or a step named a word and its number, which may be another language's
+ * default name; and draws the caller again.
+ */
+export const usePlanWords = (plans: readonly (Plan | null | undefined)[]): void => {
   const [, setLoaded] = useState(false);
-  const unknown = plans.some(plan => plan?.state.status === 'paused' && plan.state.pauseReason !== null && !ownReason(plan.state.pauseReason));
+  const unknown = plans.some(
+    plan =>
+      (plan?.state.status === 'paused' && plan.state.pauseReason !== null && !ownReason(plan.state.pauseReason)) ||
+      plan?.steps.some((step, index) => step.name.trim().endsWith(` ${index + 1}`) && !unnamed(step.name, index)),
+  );
   useEffect(() => {
     // Without them the reason stays as it was stored.
     if (unknown)

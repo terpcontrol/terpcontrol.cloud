@@ -457,7 +457,9 @@ describe('a smart socket on its own page', () => {
 
       fireEvent.click(await screen.findByRole('button', { name: /^Remove the socket/ }));
       expect(api.delete).not.toHaveBeenCalled();
-      fireEvent.click(within(screen.getByRole('dialog', { name: 'Remove Heater?' })).getByRole('button', { name: 'Remove' }));
+      const yes = within(screen.getByRole('dialog', { name: 'Remove Heater?' })).getByRole('button', { name: 'Remove' });
+      expect(yes.className).toMatch(/button.*dangerFilled/);
+      fireEvent.click(yes);
 
       expect(await screen.findByText('at /control/outputs?space=space-1')).toBeInTheDocument();
       expect(api.delete).toHaveBeenCalledExactlyOnceWith('/devices/device-1/sockets/0');

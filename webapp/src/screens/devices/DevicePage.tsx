@@ -100,10 +100,10 @@ export function DevicePage() {
   if (!found.device) {
     return under ? (
       <Under deviceId={deviceId} title={under}>
-        <LoadFailed read={found} />
+        <LoadFailed read={found} values />
       </Under>
     ) : (
-      <LoadFailed title={t('shell.gone.title.device')} read={found} />
+      <LoadFailed title={t('shell.gone.title.device')} read={found} values />
     );
   }
 
@@ -173,10 +173,13 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
   // A page this device has not got, or no device has, is the device's own.
   if (page !== null) return <Navigate to={devicePath(device.id)} replace />;
 
-  const dark = darkReasonOf(device);
-  const regulation = dark ? `${t('climateControl.label')} ${t(`climateControl.state.${dark}`)}` : null;
   // Switched off while nobody heard it, the device goes on regulating: off is what is stored, said as Steuerung says it.
   const off = offNotTaken(device, pendingByPath(live.data?.pending));
+  // A device leading a place says its control off - and a switch-off it has not been handed - in the box that
+  // switches it on again; the line of facts does not say it a second time.
+  const offBox = leads && mayManage && device.control?.running === false;
+  const dark = offBox ? null : darkReasonOf(device);
+  const regulation = dark ? `${t('climateControl.label')} ${t(`climateControl.state.${dark}`)}` : null;
   const stored = regulation && off ? notTaken(t, regulation, off.savedAt, now, zone) : null;
   const groups = GROUP_ORDER.filter(group => advanced.some(item => GROUPS[item.id] === group)).map(group => t(`device.advanced.${group}`));
 
@@ -220,7 +223,7 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       {waiting ? null : <DeviceActions device={device} offline={offline} />}
 
       {/* The device a place's climate is: Steuerung says that it is off and switches it on, and so does its own page. */}
-      {leads && mayManage && device.control?.running === false ? <ControlOff device={device} mayManage storedAt={off?.savedAt} /> : null}
+      {offBox ? <ControlOff device={device} mayManage storedAt={off?.savedAt} /> : null}
       {leads ? null : (
         <>
           <OwnSettings device={device} />

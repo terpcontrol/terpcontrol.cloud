@@ -106,7 +106,7 @@ export function MoveHereSheet({
 
         <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
 
-        <p className={ui.note}>{t('grow.lifecycle.move.note')}</p>
+        <p className={ui.note}>{t('grow.lifecycle.move.hereNote')}</p>
         <Refused error={move.error} />
 
         <button

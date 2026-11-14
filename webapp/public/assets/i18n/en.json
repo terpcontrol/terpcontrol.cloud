@@ -141,9 +141,9 @@
       "serial": "Serial number"
     },
     "channel": {
-      "stable": "stable",
-      "beta": "beta",
-      "alpha": "alpha",
+      "stable": "Stable",
+      "beta": "Beta",
+      "alpha": "Alpha",
       "manual": "no channel"
     },
     "can": {
@@ -784,8 +784,6 @@
       },
       "days_one": "{{count}} day",
       "days_other": "{{count}} days",
-      "lasting_one": "for {{count}} day",
-      "lasting_other": "for {{count}} days",
       "permanentLink": "the grow’s permanent link",
       "growPrivate": "grow now private · does not open",
       "readOnly": "read-only view",
@@ -825,7 +823,8 @@
         "never": "never",
         "create": "Create link",
         "wholeGrowNote": "The link shows the grow’s diary as it goes on."
-      }
+      },
+      "made": "Link created · {{name}}"
     },
     "premium": {
       "title": "Premium",
@@ -1176,7 +1175,7 @@
         "title": "Move",
         "standsIn": "Place now: {{places}}",
         "moveTo": "Move to",
-        "note": "The open placement of these plants is closed and a new one opened. Plants that are not moving keep the place they are in.",
+        "note": "From that day the plants stand at the new place; their time at the old one ends. Plants that do not move stay where they are.",
         "nowhereNote": "“No fixed place” is a place a grow can have, not a missing one: the grow stays in the diary and on Home.",
         "submit": "Move · {{place}}",
         "history": "Where it has been",
@@ -1191,7 +1190,8 @@
         "withdrawEffect": "The row goes, as if the move had never been recorded.",
         "confirmWithdraw": "Withdraw this move",
         "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row",
-        "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected."
+        "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected.",
+        "hereNote": "From that day the grow stands here; its time at its old place ends, and what was recorded there stays with it."
       },
       "harvest": {
         "title": "Harvest",
@@ -1622,8 +1622,8 @@
       "ask": {
         "extend": "More time on the step the place is on. The step keeps the length it was written with and only its clock is put back, so a step that had already asked to be confirmed asks again when the longer time is up.",
         "extendYes": "Add {{length}}",
-        "skip": "The plan moves on to step {{number}}, {{name}}, and starts its clock. What this step still had to run is not kept.",
-        "skipPaused": "The plan moves on to step {{number}}, {{name}}, and stays paused: that step’s clock starts when the plan is resumed. What this step still had to run is not kept.",
+        "skip": "The plan moves on to step {{number}}{{name}} and starts its clock. What this step still had to run is not kept.",
+        "skipPaused": "The plan moves on to step {{number}}{{name}} and stays paused: that step’s clock starts when the plan is resumed. What this step still had to run is not kept.",
         "skipEnds": "This is the last step, so skipping it completes the plan. The device keeps the settings this step gave it.",
         "skipYes": "Skip the step",
         "stop": "The plan keeps its steps and is back at the first one, ready to be started. The device keeps the settings the last step gave it: stopping says nothing about what the place should be doing instead.",
@@ -2446,7 +2446,7 @@
         "where": "Where does it look?",
         "nowhere": "There is no place to put a camera in yet. Name the one it looks at and it is made here.",
         "name": "Name",
-        "nameHint": "Camera",
+        "nameHint": "Tent camera, side camera …",
         "test": "Test",
         "testing": "Taking a picture …",
         "save": "Add camera",
@@ -3390,7 +3390,7 @@
         "type": "Device type",
         "allTypes": "All types",
         "quiet": "Quiet over a day",
-        "behind": "Not on stable",
+        "behind": "Not on Stable",
         "search": "Search",
         "searchReads": "ID, serial, name or owner"
       },
@@ -4245,9 +4245,9 @@
         "remove": "remove"
       },
       "grow": {
-        "ask": "Where are the plants now?",
-        "with": "at the new place of {{device}}",
-        "nowhere": "in no fixed place",
+        "ask": "Where do the plants go?",
+        "with": "to the new place of {{device}}",
+        "nowhere": "to no fixed place",
         "end": "End the grow"
       },
       "kept": "Curves and pictures up to today stay with the grow {{names}}.",
@@ -4464,9 +4464,9 @@
     "ask": "“{{plan}}” carries on at {{step}}. The step starts from the beginning, the time of the current one is dropped, and its values reach the device within a minute.",
     "askAtRest": "“{{plan}}” starts at {{step}} instead of step 1. The step starts from the beginning, and its values reach the device within a minute.",
     "yes": "Continue at step {{number}}",
-    "done": "The plan is now running at step {{number}}, {{name}}",
+    "done": "The plan is now running at step {{number}}{{name}}",
     "switchesOn": "Control is off and comes back on with it.",
-    "doneOn": "The plan is now running at step {{number}}, {{name}} · control on"
+    "doneOn": "The plan is now running at step {{number}}{{name}} · control on"
   },
   "planLine": {
     "plan": "Plan:",

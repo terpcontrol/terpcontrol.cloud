@@ -1,9 +1,10 @@
-/* The pages that are about one place without being its Start: Steuerung,
-   "Ort bearbeiten" with the page that ends the place, and who else is let in.
-   One reading column, set against the left edge under the title the way the
-   rest of the app's settings are. */
+/* The pages that are about one place without being its Start: Steuerung and
+   the pages below it, "Ort bearbeiten" with the page that ends the place, and
+   who else is let in. One reading column, in the middle of the room as every
+   page is. */
 
-/* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. */
+/* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. The pages
+   below it - Grow-Plan, Alarme, Ausgänge, Betriebsart - are one column and take `.reading`. */
 .steering {
   width: 100%;
 }

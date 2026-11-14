@@ -7,10 +7,3 @@
   margin-top: var(--space-2);
   padding-bottom: var(--space-2);
 }
-
-/* A switch is a finger high where it is tapped, without its row growing by it. */
-.choices [role='switch']::after {
-  content: '';
-  position: absolute;
-  inset: -11px -2px;
-}

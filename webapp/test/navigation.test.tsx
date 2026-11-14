@@ -896,6 +896,9 @@ describe('Grow, the bar´s item', () => {
     // There is nothing to pick among one: it stands chosen, and the move is a tap away.
     expect(await within(sheet).findByRole('button', { name: /^Spring run/ })).toHaveAttribute('aria-pressed', 'true');
     expect(within(sheet).getByRole('button', { name: 'Move · Tent 2' })).toBeEnabled();
+    // What ends is the grow's time at its old place - "the open placement is closed" read as the place itself ending.
+    expect(within(sheet).getByText(/^From that day the grow stands here; its time at its old place ends/)).toBeInTheDocument();
+    expect(within(sheet).queryByText(/placement|closed/)).not.toBeInTheDocument();
   });
 });
 

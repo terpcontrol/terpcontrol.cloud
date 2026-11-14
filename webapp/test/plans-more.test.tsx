@@ -18,7 +18,7 @@ import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
 import { drawAt } from './harness';
 import { Toast } from './toast';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * What came back of the old app's plans: light hours in a step, which is what
@@ -35,6 +35,12 @@ const state = vi.hoisted(() => ({
   saved: [] as PlanReplace[],
   sent: [] as PlanTransition[],
   templates: { items: [] as unknown[], nextCursor: null },
+  grows: [] as unknown[],
+}));
+
+vi.mock('@/api/grows', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useGrows: () => ({ data: { items: state.grows, nextCursor: null }, isPending: false }),
 }));
 
 vi.mock('@/api/devices', async importOriginal => ({
@@ -137,6 +143,7 @@ beforeEach(() => {
   state.saved = [];
   state.sent = [];
   state.templates = { items: [], nextCursor: null };
+  state.grows = [];
 });
 
 describe('light hours in a step', () => {
@@ -432,9 +439,14 @@ describe('the two ready-made plans', () => {
   it('say before a plan is started which stage it puts the grow into', () => {
     state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
     const fridge = device();
-    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
-
+    // Where no grow stands, starting puts none into a stage, and says nothing of one.
+    const bare = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.getByRole('button', { name: 'Start the plan' })).toBeInTheDocument();
+    expect(screen.queryByText(/^Starting puts a grow/)).not.toBeInTheDocument();
+    bare.unmount();
+
+    state.grows = [{ id: 'grow-1', endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } }];
+    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.getByText('Starting puts a grow here into Veg.')).toBeInTheDocument();
 
     // A paused plan goes on where it stood, so resuming it says nothing of the kind.
@@ -536,6 +548,18 @@ describe('Start´s line for a running plan', () => {
 
     const open = plan({ steps: [step({ duration: { value: 0, unit: 'days' } })] });
     expect(planLineOf(t, open, NOW)).toBe('Veg, until you move it on');
+  });
+
+  /** A step named by its number is said in the reader's language, as Steuerung says it: never "Schritt 2" in English. */
+  it('names a step that has no name of its own by its number, in the reader´s language', async () => {
+    // What `usePlanWords` fetches once a plan says something the session's own catalogue does not know.
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    try {
+      const numbered = plan({ steps: [step({ name: 'Schritt 1' }), step({ id: 'step-2', name: '' })] });
+      expect(planLineOf(t, numbered, NOW)).toBe('Step 1, 10 days to go, then Step 2');
+    } finally {
+      i18next.removeResourceBundle('de', 'translation');
+    }
   });
 
   it('says a paused plan stands still, and nothing about one put away', () => {

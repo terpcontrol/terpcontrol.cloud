@@ -504,9 +504,10 @@
   color: var(--alarm);
 }
 
-/* The yes to a question asked before such a step - removing a member or a
-   place, switching regulation off, deleting an alarm or the account: one danger
-   style, filled in the alarm's red under white words, never the brand green. */
+/* The yes to a question asked before such a step - removing a member, a place
+   or a socket, giving a device up, switching regulation off, deleting an alarm
+   or the account: one danger style, filled in the alarm's red under white
+   words, never the brand green. */
 .dangerFilled,
 .dangerFilled:hover:not(:disabled) {
   background: var(--alarm-fill);
@@ -522,8 +523,8 @@
   opacity: 1;
 }
 
-/* A sheet's own answer that cannot be taken back - removing a socket, releasing
-   a device: outlined in the alarm colour as a button of its own. */
+/* The button that asks before such a step, where it stands as a button of its
+   own - unpairing a camera: outlined in the alarm colour. Its yes is filled. */
 .dangerOutline {
   display: inline-flex;
   align-items: center;
@@ -908,6 +909,14 @@
   background: var(--card-2);
   border: var(--rule-width) solid var(--control-edge);
   border-radius: var(--radius-pill);
+}
+
+/* Drawn smaller than a finger, it is tapped as one wherever it stands: its target is 44 px both ways, counted from
+   inside its rule, reaching into the air around it without making its line taller. */
+.switch::after {
+  content: '';
+  position: absolute;
+  inset: calc((var(--control-height) - 24px) / -2 - var(--rule-width)) calc((var(--control-height) - 42px) / -2 - var(--rule-width));
 }
 
 /* On, the surface green - the button's darker fill fell under 3:1 on the

@@ -686,6 +686,8 @@ describe('a camera at a stream address', () => {
     // The reason reaches a screen reader through the button that cannot be pressed; a test needs no name.
     expect(screen.getByRole('button', { name: 'Add camera' })).toHaveAccessibleDescription('Give it a name first.');
     expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+    // Beside "give it a name first", a placeholder that reads like a name ("Camera") looked like one already given.
+    expect(screen.getByLabelText('Name')).toHaveAttribute('placeholder', expect.stringMatching(/ …$/));
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Balcony cam' } });
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();

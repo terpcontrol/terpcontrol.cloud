@@ -5,7 +5,7 @@ import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels
 import { useUpdateDevice } from '@/api/devices';
 import { useLog } from '@/log/log-context';
 import { ageLabel } from '@/ui/age';
-import { Help } from '@/ui/Help';
+import { Named } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -102,16 +102,14 @@ export function FirmwareCard({ device, offline, mayManage }: { device: Device; o
         <>
           <div className={styles.setting}>
             <span className={styles.settingName}>
-              {t('autoUpdate.label')}
-              <Help topic="firmwareChannel" />
+              <Named label={t('autoUpdate.label')} topic="firmwareChannel" />
             </span>
             <Switch label={t('autoUpdate.label')} on={auto} onChange={on => change(on ? 'stable' : 'manual')} />
           </div>
           {auto ? (
             <label className={styles.setting} htmlFor={channelId}>
               <span className={styles.settingName}>
-                {t('updateChannel.label')}
-                <Help topic="advanced.updateChannel" />
+                <Named label={t('updateChannel.label')} topic="advanced.updateChannel" />
               </span>
               <select
                 id={channelId}
@@ -169,8 +167,7 @@ function VersionPick({ device, offline, firmware }: { device: Device; offline: b
     <>
       <div className={styles.setting} data-wraps>
         <span className={styles.settingName}>
-          {t('firmwarePin.label')}
-          <Help topic="advanced.firmwarePin" />
+          <Named label={t('firmwarePin.label')} topic="advanced.firmwarePin" />
         </span>
         <span className={styles.pick}>
           <select

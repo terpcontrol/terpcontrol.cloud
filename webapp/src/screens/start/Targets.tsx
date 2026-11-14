@@ -13,6 +13,7 @@ import { targetWithUnit } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { fanSummaryOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
+import { usePlanWords } from '@/screens/control/plan-labels';
 import { holdsHumidity, storedShapeOf } from '@/screens/control/targets/day-night';
 import { lightWindowOf, setpointOf, type HumidifierHold } from './place';
 import { planLineOf } from './plan-line';
@@ -112,14 +113,20 @@ export function Targets({
   const { t } = useTranslation();
   const zone = useZone();
   const plan = useDevicePlans(mayManage && device?.control ? [device.id] : []).plans[0];
+  usePlanWords([plan]);
   const planLine = plan ? planLineOf(t, plan, now) : null;
   const own = device?.type === 'plug' || device?.type === 'light';
   const title = t(own ? 'ownPanel.title' : 'start.targets.title');
   const groups = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
+  const light = lightLine(t, device, now, zone);
+  // A lamp alone aims at no climate: what it is set to is its light, never "no targets yet".
+  const lamp = groups.length === 0 && device?.type === 'light' ? light : null;
   // A half of the day stays together for as long as it fits a line, and no line ends on the dot between two figures.
   const line =
     groups.length > 0 ? (
       <Facts facts={groups.map(group => (group.length > 1 ? <Facts key={group[0]} facts={group} /> : group[0]))} />
+    ) : lamp ? (
+      <Facts facts={factsOf(lamp)} />
     ) : (
       <span>
         {t(
@@ -129,14 +136,13 @@ export function Targets({
     );
 
   if (!mayManage) {
-    const light = lightLine(t, device, now, zone);
     return (
       <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-targets">
         <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-targets">
           {title}
         </h2>
         <span>{line}</span>
-        {light ? <Facts className={styles.cardText} facts={factsOf(light)} /> : null}
+        {light && !lamp ? <Facts className={styles.cardText} facts={factsOf(light)} /> : null}
         {guest ? <span className={styles.cardText}>{t('start.targets.whoChanges', { name })}</span> : null}
       </section>
     );

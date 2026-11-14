@@ -24,16 +24,18 @@ export function ControlTab() {
   const { home, places, here, visiting, ended, stray } = useCurrentPlace(true);
   // While the places are read, and where they cannot be, a page keeps its own name: a page under Steuerung its way back too.
   const sub = CONTROL_PAGES.find(one => one === page) ?? null;
+  // Steuerung's two columns take the page's width; a page below it is one column, in the middle as every page is.
+  const frame = `${ui.stack3} ${ui.page} ${sub ? styles.reading : styles.steering}`;
   const space = params.get('space');
   const under = (body: ReactNode) => (
-    <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
+    <section className={frame}>
       <PageHead title={t(`control.page.${sub}`)} back={{ to: space ? controlPath(space) : '/control', label: t('control.back') }} />
       {body}
     </section>
   );
 
   if (home.isPending || ended === undefined) return sub ? under(<Waiting lines={4} />) : <Waiting lines={4} title={t('shell.tabs.control')} />;
-  if (!home.data) return sub ? under(<LoadFailed read={home} />) : <LoadFailed title={t('shell.tabs.control')} read={home} />;
+  if (!home.data) return sub ? under(<LoadFailed read={home} values />) : <LoadFailed title={t('shell.tabs.control')} read={home} values />;
   if (stray) return <NoLongerHere what="space" />;
 
   // Support, reading a customer's place: the place the address names, read only,
@@ -41,7 +43,7 @@ export function ControlTab() {
   if (visiting) {
     return (
       <Visited spaceId={visiting}>
-        <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
+        <section className={frame}>
           <Control spaceId={visiting} sub={page} />
         </section>
       </Visited>
@@ -72,7 +74,7 @@ export function ControlTab() {
   }
 
   return (
-    <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
+    <section className={frame}>
       <Control key={here.spaceId} spaceId={here.spaceId} sub={page} here={here} several={places.length > 1} />
     </section>
   );

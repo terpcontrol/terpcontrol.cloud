@@ -4,12 +4,14 @@ import { Link } from 'react-router';
 import type { PlaceCard } from '@/app/places';
 import { useDevices } from '@/api/devices';
 import { noLongerThere } from '@/api/problem';
-import { useSpaceOverview } from '@/api/spaces';
-import { NoLongerHere } from '@/ui/PageState';
+import { useSession } from '@/api/session';
+import { useEndedSpaces, useSpaceOverview } from '@/api/spaces';
+import { NoLongerHere, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
 import { livenessOf, measuredAtOf, silenceOf } from '@/screens/start/attention';
 import { LivenessPill } from '@/ui/LivenessPill';
 import ui from '@/ui/ui.module.css';
+import place from './Place.module.css';
 import styles from './PlaceTitle.module.css';
 
 /**
@@ -20,7 +22,7 @@ import styles from './PlaceTitle.module.css';
  * the page hands it `place`, which it does once the account has several.
  *
  * `state` is what a page says in the pill's place while the place is heard:
- * Steuerung's "Regelung ein". A place gone quiet, or waiting for its first
+ * Steuerung's "Regelung an". A place gone quiet, or waiting for its first
  * values, says that instead - no state is claimed for a device nobody hears -
  * unless the page says the silence itself (`silenceSaid`), in its box under
  * the title: then the pill is left out rather than said twice.
@@ -94,10 +96,10 @@ export function Visited({ spaceId, children }: { spaceId: string; children: Reac
 }
 
 /**
- * What Verlauf and Steuerung say at an address that names a place of the
- * account's own that has ended - an old alert leads there, and a bookmark:
- * that it is gone and where its curves still are, rather than another place
- * drawn without a word.
+ * What Start, Verlauf, Steuerung and the place's own pages say at an address
+ * that names a place of the account's own that has ended - an old alert leads
+ * there, a bookmark, the browser's Back after the removal: that it is gone and
+ * where its curves still are, rather than another place drawn without a word.
  */
 export function PlaceEnded({ title, name }: { title: string; name: string }) {
   const { t } = useTranslation();
@@ -110,5 +112,24 @@ export function PlaceEnded({ title, name }: { title: string; name: string }) {
         {t('shell.gone.home')}
       </Link>
     </>
+  );
+}
+
+/**
+ * A page about one place - "Ort bearbeiten", "Ort entfernen", who is let in - at an address its places in use do not
+ * hold: one of the account's own that has ended says so under the page's own title, as its Start and Steuerung do;
+ * any other cannot be opened, which is all that may be said of a place somebody else ended or took the reader out of.
+ */
+export function PlaceGone({ spaceId, title }: { spaceId: string; title: (name: string) => string }) {
+  const { user } = useSession();
+  const ended = useEndedSpaces(user !== null && !user.isDemo);
+  const own = ended.data?.items.find(space => space.id === spaceId && space.kind !== 'room' && space.ownerId === user?.id);
+
+  if (ended.isLoading) return <Waiting lines={4} />;
+  if (!own) return <NoLongerHere what="space" />;
+  return (
+    <section className={`${ui.stack3} ${ui.page} ${place.reading}`}>
+      <PlaceEnded title={title(own.name)} name={own.name} />
+    </section>
   );
 }

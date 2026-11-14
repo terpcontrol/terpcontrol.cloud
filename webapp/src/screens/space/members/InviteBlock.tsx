@@ -90,10 +90,11 @@ export function InviteBlock({ id, place, room, open }: { id: string; place: Targ
             {t('space.members.makeLink')}
           </button>
           <AddByHandle spaceId={target.id} />
-          {/* Letting somebody look without an account is not an invitation: it is a link of another kind. */}
+          {/* Letting somebody look without an account is not an invitation: it is a link of another kind, whose sheet
+              opens on this place. */}
           <p className={ui.note}>
             {t('place.members.lookOnly')}{' '}
-            <Link to={SHARE_LINKS} className={styles.shareLink}>
+            <Link to={`${SHARE_LINKS}?${new URLSearchParams({ place: place.id }).toString()}`} className={styles.shareLink}>
               {t('place.members.shareLink')} ›
             </Link>
           </p>

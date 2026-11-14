@@ -8,6 +8,7 @@ import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Asking } from '@/ui/Asking';
 import ui from '@/ui/ui.module.css';
 import { isGoing } from './plan-clock';
+import { ownStepName, stepTitle } from './plan-labels';
 import { PlanRefusal } from './Refusal';
 import styles from './ContinuePlan.module.css';
 
@@ -38,7 +39,9 @@ export function ContinuePlan({ device }: { device: Device }) {
   const pick = chosen ?? steps[standing === null ? 0 : Math.min(standing + 1, steps.length - 1)].id;
   const index = steps.findIndex(step => step.id === pick);
   const step = steps[index];
-  const label = (number: number, name: string) => t('continuePlan.step', { number, name });
+  // "2 · Blüte" where a step has a name of its own; "Schritt 2", in the reader's language, where its name is its number.
+  const label = (number: number, name: string) =>
+    ownStepName(name, number - 1) ? t('continuePlan.step', { number, name: name.trim() }) : stepTitle(t, name, number - 1);
   const switchedOff = device.control?.running === false;
 
   return (
@@ -87,7 +90,7 @@ export function ContinuePlan({ device }: { device: Device }) {
                   setChosen(null);
                   if (switchedOff) void planMoved(client);
                   tell({
-                    label: t(switchedOff ? 'continuePlan.doneOn' : 'continuePlan.done', { number: index + 1, name: step.name }),
+                    label: t(switchedOff ? 'continuePlan.doneOn' : 'continuePlan.done', { number: index + 1, name: ownStepName(step.name, index) }),
                     undo: null,
                     from: `plan-${device.id}`,
                   });

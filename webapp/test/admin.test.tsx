@@ -492,7 +492,7 @@ describe('the fleet table', () => {
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Device type'), { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Not on stable' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Not on Stable' }));
     expect(screen.queryByText('tc-7f3a')).not.toBeInTheDocument();
     expect(screen.getByText('fg-1102')).toBeInTheDocument();
   });
@@ -782,7 +782,7 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     expect(server.wrote).toHaveLength(0);
 
     // What it would reach, before it is pressed and again in the sheet.
-    expect(screen.getAllByText(/beta will point at Spring build/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Beta will point at Spring build/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Apply the change' }));
@@ -793,6 +793,22 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     // `DeviceClassUpdate` is partial, and a class is one document: the rollout,
     // the pace and the failure limit were not touched, so they are not sent.
     expect(server.wrote[0].body).toEqual({ firmwareIds: { stable: 'build-1', beta: 'build-1', alpha: null } });
+  });
+
+  /** The classes were headed by their keys ("controller", "plug"), the channels in two cases, the switch a chip's height. */
+  it('names a class by its type in words, every channel in one case, and its rollout switch a step high', async () => {
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Device classes');
+
+    expect(screen.getAllByText('Controller').length).toBeGreaterThan(0);
+    expect(screen.queryByText('controller')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Stable · /)).toBeInTheDocument();
+    expect(screen.getByText(/^Beta · /)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Running' }).className).toMatch(/runs/);
   });
 
   it('refuses to delete a build a channel still points at, with the reason the server would give', async () => {

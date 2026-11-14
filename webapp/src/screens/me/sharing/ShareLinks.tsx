@@ -1,8 +1,10 @@
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import type { GrowListItem, ShareLink, Space } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
+import { useCameras } from '@/api/cameras';
 import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
@@ -16,7 +18,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { dayLabel, isDead, lifetimeDays, linkAddress } from './links';
+import { dayLabel, isDead, linkAddress, picturesPossible } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
 import { MePage } from '../parts';
 import { SectionHead } from './SectionHead';
@@ -77,9 +79,17 @@ function Links({ userId }: { userId: string | null }) {
   const links = useShareLinks();
   const grows = useEveryGrow();
   const spaces = useEverySpace();
+  const cameras = useCameras();
   const me = useMe();
   const mayManage = useMayManage();
-  const [drafting, setDrafting] = useState(false);
+  // A place's edit page asks for a link onto that place (`?place=`): the sheet opens on it, first among the choices.
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('place');
+  const [drafting, setDrafting] = useState(asked !== null);
+  const draftDone = () => {
+    setDrafting(false);
+    if (asked !== null) setParams({}, { replace: true });
+  };
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (links.isPending) return <Waiting lines={4} />;
@@ -121,9 +131,13 @@ function Links({ userId }: { userId: string | null }) {
 
   const describe = (link: ShareLink) => {
     const subject = subjectOf(link);
+    // Whether it carries pictures is said only where it could: until the cameras are read, as it was made.
+    const pictures = !cameras.data || picturesPossible(cameras.data.items, link.subject);
     return {
       title: titleOf(t, link, subject),
-      parts: isDead(link, now) ? deadParts(t, link, now, i18n.language, zone) : grantParts(t, link, subject, privacy, now, i18n.language, zone),
+      parts: isDead(link, now)
+        ? deadParts(t, link, now, i18n.language, zone)
+        : grantParts(t, link, subject, privacy, pictures, now, i18n.language, zone),
     };
   };
 
@@ -175,7 +189,15 @@ function Links({ userId }: { userId: string | null }) {
         </button>
       )}
 
-      {drafting ? <NewLinkSheet grows={own(grows.data?.items)} spaces={own(spaces.data?.items)} onClose={() => setDrafting(false)} /> : null}
+      {drafting && grows.data && spaces.data ? (
+        <NewLinkSheet
+          grows={own(grows.data.items)}
+          spaces={own(spaces.data.items)}
+          chosen={asked ? { type: 'space', id: asked } : null}
+          first={asked ? 'space' : 'grow'}
+          onClose={draftDone}
+        />
+      ) : null}
       {opened ? <LinkSheet link={opened} {...describe(opened)} dead={isDead(opened, now)} onClose={() => setOpenId(null)} /> : null}
     </>
   );
@@ -274,12 +296,11 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
   );
 }
 
-/** "Tent 1 · timeline · for 7 days": what it is about, of which kind, and for how long it was made. */
+/** "Tent 1 · timeline": what it is about, and of which kind. How long it lasts is the line's, by the day it ends. */
 const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
-  const days = link.kind === 'view' ? lifetimeDays(link) : null;
   const name = subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
 
-  return [name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.lasting', { count: days })].filter(Boolean).join(' · ');
+  return [name, t(`me.shareLinks.kind.${link.kind}`)].join(' · ');
 };
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
@@ -316,6 +337,7 @@ const grantParts = (
   link: ShareLink,
   subject: Subject,
   privacy: Stripping,
+  pictures: boolean,
   now: DateTime,
   locale: string,
   zone: string | null,
@@ -338,7 +360,7 @@ const grantParts = (
     });
   }
 
-  parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
+  if (pictures) parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
   if (!privacy.known) {
     parts.push({ text: privacy.word });
   } else {

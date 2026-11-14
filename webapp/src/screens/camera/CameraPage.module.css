@@ -439,14 +439,6 @@
   color: var(--ink);
 }
 
-/* A switch is drawn smaller than a finger: in a sheet its target reaches into the row's own air. */
-.sheet [role='switch']::after,
-.composer [role='switch']::after {
-  content: '';
-  position: absolute;
-  inset: -11px -2px;
-}
-
 .number {
   width: 80px;
   height: var(--control-height);
