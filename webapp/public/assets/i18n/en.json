@@ -795,8 +795,8 @@
       "camsOff": "camera pictures off",
       "weightsHidden": "weights hidden",
       "countsHidden": "plant counts hidden",
-      "opens_one": "{{count}} open",
-      "opens_other": "{{count}} opens",
+      "opens_one": "opened once",
+      "opens_other": "opened {{count}} times",
       "notOpened": "not opened yet",
       "gone": "no longer here",
       "closing": "Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the camera pictures or not. Followers see the public page; a link never grants writing.",
@@ -824,7 +824,10 @@
         "create": "Create link",
         "wholeGrowNote": "The link shows the grow’s diary as it goes on."
       },
-      "made": "Link created · {{name}}"
+      "made": "Link created · {{name}}",
+      "revokeAsk": "Revoke the link now?",
+      "revokedNow": "Link revoked · {{name}}",
+      "forgotten": "Link forgotten · {{name}}"
     },
     "premium": {
       "title": "Premium",
@@ -1903,7 +1906,11 @@
           "can_log": "sees the place and its grows, logs, ticks tasks",
           "can_manage": "can log, plus targets, plan and alarms",
           "can_logPlain": "sees the place and its readings",
-          "can_managePlain": "sees the place and changes its targets, plan and alarms too"
+          "can_managePlain": "sees the place and changes its targets, plan and alarms too",
+          "can_logRoom": "sees the room’s places and their grows, logs, ticks tasks",
+          "can_manageRoom": "can log, plus the targets, plan and alarms of the room’s places",
+          "can_logPlainRoom": "sees the room’s places and their readings",
+          "can_managePlainRoom": "sees the room’s places and changes their targets, plan and alarms too"
         },
         "valid": "Valid",
         "validity": {
@@ -2618,7 +2625,8 @@
     "publicPageNoteCameras": "The diary gets an address of its own that anybody can open – with its photos and the camera’s pictures. Harvest weights and plant counts follow your privacy settings.",
     "linksNoteNoCamera": "A key for one person, for a stretch of days.",
     "publicCameras": "Camera pictures on the public page",
-    "publicCamerasNote": "The camera’s pictures in the diary and in the report. Switched off, the page shows only the diary’s photos."
+    "publicCamerasNote": "The camera’s pictures in the diary and in the report. Switched off, the page shows only the diary’s photos.",
+    "camerasNotePlace": "Without this the link carries the place’s curves, but no still from it."
   },
   "maintenance": {
     "parked": "no alarm on this device until {{alarms}}",
@@ -3215,7 +3223,7 @@
       "live": "online {{age}} ago",
       "stale": "last heard {{age}} ago",
       "offline": "offline · last heard {{age}} ago",
-      "neverHeard": "Added, but it has not reported yet. It appears here as soon as it is online; the rest can be set up meanwhile.",
+      "neverHeard": "It has not reported yet and appears here as soon as it is online; the rest can be set up meanwhile.",
       "firmware": "firmware {{version}}",
       "sockets_one": "{{count}} socket",
       "sockets_other": "{{count}} sockets",
@@ -3311,7 +3319,8 @@
         "fridge": "A second fridge, say, with a climate of its own.",
         "other": "A drying tent, say, with no other device in it."
       },
-      "back": "Back"
+      "back": "Back",
+      "hereNoteNoCamera": "{{devices}}: one climate, one maintenance window."
     },
     "adding": {
       "fan": "Add fan",
@@ -3466,7 +3475,6 @@
       "registerIt": "Register",
       "unnamed": "no name",
       "wasStable": "was stable",
-      "runningCount": "{{total}} · {{online}} · {{installing}} · {{failed}} gave up",
       "upload": "Upload a file",
       "rename": "Rename",
       "delete": "Delete",
@@ -3489,6 +3497,13 @@
         "channels": "Pointed at by",
         "running": "Devices",
         "actions": "Actions"
+      },
+      "gaveUp_one": "{{count}} gave up",
+      "gaveUp_other": "{{count}} gave up",
+      "seeded": {
+        "fridge": "Fridge controller",
+        "fan": "Fan controller",
+        "light": "Light controller"
       }
     },
     "users": {
@@ -4268,22 +4283,22 @@
       "ask": "Remove {{name}}?",
       "final": "This cannot be taken back.",
       "will": {
-        "make": "{{name}} gets a new place: {{place}}",
-        "move": "{{name}} moves to {{place}}",
-        "stay": "{{name}} stays with {{beside}}",
-        "release": "{{name}} is given up and then no longer belongs to your account",
-        "uncouple": "{{name}} is unpaired",
-        "remove": "{{name}} is removed",
-        "with": "{{name}} moves along to the new place of {{beside}}",
-        "nowhere": "{{name}} then has no fixed place",
-        "end": "{{name}} is ended",
-        "reminders_one": "{{count}} reminder ends",
-        "reminders_other": "{{count}} reminders end",
-        "unseen_one": "{{name}} then no longer sees {{place}}",
-        "unseen_other": "{{name}} then no longer see {{place}}",
-        "roomEnds_one": "The room {{place}} ends – {{name}} then no longer sees it",
-        "roomEnds_other": "The room {{place}} ends – {{name}} then no longer see it",
-        "roomEmpty": "The room {{place}} ends"
+        "make": "{{name}} gets a new place: {{place}}.",
+        "move": "{{name}} moves to {{place}}.",
+        "stay": "{{name}} stays with {{beside}}.",
+        "release": "{{name}} is given up and then no longer belongs to your account.",
+        "uncouple": "{{name}} is unpaired.",
+        "remove": "{{name}} is removed.",
+        "with": "{{name}} moves along to the new place of {{beside}}.",
+        "nowhere": "{{name}} then has no fixed place.",
+        "end": "{{name}} is ended.",
+        "reminders_one": "{{count}} reminder ends.",
+        "reminders_other": "{{count}} reminders end.",
+        "unseen_one": "{{name}} then no longer sees {{place}}.",
+        "unseen_other": "{{name}} then no longer see {{place}}.",
+        "roomEnds_one": "The room {{place}} ends – {{name}} then no longer sees it.",
+        "roomEnds_other": "The room {{place}} ends – {{name}} then no longer see it.",
+        "roomEmpty": "The room {{place}} ends."
       },
       "did": {
         "stands_one": "{{place}}: {{names}} is here now.",
@@ -5078,10 +5093,13 @@
     "socket": {
       "title": "Socket {{name}}",
       "gone": "{{device}} no longer reports this socket.",
-      "waits": "has to wait until the device is back online"
+      "waits": "has to wait until the device is back online",
+      "waitsFirst": "works as soon as the device is online"
     },
     "waitsForRestart": "Restart and update have to wait until the device is back online.",
-    "steering": "Under Control"
+    "steering": "Under Control",
+    "waitsForDeviceFirst": "Maintenance, restart and update work as soon as the device is online.",
+    "waitsForRestartFirst": "Restart and update work as soon as the device is online."
   },
   "control": {
     "back": "Back to Control",

@@ -10,6 +10,7 @@ import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
 import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
@@ -19,6 +20,7 @@ import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
+import { LinkAddress } from '@/screens/space/members/InviteTerms';
 import { dayLabel, isDead, linkAddress, picturesPossible } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
 import { MePage } from '../parts';
@@ -199,7 +201,15 @@ function Links({ userId }: { userId: string | null }) {
           onClose={draftDone}
         />
       ) : null}
-      {opened ? <LinkSheet link={opened} {...describe(opened)} dead={isDead(opened, now)} onClose={() => setOpenId(null)} /> : null}
+      {opened ? (
+        <LinkSheet
+          link={opened}
+          {...describe(opened)}
+          name={nameOf(t, subjectOf(opened))}
+          dead={isDead(opened, now)}
+          onClose={() => setOpenId(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -246,19 +256,42 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
 /**
  * The link's own sheet: its address in full, and the one thing that can still
  * be done to it. A live link is revoked, which keeps its card and dates it -
- * asked first, since nothing starts it again (Chris, 2026-11-14); a link that
- * has already stopped is forgotten, which takes the card away. The
- * address of a dead one is not shown, because it leads nowhere and an address
- * on a screen is an address somebody copies.
+ * asked first, since nothing starts it again (Chris, 2026-11-14), by the bare
+ * question: what revoking does stands in the paragraph above it -, and answered
+ * with a toast; a link that has already stopped is forgotten, which takes the
+ * card away. The address of a dead one is not shown, because it leads nowhere
+ * and an address on a screen is an address somebody copies.
  */
-function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; title: string; parts: Part[]; dead: boolean; onClose: () => void }) {
+function LinkSheet({
+  link,
+  title,
+  name,
+  parts,
+  dead,
+  onClose,
+}: {
+  link: ShareLink;
+  title: string;
+  /** What the link is onto, as the toast names it. */
+  name: string;
+  parts: Part[];
+  dead: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
   const end = dead ? remove : revoke;
   const [asking, setAsking] = useState(false);
   const address = linkAddress(link);
-  const ended = () => end.mutate(link.id, { onSuccess: onClose });
+  const ended = () =>
+    end.mutate(link.id, {
+      onSuccess: () => {
+        onClose();
+        tell({ label: t(dead ? 'me.shareLinks.forgotten' : 'me.shareLinks.revokedNow', { name }), undo: null });
+      },
+    });
 
   return (
     <Sheet
@@ -267,7 +300,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
       actions={
         asking ? (
           <Asking
-            note={t('sharing.revokeAsk')}
+            note={t('me.shareLinks.revokeAsk')}
             yes={t('sharing.revoke')}
             danger
             busy={end.isPending}
@@ -291,7 +324,7 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           <div>
             <span className="label">{t('me.shareLinks.address')}</span>
             <div className={styles.addressRow}>
-              <code className={styles.address}>{address}</code>
+              <LinkAddress address={address} className={styles.address} />
               <CopyButton value={address} label={t('sharing.copyLink')} />
             </div>
           </div>
@@ -306,12 +339,12 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
   );
 }
 
-/** "Tent 1 · timeline": what it is about, and of which kind. How long it lasts is the line's, by the day it ends. */
-const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
-  const name = subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
+/** What a link is onto, as a sentence names it. */
+const nameOf = (t: Translate, subject: Subject): string =>
+  subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
 
-  return [name, t(`me.shareLinks.kind.${link.kind}`)].join(' · ');
-};
+/** "Tent 1 · timeline": what it is about, and of which kind. How long it lasts is the line's, by the day it ends. */
+const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => [nameOf(t, subject), t(`me.shareLinks.kind.${link.kind}`)].join(' · ');
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
 const windowOf = (t: Translate, link: ShareLink, now: DateTime, locale: string, zone: string | null): string | null => {

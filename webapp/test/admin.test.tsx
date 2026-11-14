@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { AdminStats, Camera, Device, DeviceClass, Firmware, Fleet as FleetAnswer, User } from '@fg2/shared-types/v1';
 import { Rail } from '@/app/shell/Rail';
 import { LogProvider } from '@/log/LogProvider';
@@ -809,6 +809,46 @@ describe('the staged rollout, on the screen that has the builds in front of it',
     expect(screen.getByText(/^Stable · /)).toBeInTheDocument();
     expect(screen.getByText(/^Beta · /)).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Running' }).className).toMatch(/runs/);
+  });
+
+  /**
+   * A class the server seeded is described in English words for its kind ("Light Controller" under "Licht"); a model's
+   * own name stays. A build's counts are facts that break between them: one line was cut by the pinned actions
+   * ("21 auf…").
+   */
+  it('says a seeded class´s words in the reader´s language, and a build´s counts as facts that break between them', async () => {
+    await translate(['en', 'de'], 'de');
+    onTestFinished(() => void translate());
+    server.fleet = {
+      ...FLEET,
+      classes: [{ ...FLEET.classes[0], firmwares: [{ ...FLEET.classes[0].firmwares[0], total: 7, online: 4, failed: 21 }] }],
+    };
+    const light = {
+      ...CLASS,
+      id: 'class-light',
+      name: 'light',
+      description: 'Light Controller',
+      firmwareIds: { stable: null, beta: null, alpha: null },
+    };
+    const classes = vi.fn(() => json({ items: [CLASS, light], nextCursor: null }));
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/admin/device-classes') ? classes() : before(input, init),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    wrapped(
+      <AdminOnly>
+        <FirmwareScreen />
+      </AdminOnly>,
+    );
+    await screen.findByText('Spring build');
+
+    expect(screen.getByText(/· Lichtsteuerung$/)).toBeInTheDocument();
+    expect(screen.queryByText(/Light Controller/)).not.toBeInTheDocument();
+    expect(screen.getByText(/· FG Controller 2\.0$/)).toBeInTheDocument();
+    const counts = screen.getByText('21 aufgegeben').closest('td')!;
+    expect(counts.className).not.toMatch(/mono/);
+    expect([...counts.querySelectorAll('span')].some(one => one.textContent === '4 online')).toBe(true);
   });
 
   it('refuses to delete a build a channel still points at, with the reason the server would give', async () => {

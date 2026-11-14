@@ -836,7 +836,10 @@
         "create": "Link erstellen",
         "wholeGrowNote": "Der Link zeigt das Tagebuch des Grows, wie es weitergeht."
       },
-      "made": "Link erstellt · {{name}}"
+      "made": "Link erstellt · {{name}}",
+      "revokeAsk": "Den Link jetzt zurückziehen?",
+      "revokedNow": "Link zurückgezogen · {{name}}",
+      "forgotten": "Link gelöscht · {{name}}"
     },
     "premium": {
       "title": "Premium",
@@ -1913,7 +1916,11 @@
           "can_log": "sieht den Ort und seine Grows, trägt ein, hakt Aufgaben ab",
           "can_manage": "darf eintragen, dazu Zielwerte, Plan und Alarme",
           "can_logPlain": "sieht den Ort und seine Werte",
-          "can_managePlain": "sieht den Ort und ändert dazu Zielwerte, Plan und Alarme"
+          "can_managePlain": "sieht den Ort und ändert dazu Zielwerte, Plan und Alarme",
+          "can_logRoom": "sieht die Orte des Raums und ihre Grows, trägt ein, hakt Aufgaben ab",
+          "can_manageRoom": "darf eintragen, dazu Zielwerte, Plan und Alarme der Orte des Raums",
+          "can_logPlainRoom": "sieht die Orte des Raums und ihre Werte",
+          "can_managePlainRoom": "sieht die Orte des Raums und ändert dazu Zielwerte, Plan und Alarme"
         },
         "valid": "Gültig",
         "validity": {
@@ -2628,7 +2635,8 @@
     "publicPageNoteCameras": "Das Tagebuch bekommt eine eigene Adresse, die jeder öffnen kann – mit den Fotos und den Bildern der Kamera. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen.",
     "linksNoteNoCamera": "Ein Schlüssel für eine Person, für einen Zeitraum.",
     "publicCameras": "Kamerabilder auf der öffentlichen Seite",
-    "publicCamerasNote": "Die Bilder der Kamera im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch."
+    "publicCamerasNote": "Die Bilder der Kamera im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch.",
+    "camerasNotePlace": "Ohne das trägt der Link die Kurven des Orts, aber kein Bild von ihm."
   },
   "maintenance": {
     "parked": "bis {{alarms}} kein Alarm auf diesem Gerät",
@@ -3225,7 +3233,7 @@
       "live": "online vor {{age}}",
       "stale": "zuletzt gemeldet vor {{age}}",
       "offline": "offline · zuletzt gemeldet vor {{age}}",
-      "neverHeard": "Hinzugefügt, aber es hat sich noch nicht gemeldet. Es erscheint hier, sobald es online ist; der Rest lässt sich schon einrichten.",
+      "neverHeard": "Es hat sich noch nicht gemeldet und erscheint hier, sobald es online ist; der Rest lässt sich schon einrichten.",
       "firmware": "Firmware {{version}}",
       "sockets_one": "{{count}} Steckdose",
       "sockets_other": "{{count}} Steckdosen",
@@ -3321,7 +3329,8 @@
         "fridge": "Zum Beispiel ein zweiter Kühlschrank, mit eigenem Klima.",
         "other": "Zum Beispiel ein Trockenzelt, in dem sonst kein Gerät steht."
       },
-      "back": "Zurück"
+      "back": "Zurück",
+      "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung."
     },
     "adding": {
       "fan": "Lüfter hinzufügen",
@@ -3476,7 +3485,6 @@
       "registerIt": "Anlegen",
       "unnamed": "ohne Namen",
       "wasStable": "war stabil",
-      "runningCount": "{{total}} · {{online}} · {{installing}} · {{failed}} aufgegeben",
       "upload": "Datei hochladen",
       "rename": "Umbenennen",
       "delete": "Löschen",
@@ -3499,6 +3507,13 @@
         "channels": "Angezielt von",
         "running": "Geräte",
         "actions": "Aktionen"
+      },
+      "gaveUp_one": "{{count}} aufgegeben",
+      "gaveUp_other": "{{count}} aufgegeben",
+      "seeded": {
+        "fridge": "Kühlschranksteuerung",
+        "fan": "Lüftersteuerung",
+        "light": "Lichtsteuerung"
       }
     },
     "users": {
@@ -4278,22 +4293,22 @@
       "ask": "{{name}} entfernen?",
       "final": "Das lässt sich nicht zurücknehmen.",
       "will": {
-        "make": "{{name}} bekommt einen neuen Ort: {{place}}",
-        "move": "{{name}} zieht nach {{place}} um",
-        "stay": "{{name}} bleibt bei {{beside}}",
-        "release": "{{name}} wird abgegeben und gehört dann nicht mehr zu deinem Konto",
-        "uncouple": "{{name}} wird entkoppelt",
-        "remove": "{{name}} wird entfernt",
-        "with": "{{name}} zieht mit an den neuen Ort von {{beside}}",
-        "nowhere": "{{name}} steht dann an keinem festen Ort",
-        "end": "{{name}} wird beendet",
-        "reminders_one": "{{count}} Erinnerung endet",
-        "reminders_other": "{{count}} Erinnerungen enden",
-        "unseen_one": "{{name}} sieht {{place}} dann nicht mehr",
-        "unseen_other": "{{name}} sehen {{place}} dann nicht mehr",
-        "roomEnds_one": "Raum {{place}} endet – {{name}} sieht ihn dann nicht mehr",
-        "roomEnds_other": "Raum {{place}} endet – {{name}} sehen ihn dann nicht mehr",
-        "roomEmpty": "Raum {{place}} endet"
+        "make": "{{name}} bekommt einen neuen Ort: {{place}}.",
+        "move": "{{name}} zieht nach {{place}} um.",
+        "stay": "{{name}} bleibt bei {{beside}}.",
+        "release": "{{name}} wird abgegeben und gehört dann nicht mehr zu deinem Konto.",
+        "uncouple": "{{name}} wird entkoppelt.",
+        "remove": "{{name}} wird entfernt.",
+        "with": "{{name}} zieht mit an den neuen Ort von {{beside}}.",
+        "nowhere": "{{name}} steht dann an keinem festen Ort.",
+        "end": "{{name}} wird beendet.",
+        "reminders_one": "{{count}} Erinnerung endet.",
+        "reminders_other": "{{count}} Erinnerungen enden.",
+        "unseen_one": "{{name}} sieht {{place}} dann nicht mehr.",
+        "unseen_other": "{{name}} sehen {{place}} dann nicht mehr.",
+        "roomEnds_one": "Raum {{place}} endet – {{name}} sieht ihn dann nicht mehr.",
+        "roomEnds_other": "Raum {{place}} endet – {{name}} sehen ihn dann nicht mehr.",
+        "roomEmpty": "Raum {{place}} endet."
       },
       "did": {
         "stands_one": "{{place}}: {{names}} steht jetzt hier.",
@@ -5088,10 +5103,13 @@
     "socket": {
       "title": "Steckdose {{name}}",
       "gone": "{{device}} meldet diese Steckdose nicht mehr.",
-      "waits": "geht erst, wenn das Gerät wieder online ist"
+      "waits": "geht erst, wenn das Gerät wieder online ist",
+      "waitsFirst": "geht, sobald das Gerät online ist"
     },
     "waitsForRestart": "Neustart und Update gehen erst, wenn das Gerät wieder online ist.",
-    "steering": "Unter Steuerung"
+    "steering": "Unter Steuerung",
+    "waitsForDeviceFirst": "Wartung, Neustart und Update gehen, sobald das Gerät online ist.",
+    "waitsForRestartFirst": "Neustart und Update gehen, sobald das Gerät online ist."
   },
   "control": {
     "back": "Zurück zur Steuerung",

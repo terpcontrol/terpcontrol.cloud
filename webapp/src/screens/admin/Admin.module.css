@@ -109,6 +109,12 @@
   flex-wrap: nowrap;
 }
 
+/* What a row does is a target a finger finds, as everywhere else: a chip's 30 px is for filters above a table. */
+.table tbody td button,
+.table tbody td a[class] {
+  min-height: var(--action-height);
+}
+
 .table tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -197,6 +203,11 @@
 .numbers {
   font-family: var(--font-figure);
   white-space: nowrap;
+}
+
+/* Counts that break between their facts, so the pinned column never cuts one. */
+.counts {
+  font-family: var(--font-figure);
 }
 
 .liveness {

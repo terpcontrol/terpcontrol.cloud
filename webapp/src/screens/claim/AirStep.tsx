@@ -2,6 +2,7 @@ import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Space } from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { useCamerasShape } from '@/api/cameras';
 import { deviceTitle } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { FlowHead } from './FlowHead';
@@ -13,6 +14,9 @@ import ui from '@/ui/ui.module.css';
  * "Wo hängt es?", asked once of a device that measures by itself, in an
  * account that already has a place: in the air of a place that exists - by
  * its name alone, what stands there under it - or at a new place of its own.
+ *
+ * What hanging there means is said by what the place has: its climate and its maintenance, which the device shares,
+ * and its camera only where one looks in - "eine Kamera" stood under a tent with none.
  *
  * The device hangs somewhere before the question is put - a fan, a socket or
  * a lamp in the place listed first, where its claim put it, a second
@@ -45,6 +49,7 @@ export function AirStep({
   const [refused, setRefused] = useState<unknown>(null);
   const ownClimate = OWN_CLIMATE_TYPES.includes(device.type);
   const holds = places.find(one => one.id === device.spaceId) ?? null;
+  const cameras = useCamerasShape().data?.items ?? [];
 
   const answer = (to: Space | null, title: string, note: string) => (
     <button
@@ -71,7 +76,12 @@ export function AirStep({
     // What holds the climate is named first: it is what the device joins.
     const there = [true, false].flatMap(climate => here.filter(other => OWN_CLIMATE_TYPES.includes(other.type) === climate));
     const devices = there.map(other => deviceTitle(other, t, there)).join(', ');
-    return answer(one, one.name, there.length > 0 ? t('claim.air.hereNote', { devices }) : t('claim.air.hereEmpty'));
+    const seen = cameras.some(camera => camera.spaceId === one.id);
+    return answer(
+      one,
+      one.name,
+      there.length > 0 ? t(seen ? 'claim.air.hereNote' : 'claim.air.hereNoteNoCamera', { devices }) : t('claim.air.hereEmpty'),
+    );
   });
   const fresh = answer(null, t('claim.air.new'), t(`claim.air.newNote.${ownClimate ? device.type : 'other'}`));
 

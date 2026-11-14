@@ -12,6 +12,7 @@ import {
   useUploadBinary,
 } from '@/api/admin';
 import { itemsOf, useFollowCursor } from '@/api/pages';
+import { Facts } from '@/ui/Facts';
 import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
 import { typeName } from '@/ui/naming';
@@ -188,19 +189,32 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
       </td>
       <td>{deviceClass ? typeName(deviceClass.name, t) : <span className="mono">{build.classId}</span>}</td>
       <td className="mono">{zoned(build.createdAt, zone).toFormat(`yyyy-LL-dd ${CLOCK}`)}</td>
-      <td className="mono">
-        {pointers.length > 0 ? pointers.map(one => `${typeName(one.deviceClass.name, t)} · ${t(`devices.channel.${one.channel}`)}`).join(', ') : '—'}
-        {build.wasStable ? ` · ${t('admin.firmware.wasStable')}` : ''}
+      {/* Facts that break between them rather than one line the pinned actions cut: "21 auf…" said nothing. */}
+      <td>
+        {pointers.length > 0 || build.wasStable ? (
+          <Facts
+            facts={[
+              ...pointers.map(one => `${typeName(one.deviceClass.name, t)} · ${t(`devices.channel.${one.channel}`)}`),
+              build.wasStable ? t('admin.firmware.wasStable') : null,
+            ]}
+          />
+        ) : (
+          '—'
+        )}
       </td>
-      <td className={`mono ${styles.numbers}`}>
-        {stats
-          ? t('admin.firmware.runningCount', {
-              total: stats.total,
-              online: t('admin.count.online', { count: stats.online }),
-              installing: t('admin.count.installing', { count: stats.updating }),
-              failed: stats.failed,
-            })
-          : '—'}
+      <td className={styles.counts}>
+        {stats ? (
+          <Facts
+            facts={[
+              String(stats.total),
+              t('admin.count.online', { count: stats.online }),
+              t('admin.count.installing', { count: stats.updating }),
+              t('admin.firmware.gaveUp', { count: stats.failed }),
+            ]}
+          />
+        ) : (
+          '—'
+        )}
       </td>
       <td>
         <span className={`${ui.wrap} ${styles.actions}`}>

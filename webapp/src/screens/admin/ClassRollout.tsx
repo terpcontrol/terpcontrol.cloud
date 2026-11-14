@@ -5,6 +5,7 @@ import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } fro
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
+import type { Translate } from '@/i18n/i18n';
 import { typeName } from '@/ui/naming';
 import { Label } from './parts';
 import { Refused } from '@/ui/PageState';
@@ -133,6 +134,8 @@ export function ClassRollout({
     );
   }
 
+  const described = descriptionOf(t, deviceClass.description);
+
   return (
     <div className={styles.block}>
       <div className={styles.blockHead}>
@@ -140,7 +143,7 @@ export function ClassRollout({
         <span className={styles.consequence}>
           {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
           {/* The description where it says more than the heading: "Plantalytix Socket" under "Plantalytix Socket" did not. */}
-          {deviceClass.description && deviceClass.description !== typeName(deviceClass.name, t) ? ` · ${deviceClass.description}` : ''}
+          {described && described !== typeName(deviceClass.name, t) ? ` · ${described}` : ''}
         </span>
       </div>
 
@@ -284,3 +287,12 @@ export function ClassRollout({
     </div>
   );
 }
+
+/**
+ * The words the server seeds three classes with, which name a kind of device in English rather than a model: said in
+ * the reader's language, as the heading above them is. A model's own name - "FG Controller 2.0" - is a name and stays.
+ */
+const SEEDED: Record<string, string> = { 'Fridge Controller': 'fridge', 'Fan Controller': 'fan', 'Light Controller': 'light' };
+
+const descriptionOf = (t: Translate, description: string | null): string | null =>
+  description && SEEDED[description] ? t(`admin.firmware.seeded.${SEEDED[description]}`) : description;

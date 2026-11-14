@@ -25,12 +25,13 @@ import ui from '@/ui/ui.module.css';
  * address this app has nothing at, which is what it then says.
  */
 export function PublicProfileRoute() {
+  const { t } = useTranslation();
   const { handle: segment = '' } = useParams();
 
   if (!segment.startsWith('@')) {
     return (
-      <PublicShell>
-        <NotFound />
+      <PublicShell title={t('notFound.title')}>
+        <NotFound home={false} />
       </PublicShell>
     );
   }

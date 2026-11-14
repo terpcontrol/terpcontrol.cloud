@@ -84,6 +84,10 @@ export function NewLinkSheet({
   const [days, setDays] = useState<number | null>(7);
 
   const grow = subject?.type === 'grow' ? grows.find(row => row.id === subject.id) : undefined;
+  // A place without a grow has no diary for its link to carry: only its curves.
+  const growsHere =
+    subject?.type === 'space' &&
+    grows.some(row => row.endedAt === null && row.placements.some(placement => placement.spaceId === subject.id && placement.endedAt === null));
   // Pictures are offered only where a camera could have taken any: a place with none has nothing to include.
   const camerasHere = subject !== null && picturesPossible(cameras.data?.items ?? [], subject);
   const growIsPublic = grow?.visibility === 'public';
@@ -207,7 +211,7 @@ export function NewLinkSheet({
               {/* The words switch it as well as the switch does. */}
               <div className={ui.textColumn} onClick={() => setCams(!cams)}>
                 <span>{t('sharing.cameras')}</span>
-                <span className={ui.note}>{t('sharing.camerasNote')}</span>
+                <span className={ui.note}>{t(subject?.type === 'space' && !growsHere ? 'sharing.camerasNotePlace' : 'sharing.camerasNote')}</span>
               </div>
               <Switch label={t('sharing.cameras')} on={cams} onChange={setCams} />
             </div>

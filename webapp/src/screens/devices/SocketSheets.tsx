@@ -42,6 +42,7 @@ export function PairSocketRow({
   table,
   failed,
   unheard,
+  never = false,
   now,
 }: {
   deviceId: string;
@@ -51,6 +52,8 @@ export function PairSocketRow({
   failed: boolean;
   /** Nobody is listening on the device, so pairing waits. */
   unheard: boolean;
+  /** The device was never heard: it waits for its first time online, not to be back. */
+  never?: boolean;
   now: DateTime;
 }) {
   const { t } = useTranslation();
@@ -69,7 +72,7 @@ export function PairSocketRow({
             facts={[
               count === null ? failed && t('device.sockets.unread') : t(count ? 'device.sockets.paired' : 'device.sockets.none', { count }),
               sent && now.toMillis() - sent.at < PAIRING_MS ? t('device.sockets.pairing') : null,
-              unheard ? t('device.socket.waits') : null,
+              unheard ? t(never ? 'device.socket.waitsFirst' : 'device.socket.waits') : null,
             ]}
           />
         }

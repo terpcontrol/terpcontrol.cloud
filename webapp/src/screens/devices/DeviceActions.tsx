@@ -30,6 +30,7 @@ export function DeviceActions({ device, offline }: { device: Device; offline: bo
   if (!mayManage) return null;
 
   const parks = parksAnything(device);
+  const never = device.state.lastSeenAt === null;
 
   return (
     <div className={styles.actions}>
@@ -42,8 +43,21 @@ export function DeviceActions({ device, offline }: { device: Device; offline: bo
       >
         {t('devices.reboot.action')}
       </button>
-      {/* A sentence about a device names only what that device does: a plug has no maintenance to wait for. */}
-      {offline ? <p className={ui.note}>{t(parks ? 'device.waitsForDevice' : 'device.waitsForRestart')}</p> : null}
+      {/* A sentence about a device names only what that device does: a plug has no maintenance to wait for. One never
+          heard waits for its first time online, not to be back. */}
+      {offline ? (
+        <p className={ui.note}>
+          {t(
+            never
+              ? parks
+                ? 'device.waitsForDeviceFirst'
+                : 'device.waitsForRestartFirst'
+              : parks
+                ? 'device.waitsForDevice'
+                : 'device.waitsForRestart',
+          )}
+        </p>
+      ) : null}
       {restarting ? (
         <RebootSheet device={device} name={deviceTitle(device, t, standingWith(device, devices.data?.items))} onClose={() => setRestarting(false)} />
       ) : null}

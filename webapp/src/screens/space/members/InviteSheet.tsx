@@ -35,11 +35,14 @@ type Way = (typeof WAYS)[number];
 export function InviteSheet({
   spaceId,
   spaceName,
+  room = false,
   shown,
   onClose,
 }: {
   spaceId: string;
   spaceName: string;
+  /** Whether it is a room's invitation, which lets into every place of the room. */
+  room?: boolean;
   /** A code already out, to be shown rather than made; null asks the two questions first. */
   shown: Invite | null;
   onClose: () => void;
@@ -103,7 +106,7 @@ export function InviteSheet({
             {ROLES.map(one => (
               <button key={one} type="button" role="radio" aria-checked={role === one} className={styles.role} onClick={() => setRole(one)}>
                 <span className={styles.roleName}>{t(`space.members.role.${one}`)}</span>
-                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}${diary ? '' : 'Plain'}`)}</span>
+                <span className={styles.roleNote}>{t(`space.members.sheet.roleNote.${one}${diary ? '' : 'Plain'}${room ? 'Room' : ''}`)}</span>
               </button>
             ))}
           </div>

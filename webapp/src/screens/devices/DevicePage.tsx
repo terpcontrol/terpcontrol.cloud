@@ -244,7 +244,15 @@ function DeviceScreen({ device, among, page }: { device: Device; among: Device[]
       <Rows>
         {mayManage ? <Row title={settings} line={place?.name ?? null} onOpen={() => setNaming(true)} /> : null}
         {hosts && mayManage && !device.isDemo ? (
-          <PairSocketRow deviceId={device.id} deviceName={name} table={table} failed={tables.isError} unheard={offline || waiting} now={now} />
+          <PairSocketRow
+            deviceId={device.id}
+            deviceName={name}
+            table={table}
+            failed={tables.isError}
+            unheard={offline || waiting}
+            never={waiting}
+            now={now}
+          />
         ) : null}
         {advanced.length > 0 ? <Row title={t('advanced.title')} line={groups.join(', ') || null} to={devicePath(device.id, 'advanced')} /> : null}
         <Row title={t('devices.panel.technical')} line={t('device.details.line')} to={devicePath(device.id, 'details')} />

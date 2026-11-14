@@ -110,6 +110,8 @@ function Socket({
   const forced = forcedOf(row);
   // Why the device would not hear anything at all, and why this build holds nothing: the first stops strictly more.
   const unheard = offline || waiting;
+  // A device never heard is not "back" online: it waits for its first time.
+  const waits = t(waiting ? 'device.socket.waitsFirst' : 'device.socket.waits');
   const refusal = unheard ? t('devices.socket.offline') : capabilities.socketOverride ? null : t('devices.socket.needsFirmware');
   const runs = runsOf(verdict, row.role);
   const timed = isTimed(row.role);
@@ -160,22 +162,17 @@ function Socket({
 
       {mayManage ? (
         <Rows>
-          {row.slot >= 0 ? <FindRow deviceId={device.id} slot={row.slot} name={name} unheard={unheard} /> : null}
+          {row.slot >= 0 ? <FindRow deviceId={device.id} slot={row.slot} name={name} waits={unheard ? waits : null} /> : null}
           {/* A pump or a timer of one's own without a cycle stays off, which the row that sets one says. */}
           <Row
             title={t(timed ? 'socketForm.edit.labelTimed' : 'socketForm.edit.label')}
-            line={timed && !row.timer ? t('socketForm.timer.missing') : unheard ? t('device.socket.waits') : null}
+            line={timed && !row.timer ? t('socketForm.timer.missing') : unheard ? waits : null}
             warn={timed && !row.timer}
             waits={unheard}
             onOpen={() => setEditing(true)}
           />
           {row.slot >= 0 ? (
-            <Row
-              title={t('socketForm.remove.label')}
-              line={unheard ? t('device.socket.waits') : null}
-              waits={unheard}
-              onOpen={() => setRemoving(true)}
-            />
+            <Row title={t('socketForm.remove.label')} line={unheard ? waits : null} waits={unheard} onOpen={() => setRemoving(true)} />
           ) : null}
         </Rows>
       ) : null}
@@ -208,7 +205,17 @@ function Socket({
  * how a person finds out which plug in the tent it is. A command every build
  * takes, so only a device nobody hears makes it wait.
  */
-function FindRow({ deviceId, slot, name, unheard }: { deviceId: string; slot: number; name: string; unheard: boolean }) {
+function FindRow({
+  deviceId,
+  slot,
+  name,
+  waits,
+}: {
+  deviceId: string;
+  slot: number;
+  name: string;
+  /** What it waits for, where nobody hears the device. */ waits: string | null;
+}) {
   const { t } = useTranslation();
   const { tell } = useLog();
   const test = useTestSocket();
@@ -224,13 +231,7 @@ function FindRow({ deviceId, slot, name, unheard }: { deviceId: string; slot: nu
 
   return (
     <>
-      <Row
-        acts
-        title={t('devices.socket.findIt')}
-        line={t(unheard ? 'device.socket.waits' : 'devices.socket.findLine')}
-        waits={unheard}
-        onOpen={find}
-      />
+      <Row acts title={t('devices.socket.findIt')} line={waits ?? t('devices.socket.findLine')} waits={waits !== null} onOpen={find} />
       <Refused error={test.error} fallback={t('devices.socket.askFailed')} className={styles.rowSays} />
       {missed ? <p className={`${ui.note} ${styles.rowSays}`}>{missed}</p> : null}
       <Announce text={missed} />

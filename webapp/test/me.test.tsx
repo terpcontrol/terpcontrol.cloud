@@ -401,6 +401,26 @@ describe('one read that fails', () => {
     answerGrows(json({ items: server.grows, nextCursor: null }));
     expect(await lineUnder('Privacy and profile')).toBe('profile public · 1 public grow');
   });
+
+  /**
+   * "loading" under three doors was a page that looked done for the seconds a read took to fail, and a walk that
+   * took it at its word never saw the failure: the page says it is busy until every line's read has answered.
+   */
+  it('says the page is busy while a line´s read is still out, and not once it has answered', async () => {
+    let answerGrows = (_: Response) => {};
+    server.held = {
+      '/v1/grows': new Promise<Response>(resolve => {
+        answerGrows = resolve;
+      }),
+    };
+    const { container } = draw();
+
+    await lineUnder('Notifications');
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    answerGrows(json({ items: server.grows, nextCursor: null }));
+    await lineUnder('Privacy and profile');
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+  });
 });
 
 describe('what is empty', () => {

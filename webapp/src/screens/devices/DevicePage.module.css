@@ -14,8 +14,14 @@
   color: var(--warning);
 }
 
+/* The place under the title is a 36 px target in its own box - a finger finds it, and a measure of the link says so -
+   reaching above and below its line without making the line taller. */
 .facts a {
   position: relative;
+  display: inline-block;
+  min-width: var(--action-height);
+  padding-block: calc((var(--action-height) - 1lh) / 2);
+  margin-block: calc((var(--action-height) - 1lh) / -2);
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -31,7 +37,7 @@
 .facts a::after {
   content: '';
   position: absolute;
-  inset: calc(-1 * var(--space-3)) 0;
+  inset: calc((var(--action-height) - var(--control-height)) / 2) 0;
   min-width: var(--control-height);
 }
 

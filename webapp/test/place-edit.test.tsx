@@ -772,10 +772,10 @@ describe('removing a place', () => {
     const sheet = await ask();
     expect(within(sheet).getByRole('button', { name: 'Remove Tent' }).className).toMatch(/dangerFilled/);
     expect(linesOf(sheet)).toEqual([
-      'Tent controller gets a new place: Tent 2',
-      'Fan stays with Tent controller',
-      'Canopy cam stays with Tent controller',
-      'Spring run moves along to the new place of Tent controller',
+      'Tent controller gets a new place: Tent 2.',
+      'Fan stays with Tent controller.',
+      'Canopy cam stays with Tent controller.',
+      'Spring run moves along to the new place of Tent controller.',
     ]);
     expect(written()).toEqual([]);
 
@@ -807,11 +807,11 @@ describe('removing a place', () => {
     const sheet = await ask();
     // The loft stands in no room: the room the tent was the last place of ends, which is said though nobody was let into it.
     expect(linesOf(sheet)).toEqual([
-      'Tent controller moves to Loft',
-      'Fan stays with Tent controller',
-      'Canopy cam stays with Tent controller',
-      'Spring run moves to Loft',
-      'The room Grow room ends',
+      'Tent controller moves to Loft.',
+      'Fan stays with Tent controller.',
+      'Canopy cam stays with Tent controller.',
+      'Spring run moves to Loft.',
+      'The room Grow room ends.',
     ]);
 
     answer(sheet);
@@ -835,10 +835,10 @@ describe('removing a place', () => {
 
     const sheet = await ask();
     expect(linesOf(sheet)).toEqual([
-      'Tent controller is given up and then no longer belongs to your account',
-      'Fan gets a new place: Tent 2',
-      'Canopy cam stays with Tent controller',
-      'Spring run is ended',
+      'Tent controller is given up and then no longer belongs to your account.',
+      'Fan gets a new place: Tent 2.',
+      'Canopy cam stays with Tent controller.',
+      'Spring run is ended.',
     ]);
     answer(sheet);
 
@@ -973,7 +973,7 @@ describe('removing a place', () => {
       .mockResolvedValue(null as never);
     fireEvent.change(select('Tent controller'), { target: { value: 'move:fridge' } });
     const sheet = await ask();
-    expect(linesOf(sheet)[0]).toBe('Tent controller moves to KS Black');
+    expect(linesOf(sheet)[0]).toBe('Tent controller moves to KS Black.');
     expect(api.delete).not.toHaveBeenCalled();
     answer(sheet);
 
@@ -998,11 +998,11 @@ describe('removing a place', () => {
     const sheet = await ask();
     // The controller gets a new place in the room, so the room goes on: its member loses this place with the guest.
     expect(linesOf(sheet)).toEqual([
-      'Tent controller gets a new place: Tent 2',
-      'Fan stays with Tent controller',
-      'Canopy cam stays with Tent controller',
-      '2 reminders end',
-      '@guest and @mara then no longer see Tent',
+      'Tent controller gets a new place: Tent 2.',
+      'Fan stays with Tent controller.',
+      'Canopy cam stays with Tent controller.',
+      '2 reminders end.',
+      '@guest and @mara then no longer see Tent.',
     ]);
     // No grow keeps the curves: said in one line.
     expect(screen.getByText('After that you see this place’s curves only with the grows that grew here.')).toBeInTheDocument();
@@ -1024,7 +1024,10 @@ describe('removing a place', () => {
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Tent controller' }), { target: { value: 'move:fridge' } });
     const sheet = await ask();
-    expect(linesOf(sheet).slice(3)).toEqual(['@guest then no longer sees Tent', 'The room Grow room ends – @mara and @jonas then no longer see it']);
+    expect(linesOf(sheet).slice(3)).toEqual([
+      '@guest then no longer sees Tent.',
+      'The room Grow room ends – @mara and @jonas then no longer see it.',
+    ]);
 
     answer(sheet);
     await waitFor(() =>
@@ -1041,7 +1044,7 @@ describe('removing a place', () => {
 
     fireEvent.change(await screen.findByRole('combobox', { name: 'Terp Cam' }), { target: { value: 'uncouple' } });
     const sheet = await ask();
-    expect(linesOf(sheet)[2]).toBe('Terp Cam is unpaired');
+    expect(linesOf(sheet)[2]).toBe('Terp Cam is unpaired.');
     answer(sheet);
     await waitFor(() =>
       expect(told.map(one => one.label)).toEqual(['Tent removed. Tent 2: Tent controller and Fan are here now. Terp Cam unpaired.']),
@@ -1122,7 +1125,7 @@ describe('removing a place', () => {
     expect(select('Spring run · Day 29')).toBeInvalid();
     expect(select('Fan')).toHaveValue('new');
     fireEvent.change(select('Spring run · Day 29'), { target: { value: 'end' } });
-    expect(linesOf(await ask())).toEqual(['Fan gets a new place: Tent 2', 'Spring run is ended']);
+    expect(linesOf(await ask())).toEqual(['Fan gets a new place: Tent 2.', 'Spring run is ended.']);
   });
 
   it('is the owner´s, and asks nobody else´s session who is let in', async () => {

@@ -101,7 +101,15 @@ export function InviteBlock({ id, place, room, open }: { id: string; place: Targ
         </>
       ) : null}
 
-      {sheet ? <InviteSheet spaceId={sheet.target.id} spaceName={sheet.target.name} shown={sheet.shown} onClose={() => setSheet(null)} /> : null}
+      {sheet ? (
+        <InviteSheet
+          spaceId={sheet.target.id}
+          spaceName={sheet.target.name}
+          room={sheet.target.id === room?.id}
+          shown={sheet.shown}
+          onClose={() => setSheet(null)}
+        />
+      ) : null}
     </section>
   );
 }

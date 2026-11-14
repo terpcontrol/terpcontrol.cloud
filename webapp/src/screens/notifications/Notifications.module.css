@@ -105,21 +105,31 @@
   }
 }
 
-/* On the narrowest phone four switches and a name share 256 px: the card gives
-   up padding, the columns are as wide as a switch needs, and a name breaks at
-   a syllable before it pushes the grid out of its card. */
+/* On the narrowest phone four switches and a name share 256 px, which left the
+   name 58 px and broke "Warnungen" and "Wochenfilm" inside the word. There each
+   name stands on its own line above its switches, which stay under their
+   heads; every switch is named by its own label, so the row header is not what
+   tells it apart. */
 @media (max-width: 359px) {
   .gridBlock {
     padding-inline: var(--space-3);
   }
 
-  .grid {
-    table-layout: fixed;
+  .grid,
+  .grid thead,
+  .grid tbody {
+    display: block;
+  }
+
+  .grid tr {
+    display: grid;
+    grid-template-columns: 1fr repeat(4, 50px);
+    align-items: center;
   }
 
   .gridHead,
   .grid tr > :last-child {
-    width: 50px;
+    width: auto;
     padding-inline: 0;
     font-size: 11px;
     letter-spacing: 0;
@@ -127,7 +137,16 @@
   }
 
   .gridRow {
-    padding-right: var(--space-1);
-    hyphens: auto;
+    grid-column: 1 / -1;
+    padding: var(--space-2) 0 0;
+  }
+
+  .gridCell {
+    width: auto;
+  }
+
+  /* The name fills the first line; the switches flow on into the next from under the first head. */
+  .gridCell:first-of-type {
+    grid-column-start: 2;
   }
 }

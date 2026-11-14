@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { placePath, placesOf } from '@/app/places';
@@ -11,6 +12,7 @@ import { useSpaceGrows } from '@/api/grows';
 import { useApplyPreset } from '@/api/lifecycle';
 import { ApiError } from '@/api/problem';
 import { useSession } from '@/api/session';
+import { invalidate } from '@/api/write';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { useLog } from '@/log/log-context';
 import { NotifyStep } from '@/screens/notifications/NotifyNotice';
@@ -83,6 +85,17 @@ const addressOf = (device: string, plan: readonly Asked[], at = '', made: string
 export function Claim() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const client = useQueryClient();
+  // The place's Start is where the flow lands, and it judges the device by what it reads: an answer cut before the
+  // device was heard said "wartet auf erste Werte" for half a minute under a claim that had just said "online". It
+  // reads the place, the devices and the home again on the way in.
+  const arrive = useCallback(
+    (to: string) => {
+      void invalidate(client, ['space', to], ['devices'], ['home']);
+      void navigate(placePath(to), { replace: true });
+    },
+    [client, navigate],
+  );
   const now = useNow();
   const mayManage = useMayManage();
   const [params, setParams] = useSearchParams();
@@ -164,8 +177,8 @@ export function Claim() {
       if (leaving.from === steps) return;
       leaving.from = steps;
       void navigate(-steps);
-    } else if (to) void navigate(placePath(to), { replace: true });
-  }, [outside, steps, spaceId, setParams, navigate]);
+    } else if (to) arrive(to);
+  }, [outside, steps, spaceId, setParams, navigate, arrive]);
 
   // The keyboard and the screen reader go to the question that opens: the form that was focused is off the page.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -179,7 +192,8 @@ export function Claim() {
     if (to && steps > 0) {
       out.current = { to, from: steps };
       void navigate(-steps);
-    } else void navigate(to ? placePath(to) : '/', { replace: true });
+    } else if (to) arrive(to);
+    else void navigate('/', { replace: true });
   };
   const leave = () => leaveTo(spaceId);
   const go = (step: Asked, madeId = made, asking = plan!) => setParams(addressOf(deviceId!, asking, step, madeId), { state: { steps: steps + 1 } });

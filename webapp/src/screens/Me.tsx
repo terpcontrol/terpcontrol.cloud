@@ -38,16 +38,28 @@ export function Me() {
 
 /**
  * The head, who is signed in, the rows, and signing out. The demo's rows are the two that work without an account,
- * with the note saying so; what could not be read is said once, over the rows (`failed`).
+ * with the note saying so; what could not be read is said once, over the rows (`failed`). While a row's line is
+ * still read the page says it is busy, as a page waiting for its read does: "lädt" stood under three rows for the
+ * seconds a read takes to fail, and a reader - or a check - that took the page as done saw no failure at all.
  */
-function Frame({ children, note = false, failed = null }: { children?: ReactNode; note?: boolean; failed?: ReactNode }) {
+function Frame({
+  children,
+  note = false,
+  failed = null,
+  busy = false,
+}: {
+  children?: ReactNode;
+  note?: boolean;
+  failed?: ReactNode;
+  busy?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const { leaving, leave } = useLeave('/sign-in');
   const { choice } = useTheme();
 
   return (
-    <section className={`${ui.stack3} ${styles.page}`}>
+    <section className={`${ui.stack3} ${styles.page}`} aria-busy={busy || undefined}>
       <PageHead back={{ to: '/', label: t('me.back') }} title={t('me.title')} />
       <p className={styles.handle}>@{user?.handle ?? '?'}</p>
       {failed}
@@ -89,7 +101,10 @@ function AccountRows() {
   const line = (reads: Read[], text: () => string) => (reads.some(read => (failed as Read[]).includes(read)) ? undefined : lineOnce(t, reads, text));
 
   return (
-    <Frame failed={failed.length > 0 ? <LoadFailed read={together(...failed)} /> : null}>
+    <Frame
+      failed={failed.length > 0 ? <LoadFailed read={together(...failed)} /> : null}
+      busy={[me, grows].some(read => read.data === undefined && read.isPending)}
+    >
       <Row to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now, language))} />
       <Row to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       <Row to="/me/appearance" title={t('me.appearance.title')} line={appearanceLine(t, choice, language)} />

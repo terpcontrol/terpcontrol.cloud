@@ -514,6 +514,8 @@ describe('who sees a place, as its owner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Make a link' }));
     const sheet = screen.getByRole('dialog', { name: 'Invite' });
     expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent('Grow room');
+    // A room's link lets into each of its places: "sees the place and its grows" said one.
+    expect(within(sheet).getByRole('radio', { name: /^can log/ })).toHaveTextContent('sees the room’s places and their grows, logs, ticks tasks');
     fireEvent.click(within(sheet).getByRole('button', { name: 'Make the link' }));
     await waitFor(() => expect(server.wrote).toHaveLength(2));
     expect(wrote(1)).toMatchObject({ method: 'POST', path: '/spaces/room-1/invites' });

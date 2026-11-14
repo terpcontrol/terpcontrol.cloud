@@ -16,7 +16,7 @@ import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Told } from '@/log/log-context';
 import { cameraFreshness } from '@/screens/devices/cameras';
-import { UpdateButton } from '@/screens/devices/DeviceActions';
+import { DeviceActions, UpdateButton } from '@/screens/devices/DeviceActions';
 import { buildDay } from '@/screens/devices/firmware-builds';
 import { drawDevicePages } from './device-pages';
 import { deviceWith } from './fixtures';
@@ -635,6 +635,15 @@ describe('a device on its own page', () => {
 
       expect(await screen.findByText('A device could not be reached just now and may not have got the command.')).toBeInTheDocument();
       expect(told).toEqual([]);
+    });
+
+    /** A device never heard is not "back" online: Steuerung's card of a controller just claimed said "wieder". */
+    it('says a device never heard waits for its first time online, not to be back', async () => {
+      wire.devices = [fridge({ lastSeenAt: null })];
+      drawAt(<DeviceActions device={fridge({ lastSeenAt: null })} offline />);
+
+      expect(await screen.findByText('Maintenance, restart and update work as soon as the device is online.')).toBeInTheDocument();
+      expect(screen.queryByText(/back online/)).not.toBeInTheDocument();
     });
 
     it('holds both back while the device is offline, says why once, and what to try', async () => {

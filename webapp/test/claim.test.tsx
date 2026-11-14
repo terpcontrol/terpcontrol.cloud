@@ -140,6 +140,8 @@ const state = {
   hangs: {} as Record<string, string>,
   /** A claim still to be sent: the place it will make is in no list yet, and the claim names the place a device joins from what is. */
   unsent: false,
+  /** The account's cameras, by the place each looks into. */
+  cameras: [] as { id: string; spaceId: string | null }[],
 };
 
 const standing = (one: Device): Device => ({ ...one, spaceId: state.hangs[one.id] ?? one.spaceId });
@@ -164,6 +166,7 @@ const answers = (path: string) => {
   if (path === '/spaces') return { items: state.spaces.filter(one => !state.unsent || one.id !== 'space-new'), nextCursor: null };
   if (path === '/grows') return { items: state.grows, nextCursor: null };
   if (path === '/me') return state.me;
+  if (path === '/cameras') return { items: state.cameras, nextCursor: null };
   throw new Error(`nothing mocked for ${path}`);
 };
 
@@ -274,6 +277,7 @@ beforeEach(() => {
   state.claim = { device, spaceCreated: true };
   state.hangs = {};
   state.unsent = false;
+  state.cameras = [];
   told.length = 0;
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((path: string) =>
@@ -889,7 +893,9 @@ describe('adding a device', () => {
 
     await drawClaimed();
 
-    expect(screen.getByText(/has not reported yet/)).toBeInTheDocument();
+    // Said once: the step's title already says it was added.
+    expect(screen.getByText(/has not reported yet/)).toHaveTextContent(/^It has not reported yet and appears here as soon as it is online/);
+    expect(screen.getAllByText(/^Added/)).toHaveLength(1);
   });
 
   /** A place the claim makes is named in the claim's own write: the words for a tent and a fridge, which the server picks from and numbers. */
@@ -1110,7 +1116,8 @@ describe('adding a device', () => {
     // A place is its name alone; what hanging there means stands under it, by the devices and no preposition.
     expect(offered()).toEqual(['Mother tent', 'At a new place']);
     const tent = screen.getByRole('button', { name: /^Mother tent/ });
-    expect(tent).toHaveTextContent(/^Mother tentTerp Controller: one climate, one camera, one maintenance window\.$/);
+    // What it shares there is what the place has: no camera looks into this one.
+    expect(tent).toHaveTextContent(/^Mother tentTerp Controller: one climate, one maintenance window\.$/);
     // The answer that holds is marked, and the other is there to change it.
     expect(tent).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('button', { name: /^At a new place/ })).not.toHaveAttribute('aria-current');
@@ -1158,6 +1165,41 @@ describe('adding a device', () => {
     await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
     expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/^Mother tentFan\W+0001, Fan\W+0002: one climate/);
     expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one climate/);
+  });
+
+  /** "One camera" stood under a tent no camera looks into: a place is said by what it has. */
+  it('names the camera a device would share only under the place one looks into', async () => {
+    const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };
+    state.spaces = [mother, drying];
+    state.cameras = [{ id: 'cam-1', spaceId: 'space-mother' }];
+    joins(plug, mother);
+    state.devices = [
+      { ...fan, id: 'sim-fan-0001', spaceId: 'space-mother' },
+      { ...fan, id: 'sim-fan-0003', spaceId: 'space-drying' },
+    ];
+    claim();
+
+    await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/one climate, one camera, one maintenance window\.$/),
+    );
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one climate, one maintenance window\.$/);
+  });
+
+  /** The place's Start judged the device by a read cut before it was heard: "waiting for the first values" under a claim that said "online". */
+  it('reads the place again on the way onto its Start', async () => {
+    state.spaces = [mother];
+    joins(fan, mother);
+    state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother' }, fan];
+    const { client } = claim();
+    client.setQueryData(['space', 'space-mother', 'overview'], { spaceId: 'space-mother', values: [] });
+
+    await hangQuestion('fan');
+    expect(client.getQueryState(['space', 'space-mother', 'overview'])?.isInvalidated).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /^Mother tent/ }));
+
+    await waitFor(() => expect(address()).toBe('/spaces/space-mother'));
+    expect(client.getQueryState(['space', 'space-mother', 'overview'])?.isInvalidated).toBe(true);
   });
 
   /**

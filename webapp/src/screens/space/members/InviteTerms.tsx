@@ -36,20 +36,23 @@ export function InviteTerms({ invite, into, className = '' }: { invite: Invite; 
 
 /** The link in the app's face, broken only after a slash: never inside the code a person types or reads out. */
 export function InviteAddress({ code }: { code: string }) {
+  return <LinkAddress address={shownAddress(code)} className={styles.address} />;
+}
+
+/** Any address the app hands out, in its face and broken only after a slash - an invite's, a share link's. */
+export function LinkAddress({ address, className }: { address: string; className: string }) {
   return (
-    <code className={styles.address}>
-      {shownAddress(code)
-        .split('/')
-        .map((part, at) => (
-          <Fragment key={at}>
-            {at > 0 ? (
-              <>
-                /<wbr />
-              </>
-            ) : null}
-            {part}
-          </Fragment>
-        ))}
+    <code className={className}>
+      {address.split('/').map((part, at) => (
+        <Fragment key={at}>
+          {at > 0 ? (
+            <>
+              /<wbr />
+            </>
+          ) : null}
+          {part}
+        </Fragment>
+      ))}
     </code>
   );
 }

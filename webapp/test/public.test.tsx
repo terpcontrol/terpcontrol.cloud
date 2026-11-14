@@ -468,6 +468,17 @@ describe('a public profile', () => {
   });
 });
 
+describe('an address nothing is at, signed out', () => {
+  /** It was headed "Terp Control" and offered "Home" beside the frame's own "Open the app": two ways to one place. */
+  it('names itself in the tab and offers the frame´s one way back', () => {
+    drawRoute('/nothing-here', '/:handle', <PublicProfileRoute />);
+
+    expect(screen.getByRole('heading', { name: 'Nothing at this address' })).toBeInTheDocument();
+    expect(document.title).toBe('Nothing at this address · Terp Control');
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+});
+
 describe('how old a page says it is', () => {
   it('is now while the window still reaches the present, and a dated snapshot once it does not', () => {
     expect(windowIsCurrent(null, NOW)).toBe(true);
