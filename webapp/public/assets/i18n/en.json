@@ -1604,14 +1604,15 @@
         "since": "Waiting for {{age}}: the plan goes no further until it is confirmed."
       },
       "next": {
-        "step": "Next · step {{number}}{{name}}",
-        "loops": "Next · back to step 1{{name}} – this plan loops.",
+        "step": "Next · Step {{number}}{{name}}",
+        "loops": "Next · back to Step 1{{name}} – this plan loops.",
         "ends": "This is the last step: the plan completes when it is over.",
-        "atRest": "At rest it writes nothing; started, it begins at step 1.",
-        "completed": "Every step has run; started again, it begins at step 1."
+        "atRest": "At rest it writes nothing; started, it begins at Step 1.",
+        "completed": "Every step has run; started again, it begins at Step 1."
       },
       "applied": {
         "at": "Step sent to the device {{age}} ago",
+        "justNow": "Step sent to the device just now",
         "never": "This step’s settings go to the device within the minute",
         "quiet": "{{offline}} · what the device is really running may be older than this"
       },
@@ -2655,15 +2656,15 @@
     "quietLine": "Muting and maintenance",
     "add": "+ Custom alarm",
     "group": {
-      "presetOf": "From the climate preset {{name}}",
-      "presetNone": "From the climate preset",
+      "phaseOf": "From the {{name}} phase",
+      "phaseNone": "Phase alarms",
       "presetAside": "thresholds move with the phase",
       "always": "Built in",
       "device": "From the device",
       "human": "Written here"
     },
     "origin": {
-      "preset": "climate preset",
+      "preset": "phase",
       "always": "built in",
       "device": "device",
       "human": "custom"
@@ -5137,6 +5138,7 @@
       "take": "Apply",
       "taken": "Climate preset {{name}}",
       "same": "These are this climate preset’s figures already.",
+      "sameNames": "These are this climate preset’s figures already; applying changes none and gives them its name.",
       "sets": "What the climate preset changes",
       "end": {
         "drying": "End drying",

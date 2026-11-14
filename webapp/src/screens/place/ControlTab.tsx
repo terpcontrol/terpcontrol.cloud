@@ -53,7 +53,7 @@ export function ControlTab() {
   if (ended) {
     return (
       <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
-        <PlaceEnded title={t('shell.tabs.control')} name={ended.name} />
+        <PlaceEnded title={t('shell.tabs.control')} name={ended.name} spaceId={ended.id} />
       </section>
     );
   }

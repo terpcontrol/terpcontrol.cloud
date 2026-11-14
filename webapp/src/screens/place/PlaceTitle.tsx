@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { PlaceCard } from '@/app/places';
+import { timelinePath, type PlaceCard } from '@/app/places';
 import type { Device } from '@fg2/shared-types/v1';
 import { useDeviceLive } from '@/api/devices';
 import { noLongerThere } from '@/api/problem';
@@ -108,18 +108,24 @@ export function Visited({ spaceId, children }: { spaceId: string; children: Reac
  * What Start, Verlauf, Steuerung and the place's own pages say at an address
  * that names a place of the account's own that has ended - an old alert leads
  * there, a bookmark, the browser's Back after the removal: that it is gone and
- * where its curves still are, rather than another place drawn without a word.
+ * where its curves still are - with the way to them, Verlauf, beside the way to
+ * Start -, rather than another place drawn without a word.
  */
-export function PlaceEnded({ title, name }: { title: string; name: string }) {
+export function PlaceEnded({ title, name, spaceId }: { title: string; name: string; spaceId: string }) {
   const { t } = useTranslation();
 
   return (
     <>
       <h1>{title}</h1>
       <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.ended', { name })}</p>
-      <Link to="/" className={ui.button}>
-        {t('shell.gone.home')}
-      </Link>
+      <div className={ui.wrapRow}>
+        <Link to={timelinePath(spaceId)} className={ui.button}>
+          {t('shell.tabs.timeline')}
+        </Link>
+        <Link to="/" className={ui.button}>
+          {t('shell.gone.home')}
+        </Link>
+      </div>
     </>
   );
 }
@@ -138,7 +144,7 @@ export function PlaceGone({ spaceId, title }: { spaceId: string; title: (name: s
   if (!own) return <NoLongerHere what="space" />;
   return (
     <section className={`${ui.stack3} ${ui.page} ${place.reading}`}>
-      <PlaceEnded title={title(own.name)} name={own.name} />
+      <PlaceEnded title={title(own.name)} name={own.name} spaceId={own.id} />
     </section>
   );
 }

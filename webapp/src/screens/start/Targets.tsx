@@ -6,13 +6,14 @@ import type { CardSetpoint, Device, Metric, OverviewTargets } from '@fg2/shared-
 import { useDevicePlans } from '@/api/plans';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
+import { fieldValue } from '@/ui/advanced/field-values';
 import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { targetWithUnit } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { fanSummaryOf, plugSummaryOf } from '@/screens/control/devices/own-summary';
+import { plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { usePlanWords } from '@/screens/control/plan-labels';
 import { holdsHumidity, storedShapeOf } from '@/screens/control/targets/day-night';
 import { lightWindowOf, setpointOf, type HumidifierHold } from './place';
@@ -33,7 +34,8 @@ const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): s
  * the first. CO₂ stands with the day because it is only dosed by day. Where
  * the device has no day and night the group is named by what it holds - a
  * drying room's, a germination's, the one climate held round the clock - and a
- * smart socket or a lamp says its own settings. Empty where nothing is set.
+ * smart socket or a lamp says its own settings, a fan at a fixed speed its
+ * speeds by day and by night. Empty where nothing is set.
  */
 const targetsLine = (
   t: Translate,
@@ -44,7 +46,9 @@ const targetsLine = (
     offset,
   }: { targets: OverviewTargets | null; device: Device | null; humidifierHold: HumidifierHold | null; offset: number },
 ): string[][] => {
-  const own = device ? (plugSummaryOf(t, device, offset) ?? fanSummaryOf(t, device)) : null;
+  const speeds = fixedSpeedsOf(device);
+  if (speeds) return [[`${t('start.targets.day')} ${speeds.day} %`], [`${t('start.targets.night')} ${speeds.night} %`]];
+  const own = device ? plugSummaryOf(t, device, offset) : null;
   if (own) return own.map(row => [[row.label, ...row.parts].join(' ')]);
   if (!targets) return [];
 
@@ -65,19 +69,29 @@ const targetsLine = (
   ];
 };
 
-/** "Licht 06:00 bis 24:00 · Grenze 65 %": when the lamp is on and how bright it may get, for a reader who cannot open Steuerung to see. */
-const lightLine = (t: Translate, device: Device | null, now: DateTime, zone: string | null): string | null => {
+/** An AIR fan at a fixed speed, which follows no target: how fast it runs by day and by night. */
+const fixedSpeedsOf = (device: Device | null): { day: number; night: number } | null => {
+  if (device?.type !== 'fan' || fieldValue(device, 'fanMode') !== 'fixed') return null;
+  const day = fieldValue(device, 'fixedDay');
+  const night = fieldValue(device, 'fixedNight');
+  return typeof day === 'number' && typeof night === 'number' ? { day, night } : null;
+};
+
+/**
+ * "Licht 06:00 bis 24:00 · Grenze 65 %": when the lamp is on and how bright it may get, for a reader who cannot open
+ * Steuerung to see. Under a card titled "Licht" - a lamp alone - the word is not said again (`named` false).
+ */
+const lightLine = (t: Translate, device: Device | null, now: DateTime, zone: string | null, named = true): string | null => {
   const light = lightWindowOf(device, now, zone);
   const dark = darkReasonOf(device);
-  if (!light) return dark && dark !== 'off' ? `${t('start.targets.light')} ${t(`start.light.dark.${dark}`)}` : null;
+  const word = (said: string) => (named ? `${t('start.targets.light')} ${said}` : said);
+  if (!light) return dark && dark !== 'off' ? word(t(`start.light.dark.${dark}`)) : null;
   const window = light.always
     ? t('start.light.always')
     : light.never
       ? t('start.light.never')
       : t('start.targets.window', { on: light.on, off: light.off });
-  return [`${t('start.targets.light')} ${window}`, light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null]
-    .filter(Boolean)
-    .join(' · ');
+  return [word(window), light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null].filter(Boolean).join(' · ');
 };
 
 /**
@@ -115,12 +129,17 @@ export function Targets({
   const plan = useDevicePlans(mayManage && device?.control ? [device.id] : []).plans[0];
   usePlanWords([plan]);
   const planLine = plan ? planLineOf(t, plan, now) : null;
-  const own = device?.type === 'plug' || device?.type === 'light';
-  const title = t(own ? 'ownPanel.title' : 'start.targets.title');
   const groups = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
-  const light = lightLine(t, device, now, zone);
-  // A lamp alone aims at no climate: what it is set to is its light, never "no targets yet".
-  const lamp = groups.length === 0 && device?.type === 'light' ? light : null;
+  // A lamp alone aims at no climate: what it is set to is its light, never "no targets yet", under a card called so.
+  const alone = groups.length === 0 && device?.type === 'light';
+  const light = lightLine(t, device, now, zone, !alone);
+  const lamp = alone ? light : null;
+  // Named by what it holds: a socket its settings, a lamp its light, a fan at a fixed speed its speed, the rest targets.
+  const title = alone
+    ? t('start.targets.light')
+    : fixedSpeedsOf(device)
+      ? t('fanSettings.speeds')
+      : t(device?.type === 'plug' || device?.type === 'light' ? 'ownPanel.title' : 'start.targets.title');
   // A half of the day stays together for as long as it fits a line, and no line ends on the dot between two figures.
   const line =
     groups.length > 0 ? (

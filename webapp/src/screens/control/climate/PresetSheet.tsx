@@ -24,6 +24,8 @@ import styles from './Climate.module.css';
  * each figure it moves, from what to what - and whether it starts or ends a
  * drying spell or a germination, all before "Übernehmen" writes it. A preset
  * moves the targets and nothing else; the grow's phase is moved in the grow.
+ * One whose figures already stand is taken all the same where the button
+ * names no preset or another: it moves nothing and gives the figures its name.
  *
  * This is the one place a device is put into germination or drying and taken
  * out of them: by another preset, or - while such a spell runs - by the chip
@@ -107,6 +109,8 @@ export function PresetSheet({
     : moved.map(field => ({ field, to: next[field] }));
   const said = germinates && changes !== null ? choices : undefined;
   const sets = (picked !== null && (moved.length > 0 || hours || drying !== null || germination !== null)) || said !== undefined;
+  // A preset whose figures already stand is still taken where the button does not name it: nothing moves, the name comes.
+  const names = picked !== null && picked !== chosen && !sets;
   // Unpicked, the choices of a germination that runs are saved with the stage it is in.
   const chip = picked ?? CLIMATE_CHOICES.find(one => one.stage === 'germination') ?? null;
   const paused = ending ? runs : chip && sets ? pauses(next, chip, said) : null;
@@ -124,7 +128,7 @@ export function PresetSheet({
       aside={<Help topic="climatePreset" />}
       onClose={onClose}
       actions={
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !(sets || ending)} onClick={() => void save()}>
+        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy || !(sets || names || ending)} onClick={() => void save()}>
           {t(busy ? 'targets.saving' : 'control.preset.take')}
         </button>
       }
@@ -159,7 +163,7 @@ export function PresetSheet({
           ) : null}
         </Choices>
 
-        {picked && !sets ? <p className={styles.note}>{t('control.preset.same')}</p> : null}
+        {picked && !sets ? <p className={styles.note}>{t(names ? 'control.preset.sameNames' : 'control.preset.same')}</p> : null}
         {figures.length > 0 || hours ? (
           <ul className={`${ui.effects} ${styles.sets}`} aria-label={t(ending ? 'control.preset.returns' : 'control.preset.sets')}>
             {figures.map(({ field, to }) => (
@@ -205,7 +209,7 @@ export function PresetSheet({
             {t('targets.planTable.pauses', { name: paused })}
           </p>
         ) : null}
-        {switchesOn && sets ? <p className={styles.note}>{t('climateControl.saveSwitchesOn')}</p> : null}
+        {switchesOn && (sets || names) ? <p className={styles.note}>{t('climateControl.saveSwitchesOn')}</p> : null}
         {asked ? <Refused error={error} /> : null}
       </div>
     </Sheet>

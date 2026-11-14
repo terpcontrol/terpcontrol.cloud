@@ -776,6 +776,8 @@ describe('the choice of place', () => {
     expect(await screen.findByText('The place Old tent no longer exists. Its curves can still be read in the Timeline.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Control' })).toBeInTheDocument();
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    // Where it says its curves can still be read, it offers the way to them.
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-9');
     expect(where(router)).toBe('/control?space=space-9');
     expect(timelinesAsked()).toEqual([]);
   });

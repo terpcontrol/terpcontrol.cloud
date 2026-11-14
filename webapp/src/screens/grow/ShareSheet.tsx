@@ -6,9 +6,11 @@ import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
 import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { isDead, linkAddress } from '@/screens/me/sharing/links';
+import { LinkAddress } from '@/screens/space/members/InviteTerms';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
@@ -94,7 +96,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           {isPublic ? (
             <div className={ui.row2}>
-              <code className={styles.address}>{appUrl(`/g/${grow.slug}`)}</code>
+              <LinkAddress address={appUrl(`/g/${grow.slug}`)} className={styles.address} />
               <CopyButton value={appUrl(`/g/${grow.slug}`)} label={t('sharing.copyAddress')} />
             </div>
           ) : null}
@@ -148,7 +150,7 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           <ul className={ui.list}>
             {mine.map(link => (
-              <LinkRow key={link.id} link={link} now={now} />
+              <LinkRow key={link.id} link={link} name={grow.name} now={now} />
             ))}
           </ul>
         </section>
@@ -157,9 +159,13 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   );
 }
 
-/** One link: where it points, what it lets through, how often it has been opened, and what can still be done to it. */
-function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
+/**
+ * One link: where it points, what it lets through, how often it has been opened, and what can still be done to it.
+ * Revoking it and forgetting it answer with a toast, as the list of every link does.
+ */
+function LinkRow({ link, name, now }: { link: ShareLink; name: string; now: DateTime }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const zone = useZone();
   const [changing, setChanging] = useState(false);
   // Revoking is asked first: nothing starts a link again (Chris, 2026-11-14).
@@ -174,7 +180,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   return (
     <li className={`${lifecycle.row} ${styles.link}`} data-dead={dead}>
       <div className={ui.row2}>
-        <code className={styles.address}>{address}</code>
+        <LinkAddress address={address} className={styles.address} />
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
       </div>
 
@@ -212,7 +218,12 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
           yes={t('sharing.revoke')}
           danger
           busy={revoke.isPending}
-          onYes={() => revoke.mutate(link.id, { onSettled: () => setRevoking(false) })}
+          onYes={() =>
+            revoke.mutate(link.id, {
+              onSuccess: () => tell({ label: t('me.shareLinks.revokedNow', { name }), undo: null }),
+              onSettled: () => setRevoking(false),
+            })
+          }
           onCancel={() => setRevoking(false)}
         />
       ) : (
@@ -228,7 +239,12 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             </button>
           ) : null}
           {dead ? (
-            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
+            <button
+              type="button"
+              className={`${ui.chip} ${ui.danger}`}
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(link.id, { onSuccess: () => tell({ label: t('me.shareLinks.forgotten', { name }), undo: null }) })}
+            >
               {t('sharing.forget')}
             </button>
           ) : null}

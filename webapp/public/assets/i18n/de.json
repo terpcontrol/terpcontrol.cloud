@@ -1622,6 +1622,7 @@
       },
       "applied": {
         "at": "Schritt vor {{age}} an das Gerät geschickt",
+        "justNow": "Schritt gerade eben an das Gerät geschickt",
         "never": "Die Einstellungen dieses Schritts gehen innerhalb der nächsten Minute an das Gerät",
         "quiet": "{{offline}} · was das Gerät gerade wirklich fährt, kann ein älterer Stand sein"
       },
@@ -2665,15 +2666,15 @@
     "quietLine": "Stummschalten und Wartung",
     "add": "+ Eigener Alarm",
     "group": {
-      "presetOf": "Aus dem Klima-Preset {{name}}",
-      "presetNone": "Aus dem Klima-Preset",
+      "phaseOf": "Aus der Phase {{name}}",
+      "phaseNone": "Alarme der Phase",
       "presetAside": "Schwellen wandern mit der Phase",
       "always": "Eingebaut",
       "device": "Vom Gerät",
       "human": "Hier angelegt"
     },
     "origin": {
-      "preset": "Klima-Preset",
+      "preset": "Phase",
       "always": "eingebaut",
       "device": "Gerät",
       "human": "eigen"
@@ -5147,6 +5148,7 @@
       "take": "Übernehmen",
       "taken": "Klima-Preset {{name}}",
       "same": "Das sind schon die Werte dieses Klima-Presets.",
+      "sameNames": "Das sind schon die Werte dieses Klima-Presets; Übernehmen ändert keinen und gibt ihnen seinen Namen.",
       "sets": "Was das Klima-Preset ändert",
       "end": {
         "drying": "Trocknung beenden",

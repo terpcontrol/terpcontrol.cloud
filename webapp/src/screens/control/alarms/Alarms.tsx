@@ -168,11 +168,9 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
   if (rules.isPending) return <Waiting lines={3} />;
   if (!rules.data) return <LoadFailed read={rules} />;
 
-  // The name of the stage's group: the preset the grow stands on where the
-  // catalogue has a name for it, otherwise the stage itself - and the bare
-  // word where nothing grows here yet, because the rules are still the stage's.
-  const presetName = grow?.preset ? t(`grow.presetName.${grow.preset}`, { defaultValue: '' }) : '';
-  const stageName = presetName || (grow?.stage ? t(`home.stage.${grow.stage}`) : '');
+  // The stage's rules are headed by the phase the grow here is in ("Phase" is Chris's word, never "Klima-Preset"),
+  // and by no phase where nothing grows here yet: the rules are still the stage's.
+  const phase = grow?.stage ? t(`home.stage.${grow.stage}`) : null;
   const groups = groupRules(rules.data.items);
 
   return (
@@ -191,9 +189,9 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
             <span className={styles.groupName}>
               <Heading className={`label ${styles.groupTitle}`}>
                 {group.origin === 'preset'
-                  ? stageName
-                    ? t('alarms.group.presetOf', { name: stageName })
-                    : t('alarms.group.presetNone')
+                  ? phase
+                    ? t('alarms.group.phaseOf', { name: phase })
+                    : t('alarms.group.phaseNone')
                   : t(`alarms.group.${group.origin}`)}
               </Heading>
               {group.origin === 'preset' ? <Help topic="presetRules" /> : group.origin === 'always' ? <Help topic="offlineRule" /> : null}

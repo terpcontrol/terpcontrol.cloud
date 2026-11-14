@@ -43,7 +43,7 @@ export function CurrentGrow() {
   if (ended) {
     return (
       <section className={`${ui.stack3} ${styles.page}`}>
-        <PlaceEnded title={t('shell.tabs.grow')} name={ended.name} />
+        <PlaceEnded title={t('shell.tabs.grow')} name={ended.name} spaceId={ended.id} />
       </section>
     );
   }

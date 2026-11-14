@@ -632,10 +632,29 @@ describe('Start of a place that only regulates', () => {
     onePlace(overviewOf({ setpoints: [], targets: null as never, values: [] }));
     draw();
 
-    const row = await screen.findByRole('link', { name: /Settings/ });
-    await waitFor(() => expect(row).toHaveTextContent(/Light 06:00 to (24|00):00/));
+    // Titled by what it holds, "Light", which the line under it does not say again.
+    const row = await screen.findByRole('link', { name: /^Light/ });
+    await waitFor(() => expect(row).toHaveTextContent(/^Light06:00 to (24|00):00/));
     expect(row).toHaveTextContent('65 %');
-    expect(row).not.toHaveTextContent(/No targets yet/i);
+    expect(row).not.toHaveTextContent(/Settings|No targets yet/i);
+  });
+
+  /** A fan at a fixed speed was "Targets" over "Speed By day 70 % At night 40 %": its card is its speed, by day and by night. */
+  it('says what a fan at a fixed speed is set to, under its speed', async () => {
+    server.devices = [
+      fridge({
+        type: 'fan',
+        name: 'Air fan',
+        configuration: { mode: 0, day: { fixed_speed: 70 }, night: { fixed_speed: 40 } } as never,
+        control: null,
+      } as never),
+    ];
+    onePlace(overviewOf({ setpoints: [], targets: null as never, values: [] }));
+    draw();
+
+    const row = await screen.findByRole('link', { name: /^Speed/ });
+    expect(row).toHaveTextContent(/^SpeedDay 70 % · Night 40 %/);
+    expect(row).not.toHaveTextContent(/Targets|By day/);
   });
 
   it('draws the readings as tiles, each the way to its curve, with the verdict under the figure', async () => {

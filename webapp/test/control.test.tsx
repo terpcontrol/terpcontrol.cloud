@@ -1358,17 +1358,18 @@ describe('the plan panel', () => {
   /** "Als Nächstes · Schritt 2, Schritt 2": a step that kept the name it was given names its number once. */
   it('names the next step by its number, and by its name only where it has one of its own', () => {
     draw();
-    expect(screen.getByText('Next · step 2, Flower')).toBeInTheDocument();
+    expect(screen.getByText('Next · Step 2, Flower')).toBeInTheDocument();
     cleanup();
 
     state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Step 2' })] });
     draw();
-    expect(screen.getByText('Next · step 2')).toBeInTheDocument();
+    // A step is named "Step 2" in English wherever it is named: the line said "step 2" beside the head's "Step 2".
+    expect(screen.getByText('Next · Step 2')).toBeInTheDocument();
     cleanup();
 
     state.plan = plan({ steps: [step({ name: 'Step 1' }), step({ id: 'step-2', name: 'Step 2' })], loop: true }, { activeStepIndex: 1 });
     draw();
-    expect(screen.getByText('Next · back to step 1 – this plan loops.')).toBeInTheDocument();
+    expect(screen.getByText('Next · back to Step 1 – this plan loops.')).toBeInTheDocument();
   });
 
   /** The head said "Step 1 of 2 Step 1", and a step its German writer left as "Schritt 2" read so in English. */
@@ -1386,7 +1387,7 @@ describe('the plan panel', () => {
     state.plan = plan({ steps: [step({ name: 'Schritt 1' }), step({ id: 'step-2', name: 'Schritt 2' })] });
     draw();
 
-    expect(await screen.findByText('Next · step 2')).toBeInTheDocument();
+    expect(await screen.findByText('Next · Step 2')).toBeInTheDocument();
     expect(screen.getByText('Step 1 of 2').closest('p')).toHaveTextContent(/^Step 1 of 2$/);
     expect(screen.getAllByText('Step 2').length).toBeGreaterThan(0);
     expect(screen.queryByText(/Schritt/)).not.toBeInTheDocument();
@@ -1400,7 +1401,7 @@ describe('the plan panel', () => {
 
     expect(screen.getAllByText('Completed')[0]).toBeInTheDocument();
     expect(screen.queryByText(/Step 1 of/)).not.toBeInTheDocument();
-    expect(screen.getByText('Every step has run; started again, it begins at step 1.')).toBeInTheDocument();
+    expect(screen.getByText('Every step has run; started again, it begins at Step 1.')).toBeInTheDocument();
   });
 
   it('dates the last time the step reached the controller rather than claiming it is running it', () => {
@@ -1408,6 +1409,15 @@ describe('the plan panel', () => {
     draw();
 
     expect(screen.getByText(/Step sent to the device 20 min ago/)).toBeInTheDocument();
+  });
+
+  /** Just after the press the engine sends the step on its next pass: "1 min ago" read as sent before the press. */
+  it('says a step sent in the last two minutes was sent just now', () => {
+    state.plan = plan({}, { lastAppliedAt: NOW.minus({ seconds: 75 }).toISO()! });
+    draw();
+
+    expect(screen.getByText(/Step sent to the device just now/)).toBeInTheDocument();
+    expect(screen.queryByText(/1 min ago/)).not.toBeInTheDocument();
   });
 
   it('dims that line and says so when the controller itself has gone quiet', () => {

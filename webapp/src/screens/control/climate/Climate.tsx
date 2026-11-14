@@ -191,8 +191,10 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
       // more than figures. Germination ended is begun again in two writes, since the dark keeps the day it finds
       // and the night it replaces: the night germination had kept in the light, then germination with its own.
       // A humidifier's rested band is not kept across that, so there is no way back then.
+      // A preset whose figures already stood only gave them its name, which no write here takes back.
+      const nameOnly = chip !== null && moved.length === 0 && dryingChange === null && germinationChange === null && choices === undefined;
       const undo =
-        dryingChange !== null || (germinationChange === null && choices !== undefined)
+        nameOnly || dryingChange !== null || (germinationChange === null && choices !== undefined)
           ? null
           : germinationChange === 'starts'
             ? () => put(before, { germination: false }).then(resume)

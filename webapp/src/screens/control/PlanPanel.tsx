@@ -1,4 +1,4 @@
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { Announce } from '@/ui/Announce';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -308,7 +308,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       {going ? (
         <p className={styles.applied} {...ageAttribute(liveness)}>
           {plan.state.lastAppliedAt
-            ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
+            ? justSent(plan.state.lastAppliedAt, now)
+              ? t('space.control.applied.justNow')
+              : t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
             : t('space.control.applied.never')}
           {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
         </p>
@@ -316,6 +318,15 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
     </>
   );
 }
+
+/**
+ * A step sent in the last two minutes was sent "gerade eben": the engine sends a step started by a press on its next
+ * pass and the panel reads the plan again on its own beat, so a plan just started said "vor 1 Min" - as if the step
+ * had gone out before the press.
+ */
+const JUST_SENT_MS = 2 * 60_000;
+
+const justSent = (at: string, now: DateTime): boolean => now.toMillis() - DateTime.fromISO(at).toMillis() < JUST_SENT_MS;
 
 /**
  * The five moves and the stop, each offered only where the server would take

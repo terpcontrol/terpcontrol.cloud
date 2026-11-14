@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
@@ -712,6 +714,41 @@ describe('the climate under Steuerung', () => {
       expect(told[0].undo).not.toBeNull();
     });
 
+    /**
+     * Figures that already stand as a preset's are named by it again where the button names none: refused as "already
+     * these figures", the name could only come back by way of another preset.
+     */
+    it('takes a preset whose figures already stand, where the button names none, to name them, and writes no figure', async () => {
+      const flowerFigures = {
+        ...CONFIGURATION,
+        day: { temperature: 25, humidity: 50 },
+        night: { temperature: 20, humidity: 50 },
+        co2: { target: 1000 },
+        'lights.limit': 100,
+      };
+      const named = draw(device({ configuration: flowerFigures, control: { ...CONTROL, preset: { stage: 'flowering', preset: null } } }));
+      await screen.findByRole('table', { name: 'Targets' });
+      tap('Climate preset: Flower');
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Flower' }));
+      expect(within(screen.getByRole('dialog')).getByText('These are this climate preset’s figures already.')).toBeInTheDocument();
+      expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply' })).toBeDisabled();
+      named.unmount();
+
+      await drawn(device({ configuration: flowerFigures }));
+      tap('Climate preset');
+      const sheet = screen.getByRole('dialog');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+      expect(within(sheet).getByText(/applying changes none and gives them its name/)).toBeInTheDocument();
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+
+      await waitFor(() => expect(sent('PUT')).toHaveLength(1));
+      const body = sent('PUT')[0].body as { configuration: DeviceConfiguration; preset?: unknown };
+      expect(body.preset).toEqual({ stage: 'flowering', preset: null });
+      expect(body.configuration.day).toMatchObject({ temperature: 25, humidity: 50 });
+      await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
+      expect(told[0].undo).toBeNull();
+    });
+
     /** Drying is a mode of the device as well as figures: the chip starts the spell, which is more than one write to take back. */
     it('starts a drying spell with the drying chip, says so first and offers no undo', async () => {
       await drawn(device({ type: 'fridge', control: CONTROL }));
@@ -1090,6 +1127,22 @@ describe('the climate under Steuerung', () => {
  * one offered "Auto · Flower", the other had never heard of it. Both read the
  * one list now, and every chip is a stage and a preset the sheet offers too.
  */
+/**
+ * At 320 px the plan's calendar mark beside "Temperatur" widened that row's first column alone - each row was a grid of
+ * its own - and its figures stood 18 px right of the rows under it. The rows share the table's columns now.
+ */
+describe('the targets table', () => {
+  const sheet = readFileSync(resolve(__dirname, '../src/screens/control/climate/Climate.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rule = (selector: string) => new RegExp(`(^|\\n)${selector.replace(/[.[\]]/g, '\\$&')} \\{([^}]*)\\}`).exec(sheet)?.[2] ?? '';
+
+  it('keeps every row on the table´s columns, whatever stands beside a row´s name', () => {
+    expect(rule('.grid')).toMatch(/grid-template-columns: minmax\(min-content, 1fr\) repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(rule('.grid[data-single]')).toMatch(/grid-template-columns: minmax\(min-content, 1fr\) minmax\(0, 1fr\)/);
+    expect(rule('.gridRow')).toMatch(/grid-template-columns: subgrid/);
+    expect(rule('.gridRow')).toMatch(/grid-column: 1 \/ -1/);
+  });
+});
+
 describe('the one list of presets', () => {
   it('offers on every screen each preset a chip stands for', () => {
     for (const chip of CLIMATE_CHOICES) {

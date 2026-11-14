@@ -139,17 +139,27 @@
   }
 }
 
-/* The figures: a label, and a button per half of the day. One column where the device holds one climate round the clock. */
-.gridRow {
+/*
+ * The figures: a label, and a button per half of the day. One column where the device holds one climate round the
+ * clock. The rows share the table's columns (subgrid): each its own grid, the plan's mark beside one label widened
+ * that row's first column and pushed its figures out of line with the rows under it.
+ */
+.grid {
   display: grid;
   /* The label keeps its longest word whole; the figures share what is left. */
   grid-template-columns: minmax(min-content, 1fr) repeat(2, minmax(0, 1fr));
-  align-items: center;
-  gap: var(--space-2);
+  column-gap: var(--space-2);
 }
 
-.grid[data-single] .gridRow {
+.grid[data-single] {
   grid-template-columns: minmax(min-content, 1fr) minmax(0, 1fr);
+}
+
+.gridRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
 }
 
 .half {

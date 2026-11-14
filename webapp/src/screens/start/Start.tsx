@@ -83,7 +83,7 @@ export function StartOfPlace() {
   if (own) {
     return (
       <section className={`${ui.stack3} ${styles.page}`}>
-        <PlaceEnded title={t('shell.tabs.home')} name={own.name} />
+        <PlaceEnded title={t('shell.tabs.home')} name={own.name} spaceId={own.id} />
       </section>
     );
   }

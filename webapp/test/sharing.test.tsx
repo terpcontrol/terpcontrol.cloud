@@ -32,10 +32,22 @@ vi.mock('@/api/account', async importOriginal => {
 });
 
 const mutation = (record?: (value: never) => void) => ({
-  mutate: (value: never) => record?.(value),
+  mutate: (value: never, options?: { onSuccess?: () => void; onSettled?: () => void }) => {
+    record?.(value);
+    options?.onSuccess?.();
+    options?.onSettled?.();
+  },
   isPending: false,
   error: null,
 });
+
+/** What the sheet's writes answer with. */
+const told = vi.hoisted(() => [] as { label: string; undo: unknown }[]);
+
+vi.mock('@/log/log-context', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useLog: () => ({ tell: (toast: { label: string; undo: unknown }) => told.push(toast) }),
+}));
 
 const links = vi.hoisted(() => ({ items: [] as unknown[] }));
 
@@ -98,6 +110,7 @@ beforeEach(() => {
   calls.revoked = [];
   calls.removed = [];
   calls.created = [];
+  told.length = 0;
   account.zone = null;
   links.items = [link({})];
 });
@@ -147,6 +160,18 @@ describe('the share sheet', () => {
     fireEvent.click(yes);
     expect(calls.revoked).toEqual(['link-1']);
     expect(calls.removed).toEqual([]);
+    // Every write answers: the revoke with a toast naming the grow, which nothing takes back.
+    expect(told).toEqual([{ label: 'Link revoked · Spring run', undo: null }]);
+  });
+
+  /** The address in the app's face and broken only after a slash, as the invite link and the list of every link set it. */
+  it('sets a link´s address and the page´s in the app´s face, broken only after a slash', () => {
+    draw();
+
+    for (const address of [screen.getByText(/\/shared\/abcdef$/), screen.getByText(/\/g\/spring-run$/)]) {
+      expect(address.querySelectorAll('wbr').length).toBeGreaterThan(0);
+      expect(address.className).toMatch(/address/);
+    }
   });
 
   it('forgets a link only once it has stopped, revoked or run out', () => {
@@ -160,6 +185,7 @@ describe('the share sheet', () => {
     expect(forget).toHaveLength(2);
     forget.forEach(button => fireEvent.click(button));
     expect(calls.removed).toEqual(['link-1', 'link-2']);
+    expect(told.map(toast => toast.label)).toEqual(['Link forgotten · Spring run', 'Link forgotten · Spring run']);
   });
 
   /**
