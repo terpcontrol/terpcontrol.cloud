@@ -1263,7 +1263,10 @@
       "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
       "starting": "Grow wird gestartet …",
       "startAndSet": "Starten · Klima: {{climate}}",
-      "plantsRefused": "Pflanzen: eine ganze Zahl ab 1."
+      "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
+      "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
+      "secondYes": "Zweiten Grow starten",
+      "stageMissing": "Wähl die Phase, in der der Grow gerade ist."
     },
     "measurements": {
       "title": "Messwerte",
@@ -1566,7 +1569,8 @@
       "started": "{{name}} gestartet",
       "start": "Start: {{date}}",
       "deleted": "{{name}} ist gelöscht"
-    }
+    },
+    "alsoHere": "Hier wächst auch:"
   },
   "space": {
     "control": {
@@ -4222,8 +4226,7 @@
         "says_one": "{{room}} endet damit, und {{people}} sieht nichts mehr davon.",
         "says_other": "{{room}} endet damit, und {{people}} sehen nichts mehr davon.",
         "final": "Das lässt sich nicht zurücknehmen.",
-        "yes": "{{room}} beenden",
-        "no": "Abbrechen"
+        "yes": "{{room}} beenden"
       },
       "renameRoom": "{{room}} umbenennen …",
       "roomTaken": "Ein anderer Raum heißt schon „{{name}}“."
@@ -4233,7 +4236,7 @@
       "back": "Zurück zu „Ort bearbeiten“",
       "holds": "Hier steht noch",
       "stay": "bleibt bei {{device}}",
-      "move": "neuer Ort: {{place}}",
+      "move": "nach {{place}}",
       "device": {
         "new": "bekommt einen neuen Ort",
         "release": "abgeben"
@@ -4257,7 +4260,7 @@
       "final": "Das lässt sich nicht zurücknehmen.",
       "will": {
         "make": "{{name}} bekommt einen neuen Ort: {{place}}",
-        "move": "{{name}} zieht um – neuer Ort: {{place}}",
+        "move": "{{name}} zieht nach {{place}} um",
         "stay": "{{name}} bleibt bei {{beside}}",
         "release": "{{name}} wird abgegeben und gehört dann nicht mehr zu deinem Konto",
         "uncouple": "{{name}} wird entkoppelt",

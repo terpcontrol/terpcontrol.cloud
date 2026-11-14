@@ -71,6 +71,18 @@
   border-radius: var(--radius-pill);
 }
 
+/* Below 360 px "Ort bearbeiten" keeps one line beside Speichern: the button closes up and the title, the one a
+   button stands beside, steps down a size more. */
+@media (max-width: 359px) {
+  .save {
+    padding-inline: var(--space-3);
+  }
+
+  header:has(> .save) h1 {
+    font-size: var(--text-xl);
+  }
+}
+
 .block {
   min-width: 0;
 }
@@ -126,13 +138,12 @@
   margin-top: var(--space-4);
 }
 
+/* The way to the question, at a control's height and radius as its yes is; a long name wraps. */
 .end {
   width: 100%;
   height: auto;
-  min-height: 52px;
+  min-height: var(--control-height);
   padding-block: var(--space-2);
-  border-radius: var(--radius);
-  font-size: var(--text-lg);
   white-space: normal;
   overflow-wrap: anywhere;
 }

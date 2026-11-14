@@ -7,6 +7,7 @@ import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSpaceGrows } from '@/api/grows';
 import { useMembers } from '@/api/members';
+import { together } from '@/api/read';
 import { useReminders } from '@/api/reminders';
 import { useEndPlace, useSpaces, type EndNote } from '@/api/spaces';
 import { editPath, leaveUnderSheet, placesOf } from '@/app/places';
@@ -17,6 +18,7 @@ import { camerasCalled } from '@/ui/camera-name';
 import { cameraTitle, deviceTitle } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
+import { Answer } from '@/ui/Asking';
 import { refusalText } from '@/ui/refusal';
 import { useMayIn } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
@@ -77,7 +79,7 @@ export function RemovePlace() {
   const reads = [spaces, devices, cameras, grows, members, reminders];
   if (reads.some(read => read.isPending)) return <Waiting lines={5} />;
   if (!spaces.data || !space || !devices.data || !cameras.data || !grows.data || !members.data || !reminders.data) {
-    return <LoadFailed retry={() => reads.forEach(read => void read.refetch())} />;
+    return <LoadFailed title={space ? t('place.remove.title', { name: space.name }) : undefined} read={together(...reads)} />;
   }
 
   const places = placesOf(spaces.data.items, space.ownerId);
@@ -304,16 +306,7 @@ function Removing({ space, places: listed, every, here, alive, letIn, reminders 
           title={t('place.remove.ask', { name: space.name })}
           note={t('place.remove.final')}
           onClose={() => setAsking(false)}
-          actions={
-            <>
-              <button type="button" className={`${ui.button} ${ui.dangerFilled} ${styles.end}`} onClick={answer}>
-                {t('place.remove.remove', { name: space.name })}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-                {t('place.remove.cancel')}
-              </button>
-            </>
-          }
+          actions={<Answer yes={t('place.remove.remove', { name: space.name })} danger onYes={answer} onCancel={() => setAsking(false)} />}
         >
           <ul className={styles.will}>
             {open.map(fate => (

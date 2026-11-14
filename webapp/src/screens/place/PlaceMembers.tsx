@@ -24,7 +24,7 @@ export function PlaceMembers() {
   usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={4} />;
-  if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
+  if (!spaces.data) return <LoadFailed read={spaces} />;
   // A place that has ended is as little there as one that never was; a room has no page - who is in it stands on its places.
   if (!space || space.kind === 'room') return <NoLongerHere what="space" />;
   if (mayManage) return <Navigate to={editPath(space.id)} replace />;

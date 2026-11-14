@@ -518,10 +518,12 @@ describe('ticking one off', () => {
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
-  it('is not a control on a card that is already done', async () => {
+  it('is not a control on a card that is already done, and its mark carries a tick', async () => {
     await drawLoaded();
 
     expect(section('Done').queryByRole('button')).not.toBeInTheDocument();
+    // A pale ring alone read as a choice not yet made.
+    expect(screen.getByRole('region', { name: 'Done' }).querySelector('[data-filled="true"] svg')).not.toBeNull();
   });
 
   // Confirming a step moves the plan on and sends the next step's targets to

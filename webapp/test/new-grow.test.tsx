@@ -33,8 +33,13 @@ vi.mock('@/api/session', async importOriginal => {
 const tent = spaceWhere('own', { id: 'space-1', kind: 'tent', name: 'Blue Dream tent' });
 const balcony = spaceWhere('own', { id: 'space-2', kind: 'balcony', name: 'Balcony' });
 const guests = spaceWhere('log', { id: 'space-3', kind: 'tent', name: 'A friend´s tent' });
-/** Twelve hours of light, and figures nobody took from a preset: a flowering tent. */
-const controller = fridge({ type: 'controller' });
+/** Flowering's own climate - its figures and twelve hours of light - is what says a place flowers. */
+const onPreset = (day: { temperature: number; humidity: number }, night: { temperature: number; humidity: number }, light = 12) =>
+  fridge({
+    type: 'controller',
+    configuration: { ...fridge().configuration!, daynight: { day: 6 * 3600, night: (6 + light) * 3600 }, day, night } as Device['configuration'],
+  });
+const controller = onPreset({ temperature: 25, humidity: 50 }, { temperature: 20, humidity: 50 });
 
 const placement = (spaceId: string | null, endedAt: string | null) => ({
   id: `placement-${spaceId}`,
@@ -149,11 +154,32 @@ describe('the form a grow is started with', () => {
     await waitFor(() => expect(stage('Flower')).toHaveAttribute('aria-pressed', 'true'));
   });
 
-  it('opens on growth where nothing says which stage the place is on', async () => {
+  /**
+   * Twelve hours of light on figures nobody took from a preset - a controller as it comes from the factory - said
+   * "Blüte", and one tap recorded a flowering grow on its first day.
+   */
+  it('opens a grow started today on the seedling where nothing the device runs is a stage´s, and one started earlier on none', async () => {
+    stack.devices = [fridge({ type: 'controller' })];
+    await drawLoaded('space-1');
+
+    expect(stage('Seedling')).toHaveAttribute('aria-pressed', 'true');
+    expect(stage('Flower')).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Since when?' }), { target: { value: 'week' } });
+    expect(screen.queryAllByRole('button', { pressed: true })).toHaveLength(0);
+    const start = screen.getByRole('button', { name: 'Start a grow' });
+    expect(start).toBeDisabled();
+    expect(start).toHaveAccessibleDescription('Choose the phase the grow is in now.');
+
+    fireEvent.click(stage('Veg'));
+    expect(start).toBeEnabled();
+  });
+
+  it('opens on the seedling for a grow started today where no device says anything', async () => {
     stack.devices = [];
     await drawLoaded('space-1');
 
-    expect(stage('Veg')).toHaveAttribute('aria-pressed', 'true');
+    expect(stage('Seedling')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('records the stage it opened on and moves nothing in the place', async () => {
@@ -226,9 +252,30 @@ describe('the form a grow is started with', () => {
 
     fireEvent.click(stage('Germination'));
     fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a second grow' }));
 
     await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'germination' }));
     expect(sent('/grows/grow-new/phases')).not.toHaveProperty('climate');
+  });
+
+  /** A second grow in a place pushed the first off Start unasked: it is allowed, and asked first by both names. */
+  it('asks first before it starts a second grow where one already runs, and starts nothing on "Cancel"', async () => {
+    stack.grows = [standing];
+    await drawLoaded('space-1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    expect(await screen.findByText('Autumn run is already growing in Blue Dream tent – start a second grow there all the same?')).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+    // Its yes is the one filled button while it stands.
+    expect(screen.queryByRole('button', { name: 'Start a grow' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(/start a second grow there/)).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a second grow' }));
+    await waitFor(() => expect(sent('/grows')).toMatchObject({ spaceId: 'space-1' }));
   });
 
   /** The owner's decision: what germination does about the humidity is chosen with every way germination is set. */
@@ -280,9 +327,9 @@ describe('the form a grow is started with', () => {
   });
 
   it('opens on the stage of that device too, not of the first controller standing in the place', async () => {
-    // Eighteen hours of light: growth, beside a flowering controller the place does not name.
-    const growing = fridge({ type: 'controller', configuration: { ...controller.configuration, daynight: { day: 6 * 3600, night: 0 } } });
-    stack.devices = [fridge({ id: 'device-0', type: 'controller' }), growing];
+    // Growth's own climate, beside a flowering controller the place does not name.
+    const growing = onPreset({ temperature: 26, humidity: 62 }, { temperature: 22, humidity: 58 }, 18);
+    stack.devices = [{ ...controller, id: 'device-0' }, growing];
     stack.climate = 'device-1';
     await drawLoaded('space-1');
 
@@ -350,13 +397,26 @@ describe('where the plants go, where the form was opened for no place', () => {
     expect(screen.getByRole('dialog', { name: 'New grow' })).toBeInTheDocument();
   });
 
-  /** Started from "Alle Grows" with one tent, the grow belongs in that tent, not in no place. */
-  it('opens on the only place there is, also where a grow already stands in it', async () => {
+  /** Started from "Alle Grows" with one tent, the grow belongs in that tent - unless a grow already runs there. */
+  it('opens on the only place there is where it is free, and on no fixed place where a grow runs in it', async () => {
     stack.spaces = [tent];
+    stack.grows = [];
+    const { unmount } = await drawLoaded();
+    expect(screen.getByRole('combobox', { name: 'Where' })).toHaveValue('space-1');
+    unmount();
+
     stack.grows = [standing];
     await drawLoaded();
+    expect(screen.getByRole('combobox', { name: 'Where' })).toHaveValue('');
+  });
 
-    expect(screen.getByRole('combobox', { name: 'Where' })).toHaveValue('space-1');
+  it('never opens on the header´s place where a grow runs in it', async () => {
+    stack.grows = [standing];
+    localStorage.setItem('terp.place', 'space-1');
+    onTestFinished(() => localStorage.clear());
+    await drawLoaded();
+
+    expect(screen.getByRole('combobox', { name: 'Where' })).toHaveValue('space-2');
   });
 
   it('opens on the place the header holds, which is the one the grower is looking at', async () => {

@@ -14,8 +14,8 @@ import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { InviteSheet } from './InviteSheet';
-import { InviteTerms } from './InviteTerms';
-import { inviteAddress, liveInvites, shownAddress } from './invites';
+import { InviteAddress, InviteTerms } from './InviteTerms';
+import { inviteAddress, liveInvites } from './invites';
 import styles from './Invite.module.css';
 
 /** What an invitation lets somebody into: the place, or the room it stands in. */
@@ -119,7 +119,7 @@ function LinkRow({ invite, into, apart, onShow }: { invite: Invite; into: string
   return (
     <li className={`${ui.card} ${ui.stack2}`} aria-label={code}>
       <div className={`${ui.row2} ${styles.addressRow}`}>
-        <code className={styles.address}>{shownAddress(code)}</code>
+        <InviteAddress code={code} />
         <CopyButton value={inviteAddress(code)} label={t('space.members.copyLink')} />
       </div>
       <div className={styles.termsRow}>

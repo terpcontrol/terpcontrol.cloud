@@ -168,8 +168,7 @@ export const extrasOf = (t: Translate, values: CardValue[], dark: boolean): Extr
       ? { key: 'leaf' as const, text: t('start.extra.leaf', { value: figureWithUnit(leaf.value!, 'leafTemperature') }), focus: 'leafTemperature' }
       : null,
     lux ? { key: 'lux' as const, text: t('start.leaf.lux', { value: figure(lux.value!, 'lux') }), focus: 'lux' } : null,
-    // PPFD is the lux reading times a factor, and is drawn on its panel.
-    ppfd ? { key: 'ppfd' as const, text: t('start.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }), focus: 'lux' } : null,
+    ppfd ? { key: 'ppfd' as const, text: t('start.leaf.ppfd', { value: decimalFigure(Math.round(ppfd.value!), 0) }), focus: 'ppfd' } : null,
   ].filter((part): part is Extra => part !== null);
 };
 

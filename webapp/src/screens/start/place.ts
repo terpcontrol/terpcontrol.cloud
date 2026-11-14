@@ -400,7 +400,8 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const open = worstFirst(place.openAlerts.filter(one => !isSilence(one) || (one.device !== undefined && one.deviceId !== place.leadId)));
   const unnamed = (behind: PlaceAlert[]): Unnamed => ({ more: behind.length, critical: behind.some(one => one.severity === 'critical') });
   const alerted: Status | null = open.length > 0 ? { kind: 'alert', alert: open[0], ...unnamed(open.slice(1)) } : null;
-  const all = unnamed(open);
+  // Behind any other status the count is Meldungen's and the bell's: every alert open here, the place's own silence too.
+  const all = unnamed(place.openAlerts);
   // A place with no sensor can still have something open: a camera that stopped delivering is its one way to go wrong.
   if (liveness === 'none') return alerted ?? { kind: 'none' };
   if (liveness === 'offline') {

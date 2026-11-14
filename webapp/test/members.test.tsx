@@ -379,7 +379,14 @@ describe('who sees a place, as its owner', () => {
     const yes = within(sheet).getByRole('button', { name: 'Take them out' });
     expect(yes.className).toMatch(/dangerFilled/);
     expect(yes.className).not.toMatch(/primary/);
-    fireEvent.click(yes);
+    // The yes stands beside the way back, as every question's does (`Answer`).
+    expect(yes.nextElementSibling).toHaveAccessibleName('Cancel');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(told).toHaveLength(0);
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Take them out' }));
 
     await waitFor(() => expect(told).toHaveLength(1));
     expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
@@ -528,6 +535,10 @@ describe('who sees a place, as its owner', () => {
     expect(DateTime.fromISO(body.expiresAt).diff(NOW, 'days').days).toBeCloseTo(7, 1);
 
     await waitFor(() => expect(screen.getAllByText(/\/join\/K7QZ4M2P$/).length).toBeGreaterThan(0));
+    // It may break after a slash and nowhere else: "K7QZ4M / 2P" is a code nobody can read out.
+    for (const address of screen.getAllByText(/\/join\/K7QZ4M2P$/)) {
+      expect([...address.querySelectorAll('wbr')].map(one => one.previousSibling?.textContent)).toEqual(['/', '/']);
+    }
     expect(screen.getAllByRole('button', { name: 'Copy the invite link' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('dialog')).toHaveTextContent(/joins as “can log” · until/);
   });

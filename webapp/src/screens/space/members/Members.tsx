@@ -48,7 +48,7 @@ export function Members({ spaceId, name, roomId }: { spaceId: string; name: stri
 
   if (isDemo) return <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.members.demo')}</p>;
   if (members.isPending) return <Waiting lines={4} />;
-  if (!members.data) return <LoadFailed retry={() => void members.refetch()} />;
+  if (!members.data) return <LoadFailed read={members} />;
 
   const page = members.data;
   const listed = spaces.data?.items ?? [];

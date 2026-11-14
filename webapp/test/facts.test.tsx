@@ -122,9 +122,10 @@ describe('the stage a device´s settings say its place is on', () => {
     expect(stageOn(device(climate(26, 62, 22, 58), { drying: true }))).toBe('drying');
   });
 
-  it('goes by the length of the day where somebody has moved the figures since', () => {
-    expect(stageOn(device({ ...climate(25, 60, 21, 55), daynight: { day: 6 * 3600, night: 18 * 3600 } }))).toBe('flowering');
-    expect(stageOn(device(climate(25, 60, 21, 55)))).toBe('vegetative');
+  /** A factory-fresh controller's twelve hours of light said "Blüte", and one tap recorded a grow on its first day as flowering. */
+  it('says no stage where somebody has moved the figures since, whatever the length of the day', () => {
+    expect(stageOn(device({ ...climate(25, 60, 21, 55), daynight: { day: 6 * 3600, night: 18 * 3600 } }))).toBeNull();
+    expect(stageOn(device(climate(25, 60, 21, 55)))).toBeNull();
   });
 
   it('says nothing of a device that holds no climate, and of none', () => {

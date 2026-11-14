@@ -11,7 +11,7 @@ import { Refused } from '@/ui/PageState';
 import { QrCode } from '@/ui/QrCode';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { InviteTerms } from './InviteTerms';
+import { InviteAddress, InviteTerms } from './InviteTerms';
 import { codeEntryAddress, expiresAtFor, inviteAddress, ROLES, shownAddress, VALIDITIES, type Validity } from './invites';
 import styles from './Invite.module.css';
 
@@ -153,7 +153,7 @@ function Made({ invite, first }: { invite: Invite; first: Way }) {
       <div id="invite-way-panel" role="tabpanel" aria-labelledby={`invite-way-${way}`} className={`${ui.card} ${styles.pane}`}>
         {way === 'link' ? (
           <div className={`${ui.row2} ${styles.addressRow}`}>
-            <code className={styles.address}>{shownAddress(invite.code)}</code>
+            <InviteAddress code={invite.code} />
             <CopyButton value={address} label={t('space.members.copyLink')} />
           </div>
         ) : way === 'code' ? (

@@ -11,13 +11,14 @@
   margin-top: var(--space-2);
 }
 
-/* The address takes what is left and wraps rather than pushing Copy off the
-   card: a code is eight characters and the host is as long as it is. */
+/* The address takes what is left and wraps after a slash rather than pushing Copy off the card - inside a part
+   only where a host is wider than the card. Set in the app's face, as the code is: `code` would take the browser's. */
 .address {
   flex: 1;
   min-width: 0;
+  font-family: inherit;
   font-size: var(--text-sm);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* What the link is worth, read off the row, and the two things that can be
@@ -129,6 +130,7 @@
 /* The code alone, in the largest mono the app has: it is read aloud or shown
    across a table, and eight characters at figure size fit any phone. */
 .code {
+  font-family: inherit;
   font-size: var(--text-figure);
   font-weight: var(--weight-medium);
   letter-spacing: 0.08em;

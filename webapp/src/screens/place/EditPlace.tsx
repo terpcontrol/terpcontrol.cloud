@@ -13,6 +13,7 @@ import { DeviceSettingsSheet } from '@/screens/devices/DeviceSettingsSheet';
 import { Members } from '@/screens/space/members/Members';
 import { inSentence, mentionsOn } from '@/screens/space/members/people';
 import { camerasCalled } from '@/ui/camera-name';
+import { Answer } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { cameraTitle, deviceTitle, givenName, PLACE_KINDS, typeName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
@@ -44,13 +45,14 @@ const RENAME_ROOM = 'rename';
  * of its own, so the one the place stands in is renamed here as well.
  */
 export function EditPlace() {
+  const { t } = useTranslation();
   const { spaceId = '' } = useParams();
   const spaces = useSpaces();
   const mayManage = useMayManage(spaceId);
   usePageOfPlace(spaceId || null);
 
   if (spaces.isPending) return <Waiting lines={5} />;
-  if (!spaces.data) return <LoadFailed retry={() => void spaces.refetch()} />;
+  if (!spaces.data) return <LoadFailed title={t('place.edit.title')} read={spaces} />;
 
   const space = spaces.data.items.find(one => one.id === spaceId && one.archivedAt === null) ?? null;
   // A room is a field of the places in it and has no page of its own.
@@ -314,14 +316,7 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
           note={t('place.edit.endRoom.final')}
           onClose={() => setAsking(false)}
           actions={
-            <>
-              <button type="button" className={`${ui.button} ${ui.dangerFilled}`} onClick={() => void write()}>
-                {t('place.edit.endRoom.yes', { room: room.name })}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-                {t('place.edit.endRoom.no')}
-              </button>
-            </>
+            <Answer yes={t('place.edit.endRoom.yes', { room: room.name })} danger onYes={() => void write()} onCancel={() => setAsking(false)} />
           }
         >
           <p className={ui.sheetBody}>

@@ -1,8 +1,10 @@
+import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Invite } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
 import { useNow } from '@/ui/useNow';
-import { dayLabel } from './invites';
+import { dayLabel, shownAddress } from './invites';
+import styles from './Invite.module.css';
 
 /**
  * What a link is worth, read off the row the server answered and off nothing
@@ -30,4 +32,24 @@ export function InviteTerms({ invite, into, className = '' }: { invite: Invite; 
   ];
 
   return <Facts facts={parts} className={className} />;
+}
+
+/** The link in the app's face, broken only after a slash: never inside the code a person types or reads out. */
+export function InviteAddress({ code }: { code: string }) {
+  return (
+    <code className={styles.address}>
+      {shownAddress(code)
+        .split('/')
+        .map((part, at) => (
+          <Fragment key={at}>
+            {at > 0 ? (
+              <>
+                /<wbr />
+              </>
+            ) : null}
+            {part}
+          </Fragment>
+        ))}
+    </code>
+  );
 }

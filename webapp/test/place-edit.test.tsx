@@ -778,15 +778,18 @@ describe('removing a place', () => {
 
     await screen.findByRole('button', { name: 'Remove Tent' });
     expect(select('Tent controller')).toHaveValue('move:loft');
+    // A place there is already is named by its name; "new place" is the one the removal makes.
+    expect(within(select('Tent controller')).getByRole('option', { name: 'to Loft' })).toBeInTheDocument();
+    expect(within(select('Tent controller')).getByRole('option', { name: 'gets a new place' })).toBeInTheDocument();
     expect(select('Fan')).toHaveValue('stay');
     fireEvent.change(select('Spring run · Day 29'), { target: { value: 'move:loft' } });
     const sheet = await ask();
     // The loft stands in no room: the room the tent was the last place of ends, which is said though nobody was let into it.
     expect(linesOf(sheet)).toEqual([
-      'Tent controller moves – new place: Loft',
+      'Tent controller moves to Loft',
       'Fan stays with Tent controller',
       'Canopy cam stays with Tent controller',
-      'Spring run moves – new place: Loft',
+      'Spring run moves to Loft',
       'The room Grow room ends',
     ]);
 
@@ -949,7 +952,7 @@ describe('removing a place', () => {
       .mockResolvedValue(null as never);
     fireEvent.change(select('Tent controller'), { target: { value: 'move:fridge' } });
     const sheet = await ask();
-    expect(linesOf(sheet)[0]).toBe('Tent controller moves – new place: KS Black');
+    expect(linesOf(sheet)[0]).toBe('Tent controller moves to KS Black');
     expect(api.delete).not.toHaveBeenCalled();
     answer(sheet);
 

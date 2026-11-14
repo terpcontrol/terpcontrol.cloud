@@ -13,6 +13,7 @@ import { choicesOf, useHumidifier } from '@/screens/control/germination/germinat
 import { usePlaceStage } from '@/screens/start/stage';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
 import { unbroken } from '@/ui/figures';
+import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
 import { Sheet } from '@/ui/Sheet';
@@ -35,10 +36,13 @@ const NOWHERE = '';
  * Everything else has an answer that can wait and is changed on the grow's own
  * page: a feeding scheme, the strains by name, an autoflower.
  *
- * It opens on the stage the place is on - read off its device (`usePlaceStage`),
- * or the one a step earlier in the same sitting put it on (`stage`) - and waits
- * for that answer rather than choosing before it. Where nothing says, it opens
- * on growth: a tent that already regulates rarely holds seeds.
+ * It opens on the stage the place is on - read off what its device runs
+ * where that is a stage's (`usePlaceStage`), or the one a step earlier in the
+ * same sitting put it on (`stage`) - and waits for that answer rather than
+ * choosing before it. Where nothing says, a grow started today opens on the
+ * seedling - a tent that already regulates rarely holds seeds - and one that
+ * began earlier on no stage at all: one tap must not record a grow on its
+ * first day as flowering.
  *
  * A stage the form only opened on is recorded and moves nothing. A stage the
  * grower chose puts the place's controller on its climate, and then the button
@@ -75,7 +79,8 @@ export function WhatGrows({
   const countRefusal = useId();
   const zone = useZone();
   const grows = useGrows();
-  const spaces = useSpaces(fixed === null);
+  // Read also for a place the form was opened for: a second grow there is asked about by the place's name.
+  const spaces = useSpaces();
   const { start, busy, refused } = useStartGrow();
   const chosen = useChosenPlace();
   const { tell } = useLog();
@@ -87,19 +92,26 @@ export function WhatGrows({
   const [picked, setStage] = useState<GrowthStage | null>(null);
   const [where, setWhere] = useState<string | null>(null);
   const [germination, setGermination] = useState<Partial<Choices>>({});
+  const [asking, setAsking] = useState(false);
 
   const places = placesFor(spaces.data?.items ?? []);
   const running = grows.data?.items ?? [];
-  // Asked for, the place stands chosen that the grower is looking at - the header's, or the only one there is: a
-  // grow started from "Alle Grows" with one tent belongs in that tent, not in no place. Among several with none
-  // chosen it is the first free one, since defaulting into a flowering tent would put a second grow in it.
-  const inView = places.find(one => one.id === chosen) ?? (places.length === 1 ? places[0] : places.find(one => growIn(running, one.id) === null));
+  // Asked for, the place stands chosen that the grower is looking at - the header's, or the first there is: a grow
+  // started from "Alle Grows" with one tent belongs in that tent, not in no place. Never one a grow already runs
+  // in, which would put a second grow there unasked: with none free it is no fixed place.
+  const free = places.filter(one => growIn(running, one.id) === null);
+  const inView = free.find(one => one.id === chosen) ?? free[0];
   const spaceId = fixed ?? (where === null ? (inView?.id ?? null) : where || null);
+  // A grow already running where this one goes: starting a second is allowed, and asked first.
+  const there = spaceId ? growIn(running, spaceId) : null;
   const onPlace = usePlaceStage(spaceId);
   const on = given ?? onPlace;
   const controller = usePlaceController(spaceId);
-  const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : 'vegetative';
+  const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : since === 'today' ? 'seedling' : null;
   const stage = picked ?? opened;
+  // Nothing chosen where the place has answered: the button says what it waits for.
+  const unstaged = stage === null && on !== undefined;
+  const stageMissing = useId();
   const climate = picked !== null && picked !== on && controller !== null && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
   const germinates = climate && stage === 'germination';
   const plants = /^\s*\d+\s*$/.test(count) ? Number(count) : 0;
@@ -113,9 +125,11 @@ export function WhatGrows({
     if (germinates) choices.current?.scrollIntoView?.({ block: 'nearest' });
   }, [germinates, humidifier]);
 
-  const submit = async () => {
+  const submit = async (second = false) => {
     // Not before the place has said which stage it is on: what is chosen is told apart from it.
-    if (stage === null || opened === null || countRefused) return;
+    if (stage === null || on === undefined || countRefused) return;
+    if (there && !second) return setAsking(true);
+    setAsking(false);
     const now = serverNow().toJSDate();
     const startedAt = since === 'today' ? now : since === 'week' ? new Date(now.getTime() - 7 * DAY_MS) : date;
     const typed = name.trim();
@@ -140,19 +154,36 @@ export function WhatGrows({
   const button = (
     <>
       <Refused error={refused} />
-      <button
-        type="submit"
-        form={form}
-        className={`${submitClass ?? `${ui.button} ${ui.primary}`} ${styles.start}`}
-        disabled={busy || grows.isPending || opened === null || countRefused || (fixed === null && spaces.isPending)}
-        aria-describedby={countRefused ? countRefusal : undefined}
-      >
-        {busy
-          ? t('grow.new.starting')
-          : climate && stage
-            ? t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
-            : t('home.invite.startGrow')}
-      </button>
+      {asking && there ? (
+        <Asking
+          note={t('grow.new.second', { place: places.find(one => one.id === spaceId)?.name ?? '', grow: there.name })}
+          yes={t('grow.new.secondYes')}
+          busy={busy}
+          onYes={() => void submit(true)}
+          onCancel={() => setAsking(false)}
+        />
+      ) : null}
+      {unstaged ? (
+        <p id={stageMissing} className={ui.note}>
+          {t('grow.new.stageMissing')}
+        </p>
+      ) : null}
+      {/* While the question stands, its yes is the one way on: one filled button, not two. */}
+      {asking ? null : (
+        <button
+          type="submit"
+          form={form}
+          className={`${submitClass ?? `${ui.button} ${ui.primary}`} ${styles.start}`}
+          disabled={busy || grows.isPending || stage === null || on === undefined || countRefused || (fixed === null && spaces.isPending)}
+          aria-describedby={countRefused ? countRefusal : unstaged ? stageMissing : undefined}
+        >
+          {busy
+            ? t('grow.new.starting')
+            : climate && stage
+              ? t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
+              : t('home.invite.startGrow')}
+        </button>
+      )}
     </>
   );
 

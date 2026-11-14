@@ -1253,7 +1253,10 @@
       "schemeUnreadable": "That scheme could not be read, so the grow cannot be started on it.",
       "starting": "Starting the grow …",
       "startAndSet": "Start · climate: {{climate}}",
-      "plantsRefused": "Plants: a whole number from 1."
+      "plantsRefused": "Plants: a whole number from 1.",
+      "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",
+      "secondYes": "Start a second grow",
+      "stageMissing": "Choose the phase the grow is in now."
     },
     "measurements": {
       "title": "Measurements",
@@ -1556,7 +1559,8 @@
       "started": "{{name}} started",
       "start": "Start: {{date}}",
       "deleted": "{{name}} deleted"
-    }
+    },
+    "alsoHere": "Also growing here:"
   },
   "space": {
     "control": {
@@ -4212,8 +4216,7 @@
         "says_one": "That ends {{room}}, and {{people}} no longer sees any of it.",
         "says_other": "That ends {{room}}, and {{people}} no longer see any of it.",
         "final": "This cannot be taken back.",
-        "yes": "End {{room}}",
-        "no": "Cancel"
+        "yes": "End {{room}}"
       },
       "renameRoom": "Rename {{room}} …",
       "roomTaken": "Another room is already called “{{name}}”."
@@ -4223,7 +4226,7 @@
       "back": "Back to “Edit place”",
       "holds": "Still here",
       "stay": "stays with {{device}}",
-      "move": "new place: {{place}}",
+      "move": "to {{place}}",
       "device": {
         "new": "gets a new place",
         "release": "give up"
@@ -4247,7 +4250,7 @@
       "final": "This cannot be taken back.",
       "will": {
         "make": "{{name}} gets a new place: {{place}}",
-        "move": "{{name}} moves – new place: {{place}}",
+        "move": "{{name}} moves to {{place}}",
         "stay": "{{name}} stays with {{beside}}",
         "release": "{{name}} is given up and then no longer belongs to your account",
         "uncouple": "{{name}} is unpaired",

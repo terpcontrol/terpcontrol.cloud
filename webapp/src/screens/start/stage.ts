@@ -9,20 +9,18 @@ import { darkReasonOf, statesTargets } from '@/ui/climate-hardware';
 /** The stages with a day and a night of their own, which a device's figures can be told apart by. */
 const LIT: readonly GrowthStage[] = ['seedling', 'vegetative', 'flowering'];
 
-/** Up to how many hours of light a day is a flowering one: 12/12 with room for a grower's own hour more or less. */
-const FLOWERING_HOURS = 14;
-
 /**
- * The stage a place is on, read off what its device was last set to. Nothing
- * stores the stage of a place without a grow - a climate preset leaves the
- * device's settings and nothing else - so the settings are what says it: the
- * work mode for germination and drying, then the stage whose climate the
- * day's and the night's figures are, and for figures somebody has moved since
- * the length of the day, which is what tells flower from growth.
+ * The stage a place is on, read off what its device runs. Nothing stores the
+ * stage of a place without a grow - a climate preset leaves the device's
+ * settings and nothing else - so the settings are what says it, and only where
+ * they are a stage's own: the work mode for germination and drying, else the
+ * stage whose climate the day's and the night's figures are. Figures somebody
+ * moved say no stage: a factory-fresh controller's twelve hours of light are
+ * no flowering.
  *
  * It is the answer a form opens on rather than a fact it states: "Was wächst
  * hier?" starts on it, so a tent just put on growth is not asked about seeds.
- * Null where no device here holds a climate.
+ * Null where no device here holds a climate or runs a stage's.
  */
 export const stageOn = (device: Device | null): GrowthStage | null => {
   if (!device?.configuration || !statesTargets(device.configuration)) return null;
@@ -30,18 +28,18 @@ export const stageOn = (device: Device | null): GrowthStage | null => {
   if (dark === 'germination' || dark === 'drying') return dark;
 
   const set = draftOf(device.configuration);
-  const exact = LIT.find(stage => {
-    const row = climatePreset(stage, null);
-    return (
-      row !== null &&
-      row.dayTemperature === set.dayTemperature &&
-      row.nightTemperature === set.nightTemperature &&
-      row.dayHumidity === set.dayHumidity &&
-      row.nightHumidity === set.nightHumidity
-    );
-  });
-
-  return exact ?? (set.lightHours <= FLOWERING_HOURS ? 'flowering' : 'vegetative');
+  return (
+    LIT.find(stage => {
+      const row = climatePreset(stage, null);
+      return (
+        row !== null &&
+        row.dayTemperature === set.dayTemperature &&
+        row.nightTemperature === set.nightTemperature &&
+        row.dayHumidity === set.dayHumidity &&
+        row.nightHumidity === set.nightHumidity
+      );
+    }) ?? null
+  );
 };
 
 /**

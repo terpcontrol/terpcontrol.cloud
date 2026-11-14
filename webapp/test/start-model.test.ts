@@ -73,8 +73,9 @@ describe('the sentence a place says', () => {
     // A status that outranks the alert sentence - the place's own silence, maintenance, regulation off - counts them all behind it.
     const silent = { ...place, values: [], silentSince: ago(35), openAlerts: placeAlerts(listed, inbox as never, here, now) };
     expect(statusOf(silent, now)).toMatchObject({ kind: 'offline', more: 4 });
-    // The silence of the device the place is judged by is the place's own, said by the pill and the box, and is not counted.
-    expect(statusOf({ ...silent, leadId: 'device-2' }, now)).toMatchObject({ kind: 'offline', more: 3 });
+    // The silence of the device the place is judged by is said by the pill and the box, and counted as Meldungen and the
+    // bell count it: "4 Meldungen offen" beside "Meldungen 4".
+    expect(statusOf({ ...silent, leadId: 'device-2' }, now)).toMatchObject({ kind: 'offline', more: 4 });
     // The catalogue's sentences are not this suite's business: a key stands for its sentence, the count for itself.
     // After an alert's own sentence the rest is "+3"; after any other status it is said in words, never a lone "+4".
     const t = ((key: string, said?: { count?: number }) => (said?.count === undefined ? key : `${key}:${said.count}`)) as never;

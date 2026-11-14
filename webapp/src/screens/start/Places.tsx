@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, HomeAnswer, HomeSpaceCard, Space } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
+import { useGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
@@ -23,6 +24,7 @@ import { readingFacts, readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { growDay } from '@/screens/grow/progress';
+import { alsoIn } from '@/screens/space/movable-grows';
 import { DemoBanner, GuestLine } from './states';
 import { duePlaces, useDue } from './due';
 import { Today } from './Today';
@@ -189,7 +191,14 @@ function PlaceCard({
   const figures = readingFacts(t, readings);
   const pill = pillOf(t, status);
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
-  const grow = diary && card.grow ? [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null] : [];
+  // A place that holds two grows names both: the card's answer carries the newer one alone.
+  const others = alsoIn(useGrows(diary && card.grow !== null).data?.items, card.spaceId, card.grow?.growId);
+  const grow =
+    diary && card.grow
+      ? others.length > 0
+        ? [[card.grow.name, ...others.map(one => one.name)].join(', ')]
+        : [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null]
+      : [];
 
   return (
     <Link to={placePath(card.spaceId)} className={styles.place} data-asks={asks || undefined}>

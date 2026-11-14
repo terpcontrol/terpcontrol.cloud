@@ -175,11 +175,9 @@ describe('maintenance on Start', () => {
     const control = await screen.findByRole('group', { name: 'Maintenance' });
     expect(control).toHaveTextContent(/^Maintenance until \d\d:\d\dControl and alarms pausedEndExtend$/);
     expect(screen.queryByRole('button', { name: /^Maintenance · 15/ })).not.toBeInTheDocument();
-    // The sentence near the top says so too, and leads to where the window is ended.
-    const sentence = within(screen.getByRole('status')).getByRole('link');
-    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · control and alarms paused$/);
-    expect(sentence).toHaveAttribute('href', '#start-maintenance');
-    expect(control.parentElement).toHaveAttribute('id', 'start-maintenance');
+    // The control says it alone: the sentence near the top said it a second time above it.
+    expect(document.body.textContent?.match(/Maintenance until/g)).toHaveLength(1);
+    expect(screen.queryByText(/control and alarms paused/)).not.toBeInTheDocument();
 
     fireEvent.click(within(control).getByRole('button', { name: 'End' }));
 

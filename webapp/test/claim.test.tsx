@@ -9,6 +9,7 @@ import { api } from '@/api/client';
 import { expectLayout, takeExpected } from '@/api/layers';
 import { ApiError } from '@/api/problem';
 import { Claim } from '@/screens/claim/Claim';
+import { growPutOff } from '@/screens/start/loaded';
 import { deviceWith } from './fixtures';
 import type { Told } from '@/log/log-context';
 import { drawAt, testClient } from './harness';
@@ -625,7 +626,7 @@ describe('adding a device', () => {
     await waitFor(() => expect(address()).toBe('/spaces/space-new'));
   });
 
-  it('leaves the question for Start when it is skipped, writing nothing', async () => {
+  it('puts the question off when it is skipped, writing nothing, so the Start it leads to does not ask it at once', async () => {
     draw(left('grow', { ask: GROWS }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Not now' }));
@@ -633,6 +634,9 @@ describe('adding a device', () => {
     expect(address()).toBe('/spaces/space-new');
     expect(api.post).not.toHaveBeenCalled();
     expect(told).toEqual([]);
+    expect(growPutOff('space-new', DateTime.now())).toBe(true);
+    expect(growPutOff('space-new', DateTime.now().plus({ days: 1 }))).toBe(false);
+    localStorage.removeItem('terp.growLater.space-new');
   });
 
   /**
@@ -662,12 +666,14 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: 'Germination' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('opens it on growth where nothing says which stage the place is on', async () => {
+  /** A factory-fresh controller's twelve hours of light are no flowering: a grow started today opens on the seedling. */
+  it('opens it on the seedling where nothing the device runs is a stage´s', async () => {
     draw(left('grow', { ask: GROWS }));
 
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     // Not before the place has said so: a device list being read again is waited for (`usePlaceStage`).
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'true'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   /**
@@ -690,7 +696,7 @@ describe('adding a device', () => {
     await screen.findByRole('heading', { level: 2, name: 'What grows here?' });
     expect(takeExpected()).toEqual({ diary: true });
     expectLayout({ diary: true });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Veg' })).toHaveAttribute('aria-pressed', 'true'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true'));
     fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
 
     // The grow exists and the place's grows have been read again; the phase is still on its way.

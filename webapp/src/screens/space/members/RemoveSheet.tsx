@@ -5,10 +5,10 @@ import { useInvites } from '@/api/invites';
 import { useRemoveMember } from '@/api/members';
 import { leaveUnderSheet, walkOut } from '@/app/places';
 import { useLog } from '@/log/log-context';
+import { Answer } from '@/ui/Asking';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
-import ui from '@/ui/ui.module.css';
 import { isLive } from './invites';
 import styles from './Members.module.css';
 
@@ -75,11 +75,12 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
       title={t(`space.members.${what}.title`, { name, place })}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.dangerFilled}`}
+        <Answer
+          yes={t(`space.members.${what}.yes`)}
+          danger
           disabled={remove.isPending || remove.isSuccess}
-          onClick={() =>
+          onCancel={onClose}
+          onYes={() =>
             remove.mutate(
               { spaceId, userId, gone },
               {
@@ -92,9 +93,7 @@ export function RemoveSheet({ leaving, now, onClose }: { leaving: Leaving; now: 
               },
             )
           }
-        >
-          {t(`space.members.${what}.yes`)}
-        </button>
+        />
       }
     >
       <p className={styles.sheetBody}>

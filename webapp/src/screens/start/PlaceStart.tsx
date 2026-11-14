@@ -16,6 +16,7 @@ import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, use
 import { ageLabel, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
+import { deviceName } from '@/ui/naming';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
@@ -30,8 +31,10 @@ import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useWideWindow } from '@/ui/wide-window';
 import { clock, useZone } from '@/ui/zone';
+import { pendingByPath, savedWords } from '@/screens/control/climate/figures';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
 import { heldWords } from '@/screens/control/held-light';
+import { offNotTaken } from '@/screens/control/rows';
 import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
@@ -40,6 +43,7 @@ import { judgedAt, livenessThrough, measuredAtOf, silenceOf } from './attention'
 import { DayCurves } from './DayCurves';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
+import { growPutOff } from './loaded';
 import { GrowHead, PhaseLine } from './Phase';
 import { OwnPhoto, Picture } from './Picture';
 import {
@@ -127,6 +131,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const layer = useDiaryLayer() && (me.data !== undefined || demo);
   const diary = visiting ? overview.grows.length > 0 : layer;
   const grow = diary ? (overview.grows[0] ?? null) : null;
+  // A second grow started where one already runs: both are shown, the newer under the picture, the other as its card.
+  const also = diary ? overview.grows.slice(1) : [];
   // A refresh that fails ages the page, not the device: the place is judged as the last answer left it.
   const judged = judgedAt(now, failedAt);
   const liveness = livenessThrough({ values, deviceIds: overview.deviceIds }, now, failedAt);
@@ -138,6 +144,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const humidifierHold = useHumidifierHold(device);
   const openAlerts = usePlaceAlerts(overview.openAlerts, here, judged);
   const controlOff = controlOffOf(here);
+  // A switch-off the device was not heard to take is a setting it has not been handed: said as Steuerung says it.
+  const offStored = device ? offNotTaken(device, pendingByPath(lamp.live?.pending)) : null;
   const quiet = quietOf(here, now);
   const status = statusOf(
     {
@@ -169,7 +177,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const growing = overview.grows.length > 0;
   // Offered once the account and the place have been read, to whoever may start a grow here and has not said no.
   const declined = diary ? space?.presetPrompt === 'never' : me.data?.preferences.diary === 'off';
-  const offerGrow = !visiting && mayManage && hasDevice && !growing && me.data !== undefined && space !== undefined && !declined;
+  const offerGrow =
+    !visiting && mayManage && hasDevice && !growing && me.data !== undefined && space !== undefined && !declined && !growPutOff(spaceId, now);
   const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} parks={parks} />;
   const further = extras.length > 0 ? <Extras spaceId={spaceId} extras={extras} /> : null;
@@ -215,7 +224,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           deviceLink={overview.deviceIds !== null && device ? devicePath(device.id) : null}
         >
           {/* A device that held no targets when it went quiet does not go on holding them. */}
-          {t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
+          {offStored && device
+            ? t('control.pending.off', { saved: savedWords(t, offStored.savedAt, now, zone), device: deviceName(device, t) })
+            : t(controlOff ? 'start.offline.textOff' : 'start.offline.text')}
         </OfflineBox>
       ) : null}
 
@@ -261,6 +272,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {camera || readings.length === 0 ? null : <ReadingTiles spaceId={spaceId} readings={readings} />}
           {camera ? null : further}
           {grow && (camera || (kept && ownMedia)) ? <PhaseLine grow={grow} to={GROW} /> : null}
+          {also.map(one => (
+            <GrowHead key={one.growId} grow={one} to={`/grows/${one.growId}`} />
+          ))}
           {wide && hasDevice && !byHand ? <DayCurves spaceId={spaceId} targets={targets} /> : null}
         </div>
 
@@ -296,7 +310,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             />
           ) : null}
           {/* Offered only where it can do what it says: a device that is silent or has yet to speak would not hear it, and a plug parks nothing. */}
-          {parks ? <MaintenanceControl devices={here} now={now} id={MAINTENANCE} /> : null}
+          {parks ? <MaintenanceControl devices={here} now={now} /> : null}
           {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} /> : null}
           {offerDevice ? <DeviceOffer /> : null}
           {demo || visiting ? null : <AddPlace />}
@@ -305,9 +319,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
     </section>
   );
 }
-
-/** Where maintenance is started and ended, which the sentence that says it is running leads to. */
-const MAINTENANCE = 'start-maintenance';
 
 /**
  * The newest picture taken in the light, as the head of the place: named by
@@ -408,17 +419,19 @@ function StatusSentence({
   camera: OverviewCamera | null;
   mayManage: boolean;
   device: Device | null;
-  /** Whether the page draws the control maintenance is ended at, which the sentence about it then leads to. */
+  /** Whether the page draws the control maintenance is ended at, which then says it alone. */
   parks: boolean;
 }) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
   const called = useCameraCalled();
-  // Silence is the box's to say, and that a device has yet to send its first value the pill's beside the name -
-  // unless other alerts of the place stand open behind it, which the sentence then counts and says nothing else.
+  // Silence is the box's to say, that a device has yet to send its first value the pill's beside the name, and a
+  // window of maintenance the control further down that runs it (with the pill's "Wartung") - unless other alerts of
+  // the place stand open behind them, which the sentence then counts and says nothing else.
   const silent = status.kind === 'offline' || status.kind === 'waiting';
-  if (silent && status.more === 0) return null;
+  const said = silent || (status.kind === 'maintenance' && status.quiet.parked && parks);
+  if (said && status.more === 0) return null;
   const behind = openWords(t, status);
   let text: string;
   // A silent place's sentence is what stands open there, in the colour of the worst of it: the red of silence is the box's.
@@ -439,7 +452,7 @@ function StatusSentence({
     text =
       status.kind === 'good'
         ? t('start.allGood')
-        : silent
+        : said
           ? ''
           : ((status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone, false));
     to =
@@ -459,7 +472,7 @@ function StatusSentence({
   // What stands open behind a status that is not an alert's own is said in words, in the alarm's colour where one of
   // it is critical; behind an alert's sentence "+2" goes in that sentence's colour.
   const critical = 'critical' in status && status.critical && status.kind !== 'alert';
-  const said = (
+  const words = (
     <Facts
       facts={[
         ...(text ? factsOf(text).map(unbroken) : []),
@@ -471,40 +484,18 @@ function StatusSentence({
       ]}
     />
   );
-  // A window of maintenance is ended and extended where it was started, further down this page - unless alerts stand
-  // open behind it, which the sentence then leads to.
-  const control = status.kind === 'maintenance' && status.quiet.parked && parks && status.more === 0;
-  const toControl = () => {
-    const target = document.getElementById(MAINTENANCE);
-    target?.scrollIntoView({ block: 'center' });
-    target?.focus({ preventScroll: true });
-  };
-
   // One live region whatever the status is, so a change from "Alles im Ziel" to a reading off its target is said.
   // A camera's sentence carries a ticking age and is left out of it.
   return (
     <div role={status.kind === 'none' ? undefined : 'status'} className={styles.statusFrame}>
-      {control ? (
-        <a
-          href={`#${MAINTENANCE}`}
-          className={styles.status}
-          data-tone={tone}
-          onClick={event => {
-            event.preventDefault();
-            toControl();
-          }}
-        >
-          {said}
-          <ChevronRight size={18} strokeWidth={2} aria-hidden />
-        </a>
-      ) : to ? (
+      {to ? (
         <Link to={to} className={styles.status} data-tone={tone}>
-          {said}
+          {words}
           <ChevronRight size={18} strokeWidth={2} aria-hidden />
         </Link>
       ) : (
         <p className={styles.status} data-tone={tone}>
-          {said}
+          {words}
         </p>
       )}
     </div>

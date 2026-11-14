@@ -36,7 +36,18 @@ import styles from './MoveHereSheet.module.css';
  * that is what it is offered: the new-grow sheet takes this one's place with
  * the tent already answered.
  */
-export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string; spaceName: string; onClose: () => void }) {
+export function MoveHereSheet({
+  spaceId,
+  spaceName,
+  chosen = null,
+  onClose,
+}: {
+  spaceId: string;
+  spaceName: string;
+  /** The grow the sheet stands on before anything is picked: the one the tap that opened it named. */
+  chosen?: string | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const movable = useMovableGrows(spaceId);
   const move = useMoveGrowHere(spaceId);
@@ -44,7 +55,7 @@ export function MoveHereSheet({ spaceId, spaceName, onClose }: { spaceId: string
   const spaces = useSpaces();
   const { tell } = useLog();
 
-  const [picked, setGrowId] = useState<string | null>(null);
+  const [picked, setGrowId] = useState<string | null>(chosen);
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [starting, setStarting] = useState(false);
 

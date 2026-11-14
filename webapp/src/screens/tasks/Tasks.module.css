@@ -78,6 +78,7 @@ button.circle:hover {
 .circle[data-filled='true'] {
   background: var(--green-wash);
   border-color: var(--green);
+  color: var(--green-ink);
 }
 
 /* Both lines wrap rather than being cut: a task whose name does not fit is

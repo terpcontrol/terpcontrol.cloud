@@ -1,4 +1,4 @@
-import { UserRound } from 'lucide-react';
+import { Check, UserRound } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -141,7 +141,9 @@ export function DoneCard({ task, name, by, me, now }: { task: Task; name: string
   return (
     <li className={`${ui.card} ${styles.card}`} data-done="true">
       <div className={ui.row3}>
-        <span className={styles.circle} data-filled="true" aria-hidden />
+        <span className={styles.circle} data-filled="true" aria-hidden>
+          <Check size={14} strokeWidth={2} />
+        </span>
         <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
           <Facts className={styles.meta} facts={[who, name, at]} />

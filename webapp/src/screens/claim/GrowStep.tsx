@@ -8,6 +8,7 @@ import ui from '@/ui/ui.module.css';
 import { WhatGrows } from '@/screens/grow/new/WhatGrows';
 import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
 import { useMovableGrows } from '@/screens/space/movable-grows';
+import { putGrowOff } from '@/screens/start/loaded';
 import { shownStill } from '@/screens/start/place';
 import { FlowHead } from './FlowHead';
 import styles from './Claim.module.css';
@@ -16,8 +17,9 @@ import styles from './Claim.module.css';
  * The last question of setting a device up: what grows here. It is a page of
  * its own rather than one more row of the list, because it is the one answer
  * that turns a regulated tent into a diary: an answer starts the grow, and
- * Start then leads with it. "Jetzt nicht" leaves the question on Start as a
- * card. Somebody whose grow already runs elsewhere moves it here instead.
+ * Start then leads with it. "Jetzt nicht" puts the question off for a day
+ * (`putGrowOff`), so the Start it leads to does not ask it again at once.
+ * Somebody whose grow already runs elsewhere moves it here instead.
  *
  * Where a camera already delivers, its newest picture heads the page: it is
  * what the diary will be made of.
@@ -71,6 +73,7 @@ export function GrowStep({
   }, []);
   const skip = (leave = onLeave) => {
     unsaid();
+    putGrowOff(space.id);
     leave();
   };
 

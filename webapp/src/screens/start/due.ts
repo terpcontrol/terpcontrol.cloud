@@ -9,6 +9,7 @@ import { useTasks } from '@/api/tasks';
 import { enough, growStanding, mayWithOf, standsIn, type Standing } from '@/ui/session-access';
 import { useZone } from '@/ui/zone';
 import { groupOf, isMine, subjectName } from '@/screens/tasks/tasks';
+import { alsoIn } from '@/screens/space/movable-grows';
 
 /**
  * What a task is about, for every list of tasks: its name, where it stands and
@@ -53,6 +54,8 @@ export interface Due {
   where: string[];
   /** The grow a watering or a feeding is entered against: the one it is about, else the one standing in its place. */
   growId: string | null;
+  /** That its grow shares its place with another, so the row names the grow wherever it is listed. */
+  twin: boolean;
 }
 
 /**
@@ -85,8 +88,9 @@ export const useDue = (now: DateTime): { rows: Due[]; kept: boolean; across: boo
       const spaceId = about ? standsIn(about) : task.subject.type === 'space' ? task.subject.id : null;
       const growId = (about ?? grows?.find(grow => spaceId !== null && standsIn(grow) === spaceId))?.id ?? null;
       const place = about && spaces?.find(space => space.id === spaceId)?.name;
+      const twin = about !== undefined && alsoIn(grows, spaceId, about.id).length > 0;
 
-      return { task, spaceId, where: [nameOf(task.subject), place].filter((name): name is string => !!name), growId };
+      return { task, spaceId, where: [nameOf(task.subject), place].filter((name): name is string => !!name), growId, twin };
     });
 
   return { rows, kept, across };

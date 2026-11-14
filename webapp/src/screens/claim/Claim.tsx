@@ -228,7 +228,7 @@ export function Claim() {
             <CodeStep initialCode={params.get('code') ?? ''} into={opened} where={whereTo} onClaimed={entered} />
           </Step>
         ) : !claimed && device.isError ? (
-          <LoadFailed retry={() => void device.refetch()} />
+          <LoadFailed read={device} />
         ) : (
           <Waiting lines={3} />
         )}

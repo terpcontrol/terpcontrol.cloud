@@ -57,7 +57,7 @@ const stepMoved = (client: QueryClient) => void planMoved(client);
  * cannot be taken back. Once it has landed the plan and the devices are read
  * again, so the targets' row says the new step at once.
  */
-function Row({ task, spaceId, where, growId, across, now }: Due & { across: boolean; now: DateTime }) {
+function Row({ task, spaceId, where, growId, twin, across, now }: Due & { across: boolean; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
   const { openSheet, complete } = useLog();
@@ -65,7 +65,7 @@ function Row({ task, spaceId, where, growId, across, now }: Due & { across: bool
   const step = task.source === 'plan_step';
   const enters = !step && growId !== null && (task.kind === 'water' || task.kind === 'feed');
   const verb = t(step ? 'start.today.confirm' : enters ? 'start.today.enter' : 'home.strip.done');
-  const told = tickedLabel(t, task, across ? where[0] : null);
+  const told = tickedLabel(t, task, across || twin ? where[0] : null);
   const act = () => {
     if (step) setAsking(true);
     else if (enters) openSheet({ growId, spaceId, kind: task.kind as 'water' | 'feed' });
@@ -77,7 +77,13 @@ function Row({ task, spaceId, where, growId, across, now }: Due & { across: bool
       <span className={styles.dueText}>
         {task.label}
         <span className={styles.dueNote}>
-          <Facts facts={[step && t('tasks.planStep'), ...(across ? where : []), dueLabel(t, task.dueAt, now, zone, { since: true })]} />
+          <Facts
+            facts={[
+              step && t('tasks.planStep'),
+              ...(across ? where : twin ? where.slice(0, 1) : []),
+              dueLabel(t, task.dueAt, now, zone, { since: true }),
+            ]}
+          />
         </span>
       </span>
       {asking ? (

@@ -418,6 +418,23 @@ describe('Start of one place with a camera and a grow', () => {
     expect(within(curves).getByRole('img', { name: /^Humidity over the last 24 hours/ })).toBeInTheDocument();
   });
 
+  /** A second grow started where one runs pushed the first off Start, and its task stopped saying whose it is. */
+  it('shows both grows of a place that holds two, and a task there names its grow', async () => {
+    const gelato = growOf({ growId: 'grow-2', name: 'Gelato', dayNumber: 1, stage: 'seedling', stageWeek: 1, stagesReached: ['seedling'] });
+    onePlace(overviewOf({ cameras: [camera()], grows: [gelato, growOf()] }), true);
+    server.grows = [
+      standing('space-1', { id: 'grow-2', name: 'Gelato', endedAt: null, summary: { locations: [{ spaceId: 'space-1' }] } }),
+      standing('space-1', { endedAt: null, summary: { locations: [{ spaceId: 'space-1' }] } }),
+    ];
+    server.tasks = [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })];
+    draw();
+
+    // The newer stands under the picture; the one that ran here first is a card of its own, leading to its page.
+    expect(await screen.findByRole('link', { name: /^Spring run · Day 29/ })).toHaveAttribute('href', '/grows/grow-1');
+    const today = (await screen.findByRole('heading', { name: 'Today' })).closest('section')!;
+    await waitFor(() => expect(within(today).getByRole('listitem')).toHaveTextContent(/^WaterSpring run · due since/));
+  });
+
   it('keeps what only some places measure in one line under the picture, each the way to its own curve', async () => {
     const more = [
       { metric: 'leafTemperature', value: 24.2, measuredAt: ago(0.3), state: 'live' },
@@ -430,7 +447,8 @@ describe('Start of one place with a camera and a grow', () => {
     expect(await screen.findByRole('link', { name: /^CO₂ 880\sppm$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=co2');
     expect(screen.getByRole('link', { name: /^Leaf 24.2\s°C$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=leafTemperature');
     expect(await screen.findByRole('link', { name: /lx$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
-    expect(screen.getByRole('link', { name: 'PPFD 510' })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
+    // PPFD has a panel of its own; opening the lux curve under "PPFD 510" showed "34 000 lx".
+    expect(screen.getByRole('link', { name: 'PPFD 510' })).toHaveAttribute('href', '/timeline?space=space-1&focus=ppfd');
     // The line stands directly under the picture, before the phase and what is due.
     const line = screen.getByRole('link', { name: 'PPFD 510' }).parentElement!.parentElement!;
     expect(line.previousElementSibling).toContainElement(screen.getByRole('img', { name: 'Fridge 1: the newest picture' }));
@@ -569,6 +587,30 @@ describe('Start of a place that only regulates', () => {
     expect(within(mode).getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/control?space=space-1');
   });
 
+  /** A grow moved out of here to no fixed place had no way back from the place's own question. */
+  it('offers to move a grow here beside starting one, on the grow that left this place for no fixed place', async () => {
+    server.grows = [
+      standing(null, {
+        id: 'grow-9',
+        ownerId: 'user-1',
+        name: 'Wanderer',
+        endedAt: null,
+        placements: [
+          { spaceId: 'space-1', endedAt: ago(60) },
+          { spaceId: null, endedAt: null },
+        ],
+        summary: { locations: [{ spaceId: null }] },
+      }),
+    ];
+    draw();
+
+    const card = (await screen.findByRole('heading', { name: 'What grows here?' })).closest('section')!;
+    expect(within(card).getByRole('button', { name: 'Start a grow' })).toBeInTheDocument();
+    fireEvent.click(await within(card).findByRole('button', { name: 'Move a grow here' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Fridge 1: move a grow here' });
+    expect(within(sheet).getByRole('button', { name: /^Wanderer/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('offers the diary as a card, and keeps "no thanks" with the account', async () => {
     draw();
 
@@ -586,13 +628,24 @@ describe('Start of a place that only regulates', () => {
     expect(server.bodies.get('PATCH /me')).toEqual({ preferences: { diary: null } });
   });
 
-  it('opens the short form on the stage the place is on rather than on germination', async () => {
-    // Twelve hours of light, and figures nobody took from a preset: a flowering tent.
+  it('does not ask what grows on a place whose setup was just left with "Not now"', async () => {
+    localStorage.setItem('terp.growLater.space-1', new Date().toISOString());
+    draw();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
+    await waitFor(() => expect(server.calls).toContain('GET /spaces'));
+    expect(screen.queryByRole('heading', { name: 'What grows here?' })).not.toBeInTheDocument();
+    localStorage.removeItem('terp.growLater.space-1');
+  });
+
+  it('opens the short form on the seedling, never on flower by the length of the day nor on germination', async () => {
+    // Twelve hours of light, and figures nobody took from a preset: no stage's climate, and the grow begins today.
     draw();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Start a grow' }));
     const sheet = await screen.findByRole('dialog', { name: 'Fridge 1: What grows here?' });
-    await waitFor(() => expect(within(sheet).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'true'));
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(within(sheet).getByRole('button', { name: 'Flower' })).toHaveAttribute('aria-pressed', 'false');
     expect(within(sheet).getByRole('button', { name: 'Germination' })).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -603,7 +656,7 @@ describe('Start of a place that only regulates', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Fridge 1: What grows here?' });
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Strain or name' }), { target: { value: 'Blue Dream' } });
     fireEvent.change(within(sheet).getByRole('spinbutton', { name: 'Plants' }), { target: { value: '3' } });
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: 'Seedling' })).toHaveAttribute('aria-pressed', 'true'));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Start a grow' }));
 
     await waitFor(() => expect(writes()).toContain('POST /grows/grow-new/phases'));
@@ -614,7 +667,7 @@ describe('Start of a place that only regulates', () => {
       plants: [{ strain: 'Blue Dream', count: 3 }],
       scheme: null,
     });
-    expect(server.bodies.get('POST /grows/grow-new/phases')).toMatchObject({ stage: 'flowering', preset: null });
+    expect(server.bodies.get('POST /grows/grow-new/phases')).toMatchObject({ stage: 'seedling', preset: null });
     expect(writes()).not.toContain('POST /spaces/space-1/preset-applications');
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
   });
@@ -745,6 +798,18 @@ describe('the states of Start', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument();
     // An answer is noted, so the next failure can say how old the picture is.
     await waitFor(() => expect(localStorage.getItem('terp.loaded.user-1')).toBe('2026-11-12T11:00:00.000Z'));
+  });
+
+  it('tells an account that had no device, as this browser last saw it, nothing about devices that regulate on', async () => {
+    localStorage.setItem('terp.shape.user-1', JSON.stringify({ steering: false, managed: false, diary: true }));
+    server.reachable = false;
+    draw();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No connection to the server');
+    expect(alert).toHaveTextContent('The app shows anything again once the connection is back.');
+    expect(alert).not.toHaveTextContent(/devices/);
+    localStorage.removeItem('terp.shape.user-1');
   });
 
   it('tells a server that answered with a fault from a connection that is gone', async () => {
@@ -883,6 +948,23 @@ describe('the states of Start', () => {
     expect(screen.getByRole('link', { name: /^Change targets and light/ })).toHaveTextContent('Control off');
   });
 
+  /** Switched off after the device went quiet, it never heard it: Start says what Steuerung says, not that it was off. */
+  it('says of a switch-off a silent device was never handed that it is saved and not with the device yet', async () => {
+    server.devices = [
+      fridge({
+        control: { running: false, drying: false, mode: 'standard', energySaving: false } as never,
+        state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never,
+      }),
+    ];
+    server.live = { ...server.live, pending: { since: ago(42), settings: [{ field: 'workmode', held: 'small', savedAt: ago(40) }] } } as never;
+    onePlace(overviewOf({ values: values(42), setpoints: [], targets: null }));
+    draw();
+
+    const box = (await screen.findByRole('heading', { name: /^The device has not reported since/ })).closest('section')!;
+    await waitFor(() => expect(box).toHaveTextContent(`Control off saved at ${hhmm(ago(40))}, not with the device yet`));
+    expect(box).not.toHaveTextContent('Control was off when it last reported.');
+  });
+
   /** Regulation off is never hidden behind maintenance: it is what the place is while the window runs, and after it. */
   it('says control is off before maintenance', async () => {
     server.devices = [
@@ -931,7 +1013,8 @@ describe('the states of Start', () => {
     const said = await screen.findByText(reading('3 alerts open'));
     expect(said).toHaveAttribute('data-tone', 'alarm');
     const sentence = said.closest('[data-tone="quiet"]')!;
-    expect(sentence).toHaveTextContent(/^Maintenance until \d\d:\d\d · control and alarms paused · 3 alerts open/);
+    // Maintenance itself is the control's to say, further down: the sentence says what stands open behind it.
+    expect(sentence).toHaveTextContent(/^3 alerts open$/);
     expect(sentence).not.toHaveTextContent('+3');
     // What stands open is what the sentence leads to; the window is ended at its own control.
     expect(sentence).toHaveAttribute('href', '/alerts');
@@ -1195,6 +1278,17 @@ describe('Start with several places', () => {
     expect(cards[1]).not.toHaveTextContent('due');
     // A place in no room that follows a room´s cards is set off from them by saying so.
     expect(screen.getByRole('region', { name: 'In no room' })).toContainElement(cards[1]);
+  });
+
+  it('names both grows on the card of a place that holds two', async () => {
+    server.grows = [
+      standing('space-2', { id: 'grow-2', name: 'Autumn cuttings', endedAt: null, summary: { locations: [{ spaceId: 'space-2' }] } }),
+      standing('space-2', { id: 'grow-3', name: 'Mothers', endedAt: null, summary: { locations: [{ spaceId: 'space-2' }] } }),
+    ];
+    draw();
+
+    const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2');
+    await waitFor(() => expect(card()).toHaveTextContent('Autumn cuttings, Mothers'));
   });
 
   it('counts a step of the grow plan waiting for its word among what is due at a place', async () => {

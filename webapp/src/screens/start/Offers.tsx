@@ -7,6 +7,8 @@ import { useSetPresetPrompt } from '@/api/spaces';
 import { useLog } from '@/log/log-context';
 import { Refused } from '@/ui/PageState';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
+import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
+import { useMovableGrows } from '@/screens/space/movable-grows';
 import styles from './Start.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -20,7 +22,8 @@ import ui from '@/ui/ui.module.css';
  * The card is gone with the tap, so a toast answers it: that the diary stays
  * off and where it is switched on, with the way to take the tap back.
  *
- * "Grow starten" opens the one form a grow is started with.
+ * "Grow starten" opens the one form a grow is started with; "Grow hierher" moves in one that runs elsewhere - the
+ * one that left this place for no fixed place chosen, where there is one.
  */
 export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: string; diary: boolean }) {
   const { t } = useTranslation();
@@ -28,8 +31,12 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
   const place = useSetPresetPrompt(spaceId);
   const me = useAccountMe();
   const { tell } = useLog();
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<'start' | 'move' | null>(null);
   const busy = account.isPending || place.isPending;
+  const movable = useMovableGrows(spaceId).items;
+  const left = movable.find(
+    grow => grow.placements.some(one => one.spaceId === spaceId) && grow.summary.locations.every(one => one.spaceId === null),
+  );
 
   // The card goes with the answer, so what follows it hangs on the write's own promise and not on this card still standing.
   const decline = () => {
@@ -55,15 +62,21 @@ export function GrowOffer({ spaceId, name, diary }: { spaceId: string; name: str
       </h2>
       <p className={styles.cardText}>{t('start.grow.text')}</p>
       <div className={styles.pair}>
-        <button type="button" className={styles.go} onClick={() => setAsking(true)}>
+        <button type="button" className={styles.go} onClick={() => setAsking('start')}>
           {t('home.invite.startGrow')}
         </button>
+        {movable.length > 0 ? (
+          <button type="button" className={ui.wide} onClick={() => setAsking('move')}>
+            {t('home.invite.moveGrow')}
+          </button>
+        ) : null}
         <button type="button" className={ui.wide} disabled={busy} onClick={decline}>
           {t('home.diary.decline')}
         </button>
       </div>
       <Refused error={account.error ?? place.error} />
-      {asking ? <StartGrowSheet spaceId={spaceId} name={name} onClose={() => setAsking(false)} /> : null}
+      {asking === 'start' ? <StartGrowSheet spaceId={spaceId} name={name} onClose={() => setAsking(null)} /> : null}
+      {asking === 'move' ? <MoveHereSheet spaceId={spaceId} spaceName={name} chosen={left?.id} onClose={() => setAsking(null)} /> : null}
     </section>
   );
 }
