@@ -18,6 +18,7 @@ import { AccessRange } from '@common/v1/access.types';
 import { outsideRange } from '@common/v1/range';
 import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import type { Moved } from './grow-moved';
 
 /**
  * What a grow's `phases[]` and `placements[]` mean, worked out here and nowhere
@@ -245,19 +246,18 @@ export const growCardOf = (
  * One card either way, because a grow that has been made public reads the same
  * wherever it is listed - and the handle is the only name its author ever has.
  *
- * `movedAt` is when its diary last had something written in it, which is what a
- * card saying "3 d ago" is read as. The grow's own `updatedAt` is not that: it
- * is the row's write time, which a diary entry never touches and a migration
- * touches for every grow at once, so a card drawn from it says that sixteen
- * diaries were all written the same minute. A grow nobody has written in yet is
- * dated from the day it started rather than from whenever its row was saved.
+ * `moved` is when it last showed a sign of life and by what (`growsMoved`):
+ * what a card saying "Bild vor 5 Min" is read as. The grow's own `updatedAt`
+ * is not that: it is the row's write time, which a diary entry never touches
+ * and a migration touches for every grow at once, so a card drawn from it said
+ * that sixteen diaries were all written the same minute.
  */
 export const serialisePublicCard = (
   grow: GrowDocument,
   plants: PlantDocument[],
   handle: string,
   hide: Redaction,
-  movedAt: Date | null,
+  moved: Moved,
   zone: string | null,
   now: Date = new Date(),
 ): FollowedGrowCard => {
@@ -276,7 +276,8 @@ export const serialisePublicCard = (
     // that finished in August reads exactly like one of a grow that is running.
     endedAt: grow.endedAt?.toISOString() ?? null,
     coverMediaId: grow.coverMediaId,
-    updatedAt: (movedAt ?? grow.startedAt).toISOString(),
+    updatedAt: moved.at.toISOString(),
+    updatedBy: moved.by,
   };
 };
 

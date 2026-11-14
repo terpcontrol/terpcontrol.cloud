@@ -538,7 +538,6 @@
       "plants_other": "{{count}} Pflanzen",
       "day": "Tag",
       "dayN": "Tag {{day}}",
-      "ago": "vor {{age}}",
       "stillAlt": "{{name}}: das neueste Bild",
       "enteredPhase": "{{stage}} begonnen"
     },
@@ -2568,7 +2567,12 @@
       "none": "Am letzten Tag dieses Zeitraums wurde nichts gemeldet"
     },
     "timeline": "Verlauf",
-    "timelineOf": "Verlauf · {{name}}"
+    "timelineOf": "Verlauf · {{name}}",
+    "moved": {
+      "picture": "Bild vor {{age}}",
+      "reading": "Messwert vor {{age}}",
+      "entry": "Eintrag vor {{age}}"
+    }
   },
   "sharing": {
     "title": "Teilen",

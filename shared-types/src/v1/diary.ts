@@ -1363,8 +1363,9 @@ export const followedGrowCard = named(
       .describe('When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.'),
     coverMediaId: id().nullable(),
     updatedAt: instant().describe(
-      'When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.',
+      'When the grow last moved, by what `updatedBy` says: the newest picture of a camera where it stands (where its page shows the cameras), the newest word from a device there, or the newest line of its diary - whichever came last -, else the day it started. An ended grow stands nowhere, so only its diary and its start date it.',
     ),
+    updatedBy: z.enum(['picture', 'reading', 'entry', 'start']).describe('What `updatedAt` is the time of, which the card says beside the age.'),
   }),
 );
 

@@ -538,7 +538,6 @@
       "plants_other": "{{count}} plants",
       "day": "day",
       "dayN": "Day {{day}}",
-      "ago": "{{age}} ago",
       "stillAlt": "{{name}}: the newest picture",
       "enteredPhase": "Entered {{stage}}"
     },
@@ -2558,7 +2557,12 @@
       "none": "Nothing reported on the last day of this window"
     },
     "timeline": "Timeline",
-    "timelineOf": "Timeline · {{name}}"
+    "timelineOf": "Timeline · {{name}}",
+    "moved": {
+      "picture": "picture {{age}} ago",
+      "reading": "reading {{age}} ago",
+      "entry": "entry {{age}} ago"
+    }
   },
   "sharing": {
     "title": "Share",

@@ -1040,7 +1040,8 @@ exports.followedGrowCard = (0, common_js_1.named)('FollowedGrowCard', zod_1.z.ob
         .nullable()
         .describe('When the grow finished; null while it is running. `dayNumber` is then its final day rather than the day it is on.'),
     coverMediaId: (0, common_js_1.id)().nullable(),
-    updatedAt: (0, common_js_1.instant)().describe('When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.'),
+    updatedAt: (0, common_js_1.instant)().describe('When the grow last moved, by what `updatedBy` says: the newest picture of a camera where it stands (where its page shows the cameras), the newest word from a device there, or the newest line of its diary - whichever came last -, else the day it started. An ended grow stands nowhere, so only its diary and its start date it.'),
+    updatedBy: zod_1.z.enum(['picture', 'reading', 'entry', 'start']).describe('What `updatedAt` is the time of, which the card says beside the age.'),
 }));
 exports.homeAnswer = (0, common_js_1.named)('HomeAnswer', zod_1.z.object({
     spaces: zod_1.z.array(exports.homeSpaceCard),

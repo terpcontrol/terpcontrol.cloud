@@ -21,6 +21,7 @@ import { PageQuery } from '@common/v1/validation';
 import { appConfig } from '@config/configuration';
 import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
@@ -29,9 +30,10 @@ import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { MediaService } from '../camera/media.service';
-import { diaryMovedAt, readingNamesOf } from '../diary/diary-entries';
+import { readingNamesOf } from '../diary/diary-entries';
 import { GrowReportService } from '../diary/report.service';
 import { GrowDiaryService } from '../diary/grow-diary.service';
+import { growsMoved } from '../grow/grow-moved';
 import { spacesDuring } from '../grow/grow-places';
 import { growUpTo, harvestOf, labelOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
@@ -68,6 +70,7 @@ export class PublicPagesService {
     @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     private readonly grows: GrowsService,
     private readonly files: MediaService,
     private readonly diary: GrowDiaryService,
@@ -210,10 +213,7 @@ export class PublicPagesService {
 
     const [plants, moved] = await Promise.all([
       this.plants.find({ growId: { $in: grows.map(grow => grow.id) } }).lean<PlantDocument[]>(),
-      diaryMovedAt(
-        this.entries,
-        grows.map(grow => grow.id),
-      ),
+      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices }),
     ]);
     const hide = redactionOf(true, author.privacy);
 
@@ -224,7 +224,7 @@ export class PublicPagesService {
           plants.filter(plant => plant.growId === grow.id),
           author.handle,
           hide,
-          moved.get(grow.id) ?? null,
+          moved.get(grow.id)!,
           author.preferences?.timezone || null,
           now,
         ),

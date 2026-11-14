@@ -2952,6 +2952,12 @@ export declare const followedGrowCard: z.ZodObject<{
     endedAt: z.ZodNullable<z.ZodISODateTime>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     updatedAt: z.ZodISODateTime;
+    updatedBy: z.ZodEnum<{
+        start: "start";
+        picture: "picture";
+        reading: "reading";
+        entry: "entry";
+    }>;
 }, z.core.$strip>;
 export declare const homeAnswer: z.ZodObject<{
     spaces: z.ZodArray<z.ZodObject<{
@@ -3330,6 +3336,12 @@ export declare const homeAnswer: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodISODateTime>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodISODateTime;
+        updatedBy: z.ZodEnum<{
+            start: "start";
+            picture: "picture";
+            reading: "reading";
+            entry: "entry";
+        }>;
     }, z.core.$strip>>;
     people: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
@@ -7217,6 +7229,12 @@ export declare const publicUserPage: z.ZodObject<{
         endedAt: z.ZodNullable<z.ZodISODateTime>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         updatedAt: z.ZodISODateTime;
+        updatedBy: z.ZodEnum<{
+            start: "start";
+            picture: "picture";
+            reading: "reading";
+            entry: "entry";
+        }>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**

@@ -231,6 +231,19 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
           endedAt: '2026-08-24T15:31:56.000Z',
           coverMediaId: null,
           updatedAt: at(83),
+          updatedBy: 'entry',
+        },
+        {
+          growId: 'grow-3',
+          slug: 'critic-kush',
+          name: 'Critic Kush',
+          handle: 'mia',
+          dayNumber: 22,
+          stage: 'vegetative',
+          endedAt: null,
+          coverMediaId: null,
+          updatedAt: DateTime.now().minus({ minutes: 5 }).toISO()!,
+          updatedBy: 'picture',
         },
       ],
     });
@@ -443,7 +456,14 @@ describe('a public profile', () => {
     // The final day and the day it finished on, beside the age of its last
     // line - three different figures, and the card used to draw the first and
     // the third as if the grow were still running.
-    expect(await screen.findByText(/Day 218 · Curing · ended 24 Aug 2026 · \d+ d ago/)).toBeInTheDocument();
+    expect(await screen.findByText(/Day 218 · Curing · ended 24 Aug 2026 · entry \d+ d ago/)).toBeInTheDocument();
+  });
+
+  /** "vor 20 T" stood under a grow whose camera had taken a picture that morning: the age is of the newest sign of life, named. */
+  it('dates a running grow by its newest picture or reading and says which', async () => {
+    drawRoute('/@mia', '/:handle', <PublicProfileRoute />);
+
+    expect(await screen.findByText(/^Day 22 · Veg · picture [45] min ago$/)).toBeInTheDocument();
   });
 });
 

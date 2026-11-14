@@ -36,6 +36,7 @@ const followed: FollowedGrowCard = {
   endedAt: null,
   coverMediaId: null,
   updatedAt: NOW.minus({ hours: 3 }).toISO()!,
+  updatedBy: 'entry',
 };
 
 const server = {
@@ -84,7 +85,7 @@ describe('the followed grows', () => {
     draw();
 
     expect(await screen.findByText('@greenthumb · Autoflower run')).toBeInTheDocument();
-    expect(screen.getByText(/Day 51 · Flower · 3 h ago/)).toBeInTheDocument();
+    expect(screen.getByText(/Day 51 · Flower · entry 3 h ago/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Autoflower run/ })).toHaveAttribute('href', '/g/autoflower-run');
     expect(screen.getByText('Following', { selector: 'span.label' }).nextElementSibling).toHaveTextContent('1 grow');
   });

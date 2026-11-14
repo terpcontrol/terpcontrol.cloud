@@ -718,7 +718,7 @@ describe('a public profile', () => {
 
     // The line, not the moment either grow's row was last saved - both were
     // written after it, and the quiet one was written last.
-    expect(page.body.grows[0]).toMatchObject({ name: 'Shown', updatedAt: written.occurredAt });
+    expect(page.body.grows[0]).toMatchObject({ name: 'Shown', updatedAt: written.occurredAt, updatedBy: 'entry' });
     expect(page.body.grows.map((card: { name: string }) => card.name)).toEqual(['Shown', 'Quiet']);
   });
 });

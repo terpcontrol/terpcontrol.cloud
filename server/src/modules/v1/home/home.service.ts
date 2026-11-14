@@ -11,6 +11,7 @@ import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { FollowDocument } from '@database/schemas/v1/follows.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -22,7 +23,8 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
-import { diaryMovedAt, diaryTail } from '../diary/diary-entries';
+import { diaryTail } from '../diary/diary-entries';
+import { growsMoved } from '../grow/grow-moved';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
 import { ownerRedactions } from '../grow/redactions';
@@ -81,6 +83,7 @@ export class HomeService {
     @InjectModel(MODEL_V1.follow) private readonly follows: Model<FollowDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.membership) private readonly memberships: Model<MembershipDocument>,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
@@ -283,10 +286,7 @@ export class HomeService {
       this.users
         .find({ id: { $in: grows.map(grow => grow.ownerId) } }, { id: 1, handle: 1, privacy: 1, 'preferences.timezone': 1 })
         .lean<StoredUser[]>(),
-      diaryMovedAt(
-        this.entries,
-        grows.map(grow => grow.id),
-      ),
+      growsMoved(grows, { entries: this.entries, cameras: this.cameras, devices: this.devices }),
     ]);
 
     return follows.flatMap(follow => {
@@ -300,7 +300,7 @@ export class HomeService {
           plants.filter(plant => plant.growId === grow.id),
           owner.handle,
           redactionOf(true, owner.privacy),
-          moved.get(grow.id) ?? null,
+          moved.get(grow.id)!,
           owner.preferences?.timezone || null,
           now,
         ),

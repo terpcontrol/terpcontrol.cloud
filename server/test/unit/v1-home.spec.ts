@@ -81,6 +81,7 @@ const build = (): HomeService => {
     db.follows,
     db.users,
     db.memberships,
+    db.devices,
     spaces,
     live,
     fakeData,
@@ -567,12 +568,47 @@ describe('following', () => {
     const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
 
     expect(card.updatedAt).toBe(written.toISOString());
+    expect(card.updatedBy).toBe('entry');
   });
 
   it('dates a diary nobody has written in yet from the day the grow started', async () => {
     const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
 
     expect(card.updatedAt).toBe(STARTED_AT.toISOString());
+    expect(card.updatedBy).toBe('start');
+  });
+
+  /**
+   * A public profile said "vor 20 T" of a grow whose camera had taken a picture that morning and whose device was
+   * reporting: the card is dated by the newest sign of life where the grow stands, and says which it is.
+   */
+  it('dates the card by the newest picture or word from a device where the grow stands, and says which', async () => {
+    const STRANGER_TENT = 'space-stranger';
+    const seen = new Date(NOW.getTime() - 2 * 60_000);
+    const still = new Date(NOW.getTime() - 9 * 60_000);
+    await db.spaces.create({ id: STRANGER_TENT, ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null, createdAt: STARTED_AT });
+    await db.grows.updateOne(
+      { id: PUBLIC_GROW },
+      { $set: { placements: [{ id: 'placement-3', spaceId: STRANGER_TENT, startedAt: STARTED_AT, endedAt: null, plantIds: null }] } },
+    );
+    await db.devices.create({ id: 'device-stranger', type: 'controller', ownerId: STRANGER, spaceId: STRANGER_TENT, state: { lastSeenAt: seen } });
+    await db.cameras.create({
+      id: 'camera-stranger',
+      ownerId: STRANGER,
+      kind: 'terpcam_controller',
+      spaceId: STRANGER_TENT,
+      name: 'Cam',
+      state: { lastStillAt: still },
+    });
+
+    const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
+    expect(card).toMatchObject({ updatedAt: seen.toISOString(), updatedBy: 'reading' });
+
+    // A grow whose page leaves the cameras out is not dated by them; one over stands nowhere and is dated by its diary.
+    await db.devices.deleteOne({ id: 'device-stranger' });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ updatedAt: still.toISOString(), updatedBy: 'picture' });
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { publicCameras: false } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ updatedBy: 'start' });
   });
 
   it('drops a grow that has been made private since', async () => {
