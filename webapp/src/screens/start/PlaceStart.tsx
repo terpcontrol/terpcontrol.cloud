@@ -39,7 +39,7 @@ import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
 import { AddPlace } from './AddPlace';
-import { judgedAt, livenessThrough, measuredAtOf, silenceOf } from './attention';
+import { judgedAt, judgedBy, livenessThrough, measuredAtOf } from './attention';
 import { DayCurves } from './DayCurves';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
@@ -135,11 +135,13 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const also = diary ? overview.grows.slice(1) : [];
   // A refresh that fails ages the page, not the device: the place is judged as the last answer left it.
   const judged = judgedAt(now, failedAt);
-  const liveness = livenessThrough({ values, deviceIds: overview.deviceIds }, now, failedAt);
+  // The place lives and falls silent with the device that holds its climate, whatever else of it still reports.
+  const judging = judgedBy(values, here, device, judged);
+  const liveness = livenessThrough({ values: judging.values, deviceIds: overview.deviceIds }, now, failedAt);
   // No value at all is a device still waiting for its first one - or, where it was heard long ago, one silent since then.
-  const silence = silenceOf(values, here, judged);
+  const silence = judging.silence;
   const silentSince = silence && !silence.waiting ? silence.since : null;
-  const waiting = liveness === 'offline' && values.length === 0 && silentSince === null;
+  const waiting = liveness === 'offline' && judging.values.length === 0 && silentSince === null;
   const offline = liveness === 'offline' && !waiting;
   const humidifierHold = useHumidifierHold(device);
   const openAlerts = usePlaceAlerts(overview.openAlerts, here, judged);
@@ -149,7 +151,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const quiet = quietOf(here, now);
   const status = statusOf(
     {
-      values,
+      values: judging.values,
       setpoints,
       deviceIds: overview.deviceIds,
       openAlerts,
@@ -171,7 +173,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const held = offline ? null : lamp.held;
   const readings = readingsOf(t, { values, setpoints, device, lit, held, hold: humidifierHold, now, zone });
   const extras = offline ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
-  const measuredAt = measuredAtOf(values) ?? silentSince;
+  const measuredAt = measuredAtOf(judging.values) ?? silentSince;
   const ownMedia = kept ? (ownPhotoOf(overview.entries, kept.growId)?.mediaIds[0] ?? kept.coverMediaId) : null;
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
@@ -220,7 +222,11 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
       {visiting ? null : <EmptyPlace spaceId={spaceId} />}
       {offline ? (
         <OfflineBox
-          title={t('start.offline.title', { time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })}
+          title={
+            here.length > 1 && device
+              ? t('offline.title', { device: deviceName(device, t), time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })
+              : t('start.offline.title', { time: measuredAt ? sinceLabel(measuredAt, now, zone) : '' })
+          }
           deviceLink={overview.deviceIds !== null && device ? devicePath(device.id) : null}
         >
           {/* A device that held no targets when it went quiet does not go on holding them. */}
@@ -241,9 +247,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               readings={readings}
               curveOf={reading => curvePath(spaceId, reading)}
               age={offline ? 'offline' : liveness === 'stale' ? 'stale' : 'live'}
-              stand={
-                liveness !== 'live' && measuredAt ? t('start.picture.stand', { time: clock(measuredAt, zone), age: ageLabel(measuredAt, now) }) : null
-              }
+              // A late device is said by the pill alone; a silent one's figures say as of when they are.
+              stand={offline && measuredAt ? t('start.picture.stand', { time: clock(measuredAt, zone), age: ageLabel(measuredAt, now) }) : null}
             />
           ) : null}
           {kept && ownMedia ? <OwnPhoto grow={kept} entries={overview.entries} named /> : null}
@@ -429,6 +434,8 @@ function StatusSentence({
   // Silence is the box's to say, that a device has yet to send its first value the pill's beside the name, and a
   // window of maintenance the control further down that runs it (with the pill's "Wartung") - unless other alerts of
   // the place stand open behind them, which the sentence then counts and says nothing else.
+  // A late device is said once, by the pill's "veraltet" and its age.
+  if (status.kind === 'stale') return null;
   const silent = status.kind === 'offline' || status.kind === 'waiting';
   const said = silent || (status.kind === 'maintenance' && status.quiet.parked && parks);
   if (said && status.more === 0) return null;

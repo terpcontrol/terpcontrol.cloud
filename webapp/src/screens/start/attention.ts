@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon';
-import type { CardValue, HomeSpaceCard, ValueState } from '@fg2/shared-types/v1';
+import type { CardValue, Device, HomeSpaceCard, ValueState } from '@fg2/shared-types/v1';
 import { fetchedAt } from '@/api/clock';
 import { WORST_FIRST, worstFirst } from '@/screens/alerts/inbox';
 import { deviceLiveness, LIVENESS_RANK, valueAge } from '@/ui/age';
+import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
 
 /**
  * What the home decides about a card before it is drawn: how alive it is, how
@@ -67,6 +68,23 @@ export const silenceOf = (
   }, null);
 
   return heard && deviceLiveness(heard, now) === 'offline' ? { waiting: false, since: heard } : { waiting: true };
+};
+
+type Silence = ReturnType<typeof silenceOf>;
+
+/**
+ * What a place is judged by: the values of its lead device - the one that holds its climate, whose curves the place
+ * shows - and its silence. With regulation on, the read's climate is that device's and its values are its own; with
+ * regulation off it holds no targets, the read has no climate, and its values are every device's merged - so a socket
+ * still reporting kept a place "online" whose controller had gone quiet. Where the lead is known and silent, the
+ * place is silent with it, since it was last heard, whatever else of the place reports: none of its values is judged.
+ * The values themselves are still drawn, each with its own age.
+ */
+export const judgedBy = (values: CardValue[], here: Device[], lead: Device | null, now: DateTime): { values: CardValue[]; silence: Silence } => {
+  const steers = lead !== null && (statesTargets(lead.configuration) || awaitingClimate(lead));
+  const heard = lead?.state.lastSeenAt ?? null;
+  if (!steers || (heard !== null && deviceLiveness(heard, now) !== 'offline')) return { values, silence: silenceOf(values, here, now) };
+  return { values: [], silence: heard === null ? { waiting: true } : { waiting: false, since: heard } };
 };
 
 /** The newest instant on the card, which is what its age reads from. */

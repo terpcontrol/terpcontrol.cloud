@@ -146,8 +146,10 @@ const pillOf = (t: Translate, status: Status): string | null => {
     case 'offline':
     case 'stale':
       return t(`home.reading.${status.kind}`);
+    // Once the window is over and only the alarms rest, the sentence says so, and a pill saying "Wartung" beside it
+    // would contradict it.
     case 'maintenance':
-      return t('maintenance.title');
+      return status.quiet.parked ? t('maintenance.title') : null;
     case 'controlOff':
       return t('control.state.off');
     case 'mode':
@@ -181,7 +183,7 @@ function PlaceCard({
 }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const { here, device, values, status, said } = useCardStatus(card, devices, judged);
+  const { here, device, values, status, words, behind } = useCardStatus(card, devices, judged);
   const { lit, held } = useLamp(device, here, now);
   const tone = toneOf(status);
   const asks = tone === 'warn' || tone === 'alarm';
@@ -212,9 +214,23 @@ function PlaceCard({
             </span>
           ) : null}
         </span>
-        {status.kind === 'good' || status.kind === 'none' ? null : (
+        {/* A late device is said by the pill alone; what stands open is red where one of it is critical, as on the place's page. */}
+        {status.kind === 'good' || status.kind === 'none' || status.kind === 'stale' ? null : (
           <span className={styles.placeStatus} data-tone={tone}>
-            <Facts facts={factsOf(said).map(unbroken)} />
+            <Facts
+              facts={[
+                ...factsOf(words).map(unbroken),
+                behind ? (
+                  <span
+                    key="open"
+                    className={styles.open}
+                    data-tone={'critical' in status && status.critical && status.kind !== 'alert' ? 'alarm' : undefined}
+                  >
+                    {unbroken(behind)}
+                  </span>
+                ) : null,
+              ]}
+            />
           </span>
         )}
         {figures.length > 0 ? (

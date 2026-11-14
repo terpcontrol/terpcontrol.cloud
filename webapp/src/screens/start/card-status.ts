@@ -6,8 +6,8 @@ import { maintenanceQuiet, type Quiet } from '@/ui/maintenance';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
-import { silenceOf } from './attention';
-import { climateDeviceOf, contradictedModeOf, controlOffOf, statusOf, statusText } from './place';
+import { judgedBy } from './attention';
+import { climateDeviceOf, contradictedModeOf, controlOffOf, openWords, statusOf, statusText } from './place';
 import { useHumidifierHold, usePlaceAlerts } from './reads';
 
 /**
@@ -28,13 +28,15 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
   const setpoints = climate?.setpoints ?? card.setpoints;
   const quiet = here.map(one => maintenanceQuiet(one, DateTime.max(now, serverNow()))).find((one): one is Quiet => one !== null) ?? null;
   const humidifierHold = useHumidifierHold(device);
-  const silence = silenceOf(values, here, now);
+  // The place lives and falls silent with the device that holds its climate, as its own Start judges it.
+  const judging = judgedBy(values, here, device, now);
+  const silence = judging.silence;
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const openAlerts = usePlaceAlerts(card.openAlerts, here, now);
   const status = statusOf(
     {
       ...card,
-      values,
+      values: judging.values,
       setpoints,
       openAlerts,
       leadId: device?.id,
@@ -46,7 +48,10 @@ export const useCardStatus = (card: HomeSpaceCard & { spaceId: string }, devices
     },
     now,
   );
-  const said = (status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null) ?? statusText(t, status, now, zone);
+  const own = status.kind === 'noTargets' ? ownStatusOf(t, device, offsetOf(now, zone)) : null;
+  // `said` whole for a line of its own; `words` and `behind` apart where what stands open is drawn in its own colour.
+  const words = own ?? statusText(t, status, now, zone, false);
+  const behind = openWords(t, status);
 
-  return { here, device, values, status, said };
+  return { here, device, values, status, said: [words, behind].filter(Boolean).join(' · '), words, behind };
 };

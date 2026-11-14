@@ -119,6 +119,66 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/**
+ * A place lives and falls silent with the device that holds its climate. With its regulation switched off a controller
+ * holds no targets and the read has no climate of it, so the place's values were a socket's that still reported:
+ * Start said "online · 10 s ago" under a controller Steuerung called offline since 08:50.
+ */
+describe('Start of a place whose controller fell silent beside a socket that reports', () => {
+  const silentFor = 25;
+  const controller = (running: boolean) =>
+    fridge({
+      type: 'controller',
+      name: 'Tent controller',
+      state: { lastSeenAt: ago(silentFor), hardware: {}, maintenanceUntil: null },
+      control: { running },
+    } as never);
+  const socket = fridge({
+    id: 'plug-1',
+    type: 'plug',
+    name: 'Socket',
+    configuration: null,
+    state: { lastSeenAt: ago(0.2), hardware: {}, maintenanceUntil: null },
+  } as never);
+
+  const place = (running: boolean) => {
+    server.devices = [controller(running), socket];
+    onePlace(
+      overviewOf({
+        deviceIds: ['device-1', 'plug-1'],
+        // The socket's temperature is the one live value; regulation on, the controller's own are its climate's.
+        values: [{ metric: 'temperature', value: 24, measuredAt: ago(0.2), state: 'live' }],
+        climates: running
+          ? [{ deviceId: 'device-1', values: values(silentFor), setpoints, targets: overviewOf().targets, verdict: overviewOf().verdict }]
+          : [],
+        cameras: [camera(silentFor + 12)],
+        grows: [growOf()],
+      }),
+      true,
+    );
+  };
+
+  it.each([
+    ['off', false],
+    ['on', true],
+  ])('says it offline since the controller was last heard, regulation %s', async (_said, running) => {
+    place(running);
+    draw();
+
+    await waitFor(() => expect(document.querySelector('[data-liveness]')).toHaveAttribute('data-liveness', 'offline'));
+    expect(document.querySelector('[data-liveness]')).toHaveTextContent(`offline · for ${silentFor} min`);
+    // With two devices here, the box names the silent one.
+    expect(screen.getByText(`Tent controller has been offline since ${hhmm(ago(silentFor))}.`)).toBeInTheDocument();
+    // What it last said is said in the past; nothing says in the present that the place holds no targets.
+    expect(screen.queryByText(/Control off: the device holds no targets/)).not.toBeInTheDocument();
+    if (!running) expect(screen.getByText(/Control was off when it last reported/)).toBeInTheDocument();
+    // The picture steps back and says it is the last there is.
+    const picture = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!.parentElement!;
+    expect(picture).toHaveAttribute('data-age', 'offline');
+    expect(picture).toHaveTextContent(/last picture from/);
+  });
+});
+
 describe('Start of one place with a camera and a grow', () => {
   beforeEach(() => onePlace(overviewOf({ cameras: [camera()], grows: [growOf()] }), true));
 
@@ -468,13 +528,17 @@ describe('Start of one place with a camera and a grow', () => {
     expect(screen.queryByRole('link', { name: /^PPFD/ })).not.toBeInTheDocument();
   });
 
-  it('steps figures that have stopped coming back in the picture, and says as of when they are', async () => {
+  /** A late device is said once, by the pill's word and its age: not again on the picture, nor in a sentence. */
+  it('steps figures that have stopped coming back in the picture, and says they are late once, by the pill', async () => {
     onePlace(overviewOf({ values: values(5).map(value => ({ ...value, state: 'stale' as const })), cameras: [camera(1)], grows: [growOf()] }), true);
     draw();
 
     const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
     expect(picture).toHaveAttribute('data-age', 'stale');
-    await waitFor(() => expect(picture).toHaveTextContent(`As of ${hhmm(ago(5))} · 5 min ago`));
+    await waitFor(() => expect(document.querySelector('[data-liveness="stale"]')).toHaveTextContent('5 min ago'));
+    expect(picture).not.toHaveTextContent(/As of/);
+    expect(screen.queryByText(/reporting late|late values|is late/i)).not.toBeInTheDocument();
+    expect(document.body.textContent?.match(/5\smin\sago/g)).toHaveLength(1);
   });
 
   it('says the lamp is off and whose picture it shows, where the newest lit one stands in for a dark tent', async () => {
@@ -1398,5 +1462,53 @@ describe('Start with several places', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Fridge 1' })).toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
     expect(container.querySelectorAll('h1')).toHaveLength(1);
+  });
+
+  /** A card judges its place as the place's own Start does: by the device that holds its climate. */
+  it('calls a place offline on its card whose controller fell silent with regulation off, beside a socket that reports', async () => {
+    server.devices = [
+      fridge(),
+      fridge({
+        id: 'device-2',
+        type: 'controller',
+        spaceId: 'space-2',
+        state: { lastSeenAt: ago(25), hardware: {}, maintenanceUntil: null },
+        control: { running: false },
+      } as never),
+      fridge({ id: 'plug-2', type: 'plug', spaceId: 'space-2', configuration: null } as never),
+    ];
+    server.home = homeOf(
+      [
+        cardOf(),
+        { ...tent(), deviceIds: ['device-2', 'plug-2'], values: [{ metric: 'temperature', value: 24, measuredAt: ago(0.2), state: 'live' }] },
+      ],
+      true,
+    );
+    draw();
+
+    const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')!;
+    await waitFor(() => expect(card()).toHaveTextContent(/^Tent 2offline/));
+    expect(card()).not.toHaveTextContent(/Control off/);
+  });
+
+  /** "1 alert open" behind another status is red where the alert is critical, as on the place's own Start. */
+  it('draws what stands open behind a card´s status in the alarm´s colour where one of it is critical', async () => {
+    server.devices = [fridge(), fridge({ id: 'device-2', type: 'controller', spaceId: 'space-2', control: { running: false } } as never)];
+    server.home = homeOf(
+      [
+        cardOf(),
+        {
+          ...tent(),
+          openAlerts: [
+            { alertId: 'a1', kind: 'threshold', severity: 'critical', name: 'Too hot', metric: 'temperature', value: 31, startedAt: ago(5) } as never,
+          ],
+        },
+      ],
+      true,
+    );
+    draw();
+
+    const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')!;
+    await waitFor(() => expect(within(card()).getByText('1 alert open')).toHaveAttribute('data-tone', 'alarm'));
   });
 });
