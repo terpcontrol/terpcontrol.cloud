@@ -77,6 +77,22 @@ export const withoutUserInfo = (url: string | null): string | null => {
   return read.toString();
 };
 
+/**
+ * What ffmpeg said about a stream, in the address the person gave it. A stream
+ * read through a device's tunnel is opened at a port of this server's own
+ * (`127.0.0.1:<port>`), and a failure quoting that pointed somebody debugging
+ * their camera at an address that is not theirs; the memory addresses ffmpeg
+ * tags its lines with (`[in#0 @ 0xffffb3788350]`) say nothing to anybody. The
+ * login is the caller's to redact (`withoutCredentials`).
+ */
+export const saidOfStream = (said: string, opened: string, typed: string): string => {
+  const local = parsed(opened);
+  const given = parsed(typed);
+  const named = local && given && local.host !== given.host ? said.split(local.host).join(given.host) : said;
+
+  return named.replace(/ @ 0x[0-9a-f]+(?=\])/gi, '');
+};
+
 const hasLogin = (url: URL): boolean => url.username !== '' || url.password !== '';
 
 const parsed = (url: string): URL | null => {

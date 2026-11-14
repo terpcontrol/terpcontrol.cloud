@@ -1,4 +1,5 @@
-import { changesTheStream, streamUrl, withoutUserInfo } from '@modules/v1/camera/stream-url';
+import { withoutCredentials } from '@common/log-path';
+import { changesTheStream, saidOfStream, streamUrl, withoutUserInfo } from '@modules/v1/camera/stream-url';
 
 /**
  * An RTSP camera's address and the login inside it. The login is never
@@ -54,5 +55,40 @@ describe('the URL a stream is opened at', () => {
   it('answers the address with no login in it', () => {
     expect(withoutUserInfo(stored)).toBe('rtsp://10.0.0.30:554/stream1');
     expect(withoutUserInfo(null)).toBeNull();
+  });
+});
+
+/**
+ * A stream test through a device's tunnel failed with "Error opening input file rtsp://127.0.0.1:32967/nothing" and
+ * "[in#0 @ 0xffffb3788350]" while the person had typed port 8554: the details pointed somebody debugging their camera
+ * at the tunnel's port on this server.
+ */
+describe('what ffmpeg said about a stream', () => {
+  const said = [
+    '[in#0 @ 0xffffb3788350] Failed reading RTSP data: End of file',
+    '[in#0 @ 0xffffb3702520] Error opening input: Invalid data found when processing input',
+    'Error opening input file rtsp://viewer:hunter2@127.0.0.1:32967/nothing.',
+  ].join('\n');
+
+  it('names the address the person typed, its login redacted, and no memory address', () => {
+    const shown = withoutCredentials(
+      saidOfStream(said, 'rtsp://viewer:hunter2@127.0.0.1:32967/nothing', 'rtsp://viewer:hunter2@10.0.0.30:8554/nothing'),
+    );
+
+    expect(shown).toBe(
+      [
+        '[in#0] Failed reading RTSP data: End of file',
+        '[in#0] Error opening input: Invalid data found when processing input',
+        'Error opening input file rtsp://<credentials>@10.0.0.30:8554/nothing.',
+      ].join('\n'),
+    );
+    expect(shown).not.toContain('32967');
+    expect(shown).not.toContain('hunter2');
+  });
+
+  it('leaves a stream opened where it was typed as ffmpeg said it', () => {
+    expect(saidOfStream('Connection refused: rtsp://10.0.0.30/stream1', 'rtsp://10.0.0.30/stream1', 'rtsp://10.0.0.30/stream1')).toBe(
+      'Connection refused: rtsp://10.0.0.30/stream1',
+    );
   });
 });

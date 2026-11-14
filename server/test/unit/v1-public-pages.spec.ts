@@ -294,6 +294,8 @@ describe('the card a chat window draws', () => {
     expect(metaLineOf(card)).toBe('Tag 34  ·  Blüte');
     expect(metaLineOf({ ...card, description: growSentence('de', 'mia', 34, 'flowering') })).toBe('');
     expect(metaLineOf({ ...card, description: 'Zwei Pflanzen am Fenster' })).toBe('@mia  ·  Tag 34  ·  Blüte');
+    // A profile's card is titled by its handle, which said "@ccnebel" twice.
+    expect(metaLineOf({ ...card, title: '@mia', description: 'Zwei Zelte', dayNumber: null, stage: null })).toBe('');
   });
 
   it('carries the brand´s small logo in its corner, over the panel and over a cover', async () => {

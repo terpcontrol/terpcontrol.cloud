@@ -8,7 +8,7 @@ import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { OverlayFrame, composeFrame, overlayLayer, readingIn, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import { OverlayFrame, composeFrame, curveStrokes, overlayLayer, readingIn, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { session } from './support/callers';
@@ -512,6 +512,87 @@ describe('what the builder makes of it', () => {
     expect(readingsRow).toBeGreaterThan(0);
     for (const y of [...ys, cursorTop]) expect(y).toBeGreaterThan(readingsRow);
     expect(layer).toContain('stroke-linejoin="round"');
+  });
+
+  /** A portrait film cut "Erste Trichome milchig." to "Erste Tricho…" in a box of 62 % of its 720 px. */
+  it('gives a caption the width it needs, up to the frame´s margins, on a portrait film as on a landscape one', () => {
+    const readings = [20, 21].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const caption = (text: string) => ({
+      growStartedAt: null,
+      temperature: readings,
+      humidity: readings,
+      light: [],
+      captions: [{ at: new Date('2026-08-20T01:00:00.000Z'), text }],
+    });
+    const portrait = { at: new Date('2026-08-20T01:00:00.000Z'), ...sizeFor('9_16', 'sd') };
+    const both = { dayCounter: false, climate: true, entries: true };
+
+    const said = overlayLayer(portrait, both, caption('Erste Trichome milchig.'))!;
+    expect(said).toContain('>Erste Trichome milchig.</text>');
+    const [box, plate] = [...said.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({
+      left: Number(found[1]),
+      width: Number(found[2]),
+    }));
+    expect(plate).toEqual(box);
+
+    // A line wider than the climate box widens its plate, and one longer than the frame is cut at its margin.
+    const longer = overlayLayer(portrait, both, caption('Erste Trichome milchig, Spitzen gelb.'))!;
+    const [, wider] = [...longer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({
+      left: Number(found[1]),
+      width: Number(found[2]),
+    }));
+    expect(longer).toContain('>Erste Trichome milchig, Spitzen gelb.</text>');
+    expect(wider.width).toBeGreaterThan(box.width);
+    expect(wider.left).toBeGreaterThan(0);
+    expect(wider.left + wider.width).toBeLessThan(portrait.width);
+    const long = overlayLayer(portrait, both, caption('Erste Trichome milchig, die Blätter an der Spitze werden gelb und die Buds wachsen.'))!;
+    const [, widest] = [...long.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => Number(found[2]));
+    expect(long).toMatch(/…<\/text>/);
+    expect(widest).toBeGreaterThan(portrait.width * 0.9);
+  });
+
+  /** A film across seven hours offline drew a straight slope from the last reading to the first after it. */
+  it('breaks a curve where the device was silent, as Verlauf does, and joins one that only skipped a window', () => {
+    const at = (minutes: number) => new Date(Date.parse('2026-08-20T00:00:00.000Z') + minutes * 60_000).toISOString();
+    const points = [
+      ...[0, 5, 10, 15].map(minutes => ({ measuredAt: at(minutes), value: 24 })),
+      // One window without a reading is no silence.
+      { measuredAt: at(20), value: null },
+      ...[25, 30].map(minutes => ({ measuredAt: at(minutes), value: 25 })),
+      // Seven hours of nothing.
+      ...Array.from({ length: 84 }, (_, index) => ({ measuredAt: at(35 + index * 5), value: null })),
+      ...[455, 460, 465].map(minutes => ({ measuredAt: at(minutes), value: 22 })),
+    ];
+
+    const strokes = curveStrokes(points, Date.parse(at(0)), Date.parse(at(465)));
+    expect(strokes.filter(point => point.starts).map(point => point.at)).toEqual([Date.parse(at(0)), Date.parse(at(455))]);
+
+    const layer = overlayLayer(
+      { at: new Date(at(200)), width: 1280, height: 720 },
+      { dayCounter: false, climate: true, entries: false },
+      { growStartedAt: null, temperature: points, humidity: [], light: [], captions: [] },
+    )!;
+    expect([.../<path d="([^"]*)"/.exec(layer)![1].matchAll(/M/g)]).toHaveLength(2);
+  });
+
+  /** A 16:9 film drew its curve in the middle of its box, 127 and 107 px in from its ends, where the span had no reading. */
+  it('draws the readings across the box´s width where the span opens before and closes after them', () => {
+    const at = (minutes: number) => new Date(Date.parse('2026-08-20T17:00:00.000Z') + minutes * 60_000).toISOString();
+    const points = Array.from({ length: 36 }, (_, minute) => ({
+      measuredAt: at(minute),
+      value: minute < 6 || minute > 30 ? null : 20 + (minute % 3),
+    }));
+    const frame = { at: new Date(at(18)), width: 1280, height: 720 };
+    const layer = overlayLayer(
+      frame,
+      { dayCounter: false, climate: true, entries: false },
+      { growStartedAt: null, temperature: points, humidity: [], light: [], captions: [] },
+    )!;
+
+    const [box] = [...layer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({ left: Number(found[1]), width: Number(found[2]) }));
+    const xs = [.../<path d="([^"]*)"/.exec(layer)![1].matchAll(/[ML]([\d.]+) /g)].map(point => Number(point[1]));
+    expect(Math.min(...xs) - box.left).toBeLessThan(20);
+    expect(box.left + box.width - Math.max(...xs)).toBeLessThan(20);
   });
 
   it('draws nothing where every overlay that was asked for has nothing to say', () => {

@@ -134,8 +134,9 @@ export const growSentence = (language: string, handle: string | null, dayNumber:
 const cardLanguage = (language: string): 'de' | 'en' => (language.startsWith('de') ? 'de' : 'en');
 
 /**
- * "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language, and none the line under
- * the title says already: a grow without a description of its own is described by the same three (`growSentence`).
+ * "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language, and none the title or the
+ * line under it says already: a grow without a description of its own is described by the same three
+ * (`growSentence`), and a profile's title is its handle.
  */
 export const metaLineOf = (card: LinkCard): string => {
   const words = cardWords(card.language);
@@ -144,7 +145,7 @@ export const metaLineOf = (card: LinkCard): string => {
     card.dayNumber === null ? null : words.day(card.dayNumber),
     card.stage ? words.stage[card.stage] : null,
   ]
-    .filter((part): part is string => part !== null && !card.description.includes(part))
+    .filter((part): part is string => part !== null && !card.description.includes(part) && !card.title.includes(part))
     .join('  ·  ');
 };
 
