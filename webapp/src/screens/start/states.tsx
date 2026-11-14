@@ -54,7 +54,7 @@ export function StartFailed({ read }: { read: Parameters<typeof LoadFailed>[0]['
   const loaded = lastLoaded(user?.id ?? null);
 
   return (
-    <LoadFailed title={t('shell.tabs.home')} read={read}>
+    <LoadFailed title={t('shell.tabs.home')} read={read} values>
       {loaded ? (
         <p className={styles.loadedAt}>
           {t(zoned(loaded, zone).hasSame(nowThere(now, zone), 'day') ? 'start.failed.loadedToday' : 'start.failed.loadedOn', {

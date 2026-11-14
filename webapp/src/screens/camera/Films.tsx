@@ -10,6 +10,7 @@ import { rowReaches } from '@/screens/notifications/reach';
 import { Help } from '@/ui/Help';
 import { useKept } from '@/ui/kept';
 import { Refused } from '@/ui/PageState';
+import { refusalCode } from '@/api/problem';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
 import { DATED_CLOCK, zoned } from '@/ui/zone';
@@ -123,7 +124,15 @@ export function Films({
       {younger && mayManage ? (
         <p className={ui.note}>{t('camera.picturesSince', { date: zoned(camera.createdAt, zone).toFormat(DATED_CLOCK) })}</p>
       ) : null}
-      <Refused error={ask.error} fallback={t('camera.askFailed')} />
+      {/* A span filmed in the dark is no fault: it is said in the warning's colour, and in the app's own words in any
+          language, since they name the controls where such a film is put together. */}
+      {refusalCode(ask.error) === 'all_dark' ? (
+        <p className={styles.darkRefused} role="alert">
+          {t('problem.code.all_dark')}
+        </p>
+      ) : (
+        <Refused error={ask.error} fallback={t('camera.askFailed')} />
+      )}
       {film && shown ? <Film mediaId={film.id} mayOwn={mayOwn} autoPlay /> : null}
       {/* The receipt of the film last asked for, until it is played from the button or put away. */}
       {made && made.id !== pressed?.id ? <Film mediaId={made.id} mayOwn={mayOwn} /> : null}

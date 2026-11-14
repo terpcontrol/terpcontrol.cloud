@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +26,7 @@ import { firstDayOf, landsOn, nearestTo, picturedDays } from '@/screens/camera/d
 import { Film } from '@/screens/camera/Film';
 import { reachesBackTo } from '@/screens/grow/diary/read-back';
 import { forgetKept } from '@/ui/kept';
+import ui from '@/ui/ui.module.css';
 import { drawAt, NOT_FOUND, reading } from './harness';
 import { THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -1294,6 +1297,18 @@ describe('what the camera is set to', () => {
  * rendered and failed.
  */
 describe('the films', () => {
+  /**
+   * On a desktop the film played from the button stood in the narrower column, a 355 px card beside a 545 px still.
+   * While one plays the two columns share the row, and the film runs to its card's edges. jsdom lays nothing out, so
+   * the rule is read from the sheet.
+   */
+  it('plays a film beside the picture as wide as the picture', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/camera/CameraPage.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const wide = sheet.slice(sheet.indexOf('@media (min-width: 1280px)'));
+    expect(wide).toMatch(/\.page:has\(\.act \.video\)\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\);/);
+    expect(wide).toMatch(/\.act \.film \.video\s*\{[^}]*width:\s*calc\(100% \+ 2 \* var\(--space-4\)\)/);
+  });
+
   const drawPage = (over: Partial<Camera> = {}) => drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...over }} />);
   const delivering = { state: { ...camera.state, lastStillAt: serverNow().toISO()! } };
   const filmsNumbering = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `film-${index}` }));
@@ -1472,15 +1487,24 @@ describe('the films', () => {
    * asked for is followed by its own row, and once that plays it is the film
    * of its kind - the button plays it rather than offering to make it again.
    */
-  /** At night the day's film was said to be on its way and then failed: the server now refuses it at once, and nothing says it is coming. */
-  it('says a film of pictures all taken in the dark cannot be made where the button is, and not that it is being made', () => {
+  /**
+   * At night the day's film was said to be on its way and then failed: the server now refuses it at once, and nothing
+   * says it is coming. The refusal is no fault - it stands in the warning's colour, not the alarm's - and names where
+   * such a film is put together, which the server's own sentence did not.
+   */
+  it('says a film of pictures all taken in the dark cannot be made where the button is, and where it is put together instead', () => {
     const said = 'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.';
     state.askError = new ApiError({ status: 422, code: 'all_dark', title: 'Unprocessable', detail: said, errors: [] });
     drawAt(<CameraScreen camera={{ ...camera, ownerId: YOU, ...delivering }} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Make the film' }));
     expect(state.told).toEqual([]);
-    expect(screen.getByText(said)).toBeInTheDocument();
+    const refused = screen.getByRole('alert');
+    expect(refused).toHaveTextContent(
+      'Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.',
+    );
+    expect(refused).not.toHaveClass(ui.problem);
+    expect(refused.className).toMatch(/darkRefused/);
   });
 
   it('says that a film is being made, and plays it from the button once it is done', () => {

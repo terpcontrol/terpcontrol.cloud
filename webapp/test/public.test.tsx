@@ -598,6 +598,25 @@ describe('a tent behind a link', () => {
     vi.unstubAllGlobals();
   });
 
+  /** "−", "+" and "Anpassen" stood beside "Nothing measures here": a link's whole window with no curve has nothing to zoom into or tick. */
+  it('offers no zoom and no Adjust in a link`s window where nothing was ever measured', async () => {
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname.endsWith('/timeline')) {
+        const [from, to] = [url.searchParams.get('from'), url.searchParams.get('to')];
+        return json({ ...sharedTimeline, panels: [], outputs: [], lastReadingAt: null, startsAt: from, endsAt: to });
+      }
+      return fetchStub(input);
+    });
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    drawAt(<SharedSpace space={sharedSpace(at(1, 0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} range={range} />);
+
+    const section = (await screen.findByRole('heading', { name: 'Timeline' })).closest('section')!;
+    await waitFor(() => expect(within(section).getByText(/No device measures here/)).toBeInTheDocument());
+    for (const name of ['Zoom in', 'Zoom out', 'Adjust']) expect(within(section).queryByRole('button', { name })).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it('explains the day’s in-band share where it states it', () => {
     const shown = sharedSpace(NOW.minus({ minutes: 1 }).toISO()!);
     const space: SpaceOverview = { ...shown, verdict: { ...shown.verdict, rating: 'good', inBandFraction: 0.93 } };

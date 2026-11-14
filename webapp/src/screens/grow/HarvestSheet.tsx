@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { GrowListItem, HarvestResult, Plant } from '@fg2/shared-types/v1';
+import type { GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
 import { useHarvest, useTakeHarvestBack } from '@/api/lifecycle';
@@ -25,9 +25,10 @@ import styles from './Lifecycle.module.css';
  * The two weights are totals for what came down together, because that is what
  * a scale says; the model keeps a weight per plant so that a staggered harvest
  * adds up instead of being counted twice, so the server shares the total out
- * over the plants named. The sheet says so beforehand and shows what each plant
- * ended up with afterwards, since that share is the server's arithmetic and not
- * something the sheet should be trusted to have guessed.
+ * over the plants named. The sheet says so beforehand, and once it is opened
+ * again lists what each plant down ended up with, since that share is the
+ * server's arithmetic and not something the sheet should be trusted to have
+ * guessed.
  *
  * The last plant to come down ends the grow, on the day of the harvest rather
  * than the day it was typed in. That is the one thing here that cannot be taken
@@ -67,7 +68,6 @@ export function HarvestSheet({
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [wet, setWet] = useState('');
   const [dry, setDry] = useState('');
-  const [done, setDone] = useState<HarvestResult | null>(null);
 
   const standing = plants.filter(plant => plant.status === 'active' && plant.harvest === null);
   const alreadyDown = plants.filter(plant => plant.harvest !== null);
@@ -153,17 +153,15 @@ export function HarvestSheet({
                 onSuccess: result => {
                   // The last plants down end the grow: its page is its report now, and the toast says why it moved.
                   if (endsTheGrow) return ended();
+                  // A part down closes the sheet: left open, it rearmed on what still stands, and the green button
+                  // under the finger that had just pressed it read "… und Grow beenden", which nothing takes back.
                   const named = { plants: result.plants.map(plant => plant.label).join(', '), count: result.plants.length };
+                  onClose();
                   tell({
                     label: t('grow.lifecycle.harvest.told', named),
-                    // Taken back, what the sheet said was written is not written any more.
-                    undo: () => takeBack.mutateAsync(result).then(() => setDone(null)),
+                    undo: () => takeBack.mutateAsync(result),
                     undone: t('grow.lifecycle.harvest.standingAgain', named),
                   });
-                  setDone(result);
-                  setChosen(null);
-                  setWet('');
-                  setDry('');
                 },
               })
             }
@@ -175,21 +173,6 @@ export function HarvestSheet({
                 : t('grow.lifecycle.harvest.submit', { count: cut.length })}
           </button>
         )}
-
-        {done ? (
-          <Block label={t('grow.lifecycle.harvest.whatWasWritten')}>
-            <ul className={ui.list}>
-              {done.plants.map(plant => (
-                <li key={plant.id} className={styles.row}>
-                  <div className={ui.headRow}>
-                    <span className={styles.rowTitle}>{plant.label}</span>
-                    <span className={styles.rowMeta}>{weightLine(t, plant)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Block>
-        ) : null}
 
         {alreadyDown.length === 0 ? null : (
           <Block label={t('grow.lifecycle.harvest.alreadyDown')}>

@@ -885,6 +885,20 @@ describe('how the page says when', () => {
     );
   });
 
+  /**
+   * A link's two days ending a minute past midnight read "11 Nov to 13 Nov", as if the 13th were in it. A link's
+   * window says its clocks where an end is no midnight, whatever its width, and a clock names the day it falls in.
+   */
+  it('says a link`s window by its clocks where an end is no midnight, and an end by the day its instant falls in', () => {
+    const from = Date.parse('2026-11-11T00:01:00Z');
+    expect(windowLabel(t, { from, to: from + 48 * HOUR }, false, now, 'UTC', true)).toBe('11 Nov 00:01 to 13 Nov 00:01');
+    // Whole days are days: the last one inside the window is named, since one that closes at midnight has not begun the next.
+    const days = { from: Date.parse('2026-11-10T00:00:00Z'), to: Date.parse('2026-11-12T00:00:00Z') };
+    expect(windowLabel(t, days, false, now, 'UTC', true)).toBe('10 Nov to 11 Nov');
+    // A clock at midnight is the new day's: never "to 11 Nov 00:00" for the instant the 12th begins.
+    expect(windowLabel(t, { from: days.from + 13 * HOUR, to: days.to }, false, now, 'UTC', true)).toBe('10 Nov 13:00 to 12 Nov 00:00');
+  });
+
   it('names both ends of an axis as the lines between them name a day', () => {
     const from = Date.parse('2026-11-10T06:57:00Z');
     // By the clock up to a day and a half, by weekday and day up to eight days, by the date past that.

@@ -183,7 +183,8 @@ describe('the feeding tab', () => {
     // The four the grow decides rather than the chart.
     expect(screen.getByRole('combobox', { name: 'Strength' })).toHaveValue('1');
     expect(screen.getByRole('textbox', { name: 'Water EC' })).toHaveValue('0.4');
-    expect(screen.getByText('tap')).toBeInTheDocument();
+    // The figure says what it is: "tap water · EC 0.4", never a bare "tap 0.4".
+    expect(screen.getByText('tap water · EC')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('light_mix');
     expect(screen.getByRole('combobox', { name: 'Flip' })).toHaveValue('4');
 

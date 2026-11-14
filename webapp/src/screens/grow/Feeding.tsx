@@ -226,7 +226,11 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
             <Help topic="waterEc" />
           </span>
           <span className={styles.waterRow}>
-            <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
+            {/* "Leitungswasser · EC 0,4": the figure in the field is the water's EC, and says so before it. */}
+            <span className={styles.waterKind}>
+              {t(waterKey(draft.waterEc))}
+              {draft.waterEc === null ? '' : ` · ${t('grow.scheme.ecPlaceholder')}`}
+            </span>
             <WaterEc id={`${fieldId}-water`} value={draft.waterEc} disabled={!mayManage} onChange={waterEc => setDraft({ ...draft, waterEc })} />
           </span>
         </label>

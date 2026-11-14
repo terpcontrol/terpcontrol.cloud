@@ -495,8 +495,23 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   ));
   // The zoom stays with the cursor's card, which stays in sight; only a window with no cursor to read keeps it in the head.
   const cursorShown = data !== undefined && (data.panels.length > 0 || data.outputs.length > 0);
+  // A link's whole window in which nothing was ever measured has nothing to zoom into and nothing to tick: neither is
+  // offered. Zoomed into a quiet part of a window that has curves, the zoom stays, as the way back out.
+  const nothingToRead = confined !== null && widest(-1) && data !== undefined && !cursorShown && data.lastReadingAt === null;
+  // The line under the window's name opens with a capital, whichever of its parts it begins with.
+  const beneath = [
+    data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
+      ? data.dayFrom === data.dayTo
+        ? t('timeline.dayN', { day: data.dayTo })
+        : t('timeline.dayRange', { from: data.dayFrom, to: data.dayTo })
+      : null,
+    // How far apart the points are, said once and quietly: a point of a day is three minutes, not a sample.
+    stepDrawn !== null && !timeline.isPlaceholderData ? stepWords(t, stepDrawn) : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  const adjustButton = (
+  const adjustButton = nothingToRead ? null : (
     <button type="button" className={styles.adjustButton} disabled={!model} onClick={() => setAdjusting(true)}>
       {t('timeline.adjust.title')}
     </button>
@@ -551,19 +566,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
             : named
               ? windowLabel(t, named, named.live, now, zone, confined !== null)
               : '…'}
-          <small>
-            {[
-              data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
-                ? data.dayFrom === data.dayTo
-                  ? t('timeline.dayN', { day: data.dayTo })
-                  : t('timeline.dayRange', { from: data.dayFrom, to: data.dayTo })
-                : null,
-              // How far apart the points are, said once and quietly: a point of a day is three minutes, not a sample.
-              stepDrawn !== null && !timeline.isPlaceholderData ? stepWords(t, stepDrawn) : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </small>
+          <small>{beneath.charAt(0).toLocaleUpperCase() + beneath.slice(1)}</small>
         </span>
         {confined ? null : (
           <button type="button" className={styles.navButton} disabled={!named || named.live} aria-label={stepName(1)} onClick={() => step(1)}>
@@ -576,7 +579,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
             {t('timeline.toNow')}
           </button>
         ) : null}
-        {cursorShown || !data ? null : zoomButtons}
+        {cursorShown || !data || nothingToRead ? null : zoomButtons}
       </div>
       {columns ? adjustButton : null}
     </header>

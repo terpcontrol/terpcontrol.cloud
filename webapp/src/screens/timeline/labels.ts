@@ -31,10 +31,12 @@ const dayWord = (t: Translate, time: number, now: DateTime, zone: string | null,
  * "Gestern 14:30 bis jetzt", "Heute 03:00 bis 03:20", "5. Nov bis 12. Nov": the window, as the row between the
  * arrows names it. A whole day of the calendar is that day and not its two midnights: "Gestern", "Mo, 11. Aug",
  * and today up to now "Heute bis jetzt". A link's window is `dated`, as the link's own head says it: it is read on
- * days its maker never saw, and "gestern" would move.
+ * days its maker never saw, and "gestern" would move - and where its ends are not midnights it says their clocks
+ * whatever its width: "11. Nov bis 13. Nov" for a window that ends at 00:01 read as the whole of the 13th.
  */
 export const windowLabel = (t: Translate, window: Span, live: boolean, now: DateTime, zone: string | null, dated = false): string => {
   const start = zonedAt(window.from, zone);
+  const end = zonedAt(window.to, zone);
   const midnight = start.equals(start.startOf('day'));
   if (midnight && !live && start.plus({ days: 1 }).toMillis() === window.to) {
     const back = Math.round(zonedAt(now.toMillis(), zone).startOf('day').diff(start, 'days').days);
@@ -43,14 +45,18 @@ export const windowLabel = (t: Translate, window: Span, live: boolean, now: Date
       : start.toFormat(`ccc, ${start.year === now.year ? DAY_IN_YEAR : DAY}`);
   }
 
-  const clocked = window.to - window.from <= BY_CLOCK;
+  const clocked = window.to - window.from <= BY_CLOCK || (dated && !live && !(midnight && end.equals(end.startOf('day'))));
   const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
   const today = midnight && live && start.hasSame(zonedAt(now.toMillis(), zone), 'day');
   const day = (time: number, then = false) => dayWord(t, time, now, zone, then, dated);
   const from = clocked && !today ? `${day(window.from)} ${clock(window.from)}` : day(window.from);
-  // The last instant inside the window names its day: a window that closes at midnight has not begun the next date.
-  const sameDay = start.hasSame(zonedAt(window.to - 1, zone), 'day');
-  const to = live ? t('timeline.now') : clocked ? `${sameDay ? '' : `${day(window.to - 1, true)} `}${clock(window.to)}` : day(window.to - 1, true);
+  // A clock names the day it falls in ("bis 13. Nov 00:01"); a day alone is the last one inside the window, since a
+  // window that closes at midnight has not begun the next date.
+  const to = live
+    ? t('timeline.now')
+    : clocked
+      ? `${start.hasSame(end, 'day') ? '' : `${day(window.to, true)} `}${clock(window.to)}`
+      : day(window.to - 1, true);
 
   return t('timeline.windowSpan', { from, to });
 };

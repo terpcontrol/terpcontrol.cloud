@@ -58,9 +58,6 @@ export function Report({
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
 
   const { totals, harvest } = report.data;
-  // What "in band" means is said on the first chapter that states a share of it.
-  const bandTeacher =
-    report.data.phases.find(chapter => chapter.inBandPercent !== null && chapter.climate.some(row => row.metric === 'temperature')) ?? null;
 
   return (
     <div className={styles.report}>
@@ -90,14 +87,7 @@ export function Report({
       {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.report.noPhase')}</p> : null}
 
       {report.data.phases.map(chapter => (
-        <Chapter
-          key={chapter.phaseId}
-          chapter={chapter}
-          grow={grow}
-          people={report.data.people}
-          spaces={spaces}
-          explainBand={chapter === bandTeacher}
-        />
+        <Chapter key={chapter.phaseId} chapter={chapter} grow={grow} people={report.data.people} spaces={spaces} />
       ))}
 
       <Export growId={grow.id} mayOwn={mayOwn} />
@@ -200,14 +190,11 @@ function Chapter({
   grow,
   people,
   spaces,
-  explainBand,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
   people: { id: string; handle: string }[];
   spaces: Space[];
-  /** The first chapter that states its share in band, which says once what the band is. */
-  explainBand: boolean;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
@@ -247,11 +234,8 @@ function Chapter({
               `${dayNightFigure(temperature, 1)} °C`,
               humidity?.averageValue !== null && humidity !== undefined ? `${decimalFigure(humidity.averageValue, 0)} %` : null,
               chapter.lightHours !== null ? durationFigure(decimalFigure(chapter.lightHours, 0), 'h') : null,
-              chapter.inBandPercent === null ? null : explainBand ? (
-                <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>
-              ) : (
-                t('space.inBand', { percent: Math.round(chapter.inBandPercent) })
-              ),
+              // Every chapter's share carries its help alike: the first alone underlined read as the one figure that had any.
+              chapter.inBandPercent === null ? null : <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>,
             ]}
           />
         ) : null}

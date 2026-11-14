@@ -302,6 +302,33 @@ describe('the report tab', () => {
     expect(within(trained).getByRole('button', { name: /Lower shoots defoliated/ })).toBeInTheDocument();
   });
 
+  /** Only the first chapter's "% in band" carried the help's underline: the others read as figures nobody explains. */
+  it('gives every chapter`s share in band its help alike', async () => {
+    const chapter = (phaseId: string, inBandPercent: number) => ({
+      phaseId,
+      stage: 'vegetative' as const,
+      preset: null,
+      startedAt: at(10),
+      endedAt: null,
+      dayFrom: 1,
+      dayTo: null,
+      dayCount: 11,
+      spaceIds: [],
+      coverMediaId: null,
+      climate: [{ metric: 'temperature' as const, minValue: 20, maxValue: 27, averageValue: 23.6, dayAverage: 26.4, nightAverage: 20.8 }],
+      lightHours: 18,
+      inBandPercent,
+      waterCount: 0,
+      feedCount: 0,
+      training: [],
+    });
+    wire.report = { ...REPORT, phases: [chapter('phase-1', 91), chapter('phase-2', 78)] };
+    drawReport();
+
+    for (const name of ['91 % in band', '78 % in band'])
+      expect(await screen.findByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
+  });
+
   /** "1 days", "1 entries" and a weight written "12.5 g" beside a diary that says "12,5 g": each figure as its language counts and writes it. */
   it('counts each total in its own number, and writes the harvest´s weights in the reader´s format', async () => {
     wire.report = {

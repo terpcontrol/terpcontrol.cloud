@@ -628,9 +628,11 @@ describe('the inbox', () => {
     const [unheard, quiet] = openCards();
     expect(within(unheard).getByText(reading('Humidity high · warning · does not reach you'))).toBeInTheDocument();
     expect(screen.queryByText(/did not reach/)).not.toBeInTheDocument();
-    // It is the account's own settings that decide it, so the card leads there - and only that card.
-    expect(within(more(unheard)).getByRole('link', { name: 'Set up notifications' })).toHaveAttribute('href', '/me/notifications');
-    expect(within(more(quiet)).queryByRole('link', { name: 'Set up notifications' })).not.toBeInTheDocument();
+    // It is the account's own settings that decide it, and the way there has one place, the page's foot: a card
+    // that led there too stood as a button where its neighbour had ⋯.
+    for (const card of [unheard, quiet]) expect(within(card).queryByRole('link', { name: 'Set up notifications' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /^Set up notifications/ })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /^Set up notifications/ })).toHaveAttribute('href', '/me/notifications');
     expect(screen.queryByText(/does not repeat|repeats every/)).not.toBeInTheDocument();
   });
 

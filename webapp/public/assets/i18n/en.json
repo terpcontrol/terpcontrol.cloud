@@ -489,7 +489,8 @@
       "none": {
         "title": "No connection to the server",
         "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back.",
-        "bare": "The app shows anything again once the connection is back."
+        "bare": "The app shows anything again once the connection is back.",
+        "steering": "Your devices keep controlling the climate. The app shows anything again once the connection is back."
       },
       "server": {
         "title": "The server reports an error",
@@ -1217,7 +1218,6 @@
         "submit_other": "Harvest {{count}} plants",
         "submitAndEnd_one": "Harvest the last plant and end the grow",
         "submitAndEnd_other": "Harvest the last {{count}} plants and end the grow",
-        "whatWasWritten": "What was written",
         "alreadyDown": "Already down",
         "noWeight": "no weight",
         "belowZero": "{{name}}: a weight is 0 g or more.",
@@ -1406,8 +1406,8 @@
         "1_25": "strong · 125 %"
       },
       "water": "Water",
-      "waterTap": "tap",
-      "waterOsmosis": "osmosis",
+      "waterTap": "tap water",
+      "waterOsmosis": "osmosis water",
       "waterUnknown": "not measured",
       "ecPlaceholder": "EC",
       "plantType": "Type",
@@ -2290,7 +2290,7 @@
       "queuedNote": "Waiting its turn. You can leave the page – the film appears here when it is done.",
       "whatItSaid": "Technical message",
       "failure": {
-        "allDark": "Every picture in that span was taken with the light off. To keep them, request the film with “Lights-off frames” on.",
+        "allDark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.",
         "tooFew": "When it was to be made, there were not yet enough pictures in that span for a film.",
         "cameraGone": "The camera this film was requested from is no longer there.",
         "encodeFailed": "No film could be made from the pictures of that span.",
@@ -3613,7 +3613,7 @@
       "current_password_wrong": "That is not your current password.",
       "name_taken": "Another place or room already carries that name. Choose another.",
       "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
-      "all_dark": "Every picture in that span was taken with the light off. To keep them, request the film with “Lights-off frames” on."
+      "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on."
     }
   },
   "alarmLine": {

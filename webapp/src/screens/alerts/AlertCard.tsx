@@ -73,7 +73,7 @@ export function AlertCard({ heardAt = null, ...props }: AlertProps & { heardAt?:
           {steps ? <OfflineSteps /> : null}
         </>
       ) : null}
-      <Actions {...props} title={title} unreached={told?.unreached} />
+      <Actions {...props} title={title} />
     </li>
   );
 }
@@ -287,7 +287,8 @@ const metaOf = (
 
   if (rule && rule.severity !== alert.severity) parts.push(t('alerts.meta.ruleNow', { severity: t(`alerts.severity.${rule.severity}`) }));
   parts.push(...(told?.said ?? []));
-  // Nobody is told for a reason the account can change: said in the warning's colour, with the way there behind the card's ⋯.
+  // Nobody is told for a reason the account can change: said in the warning's colour. The way there is the page's
+  // foot, its one place - a card that led there too stood as a button where its neighbour had ⋯.
   if (told?.unreached) {
     parts.push(
       <span key="unreached" className={styles.fix}>
@@ -326,7 +327,7 @@ const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): stri
  * Behind ⋯ is the rest - one thing alone stands in the row itself: the page
  * of a device gone quiet; for whoever manages the place the device stands in
  * an hour of silence for the rule - which holds for everybody - and the rule
- * itself; and the notification settings where the alert reaches nobody. Once
+ * itself. Once
  * it is over it can be deleted, a folded row whole (`fold`) - asked first,
  * because it goes for everyone the place is shared with.
  */
@@ -338,10 +339,9 @@ function Actions({
   placed,
   now,
   title,
-  unreached = false,
   fold = [alert.id],
   onRemoved,
-}: AlertProps & { title: string; unreached?: boolean; fold?: string[]; onRemoved?: () => void }) {
+}: AlertProps & { title: string; fold?: string[]; onRemoved?: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
   // The silence is offered only where the alert names a device, so the empty id is never sent.
@@ -367,11 +367,6 @@ function Actions({
     ruled && alert.spaceId ? (
       <Link key="rule" to={controlPath(alert.spaceId, 'alarms', { rule: rule.id })}>
         {t('alerts.action.editRule')}
-      </Link>
-    ) : null,
-    open && unreached ? (
-      <Link key="notify" to="/me/notifications">
-        {t('alerts.settings')}
       </Link>
     ) : null,
   ].filter(item => item !== null);

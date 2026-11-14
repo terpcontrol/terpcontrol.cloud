@@ -39,9 +39,22 @@ export function Refused({ error, fallback, className }: { error: unknown; fallba
  * server answered with a fault, which is not the reader's connection - and
  * while it asks again the button says so. `children` is what the page still
  * knows. A part of a page that could not be read hands over only how to ask
- * again, and is one line.
+ * again, and is one line. Only a page that shows `values` says that they come
+ * back with the connection; Konto or Freigabelinks have none to wait for.
  */
-export function LoadFailed({ retry, read, title, children }: { retry?: () => void; read?: Read; title?: string; children?: ReactNode }) {
+export function LoadFailed({
+  retry,
+  read,
+  title,
+  values = false,
+  children,
+}: {
+  retry?: () => void;
+  read?: Read;
+  title?: string;
+  values?: boolean;
+  children?: ReactNode;
+}) {
   const { t } = useTranslation();
   const steering = useSteersAsLastSeen();
   if (!read) {
@@ -58,13 +71,14 @@ export function LoadFailed({ retry, read, title, children }: { retry?: () => voi
   }
   // An answer that is a problem came from the server; anything else never got that far.
   const answered = read.error instanceof ApiError ? 'server' : 'none';
+  const sentence = !steering ? 'bare' : answered === 'none' && !values ? 'steering' : 'text';
 
   const says = (
     <>
       <section className={amber.box} role="alert">
         <h2>{t(`shell.away.${answered}.title`)}</h2>
         {/* That the devices go on regulating is said to an account that has one, as this browser last saw it. */}
-        <p>{t(`shell.away.${answered}.${steering ? 'text' : 'bare'}`)}</p>
+        <p>{t(`shell.away.${answered}.${sentence}`)}</p>
         <button
           type="button"
           className={styles.again}

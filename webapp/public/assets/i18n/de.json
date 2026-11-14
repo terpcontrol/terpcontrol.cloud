@@ -489,7 +489,8 @@
       "none": {
         "title": "Keine Verbindung zum Server",
         "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht.",
-        "bare": "Die App zeigt erst wieder etwas, wenn die Verbindung steht."
+        "bare": "Die App zeigt erst wieder etwas, wenn die Verbindung steht.",
+        "steering": "Deine Geräte regeln weiter. Die App zeigt erst wieder etwas, wenn die Verbindung steht."
       },
       "server": {
         "title": "Der Server meldet einen Fehler",
@@ -1227,7 +1228,6 @@
         "submit_other": "{{count}} Pflanzen ernten",
         "submitAndEnd_one": "Letzte Pflanze ernten und Grow beenden",
         "submitAndEnd_other": "Letzte {{count}} Pflanzen ernten und Grow beenden",
-        "whatWasWritten": "Was geschrieben wurde",
         "alreadyDown": "Bereits geerntet",
         "noWeight": "kein Gewicht",
         "belowZero": "{{name}}: Ein Gewicht ist 0 g oder mehr.",
@@ -1416,8 +1416,8 @@
         "1_25": "kräftig · 125 %"
       },
       "water": "Wasser",
-      "waterTap": "Leitung",
-      "waterOsmosis": "Osmose",
+      "waterTap": "Leitungswasser",
+      "waterOsmosis": "Osmosewasser",
       "waterUnknown": "nicht gemessen",
       "ecPlaceholder": "EC",
       "plantType": "Art",
@@ -2300,7 +2300,7 @@
       "queuedNote": "Wartet, bis er an der Reihe ist. Du kannst die Seite verlassen – der Film erscheint dann hier.",
       "whatItSaid": "Technische Meldung",
       "failure": {
-        "allDark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film mit diesen Bildern gibt es über „Bilder aus der Dunkelphase“.",
+        "allDark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
         "tooFew": "Als er erstellt werden sollte, gab es in diesem Zeitraum noch nicht genug Bilder für einen Film.",
         "cameraGone": "Die Kamera, von der dieser Film angefordert wurde, gibt es nicht mehr.",
         "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film erstellen.",
@@ -3623,7 +3623,7 @@
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
       "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
-      "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film mit diesen Bildern gibt es über „Bilder aus der Dunkelphase“."
+      "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen."
     }
   },
   "alarmLine": {

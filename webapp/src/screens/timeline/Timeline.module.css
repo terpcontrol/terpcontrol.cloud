@@ -353,14 +353,19 @@
 }
 
 /* What a row of the card or a head's figure says at rest lies unseen under it (`data-rest`) and holds its room:
-   crossing into a silence, or onto a value with its own time, moves no plot under a finger. */
+   crossing into a silence, or onto a value with its own time, moves no plot under a finger. Its column is never
+   wider than the row's: a fact longer than the line - "Blatttemperatur 24,4 °C" at 360 px - widened it past the
+   card's text, and the figure ran under the zoom buttons. Such a fact breaks inside, at rest as on view. */
 .screen [data-rest] {
   display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 100%;
 }
 
 .screen [data-rest]::before {
   visibility: hidden;
   content: attr(data-rest);
+  overflow-wrap: anywhere;
 }
 
 .screen [data-rest] > *,

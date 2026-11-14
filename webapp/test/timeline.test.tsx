@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
@@ -7,6 +9,7 @@ import { LogContext, type Told } from '@/log/log-context';
 import { SharedTimeline } from '@/screens/timeline/Timeline';
 import { Timeline } from '@/screens/Timeline';
 import { forgetKept } from '@/ui/kept';
+import { LoadFailed } from '@/ui/PageState';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { cardOf, entry, fridge, homeOf } from './place-wire';
 import { meWith, spacePage, spaceWhere } from './session';
@@ -323,7 +326,8 @@ describe('Verlauf as it opens', () => {
 
     const move = screen.getByRole('group', { name: 'Move and zoom the window' });
     expect(move).toHaveTextContent(/Yesterday \d\d:\d\d to now/);
-    expect(move).toHaveTextContent(/day 28–29/i);
+    // The line under the window's name opens with a capital, as every line does: "Day 28–29 · every 3 min".
+    expect(move.querySelector('small')).toHaveTextContent(/^Day 28–29 · every \d+ (s|min|h)$/);
     expect(within(move).getByRole('button', { name: '24 h later' })).toBeDisabled();
     expect(within(move).getByRole('button', { name: '24 h earlier' })).toBeEnabled();
     expect(screen.getByRole('button', { name: '24 h', pressed: true })).toBeInTheDocument();
@@ -549,6 +553,8 @@ describe('the view in the address', () => {
 
     expect(screen.getAllByRole('button', { pressed: false }).map(chip => chip.textContent)).toEqual(expect.arrayContaining(['7 d', '30 d']));
     expect(screen.queryByRole('button', { name: 'Phase' })).not.toBeInTheDocument();
+    // With no grow's days the step opens the line under the window's name, and with a capital.
+    expect(screen.getByRole('group', { name: 'Move and zoom the window' }).querySelector('small')).toHaveTextContent(/^Every \d+ (s|min|h)$/);
   });
 });
 
@@ -844,6 +850,19 @@ describe('what the place reads now', () => {
 });
 
 describe('the cursor', () => {
+  /**
+   * The row at rest lies unseen under the row on view and held its column as wide as its longest fact: "Blatttemperatur
+   * 24,4 °C" at 360 px widened it past the card's text, and the figure ran under the zoom's "+". jsdom lays nothing
+   * out, so the rule is read from the sheet: the column is never wider than the row, and a fact longer than it breaks.
+   */
+  it('keeps a row at rest inside the card`s text, so no figure runs under the zoom buttons', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/timeline/Timeline.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rule = (selector: string) => sheet.match(new RegExp(`${selector.replace(/[[\]]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+    expect(rule('.screen [data-rest]')).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(rule('.screen [data-rest]')).toMatch(/max-width:\s*100%/);
+    expect(rule('.screen [data-rest]::before')).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
   it('is what the address says and nothing else: with no `at` the card rests on now, whatever was set down before', async () => {
     draw();
     await settled();
@@ -1398,5 +1417,22 @@ describe('the bar`s item with no place to show', () => {
 
     expect(await screen.findByText('The demo has nothing to draw; nothing has been left in this one to look at.')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
+  });
+});
+
+/** "Die App zeigt erst wieder Werte" stood on Konto, Benachrichtigungen and Freigabelinks, which show no values. */
+describe('a page that could not be read', () => {
+  it('says the readings come back with the connection only where the page shows readings', () => {
+    const read = { error: new TypeError('Failed to fetch'), isFetching: false, refetch: () => undefined };
+    drawAt(
+      <>
+        <LoadFailed title="Account" read={read} />
+        <LoadFailed title="Timeline" read={read} values />
+      </>,
+    );
+
+    const [account, timeline] = screen.getAllByRole('alert');
+    expect(account).toHaveTextContent('Your devices keep controlling the climate. The app shows anything again once the connection is back.');
+    expect(timeline).toHaveTextContent('Your devices keep controlling the climate. The app shows readings again once the connection is back.');
   });
 });

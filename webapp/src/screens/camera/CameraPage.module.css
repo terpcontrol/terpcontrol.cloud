@@ -32,6 +32,22 @@
   .page > :not(.look, .act) {
     grid-column: 1 / -1;
   }
+
+  /* A film played beside the picture is as wide as the picture: the columns share the row while one stands there,
+     and the film runs to its card's edges. In the narrower column it played at two thirds of the still. */
+  .page:has(.act .video) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .act .film:has(.video) {
+    overflow: hidden;
+  }
+
+  .act .film .video {
+    width: calc(100% + 2 * var(--space-4));
+    margin-inline: calc(-1 * var(--space-4));
+    border-radius: 0;
+  }
 }
 
 /* A name longer than its place is cut there: the grow's on the picture, a camera's on a chip, and a device's in the
@@ -139,6 +155,11 @@
 
 .labels > [data-tone='warn'] {
   background: var(--warning-wash);
+  color: var(--warning);
+}
+
+.darkRefused {
+  font-size: var(--text-sm);
   color: var(--warning);
 }
 

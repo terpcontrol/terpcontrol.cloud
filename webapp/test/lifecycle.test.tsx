@@ -386,8 +386,12 @@ describe('the harvest sheet', () => {
     expect(screen.getByRole('button', { name: /end the grow/ })).toBeInTheDocument();
   });
 
-  /** Every write answers: a plant cut while others still stand says which, and is taken back by its plants and its line. */
-  it('answers a harvest that leaves the grow running with a toast naming the plants, and takes it back on Undo', async () => {
+  /**
+   * Every write answers: a plant cut while others still stand says which, and is taken back by its plants and its line.
+   * The sheet closes: left open it rearmed on what still stood, and its green button, under the finger that had just
+   * pressed it, read "Harvest the last plant and end the grow".
+   */
+  it('closes on a harvest that leaves the grow running, answers with a toast naming the plants, and takes it back on Undo', async () => {
     const asked: { method: string; url: string; body: unknown }[] = [];
     vi.stubGlobal(
       'fetch',
@@ -402,10 +406,12 @@ describe('the harvest sheet', () => {
           : json(plants[1]);
       }),
     );
-    drawHarvest(<HarvestSheet grow={grow} plants={plants} preselect={['plant-2']} onClose={() => {}} />);
+    const closed = vi.fn();
+    drawHarvest(<HarvestSheet grow={grow} plants={plants} preselect={['plant-2']} onClose={closed} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Harvest 1 plant' }));
     expect(await screen.findByText(reading('Amnesia 2 harvested'))).toBeInTheDocument();
+    expect(closed).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await waitFor(() => expect(asked.some(call => call.method === 'DELETE' && call.url.endsWith('/entries/entry-9'))).toBe(true));
     expect(asked.find(call => call.method === 'PATCH')).toMatchObject({
@@ -413,7 +419,6 @@ describe('the harvest sheet', () => {
       body: { status: 'active', harvest: null },
     });
     expect(await screen.findByText(reading('Undone · Amnesia 2 is standing again'))).toBeInTheDocument();
-    expect(screen.queryByText('What was written')).not.toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 
