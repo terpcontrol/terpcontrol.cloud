@@ -818,7 +818,8 @@ describe('the staged rollout, on the screen that has the builds in front of it',
    */
   it('says a seeded class´s words in the reader´s language, and a build´s counts as facts that break between them', async () => {
     await translate(['en', 'de'], 'de');
-    onTestFinished(() => void translate());
+    // Awaited: the next test renders in English only once the language is back.
+    onTestFinished(() => translate());
     server.fleet = {
       ...FLEET,
       classes: [{ ...FLEET.classes[0], firmwares: [{ ...FLEET.classes[0].firmwares[0], total: 7, online: 4, failed: 21 }] }],
