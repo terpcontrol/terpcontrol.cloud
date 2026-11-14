@@ -11,6 +11,7 @@ import { conflict, notFound } from '@common/v1/problem';
 import { stillValid } from '@common/v1/range';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
+import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { InviteDocument } from '@database/schemas/v1/invites.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -42,7 +43,15 @@ const DEFAULT_DAYS = 7;
 const GENERATION_ATTEMPTS = 8;
 
 /** Everything a dead code answers, whatever killed it or whether it ever lived. */
-const NOTHING_THERE: InvitePreview = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null };
+const NOTHING_THERE: InvitePreview = {
+  isValid: false,
+  spaceName: null,
+  spaceKind: null,
+  role: null,
+  invitedByHandle: null,
+  expiresAt: null,
+  hasCamera: false,
+};
 
 @Injectable()
 export class InvitesService {
@@ -50,6 +59,7 @@ export class InvitesService {
     @InjectModel(MODEL_V1.invite) private readonly invites: Model<InviteDocument>,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
+    @InjectModel(MODEL_V1.camera) private readonly cameras: Model<CameraDocument>,
     private readonly members: MembersService,
     private readonly spacesService: SpacesService,
     private readonly access: AccessService,
@@ -110,8 +120,9 @@ export class InvitesService {
 
   /**
    * What somebody who was sent a link sees before they sign in or sign up: where
-   * they are being asked to, what they would be able to do there, and who is
-   * asking - by handle, the only name anybody ever gets.
+   * they are being asked to, what they would be able to do there, whether that
+   * takes in a camera's pictures, and who is asking - by handle, the only name
+   * anybody ever gets.
    *
    * Nothing else, and no id at all. A link lives in a chat group where it
    * outlives the conversation, so whatever this answers is what everybody in
@@ -132,7 +143,10 @@ export class InvitesService {
     const space = await this.spaces.findOne({ id: invite.spaceId }, { name: 1, kind: 1, archivedAt: 1 }).lean<SpaceDocument>();
     if (!space || space.archivedAt !== null) return NOTHING_THERE;
 
-    const inviter = await this.users.findOne({ id: invite.createdBy }, { handle: 1 }).lean<Pick<StoredUser, 'handle'>>();
+    const [inviter, camera] = await Promise.all([
+      this.users.findOne({ id: invite.createdBy }, { handle: 1 }).lean<Pick<StoredUser, 'handle'>>(),
+      this.cameras.exists({ spaceId: invite.spaceId, removedAt: null }),
+    ]);
 
     return {
       isValid: true,
@@ -141,6 +155,7 @@ export class InvitesService {
       role: invite.role,
       invitedByHandle: inviter?.handle ?? null,
       expiresAt: invite.expiresAt?.toISOString() ?? null,
+      hasCamera: camera !== null,
     };
   }
 

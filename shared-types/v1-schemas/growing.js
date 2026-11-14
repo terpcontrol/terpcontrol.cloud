@@ -445,6 +445,9 @@ exports.invitePreview = (0, common_js_1.named)('InvitePreview', zod_1.z.object({
     role: common_js_1.memberRole.nullable(),
     invitedByHandle: zod_1.z.string().nullable(),
     expiresAt: (0, common_js_1.instant)().nullable(),
+    hasCamera: zod_1.z
+        .boolean()
+        .describe('Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code.'),
 }));
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a

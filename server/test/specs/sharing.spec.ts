@@ -585,6 +585,7 @@ describe('the people in a space', () => {
         role: 'can_log',
         invitedByHandle: expect.any(String),
         expiresAt: made.expiresAt,
+        hasCamera: false,
       });
 
       // A link lives in a chat group, so whatever this answers everybody there
@@ -596,8 +597,25 @@ describe('the people in a space', () => {
       expect(said).not.toContain(made.id);
     });
 
+    it('says whether a camera hangs in the place, so the invitation names pictures only where there are any', async () => {
+      const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent with a camera', roomName: 'Camera room' }).expect(201))
+        .body;
+      const made = await invite(host, tent.id);
+      const hasCamera = async () => (await anonymous().get(`/v1/invites/${made.code}`).expect(200)).body.hasCamera;
+      expect(await hasCamera()).toBe(false);
+
+      const cam = (
+        await host.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tent.id, name: 'Invite cam', url: 'rtsp://10.0.0.41:554/s' }).expect(201)
+      ).body;
+      expect(await hasCamera()).toBe(true);
+
+      // One taken down hangs there no longer.
+      await host.client.delete(`/v1/cameras/${cam.id}`).expect(204);
+      expect(await hasCamera()).toBe(false);
+    });
+
     it('answers a code that is revoked, expired or was never issued exactly the same nothing', async () => {
-      const nothing = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null };
+      const nothing = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null, hasCamera: false };
 
       const revoked = await invite(host, inTheRoom);
       await host.client.put(`/v1/invites/${revoked.code}/revocation`).expect(200);

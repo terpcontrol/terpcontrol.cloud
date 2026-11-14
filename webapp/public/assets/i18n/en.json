@@ -1895,6 +1895,7 @@
           "can_manage": "You would be able to log here, and to change the targets, the plan, the alarms and the sockets."
         },
         "sees": "You see: {{name}}, every grow that has grown there – private and finished ones too – and the cameras.",
+        "seesNoCamera": "You see: {{name}} and every grow that has grown there – private and finished ones too.",
         "doesNotSee": "You do not see: their other places, grows that were never here, or who else holds a link.",
         "until": "This link works until {{date}}",
         "accept": "Join {{name}}",

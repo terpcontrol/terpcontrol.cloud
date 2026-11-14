@@ -217,6 +217,7 @@ beforeEach(() => {
     role: 'can_log',
     invitedByHandle: 'chris',
     expiresAt: NOW.plus({ days: 5 }).toISO()!,
+    hasCamera: true,
   };
 });
 
@@ -774,7 +775,7 @@ describe('an invitation somebody was sent', () => {
     );
 
   it('says only that the address leads nowhere, whichever of the four it was', async () => {
-    server.preview = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null };
+    server.preview = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null, hasCamera: false };
     drawJoin();
 
     expect(await screen.findByText('This invitation leads nowhere')).toBeInTheDocument();
@@ -792,6 +793,22 @@ describe('an invitation somebody was sent', () => {
     expect(screen.getByText('from @chris')).toBeInTheDocument();
     expect(screen.getByText(/You do not see: their other places/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
+  });
+
+  it('names the cameras among what they would see where the place has one', async () => {
+    drawJoin();
+
+    expect(await screen.findByText(/^You see: Blue Dream tent, every grow .* and the cameras\.$/)).toBeInTheDocument();
+  });
+
+  it('promises no cameras where the place has none', async () => {
+    server.preview = { ...server.preview, hasCamera: false };
+    drawJoin();
+
+    expect(
+      await screen.findByText('You see: Blue Dream tent and every grow that has grown there – private and finished ones too.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/cameras/)).not.toBeInTheDocument();
   });
 
   it('names the window of the page a code is typed on', async () => {

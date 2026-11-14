@@ -90,7 +90,8 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
 
       <div className={`${ui.card} ${ui.stack2}`}>
         <p className={styles.term}>{t(`space.members.join.asRole.${preview.role ?? 'can_log'}`)}</p>
-        <p className={styles.term}>{t('space.members.join.sees', { name })}</p>
+        {/* The cameras are named where one hangs there: a promise of pictures a place without one could not keep. */}
+        <p className={styles.term}>{t(preview.hasCamera ? 'space.members.join.sees' : 'space.members.join.seesNoCamera', { name })}</p>
         <p className={styles.term}>{t('space.members.join.doesNotSee')}</p>
         {preview.expiresAt ? <p className={styles.until}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p> : null}
       </div>

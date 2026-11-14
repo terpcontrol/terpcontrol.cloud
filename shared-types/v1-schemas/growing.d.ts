@@ -900,6 +900,7 @@ export declare const invitePreview: z.ZodObject<{
     }>>;
     invitedByHandle: z.ZodNullable<z.ZodString>;
     expiresAt: z.ZodNullable<z.ZodISODateTime>;
+    hasCamera: z.ZodBoolean;
 }, z.core.$strip>;
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a

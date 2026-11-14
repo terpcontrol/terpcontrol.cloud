@@ -7406,6 +7406,10 @@
             "type": "null"
           }
         ]
+      },
+      "hasCamera": {
+        "type": "boolean",
+        "description": "Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code."
       }
     },
     "required": [
@@ -7414,7 +7418,8 @@
       "spaceKind",
       "role",
       "invitedByHandle",
-      "expiresAt"
+      "expiresAt",
+      "hasCamera"
     ]
   },
   "InviteAcceptance": {

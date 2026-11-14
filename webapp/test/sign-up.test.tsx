@@ -33,6 +33,7 @@ const PREVIEW: InvitePreview = {
   role: 'can_log',
   invitedByHandle: 'chris',
   expiresAt: NOW.plus({ days: 5 }).toISO()!,
+  hasCamera: true,
 };
 
 const token = (hours: number) => ({ token: `token-${hours}`, validUntil: NOW.plus({ hours }).toISO()! });

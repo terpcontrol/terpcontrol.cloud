@@ -2558,6 +2558,10 @@ export interface InvitePreview {
   role: MemberRole | null;
   invitedByHandle: string | null;
   expiresAt: string | null;
+  /**
+   * Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code.
+   */
+  hasCamera: boolean;
 }
 
 export interface InviteAcceptance {

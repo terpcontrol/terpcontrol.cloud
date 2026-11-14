@@ -1905,6 +1905,7 @@
           "can_manage": "Du könntest hier eintragen und außerdem Zielwerte, Plan, Alarme und Steckdosen ändern."
         },
         "sees": "Du siehst: {{name}}, jeden Grow, der je dort stand – auch private und beendete –, und die Kameras.",
+        "seesNoCamera": "Du siehst: {{name}} und jeden Grow, der je dort stand – auch private und beendete.",
         "doesNotSee": "Du siehst nicht: die anderen Orte, Grows, die nie hier standen, und auch nicht, wer sonst noch einen Link hat.",
         "until": "Dieser Link gilt bis {{date}}",
         "accept": "{{name}} beitreten",

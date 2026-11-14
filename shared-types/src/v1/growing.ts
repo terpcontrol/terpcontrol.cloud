@@ -576,6 +576,9 @@ export const invitePreview = named(
     role: memberRole.nullable(),
     invitedByHandle: z.string().nullable(),
     expiresAt: instant().nullable(),
+    hasCamera: z
+      .boolean()
+      .describe('Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code.'),
   }),
 );
 
