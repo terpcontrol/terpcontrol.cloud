@@ -254,7 +254,7 @@ describe('the groups', () => {
     expect(screen.getByText(reading('every 30 days · Tent 1 · Chore · tomorrow'))).toBeInTheDocument();
     expect(screen.getByText(reading('grow plan · Tent 1 · in 2 d'))).toBeInTheDocument();
     expect(screen.getByText(reading('every 3 days · Spring run · 2 L · 2 days overdue'))).toBeInTheDocument();
-    expect(screen.getByText(reading('you · Spring run · yesterday 19:40'))).toBeInTheDocument();
+    expect(screen.getByText(reading('you · yesterday 19:40 · Spring run'))).toBeInTheDocument();
   });
 
   it('names who ticked a task somebody else did, by the people of its place, and says somebody until they are known', async () => {
@@ -262,7 +262,7 @@ describe('the groups', () => {
     state.people = [{ id: 'user-mia', handle: 'mia' }];
     await drawLoaded();
 
-    expect(await screen.findByText(reading('@mia · Spring run · yesterday 19:40'))).toBeInTheDocument();
+    expect(await screen.findByText(reading('@mia · yesterday 19:40 · Spring run'))).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/spaces/space-1/members', { limit: 100 }, expect.anything());
   });
 
@@ -288,8 +288,8 @@ describe('the groups', () => {
     await drawLoaded();
 
     const there = DateTime.fromISO(ticked.completion!.occurredAt).setZone('Pacific/Kiritimati');
-    expect(await screen.findByText(reading(new RegExp(`you · Spring run · .+ ${there.toFormat('HH:mm')}$`)))).toBeInTheDocument();
-    expect(screen.queryByText(reading('you · Spring run · yesterday 19:40'))).not.toBeInTheDocument();
+    expect(await screen.findByText(reading(new RegExp(`^you · .+ ${there.toFormat('HH:mm')} · Spring run$`)))).toBeInTheDocument();
+    expect(screen.queryByText(reading('you · yesterday 19:40 · Spring run'))).not.toBeInTheDocument();
   });
 
   it('counts the days to a task in the account´s zone, so the same task is not waiting on two different days', () => {

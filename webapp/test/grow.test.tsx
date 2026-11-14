@@ -744,7 +744,7 @@ describe('a day of the diary', () => {
   });
 
   /** A card that folds shows an alarm's end wherever it shows its start: an alarm that ended is no alarm standing open. */
-  it('folds an alarm that ended as a device´s line, its end before its start', () => {
+  it('says an alarm that ended as one line at its end, its start and its end together', () => {
     const alarm = (id: string, hour: number, rule: string, fired: boolean) =>
       entry({
         id,
@@ -771,7 +771,52 @@ describe('a day of the diary', () => {
       null,
     );
 
-    expect(shownLines(lines).map(line => line.key)).toEqual(['c', 'b', 'a', 'hot-over']);
+    expect(lines.map(line => line.key)).toEqual(['c', 'b', 'a', 'hot-over', 'dry-over']);
+    expect(lines.filter(line => line.what.kind === 'alarm').map(line => line.what.kind === 'alarm' && line.what.over)).toEqual([true, true]);
+    // An alarm that is over is a device's line like any other: one line more is shown rather than folded.
+    expect(shownLines(lines)).toHaveLength(5);
+  });
+
+  /**
+   * A camera's silence is named as Meldungen names it, and a silence counts from when it was last heard, as Meldungen
+   * counts it - not from when the cloud noticed. A window of maintenance ended at once has no length to state.
+   */
+  it('names a camera´s silence and dates a silence from when it was last heard, as Meldungen does', () => {
+    const quiet = (id: string, hour: number, fired: boolean, param: string, cameraId: string | null = null) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        cameraId,
+        severity: fired ? 'warning' : 'info',
+        occurredAt: at(1, hour),
+        message: { key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved', params: [param] },
+        values: { kind: 'alarm' },
+      });
+    const lines = dayLines(
+      i18next.t.bind(i18next) as never,
+      i18next,
+      day(1, {
+        entries: [
+          quiet('cam-back', 9, false, 'Terp Cam, back after 2 h', 'cam-1'),
+          quiet('cam', 7, true, 'Terp Cam, last heard 30 min ago', 'cam-1'),
+          quiet('off-2', 6, true, 'Device offline, last heard 11 min ago'),
+          quiet('off-1-back', 5, false, 'Device offline, back after 1 h'),
+          quiet('off-1', 3, true, 'Device offline, last heard 11 min ago'),
+        ],
+        events: [{ kind: 'maintenance', at: at(1, 2), endedAt: DateTime.fromISO(at(1, 2)).plus({ seconds: 20 }).toISO()! } as never],
+      }),
+      null,
+    );
+    const alarms = lines.flatMap(line => (line.what.kind === 'alarm' ? [line.what] : []));
+
+    expect(alarms.map(one => [one.rule, one.over])).toEqual([
+      ['Terp Cam without a picture', true],
+      ['Device offline', false],
+    ]);
+    expect(alarms[1]).toMatchObject({ count: 2, since: DateTime.fromISO(at(1, 3)).minus({ minutes: 11 }).toUTC().toISO() });
+    expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance ended' });
   });
 
   /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */
@@ -884,14 +929,12 @@ describe('a day of the diary', () => {
 
     const lines = linesOf();
     // The rule that fired three times is one line, which says it is over because its newest line is the clearing - as
-    // Alerts has it under "Resolved"; the one that fired once keeps the line that says it is over; the watering stays in sight.
-    expect(lines).toHaveLength(4);
+    // Alerts has it under "Resolved"; the one that fired once is one line too, its start and its end together; the
+    // watering stays in sight.
+    expect(lines).toHaveLength(3);
     expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 17 Sep 02:00 · over/)]);
-    expect(lines.filter(line => /Too dry/.test(line))).toEqual([
-      expect.stringMatching(/Too dry · over/),
-      expect.stringMatching(/Too dryHumidity above 60 %/),
-    ]);
-    expect(lines[3]).toMatch(/You watered/);
+    expect(lines.filter(line => /Too dry/.test(line))).toEqual([expect.stringMatching(/Too dry · over(automatic)?$/)]);
+    expect(lines[2]).toMatch(/You watered/);
   });
 
   /** Fifteen pills in one card said nothing new: lines the devices wrote in a row carry "automatic" once, at the head of the run. */

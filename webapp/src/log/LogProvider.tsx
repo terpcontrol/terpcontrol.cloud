@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 import type { Entry } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
 import { ApiError } from '@/api/problem';
@@ -28,12 +29,19 @@ const UNDO_MS = 5000;
 /** How long a toast that says what was done stays: it is a sentence to read, not a line to recognise. */
 const TOLD_MS = 8000;
 
+/**
+ * How soon after a toast was raised the page may change under it and the toast go along: what a tap did and then
+ * led to - a grow started and its page opened - is said on the page it led to.
+ */
+const LEADS_MS = 1500;
+
 /** A toast as it is first shown: nothing failed, nothing taken back, no entry yet. */
 const UNANSWERED = { failure: null, reason: null, undoing: false, entry: null, progress: null };
 
 /** A toast that only says something - what was done, or that it was taken back - with nothing to offer by itself. */
 const saying = (label: string) => ({
   ...UNANSWERED,
+  raisedAt: Date.now(),
   label,
   state: 'saved' as const,
   details: null,
@@ -86,7 +94,12 @@ export function LogProvider({ children }: { children: ReactNode }) {
       }
       change(key, { state: 'saved', entry, undoing: true, undoUntil: null });
       void (revert?.() ?? takeEntryBack(entry!.id).then(() => diaryChanged(client))).then(
-        () => change(key, line => saying(undoneLabel(i18n.t, line.undone ?? i18n.t('log.gone')))),
+        () => {
+          change(key, line => saying(undoneLabel(i18n.t, line.undone ?? i18n.t('log.gone'))));
+          // What was said after it may have built on what is now taken back - a harvest of the plant whose adding
+          // was undone: its toast goes, rather than offering to take back what no longer exists.
+          setLines(current => current.filter(line => line.key <= key || line.state !== 'saved'));
+        },
         error => change(key, { state: 'failed', failure: 'undo', undoing: false, reason: reasonOf(error) }),
       );
     },
@@ -143,6 +156,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
         state: 'saving',
         undoable: request.undoable ?? true,
         undoUntil: null,
+        raisedAt: Date.now(),
       };
       setLines(current => withRoom(current, line));
       setOpening(null);
@@ -161,6 +175,17 @@ export function LogProvider({ children }: { children: ReactNode }) {
     },
     [attempt, change, undo],
   );
+
+  // A toast's Undo is about the page it was raised on, and does not ride along to another: what was said there goes
+  // with it. A line still being written, or one that failed, stays until it has its answer.
+  const { pathname } = useLocation();
+  const shownOn = useRef(pathname);
+  useEffect(() => {
+    if (shownOn.current === pathname) return;
+    shownOn.current = pathname;
+    const lead = Date.now() - LEADS_MS;
+    setLines(current => current.filter(line => line.state !== 'saved' || line.raisedAt > lead));
+  }, [pathname]);
 
   const sheetOpen = opening !== null;
   const state = {

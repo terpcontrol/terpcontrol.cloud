@@ -88,6 +88,8 @@ interface AlarmLine {
   rule: string;
   said: string[];
   limit: string | null;
+  /** For a silence raised: how long before the line's moment it was last heard, which is when Meldungen says it began. */
+  silentFor?: number;
 }
 
 export const alarmLineParts = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null =>
@@ -151,12 +153,23 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine
 const spanIn = (i18n: I18n, span: string): string =>
   span.replace(/(\d+) (s|min|h|d)\b/g, (_, figure: string, unit: string) => `${figure} ${i18n.t(`units.${unit}`, { defaultValue: unit })}`);
 
+/** The seconds a span the server wrote stands for - "1 d 2 h", "10 min" -, or null where it is no such span. */
+const secondsOf = (span: string): number | null => {
+  const parts = [...span.matchAll(/(\d+) (s|min|h|d)\b/g)];
+  return parts.length === 0 ? null : parts.reduce((sum, [, figure, unit]) => sum + Number(figure) * SECONDS[unit], 0);
+};
+
+const SECONDS: Record<string, number> = { s: 1, min: 60, h: 3600, d: 86_400 };
+
 const silenceLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
   const line = (rule: string, said: string): AlarmLine => ({ rule: ruleName(i18n, rule), said: [said], limit: null });
 
   if (triggered) {
     const silent = SILENT.exec(param);
-    return silent ? line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })) : null;
+    const quiet = silent ? secondsOf(silent[2]) : null;
+    return silent
+      ? { ...line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })), ...(quiet === null ? {} : { silentFor: quiet }) }
+      : null;
   }
 
   const after = BACK_AFTER.exec(param);

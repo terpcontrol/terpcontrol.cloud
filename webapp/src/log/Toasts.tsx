@@ -50,6 +50,8 @@ export interface LoggedLine {
   undoUntil: number | null;
   /** How far a line that takes a while has got - nine pictures off a phone are minutes, not a moment. */
   progress: { done: number; total: number } | null;
+  /** When it was raised, on this browser's clock: a toast stands on the page it was raised on. */
+  raisedAt: number;
 }
 
 interface ToastsProps {

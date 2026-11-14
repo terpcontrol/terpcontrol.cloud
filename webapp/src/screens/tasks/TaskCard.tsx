@@ -146,7 +146,8 @@ export function DoneCard({ task, name, by, me, now }: { task: Task; name: string
         </span>
         <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
-          <Facts className={styles.meta} facts={[who, name, at]} />
+          {/* Who and when stay on one line with their dot; a long name of where it was breaks on the next. */}
+          <Facts className={styles.meta} facts={[who, at, name]} />
         </span>
         <Assignee task={task} me={me} />
       </div>

@@ -1528,7 +1528,9 @@
       "openCurves": "Curves of this day",
       "measuredBy": "{{name}} measures from here on",
       "alarmsAmong_one": "{{count}} of them an alarm",
-      "alarmsAmong_other": "{{count}} of them alarms"
+      "alarmsAmong_other": "{{count}} of them alarms",
+      "controlOffBrief": "Control off and on again",
+      "maintenanceBrief": "Maintenance ended"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",

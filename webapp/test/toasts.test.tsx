@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { useLog } from '@/log/log-context';
 import { LogProvider } from '@/log/LogProvider';
@@ -35,6 +36,7 @@ const line = (key: number, over: Partial<LoggedLine> = {}): LoggedLine => ({
   undoable: false,
   undoUntil: null,
   progress: null,
+  raisedAt: 0,
   ...over,
 });
 
@@ -435,5 +437,69 @@ describe('a toast and the control it answers', () => {
       const log = (await catalogue(language)).log as Record<string, string>;
       expect(log.undone).not.toBe(log.undo);
     }
+  });
+});
+
+/** A toast's Undo is about the page it was raised on: it does not ride along to another, nor outlive what it built on. */
+describe('a toast and the page it was raised on', () => {
+  function Going() {
+    const { tell } = useLog();
+    const go = useNavigate();
+    return (
+      <>
+        <button type="button" onClick={() => tell({ label: 'Plant B3 added', undo: () => Promise.resolve(), undone: 'B3 is gone' })}>
+          add
+        </button>
+        <button type="button" onClick={() => tell({ label: 'B3 harvested', undo: () => Promise.resolve(), undone: 'B3 stands again' })}>
+          harvest
+        </button>
+        <button type="button" onClick={() => go('/plants/b3')}>
+          open
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            tell({ label: 'Grow started', undo: () => Promise.resolve(), undone: 'No grow' });
+            go('/grows/new-one');
+          }}
+        >
+          start
+        </button>
+      </>
+    );
+  }
+
+  const draw = () =>
+    drawAt(
+      <LogProvider>
+        <Going />
+      </LogProvider>,
+    );
+
+  afterEach(() => vi.useRealTimers());
+
+  it('goes when the page changes, but not when what was done led to the page', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'add' }));
+    await waitFor(() => expect(shown()).toHaveLength(1));
+    vi.setSystemTime(Date.now() + 3000);
+    fireEvent.click(screen.getByRole('button', { name: 'open' }));
+    await waitFor(() => expect(shown()).toEqual([]));
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }));
+    await waitFor(() => expect(shown()).toEqual([expect.stringMatching(/^Grow started/)]));
+  });
+
+  it('takes what was said after it along when it is undone, which may have built on it', async () => {
+    draw();
+
+    fireEvent.click(screen.getByRole('button', { name: 'add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'harvest' }));
+    await waitFor(() => expect(shown()).toHaveLength(2));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Undo' })[0]);
+
+    await waitFor(() => expect(shown()).toEqual([expect.stringMatching(/B3 is gone/)]));
   });
 });

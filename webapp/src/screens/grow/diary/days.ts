@@ -172,7 +172,10 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
             `${event.kind}-${event.at}`,
             event.at,
             event.endedAt
-              ? t(`grow.diary.${event.kind}`, { span: spanLabel((Date.parse(event.endedAt) - Date.parse(event.at)) / 1000) })
+              ? // Ended within its first minute it has no length worth stating: "Wartung · 0 s" said nothing.
+                Date.parse(event.endedAt) - Date.parse(event.at) < 60_000
+                ? t(`grow.diary.${event.kind}Brief`)
+                : t(`grow.diary.${event.kind}`, { span: spanLabel((Date.parse(event.endedAt) - Date.parse(event.at)) / 1000) })
               : t(`grow.diary.${event.kind}On`),
             { own: true },
           ),
@@ -280,37 +283,46 @@ const FIRED = 'message-alarm-triggered';
 const CLEARED = 'message-alarm-resolved';
 
 /**
- * A day's alarms as one line per rule: its newest firing, how often it fired
- * and since when. A rule that fired once keeps the line that says it is over;
- * one that fired again and again says how often, and that it is over once its
- * newest line is the clearing. `told` is every entry these lines stand for.
+ * A day's alarms as one line per rule: its newest line, how often it fired and since when - its start and its end
+ * one line, "Zu warm · behoben", as often as it fired. The rule is over where its newest line is the clearing. A
+ * camera's silence is named as Meldungen names it, "Terp Cam ohne Bild", and a silence counts from when it was last
+ * heard, as Meldungen counts it. `told` is every entry these lines stand for.
  */
 const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set<string> } => {
   const read = entries.flatMap(entry => {
     const key = entry.kind === 'alarm' ? entry.message?.key : null;
     const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
-    return parts ? [{ entry, parts, fired: key === FIRED }] : [];
+    if (!parts) return [];
+    const rule = entry.cameraId ? i18n.t('alerts.title.camera', { what: parts.rule }) : parts.rule;
+    const began =
+      parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!;
+    return [{ entry, parts: { ...parts, rule }, fired: key === FIRED, began }];
   });
-  const line = ({ entry, parts }: (typeof read)[number], count: number, since: string, over: boolean, stands: boolean): DayLine => ({
-    key: entry.id,
-    at: entry.occurredAt,
-    own: false,
-    routine: false,
-    what: { kind: 'alarm', entry, rule: parts.rule, count, since, limit: over ? null : parts.limit, over, stands },
-  });
-  const often = foldSame(
-    read.filter(one => one.fired),
-    one => one.parts.rule,
-    one => one.entry.occurredAt,
-  ).filter(run => run.count > 1);
   // Newest first: a rule whose newest line is its clearing is over, however often it fired before.
-  const overNow = (rule: string) => read.find(one => one.parts.rule === rule)?.fired === false;
-  const lines = [
-    ...often.map(run => line(run.newest, run.count, run.since, overNow(run.newest.parts.rule), !overNow(run.newest.parts.rule))),
-    ...read
-      .filter(one => !often.some(run => run.newest.parts.rule === one.parts.rule))
-      .map(one => line(one, 1, one.entry.occurredAt, !one.fired, one.fired && !overNow(one.parts.rule))),
-  ];
+  const lines = foldSame(
+    read,
+    one => one.parts.rule,
+    one => one.began,
+  ).map(({ newest }): DayLine => {
+    const fired = read.filter(one => one.parts.rule === newest.parts.rule && one.fired);
+    const over = !newest.fired;
+    return {
+      key: newest.entry.id,
+      at: newest.entry.occurredAt,
+      own: false,
+      routine: false,
+      what: {
+        kind: 'alarm',
+        entry: newest.entry,
+        rule: newest.parts.rule,
+        count: Math.max(1, fired.length),
+        since: fired.at(-1)?.began ?? newest.began,
+        limit: over ? null : newest.parts.limit,
+        over,
+        stands: !over,
+      },
+    };
+  });
 
   return { lines, told: new Set(read.map(one => one.entry.id)) };
 };

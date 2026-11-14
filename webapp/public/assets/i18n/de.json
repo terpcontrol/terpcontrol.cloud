@@ -1538,7 +1538,9 @@
       "openCurves": "Kurven zu diesem Tag",
       "measuredBy": "Ab hier misst {{name}}",
       "alarmsAmong_one": "davon {{count}} Alarm",
-      "alarmsAmong_other": "davon {{count}} Alarme"
+      "alarmsAmong_other": "davon {{count}} Alarme",
+      "controlOffBrief": "Regelung aus und wieder an",
+      "maintenanceBrief": "Wartung beendet"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
