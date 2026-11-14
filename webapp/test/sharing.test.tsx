@@ -134,11 +134,17 @@ describe('the share sheet', () => {
     expect(within(row).queryByRole('button', { name: 'Revoke' })).not.toBeInTheDocument();
   });
 
-  it('ends a link where it stands, and offers no way to forget one that still works', () => {
+  it('ends a link where it stands once it was asked, and offers no way to forget one that still works', () => {
     draw();
 
     expect(screen.queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+    // Nothing starts a link again, so revoking is asked first, with the one danger yes.
+    expect(calls.revoked).toEqual([]);
+    expect(screen.getByText(/^Revoke the link now\?/)).toBeInTheDocument();
+    const yes = screen.getByRole('button', { name: 'Revoke' });
+    expect(yes.className).toMatch(/dangerFilled/);
+    fireEvent.click(yes);
     expect(calls.revoked).toEqual(['link-1']);
     expect(calls.removed).toEqual([]);
   });

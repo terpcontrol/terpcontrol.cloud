@@ -2593,6 +2593,7 @@
     "noLinks": "Keine Links vergeben",
     "change": "Ändern",
     "revoke": "Zurückziehen",
+    "revokeAsk": "Den Link jetzt zurückziehen? Wer ihn hat, sieht ab dann nichts mehr, und er lässt sich nicht wieder aktivieren.",
     "forget": "Löschen",
     "save": "Speichern",
     "saving": "Speichert",

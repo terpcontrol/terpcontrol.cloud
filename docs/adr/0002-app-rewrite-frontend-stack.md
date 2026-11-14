@@ -313,8 +313,8 @@ a card has no shadow and a raised thing a deep one. A field is 44 px tall, a car
 The one primary action on a screen is filled green; the quieter actions a card repeats (Photo, Note, Alarms off)
 are a filled tint with no outline; everything else is a ghost button - the card's surface, its words in the navy,
 a hairline edge. **One danger style** (the redesign session of 2026-11-13, after the third critic found four): the
-yes to a step that cannot be taken back - removing a member, a place or a socket, giving a device up, switching
-regulation off, deleting an alarm, a scheme, a build or the account - is filled with `--alarm-fill` under white `--on-alarm` (6.4:1) in both
+yes to a step that cannot be taken back - removing a member, a place or a socket, giving a device up, revoking a
+share link, switching regulation off, deleting an alarm, a scheme, a build or the account - is filled with `--alarm-fill` under white `--on-alarm` (6.4:1) in both
 modes, never the brand green, and is armed in one step; it is the yes of the shared `Asking` with `danger`
 (`.dangerFilled`, `ui/ui.module.css`). Every question's yes - danger, primary or quiet - stands with
 "Abbrechen" beside it in one part, `Answer` (`ui/Asking.tsx`), at a control's 44 px and 12 px radius (the redesign

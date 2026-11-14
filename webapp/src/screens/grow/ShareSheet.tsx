@@ -6,6 +6,7 @@ import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { isDead, linkAddress } from '@/screens/me/sharing/links';
 import { ageLabel } from '@/ui/age';
@@ -161,6 +162,8 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const { t } = useTranslation();
   const zone = useZone();
   const [changing, setChanging] = useState(false);
+  // Revoking is asked first: nothing starts a link again (Chris, 2026-11-14).
+  const [revoking, setRevoking] = useState(false);
   const update = useUpdateShareLink();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
@@ -203,6 +206,15 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             )
           }
         />
+      ) : revoking ? (
+        <Asking
+          note={t('sharing.revokeAsk')}
+          yes={t('sharing.revoke')}
+          danger
+          busy={revoke.isPending}
+          onYes={() => revoke.mutate(link.id, { onSettled: () => setRevoking(false) })}
+          onCancel={() => setRevoking(false)}
+        />
       ) : (
         <div className={ui.wrap}>
           {dead ? null : (
@@ -211,7 +223,7 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             </button>
           )}
           {link.revokedAt === null ? (
-            <button type="button" className={ui.chip} disabled={revoke.isPending} onClick={() => revoke.mutate(link.id)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={revoke.isPending} onClick={() => setRevoking(true)}>
               {t('sharing.revoke')}
             </button>
           ) : null}

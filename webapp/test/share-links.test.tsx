@@ -349,7 +349,7 @@ describe('links that have stopped', () => {
 });
 
 describe('a link’s own sheet', () => {
-  it('shows the address of a live link and revokes it where it stands', async () => {
+  it('shows the address of a live link and revokes it where it stands, once it was asked', async () => {
     await drawLoaded();
     fireEvent.click(within(screen.getByRole('list', { name: 'Active' })).getByRole('button', { name: /^Tent 1 · Timeline/ }));
 
@@ -360,6 +360,15 @@ describe('a link’s own sheet', () => {
     expect(within(sheet).getByText(/it cannot be started again – sharing once more takes a new link/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
+    // Nothing starts a link again, so revoking is asked first, with the one danger yes and "Cancel" beside it.
+    expect(within(sheet).getByText(/^Revoke the link now\?/)).toHaveFocus();
+    expect(server.revoked).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(within(sheet).queryByText(/^Revoke the link now\?/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
+    const yes = within(sheet).getByRole('button', { name: 'Revoke' });
+    expect(yes.className).toMatch(/dangerFilled/);
+    fireEvent.click(yes);
     await waitFor(() => expect(server.revoked).toEqual(['link-week']));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(server.forgotten).toEqual([]);

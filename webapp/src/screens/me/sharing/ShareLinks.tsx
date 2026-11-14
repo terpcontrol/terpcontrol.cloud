@@ -10,6 +10,7 @@ import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
@@ -244,8 +245,9 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
 
 /**
  * The link's own sheet: its address in full, and the one thing that can still
- * be done to it. A live link is revoked, which keeps its card and dates it; a
- * link that has already stopped is forgotten, which takes the card away. The
+ * be done to it. A live link is revoked, which keeps its card and dates it -
+ * asked first, since nothing starts it again (Chris, 2026-11-14); a link that
+ * has already stopped is forgotten, which takes the card away. The
  * address of a dead one is not shown, because it leads nowhere and an address
  * on a screen is an address somebody copies.
  */
@@ -254,26 +256,34 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
   const end = dead ? remove : revoke;
+  const [asking, setAsking] = useState(false);
   const address = linkAddress(link);
+  const ended = () => end.mutate(link.id, { onSuccess: onClose });
 
   return (
     <Sheet
       title={title}
       onClose={onClose}
       actions={
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.danger}`}
-            disabled={end.isPending}
-            onClick={() => end.mutate(link.id, { onSuccess: onClose })}
-          >
-            {t(dead ? 'sharing.forget' : 'sharing.revoke')}
-          </button>
-          <button type="button" className={ui.button} onClick={onClose}>
-            {t('sharing.cancel')}
-          </button>
-        </div>
+        asking ? (
+          <Asking
+            note={t('sharing.revokeAsk')}
+            yes={t('sharing.revoke')}
+            danger
+            busy={end.isPending}
+            onYes={ended}
+            onCancel={() => setAsking(false)}
+          />
+        ) : (
+          <div className={styles.actions}>
+            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={end.isPending} onClick={dead ? ended : () => setAsking(true)}>
+              {t(dead ? 'sharing.forget' : 'sharing.revoke')}
+            </button>
+            <button type="button" className={ui.button} onClick={onClose}>
+              {t('sharing.cancel')}
+            </button>
+          </div>
+        )
       }
     >
       <div className={styles.sheetBody}>

@@ -922,7 +922,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     (`screens/me/sharing/NewLinkSheet.tsx`), as "Freigabelink erstellen ›" on a place's edit page offers that
     place (`?place=`). "Link erstellen" answers with a toast, but from Verlauf, which shows the link itself. A
     link's card says how long it lasts once, by its end ("läuft ab 21. Nov"), and says nothing of camera pictures
-    where no camera could take any (`picturesPossible`, `screens/me/sharing/links.ts`). A line from an earlier year says
+    where no camera could take any (`picturesPossible`, `screens/me/sharing/links.ts`). "Zurückziehen" asks first,
+    with the one danger yes, on Ich › Freigabelinks and in a grow's share sheet alike: nothing starts a link again
+    (Chris, 2026-11-14). A line from an earlier year says
     its year (`sinceLabel`, `dayStamp`, `ui/age.ts`).
 - **Bilder** (`screens/grow/pictures/`): Alle · Deine Fotos · Kamera - "Kamera" only where a camera watches the
   grow or once pictured it, and the choice is part of the address (`?show=`); the newest week film on top, played

@@ -556,23 +556,11 @@ otherwise - where it is described now in brackets)
   danger confirm; deleting a plant leaves a shared harvest's typed amounts as they were (only the plant leaves the
   line); a plan step without a preset clears the preset's name at every re-send, so a preset applied while the
   plan was paused loses its name when the plan resumes; a lead device never heard leaves its place "waiting",
-  whatever else of it reports. The first two are not built yet.
-
-**Asked after the fix round of the third walk (2026-11-14)** - each built as said, and each can be turned round:
-- A plan step without a preset clears the name at every hourly re-send too, so a preset applied while a plan was
-  paused loses its name once the plan resumes.
-- A deleted plant's share is taken off the typed totals of a harvest it shared with others, rather than the totals
-  kept as typed.
-- A public grow's "Messwert vor …" is a device's last word (`lastSeenAt`, a sample or a status message).
-- A correction of a feed with another can of water keeps the recorded doses per litre, never the grid read again.
-- A settled toast goes when the page changes, unless it was raised in the 1.5 s before; one taken back takes the
-  settled toasts raised after it along.
-- A controller never heard beside a socket that reports leaves its place waiting for its first values, not online.
-- A link's window says its clocks wherever an end is not at midnight ("11. Nov 00:01 bis 13. Nov 00:01").
-- The dark film's refusal is said in the app's own words in both languages, not the server's English sentence.
-- Wording: "Wohin kommen die Pflanzen?" on the removal page; "Zeltkamera, Seitenkamera …" as the RTSP name's
-  placeholder.
-- Not on any list: a share link's "Zurückziehen" revokes it in one tap, without a question.
+  whatever else of it reports - all four built (app-ux §2; ADR 0001, "A plant deleted"; server-engines.md). The
+  rest of that round stands as built: a public grow's "Messwert vor …" is a device's last word, a feed corrected
+  with another can keeps its recorded doses per litre, a settled toast goes with its page, a link's window says
+  its clocks where an end is not at midnight, the dark film's refusal is in the app's own words, and "Wohin kommen
+  die Pflanzen?" and "Zeltkamera, Seitenkamera …" stay.
 
 **The contract**
 4. **Migration steps 026 to 031 on a copy of production data** (the redesign session, 2026-11-13 and 14, as Chris

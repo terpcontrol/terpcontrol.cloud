@@ -2583,6 +2583,7 @@
     "noLinks": "No links handed out",
     "change": "Change",
     "revoke": "Revoke",
+    "revokeAsk": "Revoke the link now? Whoever has it sees nothing from then on, and it cannot be started again.",
     "forget": "Forget",
     "save": "Save",
     "saving": "Saving",
