@@ -69,8 +69,8 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
   const here = devices.data?.items ?? [];
   // What each controller is reading and what its lamp is running at. The level
   // is a reading and not a setting, and it is the only word the device gives on
-  // its own light output: a brightness is never acknowledged and an override is
-  // never reported back. The instants come with it, because a reading is proof
+  // its own light output, beside the hold a newer build reports: a brightness is
+  // never acknowledged. The instants come with it, because a reading is proof
   // the device was heard and the migrated `lastSeenAt` of a device claimed into
   // the old cloud can be older than its own samples.
   const reads = useLiveReads(here.map(device => device.id));
@@ -236,7 +236,7 @@ export function DeviceList({ opened = null }: { opened?: string | null }) {
           // "why is it dark in there" is asking about one of these rows, and which
           // of them it is is the question this screen used to leave open.
           const rows = rowsOf(table.items);
-          const light = lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null);
+          const light = lightOutputOf(device, table.capabilities, reads.levels.get(device.id) ?? null, table.lightHold ?? null);
           const lamps = rows.filter(row => isLightRole(row.role));
           const rest = rows.filter(row => !isLightRole(row.role));
           if (!light && rows.length === 0) return null;

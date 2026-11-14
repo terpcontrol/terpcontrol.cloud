@@ -1,4 +1,4 @@
-import { DeviceCapabilities, Socket, SocketOverrideState, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
+import { DeviceCapabilities, LightHold, Socket, SocketOverrideState, SocketRole, SocketState, SocketTimer } from '@fg2/shared-types/v1';
 import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketChunkCount, socketListKey, socketRole } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -31,7 +31,12 @@ import { MAX_SOCKETS, SOCKETS_PER_REPORT_CHUNK, socketChunkCount, socketListKey,
 const DEPLOYED_SOCKET_ROLES: readonly SocketRole[] = ['dehumidifier', 'heater', 'light', 'secondary_light', 'co2'];
 
 /** The capabilities a build announces by name in `caps`. */
-const CAPABILITY_KEYS = { socketOverride: 'socket_override', socketTimer: 'socket_timer', lightOverride: 'light_override' } as const;
+const CAPABILITY_KEYS = {
+  socketOverride: 'socket_override',
+  socketTimer: 'socket_timer',
+  lightOverride: 'light_override',
+  lightHold: 'light_hold',
+} as const;
 
 /** What the report spells "there is none" as. Silence would be "too old to report", which is a different fact. */
 const NONE = 'none';
@@ -131,6 +136,30 @@ export const decodeSockets = (hardware: Record<string, string>, options: DecodeS
   return sockets;
 };
 
+const LIGHT_HOLD = /^(on|off)@(\d+)$/;
+
+/**
+ * The override holding the device's own light output: `light_hold=on@120`,
+ * `off@120`, or `none`, with the seconds it had left at `reportedAt`.
+ *
+ * Read only where the build announces `light_hold` in `caps`. `caps` is sent
+ * again at every boot, so a device put back on a build that does not report the
+ * hold stops announcing it - while the `light_hold` it last sent stays in the
+ * stored report and would otherwise read as a hold forever.
+ */
+export const decodeLightHold = (hardware: Record<string, string>, reportedAt: Date | null): LightHold | null => {
+  const value = hardware.light_hold;
+  if (!reportedAt || value === undefined || !list(hardware.caps).includes(CAPABILITY_KEYS.lightHold)) return null;
+
+  const match = LIGHT_HOLD.exec(value);
+  return {
+    override: match
+      ? { state: match[1] as SocketOverrideState, validUntil: new Date(reportedAt.getTime() + Number(match[2]) * 1000).toISOString() }
+      : null,
+    reportedAt: reportedAt.toISOString(),
+  };
+};
+
 /** The older, lossy summary: one entry per role, with the first address of each. */
 const summarySockets = (hardware: Record<string, string>): Omit<Socket, 'stateChangedAt'>[] => {
   const addresses = new Map(list(hardware.socket_ips).map(entry => [entry.split('@')[0], entry.split('@')[1] ?? '']));
@@ -177,6 +206,7 @@ export const decodeCapabilities = (hardware: Record<string, string>): DeviceCapa
     socketOverride: caps.includes(CAPABILITY_KEYS.socketOverride),
     socketTimer: caps.includes(CAPABILITY_KEYS.socketTimer),
     lightOverride: caps.includes(CAPABILITY_KEYS.lightOverride),
+    lightHold: caps.includes(CAPABILITY_KEYS.lightHold),
     // The empty role means "nobody drives this socket", which every build
     // accepts and none can announce - a comma-separated list cannot carry it.
     // Without this the server refuses to unassign a socket it just assigned.

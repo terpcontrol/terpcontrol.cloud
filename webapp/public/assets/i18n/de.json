@@ -4015,7 +4015,7 @@
     },
     "lightHold": {
       "title": "Auto, an, aus",
-      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Tag und Nacht bleiben dabei, wie der Lichtplan sie legt: Es gelten dieselben Zielwerte, und CO₂ gibt es weiter nur am Tag. Das Gerät meldet das Halten nicht zurück: Markiert ist, was von hier zuletzt gesendet wurde, bis seine Zeit um ist. Auto beendet es."
+      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die angezeigte Zeit oder bis das Gerät neu startet. Tag und Nacht bleiben dabei, wie der Lichtplan sie legt: Es gelten dieselben Zielwerte, und CO₂ gibt es weiter nur am Tag. Ein neuerer Build meldet das Halten zurück, und jeder Browser zeigt es; bei einem älteren ist markiert, was von hier zuletzt gesendet wurde, bis seine Zeit um ist. Auto beendet es."
     },
     "firmwareChannel": {
       "title": "Updates",

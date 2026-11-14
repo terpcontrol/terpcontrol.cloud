@@ -6,7 +6,7 @@ import { DevicePublisherService } from '@modules/device-protocol/device-publishe
 import { DeviceRegistrationService } from '@modules/device-protocol/device-registration.service';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { DeviceSample } from '@modules/device-protocol/device-sinks';
-import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
+import { decodeCapabilities, decodeLightHold, decodeSockets } from '@modules/device-protocol/sockets';
 import { MqttClientService } from '@modules/mqtt/mqtt-client.service';
 import { hashDevicePassword } from '@utils/devicepassword';
 import { Published, recordingMqtt } from './support/device-stack';
@@ -462,6 +462,17 @@ describe('the hardware report', () => {
     expect((await stored())?.state.socketsReportedAt).toBeInstanceOf(Date);
   });
 
+  it('stamps when the hold on the light output arrived', async () => {
+    await device();
+
+    await report('light_hold=on@600');
+
+    const state = (await stored())?.state;
+    expect(state?.hardware.light_hold).toBe('on@600');
+    // The value carries the seconds the hold had left, so the instant it arrived is what they count from.
+    expect(state?.lightHoldReportedAt).toBeInstanceOf(Date);
+  });
+
   it('stamps a socket that stopped answering, so the row can say since when', async () => {
     await device();
     await report('sockets_n=1');
@@ -538,6 +549,27 @@ describe('the socket table', () => {
 
     expect(capabilities).toMatchObject({ socketOverride: true, socketTimer: true, lightOverride: false, roles: ['', 'heater', 'pump'] });
     expect(capabilities.pulseSeconds).toEqual({ heater: 300 });
+  });
+
+  it('reads the hold on the light output against the instant it arrived', () => {
+    const at = new Date('2026-11-13T10:00:00Z');
+    const caps = 'socket_override,light_override,light_hold';
+
+    expect(decodeLightHold({ caps, light_hold: 'off@120' }, at)).toEqual({
+      override: { state: 'off', validUntil: '2026-11-13T10:02:00.000Z' },
+      reportedAt: at.toISOString(),
+    });
+    expect(decodeLightHold({ caps, light_hold: 'none' }, at)).toEqual({ override: null, reportedAt: at.toISOString() });
+    expect(decodeCapabilities({ caps }).lightHold).toBe(true);
+  });
+
+  it('reads no hold on the light output from a build that does not announce it', () => {
+    const at = new Date('2026-11-13T10:00:00Z');
+
+    // A device put back on an older build stops announcing the hold, and what the newer one last said stays stored.
+    expect(decodeLightHold({ caps: 'socket_override,light_override', light_hold: 'on@600' }, at)).toBeNull();
+    expect(decodeLightHold({ caps: 'light_hold' }, at)).toBeNull();
+    expect(decodeLightHold({ caps: 'light_hold', light_hold: 'on@600' }, null)).toBeNull();
   });
 });
 

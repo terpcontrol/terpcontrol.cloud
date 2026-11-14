@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = void 0;
+exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.lightHold = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -387,6 +387,7 @@ exports.deviceCapabilities = (0, common_js_1.named)('DeviceCapabilities', zod_1.
     socketOverride: zod_1.z.boolean(),
     socketTimer: zod_1.z.boolean(),
     lightOverride: zod_1.z.boolean().describe("Whether the controller's own light output takes an override."),
+    lightHold: zod_1.z.boolean().describe('Whether the build reports the override holding its own light output, which `lightHold` on the page then carries.'),
     roles: zod_1.z.array(common_js_1.socketRole).describe('The roles this build knows; a role outside it is never sent.'),
     // The failsafe the device programs into each socket: how long after the
     // last command a socket switches itself off, so a controller that goes
@@ -395,8 +396,18 @@ exports.deviceCapabilities = (0, common_js_1.named)('DeviceCapabilities', zod_1.
     // Keyed by role, and only the roles the device named.
     pulseSeconds: zod_1.z.partialRecord(common_js_1.socketRole, zod_1.z.number().int()),
 }));
+/**
+ * The override holding the device's own light output, as its last report said.
+ * `override` is null when nothing holds it; `reportedAt` is when the device
+ * said so, which is what tells a screen whether a hold it sent since is already
+ * in this answer.
+ */
+exports.lightHold = (0, common_js_1.named)('LightHold', zod_1.z.object({ override: exports.socketOverride.nullable(), reportedAt: (0, common_js_1.instant)() }));
 /** The list carries the capabilities, because a socket row is drawn from both. */
-exports.socketPage = (0, common_js_1.named)('SocketPage', (0, common_js_1.page)(exports.socket).extend({ capabilities: exports.deviceCapabilities }));
+exports.socketPage = (0, common_js_1.named)('SocketPage', (0, common_js_1.page)(exports.socket).extend({
+    capabilities: exports.deviceCapabilities,
+    lightHold: exports.lightHold.nullable().describe('Null where the build does not report it (`capabilities.lightHold`) or has not yet.'),
+}));
 /* ----------------------------------------------------------------- commands */
 /**
  * What a client asks a device to do right now. A discriminated union rather than

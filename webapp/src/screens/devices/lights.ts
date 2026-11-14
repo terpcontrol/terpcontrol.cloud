@@ -1,4 +1,4 @@
-import type { Device, DeviceCapabilities, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
+import type { Device, DeviceCapabilities, DeviceConfiguration, LightHold, SocketRole } from '@fg2/shared-types/v1';
 import { figureAt, finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { OutputLevel } from '@/api/devices';
 
@@ -73,9 +73,9 @@ export const withLightLimit = (configuration: DeviceConfiguration, type: Device[
  *
  * `level` is a reading and `limitPercent` a setting, and the row says both: a
  * lamp set to 60 % is dark at night all the same, and only the reading can tell
- * a grower which of the two the tent is in. The device acknowledges neither a
- * setting nor an override, so what it reports is the only thing here that is a
- * fact about the hardware.
+ * a grower which of the two the tent is in. The device acknowledges no setting;
+ * a build that announces `light_hold` reports the override holding the output,
+ * and those two reports are the only facts here about the hardware.
  */
 export interface LightOutput {
   deviceId: string;
@@ -87,6 +87,8 @@ export interface LightOutput {
   type: Device['type'];
   /** Whether the build announced that it holds its own light output on command. */
   takesOverride: boolean;
+  /** The hold the device last reported, or null where its build reports none - then only the browser that sent one knows of it. */
+  reportedHold: LightHold | null;
 }
 
 /**
@@ -98,7 +100,12 @@ export interface LightOutput {
  * device type is deliberately not one of them - the set of types grows with the
  * hardware, and a plug that one day gained a dimmed output would be missed.
  */
-export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, level: OutputLevel | null): LightOutput | null => {
+export const lightOutputOf = (
+  device: Device,
+  capabilities: DeviceCapabilities,
+  level: OutputLevel | null,
+  reportedHold: LightHold | null = null,
+): LightOutput | null => {
   const limitPercent = lightLimitOf(device.configuration, device.type);
   if (!capabilities.lightOverride && limitPercent === null && level === null) return null;
 
@@ -109,6 +116,7 @@ export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, 
     configuration: device.configuration,
     type: device.type,
     takesOverride: capabilities.lightOverride,
+    reportedHold: capabilities.lightHold ? reportedHold : null,
   };
 };
 

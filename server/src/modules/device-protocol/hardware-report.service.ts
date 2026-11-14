@@ -18,9 +18,9 @@ import { decodeSockets } from './sockets';
  * It rides the log topic as `hardware-info:<key>=<value>`, is never a diary
  * line, and is answered with nothing. The report is kept flat, exactly as the
  * device sends it, in `devices.state.hardware` - its keys belong to the firmware
- * of that type, so nothing here constrains them - and three of them mean
- * something beyond being stored: the socket table, the camera, and the build the
- * device is running.
+ * of that type, so nothing here constrains them - and a few of them mean
+ * something beyond being stored: the socket table, the hold on the light output,
+ * the camera, and the build the device is running.
  *
  * The `none` sentinel is the reason the report can be trusted at all. A device
  * says `webcam_did=none` and `sockets=none` rather than staying silent, because
@@ -93,7 +93,9 @@ export class HardwareReportService {
     }
 
     const hardware = { ...device.state.hardware, [key]: value };
-    await this.devices.updateOne({ id: device.id }, { $set: { [`state.hardware.${key}`]: value } });
+    // The light's hold carries the seconds it had left and never an instant, so the instant it arrived is kept beside it.
+    const stamp = key === 'light_hold' ? { 'state.lightHoldReportedAt': new Date() } : {};
+    await this.devices.updateOne({ id: device.id }, { $set: { [`state.hardware.${key}`]: value, ...stamp } });
 
     if (key === 'sockets_n') await this.dropSupersededChunks(device.id, hardware, Number(value));
     if (key === 'sockets_n' || socketListChunk(key) !== null) await this.noteSocketReport(device, device.state.hardware, hardware);

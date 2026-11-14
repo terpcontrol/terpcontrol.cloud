@@ -136,6 +136,11 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   the colour of its space's camera stills, else the night ([data.md](data.md#influxdb), ADR 0006).
 - The 24-hour climate verdict (`overview.service.ts`) reads 2-minute means (`VERDICT_STEP_SECONDS`): an excursion
   much shorter than that is averaged away. How a switch between day and night is judged: ADR 0006.
+- The hold on a controller's or fridge's own light output is what the device last reported (`light_hold`, read
+  against `state.lightHoldReportedAt`, served on `GET /v1/devices/{id}/sockets` as `lightHold`), never what the cloud
+  last sent: a command is not proof it was taken, and the hold dies with a reboot the cloud does not see (Chris,
+  2026-11-13). A build that does not announce `light_hold` in `caps` gets `lightHold: null`, its stale stored value
+  included - a device put back on an older build stops announcing it at the next boot.
 - A week's light hours are lit time over heard time, refused below a day heard; a report judges each phase against
   the band snapshotted for it, never today's targets; photo totals count the pictures of matched entries, because
   migrated pictures hang on notes.

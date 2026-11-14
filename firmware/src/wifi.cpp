@@ -357,9 +357,16 @@ static bool socket_search_changed = false;
 static bool light_output_override_active = false;
 static bool light_output_override_on = false;
 static TickType_t light_output_override_until_tick = 0;
+// What the last report said about that hold, so that its end - by expiry or by
+// `auto` - is reported like a socket row's.
+static uint8_t light_hold_reported_signature = 0;
 // When the socket table was last reported, which is what the re-report on a
 // state change is spaced out against.
 static TickType_t last_socket_report_tick = 0;
+// Set by an override command, so the next pass reports the table whatever the
+// spacing says: a hold sent again with another length changes nothing the
+// signature sees, and whoever sent it is waiting to see it taken.
+static bool socket_report_due = false;
 
 static TickType_t socketRoleMinSendInterval(const std::string& role);
 static std::string socketAuthQuery(const SmartSocket& socket);
@@ -2768,11 +2775,31 @@ static std::string socketReportRow(SmartSocket& socket) {
   return socket.role + "|" + socket.id + "|" + address + "|" + socketStateColumn(socket) + "|" + socketHoldColumn(socket);
 }
 
+// The hold on the module's own light output, spelled like a row's override
+// column without its name: `on@<seconds>`, `off@<seconds>`, or `none`.
+static uint8_t lightHoldSignature() {
+  bool on = false;
+  return wifiLightOutputOverride(on) ? (on ? 1 : 2) : 0;
+}
+
+static std::string lightHoldValue() {
+  bool on = false;
+  if(!wifiLightOutputOverride(on)) {
+    return "none";
+  }
+  const TickType_t left = light_output_override_until_tick - xTaskGetTickCount();
+  const uint32_t seconds = (uint32_t)((left + configTICK_RATE_HZ - 1) / configTICK_RATE_HZ);
+  return std::string(on ? "on" : "off") + "@" + std::to_string(seconds);
+}
+
 static void reportSocketsHardwareInfo() {
   if(smart_socket_cloud_handle == nullptr) {
     return;
   }
   last_socket_report_tick = xTaskGetTickCount();
+  socket_report_due = false;
+  light_hold_reported_signature = lightHoldSignature();
+  smart_socket_cloud_handle->log("hardware-info:light_hold=" + lightHoldValue(), 0);
   smart_socket_cloud_handle->log("hardware-info:sockets=" + connectedSocketRolesCsv(), 0);
   smart_socket_cloud_handle->log("hardware-info:socket_ips=" + connectedSocketIpsCsv(), 0);
 
@@ -2800,14 +2827,24 @@ static void reportSocketsHardwareInfo() {
   }
 }
 
-// Sends the table again once a row is doing something else than the last report
-// said. Spaced out, because a socket following an output that oscillates would
-// otherwise report on every control pass and fill the log queue.
+// Sends the table again once a row, or the hold on the light output, is doing
+// something else than the last report said. Spaced out, because a socket
+// following an output that oscillates would otherwise report on every control
+// pass and fill the log queue - except after an override command, which is a
+// person's tap and not an oscillation.
 static void reportSocketStateChanges() {
   if(smart_socket_cloud_handle == nullptr) {
     return;
   }
+  if(socket_report_due) {
+    reportSocketsHardwareInfo();
+    return;
+  }
   if((int32_t)(xTaskGetTickCount() - last_socket_report_tick) < (int32_t)SMART_SOCKET_REPORT_MIN_INTERVAL) {
+    return;
+  }
+  if(light_hold_reported_signature != lightHoldSignature()) {
+    reportSocketsHardwareInfo();
     return;
   }
   for(auto& socket : smart_sockets) {
@@ -2841,7 +2878,7 @@ static void reportSocketCapabilities() {
   }
 
   smart_socket_cloud_handle->log("hardware-info:socket_roles=" + roles, 0);
-  smart_socket_cloud_handle->log("hardware-info:caps=socket_override,socket_timer,light_override", 0);
+  smart_socket_cloud_handle->log("hardware-info:caps=socket_override,socket_timer,light_override,light_hold", 0);
   smart_socket_cloud_handle->log("hardware-info:socket_pulse=" + pulses, 0);
 }
 
@@ -3219,6 +3256,7 @@ bool wifiHandleAuxCommand(const JsonDocument& command, fg::Fridgecloud* cloud) {
     const uint32_t seconds = command["seconds"] | 0u;
     const bool ok = output.empty() ? wifiOverrideSmartSocket(slot, state, seconds)
                                    : wifiOverrideOutput(output, state, seconds);
+    socket_report_due = socket_report_due || ok;
     if(!ok && cloud) {
       cloud->log("message-aux-command-failed:socket_override:" + (output.empty() ? std::to_string(slot) : output), 1);
     }

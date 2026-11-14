@@ -1229,12 +1229,21 @@ export interface DeviceCapabilities {
    */
   lightOverride: boolean;
   /**
+   * Whether the build reports the override holding its own light output, which `lightHold` on the page then carries.
+   */
+  lightHold: boolean;
+  /**
    * The roles this build knows; a role outside it is never sent.
    */
   roles: SocketRole[];
   pulseSeconds: {
     [k: string]: number;
   };
+}
+
+export interface LightHold {
+  override: SocketOverride | null;
+  reportedAt: string;
 }
 
 export interface SocketPage {
@@ -1244,6 +1253,10 @@ export interface SocketPage {
    */
   nextCursor: string | null;
   capabilities: DeviceCapabilities;
+  /**
+   * Null where the build does not report it (`capabilities.lightHold`) or has not yet.
+   */
+  lightHold: LightHold | null;
 }
 
 export interface RebootCommand {

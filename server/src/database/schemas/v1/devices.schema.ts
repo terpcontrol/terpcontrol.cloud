@@ -42,6 +42,8 @@ export interface StoredDeviceState extends Omit<
   maintenanceUntil: Date | null;
   socketStateChangedAt: Record<string, Date>;
   socketsReportedAt: Date | null;
+  /** When `hardware.light_hold` arrived. Kept here only: the API serves it as part of the socket page's `lightHold`. */
+  lightHoldReportedAt?: Date | null;
 }
 
 export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'control'> {
@@ -185,6 +187,8 @@ const stateSchema = new Schema<StoredDeviceState>(
     // it had left then and never an instant, so without this the countdown a
     // person watches would restart on every read.
     socketsReportedAt: { type: Date, default: null },
+    // When the hold on the light output was last reported, for the same reason.
+    lightHoldReportedAt: { type: Date, default: null },
   },
   { _id: false, versionKey: false, minimize: false },
 );

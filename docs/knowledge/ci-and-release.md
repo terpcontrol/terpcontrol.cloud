@@ -1,6 +1,6 @@
 ---
 summary: Why CI, the image builds, the deploy pipeline and firmware releases work as they do, the GitHub settings behind them and their traps - read before changing .github/, a Dockerfile, up.sh or build-fw.sh, and before deploying by hand
-updated: 2026-10-08
+updated: 2026-11-14
 source: Chris (2026-09-23, 2026-09-30, 2026-10-01, 2026-10-04); PRs #21, #34, #61, #63, #64, #71, #73, #80, #89, #95, #104, #105, #121, #126, #142; sessions 2026-08..10; codebase cleanup (2026-10-08); GitHub repository settings read 2026-10-08
 paths:
   - .github/**
@@ -187,6 +187,11 @@ header. A full green run went from 53,301 log lines to about 5,100; most of the 
   (`fw-buildcontainer/Dockerfile` says why). Moving it to a supported Debian changes the compiler and Python under
   ESP-IDF 4.4, so it waits for a change of its own. Such an upstream break shows up without any change here: in CI
   only on a pull request that touches the firmware paths, otherwise at the next firmware release.
+- **The PlatformIO platform is pinned** to `espressif32@7.1.3` in `fw-buildcontainer/Dockerfile` (2026-11-14), the
+  Arduino core 2.0.17 every device runs. 8.0.0 (2026-10-19) brings Arduino core 3.3 on ESP-IDF 5, which the firmware
+  does not compile against (`'WiFi' was not declared` in the fridge dashboard first); the unpinned install picked it
+  up in the first image built after it and broke the firmware job of an unrelated pull request. Moving to core 3 is a
+  firmware change of its own, verified with `/firmware-check`.
 - **On real hardware** a firmware change is verified before its merge with the `/firmware-check` skill
   ([testing with real devices](testing-real-devices-and-data.md#firmware-on-the-development-devices)). How channels
   and rollouts carry a build to the devices: [firmware](firmware.md#ota-and-update-channels).

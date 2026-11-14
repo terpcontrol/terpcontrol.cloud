@@ -1,6 +1,6 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, connection-loss tests, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
-updated: 2026-10-12
+updated: 2026-11-14
 source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
@@ -31,6 +31,13 @@ Everyday testing - suites, simulator, own stacks, browser checks - is in [testin
     percent, or earlier failures reached the class's `maxFailures` (`firmware-rollout.service.ts`). While it flashes
     and reboots a device is offline for up to about 5 minutes; that is normal.
   - It catches ESP32-only compile errors the desktop build misses (a `const` method calling `WiFiClient::connected()`).
+  - It can run from a throwaway worktree instead of switching the main checkout: `git worktree add` the merged state,
+    copy the main `.env` (its `COMPOSE_PROJECT_NAME` makes compose act on the main stack) and run it there. Such a
+    worktree lacks the git-ignored `docker-compose.override.yaml`, so the server rebuild there recreates the main
+    stack's other containers too (volumes kept); rebuild once from the main checkout afterwards to put it back.
+  - `verify.py` waits for every device of a type in the test account: one that has been silent for weeks times its
+    type out. Leave it out only on Chris's word (2026-11-14: a second fridge silent for two months) and name it in
+    the PR comment.
 - Compile-only builds are in [AGENTS.md](../../AGENTS.md#firmware). Build every type that compiles a changed shared
   file; one type compiling proves nothing about the others. In a `while read` loop give `build-fw.sh` `</dev/null`:
   its `docker run -i` eats the loop's stdin and silently skips the remaining iterations.

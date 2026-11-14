@@ -157,7 +157,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `useMayManage`, `useMayLogIn`, `useMayWith`, ...); never derive it from owner ids. What to draw for which role:
   app-ux.md §5.
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
-  `terp.shape.<user>`, `terp.lightHold.<device>` - the last light hold sent, since no device reports one back -
+  `terp.shape.<user>`, `terp.lightHold.<device>` - the last light hold sent: all a build without `light_hold` leaves to show, and on a
+  newer one what is marked until the device's next report -
   ...); whatever has to follow the account (zone, diary layer, notices seen, the language for text the server
   writes) lives in `me.preferences`. `localStorage` is read and written through `src/ui/stored.ts`, which answers
   null and keeps nothing where storage is blocked; only `src/api/session.ts` has its own, as it uses

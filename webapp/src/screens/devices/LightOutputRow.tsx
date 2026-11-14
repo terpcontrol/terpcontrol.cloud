@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { ActuatorRuns, SocketOverrideState } from '@fg2/shared-types/v1';
 import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { serverNow } from '@/api/clock';
 import { useSaveConfiguration, useSetOverride } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
 import { saidInAnyLanguage } from '@/i18n/i18n';
@@ -50,9 +51,11 @@ const SLIDER_REST_MS = 1500;
  * is a command: it is heard or it is not, it dies with a reboot, and a build
  * that has not announced it is never sent one.
  *
- * What the lamp is actually doing is a reading, and it is the only fact here the
- * device vouches for: a setting is never acknowledged and an override is never
- * reported, so the level above the dimmer is what the row is honest with.
+ * What the lamp is actually doing is a reading, and the device vouches for it; a
+ * setting is never acknowledged, so the level above the dimmer is what the row
+ * is honest with. A hold is reported back by a build that announces it, and
+ * then every browser shows it; an older build reports none, and only the
+ * browser that sent one remembers it.
  *
  * The brightness is a key of the same document a grow plan's steps are written
  * into, so this slider and a running plan are two hands on one figure: the
@@ -189,11 +192,22 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
   // be put. The direction is the three buttons' to say.
   const [hold, setHold] = useState(DEFAULT_HOLD_SECONDS);
   const [asked, setAsked] = useState<number | null>(null);
-  // The device reports no hold of its own light, so the last one sent from
-  // here is remembered until it runs out: the button pressed stays marked and
-  // says until when, instead of three buttons none of which is in force.
+  // The hold in force: what the device last reported, where its build reports
+  // one and has spoken since this browser last sent a hold - until then the hold
+  // just sent, which the device reports within seconds. An older build reports
+  // none, so there the last one sent from here is remembered until it runs out:
+  // the button pressed stays marked and says until when, instead of three
+  // buttons none of which is in force.
   const [sentHold, setSentHold] = useState<SentHold | null>(() => readHold(output.deviceId));
-  const holding = sentHold !== null && sentHold.until > now.toMillis() ? sentHold : null;
+  const reported = output.reportedHold;
+  const fromDevice = reported !== null && (sentHold === null || Date.parse(reported.reportedAt) >= sentHold.sentAt);
+  const current: SentHold | null = fromDevice
+    ? reported.override && reported.override.state !== 'auto'
+      ? { state: reported.override.state, until: Date.parse(reported.override.validUntil), sentAt: 0 }
+      : null
+    : sentHold;
+  const holding =
+    current !== null && current.state !== 'auto' && current.until > now.toMillis() ? { state: current.state, until: current.until } : null;
 
   const force = (state: SocketOverrideState) => {
     const forSeconds = state === 'auto' ? 0 : hold;
@@ -202,7 +216,9 @@ export function LightOutputRow({ output, spaceId = null, unheard, mayManage, run
       { deviceId: output.deviceId, target: { kind: 'output', output: 'light' }, state, forSeconds },
       {
         onSuccess: result => {
-          const next = state === 'auto' || !result.deviceOnline ? null : { state, until: now.toMillis() + forSeconds * 1000 };
+          // `auto` is kept as well, so a report from before it does not mark a hold that was just ended.
+          const sentAt = serverNow().toMillis();
+          const next = result.deviceOnline ? { state, until: sentAt + forSeconds * 1000, sentAt } : null;
           setSentHold(next);
           writeHold(output.deviceId, next);
         },
@@ -407,10 +423,11 @@ function Saved({ save, paused }: { save: Mutation & { isSuccess: boolean }; paus
   ) : null;
 }
 
-/** A hold of the light output sent from this browser, and when it runs out. */
+/** A hold of the light output sent from this browser, when it runs out, and when it was sent. */
 interface SentHold {
-  state: 'on' | 'off';
+  state: SocketOverrideState;
   until: number;
+  sentAt: number;
 }
 
 const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
@@ -418,7 +435,9 @@ const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
 /** What this browser last sent, if anything: a preference of this screen and never a fact the device confirmed. */
 const readHold = (deviceId: string): SentHold | null => {
   const stored = readStoredJson<SentHold>(HOLD_KEY(deviceId));
-  return stored && (stored.state === 'on' || stored.state === 'off') && typeof stored.until === 'number' ? stored : null;
+  if (!stored || !['on', 'off', 'auto'].includes(stored.state) || typeof stored.until !== 'number') return null;
+  // Kept before the send was dated: older than any report.
+  return { ...stored, sentAt: typeof stored.sentAt === 'number' ? stored.sentAt : 0 };
 };
 
 const writeHold = (deviceId: string, hold: SentHold | null) => writeStored(HOLD_KEY(deviceId), hold ? JSON.stringify(hold) : null);

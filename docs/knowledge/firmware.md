@@ -1,6 +1,6 @@
 ---
 summary: Working on the device firmware or on what the server does with it - build, flash, serial log, OTA and update channels, memory, NVS and RTC limits, reconnecting and the daily recovery reboot, safety stops, known gaps
-updated: 2026-10-12
+updated: 2026-11-13
 source: Chris (decisions 2026-07..10); agent sessions and PR descriptions 2026-05..10, #145; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; connection-loss tests on the development devices (2026-10-12)
 paths:
   - firmware/**
@@ -170,8 +170,13 @@ and certificate rotation in [README.md](../../README.md) (MQTT transport); the r
 - Heavy I/O runs in a task of its own, never on the loop task: the old camera capture there stalled regulation for
   30 s and more. Inbound UDP, power-save and the relay task: [terp-cam.md](terp-cam.md).
 - Not reported to the cloud at all: WiFi signal strength (the device's own dashboard draws it as bars, the WiFi
-  menu's `Show Wifi Status` as a figure, the serial `[health]` line logs it), an "update available" state, and that
-  an override holds the light output (socket rows do report theirs).
+  menu's `Show Wifi Status` as a figure, the serial `[health]` line logs it) and an "update available" state.
+- The override holding the light output is reported since 2026-11 (Chris, 2026-11-13: the firmware reports it, not
+  the server remembering the last command): `hardware-info:light_hold` with every socket table, announced as
+  `light_hold` in `caps` ([device-protocol.md 6.3](../device-protocol.md#63-the-socket-table-chunked-and-reassembled)).
+  Every accepted `socket_override`, of a socket or the light, sends the table on the next pass regardless of the
+  30 s spacing (`socket_report_due`): a hold sent again with another length changes nothing the change detection
+  sees, because the seconds left are left out of it on purpose.
 
 ## Settings documents
 
