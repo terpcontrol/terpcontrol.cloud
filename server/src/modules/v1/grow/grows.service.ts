@@ -38,6 +38,7 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
@@ -81,6 +82,7 @@ export class GrowsService {
     // the line with it: the rows are read here as well as written through the
     // writer below.
     @InjectModel(MODEL_V1.entry) private readonly entryRows: Model<EntryDocument>,
+    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     private readonly access: AccessService,
     private readonly phases: PhaseWriterService,
     private readonly entries: EntryWriterService,
@@ -283,6 +285,7 @@ export class GrowsService {
 
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
+    if (body.endedAt !== undefined && changed.endedAt !== null) await this.endReminders(id);
 
     return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
   }
@@ -377,6 +380,16 @@ export class GrowsService {
 
     await this.plants.deleteMany({ growId: id });
     await this.shareLinks.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
+    await this.endReminders(id);
+  }
+
+  /**
+   * A grow's reminders end with it, as a place's do: a rhythm kept for plants that are no longer there would come due
+   * on no screen, and Rhythmen listed it with nothing left to change it by. Reopening the grow (`endedAt: null`) does
+   * not bring them back - a rhythm wanted again is made again.
+   */
+  private async endReminders(growId: string): Promise<void> {
+    await this.reminders.deleteMany({ 'subject.type': 'grow', 'subject.id': growId });
   }
 
   /**
@@ -855,6 +868,7 @@ export class GrowsService {
 
     if (standing.every(plant => plantIds.includes(plant.id) || plant.status !== 'active') && grow.endedAt === null) {
       await this.grows.updateOne({ id: growId }, { $set: { endedAt: harvestedAt } });
+      await this.endReminders(growId);
     }
 
     return { plants: harvested.map(plant => serialisePlant(plant, hide)), entryId: entry.id };

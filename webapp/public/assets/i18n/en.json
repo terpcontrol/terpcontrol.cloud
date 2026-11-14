@@ -1397,6 +1397,8 @@
       "labelOptional": "Name – left empty, it is numbered",
       "remove": "Delete plant",
       "removeAsk": "Delete {{name}}? The plant leaves the grow and its phases and places. What the diary says about it stays.",
+      "removeAskHarvested": "Delete {{name}}? The plant leaves the grow and its phases and places, and its harvest leaves the diary with its weight. Whatever else the diary says about it stays.",
+      "removeAskShared": "Delete {{name}}? The plant leaves the grow and its phases and places. Its harvest with {{others}} stays in the diary as weighed and names only {{others}}; so does whatever else the diary says about it.",
       "removeYes": "Delete"
     },
     "scheme": {

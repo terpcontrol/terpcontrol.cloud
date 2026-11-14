@@ -1407,6 +1407,8 @@
       "labelOptional": "Name – frei gelassen, wird sie nummeriert",
       "remove": "Pflanze löschen",
       "removeAsk": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Was im Tagebuch über sie steht, bleibt.",
+      "removeAskHarvested": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten, und ihre Ernte mit ihrem Gewicht aus dem Tagebuch. Was sonst im Tagebuch über sie steht, bleibt.",
+      "removeAskShared": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Ihre Ernte mit {{others}} bleibt im Tagebuch, wie gewogen, und nennt nur noch {{others}}; was sonst dort über sie steht, auch.",
       "removeYes": "Löschen"
     },
     "scheme": {

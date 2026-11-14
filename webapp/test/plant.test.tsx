@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
@@ -418,6 +418,30 @@ describe('taking a plant out of its grow', () => {
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/plants/plant-1'));
     expect(await screen.findByText('Amnesia 1 deleted')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * A harvested plant takes its own harvest's line out of the diary, weight and all; one cut with others leaves that
+   * line as weighed. The question said "What the diary says about it stays" over both.
+   */
+  it('says that its own harvest goes with it, and that one shared with others stays as weighed', async () => {
+    const harvest = (plantIds: string[]) =>
+      entry({ id: 'cut', kind: 'harvest', plantIds, values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } as never });
+    const down = { ...plants[0], status: 'harvested' as const, harvest: { harvestedAt: at(1), wetWeightG: 50, dryWeightG: 11 } };
+    state.plants = [down, plants[1]];
+    state.lines = [harvest(['plant-1'])];
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(await screen.findByText(/its harvest leaves the diary with its weight/)).toBeInTheDocument();
+    expect(screen.queryByText(/What the diary says about it stays/)).not.toBeInTheDocument();
+    cleanup();
+
+    state.plants = [down, plants[1]];
+    state.lines = [harvest(['plant-1', 'plant-2'])];
+    await drawLoaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete plant' }));
+    expect(await screen.findByText(/Its harvest with Amnesia 2 stays in the diary as weighed and names only Amnesia 2/)).toBeInTheDocument();
   });
 });
 

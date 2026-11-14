@@ -43,6 +43,7 @@ import { uniquePlaceNames } from '@/migrations/steps/028-unique-place-names';
 import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
 import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
+import { remindersOfEndedGrows } from '@/migrations/steps/032-reminders-of-ended-grows';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -874,6 +875,34 @@ describe('what a place took with it', () => {
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
     await remindersOfEndedPlaces.run(again);
     expect(again.stats).toEqual({ 'reminders.endedWithAPlace': 0, rejected: 0 });
+  });
+
+  /** A grow's rhythms ended with it no more than a place's did: "alle 3 Tage" stood under Rhythmen after the harvest. */
+  it('deletes the reminders of ended and vanished grows, and no place´s', async () => {
+    await collection('grows').insertMany([
+      { id: 'running', endedAt: null },
+      { id: 'harvested', endedAt: new Date(AT - DAY) },
+    ]);
+    await collection('reminders').insertMany([
+      { id: 'kept', subject: { type: 'grow', id: 'running' } },
+      { id: 'of-a-harvested-grow', subject: { type: 'grow', id: 'harvested' } },
+      { id: 'of-a-grow-that-is-gone', subject: { type: 'grow', id: 'gone' } },
+      // A place's reminder is the place's, whatever the place's id happens to be.
+      { id: 'of-a-place', subject: { type: 'space', id: 'harvested' } },
+    ]);
+    const left = async () => (await collection('reminders').find({}).toArray()).map(row => row.id).sort();
+
+    await remindersOfEndedGrows.run(new MigrationContext(db(), true, new Date(AT)));
+    expect(await left()).toHaveLength(4);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await remindersOfEndedGrows.run(context);
+    expect(await left()).toEqual(['kept', 'of-a-place']);
+    expect(context.stats).toEqual({ 'reminders.endedWithAGrow': 2, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await remindersOfEndedGrows.run(again);
+    expect(again.stats).toEqual({ 'reminders.endedWithAGrow': 0, rejected: 0 });
   });
 
   it('puts an open alert where its device or its camera stands, and leaves one that is over where it happened', async () => {

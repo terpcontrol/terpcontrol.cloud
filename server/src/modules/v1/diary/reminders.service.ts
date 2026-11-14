@@ -94,11 +94,14 @@ export class RemindersService {
   /**
    * What a reminder is about is not changed here. A rhythm moved from one tent
    * to another is a different arrangement, decided by whoever manages the place
-   * it would land in - so it is written there and taken back here.
+   * it would land in - so it is written there and taken back here. One of a grow
+   * or a place that has ended is not changed either: it ended with them, and is
+   * refused as making it would be.
    */
   public async update(ctx: AccessContext, id: string, body: ReminderUpdate): Promise<Reminder> {
     const reminder = await this.byId(id);
     await this.access.require(ctx, subjectRef(reminder.subject.type, reminder.subject.id), 'manage');
+    await this.requireRunning(reminder.subject);
 
     if (body.subject && (body.subject.type !== reminder.subject.type || body.subject.id !== reminder.subject.id)) {
       throw unprocessable('reminder_moved', 'A reminder stays with the grow or the space it was made for.', [
@@ -156,8 +159,9 @@ export class RemindersService {
    * that are no longer there - a daily watering for a grow harvested in August.
    * Nothing takes it off again, either: the tasks of an ended grow are not on
    * the board, so the reminder would sit there producing them unseen until
-   * somebody opened that grow's own list. A place that has ended keeps none
-   * either: its rhythms ended with it, and a new one would be due on no screen.
+   * somebody opened that grow's own list. A grow's reminders end with it
+   * (`GrowsService`), and a place that has ended keeps none either: its rhythms
+   * ended with it, and a new one would be due on no screen.
    */
   private async requireRunning(subject: GrowOrSpaceRef): Promise<void> {
     if (subject.type === 'space') return refuseEndedId(this.spaces, subject.id);

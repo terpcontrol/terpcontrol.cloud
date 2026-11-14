@@ -32,4 +32,18 @@ export const growsOn = (
     presets = null,
   }: { writer?: EntryWriterService; phases?: PhaseWriterService; presets?: ClimatePresets | null } = {},
 ): GrowsService =>
-  new GrowsService(db.grows, db.plants, db.devices, db.memberships, db.spaces, db.users, db.shareLinks, db.entries, access, phases, writer, presets);
+  new GrowsService(
+    db.grows,
+    db.plants,
+    db.devices,
+    db.memberships,
+    db.spaces,
+    db.users,
+    db.shareLinks,
+    db.entries,
+    db.reminders,
+    access,
+    phases,
+    writer,
+    presets,
+  );

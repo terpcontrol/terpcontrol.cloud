@@ -133,6 +133,8 @@ const state = {
   zone: null as string | null,
   /** Everybody the tent's member list names. */
   people: [] as { id: string; handle: string }[],
+  /** When the grow ended; null while it runs. */
+  growEnded: null as string | null,
 };
 
 const spaces = () => [spaceWhere(state.youMay)];
@@ -145,7 +147,7 @@ const grows = () =>
       id: 'grow-1',
       ownerId: state.youMay === 'own' ? YOU : THE_HOST,
       name: 'Spring run',
-      endedAt: null,
+      endedAt: state.growEnded,
       placements: [{ id: 'pl-1', spaceId: 'space-1', startedAt: daysFromNow(-30), endedAt: null, plantIds: null }],
     } as GrowListItem,
   ] as GrowListItem[];
@@ -216,6 +218,7 @@ beforeEach(() => {
   state.youMay = 'own';
   state.zone = null;
   state.people = [];
+  state.growEnded = null;
   state.waiting = [water, chore, planStep, mias, overdue];
   state.done = [ticked];
   state.rhythms = [...REMINDERS];
@@ -384,6 +387,31 @@ describe('the rhythms', () => {
     await drawLoaded();
 
     expect(section('Rhythms').getByText(reading(/^once on 26 Oct 2026 · Spring run · Water$/))).toBeInTheDocument();
+  });
+
+  /** "Alle Erinnerungen, fällig oder nicht": a one-off was left out while it was due and listed again once done. */
+  it('lists a one-off alike while it is due and once it is done', async () => {
+    const repot = reminder({ id: 'rem-8', label: 'Repot', everyDays: null, onceAt: daysFromNow(0), defaults: null });
+    state.rhythms = [repot];
+    state.waiting = [task({ id: 'rem-8', sourceId: 'rem-8', label: 'Repot', defaults: null })];
+    state.done = [];
+    await drawLoaded();
+
+    expect(section('Today').getByText('Repot')).toBeInTheDocument();
+    expect(section('Rhythms').getByText(reading(/^once on 16 Sep 2026 · Spring run · Water$/))).toBeInTheDocument();
+  });
+
+  /** An ended grow's reminders end with it: "Gelato düngen" stood here after the harvest, with nothing to change it by. */
+  it('lists none of a grow that has ended, and the place´s as ever', async () => {
+    state.growEnded = daysFromNow(-1);
+    state.waiting = [];
+    state.done = [];
+    state.rhythms = [...REMINDERS];
+    await drawLoaded();
+
+    expect(section('Rhythms').getByText('Clean the carbon filter')).toBeInTheDocument();
+    expect(section('Rhythms').queryByText('Water')).not.toBeInTheDocument();
+    expect(section('Rhythms').queryByText('Feed')).not.toBeInTheDocument();
   });
 
   it('is still there on a week with nothing due at all, which is the week a rhythm disappeared in', async () => {

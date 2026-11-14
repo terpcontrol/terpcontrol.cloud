@@ -217,6 +217,57 @@ describe('a place that ends', () => {
   });
 });
 
+/**
+ * A grow's reminders end with it, as a place's do: "Gelato düngen" stood under Rhythmen after the harvest that ended
+ * Gelato, with a sheet that offered no grow to keep it for and a save the server took.
+ */
+describe('a grow that ends', () => {
+  const growIn = async (session: Session, name: string) =>
+    (
+      await session.client
+        .post('/v1/grows')
+        .send({ name, type: 'photoperiod', spaceId: tent, plants: [{ strain: 'Gelato', count: 1 }] })
+        .expect(201)
+    ).body;
+  const about = (growId: string) => aReminder({ subject: { type: 'grow', id: growId }, kind: 'feed' });
+  const listed = async () => (await owner.client.get('/v1/reminders').expect(200)).body.items.map((one: { id: string }) => one.id);
+
+  it('takes its reminders with it when its last plant is harvested, and leaves the place´s alone', async () => {
+    const grow = await growIn(owner, unique('Harvested'));
+    const ofTheGrow = await create(owner, about(grow.id));
+    const ofThePlace = await create(owner, aReminder());
+
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45 }).expect(201);
+
+    expect(await listed()).not.toContain(ofTheGrow.id);
+    expect(await listed()).toContain(ofThePlace.id);
+    expect((await owner.client.get(`/v1/reminders?growId=${grow.id}`).expect(200)).body.items).toEqual([]);
+  });
+
+  it('takes them when its end is set by hand, and does not bring them back when it is reopened', async () => {
+    const grow = await growIn(owner, unique('Ended by hand'));
+    const ofTheGrow = await create(owner, about(grow.id));
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: new Date().toISOString() }).expect(200);
+    expect(await listed()).not.toContain(ofTheGrow.id);
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
+    expect(await listed()).not.toContain(ofTheGrow.id);
+  });
+
+  it('refuses to change one of a grow that has ended, as it refuses to make one', async () => {
+    const grow = await growIn(owner, unique('Ended under it'));
+    const ofTheGrow = await create(owner, about(grow.id));
+    // A grow that ended before its reminders went with it: what migration step 032 clears.
+    await setRow('grows', { id: grow.id }, { endedAt: new Date() });
+
+    const refused = await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(409);
+    expect(refused.body.code).toBe('grow_ended');
+    // Taking it off is still allowed.
+    await owner.client.delete(`/v1/reminders/${ofTheGrow.id}`).expect(204);
+  });
+});
+
 describe('reading them', () => {
   it('lists what is kept here, and pages through it from the cursor', async () => {
     const mine = await createAccount('reminders-pager');

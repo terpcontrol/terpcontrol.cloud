@@ -96,6 +96,16 @@ export function PlantPage() {
   const mayManage = enough(youMay, 'manage');
   const lines = entries.data?.items ?? [];
   const photos = lines.filter(entry => entry.mediaIds.length > 0);
+  // A plant harvested alone takes its harvest's line out of the diary with it; one cut with others leaves theirs as typed.
+  const cutWith = all
+    .filter(one => one.id !== plant.id && lines.some(entry => entry.values.kind === 'harvest' && entry.plantIds.includes(one.id)))
+    .map(one => one.label);
+  const removeAsk =
+    plant.harvest === null
+      ? t('grow.plant.removeAsk', { name: plant.label })
+      : cutWith.length > 0
+        ? t('grow.plant.removeAskShared', { name: plant.label, others: cutWith.join(', ') })
+        : t('grow.plant.removeAskHarvested', { name: plant.label });
 
   return (
     <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
@@ -198,7 +208,7 @@ export function PlantPage() {
           it forget it - so it is asked first and answered without a way back. */}
       {removing ? (
         <Asking
-          note={t('grow.plant.removeAsk', { name: plant.label })}
+          note={removeAsk}
           yes={t('grow.plant.removeYes')}
           danger
           busy={remove.isPending}

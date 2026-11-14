@@ -172,10 +172,12 @@ function List({ tasks, failedAt, now }: { tasks: Task[]; failedAt: number | null
   const reminderGrows = (grows ?? []).filter(grow => grow.endedAt === null && mayOn({ type: 'grow', id: grow.id }, 'manage'));
   const reminderSpaces = (spaces ?? []).filter(space => enough(space.youMay, 'manage'));
 
-  // A rhythm is what repeats; a one-off stands under its day, and here only while that day is beyond the board.
-  const rhythms = [...(reminders.data?.items ?? [])]
-    .filter(reminder => reminder.everyDays !== null || !tasks.some(task => task.id === reminder.id))
-    .sort((one, other) => one.label.localeCompare(other.label));
+  // Every reminder, "fällig oder nicht": a one-off as a rhythm is, before its day, while it is due and once it is done -
+  // left out while it stood on the board, it came back once ticked, as if made again. A grow's end ends its reminders
+  // (the server deletes them); one a server from before that still answers is not listed under a grow that is over.
+  const over = (reminder: Reminder) =>
+    reminder.subject.type === 'grow' && (grows?.find(grow => grow.id === reminder.subject.id)?.endedAt ?? null) !== null;
+  const rhythms = [...(reminders.data?.items ?? [])].filter(reminder => !over(reminder)).sort((one, other) => one.label.localeCompare(other.label));
 
   /**
    * The controller whose plan a step belongs to, so that the card can say what
