@@ -1,4 +1,4 @@
-import type { Entry, EntryDose, EntryReading, GrowListItem, GrowthStage, HumanEntryKind, SchemeWeek } from '@fg2/shared-types/v1';
+import type { Entry, EntryDose, EntryReading, FeedEntryValues, GrowListItem, GrowthStage, HumanEntryKind, SchemeWeek } from '@fg2/shared-types/v1';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useLog, type LogTarget } from './log-context';
@@ -59,6 +59,16 @@ export const schemeStep = (grow: GrowListItem | undefined, at: Date): SchemeWeek
  */
 export const dosesOf = (grow: GrowListItem | undefined, litres: number | null, at: Date): EntryDose[] =>
   dosesFor(schemeStep(grow, at), litres, grow?.scheme?.strength ?? 1);
+
+/**
+ * The doses a recorded feed is corrected with: what it recorded, and for another can of water the same doses per
+ * litre. What went into the can is the fact, so the grid is not read again - it may have been edited, or the grow's
+ * start moved, since. A feed recorded without its water has no rate to go by and keeps its doses.
+ */
+export const keptDoses = (recorded: FeedEntryValues, litres: number | null): EntryDose[] =>
+  recorded.litres && litres && litres !== recorded.litres
+    ? recorded.doses.map(dose => ({ ...dose, amount: Math.round(((dose.amount * litres) / recorded.litres!) * 100) / 100 }))
+    : recorded.doses;
 
 /**
  * Which day of the grow the line will be filed under, which is not today's

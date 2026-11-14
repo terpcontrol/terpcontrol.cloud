@@ -94,10 +94,11 @@ export class EntryWritesService {
       mediaIds: body.mediaIds ?? [],
       values: resolveEntryValues(body.values, grow, occurredAt, await this.zoneOf(grow)),
     };
-    const closes = body.taskId === undefined ? await this.dueTaskOf(body.kind, grow, occurredAt) : null;
+    const closes = body.taskId !== undefined ? body.taskId : await this.dueTaskOf(body.kind, grow, occurredAt);
 
-    const entry = await this.writer.write({ ...line, taskId: body.taskId ?? closes }).catch(error => {
-      // Ticked off by somebody else in the same moment: the watering is still written.
+    const entry = await this.writer.write({ ...line, taskId: closes }).catch(error => {
+      // Ticked off by somebody else in the same moment - the task the sheet was opened from too: the watering is
+      // still written.
       if (closes !== null && isDuplicateKey(error)) return this.writer.write({ ...line, taskId: null });
       throw error;
     });

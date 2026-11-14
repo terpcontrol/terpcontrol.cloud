@@ -2,7 +2,7 @@ import { Camera, Droplet, Flag, FlaskConical, Gauge, Pencil, TrendingUp, type Lu
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRecentEntries } from '@/api/entries';
-import { useGrow, useGrowPlants } from '@/api/grows';
+import { useGrow, useGrowPlants, useGrows } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { enough, growStanding, useMayWith } from '@/ui/session-access';
 import { Choice } from '@/ui/SheetParts';
@@ -49,15 +49,22 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const { data: home, isPending } = useHome();
   const mayWith = useMayWith();
 
-  // Two choices, because the second one lives inside the first: which place,
-  // and whether the line is about the tent or one plant of it rather than the
-  // whole grow. Changing the place drops the narrower choice with it.
-  const places = useMemo(() => targetsOf(home), [home]);
+  // Two choices, because the second one lives inside the first: which place -
+  // which grow, where two grow in one - and whether the line is about the tent
+  // or one plant of it rather than the whole grow. Changing the place drops
+  // the narrower choice with it.
+  // The home names the newer grow of a place alone; until the list of grows is read too, nothing is offered to
+  // tap that could be the wrong one of two.
+  const grows = useGrows();
+  const places = useMemo(() => (grows.isPending ? [] : targetsOf(home, grows.data?.items)), [home, grows.isPending, grows.data]);
   const [placeKey, setPlaceKey] = useState<string | null>(null);
   const [narrowKey, setNarrowKey] = useState<string | null>(null);
   // When the line happened, or null for now: asked once here, for whichever kind is then chosen.
   const [at, setAt] = useState<Date | null>(null);
   const aim = useMemo(() => openingTarget(places, opening, lastKey), [places, opening, lastKey]);
+  // The chip the sheet opened on is held until somebody presses another: a grow's start moved from the sheet's foot
+  // makes the other grow of its place the newer one, and the line must not follow it there.
+  if (placeKey === null && aim.target) setPlaceKey(aim.target.key);
   const place = useMemo(() => places.find(one => one.key === placeKey) ?? aim.target, [places, placeKey, aim]);
   // A link that named a subject nothing here is leaves the sheet unaimed rather
   // than aimed at somebody else's grow, so it has to say why it is unaimed: the
@@ -101,8 +108,8 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   useEffect(() => {
     if (asked.current || !opening.kind || !target || !ready) return;
     asked.current = true;
-    openDetails(opening.kind, target);
-  }, [opening.kind, target, ready, openDetails]);
+    openDetails(opening.kind, target, null, null, target.growId === opening.growId ? opening.taskId : null);
+  }, [opening.kind, opening.growId, opening.taskId, target, ready, openDetails]);
 
   const details = (kind: TileKind) => {
     if (target && ready) openDetails(kind, target, null, at);
@@ -111,7 +118,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   return (
     <Sheet title={t('log.title')} onClose={onClose}>
       {places.length === 0 ? (
-        <p className={ui.note}>{isPending ? t('home.waiting') : t('log.nowhere')}</p>
+        <p className={ui.note}>{isPending || grows.isPending ? t('home.waiting') : t('log.nowhere')}</p>
       ) : (
         <>
           {missed ? (
@@ -122,7 +129,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
           {/* The places in one row, and under it the plants of the chosen one: which place, then whether the line
               is about one plant of it. Pressed rather than linked, so the sheet stays where it is. */}
           {choosable || missed ? (
-            <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
+            <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
               {places.map(one => (
                 <Choice key={one.key} chosen={one.key === place?.key} onChoose={() => choose(one, false)}>
                   {several ? placeChip(home, one) : one.label}
@@ -131,7 +138,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
             </div>
           ) : null}
           {narrower.length > 0 ? (
-            <div className={`${ui.scrollRow} ${styles.targets}`} role="group" aria-label={t('log.plantLabel')}>
+            <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-label={t('log.plantLabel')}>
               {narrower.map(one => (
                 <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
                   {one.label}

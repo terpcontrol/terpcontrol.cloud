@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { ChartView, Entry, GrowListItem, GrowSeriesPoint, MeasurementDefinition, ShareLink, Space, SpaceTimeline } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
-import { useGrow, useMeasurementSeries } from '@/api/grows';
+import { useGrow, useGrows, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
@@ -169,7 +169,9 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const lost = useQueryClient().getQueryData<GrowListItem>(['grow', page.dropped?.what === 'grow' ? page.dropped.id : null]);
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
-  const target = targetsOf(home.data).find(one => one.standsIn === spaceId || one.spaceId === spaceId) ?? null;
+  // A note at a moment goes to the grow the view shows, which is one of two where two grow here.
+  const here = targetsOf(home.data, useGrows().data?.items).filter(one => one.standsIn === spaceId || one.spaceId === spaceId);
+  const target = here.find(one => one.growId === growId) ?? here[0] ?? null;
   const spaceRow = spaces.data?.items.find(space => space.id === spaceId) ?? null;
 
   const own: Own = {

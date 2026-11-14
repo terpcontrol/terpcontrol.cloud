@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Device, Entry, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
+import type { AccessNeed, Device, Entry, EntryUpdate, GrowListItem, HomeAnswer, PlantPage } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
+import { useCorrecting } from '@/log/corrections';
 import { LogProvider } from '@/log/LogProvider';
-import { useLog } from '@/log/log-context';
+import { useLog, type LogOpening } from '@/log/log-context';
 import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -1045,5 +1046,242 @@ describe('the log sheet', () => {
       values: { kind: 'water', litres: 2, readings: [] },
     });
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Two grows in one place: the home's card names the newer alone, and a line written for the other must land in the
+ * other's diary - from its own page, from its task's "Eintragen", and after its start was moved from the sheet.
+ */
+describe('the log sheet in a place where two grows stand', () => {
+  const amnesia: GrowListItem = {
+    ...grow,
+    id: 'grow-2',
+    name: 'Amnesia',
+    slug: 'amnesia',
+    startedAt: daysAgo(40),
+    createdAt: daysAgo(40),
+    placements: [{ id: 'pl2', spaceId: 'space-1', startedAt: daysAgo(40), endedAt: null, plantIds: null }],
+    summary: { ...grow.summary, dayNumber: 40, locations: [{ spaceId: 'space-1', plantIds: [] }] },
+  };
+  /** The home leads with whichever grow it takes to be the newer, as Start does. */
+  const leading = (one: GrowListItem): HomeAnswer => ({
+    ...home,
+    spaces: [{ ...home.spaces[0], grow: { ...home.spaces[0].grow!, growId: one.id, name: one.name, dayNumber: one.summary.dayNumber } }],
+  });
+  let homeNow = leading(grow);
+
+  beforeEach(() => {
+    homeNow = leading(grow);
+    vi.mocked(api.get).mockImplementation((path: string) => {
+      if (path === '/home') return Promise.resolve(homeNow) as never;
+      if (path === '/grows') return Promise.resolve({ items: [grow, amnesia], nextCursor: null }) as never;
+      if (path === '/grows/grow-2') return Promise.resolve(amnesia) as never;
+      if (path === '/grows/grow-2/plants') return Promise.resolve({ items: [], nextCursor: null }) as never;
+      return Promise.resolve(answers(path)) as never;
+    });
+  });
+
+  function Opener({ opening }: { opening: LogOpening }) {
+    const { openSheet } = useLog();
+    return (
+      <button type="button" onClick={() => openSheet(opening)}>
+        open here
+      </button>
+    );
+  }
+
+  const openWith = async (opening: LogOpening) => {
+    const drawn = drawAt(
+      <LogProvider>
+        <Opener opening={opening} />
+      </LogProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'open here' }));
+    return drawn;
+  };
+
+  const waterSaved = async () => {
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
+  };
+
+  it('offers both grows of the place, the newer chosen first, and writes to the one pressed', async () => {
+    await openWith({ spaceId: 'space-1', underneath: true });
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    const chips = await within(sheet).findByRole('group', { name: 'What the entry is about' });
+
+    expect(within(chips).getByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(chips).getByRole('button', { name: 'Tent 1 · Amnesia' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
+    await waterSaved();
+
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ kind: 'water', growId: 'grow-2' }));
+  });
+
+  it('writes to the grow whose page it was opened over, though the place leads with the other', async () => {
+    await openWith({ growId: 'grow-2', underneath: true });
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
+    await waterSaved();
+
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-2' }));
+  });
+
+  it('writes a task´s line to the task´s grow and ticks that task', async () => {
+    await openWith({ growId: 'grow-2', spaceId: 'space-1', kind: 'water', taskId: 'task-amnesia' });
+    const details = await screen.findByRole('dialog', { name: 'Water' });
+    fireEvent.click(within(details).getByRole('button', { name: /^Save/ }));
+
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-2', taskId: 'task-amnesia' }));
+  });
+
+  it('holds the grow it opened with when the other becomes the newer under it', async () => {
+    homeNow = leading(amnesia);
+    const { client } = await openWith({ spaceId: 'space-1', underneath: true });
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Amnesia's start moved back from the sheet's foot: the place now leads with Spring run.
+    homeNow = leading(grow);
+    await act(() => client.invalidateQueries({ queryKey: ['home'] }));
+    await waitFor(() => expect(within(sheet).getAllByRole('button', { name: /^Tent 1 · / })[0]).toHaveTextContent('Spring run'));
+
+    expect(within(sheet).getByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
+    await waterSaved();
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-2' }));
+  });
+
+  it('wraps the chips into rows rather than scrolling them sideways', async () => {
+    await openWith({ spaceId: 'space-1', underneath: true });
+    const chips = await screen.findByRole('group', { name: 'What the entry is about' });
+    const css = readFileSync(resolve(__dirname, '../src/log/Log.module.css'), 'utf8');
+
+    expect(chips.className).not.toMatch(/scrollRow/);
+    expect(/\.targets \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/veil/);
+  });
+});
+
+/**
+ * A line's correction starts from what was recorded: opened from a stored line of every kind and saved unchanged, it
+ * sends back what the line already says - so the line stays as it was. A feed of scheme week 4 written yesterday
+ * stays week 4 with its doses, though its date falls in week 5 of the grid today.
+ */
+describe('correcting a line that was recorded', () => {
+  const stored = (over: Partial<Entry>): Entry => ({ ...lastWater, id: `entry-${over.kind}`, spaceId: 'space-1', occurredAt: daysAgo(1), ...over });
+  const LINES: Entry[] = [
+    stored({ kind: 'water', values: { kind: 'water', litres: 3.5, readings: [{ key: 'ph', value: 6.1, plantId: null }] } }),
+    stored({
+      kind: 'feed',
+      values: {
+        kind: 'feed',
+        litres: 5,
+        schemeWeek: 4,
+        doses: [
+          { productKey: 'bio_grow', name: 'Bio·Grow', amount: 10, unit: 'ml' },
+          { productKey: 'bio_bloom', name: 'Bio·Bloom', amount: 25, unit: 'ml' },
+        ],
+        readings: [],
+      },
+    }),
+    stored({
+      kind: 'measurement',
+      values: {
+        kind: 'measurement',
+        readings: [
+          { key: 'height', value: 40, plantId: 'plant-1' },
+          { key: 'height', value: 42, plantId: 'plant-2' },
+          { key: 'ph', value: 6.2, plantId: null },
+        ],
+      },
+    }),
+    stored({ kind: 'note', text: 'Topped', values: { kind: 'note' } }),
+    stored({ kind: 'training', text: 'LST', plantIds: ['plant-1'], values: { kind: 'training' } }),
+    stored({ kind: 'photo', text: null, mediaIds: ['media-1', 'media-2'], values: { kind: 'photo' } }),
+    stored({ kind: 'visit', values: { kind: 'visit' } }),
+  ];
+
+  function Corrects({ entry }: { entry: Entry }) {
+    const correcting = useCorrecting();
+    const open = correcting(entry, { label: 'Spring run', spaceId: 'space-1' });
+    // Who may correct what is known once the places are read.
+    return open ? (
+      <button type="button" onClick={open}>
+        correct it
+      </button>
+    ) : null;
+  }
+
+  const opened = async (entry: Entry) => {
+    drawAt(
+      <LogProvider>
+        <Corrects entry={entry} />
+      </LogProvider>,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'correct it' }));
+    return screen.findByRole('dialog');
+  };
+
+  beforeEach(() =>
+    vi
+      .mocked(api.patch)
+      .mockReset()
+      .mockImplementation((_path, body) => Promise.resolve({ ...lastWater, ...(body as object) }) as never),
+  );
+
+  it.each(LINES.map(line => [line.kind, line] as const))('saves a %s line unchanged as it was recorded', async (_kind, entry) => {
+    const sheet = await opened(entry);
+    // The grow is read before anything is shown that depends on it.
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/grows/grow-1', undefined, expect.anything()));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+
+    const [path, body] = vi.mocked(api.patch).mock.calls[0] as [string, EntryUpdate];
+    expect(path).toBe(`/entries/${entry.id}`);
+    // What the server would store from it is what it stores now.
+    expect(body.values).toEqual(entry.values);
+    expect(body.text).toBe(entry.text);
+    expect(body).not.toHaveProperty('occurredAt');
+    expect(body.growId).toBe(entry.growId);
+    expect(body.spaceId).toBe(entry.spaceId);
+    expect(body.plantIds ?? []).toEqual(entry.plantIds);
+    expect(body).not.toHaveProperty('mediaIds');
+  });
+
+  it('opens a feed on the week and the doses it recorded, and keeps them per litre for another can', async () => {
+    const feed = LINES[1];
+    const sheet = await opened(feed);
+
+    expect(await within(sheet).findByText(reading(/· Scheme week 4$/))).toBeInTheDocument();
+    expect(within(sheet).queryByText(reading(/Scheme week 5/))).not.toBeInTheDocument();
+    expect(within(sheet).getByText('25 ml')).toBeInTheDocument();
+    expect(within(sheet).getByText('5 ml/L')).toBeInTheDocument();
+    expect(within(sheet).queryByText('Top·Max')).not.toBeInTheDocument();
+
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Water in litres' }), { target: { value: '10' } });
+    expect(within(sheet).getByText('50 ml')).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the correction' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    expect((vi.mocked(api.patch).mock.calls[0][1] as EntryUpdate).values).toEqual({
+      kind: 'feed',
+      litres: 10,
+      schemeWeek: 4,
+      doses: [
+        { productKey: 'bio_grow', name: 'Bio·Grow', amount: 20, unit: 'ml' },
+        { productKey: 'bio_bloom', name: 'Bio·Bloom', amount: 50, unit: 'ml' },
+      ],
+      readings: [],
+    });
+  });
+
+  it('shows each reading of a round across plants where it was taken', async () => {
+    const sheet = await opened(LINES[2]);
+
+    expect(await within(sheet).findByText('Height · Amnesia 1')).toBeInTheDocument();
+    expect(within(sheet).getByText('Height · Gelato 1')).toBeInTheDocument();
+    expect(within(sheet).getByText('pH')).toBeInTheDocument();
   });
 });

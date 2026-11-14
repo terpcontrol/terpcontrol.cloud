@@ -545,6 +545,17 @@ describe('ticking a task off', () => {
     expect(back.taskId).toBe(watered.taskId);
   });
 
+  /** A task's "Eintragen" names the task its line closes; ticked by somebody else meanwhile, the watering still stands. */
+  it('closes the task a line names, and writes the line though the task was closed meanwhile', async () => {
+    await aReminder({ kind: 'water', label: 'Water', defaults: null });
+
+    const named = await entries.create(session(OWNER), { kind: 'water', growId: GROW, taskId: 'reminder-1:1', values: { kind: 'water', litres: 2 } });
+    expect(named.taskId).toBe('reminder-1:1');
+
+    const late = await entries.create(session(LOGGER), { kind: 'water', growId: GROW, taskId: 'reminder-1:1', values: { kind: 'water', litres: 1 } });
+    expect(late).toMatchObject({ taskId: null, values: { litres: 1 } });
+  });
+
   it('tells a stranger there is no such task before it tells them what is due there', async () => {
     await aReminder();
     await completions.complete(session(OWNER), 'reminder-1', {});

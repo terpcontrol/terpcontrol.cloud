@@ -1,11 +1,12 @@
-import type { HomeAnswer, HomeSpaceCard, Plant } from '@fg2/shared-types/v1';
+import type { GrowListItem, HomeAnswer, HomeSpaceCard, Plant } from '@fg2/shared-types/v1';
+import { alsoIn } from '@/screens/space/movable-grows';
 import type { LogOpening, LogTarget } from './log-context';
 
 /**
  * The chips of the target row: what a line can be about. A grow, and then its
  * plants. A place is a chip only where there are several to tell apart - one
- * per place, with the grow growing there named in it - or where nothing grows
- * in it, so that the line is the place's.
+ * per grow growing there, named in it - or where nothing grows in it, so that
+ * the line is the place's.
  */
 
 const growTarget = (card: HomeSpaceCard): LogTarget | null =>
@@ -31,8 +32,30 @@ const spaceTarget = (card: HomeSpaceCard): LogTarget => ({
   standsIn: card.spaceId,
 });
 
-/** One target per place, in the order the home lists them: its grow where one grows, the space itself where none does. */
-export const targetsOf = (home: HomeAnswer | undefined): LogTarget[] => (home?.spaces ?? []).map(card => growTarget(card) ?? spaceTarget(card));
+/** A grow that shares its place with the one the home leads with: the home's card carries the newer alone. */
+const twinTarget = (grow: GrowListItem, spaceId: string): LogTarget => ({
+  key: `grow:${grow.id}`,
+  label: grow.name,
+  growId: grow.id,
+  spaceId: null,
+  plantIds: [],
+  dayNumber: grow.summary.dayNumber,
+  standsIn: spaceId,
+});
+
+/**
+ * The targets of the places, in the order the home lists them: each grow growing in a place - the newer first, as
+ * Start leads with it - and the space itself where none does. A second grow in a place is a chip of its own, so a
+ * line written for it never lands in the other's diary.
+ */
+export const targetsOf = (home: HomeAnswer | undefined, grows?: GrowListItem[]): LogTarget[] =>
+  (home?.spaces ?? []).flatMap(card => {
+    const lead = growTarget(card);
+    if (!lead) return [spaceTarget(card)];
+    const others =
+      card.spaceId === null ? [] : alsoIn(grows, card.spaceId, lead.growId!).sort((one, other) => other.startedAt.localeCompare(one.startedAt));
+    return [lead, ...others.map(grow => twinTarget(grow, card.spaceId!))];
+  });
 
 /**
  * What a place's chip says where several places are chosen between: the place,

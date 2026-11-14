@@ -49,6 +49,8 @@ interface Details {
   at: Date | null;
   /** The sheet the kind was chosen on, which the view leads back to; null for a view opened on its own. */
   from: LogOpening | null;
+  /** The task the line closes, where a task's "Eintragen" opened it. */
+  taskId?: string | null;
 }
 
 export function LogProvider({ children }: { children: ReactNode }) {
@@ -167,11 +169,11 @@ export function LogProvider({ children }: { children: ReactNode }) {
       setOpening(next);
     }, []),
     openDetails: useCallback(
-      (kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null) => {
+      (kind: TileKind, target: LogTarget, entry: Entry | null = null, at: Date | null = null, taskId: string | null = null) => {
         // A new line whose kind was chosen on the sheet leads back to the sheet, pointed where it was.
         const from = sheetOpen && entry === null ? { growId: target.growId, spaceId: target.standsIn ?? target.spaceId } : null;
         setOpening(null);
-        setDetails({ kind, target, entry, at, from });
+        setDetails({ kind, target, entry, at, from, taskId });
       },
       [sheetOpen],
     ),
@@ -216,7 +218,15 @@ export function LogProvider({ children }: { children: ReactNode }) {
       {opening ? <LogSheet opening={opening} lastKey={lastTarget} onChosen={setLastTarget} onClose={() => setOpening(null)} /> : null}
       {details?.kind === 'photo' && !details.entry ? <PhotoEntry target={details.target} at={details.at} onBack={back} onClose={close} /> : null}
       {details && (details.kind !== 'photo' || details.entry) ? (
-        <EntryDetails kind={details.kind} target={details.target} entry={details.entry} at={details.at} onBack={back} onClose={close} />
+        <EntryDetails
+          kind={details.kind}
+          target={details.target}
+          entry={details.entry}
+          at={details.at}
+          taskId={details.taskId}
+          onBack={back}
+          onClose={close}
+        />
       ) : null}
       <Toasts lines={lines} onUndo={undo} onRetry={retry} onDismiss={dismiss} onDetails={openDetailsOf(setDetails)} />
     </LogContext>

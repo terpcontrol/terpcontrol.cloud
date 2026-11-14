@@ -6,21 +6,25 @@ import { useTranslation } from 'react-i18next';
 import type {
   Entry,
   EntryCreate,
+  EntryDose,
   EntryReading,
   EntryUpdate,
   EntryValuesDraft,
+  FeedEntryValues,
   GrowListItem,
   GrowthStage,
   MeasurementDefinition,
+  SchemeWeek,
 } from '@fg2/shared-types/v1';
 import { MAX_LITRES } from '@fg2/shared-types/v1-schemas/feeding.js';
 import { serverNow } from '@/api/clock';
 import { correctEntry, diaryChanged, startPhase, takeEntryBack, useRecentEntries, writeEntry } from '@/api/entries';
 import { api } from '@/api/client';
-import { useGrow } from '@/api/grows';
+import { useGrow, useGrowPlants } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
+import { slotOf } from '@/screens/grow/measurements/definitions';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
@@ -36,7 +40,19 @@ import { useMayManage } from '@/ui/session-access';
 import { Choice, Choices } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
-import { dayAt, dosesOf, lastCan, litresOf, nextStage, readingsOf, schemeStep, startsAfter, stoppedAfter, useGrowBegins } from './defaults';
+import {
+  dayAt,
+  dosesOf,
+  keptDoses,
+  lastCan,
+  litresOf,
+  nextStage,
+  readingsOf,
+  schemeStep,
+  startsAfter,
+  stoppedAfter,
+  useGrowBegins,
+} from './defaults';
 import { about, lineLabel, occurredAt } from './lines';
 import { useLog, type LogTarget, type TileKind } from './log-context';
 import { Moment } from './Moment';
@@ -76,12 +92,14 @@ interface DetailsProps {
   entry: Entry | null;
   /** When the line was said to have happened before its kind was chosen; null is now. */
   at: Date | null;
+  /** The task a new line closes, where a task's "Eintragen" opened the view. */
+  taskId?: string | null;
   /** Back to the tiles the kind was chosen on, where it was chosen there. */
   onBack?: (() => void) | null;
   onClose: () => void;
 }
 
-export function EntryDetails({ kind, target, entry, at, onBack, onClose }: DetailsProps) {
+export function EntryDetails({ kind, target, entry, at, taskId, onBack, onClose }: DetailsProps) {
   // Measuring has a sheet of its own: it is the one tile whose fields are the
   // grow's own definitions, and it is used with one hand in front of a plant.
   // Correcting a line that already exists stays here, where every kind is
@@ -90,14 +108,15 @@ export function EntryDetails({ kind, target, entry, at, onBack, onClose }: Detai
   // says.
   if (kind === 'measurement' && !entry) return <MeasureSheet target={target} at={at} onBack={onBack} onClose={onClose} />;
 
-  return <Details kind={kind} target={target} entry={entry} at={at} onBack={onBack} onClose={onClose} />;
+  return <Details kind={kind} target={target} entry={entry} at={at} taskId={taskId} onBack={onBack} onClose={onClose} />;
 }
 
-function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsProps) {
+function Details({ kind, target, entry, at: given, taskId, onBack, onClose }: DetailsProps) {
   const { t, i18n } = useTranslation();
   const { log, tell } = useLog();
   const client = useQueryClient();
   const { data: grow } = useGrow(target.growId);
+  const { data: plants } = useGrowPlants(target.growId);
   const { data: recent } = useRecentEntries(target.growId, target.spaceId);
 
   const definitions = (grow?.measurements ?? []).filter(measurement => measurement.key !== WATER_KEY);
@@ -126,8 +145,10 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           ? 'log.litresTooMuch'
           : null;
   const begins = useGrowBegins(grow, target);
+  // A field is a key for one plant or for the whole line: a round of readings across several plants is one line, and
+  // its correction shows every reading of it where it was taken.
   const [readings, setReadings] = useState<Record<string, string>>(() => typed(readingsOf(entry)));
-  const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry)));
+  const [shown, setShown] = useState<string[]>(() => firstFields(definitions, readingsOf(entry), target));
   const [text, setText] = useState(entry?.text ?? '');
   const [stage, setStage] = useState<GrowthStage | null>(nextStage(grow));
   /**
@@ -148,7 +169,11 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   /** The new-grow sheet takes this one's place once it is opened, rather than standing over it. */
   const [startingGrow, setStartingGrow] = useState(false);
 
-  const step = schemeStep(grow, at);
+  // A feed that was recorded is corrected from what it recorded - the week its doses were read from and the doses -,
+  // never from the week its date falls in now: the grid or the grow's start may have moved since.
+  const recorded = entry?.values.kind === 'feed' ? entry.values : null;
+  const step = recorded ? null : schemeStep(grow, at);
+  const week = recorded ? recorded.schemeWeek : (step?.week ?? null);
   // What the line will say it is: the day it is dated to, not the day it is being written on.
   const filed = said ? { ...target, dayNumber: dayAt(grow, target, said) } : target;
   const showsWater = kind === 'water' || kind === 'feed';
@@ -156,22 +181,32 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
   const showsText = kind === 'note' || kind === 'training' || kind === 'photo';
   // A note is its words: one without any says nothing and is not written.
   const nothingSaid = kind === 'note' && text.trim() === '';
-  const doses = dosesOf(grow, litres, at);
+  const doses = recorded ? keptDoses(recorded, litres) : dosesOf(grow, litres, at);
   // A reading that was typed and is no number is said to be none, by its name: left out silently it was a figure lost.
-  const unread = showsReadings ? shown.find(key => (readings[key] ?? '').trim() !== '' && typedFigure(readings[key]) === null) : undefined;
-  const unreadName = unread === undefined ? null : (definitions.find(one => one.key === unread)?.name ?? unread);
+  const unread = showsReadings ? shown.find(slot => (readings[slot] ?? '').trim() !== '' && typedFigure(readings[slot]) === null) : undefined;
+  const fieldName = (slot: string): string => {
+    const [key, plantId] = slot.split('|');
+    const name = definitions.find(one => one.key === key)?.name ?? key;
+    // A reading of one plant on a line about more than that plant says whose it is.
+    const plant = plantId && target.plantIds.join() !== plantId ? plants?.items.find(one => one.id === plantId) : undefined;
+    return plant ? `${name} · ${plant.label}` : name;
+  };
+  const unreadName = unread === undefined ? null : fieldName(unread);
+  const unshown = definitions.filter(definition => !shown.some(slot => slot.split('|')[0] === definition.key));
   // The sentence that refuses a figure describes its field and the Save it holds back, so a screen reader hears why.
   const refusal = useId();
   const refused = (showsWater && refusedLitres !== null) || unread !== undefined;
   const pictures = (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []);
 
   const values = (): EntryValuesDraft => {
-    const taken = readingsFrom(readings, shown, definitions, target);
+    const taken = readingsFrom(readings, shown);
     switch (kind) {
       case 'water':
         return { kind: 'water', litres, readings: taken };
       case 'feed':
-        return { kind: 'feed', litres, readings: taken };
+        return recorded
+          ? { kind: 'feed', litres, schemeWeek: recorded.schemeWeek, doses, readings: taken }
+          : { kind: 'feed', litres, readings: taken };
       case 'measurement':
         return { kind: 'measurement', readings: taken };
       case 'training':
@@ -221,7 +256,13 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
     setSaving(true);
     setFailed(null);
     try {
-      const body: EntryUpdate = { ...about(target), ...occurredAt(dated), text: showsText ? text : entry.text, values: values() };
+      // Words left empty are none, as the line had them.
+      const body: EntryUpdate = {
+        ...about(target),
+        ...occurredAt(dated),
+        text: showsText ? (text.trim() === '' ? null : text) : entry.text,
+        values: values(),
+      };
       await correctEntry(entry.id, body);
       diaryChanged(client);
       onClose();
@@ -266,11 +307,12 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       ...occurredAt(dated ?? serverNow().toJSDate()),
       text: showsText && text ? text : undefined,
       values: values(),
+      ...(taskId ? { taskId } : {}),
     };
     log({ label: lineLabel(t, kind, filed), details: { kind, target }, send: () => writeEntry(body) });
   };
 
-  const add = (key: string) => setShown(current => [...current, key]);
+  const add = (key: string) => setShown(current => [...current, slotOf(key, perPlantSlot(definitions, key, target))]);
   const stepBy = (by: number) => {
     setTypedLitres(null);
     setLitres(next(litres, by));
@@ -305,10 +347,10 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
           facts={[
             ...factsOf(lineLabel(t, kind, filed)),
             ...(kind === 'feed' ? factsOf(schemeLine(grow)) : []),
-            kind === 'feed' && step ? t('log.schemeWeek', { week: step.week }) : null,
+            kind === 'feed' && week !== null ? t('log.schemeWeek', { week }) : null,
           ]}
         />
-        {kind === 'feed' && step ? <Help topic="mixing" /> : null}
+        {kind === 'feed' && week !== null ? <Help topic="mixing" /> : null}
       </p>
 
       {showsWater ? (
@@ -361,47 +403,34 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
       ) : null}
 
       {/* A grow fed by no scheme has no doses to list, and nothing is said in their place. */}
-      {kind === 'feed' && step ? (
+      {kind === 'feed' && (step || doses.length > 0) ? (
         <div className={`${ui.card} ${styles.doses}`}>
-          {step.amounts.map(amount => {
-            const dose = doses.find(one => one.productKey === amount.productKey);
-            const from = amount.value === null ? startsAfter(grow, amount.productKey, step.week) : null;
-            const until = amount.value === null && from === null ? stoppedAfter(grow, amount.productKey) : null;
-            return (
-              <div key={amount.productKey} className={styles.dose} data-off={amount.value === null}>
-                <span className={styles.doseName}>{amount.name}</span>
-                <span className={`mono ${styles.doseRate}`}>
-                  {amount.value === null
-                    ? from !== null
-                      ? t('log.startsIn', { week: from })
-                      : until === null || until >= step.week
-                        ? ''
-                        : t('log.stopsAfter', { week: until })
-                    : `${looseFigure(amount.value)} ${unitShown(amount.unit)}`}
-                </span>
-                <span className={`figure mono ${styles.doseAmount}`}>{dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—'}</span>
-              </div>
-            );
-          })}
+          {doseRows(t, grow, step, doses, recorded).map(row => (
+            <div key={row.key} className={styles.dose} data-off={row.off}>
+              <span className={styles.doseName}>{row.name}</span>
+              <span className={`mono ${styles.doseRate}`}>{row.rate}</span>
+              <span className={`figure mono ${styles.doseAmount}`}>{row.amount}</span>
+            </div>
+          ))}
         </div>
       ) : null}
 
       {showsReadings ? (
         <>
           <div className={styles.fields}>
-            {shown.map(key => {
-              const definition = definitions.find(one => one.key === key);
+            {shown.map(slot => {
+              const definition = definitions.find(one => one.key === slot.split('|')[0]);
               return (
-                <label key={key} className={`${ui.card} ${styles.field}`}>
-                  <span className={styles.fieldName}>{definition?.name ?? key}</span>
+                <label key={slot} className={`${ui.card} ${styles.field}`}>
+                  <span className={styles.fieldName}>{fieldName(slot)}</span>
                   <input
                     className={`figure ${styles.fieldInput}`}
                     inputMode="decimal"
-                    aria-invalid={key === unread || undefined}
-                    aria-describedby={key === unread && !refusedLitres ? refusal : undefined}
-                    value={readings[key] ?? ''}
+                    aria-invalid={slot === unread || undefined}
+                    aria-describedby={slot === unread && !refusedLitres ? refusal : undefined}
+                    value={readings[slot] ?? ''}
                     placeholder={definition?.unit || undefined}
-                    onChange={event => setReadings(current => ({ ...current, [key]: event.target.value }))}
+                    onChange={event => setReadings(current => ({ ...current, [slot]: event.target.value }))}
                   />
                 </label>
               );
@@ -413,16 +442,14 @@ function Details({ kind, target, entry, at: given, onBack, onClose }: DetailsPro
               {t('log.readingNoNumber', { name: unreadName })}
             </p>
           ) : null}
-          {definitions.length > shown.length ? (
+          {unshown.length > 0 ? (
             <p className={styles.more}>
               <span className="label">{t('log.measurements')}</span>
-              {definitions
-                .filter(definition => !shown.includes(definition.key))
-                .map(definition => (
-                  <button key={definition.key} type="button" className={`${ui.chip} ${styles.addField}`} onClick={() => add(definition.key)}>
-                    + {definition.name}
-                  </button>
-                ))}
+              {unshown.map(definition => (
+                <button key={definition.key} type="button" className={`${ui.chip} ${styles.addField}`} onClick={() => add(definition.key)}>
+                  + {definition.name}
+                </button>
+              ))}
             </p>
           ) : null}
         </>
@@ -577,22 +604,67 @@ const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: Lo
 const next = (litres: number | null, by: number): number => Math.max(LITRE_STEP, Math.round(((litres ?? 0) + by) / LITRE_STEP) * LITRE_STEP);
 
 const typed = (readings: EntryReading[]): Record<string, string> =>
-  Object.fromEntries(readings.map(reading => [reading.key, looseFigure(reading.value)]));
+  Object.fromEntries(readings.map(reading => [slotOf(reading.key, reading.plantId), looseFigure(reading.value)]));
 
-/** The fields a kind opens with: what the line already says, else the first few the grow measures. */
-const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[]): string[] =>
-  readings.length > 0 ? readings.map(reading => reading.key) : definitions.slice(0, FIELDS_SHOWN).map(definition => definition.key);
+/** The plant a new field of a key is typed for: the one plant the line is about, where the grow measures that key per plant. */
+const perPlantSlot = (definitions: MeasurementDefinition[], key: string, target: LogTarget): string | null =>
+  (definitions.find(definition => definition.key === key)?.perPlant ?? false) ? (target.plantIds[0] ?? null) : null;
+
+/** The fields a kind opens with: every reading the line already says, else the first few the grow measures. */
+const firstFields = (definitions: MeasurementDefinition[], readings: EntryReading[], target: LogTarget): string[] =>
+  readings.length > 0
+    ? readings.map(reading => slotOf(reading.key, reading.plantId))
+    : definitions.slice(0, FIELDS_SHOWN).map(definition => slotOf(definition.key, perPlantSlot(definitions, definition.key, target)));
+
+/** What was typed, as readings: a field left empty is not a reading of nothing, so it is left out. */
+const readingsFrom = (typedIn: Record<string, string>, shown: string[]): EntryReading[] =>
+  shown.flatMap(slot => {
+    const value = typedFigure(typedIn[slot] ?? '');
+    if (value === null) return [];
+    const [key, plantId] = slot.split('|');
+
+    return [{ key, value, plantId: plantId || null }];
+  });
 
 /**
- * What was typed, as readings. A field left empty is not a reading of nothing,
- * so it is left out; a per-plant definition on a line about one plant carries
- * that plant, and on a line about the whole grow carries none.
+ * The dose rows a feed shows: for a new line, the grid's week with each product's rate and what this can takes - a
+ * product the week leaves out says when it starts or stopped -; for a line that was recorded, the doses it recorded,
+ * each at the rate it was given in.
  */
-const readingsFrom = (typedIn: Record<string, string>, shown: string[], definitions: MeasurementDefinition[], target: LogTarget): EntryReading[] =>
-  shown.flatMap(key => {
-    const value = typedFigure(typedIn[key] ?? '');
-    if (value === null) return [];
-    const perPlant = definitions.find(definition => definition.key === key)?.perPlant ?? false;
+const doseRows = (
+  t: Translate,
+  grow: GrowListItem | undefined,
+  step: SchemeWeek | null,
+  doses: EntryDose[],
+  recorded: FeedEntryValues | null,
+): { key: string; name: string; rate: string; amount: string; off: boolean }[] => {
+  const amountOf = (dose: EntryDose | undefined) => (dose ? `${looseFigure(dose.amount)} ${dose.unit}` : '—');
+  if (recorded) {
+    return doses.map(dose => {
+      const given = recorded.doses.find(one => one.productKey === dose.productKey);
+      const rate =
+        given && recorded.litres ? `${looseFigure(Math.round((given.amount / recorded.litres) * 100) / 100)} ${unitShown(`${dose.unit}/l`)}` : '';
+      return { key: dose.productKey, name: dose.name, rate, amount: amountOf(dose), off: false };
+    });
+  }
 
-    return [{ key, value, plantId: perPlant ? (target.plantIds[0] ?? null) : null }];
+  return (step?.amounts ?? []).map(amount => {
+    const from = amount.value === null ? startsAfter(grow, amount.productKey, step!.week) : null;
+    const until = amount.value === null && from === null ? stoppedAfter(grow, amount.productKey) : null;
+    const rate =
+      amount.value !== null
+        ? `${looseFigure(amount.value)} ${unitShown(amount.unit)}`
+        : from !== null
+          ? t('log.startsIn', { week: from })
+          : until === null || until >= step!.week
+            ? ''
+            : t('log.stopsAfter', { week: until });
+    return {
+      key: amount.productKey,
+      name: amount.name,
+      rate,
+      amount: amountOf(doses.find(one => one.productKey === amount.productKey)),
+      off: amount.value === null,
+    };
   });
+};

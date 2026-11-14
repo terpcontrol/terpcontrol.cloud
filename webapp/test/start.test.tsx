@@ -210,7 +210,7 @@ describe('Start of one place with a camera and a grow', () => {
     ).toEqual([`Waterdue since ${hhmm(ago(30))}Log`, `Clean the filterdue since ${hhmm(ago(30))}Done`]);
 
     fireEvent.click(within(today).getByRole('button', { name: 'Log: Water' }));
-    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: 'space-1', kind: 'water' });
+    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: 'space-1', kind: 'water', taskId: expect.any(String) });
     expect(log.complete).not.toHaveBeenCalled();
 
     fireEvent.click(within(today).getByRole('button', { name: 'Done: Clean the filter' }));
@@ -1203,7 +1203,7 @@ describe('the states of Start', () => {
     expect(screen.getByText('Flower · week 3').closest('a')).toHaveAttribute('href', '/grow');
     expect(screen.getByRole('heading', { name: 'Latest' }).closest('section')).toHaveTextContent('Repotted');
     fireEvent.click(await screen.findByRole('button', { name: 'Log: Water' }));
-    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: null, kind: 'water' });
+    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-1', spaceId: null, kind: 'water', taskId: expect.any(String) });
   });
 
   it('says a place the reader was taken out of cannot be opened, and offers the way home rather than a retry', async () => {
@@ -1326,7 +1326,7 @@ describe('Start with several places', () => {
     const today = (await screen.findByRole('heading', { name: 'Today' })).closest('section')!;
     fireEvent.click(await within(today).findByRole('button', { name: 'Log: Water' }));
     expect(within(today).getByRole('listitem')).toHaveTextContent(`WaterAutumn cuttings · Tent 2 · due since ${hhmm(ago(30))}Log`);
-    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-2', spaceId: 'space-2', kind: 'water' });
+    expect(log.openSheet).toHaveBeenCalledWith({ growId: 'grow-2', spaceId: 'space-2', kind: 'water', taskId: expect.any(String) });
   });
 
   /** The pill names the state as a device's pill and Steuerung do, and "check" named nothing. */

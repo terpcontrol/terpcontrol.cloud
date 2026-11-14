@@ -68,7 +68,7 @@ function Row({ task, spaceId, where, growId, twin, across, now }: Due & { across
   const told = tickedLabel(t, task, across || twin ? where[0] : null);
   const act = () => {
     if (step) setAsking(true);
-    else if (enters) openSheet({ growId, spaceId, kind: task.kind as 'water' | 'feed' });
+    else if (enters) openSheet({ growId, spaceId, kind: task.kind as 'water' | 'feed', taskId: task.id });
     else complete(task.id, told);
   };
 

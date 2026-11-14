@@ -50,6 +50,8 @@ export interface LogOpening {
    * not list - falls back to the chip chosen last time instead of refusing.
    */
   underneath?: boolean;
+  /** The task whose "Eintragen" opened the sheet: the line written for its grow ticks that task. */
+  taskId?: string | null;
 }
 
 /** A line on its way to the server, and what a retry would send again. */
@@ -99,8 +101,8 @@ export type Told = (Back | { undo: null }) & {
 
 interface LogState {
   openSheet: (opening?: LogOpening) => void;
-  /** Opens one kind's view: on a line to correct, or on a new one dated to `at` where the sheet was told when. */
-  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null, at?: Date | null) => void;
+  /** Opens one kind's view: on a line to correct, or on a new one dated to `at` where the sheet was told when, closing `taskId`. */
+  openDetails: (kind: TileKind, target: LogTarget, entry?: Entry | null, at?: Date | null, taskId?: string | null) => void;
   /** Write a line now: the sheet closes, the toast appears, and the request is somebody else's problem. */
   log: (request: LogRequest) => void;
   /** The Done on a due card, which writes the entry the task implies. */

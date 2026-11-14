@@ -85,7 +85,8 @@ export const useUpdateGrow = (growId: string) =>
     (client, grow, body) => {
       client.setQueryData(['grow', growId], grow);
       void invalidate(client, ['home']);
-      if (body.visibility !== undefined) void invalidate(client, ['grows']);
+      // The list carries the start too: a twin of a place is ordered by it, and its day counted from it.
+      if (body.visibility !== undefined || body.startedAt !== undefined) void invalidate(client, ['grows']);
     },
   );
 
