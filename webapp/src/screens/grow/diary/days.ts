@@ -127,10 +127,24 @@ export interface DayLine {
   what:
     | { kind: 'entry'; entry: Entry; count: number; since: string }
     /**
-     * An alarm, named by its rule: how often it fired that day, and the reading and the edge it crossed. `over` is
-     * the line that says it ended; `stands`, that the rule's alarm was still open when the day's lines end.
+     * An alarm, named by its rule on its device: how often it fired that day, and the reading and the edge it
+     * crossed. `over` is the line that says it ended; `stands`, that the rule's alarm was still open when the day's
+     * lines end.
      */
-    | { kind: 'alarm'; entry: Entry; rule: string; count: number; since: string; limit: string | null; over: boolean; stands: boolean }
+    | {
+        kind: 'alarm';
+        entry: Entry;
+        rule: string;
+        count: number;
+        since: string;
+        limit: string | null;
+        over: boolean;
+        stands: boolean;
+        /** Another device's rule of the same name has a line beside it: this one says its device. */
+        twin: boolean;
+        /** It fired as critical, which a card shows before a warning when it folds. */
+        critical: boolean;
+      }
     /**
      * Something worked out from the record: the lamp, a stretch outside the targets (`metric`), maintenance, another
      * device measuring. `moment` says the line leads to the curves of its moment where it names no reading of its own.
@@ -247,19 +261,24 @@ const openAlarm = (line: DayLine): boolean => line.what.kind === 'alarm' && line
 /** How many of these lines are an alarm's: what the row that unfolds a card says it hides. */
 export const alarmsIn = (lines: DayLine[]): number => lines.filter(line => line.what.kind === 'alarm').length;
 
+/** Which of a device's lines a card keeps first when it folds: a critical alarm, then a warning's, then the rest. */
+const foldRank = (line: DayLine): number => (line.what.kind !== 'alarm' ? 2 : line.what.critical ? 0 : 1);
+
 /**
  * The lines a card draws before the rest is asked for. The grower's own lines
  * come first and are never folded behind a device's, and an alarm that stands
  * open is never folded at all; what else the devices did fills what is left
- * of four lines, what is out of the ordinary - a reading outside its targets,
- * an alarm that is over, a step of the plan - before the lamp.
+ * of four lines, what is out of the ordinary - a critical alarm before a
+ * warning's, then a reading outside its targets, an alarm that is over, a step
+ * of the plan - before the lamp.
  */
 export const shownLines = (lines: DayLine[]): DayLine[] => {
   const own = lines.filter(line => line.own).slice(0, OWN_SHOWN);
   const open = lines.filter(openAlarm);
   const devices = lines.filter(line => !line.own && !openAlarm(line));
   const room = Math.max(0, LINES_SHOWN - own.length - open.length);
-  const filled = [...devices.filter(line => !line.routine), ...devices.filter(line => line.routine)].slice(0, room);
+  const unusual = devices.filter(line => !line.routine).sort((one, other) => foldRank(one) - foldRank(other));
+  const filled = [...unusual, ...devices.filter(line => line.routine)].slice(0, room);
 
   const shown = lines.filter(line => own.includes(line) || open.includes(line) || filled.includes(line));
   // One line more is shown rather than folded behind a button as tall as itself.
@@ -285,8 +304,11 @@ const CLEARED = 'message-alarm-resolved';
 /**
  * A day's alarms as one line per rule: its newest line, how often it fired and since when - its start and its end
  * one line, "Zu warm · behoben", as often as it fired. The rule is over where its newest line is the clearing. A
- * camera's silence is named as Meldungen names it, "Terp Cam ohne Bild", and a silence counts from when it was last
- * heard, as Meldungen counts it. `told` is every entry these lines stand for.
+ * rule is its device's (`ruleKey`): every device carries "Gerät offline", and a controller and a socket share the
+ * stage's rules, so one device's open alarm read "behoben" because another's of the same name was over. Where two
+ * devices' lines share a name, each says its device (`twin`). A camera's silence is named as Meldungen names it,
+ * "Terp Cam ohne Bild", and a silence counts from when it was last heard, as Meldungen counts it. `told` is every
+ * entry these lines stand for.
  */
 const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set<string> } => {
   const read = entries.flatMap(entry => {
@@ -296,15 +318,16 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
     const rule = entry.cameraId ? i18n.t('alerts.title.camera', { what: parts.rule }) : parts.rule;
     const began =
       parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!;
-    return [{ entry, parts: { ...parts, rule }, fired: key === FIRED, began }];
+    return [{ entry, parts: { ...parts, rule }, fired: key === FIRED, began, key: ruleKey(entry, rule) }];
   });
   // Newest first: a rule whose newest line is its clearing is over, however often it fired before.
-  const lines = foldSame(
+  const folded = foldSame(
     read,
-    one => one.parts.rule,
+    one => one.key,
     one => one.began,
-  ).map(({ newest }): DayLine => {
-    const fired = read.filter(one => one.parts.rule === newest.parts.rule && one.fired);
+  );
+  const lines = folded.map(({ newest }): DayLine => {
+    const fired = read.filter(one => one.key === newest.key && one.fired);
     const over = !newest.fired;
     return {
       key: newest.entry.id,
@@ -320,11 +343,33 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
         limit: over ? null : newest.parts.limit,
         over,
         stands: !over,
+        twin: folded.some(({ newest: other }) => other.key !== newest.key && other.parts.rule === newest.parts.rule),
+        critical: fired.some(one => one.entry.severity === 'critical'),
       },
     };
   });
 
   return { lines, told: new Set(read.map(one => one.entry.id)) };
+};
+
+/** Which rule an alarm's line is of: its name on its device or its camera, never its name alone. */
+const ruleKey = (entry: Pick<Entry, 'deviceId' | 'cameraId'>, rule: string): string => [entry.deviceId ?? '', entry.cameraId ?? '', rule].join('|');
+
+/**
+ * Lines newest first, an alarm's only of the date its newest line stands on: what Start's newest lines count an alarm's
+ * repeats by, as that day's card of the diary counts them - the server sends each shown alarm's other firings along.
+ */
+export const onTheirDay = (i18n: I18n, entries: Entry[], zone: string | null): Entry[] => {
+  const days = new Map<string, string>();
+  return entries.filter(entry => {
+    const key = entry.kind === 'alarm' ? entry.message?.key : null;
+    const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
+    if (!parts) return true;
+    const rule = ruleKey(entry, parts.rule);
+    const day = DateTime.fromISO(entry.occurredAt, { zone: zone ?? 'UTC' }).toISODate()!;
+    if (!days.has(rule)) days.set(rule, day);
+    return days.get(rule) === day;
+  });
 };
 
 /**

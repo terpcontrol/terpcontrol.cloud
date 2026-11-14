@@ -577,6 +577,39 @@ describe('what was last written', () => {
     expect(page.events).toEqual([{ kind: 'controlOff', at: '2026-06-10T09:00:00.000Z', endedAt: '2026-06-10T09:12:00.000Z' }]);
   });
 
+  /**
+   * Start counts an alarm's repeats as the day's card of the diary does, so the tail carries every firing of an alarm
+   * among its newest lines - of that rule on that device, not another's of the same name -, not only those the newest
+   * happened to hold.
+   */
+  it('carries the other firings of an alarm among the newest lines, of its rule and device alone', async () => {
+    const fired = (id: string, at: string, deviceId = CONTROLLER) =>
+      machine(id, at, {
+        kind: 'alarm',
+        source: 'alarm',
+        deviceId,
+        message: { key: 'message-alarm-triggered', params: ['Too hot (temperature), value=31.2, upper threshold=28, lower threshold=n/a'] },
+        values: { kind: 'alarm' },
+      });
+    const notes = Array.from({ length: 8 }, (_, index) =>
+      entry({ id: `note-${index}`, growId: GROW, occurredAt: new Date(`2026-06-10T11:${String(10 + index).padStart(2, '0')}:00.000Z`) }),
+    );
+    await db.entries.create([
+      ...notes.slice(0, 7),
+      fired('newest', '2026-06-10T11:30:00.000Z'),
+      ...Array.from({ length: 30 }, (_, index) =>
+        fired(`older-${index}`, `2026-06-10T0${Math.floor(index / 6)}:${String((index % 6) * 10).padStart(2, '0')}:00.000Z`),
+      ),
+      fired('elsewhere', '2026-06-10T09:00:00.000Z', 'device-other'),
+    ]);
+
+    const ids = (await readAs(session(OWNER))).entries.map(line => line.id);
+
+    expect(ids).toContain('newest');
+    expect(ids.filter(id => id.startsWith('older-'))).toHaveLength(30);
+    expect(ids).not.toContain('elsewhere');
+  });
+
   it('leaves a maintenance still on without an end', async () => {
     await db.entries.create(maintenance('maintenance-on', '2026-06-10T11:50:00.000Z', 30));
 

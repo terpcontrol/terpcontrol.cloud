@@ -819,6 +819,94 @@ describe('a day of the diary', () => {
     expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance ended' });
   });
 
+  /** A card with room for one more line keeps a critical alarm that is over before a warning's of the same minute. */
+  it('folds a warning before a critical alarm, never the other way round', () => {
+    const over = (id: string, rule: string, severity: 'warning' | 'critical', hour: number, fired: boolean) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        severity: fired ? severity : 'info',
+        occurredAt: at(1, hour),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [`${rule} (temperature), value=31.2, upper threshold=28, lower threshold=n/a`],
+        },
+        values: { kind: 'alarm' },
+      });
+    const lines = dayLines(
+      i18next.t.bind(i18next) as never,
+      i18next,
+      day(1, {
+        entries: [
+          note('c', 14),
+          note('b', 13),
+          note('a', 12),
+          over('warm-over', 'Too warm', 'warning', 9, false),
+          over('mould-over', 'Mould risk', 'critical', 9, false),
+          over('warm', 'Too warm', 'warning', 8, true),
+          over('mould', 'Mould risk', 'critical', 8, true),
+        ],
+        events: [out(6, 30)],
+      }),
+      null,
+    );
+
+    expect(shownLines(lines).map(line => line.key)).toEqual(['c', 'b', 'a', 'mould-over']);
+  });
+
+  /**
+   * A rule is its device's: a controller and a socket of one place both carry "Device offline", and the socket's
+   * clearing made the controller's open alarm read "resolved". Each is a line of its own, open or over by its own
+   * newest line, and says its device.
+   */
+  it('keeps two devices´ alarms of one name apart, each open or over by its own lines, and names each device', async () => {
+    const offline = (id: string, hour: number, deviceId: string, fired: boolean) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId,
+        severity: fired ? 'warning' : 'info',
+        occurredAt: at(1, hour),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [fired ? 'Device offline, last heard 11 min ago' : 'Device offline, back after 1 h'],
+        },
+        values: { kind: 'alarm' },
+      });
+    const entries = [offline('plug-back', 9, 'plug-1', false), offline('plug', 8, 'plug-1', true), offline('ctrl', 7, 'ctrl-1', true)];
+    const lines = dayLines(i18next.t.bind(i18next) as never, i18next, day(1, { entries }), null);
+    const alarms = lines.flatMap(line => (line.what.kind === 'alarm' ? [line.what] : []));
+
+    expect(alarms.map(one => [one.entry.id, one.over, one.stands, one.twin])).toEqual([
+      ['plug-back', true, false, true],
+      ['ctrl', false, true, true],
+    ]);
+
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () =>
+      json({
+        items: [
+          { id: 'plug-1', type: 'plug', name: null },
+          { id: 'ctrl-1', type: 'controller', name: null },
+        ],
+        nextCursor: null,
+      }),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    drawDay(day(1, { entries }));
+
+    await waitFor(() =>
+      expect(linesOf()).toEqual([
+        '09:00Alarm: Device offline · Plantalytix Socket · overautomatic',
+        '07:00Alarm: Device offline · Controllerautomatic',
+      ]),
+    );
+  });
+
   /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */
   it('marks no line a person´s doing that a device wrote as the device´s own', () => {
     const switched = (key: string, params: string[] = []) =>

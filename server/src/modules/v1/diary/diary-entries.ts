@@ -271,13 +271,46 @@ export const diaryTail = async (
   const newest = (run: Span) => since === null || run.startsAt >= since;
 
   return {
-    lines,
+    lines: [...lines, ...(await firingsOf(entries, { $and: [about, withinRange('occurredAt', range), writtenFor(grant)] }, lines))],
     events: [
       ...told.maintenance.filter(newest).map(run => stretchEvent('maintenance', run, now)),
       ...told.controlOff.filter(newest).map(run => stretchEvent('controlOff', run, now)),
     ].sort((one, other) => other.at.localeCompare(one.at)),
   };
 };
+
+/** How far back an alarm's firings are read beside its newest line: the day its newest line stands on is in it, wherever the reader is. */
+const FIRINGS_BACK_MS = 36 * 60 * 60 * 1000;
+
+/** A safety net: an alarm at its threshold fires and clears all night. */
+const MAX_FIRINGS = 500;
+
+/**
+ * The other lines of each alarm among the newest, which Start counts its repeats by - "Zu warm · 3× seit 01:16", as
+ * the day's card of the diary counts them -, rather than by the few of its lines the newest happened to hold. A rule
+ * is its device's or its camera's, by the name it is written with (`alertLine`).
+ */
+const firingsOf = async (entries: Model<EntryDocument>, about: FilterQuery<EntryDocument>, lines: EntryDocument[]): Promise<EntryDocument[]> => {
+  const ruleOf = (entry: EntryDocument): string | null =>
+    entry.kind === 'alarm' && entry.message
+      ? [entry.deviceId ?? '', entry.cameraId ?? '', ruleNameOf(entry.message.params[0] ?? '')].join('|')
+      : null;
+  const alarms = lines.filter(entry => ruleOf(entry) !== null);
+  if (alarms.length === 0) return [];
+
+  const shown = new Set(lines.map(entry => entry.id));
+  const rules = new Set(alarms.map(ruleOf));
+  const from = new Date(Math.min(...alarms.map(entry => entry.occurredAt.getTime())) - FIRINGS_BACK_MS);
+  const read = await entries
+    .find({ $and: [about, { kind: 'alarm', occurredAt: { $gte: from } }] })
+    .sort({ occurredAt: -1, _id: -1 })
+    .limit(MAX_FIRINGS)
+    .lean<EntryDocument[]>();
+  return read.filter(entry => !shown.has(entry.id) && rules.has(ruleOf(entry)));
+};
+
+/** The rule's name an alarm's line opens with: before " (watched), value=…", ", last heard …", ", back …". */
+const ruleNameOf = (param: string): string => /^(.*?)(?: \([A-Za-z0-9_]+\), value=|, last heard |, back after |, back$|$)/.exec(param)?.[1] ?? param;
 
 /** The kinds that carry readings of the grow's own measurements. */
 export const READING_KINDS = ['water', 'feed', 'measurement'] as const;

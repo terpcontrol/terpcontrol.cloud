@@ -6,7 +6,8 @@ import type { Entry, GrowDayEvent, GrowReadingNames, Person, PlantLabel } from '
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { GROW } from '@/app/places';
 import { useCorrecting } from '@/log/corrections';
-import { dayLines } from '@/screens/grow/diary/days';
+import { notTaken } from '@/screens/control/rows';
+import { dayLines, onTheirDay } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { dayStamp } from '@/ui/age';
 import { readingNamesOf } from '@/ui/entries';
@@ -37,6 +38,7 @@ export function Latest({
   byline = true,
   plants,
   now,
+  offStored = null,
 }: {
   entries: Entry[];
   events: GrowDayEvent[];
@@ -50,11 +52,19 @@ export function Latest({
   /** The plants of the grows standing here, so a line about some of them names those. */
   plants: readonly PlantLabel[];
   now: DateTime;
+  /** Since when a switch-off is stored that the silent device has not been handed: regulation off is then not said as fact. */
+  offStored?: string | null;
 }) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const correcting = useCorrecting();
-  const lines = dayLines(t, i18n, { entries, events, endsAt: now.toISO() ?? '' }, zone).slice(0, LATEST);
+  const stored = offStored ? notTaken(t, t('control.state.off'), offStored, now, zone) : null;
+  const open = events.find(event => event.kind === 'controlOff' && event.endedAt === null);
+  const lines = dayLines(t, i18n, { entries: onTheirDay(i18n, entries, zone), events, endsAt: now.toISO() ?? '' }, zone)
+    .slice(0, LATEST)
+    .map(line =>
+      stored && open && line.key === `controlOff-${open.at}` ? { ...line, what: { kind: 'said' as const, words: stored, metric: null } } : line,
+    );
   const [viewing, setViewing] = useState<{ pictures: string[]; from: number } | null>(null);
   // A place where nothing has happened yet has no card saying so: the page under it is short enough.
   if (lines.length === 0) return null;

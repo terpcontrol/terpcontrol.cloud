@@ -395,6 +395,38 @@ describe('Start of one place with a camera and a grow', () => {
     expect(lines.map(line => line.getAttribute('data-severity'))).toEqual(['warning', null, null]);
   });
 
+  /**
+   * An alarm's repeats are counted as the day's card of the diary counts them: every firing of its day that the server
+   * sends along, not only those among the newest lines - and none of the day before. Start read "2× since 01:53" where
+   * the diary said "3× since 01:22".
+   */
+  it('counts an alarm´s repeats of its day, as the diary does', async () => {
+    const fired = (id: string, minutes: number) =>
+      entry(id, {
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        text: null,
+        deviceId: 'device-1',
+        values: { kind: 'alarm' } as never,
+        severity: 'warning',
+        message: { key: 'message-alarm-triggered', params: ['Too hot (temperature), value=31.2, upper threshold=28, lower threshold=n/a'] },
+        occurredAt: ago(minutes),
+      });
+    onePlace(
+      overviewOf({
+        grows: [growOf()],
+        // The newest lines hold two of its firings; the third of the day and one of yesterday come after them.
+        entries: [fired('third', 10), fired('second', 60), fired('first', 120), fired('yesterday', 24 * 60)],
+      }),
+      true,
+    );
+    draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(within(latest).getByRole('listitem')).toHaveTextContent(`3× since ${hhmm(ago(120))}`));
+  });
+
   it('says how much a watering poured', async () => {
     onePlace(
       overviewOf({

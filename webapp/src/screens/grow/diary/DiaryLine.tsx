@@ -1,19 +1,22 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Person, Plant, ReadingName } from '@fg2/shared-types/v1';
+import { useDevicesShape } from '@/api/devices';
 import { sinceLabel } from '@/ui/age';
 import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { Line } from '@/ui/Lines';
+import { deviceName } from '@/ui/naming';
 import ui from '@/ui/ui.module.css';
 import type { DayLine } from './days';
 
 /**
  * One line of the diary as it is drawn wherever the diary is read - on a day's
  * card and under "Zuletzt" on Start: what somebody did as they wrote it, and
- * what the devices did by themselves marked as that. An alarm is its rule,
- * how often it fired and the edge it crossed. A line that carries pictures
+ * what the devices did by themselves marked as that. An alarm is its rule -
+ * with its device, where another device's rule of that name has a line beside
+ * it -, how often it fired and the edge it crossed. A line that carries pictures
  * counts them as the way to them where the list has one (`onPictures`) - or
  * draws them, for a reader of a share link (`thumbnails`) - and only counts
  * them where it has none.
@@ -68,6 +71,7 @@ export function DiaryLine({
   const { t } = useTranslation();
   const mark = line.own ? null : t('grow.diary.byItself');
   const { what } = line;
+  const device = useDeviceCalled(what.kind === 'alarm' && what.twin ? what.entry.deviceId : null);
 
   if (what.kind === 'said') {
     return (
@@ -83,6 +87,7 @@ export function DiaryLine({
         <Facts
           facts={[
             what.rule,
+            device,
             what.count > 1
               ? forwards
                 ? t('home.entryRepeatsUntil', { count: what.count, until: moment(what.since) })
@@ -125,3 +130,10 @@ export function DiaryLine({
     </Line>
   );
 }
+
+/** What a device is called, read only where a line has to say which device it is about. */
+const useDeviceCalled = (deviceId: string | null): string | null => {
+  const { t } = useTranslation();
+  const device = useDevicesShape(deviceId !== null).data?.items.find(one => one.id === deviceId);
+  return device ? deviceName(device, t) : null;
+};
