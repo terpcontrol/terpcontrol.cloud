@@ -70,7 +70,9 @@ export class TasksService {
     const where = await this.placesOf(ctx, filter);
     if (where.spaceIds.length === 0 && where.growIds.length === 0) return { items: [], nextCursor: null };
 
-    const reminders = await this.reminders.find(remindersAbout(where.spaceIds, where.growIds)).lean<ReminderDocument[]>();
+    // What was done stays listed as done when the grow it was done for ends - the end rests its reminders, and the
+    // morning's watering went with them from "Erledigt".
+    const reminders = await this.reminders.find(remindersAbout(where.spaceIds, where.growIds, filter.done === true)).lean<ReminderDocument[]>();
     const completions = await completionsOf(this.entries, reminders);
     const tasks = filter.done
       ? this.ticked(reminders, completions, now)
@@ -86,12 +88,15 @@ export class TasksService {
     return pageOf(after(sorted, cursor), limit, task => ({ at: new Date(task.dueAt), id: task.id }));
   }
 
-  /** The grows and spaces the answer may be built from: the one that was named, or everything kept. */
+  /**
+   * The grows and spaces the answer may be built from: the one that was named, or everything kept - and for what was
+   * done lately, what has ended since as well.
+   */
   private async placesOf(ctx: AccessContext, filter: TaskFilter): Promise<{ spaceIds: string[]; growIds: string[] }> {
     if (filter.growId) return { spaceIds: [], growIds: [filter.growId] };
     if (filter.spaceId) return { spaceIds: [filter.spaceId], growIds: [] };
 
-    return this.visible.workedInBy(ctx);
+    return filter.done ? this.visible.subjectsOf(ctx) : this.visible.workedInBy(ctx);
   }
 
   /**

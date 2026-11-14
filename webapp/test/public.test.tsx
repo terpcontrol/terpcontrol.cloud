@@ -206,6 +206,17 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
       subject: { type: 'grow', grow: page, curves: [] },
     });
   }
+  // A link onto the whole of a grow that has ended.
+  if (path === '/shared/ended-token') {
+    const range = { startsAt: null, endsAt: null };
+    return json({
+      kind: 'view',
+      range,
+      includeCameras: true,
+      expiresAt: null,
+      subject: { type: 'grow', grow: { ...page, range, endedAt: at(1) }, curves: [] },
+    });
+  }
   // A link made from Verlauf for a stretch of two days: the grow stood in one place through it.
   if (path === '/shared/stretch-token') {
     const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
@@ -777,6 +788,18 @@ describe('following a diary', () => {
     );
     expect([asked.searchParams.get('from'), asked.searchParams.get('to')]).toEqual([at(3, 0), at(1, 0)].map(one => new Date(one).toISOString()));
     await expectWindowOnly(screen.getByRole('heading', { name: 'Timeline · Tent 1' }).closest('section')!, '16 Sep to 17 Sep');
+  });
+
+  /** A link onto an ended grow said "Du liest alles bis jetzt", as if more were to come. */
+  it('says a link onto a grow that has ended reads the whole grow, and one onto a running grow everything up to now', async () => {
+    const { unmount } = drawRoute('/shared/ended-token', '/shared/:token', <SharedRoute />);
+    expect(await screen.findByText('You are reading the whole grow')).toBeInTheDocument();
+    expect(screen.queryByText(/up to now/)).not.toBeInTheDocument();
+    unmount();
+
+    drawRoute('/shared/a-token', '/shared/:token', <SharedRoute />);
+    expect(await screen.findByRole('heading', { name: 'Spring run' })).toBeInTheDocument();
+    expect(screen.queryByText('You are reading the whole grow')).not.toBeInTheDocument();
   });
 
   it('draws no curves on a link onto a running grow, which is its diary', async () => {

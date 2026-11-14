@@ -35,9 +35,12 @@ export const reminderOfTask = (reminders: readonly ReminderDocument[], taskId: s
 /** A reminder that is not resting with its ended grow (`restingSince`): what comes due and what is listed. */
 export const AWAKE: FilterQuery<ReminderDocument> = { restingSince: null };
 
-/** The reminders about any of these spaces or grows, but those resting with their ended grow. */
-export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[]): FilterQuery<ReminderDocument> => ({
-  ...AWAKE,
+/**
+ * The reminders about any of these spaces or grows, but those resting with their ended grow - unless `resting` asks
+ * for them too: what was ticked off today is listed as done though its grow ended since.
+ */
+export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[], resting = false): FilterQuery<ReminderDocument> => ({
+  ...(resting ? {} : AWAKE),
   $or: [
     { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
     { 'subject.type': 'grow', 'subject.id': { $in: growIds } },

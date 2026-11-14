@@ -18,7 +18,9 @@ import { GrowHead } from '@/screens/grow/GrowPage';
 import { Pictures } from '@/screens/grow/pictures/Pictures';
 import { Report } from '@/screens/grow/Report';
 import { AlsoHere } from '@/screens/space/AlsoHere';
+import { PhaseLine } from '@/screens/start/Phase';
 import { drawAt, json, reading } from './harness';
+import { growOf } from './place-wire';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
 import { catalogue, translate } from './translations';
 
@@ -249,6 +251,44 @@ describe('the report tab', () => {
   // Getting a whole grow out as a zip is the owner's; the grow page works out
   // whose the grow is and hands the answer down.
   const drawReport = (mayOwn = true) => draw(<Report grow={grow} spaces={[]} mayOwn={mayOwn} now={NOW} picturesTo="/grow/pictures" />);
+
+  /** The Bericht of a grow split into flowering said only "Veg": a split's chapter names how many plants it is of. */
+  it('names a split´s chapter by the plants it is of', async () => {
+    const chapterOf = (phaseId: string, stage: string) => ({
+      phaseId,
+      stage,
+      preset: null,
+      startedAt: at(10),
+      endedAt: null,
+      dayFrom: 25,
+      dayTo: null,
+      dayCount: 11,
+      spaceIds: [],
+      coverMediaId: null,
+      climate: [],
+      lightHours: null,
+      inBandPercent: null,
+      waterCount: 0,
+      feedCount: 0,
+      training: [],
+    });
+    const splitGrow: GrowListItem = {
+      ...grow,
+      phases: [
+        { ...grow.phases[0], id: 'veg' },
+        { ...grow.phases[1], id: 'split', preset: null, plantIds: ['plant-a'] },
+      ],
+    };
+    wire.plants = [
+      { id: 'plant-a', growId: 'grow-1', label: 'A' },
+      { id: 'plant-b', growId: 'grow-1', label: 'B' },
+    ];
+    wire.report = { ...REPORT, phases: [chapterOf('split', 'flowering'), chapterOf('veg', 'vegetative')] };
+    draw(<Report grow={splitGrow} spaces={[]} mayOwn now={NOW} picturesTo="/grow/pictures" />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Flower · 1 of 2 plants' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Veg' })).toBeInTheDocument();
+  });
 
   /**
    * A chapter states how the tent was kept, the hours of light among it. They
@@ -486,6 +526,62 @@ describe('the head of a grow´s page', () => {
 
     expect(screen.getByText(/· 1 Seedling, 1 Veg, 1 harvested/)).toBeInTheDocument();
     expect(screen.queryByText(/2 Seedling/)).not.toBeInTheDocument();
+  });
+
+  /** "Blüte, Woche 1 · 1 Blüte, 1 Veg" read as if the whole grow flowered: a split is named by the plants in its stage. */
+  it('names a split by the plants in the stage at its head, without the whole grow´s week', () => {
+    const split: GrowListItem = {
+      ...grow,
+      summary: {
+        ...grow.summary,
+        groups: [
+          { stage: 'flowering', preset: 'flower', phaseDay: 1, plantIds: ['a'] },
+          { stage: 'vegetative', preset: null, phaseDay: 35, plantIds: ['b'] },
+        ],
+      },
+    };
+    draw(<GrowHead grow={split} plants={[]} spaces={tent} />);
+
+    const facts = screen.getByRole('heading', { level: 1, name: 'Spring run' }).nextElementSibling!;
+    expect(facts).toHaveTextContent(/^Day 35 · Flower · 1 of 2 plants · /);
+    expect(screen.queryByText('week 2')).not.toBeInTheDocument();
+    expect(screen.queryByText(/1 Veg/)).not.toBeInTheDocument();
+  });
+
+  /** Start said "Blüte · Woche 1" over a tent where one plant of two was still in Veg: the same words as the head. */
+  it('names a split on Start´s phase line as the head does', () => {
+    const card = growOf({
+      stageWeek: 1,
+      stageGroups: [
+        { stage: 'flowering', plantCount: 1 },
+        { stage: 'vegetative', plantCount: 1 },
+      ],
+    });
+    draw(<PhaseLine grow={card} to="/grow" />);
+
+    expect(screen.getByRole('link')).toHaveTextContent(/^Flower · 1 of 2 plants/);
+    expect(screen.getByRole('link')).not.toHaveTextContent(/week 1/i);
+  });
+
+  /** A grow without a phase said no day in its head, and ended no length, while its diary counted "Tag 21". */
+  /** The server counted no day before a grow's first phase, while its diary counted "Tag 21": it counts them now, and the head says them. */
+  it('says the days of a grow that never entered a phase, and ended how long it ran', () => {
+    const begun = new Date(Date.now() - 20 * 86_400_000).toISOString();
+    const bare: GrowListItem = {
+      ...grow,
+      phases: [],
+      startedAt: begun,
+      summary: { ...grow.summary, dayNumber: 21, stage: null, preset: null, phaseDay: null, stageWeek: null, weekNumber: 3, isAuto: false },
+    };
+    draw(<GrowHead grow={bare} plants={[]} spaces={tent} />);
+    expect(screen.getByText('Day 21')).toBeInTheDocument();
+    expect(screen.getByText(/No phase yet/)).toBeInTheDocument();
+    cleanup();
+
+    draw(
+      <GrowHead grow={{ ...bare, startedAt: at(20), endedAt: at(0, 15), summary: { ...bare.summary, locations: [] } }} plants={[]} spaces={tent} />,
+    );
+    expect(screen.getByText('21 days · ended 18 Sep 2026')).toBeInTheDocument();
   });
 
   /** A second grow started in its place pushed this one out of sight: each grow's page names the other, as the way to it. */

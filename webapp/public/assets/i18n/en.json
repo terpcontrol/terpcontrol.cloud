@@ -1047,6 +1047,8 @@
     "days_one": "{{count}} day",
     "days_other": "{{count}} days",
     "week": "week {{week}}",
+    "splitOf_one": "{{stage}} · {{part}} of {{count}} plant",
+    "splitOf_other": "{{stage}} · {{part}} of {{count}} plants",
     "dayRange": "Day {{from}} to {{to}}",
     "dayShort": "D {{day}}",
     "correctLine": "Correct this line",
@@ -2557,8 +2559,10 @@
     "following": "Following",
     "window": {
       "all": "You are reading all of it, up to now",
+      "whole": "You are reading the whole grow",
       "until": "You are reading up to {{to}}",
       "since": "You are reading from {{from}} on",
+      "sinceToEnd": "You are reading from {{from}} to its end",
       "between": "You are reading {{from}} to {{to}}"
     },
     "expires": "This address stops working on {{date}}",

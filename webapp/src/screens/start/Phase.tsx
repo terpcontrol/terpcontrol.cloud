@@ -3,16 +3,21 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowCard } from '@fg2/shared-types/v1';
 import { GrowBar } from '@/screens/grow/GrowBar';
-import { growDay, useProgress } from '@/screens/grow/progress';
+import { growDay, splitWords, useProgress } from '@/screens/grow/progress';
 import styles from './Start.module.css';
 
-/** "Blüte · Woche 3 … Ernte in etwa 6 Wochen" over the bar. */
+/** "Blüte · Woche 3 … Ernte in etwa 6 Wochen" over the bar; a split's stage by its plants, "Blüte · 1 von 2 Pflanzen". */
 function PhaseWords({ grow }: { grow: GrowCard }) {
   const { t } = useTranslation();
   const { weeksLeft } = useProgress(grow);
-  const phase = grow.stage
-    ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('start.week', { week: grow.stageWeek }) : null].filter(Boolean).join(' · ')
-    : t('home.card.noPhase');
+  const said = grow.stage ? t(`home.stage.${grow.stage}`) : t('home.card.noPhase');
+  const split = splitWords(
+    t,
+    said,
+    grow.stage,
+    grow.stageGroups.map(group => ({ stage: group.stage, count: group.plantCount })),
+  );
+  const phase = split ?? (grow.stage && grow.stageWeek !== null ? [said, t('start.week', { week: grow.stageWeek })].join(' · ') : said);
 
   return (
     <>

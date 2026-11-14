@@ -1059,6 +1059,8 @@
     "days_one": "{{count}} Tag",
     "days_other": "{{count}} Tage",
     "week": "Woche {{week}}",
+    "splitOf_one": "{{stage}} · {{part}} von {{count}} Pflanze",
+    "splitOf_other": "{{stage}} · {{part}} von {{count}} Pflanzen",
     "dayRange": "Tag {{from}} bis {{to}}",
     "dayShort": "T {{day}}",
     "correctLine": "Diesen Eintrag berichtigen",
@@ -2567,8 +2569,10 @@
     "following": "Du folgst",
     "window": {
       "all": "Du liest alles bis jetzt",
+      "whole": "Du liest den ganzen Grow",
       "until": "Du liest bis {{to}}",
       "since": "Du liest ab {{from}}",
+      "sinceToEnd": "Du liest ab {{from}} bis zu seinem Ende",
       "between": "Du liest {{from}} bis {{to}}"
     },
     "expires": "Diese Adresse hört am {{date}} auf zu funktionieren",

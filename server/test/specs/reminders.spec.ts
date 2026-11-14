@@ -270,6 +270,22 @@ describe('a grow that ends', () => {
     await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(200);
   });
 
+  /** Ending a grow took today's watering off "Erledigt" with its reminder: the work was done all the same. */
+  it('keeps what was ticked off today listed as done once the grow ends, and nothing of it waiting', async () => {
+    const grow = await growIn(owner, unique('Watered, then ended'));
+    const ofTheGrow = await create(owner, { ...about(grow.id), everyDays: null, onceAt: new Date(Date.now() - DAY_MS).toISOString() });
+    const line = await owner.client.post(`/v1/tasks/${ofTheGrow.id}/completions`).send({}).expect(201);
+
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45 }).expect(201);
+
+    expect((await tasksOf(owner, '?done=true')).find((one: { id: string }) => one.id === ofTheGrow.id)).toMatchObject({
+      done: true,
+      subject: { type: 'grow', id: grow.id },
+      completion: { entryId: line.body.id },
+    });
+    expect((await tasksOf(owner)).map((one: { sourceId: string }) => one.sourceId)).not.toContain(ofTheGrow.id);
+  });
+
   it('takes them along when it is deleted', async () => {
     const grow = await growIn(owner, unique('Deleted'));
     const ofTheGrow = await create(owner, about(grow.id));

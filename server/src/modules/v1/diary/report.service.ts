@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
-import { STAGES_WITH_CLIMATE, type StageSpan, growDayUpTo, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growDayUpTo, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
@@ -20,7 +20,7 @@ import { horizonOf, linesOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
 /**
- * The Report tab: the grow told as chapters, one per phase.
+ * The Report tab: the grow told as chapters, one per phase - a split's too.
  *
  * A chapter is a stretch of the grow at one stage, with the picture that stands
  * for it, how the tent was kept during it, how much of it was on target and
@@ -93,7 +93,9 @@ export class GrowReportService {
       this.totalsOf(growId, grant),
     ]);
 
-    const chapters = stageSpansOf(grow, horizon, zone).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
+    const chapters = [...stageSpansOf(grow, horizon, zone), ...splitSpansOf(grow, horizon, zone)]
+      .sort((one, other) => one.startsAt.getTime() - other.startsAt.getTime())
+      .filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
     const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, horizon, diary })));
 
     const people = await peopleNamed(
@@ -134,7 +136,12 @@ export class GrowReportService {
   private async chapterOf(chapter: Chapter, world: ReportWorld): Promise<GrowReportPhase> {
     const { grow, horizon } = world;
     const seen = seenOf({ startsAt: chapter.startsAt, endsAt: chapter.endsAt ?? horizon }, world.range);
-    const spaceIds = spacesDuring(grow, seen.startsAt, seen.endsAt);
+    // A split's chapter is told where its own plants stood.
+    const split = chapter.phase.plantIds;
+    const stood = split
+      ? { ...grow, placements: grow.placements.filter(one => one.plantIds === null || one.plantIds.some(id => split.includes(id))) }
+      : grow;
+    const spaceIds = spacesDuring(stood, seen.startsAt, seen.endsAt);
     const lines = linesOf(grow, seen);
     const entries = world.diary.filter(entry => entry.occurredAt >= lines.startsAt && entry.occurredAt < lines.endsAt);
 
@@ -155,9 +162,10 @@ export class GrowReportService {
       startedAt: chapter.startsAt.toISOString(),
       endedAt: chapter.endsAt?.toISOString() ?? null,
       dayFrom: chapter.dayFrom,
-      // The day before the next chapter's first, so the chapters are a partition
-      // of the grow and add up to the day count above them. Null while the phase
-      // is the one the grow is in, which is what "\u2192 today" says.
+      // The day before the next chapter's first, so the grow's own chapters are a
+      // partition of the grow and add up to the day count above them - a split's
+      // lies over them. Null while the phase is the one the grow is in, which is
+      // what "\u2192 today" says.
       dayTo: chapter.endsAt ? chapter.dayTo : null,
       dayCount: chapter.dayCount,
       // A chapter tells where the plants stood only to somebody who keeps them:
@@ -312,6 +320,43 @@ export class GrowReportService {
  */
 const bandOf = (chapter: Chapter): PhaseTargets | null =>
   STAGES_WITH_CLIMATE.includes(chapter.phase.stage) ? (chapter.phase.targets ?? null) : null;
+
+/**
+ * The chapters of a split: a phase only some of the plants entered - two of four
+ * gone into flowering while the rest stays in veg - is a chapter of its own, from
+ * its start to the next phase any of its plants entered or the grow's end. The
+ * grow's own chapters (`stageSpansOf`) leave it out, as a span of half the plants
+ * would say the grow flowered; told nowhere, the Bericht of a grow split into
+ * flowering said only "Veg". It lies over the grow's chapters rather than in
+ * their partition.
+ */
+const splitSpansOf = (grow: GrowDocument, horizon: Date, zone: string | null): Chapter[] => {
+  const origin = growOriginOf(grow);
+  const lastDay = growDayUpTo(origin, horizon, zone);
+  const phases = grow.phases.filter(phase => phase.startedAt.getTime() <= horizon.getTime());
+
+  return phases.flatMap(phase => {
+    const plantIds = phase.plantIds;
+    if (plantIds === null) return [];
+    const next = phases
+      .filter(other => other.startedAt > phase.startedAt && (other.plantIds === null || other.plantIds.some(id => plantIds.includes(id))))
+      .sort((one, other) => one.startedAt.getTime() - other.startedAt.getTime())[0];
+    const dayFrom = growDayAt(origin, phase.startedAt, zone);
+    const dayTo = next ? Math.max(dayFrom, growDayAt(origin, next.startedAt, zone) - 1) : Math.max(dayFrom, lastDay);
+
+    return [
+      {
+        phase,
+        stage: phase.stage,
+        startsAt: phase.startedAt,
+        endsAt: next?.startedAt ?? grow.endedAt,
+        dayFrom,
+        dayTo,
+        dayCount: dayTo - dayFrom + 1,
+      },
+    ];
+  });
+};
 
 interface ReportWorld {
   grow: GrowDocument;

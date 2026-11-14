@@ -95,14 +95,16 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
   const { startsAt, endsAt } = resolution.range;
   const current = windowIsCurrent(endsAt, now);
   const day = (at: string) => calendarDay(at, null);
+  // A grow that has ended is read to its end, not "bis jetzt": nothing more comes.
+  const ended = resolution.subject.type === 'grow' && resolution.subject.grow.endedAt !== null;
 
   const window =
     startsAt === null
       ? endsAt === null || current
-        ? t('publicPage.window.all')
+        ? t(ended ? 'publicPage.window.whole' : 'publicPage.window.all')
         : t('publicPage.window.until', { to: day(endsAt) })
       : endsAt === null || current
-        ? t('publicPage.window.since', { from: day(startsAt) })
+        ? t(ended ? 'publicPage.window.sinceToEnd' : 'publicPage.window.since', { from: day(startsAt) })
         : t('publicPage.window.between', { from: day(startsAt), to: day(endsAt) });
 
   return (

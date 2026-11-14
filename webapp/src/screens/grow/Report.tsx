@@ -87,7 +87,14 @@ export function Report({
       {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.report.noPhase')}</p> : null}
 
       {report.data.phases.map(chapter => (
-        <Chapter key={chapter.phaseId} chapter={chapter} grow={grow} people={report.data.people} spaces={spaces} />
+        <Chapter
+          key={chapter.phaseId}
+          chapter={chapter}
+          grow={grow}
+          plantCount={plants.data?.items.length ?? null}
+          people={report.data.people}
+          spaces={spaces}
+        />
       ))}
 
       <Export growId={grow.id} mayOwn={mayOwn} />
@@ -188,11 +195,14 @@ function Total({ value, label, to }: { value: number; label: string; to?: string
 function Chapter({
   chapter,
   grow,
+  plantCount,
   people,
   spaces,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
+  /** How many plants the grow has, which a split's chapter says its own of. */
+  plantCount: number | null;
   people: { id: string; handle: string }[];
   spaces: Space[];
 }) {
@@ -204,6 +214,9 @@ function Chapter({
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
   const where = (chapter.spaceIds ?? []).map(id => placeName(t, spaces, id)).join(', ');
+  const stage = stageLabel(t, chapter.stage, chapter.preset);
+  // A phase only some of the plants entered is a chapter of its own, named by how many of them: "Blüte · 1 von 2 Pflanzen".
+  const split = grow.phases.find(phase => phase.id === chapter.phaseId)?.plantIds ?? null;
 
   return (
     <article className={styles.chapter}>
@@ -211,7 +224,7 @@ function Chapter({
         {cover ? <img className={ui.cover} src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}
       </span>
       <div className={styles.chapterText}>
-        <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
+        <h2 className={styles.chapterTitle}>{split && plantCount ? t('grow.splitOf', { stage, part: split.length, count: plantCount }) : stage}</h2>
         <Facts
           className={styles.chapterMeta}
           facts={[

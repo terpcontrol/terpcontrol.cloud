@@ -410,6 +410,24 @@ describe('splitting a grow', () => {
     ]);
   });
 
+  /** The Bericht of a grow two of whose plants went into flowering said only "Veg": a split is a chapter of its own. */
+  it('tells a phase only some of the plants entered as a chapter of the report, beside the grow´s own', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'vegetative' }).expect(201);
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    const split = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [plants.body.items[0].id], stage: 'flowering' })
+      .expect(201);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    expect(report.phases.map((chapter: { stage: string; phaseId: string }) => [chapter.stage, chapter.phaseId === split.body.phase.id])).toEqual([
+      ['flowering', true],
+      ['vegetative', false],
+    ]);
+    expect(report.phases[0]).toMatchObject({ endedAt: null, dayTo: null, spaceIds: [tent] });
+  });
+
   it('refuses a split that gives the plants neither a phase nor a place', async () => {
     const grow = await startAGrow();
     const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);

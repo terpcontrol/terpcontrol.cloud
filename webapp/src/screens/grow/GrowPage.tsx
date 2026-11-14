@@ -21,6 +21,7 @@ import { Feeding } from './Feeding';
 import { GrowBar } from './GrowBar';
 import { GrowMenu } from './GrowMenu';
 import { GROW_TABS, growTabOf, growTabPath, type GrowTab } from './grow-tabs';
+import { splitWords } from './progress';
 import { Pictures } from './pictures/Pictures';
 import { lastPlaceOf, placeName } from './placement';
 import { Plants } from './Plants';
@@ -173,10 +174,12 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
   const stages = summary.groups
     .map(group => ({ stage: group.stage, count: group.plantIds.filter(id => !gone.has(id)).length }))
     .filter(group => group.count > 0);
+  // A split names its stage by the plants in it, "Blüte · 1 von 2 Pflanzen", where the whole grow's week would mislead.
+  const split = endedOn ? null : splitWords(t, stage, summary.stage, stages);
   const standing = endedOn
     ? []
     : [
-        ...(stages.length > 1 ? stages.map(group => `${group.count} ${t(`home.stage.${group.stage}`)}`) : []),
+        ...(stages.length > 1 && !split ? stages.map(group => `${group.count} ${t(`home.stage.${group.stage}`)}`) : []),
         ...(harvested > 0 && harvested < plants.length ? [t('grow.harvestedCount', { count: harvested })] : []),
       ];
   const where = stood ? [{ spaceId: stood.spaceId, name: t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) }) }] : places;
@@ -206,8 +209,8 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
                     {' · '}
                   </>
                 ) : null}
-                {stage}
-                {summary.stage && summary.stageWeek !== null ? (
+                {split ?? stage}
+                {!split && summary.stage && summary.stageWeek !== null ? (
                   <>
                     {', '}
                     <Term topic="growWeek">{t('grow.week', { week: summary.stageWeek })}</Term>

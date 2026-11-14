@@ -561,12 +561,19 @@ describe('the report', () => {
     expect(answer.phases.reduce((sum, chapter) => sum + chapter.dayCount, 0)).toBe(answer.dayCount);
   });
 
-  it('leaves a split out of the chapters, because it is not what the grow did', async () => {
+  /**
+   * A split is what some of the plants did, not the grow: it is a chapter of its own beside the grow's, which still
+   * add up to the grow's days. Left out, the Bericht of a grow split into flowering said only "Veg".
+   */
+  it('tells a split as a chapter of its own, beside the grow´s chapters that still add up to its days', async () => {
     await db.grows.updateOne({ id: GROW }, { $push: { phases: { ...phase('phase-drying', 'drying', 30), plantIds: [PLANT] } } });
 
     const answer = await report.read(GROW, await grantFor(session(OWNER)), NOW);
 
-    expect(answer.phases.map(chapter => chapter.stage)).toEqual(['flowering', 'vegetative', 'seedling']);
+    expect(answer.phases.map(chapter => chapter.stage)).toEqual(['drying', 'flowering', 'vegetative', 'seedling']);
+    expect(answer.phases[0]).toMatchObject({ phaseId: 'phase-drying', endedAt: null, dayTo: null });
+    const own = answer.phases.filter(chapter => chapter.phaseId !== 'phase-drying');
+    expect(own.reduce((sum, chapter) => sum + chapter.dayCount, 0)).toBe(answer.dayCount);
   });
 
   it('says how much of a phase sat inside the band its targets set', async () => {
