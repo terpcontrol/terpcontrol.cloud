@@ -488,11 +488,13 @@
     "away": {
       "none": {
         "title": "No connection to the server",
-        "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back."
+        "text": "Your devices keep controlling the climate. The app shows readings again once the connection is back.",
+        "bare": "The app shows anything again once the connection is back."
       },
       "server": {
         "title": "The server reports an error",
-        "text": "Your devices keep controlling the climate. It is not your connection – try again in a moment."
+        "text": "Your devices keep controlling the climate. It is not your connection – try again in a moment.",
+        "bare": "It is not your connection – try again in a moment."
       }
     }
   },

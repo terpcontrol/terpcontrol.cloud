@@ -488,11 +488,13 @@
     "away": {
       "none": {
         "title": "Keine Verbindung zum Server",
-        "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht."
+        "text": "Deine Geräte regeln weiter. Die App zeigt erst wieder Werte, wenn die Verbindung steht.",
+        "bare": "Die App zeigt erst wieder etwas, wenn die Verbindung steht."
       },
       "server": {
         "title": "Der Server meldet einen Fehler",
-        "text": "Deine Geräte regeln weiter. An deiner Verbindung liegt es nicht – versuch es gleich nochmal."
+        "text": "Deine Geräte regeln weiter. An deiner Verbindung liegt es nicht – versuch es gleich nochmal.",
+        "bare": "An deiner Verbindung liegt es nicht – versuch es gleich nochmal."
       }
     }
   },
@@ -2029,7 +2031,7 @@
     "litresTooMuch": "Höchstens {{max}} L.",
     "corrected": "Eintrag berichtigt",
     "takenBack": "Eintrag gelöscht",
-    "undone": "Widerrufen",
+    "undone": "Zurückgenommen",
     "gone": "nicht mehr im Tagebuch",
     "reopened": "Aufgabe wieder offen",
     "asBefore": "{{what}} wie zuvor",

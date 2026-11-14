@@ -26,6 +26,8 @@ export const usePlaceDevices = (spaceId: string | null, deviceIds?: readonly str
       items: own.data?.items.filter(device => (deviceIds ? deviceIds.includes(device.id) : device.spaceId === spaceId)) ?? [],
       isPending: own.isPending,
       failed: !own.isPending && !own.data,
+      error: own.error,
+      isFetching: own.isFetching,
       refetch: () => void own.refetch(),
     };
   }
@@ -35,6 +37,8 @@ export const usePlaceDevices = (spaceId: string | null, deviceIds?: readonly str
     items: read,
     isPending: (deviceIds === undefined && named.isPending) || visited.some(one => one.isPending),
     failed: (deviceIds === undefined && !named.isPending && !named.data) || visited.some(one => one.isError && !one.data),
+    error: named.error ?? visited.find(one => one.error)?.error ?? null,
+    isFetching: named.isFetching || visited.some(one => one.isFetching),
     refetch: () => {
       void named.refetch();
       for (const one of visited) void one.refetch();

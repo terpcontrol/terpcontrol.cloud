@@ -34,6 +34,9 @@ export const durationFigure = (figure: number | string, unit: DurationUnit): str
 export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string =>
   measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000).replace(' ', '\u00a0') : '—';
 
+/** Whether an instant was a moment ago, which an "as of" says as "gerade eben" rather than "vor 0 s". */
+export const isJustNow = (instant: string, now: DateTime): boolean => now.toMillis() - DateTime.fromISO(instant).toMillis() < 10_000;
+
 /**
  * The same words for a span somebody hands us in seconds rather than as an
  * instant - how long a device has been quiet, how long an output has run - so

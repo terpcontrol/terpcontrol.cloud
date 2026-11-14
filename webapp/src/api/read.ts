@@ -135,3 +135,13 @@ export const LIVE_BEAT_MS = 30_000;
  * fresh, so it adds no beat of its own to a screen that never asks for it.
  */
 export const FOLLOWED = { refetchInterval: false, staleTime: 5 * 60_000 } as const;
+
+/** A read as a page holds it once it has failed: what it failed with, whether it is asking again, and how to ask. */
+export type Read = { error: unknown; isFetching: boolean; refetch: () => unknown };
+
+/** Several reads a page waits for, as one: the first failure among them, and every one of them asked again. */
+export const together = (...reads: Read[]): Read => ({
+  error: reads.find(read => read.error)?.error ?? null,
+  isFetching: reads.some(read => read.isFetching),
+  refetch: () => reads.forEach(read => void read.refetch()),
+});

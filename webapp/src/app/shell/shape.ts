@@ -38,6 +38,9 @@ const keyOf = (userId: string) => `terp.shape.${userId}`;
 
 const remembered = (userId: string | null): Shape => (userId ? { ...FIRST, ...readStoredJson<Partial<Shape>>(keyOf(userId)) } : FIRST);
 
+/** Whether the account has a device, as this browser last saw it: what a page that could not be read still knows. */
+export const useSteersAsLastSeen = (): boolean => remembered(useSession().user?.id ?? null).steering;
+
 export const useShape = (): Shape & { ready: boolean } => {
   const { user } = useSession();
   const signedIn = user !== null;

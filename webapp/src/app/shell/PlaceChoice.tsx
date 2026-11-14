@@ -58,6 +58,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
         className={styles.chip}
         data-place-chip
         aria-haspopup="dialog"
+        aria-expanded={open}
         aria-label={t('shell.place.chip', { name: here.name })}
         onClick={() => setOpen(true)}
       >
@@ -108,7 +109,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   return (
     <Sheet title={t('shell.place.title')} note={t('shell.place.holds')} onClose={onClose}>
       {home.isPending ? <Waiting lines={3} /> : null}
-      {home.isError && !home.data ? <LoadFailed retry={() => void home.refetch()} /> : null}
+      {home.isError && !home.data ? <LoadFailed read={home} /> : null}
       <div className={ui.stack2}>
         {groups.map((group, index) =>
           group.room ? (

@@ -37,10 +37,13 @@
 
 /* A term stays the word it is in its sentence - the same face, size, weight
    and ink - and says it can be asked about by its dotted underline alone. */
+/* A finger high where it is tapped, without its line growing: the room above and below the words is the term's own
+   box, held out of the line by a margin as deep - a term in a line of small type ("98 % im Zielband" in a chapter of
+   the Bericht) was 19 px. */
 .term {
-  display: inline;
-  margin: 0;
-  padding: 0;
+  display: inline-block;
+  margin: -9px 0;
+  padding: 9px 0;
   background: none;
   border: 0;
   border-radius: 0;
@@ -56,14 +59,6 @@
   text-underline-offset: 0.22em;
   cursor: help;
   position: relative;
-}
-
-/* A finger high where it is tapped, without its line growing: a term in a line of small type ("19 % im Zielband" in a
-   chapter of the Bericht) was 19 px. A row that sets its own reach for the words in it keeps that. */
-.term::after {
-  position: absolute;
-  inset: -9px 0;
-  content: '';
 }
 
 .term:hover,

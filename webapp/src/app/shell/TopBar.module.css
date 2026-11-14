@@ -44,6 +44,17 @@
   overflow: hidden;
 }
 
+/* The link reaches the screen's edge, so its ring is drawn round the mark, as round as the bar's other rings. */
+.wordmark:focus-visible {
+  outline: none;
+}
+
+.wordmark:focus-visible > * {
+  border-radius: var(--radius-pill);
+  outline: 2px solid var(--brand);
+  outline-offset: 6px;
+}
+
 .action {
   position: relative;
   display: grid;

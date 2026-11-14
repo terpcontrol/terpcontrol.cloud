@@ -148,6 +148,16 @@
   content: '';
 }
 
+/* Its focus is the pill's: a round ring around the pill, not a square one around the word inside it. */
+.live:has(> button:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.live > button:focus-visible {
+  outline: none;
+}
+
 /* A camera's picture shown whole: 16:9, as most cameras take it, with the
    picture inside at whatever shape it has on the dark of a viewer - never
    cropped, because a camera burns its clock into a corner and a grower checks

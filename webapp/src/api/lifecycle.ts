@@ -14,7 +14,7 @@ import type {
   SplitResult,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
-import { startPhase } from './entries';
+import { startPhase, takeEntryBack } from './entries';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -93,6 +93,17 @@ export const useWithdrawPlacement = (growId: string) =>
 /** Cutting plants down. The weights are totals; the server shares them out over the plants named. */
 export const useHarvest = (growId: string) =>
   useWrite((body: HarvestCreate) => api.post<HarvestResult>(`/grows/${growId}/harvests`, body), growChanged);
+
+/**
+ * A harvest that did not end the grow, taken back: its plants stand again and its line goes. The one that ended the
+ * grow is not - nothing takes an end back.
+ */
+export const useTakeHarvestBack = () =>
+  useWrite(
+    ({ plants, entryId }: HarvestResult) =>
+      Promise.all([...plants.map(plant => api.patch(`/plants/${plant.id}`, { status: 'active', harvest: null })), takeEntryBack(entryId)]),
+    growChanged,
+  );
 
 /** Some plants go their own way: their own phase, their own place, or both, while the rest of the grow carries on. */
 export const useSplit = (growId: string) => useWrite((body: SplitCreate) => api.post<SplitResult>(`/grows/${growId}/splits`, body), growChanged);

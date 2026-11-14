@@ -6,6 +6,7 @@ import type {
   DeviceCommand,
   DeviceCommandResult,
   DeviceConfiguration,
+  AppliedClimate,
   DeviceConfigurationEnvelope,
   DeviceConfigurationPatch,
   DeviceLive,
@@ -81,6 +82,10 @@ export const useSocketTables = (deviceIds: string[]) =>
       tables: new Map(deviceIds.map((deviceId, index) => [deviceId, results[index]?.data])),
       isPending: results.some(isFirstLoad),
       isError: results.some(hasFailed),
+      // As a page holds a read that failed (`Read`): the first failure, and every table asked again.
+      error: results.find(result => result.error)?.error ?? null,
+      isFetching: results.some(result => result.isFetching),
+      refetch: () => results.forEach(result => void result.refetch()),
     }),
   });
 
@@ -160,6 +165,7 @@ export const useSaveConfiguration = () =>
       drying,
       germination,
       germinationChoices,
+      preset,
     }: {
       deviceId: string;
       configuration: DeviceConfiguration;
@@ -167,7 +173,10 @@ export const useSaveConfiguration = () =>
       germination?: boolean;
       /** What germination does about the humidity, where the page shows it; left out it stands as it was. */
       germinationChoices?: Partial<GerminationChoices>;
-    }) => api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices }),
+      /** The climate preset the targets are, where one was applied with them: what Steuerung names it by afterwards. */
+      preset?: AppliedClimate;
+    }) =>
+      api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices, preset }),
     client => invalidate(client, ['devices']),
   );
 

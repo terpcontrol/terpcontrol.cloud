@@ -9,12 +9,14 @@
   list-style: none;
 }
 
-/* Every line is a finger high, whether or not it leads somewhere, so a list of them stands in even rows. */
+/* Every line is a finger high, whether or not it leads somewhere, so a list of them stands in even rows; its first
+   line of words stands where a one-line row's does, so a row of two has its stamp beside the first. */
 .line {
+  --first-line: calc((var(--control-height) - 1lh) / 2);
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: subgrid;
-  align-items: center;
+  align-items: start;
   min-height: var(--control-height);
   font-size: var(--text-sm);
 }
@@ -30,6 +32,7 @@
 }
 
 .stamp {
+  padding-block: var(--first-line);
   font-family: var(--font-figure);
   font-size: var(--text-sm);
   color: var(--muted);
@@ -38,8 +41,7 @@
 
 /* A stamp that leads to its moment is a finger high, like the line beside it. */
 button.stamp {
-  min-height: var(--control-height);
-  padding: 0;
+  padding-inline: 0;
   background: none;
   border: 0;
   text-align: left;
@@ -49,13 +51,19 @@ button.stamp {
 .text {
   flex: 1 1 16ch;
   min-width: 0;
+  padding-block: var(--first-line);
   overflow-wrap: anywhere;
   color: var(--ink);
 }
 
+/* An alarm's line in its own colour: a warning's ochre, a critical one's red. */
 .line[data-severity] .text {
   font-weight: var(--weight-medium);
   color: var(--warning);
+}
+
+.line[data-severity='critical'] .text {
+  color: var(--alarm);
 }
 
 /* A line's words stand plain here: the row is a summary, and what is wrong is said by its colour. */
@@ -64,7 +72,7 @@ button.stamp {
 }
 
 button.text {
-  padding: 0;
+  padding-inline: 0;
   background: none;
   border: 0;
   text-align: left;
@@ -74,8 +82,6 @@ button.text {
 button.text,
 a.text {
   display: block;
-  min-height: var(--control-height);
-  align-content: center;
 }
 
 /* What a line says under its words: the reading an alarm tripped on. */

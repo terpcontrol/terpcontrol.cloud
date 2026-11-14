@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { useLog } from '@/log/log-context';
 import { LogProvider } from '@/log/LogProvider';
@@ -6,8 +7,9 @@ import { undoneLabel } from '@/log/lines';
 import { besideSheet, clearance, lastUsed, roomFor, withRoom } from '@/log/toast-room';
 import type { LoggedLine } from '@/log/Toasts';
 import { Sheet } from '@/ui/Sheet';
+import { Switch } from '@/ui/Switch';
 import { drawAt } from './harness';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * The toasts as a page meets them: an answer to every write, but never a pile
@@ -83,6 +85,27 @@ function Probe() {
         rename
       </button>
     </>
+  );
+}
+
+/** A switch held disabled while what it set is written, as an alarm's is. */
+function Held() {
+  const { tell } = useLog();
+  const [on, setOn] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const write = async (next: boolean) => {
+    setBusy(true);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    setOn(next);
+    setBusy(false);
+  };
+  return (
+    <Switch
+      label="Too hot"
+      on={on}
+      disabled={busy}
+      onChange={next => void write(next).then(() => tell({ label: 'Too hot off', undo: () => write(!next), undone: 'Too hot on' }))}
+    />
   );
 }
 
@@ -280,6 +303,35 @@ describe('a toast and the keyboard', () => {
     }
   });
 
+  /**
+   * An alarm's switch is held disabled while its undo is written, and a browser drops the focus of a control it
+   * disables: the focus came back to the page, and the next Tab started from its top.
+   */
+  it('hands the focus back to a control its undo holds disabled, once it is enabled again', async () => {
+    drawAt(
+      <LogProvider>
+        <Held />
+        <button type="button">after</button>
+      </LogProvider>,
+    );
+    const alarm = screen.getByRole('switch', { name: 'Too hot' });
+    alarm.focus();
+    fireEvent.click(alarm);
+    await screen.findByRole('button', { name: 'Undo' });
+    tab();
+    expect(focused()).toBe('Undo');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+
+    await waitFor(() => expect(alarm).toBeDisabled());
+    // What a browser does to a focused control it disables, which jsdom does not: the focus goes to the page.
+    alarm.removeAttribute('disabled');
+    alarm.blur();
+    alarm.setAttribute('disabled', '');
+    expect(document.activeElement).toBe(document.body);
+    await waitFor(() => expect(alarm).toBeEnabled());
+    await waitFor(() => expect(document.activeElement).toBe(alarm));
+  });
+
   it('leaves a Tab elsewhere on the page alone', async () => {
     page();
     fireEvent.click(screen.getByRole('button', { name: 'rename' }));
@@ -375,5 +427,13 @@ describe('a toast and the control it answers', () => {
 
   it('answers an undo in one form, with what holds again', () => {
     expect(undoneLabel(key => (key === 'log.undone' ? 'Undone' : key), 'Alarm “H-06” on')).toBe('Undone · Alarm “H-06” on');
+  });
+
+  /** German writes the undo and its answer alike ("Widerrufen"), so an answer opening with the button's word read as a button. */
+  it('opens the answer with what happened, in a word that is not the button´s', async () => {
+    for (const language of ['de', 'en']) {
+      const log = (await catalogue(language)).log as Record<string, string>;
+      expect(log.undone).not.toBe(log.undo);
+    }
   });
 });

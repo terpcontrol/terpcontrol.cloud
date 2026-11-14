@@ -31,6 +31,7 @@ export function EntryWords({
   brief = false,
   pictures = false,
   plants = [],
+  moment = instant => sinceOf(instant, now, zone),
 }: {
   entry: Entry;
   people: Person[];
@@ -61,6 +62,8 @@ export function EntryWords({
   pictures?: boolean;
   /** The plants of the grow the line belongs to, where the surface is answered them: a line about some of them names those. */
   plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** How the list says a moment, where it has a form of its own: a folded run's other end is said in it. */
+  moment?: (instant: string) => string;
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
@@ -95,8 +98,8 @@ export function EntryWords({
       <span key="repeats">
         {/* A list that runs forwards stands a folded line at its first and says until when it went on. */}
         {repeats.until
-          ? t('home.entryRepeatsUntil', { count: repeats.count, until: sinceOf(repeats.until, now, zone) })
-          : t('home.entryRepeats', { count: repeats.count, since: sinceOf(repeats.since, now, zone) })}
+          ? t('home.entryRepeatsUntil', { count: repeats.count, until: moment(repeats.until) })
+          : t('home.entryRepeats', { count: repeats.count, since: moment(repeats.since) })}
       </span>
     ) : null,
     ...readings.map(reading => {

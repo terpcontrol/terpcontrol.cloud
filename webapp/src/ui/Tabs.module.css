@@ -1,8 +1,13 @@
-/* A row wider than the phone scrolls, and says so with the shared row's veil
-   at its far edge. */
+/* A row wider than the screen would scroll, but a page's tabs are sized to fit
+   from the narrowest phone on: so it carries no veil, whose own room was what
+   made a row that fits scroll sideways into nothing. */
 .tabs {
   gap: var(--space-4);
   border-bottom: var(--rule-solid);
+}
+
+.tabs::after {
+  content: none;
 }
 
 .tab {
@@ -25,14 +30,10 @@
   color: var(--ink);
 }
 
-/* Five tabs fit the narrowest phone, so none of them waits past the edge - without the veil, which is room they need. */
+/* Five tabs fit the narrowest phone, so none of them waits past the edge. */
 @media (max-width: 359px) {
   .tabs {
     gap: 9px;
-  }
-
-  .tabs::after {
-    content: none;
   }
 
   .tab {

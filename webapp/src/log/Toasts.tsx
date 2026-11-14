@@ -249,11 +249,31 @@ const useTabOrder = (host: HTMLElement, lines: readonly LoggedLine[]) => {
     return () => document.removeEventListener('keydown', onKey, true);
   }, [host, lines]);
 
-  /** Back to the control a toast answers, where the focus stood in the toast: an undo or a toast that goes leaves it on nothing otherwise. */
-  return (key: number) => {
+  /**
+   * Back to the control a toast answers, where the focus stood in the toast: an undo or a toast that goes leaves it on
+   * nothing otherwise. After an undo the control may be held disabled while the undo is written - an alarm's switch -,
+   * and a browser drops the focus of a control it disables: it is handed back once the control takes it again.
+   */
+  return (key: number, undoing = false) => {
     const anchor = anchors.current.get(key);
-    if (anchor?.isConnected && toastHolds(host, key)) anchor.focus();
+    if (!anchor?.isConnected || !toastHolds(host, key)) return;
+    anchor.focus();
+    if (undoing) regains(anchor);
   };
+};
+
+/** How long a control the undo holds disabled is waited for: longer than any write is given. */
+const REGAIN_MS = 30_000;
+
+/** Gives the focus back to a control once it is enabled again, where nothing else has taken it meanwhile. */
+const regains = (control: HTMLElement) => {
+  const watch = new MutationObserver(() => {
+    if (control.matches(':disabled')) return;
+    watch.disconnect();
+    if (document.activeElement === null || document.activeElement === document.body) control.focus();
+  });
+  watch.observe(control, { attributes: true, attributeFilter: ['disabled'] });
+  window.setTimeout(() => watch.disconnect(), REGAIN_MS);
 };
 
 const toastHolds = (host: HTMLElement, key: number): boolean => {
@@ -279,7 +299,7 @@ export function Toasts({ lines, onUndo, onRetry, onDismiss, onDetails }: ToastsP
         key={line.key}
         line={line}
         onUndo={one => {
-          back(one.key);
+          back(one.key, true);
           onUndo(one);
         }}
         onRetry={onRetry}

@@ -16,6 +16,7 @@ export function Asking({
   note,
   yes,
   danger = false,
+  quiet = false,
   busy,
   onYes,
   onCancel,
@@ -24,12 +25,13 @@ export function Asking({
   note: ReactNode;
   yes: string;
   danger?: boolean;
+  /** The yes is drawn secondary: the button that asked stays the one filled green beside the question. */
+  quiet?: boolean;
   busy: boolean;
   onYes: () => void;
   onCancel: () => void;
   children?: ReactNode;
 }) {
-  const { t } = useTranslation();
   const question = useRef<HTMLParagraphElement>(null);
 
   // Asked because something was pressed, often in place of it: the question takes the focus, so it is what is read.
@@ -51,13 +53,41 @@ export function Asking({
       </p>
       {children}
       <div className={ui.wrap}>
-        <button type="button" className={`${ui.button} ${danger ? ui.dangerFilled : ui.primary}`} disabled={busy} onClick={onYes}>
-          {yes}
-        </button>
-        <button type="button" className={ui.button} onClick={onCancel}>
-          {t('asking.cancel')}
-        </button>
+        <Answer yes={yes} danger={danger} quiet={quiet} disabled={busy} onYes={onYes} onCancel={onCancel} />
       </div>
     </div>
+  );
+}
+
+/**
+ * The answer to every question, inline or in a sheet's foot: the yes, and "Abbrechen" beside it - in the alarm
+ * colour where the step cannot be taken back, at a control's height and radius like every other button.
+ */
+export function Answer({
+  yes,
+  danger = false,
+  quiet = false,
+  disabled = false,
+  onYes,
+  onCancel,
+}: {
+  yes: string;
+  danger?: boolean;
+  quiet?: boolean;
+  disabled?: boolean;
+  onYes: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <button type="button" className={`${ui.button} ${danger ? ui.dangerFilled : quiet ? '' : ui.primary}`} disabled={disabled} onClick={onYes}>
+        {yes}
+      </button>
+      <button type="button" className={ui.button} onClick={onCancel}>
+        {t('asking.cancel')}
+      </button>
+    </>
   );
 }

@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { fetchedAt } from '@/api/clock';
+import type { Read } from '@/api/read';
 import { ApiError } from '@/api/problem';
+import { useSteersAsLastSeen } from '@/app/shell/shape';
 import { ageLabel } from './age';
 import amber from './OfflineHelp.module.css';
 import ui from './ui.module.css';
@@ -29,9 +31,6 @@ export function Refused({ error, fallback, className }: { error: unknown; fallba
   );
 }
 
-/** A read as a page holds it: what it failed with, whether it is asking again, and how to ask. */
-type Read = { error: unknown; isFetching: boolean; refetch: () => unknown };
-
 /**
  * What could not be read, with the one way to try again. A page that has
  * nothing to show hands over its read and its title: the title stays, so the
@@ -44,6 +43,7 @@ type Read = { error: unknown; isFetching: boolean; refetch: () => unknown };
  */
 export function LoadFailed({ retry, read, title, children }: { retry?: () => void; read?: Read; title?: string; children?: ReactNode }) {
   const { t } = useTranslation();
+  const steering = useSteersAsLastSeen();
   if (!read) {
     return (
       <section className={styles.failed}>
@@ -63,7 +63,8 @@ export function LoadFailed({ retry, read, title, children }: { retry?: () => voi
     <>
       <section className={amber.box} role="alert">
         <h2>{t(`shell.away.${answered}.title`)}</h2>
-        <p>{t(`shell.away.${answered}.text`)}</p>
+        {/* That the devices go on regulating is said to an account that has one, as this browser last saw it. */}
+        <p>{t(`shell.away.${answered}.${steering ? 'text' : 'bare'}`)}</p>
         <button
           type="button"
           className={styles.again}
@@ -79,13 +80,18 @@ export function LoadFailed({ retry, read, title, children }: { retry?: () => voi
   );
 
   // A page that has a head of its own to stand under hands over no title.
+  return <Titled title={title}>{says}</Titled>;
+}
+
+/** A page's state under its title, so the window still says where one is; without a title, the state alone. */
+function Titled({ title, children }: { title?: string; children: ReactNode }) {
   return title ? (
     <section className={`${ui.stack3} ${ui.page}`}>
       <h1>{title}</h1>
-      {says}
+      {children}
     </section>
   ) : (
-    says
+    children
   );
 }
 
@@ -130,17 +136,19 @@ export function RefreshFailed({ failedAt, now }: { failedAt: number | null; now:
   );
 }
 
-/** A block in the shape of what is coming, saying that it is. */
-export function Waiting({ lines = 3 }: { lines?: number }) {
+/** A block in the shape of what is coming, saying that it is; a page waiting for its whole read keeps its `title` over it. */
+export function Waiting({ lines = 3, title }: { lines?: number; title?: string }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`${ui.card} ${ui.stack3}`} aria-busy="true">
-      <span className={styles.waitingNote}>{t('home.waiting')}</span>
-      {Array.from({ length: lines }, (_, index) => (
-        <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
-      ))}
-    </div>
+    <Titled title={title}>
+      <div className={`${ui.card} ${ui.stack3}`} aria-busy="true">
+        <span className={styles.waitingNote}>{t('home.waiting')}</span>
+        {Array.from({ length: lines }, (_, index) => (
+          <span key={index} className={styles.waitingLine} style={{ width: `${70 - index * 15}%` }} />
+        ))}
+      </div>
+    </Titled>
   );
 }
 
