@@ -74,9 +74,12 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   only) gives every phase stored as `preset` to a person - its `setBy` where one was stored, else the grow's owner -
   with its diary line, since the data cannot tell a phase set on the grow page from a preset applied under
   Steuerung and only a plan writes `plan`; counted as `phases.givenToTheirPerson` and `entries.givenToTheirPerson`.
-  `032-reminders-of-ended-grows` (the redesign session of 2026-11-14; unit tests only) does for a grow what 029 does
-  for a place: it deletes the reminders of a grow that has ended or is gone, counted as `reminders.endedWithAGrow` -
+  `032-resting-reminders-of-ended-grows` (the redesign session of 2026-11-14, after Chris's answer; unit tests only)
+  rests the reminders of a grow that has ended - `restingSince` its end, off every list until the grow is reopened -
+  and deletes those of a grow that is gone, counted as `reminders.restingWithAGrow` and `reminders.goneWithAGrow`:
   ending or deleting a grow left them under Rhythmen until then, so any database that ran the rewrite can hold some.
+  A deleting version named `032-reminders-of-ended-grows` ran on the session's own test stack and never shipped; a
+  record holding that name is answered by no step, and the resting step runs on the next boot.
   Its reads are empty over "the last 24 hours" for a
   reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
   there with `?at=` on that day, and a grow's diary on its older pages.

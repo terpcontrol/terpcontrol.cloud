@@ -521,7 +521,7 @@ test stack, a self-hosted one on master - are what the second and third are for)
 | Collection | Fields |
 | --- | --- |
 | `entries` | `kind: water · feed · photo · note · measurement · training · phase · move · harvest · visit · alarm · plan · system`, `occurredAt`, `source: human · device · plan · preset · alarm`, `authorId`, `growId`, `spaceId`, `deviceId`, `plantIds[]`, `cameraId`, `taskId`, `alertId`, `severity`, `text`, `message { key, params[] }`, `values` (typed per kind), `mediaIds[]`, `undoUntil` |
-| `reminders` | `subject { type: grow · space, id }`, `kind: water · feed · chore · custom`, `label`, `everyDays`, `onceAt`, `assigneeId`, `defaults`, `createdBy` |
+| `reminders` | `subject { type: grow · space, id }`, `kind: water · feed · chore · custom`, `label`, `everyDays`, `onceAt`, `assigneeId`, `defaults`, `createdBy`; server-side only: `restingSince`, `resumedAt` (amended 2026-11-14, a grow's reminders resting while it is ended) |
 | `cameras` | `ownerId`, `kind: terpcam_controller · terpcam_standalone · rtsp`, `deviceId`, `spaceId`, `name`, `looksAt`, `plantIds[]`, `did`, `uid`, `ip`, `secret` (server only), `url`, `transport`, `tunnel`, `model`, `stillIntervalSeconds`, `nightOff`, `maintenanceOff`, `logErrors`, `staleWarning` (amended 2026-09-19, see "The alarm engine"), `entitlement { validUntil, grant }`, `isDemo`, `removedAt`, `state { lastStillAt, lastError, firmwareVersion }` |
 | `media` | `kind: still · timelapse · photo · avatar · export` (`export` amended 2026-09-22, see "Exports"), `mime`, `bytes`, `cameraId`, `growId`, `spaceId`, `uploadedBy`, `capturedAt`, `endsAt`, `window: day · week · month · custom`, `quality`, `lengthSeconds`, `render` (composer options and status), `exportJob` (an export's scope and status), `lit` (whether a still was taken with the light on), `monochrome` (whether a still came out grey, a camera's night mode; server-side only, amended 2026-10-08, ADR 0006). Unique on `{cameraId, kind, window, capturedAt}` for camera media |
 | `schemes` | `ownerId`, `name`, `origin { assetId, version }`, `grid` (a user's own feeding schemes) |
@@ -762,9 +762,12 @@ germination's `choices`; server-side only), and the device is put on it as its f
 (`DEVICE_SETTINGS_SINK`, `ClimatePresetsService.settingsArrived`) if it still stands in that place; no migration - a
 device none awaits has none. **Verlauf's answer carries the stretches** of maintenance and of regulation off
 (`SpaceTimeline.stretches`, `GrowDayEvent`s, none to a reader from outside), whose lines it no longer lists, as a
-day of the diary and Start's tail do. **A grow's reminders end with it**: harvesting its last plant, an `endedAt`
-set and deleting it delete them, `PATCH /reminders/{id}` refuses one of an ended grow (409 `grow_ended`) or place,
-and step `032-reminders-of-ended-grows` deletes those of grows already ended.
+day of the diary and Start's tail do. **A grow's reminders rest while it is ended** (Chris, 2026-11-14):
+harvesting its last plant or an `endedAt` set gives each `reminders.restingSince` (server-side only), which takes it
+off every list, every task and every announcement; reopening the grow clears it and sets `resumedAt`, from which a
+rhythm is counted on; deleting the grow deletes them; `PATCH /reminders/{id}` refuses one of an ended grow (409
+`grow_ended`) or place; step `032-resting-reminders-of-ended-grows` rests those of grows already ended - no
+migration for the fields otherwise, an absent one reads as null.
 
 *Amended 2026-10-14 (Chris):* `DELETE /alerts/{id}` takes an alert that is over off the record, for whoever may
 manage what it is about; an open one is refused (409 `alert_open`), since stopping it is the rule's business. Before,
