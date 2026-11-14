@@ -30,7 +30,7 @@ import { uniquePlaceNames } from './028-unique-place-names';
 import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
 import { handSetPhases } from './031-hand-set-phases';
-import { remindersOfEndedGrows } from './032-reminders-of-ended-grows';
+import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
 
 /**
  * In order, and the order matters in eight places:
@@ -95,5 +95,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   remindersOfEndedPlaces,
   openAlertsWhereTheDeviceStands,
   handSetPhases,
-  remindersOfEndedGrows,
+  restingRemindersOfEndedGrows,
 ];

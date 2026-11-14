@@ -32,8 +32,12 @@ const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
 export const reminderOfTask = (reminders: readonly ReminderDocument[], taskId: string): ReminderDocument | undefined =>
   reminders.find(reminder => reminder.id === reminderIdOf(taskId));
 
-/** The reminders about any of these spaces or grows. */
+/** A reminder that is not resting with its ended grow (`restingSince`): what comes due and what is listed. */
+export const AWAKE: FilterQuery<ReminderDocument> = { restingSince: null };
+
+/** The reminders about any of these spaces or grows, but those resting with their ended grow. */
 export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[]): FilterQuery<ReminderDocument> => ({
+  ...AWAKE,
   $or: [
     { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
     { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
@@ -105,7 +109,10 @@ export const dueTasksOf = (
     const last = completions
       .filter(entry => entry.taskId?.startsWith(occurrencePrefix(reminder.id)))
       .reduce<Date | null>((newest, entry) => (newest && newest > entry.occurredAt ? newest : entry.occurredAt), null);
-    let dueAt = new Date((last ?? reminder.createdAt).getTime() + reminder.everyDays * DAY_MS);
+    // A rhythm whose grow was reopened counts on from then, not from a tick before its rest.
+    const counted = last ?? reminder.createdAt;
+    const from = reminder.resumedAt && reminder.resumedAt > counted ? reminder.resumedAt : counted;
+    let dueAt = new Date(from.getTime() + reminder.everyDays * DAY_MS);
     // An occurrence that is done is never offered again. Counted from the
     // newest tick that cannot happen, short of a tick backdated to the very
     // millisecond of an earlier one; were it to, the rhythm steps on rather

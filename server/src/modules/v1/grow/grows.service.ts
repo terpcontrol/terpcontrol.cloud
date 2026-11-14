@@ -285,7 +285,7 @@ export class GrowsService {
 
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
-    if (body.endedAt !== undefined && changed.endedAt !== null) await this.endReminders(id);
+    if (body.endedAt !== undefined) await this.restReminders(id, changed.endedAt);
 
     return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
   }
@@ -380,16 +380,19 @@ export class GrowsService {
 
     await this.plants.deleteMany({ growId: id });
     await this.shareLinks.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
-    await this.endReminders(id);
+    await this.reminders.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
   }
 
   /**
-   * A grow's reminders end with it, as a place's do: a rhythm kept for plants that are no longer there would come due
-   * on no screen, and Rhythmen listed it with nothing left to change it by. Reopening the grow (`endedAt: null`) does
-   * not bring them back - a rhythm wanted again is made again.
+   * A grow's reminders rest while it is ended (Chris, 2026-11-14): a rhythm kept for plants that are no longer there
+   * would come due on no screen, and Rhythmen listed it with nothing left to change it by - so it leaves Aufgaben and
+   * fires nothing (`restingSince`). Reopened, the grow has them back, each rhythm counted on from that day
+   * (`resumedAt`) rather than overdue for the whole of the rest. A grow deleted takes them along.
    */
-  private async endReminders(growId: string): Promise<void> {
-    await this.reminders.deleteMany({ 'subject.type': 'grow', 'subject.id': growId });
+  private async restReminders(growId: string, endedAt: Date | null): Promise<void> {
+    const about = { 'subject.type': 'grow', 'subject.id': growId };
+    if (endedAt !== null) await this.reminders.updateMany({ ...about, restingSince: null }, { $set: { restingSince: endedAt } });
+    else await this.reminders.updateMany({ ...about, restingSince: { $ne: null } }, { $set: { restingSince: null, resumedAt: new Date() } });
   }
 
   /**
@@ -868,7 +871,7 @@ export class GrowsService {
 
     if (standing.every(plant => plantIds.includes(plant.id) || plant.status !== 'active') && grow.endedAt === null) {
       await this.grows.updateOne({ id: growId }, { $set: { endedAt: harvestedAt } });
-      await this.endReminders(growId);
+      await this.restReminders(growId, harvestedAt);
     }
 
     return { plants: harvested.map(plant => serialisePlant(plant, hide)), entryId: entry.id };

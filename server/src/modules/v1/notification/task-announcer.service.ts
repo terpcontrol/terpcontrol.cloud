@@ -8,7 +8,7 @@ import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { logger } from '@utils/logger';
-import { completionsOf, dueTasksOf, reminderOfTask } from '../diary/due-tasks';
+import { AWAKE, completionsOf, dueTasksOf, reminderOfTask } from '../diary/due-tasks';
 import { taskAnnouncement } from './notification-messages';
 import { NotificationService } from './notification.service';
 import { RecipientsService } from './recipients.service';
@@ -57,7 +57,7 @@ export class TaskAnnouncerService implements OnModuleInit, OnApplicationShutdown
 
   /** One pass over the rhythms. Public so it can be run once, in a test or by hand. */
   public async run(now: Date = new Date()): Promise<void> {
-    const reminders = await this.reminders.find({}).lean<ReminderDocument[]>();
+    const reminders = await this.reminders.find(AWAKE).lean<ReminderDocument[]>();
     if (reminders.length === 0) return;
 
     const kept = await this.stillKept(reminders);

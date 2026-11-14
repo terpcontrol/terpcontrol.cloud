@@ -43,7 +43,7 @@ import { uniquePlaceNames } from '@/migrations/steps/028-unique-place-names';
 import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
 import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
-import { remindersOfEndedGrows } from '@/migrations/steps/032-reminders-of-ended-grows';
+import { restingRemindersOfEndedGrows } from '@/migrations/steps/032-resting-reminders-of-ended-grows';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -877,8 +877,11 @@ describe('what a place took with it', () => {
     expect(again.stats).toEqual({ 'reminders.endedWithAPlace': 0, rejected: 0 });
   });
 
-  /** A grow's rhythms ended with it no more than a place's did: "alle 3 Tage" stood under Rhythmen after the harvest. */
-  it('deletes the reminders of ended and vanished grows, and no place´s', async () => {
+  /**
+   * A grow's rhythms ended with it no more than a place's did: "alle 3 Tage" stood under Rhythmen after the harvest.
+   * They rest from the day their grow ended, to come back with it (Chris, 2026-11-14); a gone grow's go.
+   */
+  it('rests the reminders of ended grows from their end, deletes those of vanished ones, and touches no place´s', async () => {
     await collection('grows').insertMany([
       { id: 'running', endedAt: null },
       { id: 'harvested', endedAt: new Date(AT - DAY) },
@@ -890,19 +893,22 @@ describe('what a place took with it', () => {
       // A place's reminder is the place's, whatever the place's id happens to be.
       { id: 'of-a-place', subject: { type: 'space', id: 'harvested' } },
     ]);
-    const left = async () => (await collection('reminders').find({}).toArray()).map(row => row.id).sort();
+    const rows = async () => Object.fromEntries((await collection('reminders').find({}).toArray()).map(row => [row.id, row.restingSince ?? null]));
 
-    await remindersOfEndedGrows.run(new MigrationContext(db(), true, new Date(AT)));
-    expect(await left()).toHaveLength(4);
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await restingRemindersOfEndedGrows.run(rehearsal);
+    expect(rehearsal.stats).toEqual({ 'reminders.restingWithAGrow': 1, 'reminders.goneWithAGrow': 1, rejected: 0 });
+    expect(await rows()).toEqual({ kept: null, 'of-a-harvested-grow': null, 'of-a-grow-that-is-gone': null, 'of-a-place': null });
 
     const context = new MigrationContext(db(), false, new Date(AT));
-    await remindersOfEndedGrows.run(context);
-    expect(await left()).toEqual(['kept', 'of-a-place']);
-    expect(context.stats).toEqual({ 'reminders.endedWithAGrow': 2, rejected: 0 });
+    await restingRemindersOfEndedGrows.run(context);
+    expect(await rows()).toEqual({ kept: null, 'of-a-harvested-grow': new Date(AT - DAY), 'of-a-place': null });
+    expect(context.stats).toEqual({ 'reminders.restingWithAGrow': 1, 'reminders.goneWithAGrow': 1, rejected: 0 });
 
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
-    await remindersOfEndedGrows.run(again);
-    expect(again.stats).toEqual({ 'reminders.endedWithAGrow': 0, rejected: 0 });
+    await restingRemindersOfEndedGrows.run(again);
+    expect(again.stats).toEqual({ 'reminders.restingWithAGrow': 0, 'reminders.goneWithAGrow': 0, rejected: 0 });
+    expect(await rows()).toEqual({ kept: null, 'of-a-harvested-grow': new Date(AT - DAY), 'of-a-place': null });
   });
 
   it('puts an open alert where its device or its camera stands, and leaves one that is over where it happened', async () => {

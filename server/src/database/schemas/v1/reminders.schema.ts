@@ -10,6 +10,13 @@ import type { Reminder } from '@fg2/shared-types/v1';
 export type ReminderDocument = Omit<Reminder, 'onceAt' | 'createdAt'> & {
   onceAt: Date | null;
   createdAt: Date;
+  /**
+   * Since when it rests with its grow, which has ended: it is on no list and comes due nowhere until the grow is
+   * reopened. Never served. Absent on a reminder that never rested, which reads as null.
+   */
+  restingSince?: Date | null;
+  /** When its grow was last reopened: a rhythm is counted on from then, not from before its rest. */
+  resumedAt?: Date | null;
 };
 
 export const remindersSchema = new Schema<ReminderDocument>(
@@ -29,6 +36,8 @@ export const remindersSchema = new Schema<ReminderDocument>(
     defaults: { type: Schema.Types.Mixed, default: null },
     createdBy: { type: String, required: true },
     createdAt: { type: Date, required: true, default: Date.now },
+    restingSince: { type: Date, default: null },
+    resumedAt: { type: Date, default: null },
   },
   { collection: 'reminders', versionKey: false },
 );

@@ -928,7 +928,7 @@ describe('harvesting', () => {
   });
 
   /** A grow's reminders end with it, as a place's do: "Gelato düngen" stood under Rhythmen after Gelato's harvest. */
-  it('takes the grow´s reminders with it when it ends, by the last plant or by hand, and a place´s stay', async () => {
+  it('rests the grow´s reminders when it ends, by the last plant or by hand, wakes them when it is reopened, and leaves a place´s', async () => {
     const reminder = (id: string, subject: { type: 'grow' | 'space'; id: string }) => ({
       id,
       createdAt: TEN_DAYS_LATER,
@@ -950,12 +950,18 @@ describe('harvesting', () => {
     ]);
     const plants = await plantsOfGrow(harvested.id);
 
+    const resting = async () => Object.fromEntries((await db.reminders.find({}).lean()).map(one => [one.id, one.restingSince ?? null]));
+
     await grows.harvest(harvested.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
-    expect(await db.reminders.countDocuments({ id: 'of-the-harvested' })).toBe(1);
-    await grows.harvest(harvested.id, { plantIds: [plants[1].id, plants[2].id] }, OWNER, NOTHING_HIDDEN);
+    expect((await resting())['of-the-harvested']).toBeNull();
+    await grows.harvest(harvested.id, { plantIds: [plants[1].id, plants[2].id], harvestedAt: TEN_DAYS_LATER.toISOString() }, OWNER, NOTHING_HIDDEN);
     await grows.update(byHand.id, { endedAt: TEN_DAYS_LATER.toISOString() }, NOTHING_HIDDEN);
 
-    expect((await db.reminders.find({}).lean()).map(one => one.id)).toEqual(['of-the-place']);
+    expect(await resting()).toEqual({ 'of-the-harvested': TEN_DAYS_LATER, 'of-the-one-ended-by-hand': TEN_DAYS_LATER, 'of-the-place': null });
+
+    await grows.update(byHand.id, { endedAt: null }, NOTHING_HIDDEN);
+    expect((await resting())['of-the-one-ended-by-hand']).toBeNull();
+    expect((await db.reminders.findOne({ id: 'of-the-one-ended-by-hand' }).lean())?.resumedAt).toEqual(expect.any(Date));
   });
 
   it('hands back no weights to a reader they are hidden from', async () => {

@@ -14,7 +14,7 @@ import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
-import { remindersAbout } from './due-tasks';
+import { AWAKE, remindersAbout } from './due-tasks';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
 /**
@@ -145,8 +145,8 @@ export class RemindersService {
 
   /** The filter a list is held to, or null where the caller keeps nowhere at all. */
   private async about(ctx: AccessContext, query: ReminderQuery): Promise<FilterQuery<ReminderDocument> | null> {
-    if (query.growId) return { 'subject.type': 'grow', 'subject.id': query.growId };
-    if (query.spaceId) return { 'subject.type': 'space', 'subject.id': query.spaceId };
+    if (query.growId) return { ...AWAKE, 'subject.type': 'grow', 'subject.id': query.growId };
+    if (query.spaceId) return { ...AWAKE, 'subject.type': 'space', 'subject.id': query.spaceId };
 
     const { spaceIds, growIds } = await this.visible.subjectsOf(ctx);
     if (spaceIds.length === 0 && growIds.length === 0) return null;

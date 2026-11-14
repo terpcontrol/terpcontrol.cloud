@@ -232,7 +232,7 @@ describe('a grow that ends', () => {
   const about = (growId: string) => aReminder({ subject: { type: 'grow', id: growId }, kind: 'feed' });
   const listed = async () => (await owner.client.get('/v1/reminders').expect(200)).body.items.map((one: { id: string }) => one.id);
 
-  it('takes its reminders with it when its last plant is harvested, and leaves the place´s alone', async () => {
+  it('rests its reminders when its last plant is harvested, and leaves the place´s alone', async () => {
     const grow = await growIn(owner, unique('Harvested'));
     const ofTheGrow = await create(owner, about(grow.id));
     const ofThePlace = await create(owner, aReminder());
@@ -242,23 +242,46 @@ describe('a grow that ends', () => {
     expect(await listed()).not.toContain(ofTheGrow.id);
     expect(await listed()).toContain(ofThePlace.id);
     expect((await owner.client.get(`/v1/reminders?growId=${grow.id}`).expect(200)).body.items).toEqual([]);
+    // Resting, it is no reminder anybody may change.
+    const refused = await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(409);
+    expect(refused.body.code).toBe('grow_ended');
   });
 
-  it('takes them when its end is set by hand, and does not bring them back when it is reopened', async () => {
+  /** An ended grow's reminders rest, and come back when it is reopened (Chris, 2026-11-14), due as they were. */
+  it('rests them when its end is set by hand, and has them back, due on their rhythm, when it is reopened', async () => {
     const grow = await growIn(owner, unique('Ended by hand'));
-    const ofTheGrow = await create(owner, about(grow.id));
+    const ofTheGrow = await create(owner, { ...about(grow.id), everyDays: 1 });
+    const dueOf = async (): Promise<string | null> =>
+      (await tasksOf(owner)).find((task: { sourceId: string }) => task.sourceId === ofTheGrow.id)?.dueAt ?? null;
+    const dueBefore = await dueOf();
+    expect(dueBefore).not.toBeNull();
 
     await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: new Date().toISOString() }).expect(200);
     expect(await listed()).not.toContain(ofTheGrow.id);
+    expect(await dueOf()).toBeNull();
 
     await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
-    expect(await listed()).not.toContain(ofTheGrow.id);
+    expect(await listed()).toContain(ofTheGrow.id);
+    // A day's rhythm comes due a day on, counted from the reopening rather than overdue for the rest.
+    const dueAfter = await dueOf();
+    expect(dueAfter).not.toBeNull();
+    expect(Date.parse(dueAfter!) - Date.parse(dueBefore!)).toBeGreaterThanOrEqual(0);
+    expect(Date.parse(dueAfter!) - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+    await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(200);
+  });
+
+  it('takes them along when it is deleted', async () => {
+    const grow = await growIn(owner, unique('Deleted'));
+    const ofTheGrow = await create(owner, about(grow.id));
+
+    await owner.client.delete(`/v1/grows/${grow.id}`).expect(204);
+    await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(404);
   });
 
   it('refuses to change one of a grow that has ended, as it refuses to make one', async () => {
     const grow = await growIn(owner, unique('Ended under it'));
     const ofTheGrow = await create(owner, about(grow.id));
-    // A grow that ended before its reminders went with it: what migration step 032 clears.
+    // A grow that ended before its reminders rested with it: what migration step 032 rests.
     await setRow('grows', { id: grow.id }, { endedAt: new Date() });
 
     const refused = await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(409);
