@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-14
-source: the whole-app walk's third report and Chris's answers built by the final fix round's second part (the redesign session of 2026-11-13); migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: Chris's answers after the final fix round's second part (2026-11-14); the whole-app walk's third report and Chris's answers built by the final fix round's second part (the redesign session of 2026-11-13); migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -428,6 +428,11 @@ otherwise - where it is described now in brackets)
 - **Not in this pull request**: "Erledigt" on an open alert, and what an alert delivered stored when it is raised
   - a small round of their own after the final fix round; a light output's hold reported by the firmware, as a
   smart socket's override is, on every new command - a firmware change of its own.
+- Asked again after the second part (2026-11-14): the kind "Raum" goes again - a place has six kinds (Zelt,
+  Kühlschrank, Balkon, Trockenbox, Gewächshaus, Sonstiges) and "Raum" is only the room that groups places. Any
+  change on Steuerung switches regulation back on while it is off, the light limit included, as the switch-off
+  question says. A stream camera's address is tested by a route of its own that makes no camera. The link
+  "Ort entfernen …" is red like every irreversible way. Not built yet.
 
 **The contract**
 4. **Migration steps 026 to 030 on a copy of production data** (the redesign session, 2026-11-13, as Chris asked):
@@ -540,14 +545,9 @@ otherwise - where it is described now in brackets)
     the row should stay bare.
 
 **Left by the final fix round's second part** (each built as described; say where it should go otherwise)
-49. **"Raum" names two things**: the kind of a place that is a room (`grow_room`, English "Grow room") and the
-    room that groups places, so "Art: Raum" can stand beside "Raum: Keller" on "Ort bearbeiten". "Growraum" for
-    the kind would part them.
 50. **A grow's link for a stretch** reaches the curves and also the overview of each place the grow stood in,
     clamped to its stay there (the access a place's link has); a route of its own would reach the curves alone.
     Only a link whose window ends shows curves - a link onto a running grow stays its diary.
-51. **While regulation is off, any change on Steuerung switches it back on**, as the switch-off question says -
-    the light limit stepped in place included.
 52. **"Lassen, wie sie sind" in a plan step** stands for no closer climate than the stage, since a step's preset
     writes nothing; the phase correction keeps the climates' own names ("Blüte" first), since it records how a
     phase was entered and writes nothing.
@@ -556,9 +556,6 @@ otherwise - where it is described now in brackets)
 54. **The guard for unsaved cells** stands on the Düngung tab: a reload from another tab of the grow loses cells
     edited there without a question (the tabs keep them while the page stays).
 55. **An ended place's Verlauf** offers no saved view, though a view is the account's, not the place's.
-56. **"Test" of a stream address** goes through a camera made and removed for the test, which leaves a tombstone
-    row per test; a route that tests an address without a camera would leave none. A guest who may manage a place
-    is offered it for a camera.
 57. **Migration step 031** gives a preset phase without `setBy` to the grow's owner, so a member who set it in a
     shared place reads as the owner; a preset applied under Steuerung is the caller's from now on, so only a plan
     writes "von allein".
