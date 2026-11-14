@@ -5095,7 +5095,8 @@
   "liveness": {
     "ago": "{{age}} ago",
     "since": "for {{age}}",
-    "waiting": "waiting for first values"
+    "waiting": "waiting for first values",
+    "coming": "first values coming"
   },
   "age": {
     "yesterday": "yesterday"

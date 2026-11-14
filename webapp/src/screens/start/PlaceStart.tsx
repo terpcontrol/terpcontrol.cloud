@@ -13,7 +13,7 @@ import { useHomeShape } from '@/api/home';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
-import { ageLabel, sinceLabel } from '@/ui/age';
+import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
 import { deviceName } from '@/ui/naming';
@@ -41,7 +41,7 @@ import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
 import { AddPlace } from './AddPlace';
-import { judgedAt, judgedBy, livenessThrough, measuredAtOf } from './attention';
+import { comingOf, judgedAt, judgedBy, livenessThrough, measuredAtOf } from './attention';
 import { DayCurves } from './DayCurves';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
@@ -137,12 +137,18 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const judged = judgedAt(now, failedAt);
   // The place lives and falls silent with the device that holds its climate, whatever else of it still reports.
   const judging = judgedBy(values, here, device, judged);
-  const liveness = livenessThrough({ values: judging.values, deviceIds: overview.deviceIds }, now, failedAt);
+  // A lead heard whose first values have yet to reach the read - one just claimed - is as alive as it was heard.
+  const coming = comingOf(judging, device, judged);
+  const liveness = coming
+    ? deviceLiveness(coming, judged)
+    : livenessThrough({ values: judging.values, deviceIds: overview.deviceIds }, now, failedAt);
   // No value at all is a device still waiting for its first one - or, where it was heard long ago, one silent since then.
   const silence = judging.silence;
   const silentSince = silence && !silence.waiting ? silence.since : null;
   const waiting = liveness === 'offline' && judging.values.length === 0 && silentSince === null;
   const offline = liveness === 'offline' && !waiting;
+  // Either way the lead has no figures yet, and the place none of anything else's.
+  const unread = waiting || coming !== null;
   const humidifierHold = useHumidifierHold(device);
   const openAlerts = usePlaceAlerts(overview.openAlerts, here, judged);
   const controlOff = controlOffOf(here);
@@ -174,9 +180,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const lit = offline ? null : lamp.lit;
   const held = offline ? null : lamp.held;
   const readings = readingsOf(t, { values, setpoints, device, lit, held, hold: humidifierHold, now, zone });
-  // A lead that has yet to speak leaves the place without figures: a socket's CO₂ is no reading of the place's.
-  const extras = offline || waiting ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
-  const measuredAt = measuredAtOf(judging.values) ?? silentSince;
+  // A lead with no figures yet leaves the place without any: a socket's CO₂ is no reading of the place's.
+  const extras = offline || unread ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
+  const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
   const ownMedia = kept ? (ownPhotoOf(overview.entries, kept.growId)?.mediaIds[0] ?? kept.coverMediaId) : null;
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
@@ -218,6 +224,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               explain
               waiting={waiting}
               awaited={waiting && device && here.length > 1 ? deviceName(device, t) : null}
+              coming={coming !== null}
             />
           ) : null}
           {menu ? (
@@ -308,8 +315,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {also.map(one => (
             <GrowHead key={one.growId} grow={one} to={`/grows/${one.growId}`} />
           ))}
-          {/* The day's curves are the lead's: a place waiting for it has none, whatever else of it reported. */}
-          {wide && hasDevice && !byHand && !waiting ? <DayCurves spaceId={spaceId} targets={targets} lead={device?.id ?? null} /> : null}
+          {/* The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported. */}
+          {wide && hasDevice && !byHand && !unread ? <DayCurves spaceId={spaceId} targets={targets} lead={device?.id ?? null} /> : null}
         </div>
 
         <div className={`${ui.stack3} ${styles.column}`}>

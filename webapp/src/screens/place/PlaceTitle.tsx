@@ -9,7 +9,8 @@ import { useSession } from '@/api/session';
 import { useEndedSpaces, useSpaceOverview } from '@/api/spaces';
 import { NoLongerHere, Waiting } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { judgedBy, livenessOf, measuredAtOf } from '@/screens/start/attention';
+import { comingOf, judgedBy, livenessOf, measuredAtOf } from '@/screens/start/attention';
+import { deviceLiveness } from '@/ui/age';
 import { leadValuesOf } from '@/screens/control/lead';
 import { deviceName } from '@/ui/naming';
 import { LivenessPill } from '@/ui/LivenessPill';
@@ -54,8 +55,10 @@ export function PlaceTitle({
   const { values } = leadValuesOf(lead, here.climates, here.values, useDeviceLive(lead?.id ?? null).data);
   // As on the place's Start: it lives and falls silent with its lead, and no value at all is a lead waiting for its first one.
   const judging = judgedBy(values, devices, lead, now);
+  // A lead heard whose first values have yet to reach the read is as alive as it was heard.
+  const coming = comingOf(judging, lead, now);
   const silentSince = judging.silence && !judging.silence.waiting ? judging.silence.since : null;
-  const liveness = livenessOf({ values: judging.values, deviceIds: here.deviceIds }, now);
+  const liveness = coming ? deviceLiveness(coming, now) : livenessOf({ values: judging.values, deviceIds: here.deviceIds }, now);
   const waiting = liveness === 'offline' && judging.values.length === 0 && silentSince === null;
 
   return (
@@ -69,11 +72,12 @@ export function PlaceTitle({
       ) : silenceSaid && liveness === 'offline' && !waiting ? null : (
         <LivenessPill
           liveness={liveness}
-          measuredAt={measuredAtOf(judging.values) ?? silentSince}
+          measuredAt={measuredAtOf(judging.values) ?? silentSince ?? coming}
           now={now}
           explain
           waiting={waiting}
           awaited={waiting && lead && devices.length > 1 ? deviceName(lead, t) : null}
+          coming={coming !== null}
         />
       )}
     </header>

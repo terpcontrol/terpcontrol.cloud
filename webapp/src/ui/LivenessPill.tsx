@@ -16,7 +16,9 @@ import ui from '@/ui/ui.module.css';
  *
  * A place whose devices have sent nothing yet is `waiting` for its first
  * values, and says that rather than "offline" - with the device it waits for
- * where several stand there (`awaited`). `explain` makes the word the
+ * where several stand there (`awaited`). One whose device has spoken but whose
+ * first values have yet to reach the read - a device just claimed - is as alive
+ * as it was heard, its first values coming (`coming`). `explain` makes the word the
  * term that says what online and stale mean, on the one pill of a page that
  * does.
  */
@@ -27,6 +29,7 @@ export function LivenessPill({
   explain,
   waiting = false,
   awaited = null,
+  coming = false,
 }: {
   liveness: Liveness;
   measuredAt: string | null;
@@ -35,6 +38,7 @@ export function LivenessPill({
   waiting?: boolean;
   /** The device waited for, named where the place holds several: "wartet auf erste Werte · Controller". */
   awaited?: string | null;
+  coming?: boolean;
 }) {
   const { t } = useTranslation();
   if (liveness === 'none') return null;
@@ -52,6 +56,7 @@ export function LivenessPill({
       {explain ? <Term topic="liveness">{word}</Term> : word}
       {measuredAt ? ' ' : null}
       {measuredAt ? <Spoken said={`, ${t('spoken.newest', { ago: spokenAgo(measuredAt, now) })}`}>{`· ${age}`}</Spoken> : null}
+      {coming ? ` · ${t('liveness.coming')}` : null}
     </span>
   );
 }

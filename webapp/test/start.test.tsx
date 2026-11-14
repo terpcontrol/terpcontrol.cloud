@@ -1124,6 +1124,20 @@ describe('the states of Start', () => {
     expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
   });
 
+  it('says a device heard whose first values have yet to come as it was heard, and not that it waits for them', async () => {
+    // Claimed while it runs, the way a claim lands here: it spoke seconds ago, and none of its values is in the read yet.
+    server.devices = [fridge({ state: { lastSeenAt: ago(13 / 60), hardware: {}, maintenanceUntil: null } as never })];
+    onePlace(overviewOf({ values: [] }));
+    draw();
+
+    await waitFor(() => expect(document.querySelector('[data-liveness]')).toHaveAttribute('data-liveness', 'live'));
+    const pill = document.querySelector('[data-liveness]');
+    expect(pill).toHaveTextContent(/^online · 1\d s ago/);
+    expect(pill).toHaveTextContent(/ · first values coming$/);
+    expect(screen.queryByText('waiting for first values')).not.toBeInTheDocument();
+    expect(screen.queryByText(/has not reported since/)).not.toBeInTheDocument();
+  });
+
   /** Regulation switched off is said once as a sentence, over the readings; the card of targets under it names the state and does not repeat it. */
   it('says once that control is off and that no targets are held, and names the state where the targets would stand', async () => {
     server.devices = [fridge({ control: { running: false, drying: false, mode: 'standard', energySaving: false } as never })];

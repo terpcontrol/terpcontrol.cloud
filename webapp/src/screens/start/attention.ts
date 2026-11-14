@@ -87,6 +87,18 @@ export const judgedBy = (values: CardValue[], here: Device[], lead: Device | nul
   return { values: [], silence: heard === null ? { waiting: true } : { waiting: false, since: heard } };
 };
 
+/**
+ * When a lead with no value to show was heard, where that was lately: a device just claimed has spoken, and its first
+ * values are not in the read yet. It is not waiting for its first word - it is as alive as it was heard, with its
+ * first values on their way. Null for a lead never heard, which waits for them, and for one gone quiet.
+ */
+export const comingOf = (judging: ReturnType<typeof judgedBy>, lead: Device | null, now: DateTime): string | null => {
+  const heard = lead?.state.lastSeenAt ?? null;
+  return judging.values.length === 0 && judging.silence?.waiting === true && heard !== null && deviceLiveness(heard, now) !== 'offline'
+    ? heard
+    : null;
+};
+
 /** The newest instant on the card, which is what its age reads from. */
 export const measuredAtOf = (values: CardValue[]): string | null =>
   values.reduce<string | null>((newest, value) => (value.measuredAt && (!newest || value.measuredAt > newest) ? value.measuredAt : newest), null);
