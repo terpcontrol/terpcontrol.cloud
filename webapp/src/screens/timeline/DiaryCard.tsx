@@ -1,7 +1,7 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
-import { dayLines } from '@/screens/grow/diary/days';
+import { dayLines, forwardsOf } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { readingNamesOf } from '@/ui/entries';
 import { useKept } from '@/ui/kept';
@@ -42,7 +42,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
   // A change of the device the curves are of, maintenance and regulation off are lines the devices' own tick shows,
   // each as the grow's diary says it - a maintenance one line for on and off together.
   const events = shown.machine ? [...data.deviceChanges, ...(data.stretches ?? [])] : [];
-  const lines = dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone).reverse();
+  const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone));
   const listed = all ? lines : lines.slice(-SHOWN);
 
   return (

@@ -1277,6 +1277,47 @@ describe('the diary of the window', () => {
     expect(line.textContent).toMatch(/^[A-Z][a-z]{2} \d\d:\d\d, Set the cursor on this moment.*3× until [A-Z][a-z]{2} \d\d:\d\d/);
   });
 
+  /**
+   * The window's lines come oldest first, and the list read "resolved" from a run's first firing - so it never said
+   * an alarm was over, and two devices' lines of one name both read open.
+   */
+  it('says an alarm that is over as over, and one that stands as standing, two devices´ of one name apart', async () => {
+    const offline = (id: string, hours: number, deviceId: string, fired: boolean) =>
+      entry(id, {
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId,
+        severity: fired ? 'warning' : 'info',
+        text: null,
+        occurredAt: ago(hours),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [fired ? 'Device offline, last heard 11 min ago' : 'Device offline, back after 1 h'],
+        },
+        values: { kind: 'alarm' },
+      });
+    server.over = {
+      events: [
+        offline('ctrl', 9, 'device-2', true),
+        offline('plug-1', 8, 'device-1', true),
+        offline('plug-2', 6, 'device-1', true),
+        offline('plug-back', 5, 'device-1', false),
+      ],
+    };
+    server.elsewhere = true;
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getAllByRole('listitem')[1].textContent).toMatch(/Device offline · /));
+    const [ctrl, plug] = list.getAllByRole('listitem').map(line => line.textContent);
+    expect(ctrl).toMatch(/Device offline · Controller B/);
+    expect(ctrl).not.toMatch(/ over/);
+    // The run stands at its first firing and says until its clearing.
+    expect(plug).toMatch(/Device offline · .* · 2× until \d\d:\d\d · over/);
+  });
+
   it('sets the cursor on a line`s moment when its stamp is tapped', async () => {
     draw();
     await settled();

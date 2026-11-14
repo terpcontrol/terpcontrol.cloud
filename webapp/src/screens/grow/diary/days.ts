@@ -153,7 +153,7 @@ export interface DayLine {
 }
 
 /**
- * The lines of a day, newest first.
+ * The lines of a day, newest first, whatever order its entries are handed in.
  *
  * What people did stands as they wrote it, and maintenance or regulation off
  * somebody switched as one line for on and off together. What the devices did by themselves is
@@ -165,10 +165,10 @@ export interface DayLine {
  * new one came.
  */
 export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>, zone: string | null): DayLine[] => {
-  const alarms = alarmLines(i18n, day.entries);
-  const written = foldRepeats(day.entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) =>
-    writtenLine(entry, count, since),
-  );
+  // The folds read the newest of a run first: Verlauf's entries came oldest first, and an alarm that was over read open.
+  const entries = [...day.entries].sort((one, other) => other.occurredAt.localeCompare(one.occurredAt));
+  const alarms = alarmLines(i18n, entries);
+  const written = foldRepeats(entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) => writtenLine(entry, count, since));
   const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null, moment = false): DayLine => ({
     key,
     at,
@@ -238,6 +238,15 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
 
   return [...written, ...alarms.lines, ...maintenance, ...lamp, ...outside, ...measuring].sort((one, other) => other.at.localeCompare(one.at));
 };
+
+/**
+ * Lines told oldest first, as Verlauf's curves run: a folded run stands at its first and says until when it went on,
+ * an alarm open or over by its newest line all the same.
+ */
+export const forwardsOf = (lines: DayLine[]): DayLine[] =>
+  lines
+    .map(line => (line.what.kind === 'said' || line.what.count < 2 ? line : { ...line, at: line.what.since, what: { ...line.what, since: line.at } }))
+    .sort((one, other) => one.at.localeCompare(other.at));
 
 /** An entry as a line of the diary, standing for `count` of its kind since `since` where a list folded them. */
 export const writtenLine = (entry: Entry, count = 1, since = entry.occurredAt): DayLine => ({
