@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
 import { readConfiguration, useConfigure, useDeviceLive, useHeardAt, useLiveReads, useSaveConfiguration } from '@/api/devices';
 import { isMissing, useDevicePlan, usePlanTransition } from '@/api/plans';
-import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { offlineLabel } from '@/ui/age';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { CLIMATE_CHOICES, climateChoiceName, writesClimate, type ClimateChoice } from '@/ui/presets';
+import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
 import { figure, targetWithUnit, UNIT } from '@/ui/units';
 import { useNow } from '@/ui/useNow';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
@@ -96,8 +95,6 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const heard = useHeardAt(read);
   const spoke = useLiveReads([read.id]).measuredAt.get(read.id) ?? heard;
   const [open, setOpen] = useState<Open>(null);
-  // The stage the grow standing here is in, as the server names it: the alarm rules of that stage are grouped under the same name.
-  const grow = useSpaceOverview(read.spaceId ?? '', read.spaceId !== null).data?.grows?.[0] ?? null;
 
   const pending = pendingByPath(liveRead.data?.pending);
   // Switched off while it was not heard, a device goes on holding what it was last handed: the cards stay as it runs them.
@@ -238,16 +235,13 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   if (!plan.data && !isMissing(plan.error)) return <LoadFailed read={plan} />;
 
   const halves = halvesOf(regime);
-  // The button names the preset the device was put on - here, by a phase, by a plan step - and never one its figures
-  // happen to match; one figure set by hand later it still names it. A spell's preset names it while the spell runs.
-  // Without one, what the server knows the place is on: the spell the device runs, else the stage of the grow here.
+  // The button names the preset the device was put on - here, by a phase, by a plan step that names one - and never
+  // one its figures happen to match; a spell's preset only while the spell runs. A target set by hand clears it on the
+  // server (Chris, 2026-11-14): the figures are then the grower's own, and the button names nothing.
   const spell = regime === 'drying' || regime === 'germination' ? regime : null;
   const kept = device.control?.preset ?? null;
-  const applied = kept && (kept.stage === 'drying' || kept.stage === 'germination' ? kept.stage === spell : spell === null) ? kept : null;
-  const preset = applied ? (CLIMATE_CHOICES.find(chip => chip.stage === applied.stage && chip.preset === applied.preset) ?? null) : null;
-  const staged = grow?.stage && writesClimate(grow.stage) && grow.stage !== 'drying' && grow.stage !== 'germination' ? grow : null;
-  const named: ClimateChoice | null =
-    applied ?? (spell ? { stage: spell, preset: null } : staged?.stage ? { stage: staged.stage, preset: staged.preset } : null);
+  const named = kept && (kept.stage === 'drying' || kept.stage === 'germination' ? kept.stage === spell : spell === null) ? kept : null;
+  const preset = named ? (CLIMATE_CHOICES.find(chip => chip.stage === named.stage && chip.preset === named.preset) ?? null) : null;
   const rows = [
     { key: 'temperature', label: t('targets.table.temperature'), fields: { day: 'dayTemperature', night: 'nightTemperature' } },
     ...(holdsHumidity(shape)

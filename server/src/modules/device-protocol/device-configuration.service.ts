@@ -10,6 +10,8 @@ import {
   co2InjectFor,
   isSection,
   nestedAt,
+  TARGET_RANGES,
+  valueAt,
   type Co2Fan,
   type FieldSetting,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
@@ -416,7 +418,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
               ? { beforeGermination: null }
               : {}),
           ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
-          ...((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied ? { appliedClimate: intent.applied } : {}),
+          ...appliedOf(intent, before, held),
           ...(ended
             ? { germinationChoices: GERMINATION_FORGOTTEN.germinationChoices }
             : said && Object.keys(said).length > 0
@@ -626,3 +628,25 @@ const mergeSections = (current: DeviceConfiguration, settings: DeviceConfigurati
       return [key, isSection(before) && isSection(value) ? { ...before, ...value } : value];
     }),
   );
+
+/** What a write may move that a climate preset sets: the targets, the light's limit, its hours and its ramps. */
+const CLIMATE_PATHS = [...Object.keys(TARGET_RANGES), 'daynight.day', 'daynight.night', 'lights.sunrise', 'lights.sunset'];
+
+/**
+ * The climate preset a device is named by afterwards. A preset applied - from
+ * Steuerung, by a phase, by a plan step that names one - is kept. Anything else
+ * that moves a figure a preset sets - the targets or the light saved by hand, a
+ * plan step without a preset, a spell ended by its own button - clears it: the
+ * figures are then the grower's own, and a name would claim a preset they no
+ * longer are. A write that moves none of them (regulation switched, the clock
+ * moved) leaves it as it was.
+ */
+const appliedOf = (
+  intent: WriteIntent,
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+): { appliedClimate?: AppliedClimate | null } => {
+  if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied) return { appliedClimate: intent.applied };
+  if (intent.kind === 'clock') return {};
+  return CLIMATE_PATHS.some(path => valueAt(before, path) !== valueAt(after, path)) ? { appliedClimate: null } : {};
+};

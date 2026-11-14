@@ -671,6 +671,49 @@ describe('what the cloud tells a device', () => {
     ]);
   });
 
+  /**
+   * Steuerung names the preset the device was put on. A figure moved without one - by hand, by a plan step that
+   * names none - makes the figures the grower's own, and the name goes; a write that moves none leaves it.
+   */
+  it('keeps the climate preset a device was put on until a figure is moved without one', async () => {
+    await device({
+      type: 'controller',
+      configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+    });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+    const applied = async () => (await stored())?.appliedClimate ?? null;
+    const veg = { stage: 'vegetative', preset: null } as const;
+
+    await configuration.replace(
+      DEVICE,
+      { workmode: 'small', day: { temperature: 26, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+      OWNER,
+      undefined,
+      undefined,
+      undefined,
+      veg,
+    );
+    expect(await applied()).toEqual(veg);
+
+    // Regulation switched, the clock kept, a plan step re-sent as it stands: nothing a preset sets has moved.
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.keepOnClock(DEVICE);
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } });
+    expect(await applied()).toEqual(veg);
+
+    // A plan step that names no preset and moves a figure: the figures are the plan's, not the preset's.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 27 } });
+    expect(await applied()).toBeNull();
+
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, 'late_flowering');
+    expect(await applied()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+
+    // The light's hours saved by hand are a figure a preset sets too.
+    const now = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...now, daynight: { day: 25200, night: 64800 } }, OWNER);
+    expect(await applied()).toBeNull();
+  });
+
   it('replaces what is not a section on both sides rather than merging into it', async () => {
     await device({ configuration: { day: 68400, night: 25200, limit: 65 } });
 

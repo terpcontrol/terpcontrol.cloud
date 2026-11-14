@@ -334,9 +334,10 @@ describe('what reaches the hardware', () => {
 
   /**
    * Steuerung named a preset by figures that happened to match one - a plan's "Veg" step holding a flowering
-   * preset's figures read as that flowering preset. What names one is what the device was put on.
+   * preset's figures read as that flowering preset. What names one is what the device was put on, until a figure
+   * is set by hand: the figures are then the grower's own (Chris, 2026-11-14).
    */
-  it('keeps the climate preset a device was put on, by a save or by its place, and not by what its figures match', async () => {
+  it('keeps the climate preset a device was put on, by a save or by its place, until a target is set by hand', async () => {
     const fridge = await provisionDevice(owner);
     const presetOf = async () => (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.control.preset;
     const configuration = { workmode: 'small', day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } };
@@ -347,12 +348,23 @@ describe('what reaches the hardware', () => {
       .expect(200);
     expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
 
-    // A figure set by hand afterwards leaves it standing: the place is still on it.
+    // Regulation switched off and on moves no figure, and the name stands.
+    await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { control: false } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ set: { control: true } })
+      .expect(200);
+    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+
+    // A target set by hand makes the figures the grower's own: no preset is named any more.
     await owner.client
       .put(`/v1/devices/${fridge.deviceId}/configuration`)
       .send({ configuration: { ...configuration, day: { temperature: 26, humidity: 60 } } })
       .expect(200);
-    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+    expect(await presetOf()).toBeNull();
 
     const spaceId = (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.spaceId;
     await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'flowering', preset: 'late_flowering' }).expect(201);

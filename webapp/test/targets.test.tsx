@@ -651,22 +651,24 @@ describe('the climate under Steuerung', () => {
       expect(screen.getByRole('button', { name: 'Climate preset: Veg' })).toBeInTheDocument();
     });
 
-    /** One figure set by hand does not make the place nameless: the server still knows what stage it is on. */
-    it('is named by the stage the server knows the place is on, once a figure was set by hand', async () => {
+    /**
+     * A target set by hand clears the preset on the server (Chris, 2026-11-14): the figures are the grower's own,
+     * and the button names no preset - not the stage the grow is in, which said "Veg" over figures set by hand.
+     */
+    it('names no preset once none is stored, whatever stage the grow here is in', async () => {
       wire.grow = { stage: 'flowering', preset: 'late_flowering' };
       await drawn();
-
-      expect(await screen.findByRole('button', { name: 'Climate preset: Late flower' })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Climate preset' })).toBeInTheDocument());
+      expect(screen.queryByRole('button', { name: /^Climate preset: / })).not.toBeInTheDocument();
     });
 
-    it('is named by the spell the device runs, whatever the grow is recorded in, and by nothing where nothing is known', async () => {
-      const bare = draw();
+    it('names a spell´s preset while the spell runs, and no spell it was not put on by one', async () => {
+      const bare = draw(device({ type: 'fridge', control: { ...CONTROL, drying: true } }));
       await screen.findByRole('table', { name: 'Targets' });
       expect(screen.getByRole('button', { name: 'Climate preset' })).toBeInTheDocument();
       bare.unmount();
 
-      wire.grow = { stage: 'flowering', preset: null };
-      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true } }));
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true, preset: { stage: 'drying', preset: null } } }));
       expect(await screen.findByRole('button', { name: 'Climate preset: Drying' })).toBeInTheDocument();
     });
 
