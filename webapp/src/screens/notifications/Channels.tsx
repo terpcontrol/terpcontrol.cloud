@@ -22,6 +22,7 @@ import { Switch } from '@/ui/Switch';
 import { useWriteNotifications } from './write';
 import { headersOf, headersText } from '@/ui/headers';
 import { useCallingRows } from './calling';
+import { mailAddressOf } from './reach';
 import { categoriesOn, hostOf, inWords, WEBHOOK_METHODS } from './settings';
 import styles from './Notifications.module.css';
 
@@ -306,7 +307,12 @@ export function EmailCard({ me, held }: CardProps) {
   return (
     <Row
       title={t('notifications.channel.email')}
-      line={<Facts facts={address ? [address, <Carries me={me} channel="email" />] : [t('notifications.off'), t('notifications.notConfigured')]} />}
+      // Off, it names the address its switch would send to, as the notice over the cards does: never "nicht eingerichtet".
+      line={
+        <Facts
+          facts={address ? [address, <Carries me={me} channel="email" />] : [t('notifications.off'), t('notify.to', { email: mailAddressOf(me) })]}
+        />
+      }
       below={
         <>
           {editing ? (

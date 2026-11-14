@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import type { AdminAlarmWatch, AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
-import { ageLabel, deviceLiveness } from '@/ui/age';
+import { ageLabel, deviceLiveness, isJustNow } from '@/ui/age';
 import { fileSize } from '@/ui/figures';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
@@ -61,7 +61,11 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
         <span className={`${ui.wrap} ${styles.actions}`}>
           {/* A dozen counts gathered over a second are not "now", and the
               answer says when it was taken; so does the card. */}
-          {answer ? <span className={styles.consequence}>{t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}</span> : null}
+          {answer ? (
+            <span className={styles.consequence}>
+              {isJustNow(answer.collectedAt, now) ? t('admin.health.asOfNow') : t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}
+            </span>
+          ) : null}
           <Link className={ui.chip} to="/admin/demo">
             {t('admin.health.openDemo')}
           </Link>

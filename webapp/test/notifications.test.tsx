@@ -183,7 +183,9 @@ describe('an account with nothing configured', () => {
   it('says every channel is off and offers no routing to any of them', async () => {
     await drawLoaded();
 
-    expect(screen.getAllByText(reading('off · not configured'))).toHaveLength(2);
+    // The webhook has nothing to go on; e-mail names the address its switch - and the notice over it - would send to.
+    expect(screen.getAllByText(reading('off · not configured'))).toHaveLength(1);
+    expect(screen.getByText(reading(`off · to ${server.me.email}`))).toBeInTheDocument();
     expect(screen.getByText(reading('off · not linked'))).toBeInTheDocument();
     for (const name of ['Telegram', 'E-mail', 'Webhook']) expect(screen.getByRole('switch', { name })).toHaveAttribute('aria-checked', 'false');
     for (const cell of screen.getAllByRole('switch', { name: / by / })) expect(cell).toBeDisabled();
@@ -856,6 +858,24 @@ describe('the webhook', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Headers')).toHaveValue('');
+  });
+});
+
+describe('an account that could not be read', () => {
+  it('is said as every page says it, under the page´s own title', async () => {
+    const failing = { status: 500, code: 'server_error', title: 'Server error', detail: '', errors: [] };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        String(input).endsWith('/v1/me') ? Promise.resolve(json(failing, 500)) : fetchStub(input, init),
+      ),
+    );
+    draw();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^The server reports an error/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Notifications');
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Could not load.');
   });
 });
 

@@ -1233,9 +1233,9 @@
         "noWeight": "kein Gewicht",
         "belowZero": "{{name}}: Ein Gewicht ist 0 g oder mehr.",
         "ended": "{{name}} ist beendet · hier ist sein Bericht",
+        "told": "{{plants}} geerntet",
         "standingAgain_one": "{{plants}} steht wieder",
-        "standingAgain_other": "{{plants}} stehen wieder",
-        "told": "{{plants}} geerntet"
+        "standingAgain_other": "{{plants}} stehen wieder"
       },
       "split": {
         "title": "Aufteilen",
@@ -1269,9 +1269,9 @@
       "starting": "Grow wird gestartet …",
       "startAndSet": "Starten · Klima: {{climate}}",
       "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
+      "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
       "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
-      "secondYes": "Zweiten Grow starten",
-      "stageMissing": "Wähl die Phase, in der der Grow gerade ist."
+      "secondYes": "Zweiten Grow starten"
     },
     "measurements": {
       "title": "Messwerte",
@@ -3438,7 +3438,8 @@
       "unclassified": "{{devices}} in keiner Klasse, die keine Ausrollung erreicht",
       "paused": "{{paused}} {{ofClasses}} pausiert",
       "demo": "Demo · {{online}} {{ofDevices}} am Leben · letztes Wort vor {{age}}",
-      "noDemo": "Kein Gerät ist als Demo-Gerät markiert"
+      "noDemo": "Kein Gerät ist als Demo-Gerät markiert",
+      "asOfNow": "Zahlen von gerade eben"
     },
     "firmware": {
       "title": "Firmware",
@@ -3514,7 +3515,6 @@
       "lastAdmin": "Das ist der einzige Administrator dieser Installation. Mach zuerst jemand anderen dazu, bevor du es hier wegnimmst.",
       "confirmMineTitle": "Eigenes Konto ändern?",
       "confirmMine": "Trotzdem speichern",
-      "confirmNo": "Zurück",
       "newPassword": "Neues Passwort",
       "unchanged": "unverändert",
       "isActive": "Aktiv",
@@ -3574,7 +3574,8 @@
       "open": "Ort öffnen"
     },
     "asOf": "Stand vor {{age}}",
-    "backToFleet": "Zurück zur Flotte"
+    "backToFleet": "Zurück zur Flotte",
+    "asOfNow": "Stand: gerade eben"
   },
   "units": {
     "s": "s",

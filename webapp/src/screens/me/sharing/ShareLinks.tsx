@@ -83,7 +83,7 @@ function Links({ userId }: { userId: string | null }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (links.isPending) return <Waiting lines={4} />;
-  if (!links.data) return <LoadFailed retry={() => void links.refetch()} />;
+  if (!links.data) return <LoadFailed read={links} />;
 
   /** The word for a list that has not been read: it is loading, or it failed, or the cursor outran the cap - never that what it holds is not there. */
   const unread = (list: { isPending: boolean }): Subject => ({ known: 'unread', word: list.isPending ? t('home.waiting') : t('shell.loadFailed') });

@@ -67,7 +67,7 @@ export function Tasks() {
     return (
       <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
         <Head />
-        <LoadFailed retry={() => void waiting.refetch()} />
+        <LoadFailed read={waiting} />
       </section>
     );
   }

@@ -627,10 +627,11 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       stood,
       onReading,
       read,
-      // A dash is never without its name; nor is a value with its own time.
-      readings: read.map(one =>
-        shared.has(one.curve.unit) || one.value === null || one.saidAt !== null ? `${one.curve.name} ${one.written}` : one.written,
-      ),
+      // A dash is never without its name, nor is a value with its own time or one of a shared unit - and where one
+      // figure is named, every figure is: a card that named some of its curves left the reader to guess the rest.
+      readings: read.some(one => shared.has(one.curve.unit) || one.value === null || one.saidAt !== null)
+        ? read.map(one => `${one.curve.name} ${one.written}`)
+        : read.map(one => one.written),
       outputs: ticked.map((strip, index) => outputWords(t, strip, figures[index])),
       silent: !onReading && read.every(one => one.value === null) && figures.every(figure => figure === null),
     };

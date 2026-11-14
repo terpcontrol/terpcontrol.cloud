@@ -99,7 +99,13 @@ const DEVICES: Device[] = [
     ownerId: 'user-3',
     state: { ...device({ id: 'x' }).state, lastSeenAt: NOW.minus({ days: 3 }).toISO()!, firmwareId: 'build-old', hardware: {} },
   }),
-  device({ id: 'tc-00d4', ownerId: null, spaceId: null, state: { ...device({ id: 'x' }).state, lastSeenAt: null, firmwareId: null } }),
+  device({
+    id: 'tc-00d4',
+    name: 'controller',
+    ownerId: null,
+    spaceId: null,
+    state: { ...device({ id: 'x' }).state, lastSeenAt: null, firmwareId: null },
+  }),
 ];
 
 const PEOPLE: User[] = [
@@ -428,8 +434,10 @@ describe('the fleet table', () => {
     // server said is online - never a count of the rows that happen to be here.
     expect(screen.getByText('4 devices · 1 online')).toBeInTheDocument();
     expect(screen.getByText(/showing 3 of 3 loaded · 4 devices on this install/)).toBeInTheDocument();
-    // Nothing else on the screen dates it: the pill beside the title says how old the read is.
-    expect(screen.getByText(/^as of \d+ s ago$/)).toBeInTheDocument();
+    // Nothing else on the screen dates it: the pill beside the title says how old the read is - a read of a moment
+    // ago in words, never "as of 0 s ago".
+    expect(screen.getByText('as of just now')).toBeInTheDocument();
+    expect(screen.queryByText(/as of 0 s ago/)).not.toBeInTheDocument();
   });
 
   it("follows the camera list past its first page, so a standalone cam on the second page is a row and the reader's own cams are counted whole", async () => {
@@ -464,6 +472,10 @@ describe('the fleet table', () => {
     // a build this install has no record of keeps the opaque id.
     expect(screen.getAllByText('Spring build').length).toBeGreaterThan(0);
     expect(screen.getByText('build-old')).toBeInTheDocument();
+    // A claim stores the type where nobody named the device: the row says the type in words, never the key as a name.
+    const unnamed = rows.find(row => row.textContent.includes('tc-00d4'))!;
+    expect(unnamed).not.toHaveTextContent(/· controller/);
+    expect(within(unnamed).getByText('Controller')).toBeInTheDocument();
   });
 
   it('narrows to one type, to what has been quiet for a day, and to what is not on stable', async () => {
@@ -917,8 +929,8 @@ describe("the administrator's own row", () => {
     expect(server.wrote).toHaveLength(0);
     expect(await screen.findByText('Change your own account?')).toBeInTheDocument();
 
-    // Back keeps the draft; the second press is the one that writes.
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    // Cancelling the question keeps the draft; the second press is the one that writes.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByLabelText('May run this install')).not.toBeChecked();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
@@ -953,7 +965,9 @@ describe("the administrator's own row", () => {
     fireEvent.change(screen.getByLabelText('Type mo to confirm'), { target: { value: 'Mo' } });
     expect(screen.getByRole('button', { name: 'Delete the account' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Delete the account' }).className).toMatch(/dangerFilled/);
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    // The one danger confirm: the yes, and "Cancel" beside it, which writes nothing.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('button', { name: 'Delete the account' })).not.toBeInTheDocument();
 
     fireEvent.click(within(rows[1]).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText(/the server keeps it/)).toBeInTheDocument();

@@ -10,6 +10,8 @@ import { useLeave } from '@/ui/leave';
 import { ownsCamera } from '@/screens/devices/cameras';
 import { useTheme } from '@/theme/theme-context';
 import { PageHead } from '@/ui/PageHead';
+import { together } from '@/api/read';
+import { LoadFailed } from '@/ui/PageState';
 import { Row, Rows } from '@/ui/Rows';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -34,8 +36,11 @@ export function Me() {
   return user !== null && !user.isDemo ? <AccountRows /> : <Frame note />;
 }
 
-/** The head, who is signed in, the rows, and signing out. The demo's rows are the two that work without an account, with the note saying so. */
-function Frame({ children, note = false }: { children?: ReactNode; note?: boolean }) {
+/**
+ * The head, who is signed in, the rows, and signing out. The demo's rows are the two that work without an account,
+ * with the note saying so; what could not be read is said once, over the rows (`failed`).
+ */
+function Frame({ children, note = false, failed = null }: { children?: ReactNode; note?: boolean; failed?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const { user } = useSession();
   const { leaving, leave } = useLeave('/sign-in');
@@ -45,6 +50,7 @@ function Frame({ children, note = false }: { children?: ReactNode; note?: boolea
     <section className={`${ui.stack3} ${styles.page}`}>
       <PageHead back={{ to: '/', label: t('me.back') }} title={t('me.title')} />
       <p className={styles.handle}>@{user?.handle ?? '?'}</p>
+      {failed}
 
       <Rows>
         {children ?? [
@@ -78,10 +84,12 @@ function AccountRows() {
   const ownCameras = useCameras().data?.items.filter(camera => camera.ownerId === user?.id) ?? [];
   const diary = useDiaryLayer();
   const language = i18n.resolvedLanguage ?? i18n.language;
-  const line = (reads: Read[], text: () => string) => lineOnce(t, reads, text);
+  // A read that failed is said once, by the box over the rows, and the rows it is the line of say nothing until it is read.
+  const failed = [me, grows].filter(read => read.data === undefined && read.isError);
+  const line = (reads: Read[], text: () => string) => (reads.some(read => (failed as Read[]).includes(read)) ? undefined : lineOnce(t, reads, text));
 
   return (
-    <Frame>
+    <Frame failed={failed.length > 0 ? <LoadFailed read={together(...failed)} /> : null}>
       <Row to="/me/notifications" title={t('notifications.title')} line={line([me], () => notificationsLine(t, me.data!, now, language))} />
       <Row to="/me/account" title={t('me.account.title')} line={t('me.door.account')} />
       <Row to="/me/appearance" title={t('me.appearance.title')} line={appearanceLine(t, choice, language)} />

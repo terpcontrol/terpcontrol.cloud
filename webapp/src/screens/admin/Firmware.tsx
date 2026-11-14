@@ -14,6 +14,7 @@ import {
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
+import { together } from '@/api/read';
 import { NothingHere, Refused } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Label, OutOfTheRow } from './parts';
 import ui from '@/ui/ui.module.css';
@@ -22,6 +23,7 @@ import { CLOCK, useZone, zoned } from '@/ui/zone';
 import { ClassRollout } from './ClassRollout';
 import { pointedAtBy } from './rollout';
 import styles from './Admin.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * The builds this cloud hands out, and where each class is handing them.
@@ -53,7 +55,7 @@ export function FirmwareScreen() {
 
   if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} retry={() => void classes.refetch()} />;
+  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} read={together(classes, firmwares)} />;
 
   const builds = itemsOf(firmwares.data);
   const allDevices = itemsOf(devices.data);
@@ -313,14 +315,13 @@ function DeleteSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       aside={build.version}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.dangerFilled}`}
+        <Answer
+          yes={t('admin.firmware.deleteIt')}
+          danger
           disabled={remove.isPending}
-          onClick={() => remove.mutate(build.id, { onSuccess: onClose })}
-        >
-          {t('admin.firmware.deleteIt')}
-        </button>
+          onYes={() => remove.mutate(build.id, { onSuccess: onClose })}
+          onCancel={onClose}
+        />
       }
     >
       <p className={styles.sheetBody}>{t('admin.firmware.deleteBody', { build: build.name ?? build.version })}</p>

@@ -28,7 +28,7 @@ function Followed() {
   const home = useHome();
 
   if (home.isPending) return <Waiting lines={3} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  if (!home.data) return <LoadFailed read={home} />;
 
   const grows = home.data.followedGrows;
 

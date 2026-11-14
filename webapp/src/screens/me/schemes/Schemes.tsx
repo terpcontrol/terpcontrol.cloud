@@ -52,7 +52,7 @@ export function Schemes() {
       {shipped.isPending ? (
         <Waiting lines={3} />
       ) : !shipped.data ? (
-        <LoadFailed retry={() => void shipped.refetch()} />
+        <LoadFailed read={shipped} />
       ) : shipped.data.length === 0 ? (
         <NothingHere>{t('me.schemes.noneShipped')}</NothingHere>
       ) : (
@@ -72,7 +72,7 @@ export function Schemes() {
       ) : own.isPending ? (
         <Waiting lines={2} />
       ) : !own.data ? (
-        <LoadFailed retry={() => void own.refetch()} />
+        <LoadFailed read={own} />
       ) : own.data.items.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t('grow.scheme.sheet.noneSavedYet')} {t('me.schemes.howToKeep')}

@@ -795,6 +795,24 @@ describe('the inbox', () => {
     expect(screen.getByText('Could not read the names · devices and cameras are shown without one')).toBeInTheDocument();
   });
 
+  it('says a list it could not read as every page says it, under its own title, and asks again from there', async () => {
+    state.refuse = {
+      method: 'GET',
+      path: '/v1/alerts',
+      problem: { status: 503, code: 'unavailable', title: 'Unavailable', detail: 'Try again.', errors: [] },
+    };
+    draw();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^The server reports an error/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Alerts');
+    expect(document.body).not.toHaveTextContent('Could not load.');
+
+    state.refuse = null;
+    server.alerts = [alert({})];
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText(reading(`${since} · Flower room B · 68`))).toBeInTheDocument();
+  });
+
   it('reads what is open once for the bell and the list together', async () => {
     server.alerts = [alert({ id: 'open' }), alert({ id: 'over', resolvedAt: iso(NOW.minus({ hours: 1 })) })];
     server.rules = [rule()];

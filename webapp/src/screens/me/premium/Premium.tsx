@@ -14,6 +14,7 @@ import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
 import { cameraTitle } from '@/ui/naming';
+import { together } from '@/api/read';
 import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
@@ -102,9 +103,7 @@ function Account({ title }: { title: string }) {
   const spaces = useSpaces();
 
   if (!me.data || !cameras.data) {
-    const retry = () => void Promise.all([me.refetch(), cameras.refetch()]);
-
-    return <MePage title={title}>{me.isPending || cameras.isPending ? <Waiting lines={4} /> : <LoadFailed retry={retry} />}</MePage>;
+    return <MePage title={title}>{me.isPending || cameras.isPending ? <Waiting lines={4} /> : <LoadFailed read={together(me, cameras)} />}</MePage>;
   }
 
   const premium = me.data.premium;

@@ -181,7 +181,7 @@ function OwnGrows({ account, held }: { account: Me; held: boolean }) {
       {grows.isPending ? (
         <Waiting lines={2} />
       ) : !grows.data ? (
-        <LoadFailed retry={() => void grows.refetch()} />
+        <LoadFailed read={grows} />
       ) : own.length === 0 ? (
         <NothingHere>{t('me.privacy.noGrows')}</NothingHere>
       ) : (

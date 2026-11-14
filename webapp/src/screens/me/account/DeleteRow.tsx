@@ -12,6 +12,7 @@ import ui from '@/ui/ui.module.css';
 import { Row } from '../parts';
 import parts from '../parts.module.css';
 import styles from './Account.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * The end of the account, which is the one thing on its page that cannot be
@@ -60,14 +61,13 @@ function DeleteSheet({ handle, onClose }: { handle: string; onClose: () => void 
       title={t('me.account.delete.title')}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.dangerFilled}`}
+        <Answer
+          yes={t('me.account.delete.yes')}
+          danger
           disabled={!sure || remove.isPending}
-          onClick={() => void remove.mutateAsync().then(gone, () => undefined)}
-        >
-          {t('me.account.delete.yes')}
-        </button>
+          onYes={() => void remove.mutateAsync().then(gone, () => undefined)}
+          onCancel={onClose}
+        />
       }
     >
       <div className={styles.asked}>

@@ -237,7 +237,7 @@ function Sessions({ currentId, now, held }: { currentId: string | null; now: Dat
   const [sweeping, setSweeping] = useState(false);
 
   if (sessions.isPending) return <Waiting lines={2} />;
-  if (!sessions.data) return <LoadFailed retry={() => void sessions.refetch()} />;
+  if (!sessions.data) return <LoadFailed read={sessions} />;
 
   const rows = sortedSessions(itemsOf(sessions.data), currentId);
   const shown = all ? rows : rows.slice(0, SESSIONS_SHOWN);

@@ -341,6 +341,20 @@ describe('the groups', () => {
  * it could not be read, corrected or stopped, and the sheet that exists to
  * correct one was reachable only through a card it was not producing.
  */
+describe('a list that could not be read', () => {
+  it('is said as every page says it, under the page´s own title', async () => {
+    vi.mocked(api.get).mockImplementation((path: string, query?: Record<string, unknown>) =>
+      path === '/tasks' ? Promise.reject(new TypeError('Failed to fetch')) : (Promise.resolve(answers(path, query)) as never),
+    );
+    draw();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^No connection to the server/);
+    expect(screen.getByRole('heading', { name: 'Tasks', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Could not load.');
+  });
+});
+
 describe('the rhythms', () => {
   const rare = reminder({
     id: 'rem-9',

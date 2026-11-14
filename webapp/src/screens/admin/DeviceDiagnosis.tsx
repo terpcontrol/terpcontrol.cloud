@@ -49,7 +49,7 @@ export function DeviceDiagnosis() {
 
   if (device.isPending) return <AdminNotLoaded head={head} />;
   if (!device.data) {
-    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} retry={() => void device.refetch()} />;
+    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} read={device} />;
   }
 
   const one = device.data;
@@ -105,7 +105,7 @@ export function DeviceDiagnosis() {
           {lines.isPending ? (
             <Waiting lines={3} />
           ) : !lines.data ? (
-            <LoadFailed retry={() => void lines.refetch()} />
+            <LoadFailed read={lines} />
           ) : lines.data.items.length === 0 ? (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noLines')}</p>
           ) : (

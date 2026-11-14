@@ -283,6 +283,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('Verlauf as it opens', () => {
+  it('names itself while it waits for the account´s places, as it does once they are read', async () => {
+    draw();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Timeline');
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+    await settled();
+  });
+
   it('draws a panel each for temperature, humidity and VPD, with the low, the high and the reading at the cursor', async () => {
     draw();
     await settled();
@@ -357,6 +364,16 @@ describe('Verlauf as it opens', () => {
     expect(within(card).getByRole('button', { name: 'Zoom in' })).toBeInTheDocument();
     // One form per output: one driven at a level reads in per cent and "off" at none, as on Start; a switch on or off.
     expect(card).toHaveTextContent('Light 65 % · Heater off · Dehumidifier off');
+  });
+
+  it('names every figure on the card once one of them needs its name, never some of them', async () => {
+    const { panels } = answerTo(new URLSearchParams());
+    server.over = { panels: [...panels, { ...panels[0], metric: 'leafTemperature' }] };
+    draw('/timeline?show=temperature,leafTemperature,humidity');
+    await settled();
+
+    // Two figures in degrees are told apart by name, and then the humidity beside them is named too.
+    expect(screen.getByRole('region', { name: 'Cursor' })).toHaveTextContent(/Temperature 25\.2 °C · Humidity 58\.0 % · Leaf temperature/);
   });
 
   it('is reached by the keyboard in the order it stands: in one column the card before the plots and "Adjust" by the title, in two the ranges before "Adjust"', async () => {
@@ -1194,6 +1211,16 @@ describe('the sheet "Adjust"', () => {
 });
 
 describe('the diary of the window', () => {
+  it('says a folded run´s end in the form its stamps are in: one form of a date in a row', async () => {
+    const again = (hours: number) => ({ ...restart, id: `restart-${hours}`, occurredAt: ago(hours) });
+    server.over = { events: [again(52), again(51), again(50)] };
+    draw(`/timeline?from=${ago(7 * 24)}&to=${iso(NOW - HOUR)}`);
+    await settled();
+
+    const [line] = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
+    expect(line.textContent).toMatch(/^[A-Z][a-z]{2} \d\d:\d\d, Set the cursor on this moment.*3× until [A-Z][a-z]{2} \d\d:\d\d/);
+  });
+
   it('sets the cursor on a line`s moment when its stamp is tapped', async () => {
     draw();
     await settled();

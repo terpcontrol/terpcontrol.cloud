@@ -37,7 +37,8 @@ export function Timeline() {
   }, [elsewhere]);
 
   // Not the place chosen before, for the moment it takes to learn where the device stands.
-  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending)) return <Waiting lines={3} />;
+  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending))
+    return <Waiting lines={3} title={t('shell.tabs.timeline')} />;
   if (!home.data) return <LoadFailed title={t('shell.tabs.timeline')} read={home} />;
   if (stray) return <NoLongerHere what="space" />;
 

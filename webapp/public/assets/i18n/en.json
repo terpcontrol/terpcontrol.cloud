@@ -1223,9 +1223,9 @@
         "noWeight": "no weight",
         "belowZero": "{{name}}: a weight is 0 g or more.",
         "ended": "{{name}} has ended · this is its report",
+        "told": "{{plants}} harvested",
         "standingAgain_one": "{{plants}} is standing again",
-        "standingAgain_other": "{{plants}} are standing again",
-        "told": "{{plants}} harvested"
+        "standingAgain_other": "{{plants}} are standing again"
       },
       "split": {
         "title": "Split",
@@ -1259,9 +1259,9 @@
       "starting": "Starting the grow …",
       "startAndSet": "Start · climate: {{climate}}",
       "plantsRefused": "Plants: a whole number from 1.",
+      "stageMissing": "Choose the phase the grow is in now.",
       "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",
-      "secondYes": "Start a second grow",
-      "stageMissing": "Choose the phase the grow is in now."
+      "secondYes": "Start a second grow"
     },
     "measurements": {
       "title": "Measurements",
@@ -3428,7 +3428,8 @@
       "unclassified": "{{devices}} in no class, which no rollout reaches",
       "paused": "{{paused}} {{ofClasses}} paused",
       "demo": "Demo · {{online}} {{ofDevices}} alive · last word {{age}} ago",
-      "noDemo": "No device is marked as a demo one"
+      "noDemo": "No device is marked as a demo one",
+      "asOfNow": "figures as of just now"
     },
     "firmware": {
       "title": "Firmware",
@@ -3504,7 +3505,6 @@
       "lastAdmin": "This is the only administrator this install has. Make somebody else one before taking it away here.",
       "confirmMineTitle": "Change your own account?",
       "confirmMine": "Save anyway",
-      "confirmNo": "Back",
       "newPassword": "New password",
       "unchanged": "unchanged",
       "isActive": "Active",
@@ -3564,7 +3564,8 @@
       "open": "Open the place"
     },
     "asOf": "as of {{age}} ago",
-    "backToFleet": "Back to the fleet"
+    "backToFleet": "Back to the fleet",
+    "asOfNow": "as of just now"
   },
   "units": {
     "s": "s",

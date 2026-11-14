@@ -462,6 +462,13 @@ describe('the bar', () => {
     for (const address of ['/control/alarms?space=space-2', '/devices/device-2', '/cameras/add']) {
       await act(() => router.navigate(address));
       await waitFor(() => expect(marked()).toEqual(['Control']));
+      // The rail marks what the bar marks: one rule for both.
+      const rail = screen.getAllByRole('navigation', { name: 'Main navigation' }).find(nav => nav !== bar())!;
+      expect(
+        within(rail)
+          .queryAllByRole('link', { current: 'page' })
+          .map(link => link.textContent),
+      ).toEqual(['Control']);
     }
   });
 
@@ -609,8 +616,13 @@ describe('the choice of place', () => {
     expect(chosen()).toBe('space-2');
     await waitFor(() => expect(timelinesAsked()).toEqual(['space-2']));
 
-    fireEvent.click(chips('Tent 2')[0]);
+    // A button that opens a sheet says so, and whether it is open.
+    const [chip] = chips('Tent 2');
+    expect(chip).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(chip).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(chip);
     const sheet = await screen.findByRole('dialog', { name: 'Place' });
+    expect(chip).toHaveAttribute('aria-expanded', 'true');
     const rows = await within(sheet).findAllByRole('button', { name: /Tent 2|Fridge 1|Balcony/ });
     expect(rows.map(row => /Tent 2|Fridge 1|Balcony/.exec(row.textContent)![0])).toEqual(['Tent 2', 'Fridge 1', 'Balcony']);
   });

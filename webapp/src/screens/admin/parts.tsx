@@ -2,10 +2,11 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchedAt } from '@/api/clock';
-import { ageLabel, deviceLiveness } from '@/ui/age';
+import { ageLabel, deviceLiveness, isJustNow } from '@/ui/age';
 import type { HelpTopic } from '@/ui/explain';
 import { Help } from '@/ui/Help';
 import { PageHead } from '@/ui/PageHead';
+import type { Read } from '@/api/read';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { Tabs } from '@/ui/Tabs';
 import ui from '@/ui/ui.module.css';
@@ -53,7 +54,7 @@ export function AdminHead({
       <PageHead title={title} of={of} back={of ? { to: '/admin/fleet', label: t('admin.backToFleet') } : { to: '/me', label: t('me.backHere') }}>
         {at ? (
           <span className={ui.live} data-liveness={deviceLiveness(at, now)}>
-            {t('admin.asOf', { age: ageLabel(at, now) })}
+            {isJustNow(at, now) ? t('admin.asOfNow') : t('admin.asOf', { age: ageLabel(at, now) })}
           </span>
         ) : null}
       </PageHead>
@@ -74,11 +75,11 @@ export function Label({ text, help }: { text: string; help: HelpTopic }) {
 }
 
 /** An admin screen with nothing to show yet: its head over the waiting block, or over the way to try again once the read has failed. */
-export function AdminNotLoaded({ head, lines = 4, retry }: { head: ReactNode; lines?: number; retry?: () => void }) {
+export function AdminNotLoaded({ head, lines = 4, read }: { head: ReactNode; lines?: number; read?: Read }) {
   return (
     <section className={ui.stack4}>
       {head}
-      {retry ? <LoadFailed retry={retry} /> : <Waiting lines={lines} />}
+      {read ? <LoadFailed read={read} /> : <Waiting lines={lines} />}
     </section>
   );
 }

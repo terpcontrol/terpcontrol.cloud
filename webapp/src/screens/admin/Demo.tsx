@@ -46,7 +46,7 @@ export function Demo() {
 
   if (devices.isPending) return <AdminNotLoaded head={header} lines={3} />;
 
-  if (!devices.data) return <AdminNotLoaded head={header} retry={() => void devices.refetch()} />;
+  if (!devices.data) return <AdminNotLoaded head={header} read={devices} />;
 
   const shownDevices = itemsOf(devices.data).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);

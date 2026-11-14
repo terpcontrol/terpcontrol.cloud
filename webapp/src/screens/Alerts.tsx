@@ -19,6 +19,7 @@ import { Help } from '@/ui/Help';
 import { useKept, useKeptScroll } from '@/ui/kept';
 import { deviceName } from '@/ui/naming';
 import { PageHead } from '@/ui/PageHead';
+import { together } from '@/api/read';
 import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Rows } from '@/ui/Rows';
 import { enough, useMayManage } from '@/ui/session-access';
@@ -135,12 +136,7 @@ export function Alerts() {
     return (
       <section className={`${ui.stack3} ${ui.page} ${styles.page}`}>
         {head}
-        <LoadFailed
-          retry={() => {
-            void open.refetch();
-            void resolved.refetch();
-          }}
-        />
+        <LoadFailed read={together(open, resolved)} />
       </section>
     );
   }

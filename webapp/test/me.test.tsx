@@ -370,13 +370,19 @@ describe('one read that fails', () => {
     ['/v1/grows', ['Privacy and profile']],
     ['/v1/home/grows', []],
     ['/v1/cameras', []],
-  ])('keeps every door when %s fails, and says so under the ones that needed it', async (path, affected) => {
+  ])('keeps every door when %s fails, says so once over them, and leaves out the line of a door that needed it', async (path, affected) => {
     server.failing = [path];
     draw();
 
     for (const name of DOORS) expect(screen.getByRole('link', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument();
-    for (const name of affected) expect(await lineUnder(name)).toBe('Could not load.');
+    for (const name of affected) expect(await lineUnder(name)).toBe('');
+    // The one failed state every page says it in, not a bare "Could not load." under each door.
+    if (affected.length > 0) {
+      expect(screen.getByRole('alert')).toHaveTextContent(/^The server reports an error/);
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    } else expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Could not load.');
   });
 
   it('draws a line read off two answers as loading while one of them is still out, whatever the other has said', async () => {

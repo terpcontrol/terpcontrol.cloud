@@ -14,6 +14,7 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
 import styles from './Admin.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * The accounts on this install, as the one person who may see them sees them.
@@ -51,7 +52,7 @@ export function Users() {
 
   if (people.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!people.data) return <AdminNotLoaded head={header} retry={() => void people.refetch()} />;
+  if (!people.data) return <AdminNotLoaded head={header} read={people} />;
 
   const all = itemsOf(people.data);
   const needle = typedHandle(search).toLowerCase();
@@ -280,16 +281,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
         title={t('admin.users.confirmMineTitle')}
         aside={account.email}
         onClose={onClose}
-        actions={
-          <>
-            <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
-              {t('admin.users.confirmNo')}
-            </button>
-            <button type="button" className={`${ui.button} ${ui.dangerFilled}`} disabled={change.isPending} onClick={save}>
-              {t('admin.users.confirmMine')}
-            </button>
-          </>
-        }
+        actions={<Answer yes={t('admin.users.confirmMine')} danger disabled={change.isPending} onYes={save} onCancel={() => setAsking(false)} />}
       >
         {losing.map(line => (
           <p key={line} className={styles.sheetBody}>
@@ -379,14 +371,13 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       aside={account.email}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.dangerFilled}`}
+        <Answer
+          yes={t('admin.users.deleteIt')}
+          danger
           disabled={!sure || remove.isPending}
-          onClick={() => remove.mutate(account.id, { onSuccess: onClose })}
-        >
-          {t('admin.users.deleteIt')}
-        </button>
+          onYes={() => remove.mutate(account.id, { onSuccess: onClose })}
+          onCancel={onClose}
+        />
       }
     >
       <p className={styles.sheetBody}>{t('admin.users.deleteBody', { handle: account.handle })}</p>

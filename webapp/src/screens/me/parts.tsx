@@ -60,7 +60,7 @@ export function AccountRead({ lines, children }: { lines: number; children: (me:
   const updating = useUpdatingMe();
 
   if (me.isPending) return <Waiting lines={lines} />;
-  if (!me.data) return <LoadFailed retry={() => void me.refetch()} />;
+  if (!me.data) return <LoadFailed read={me} />;
 
   return (
     <>
