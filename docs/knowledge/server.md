@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
 updated: 2026-11-14
-source: a grow's reminders resting while it is ended (Chris, 2026-11-14, built by the redesign session); a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+source: the fifth whole-app walk's lists built - done tasks of an ended grow, a grow reopened (the redesign session's fix round of 2026-11-14, the second Chris's answer); a grow's reminders resting while it is ended (Chris, 2026-11-14, built by the redesign session); a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -160,7 +160,11 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   set gives them `restingSince` (`GrowsService.restReminders`), which every list, task read and announcement leaves
   out (`AWAKE`, `due-tasks.ts`); `PATCH /reminders/{id}` refuses one of an ended grow (409 `grow_ended`), as
   `POST` does. Reopening the grow wakes them and sets `resumedAt`, from which a rhythm counts on, so it is not
-  overdue for the whole rest. Deleting the grow deletes them. A place's are deleted when it ends, as before.
+  overdue for the whole rest. Deleting the grow deletes them. A place's are deleted when it ends, as before. What
+  was ticked off lately is still listed as done (`GET /tasks?done=true` reads resting reminders and ended grows
+  too), so a morning's watering stays under "Erledigt" when the grow ends that day. A grow is reopened by `endedAt:
+  null` (Chris, 2026-11-14, "Grow wieder öffnen" under its ⋯); where it stood in a place that has ended since, it
+  runs on at no fixed place from its old end (`reopenedPlacements`, `grows.service.ts`).
 - **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
   which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in
   `PATCH /spaces/{id}` - and takes a device out of every place (`DELETE /spaces/{id}/devices/{deviceId}`,

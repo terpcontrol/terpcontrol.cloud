@@ -1,7 +1,7 @@
 ---
 summary: The web app's technology - layout of webapp/, routes, build and dev server, the shared contract, API client and session (401 vs unreachable), charts, media URLs, PWA and push, lint and tests, device data and leftovers to expect; read before changing webapp/
 updated: 2026-11-14
-source: the fourth whole-app walk's lists built - the lead heard or not, a link's address, the harvest lines (the redesign session's fix round of 2026-11-14); the third whole-app walk's lists built - the entry sheet's targets, a place judged by its lead device, a step's name, `PlaceGone`, `Named` (the redesign session's fix round of 2026-11-14); the second whole-app walk's lists built - one failed read of several, an ask's quiet yes, a state said (the redesign session's fix round of 2026-11-14); the final fix round's second part - every page centred (Chris, 2026-11-13), a range refused in one place, one guard for unsaved edits, a page leading to Start when its place goes, a sheet out of an admin table's row, Verlauf's keyboard order (the redesign session of 2026-11-13); the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: the fifth whole-app walk's lists built - one order for a day's lines, the harvest weights sheet, a place's one climate, a release's draft, a split's words, a heard lead, one title separator, a step's rest (the redesign session's fix round of 2026-11-14); the fourth whole-app walk's lists built - the lead heard or not, a link's address, the harvest lines (the redesign session's fix round of 2026-11-14); the third whole-app walk's lists built - the entry sheet's targets, a place judged by its lead device, a step's name, `PlaceGone`, `Named` (the redesign session's fix round of 2026-11-14); the second whole-app walk's lists built - one failed read of several, an ask's quiet yes, a state said (the redesign session's fix round of 2026-11-14); the final fix round's second part - every page centred (Chris, 2026-11-13), a range refused in one place, one guard for unsaved edits, a page leading to Start when its place goes, a sheet out of an admin table's row, Verlauf's keyboard order (the redesign session of 2026-11-13); the final fix round after the whole-app walk - a line's pictures and plants, the grow's bar, one failed state, units, the toast's tab order, a rule count from the server (the redesign session of 2026-11-13, not Chris); Verlauf's eighth list - strips and the card take the answer's verdict on a silence (the redesign session of 2026-11-13, not Chris); what exists once after the consolidation pass (the redesign session's consolidation pass of 2026-11-13); Verlauf's seventh list - strips cut by the shared silence rule, a wide page centred (the redesign session of 2026-11-13, not Chris); a root wider than a page of text (Verlauf's sixth walk, the redesign session of 2026-11-13); Ich, Meldungen and the screens behind Verwaltung, and the window title of a page under another (the redesign session of 2026-11-13); Chris (PR reviews and sessions 2026-08..10); React rewrite sessions 2026-09..10 (#104, merged 2026-10-04) and follow-ups to #143; codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; navigation redesign, bar, addresses, chosen place and Start (2026-11-12); the build dropping `backdrop-filter`, found on a built bundle (2026-11-12); Steuerung, device and camera pages, shared rows and page head (the redesign session of 2026-11-12); the one save path, pages by device, the arrow that steps back and the toasts after that session's critic's walk (2026-11-12); Verlauf as one page, its address, the plot and its gestures (the redesign session of 2026-11-12); where the toasts stand while a sheet is open, and the one name of an alarm rule (the same session after its critic's second walk, 2026-11-12); Verlauf's walk and its fixes (the redesign session of 2026-11-12); what exists once: the redesign session's clearing-up round of 2026-11-13; the one order of alerts, the undo answer, the grow pages' answers and the toast room (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - webapp/**
 ---
@@ -138,12 +138,19 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   - *what a line is written against*: the entry sheet's targets `targetsOf` (`log/targets.ts`), each grow of a
     place a target of its own (the home's card names the newer alone, `alsoIn` the others), which Verlauf's note
     reads too; what a recorded feed is corrected with `keptDoses` (`log/defaults.ts`);
-  - *names*: a device by `deviceName` / `deviceTitle` among `standingWith`, a camera by `cameraTitle`,
+  - *names*: a device's settings by the one table that names a device document's figures, `settingWords` and
+    `configurationChange` (`i18n/configuration-change.ts`), for the diary's change lines and admin's support view; a
+    camera's newest picture and when it was taken by `useLatestStills` / `useLatestStillTimes` (`api/cameras.ts`, one
+    query); a device by `deviceName` / `deviceTitle` among `standingWith`, a camera by `cameraTitle`,
     `camerasCalled` and `useCameraCalled`, the tail that tells two apart by `camTag` (`ui/naming.ts`,
     `ui/camera-name.ts`); a grow's day beside its name by `growDay` (`screens/grow/progress.ts`); a work mode by
     `modeWord` (`screens/control/rows.ts`); a reading by the catalogue group `home.metric`; an alarm rule by
     `ruleTitle` (`i18n/alarm-line.ts`);
-  - *a diary line*: `DiaryLine` (`screens/grow/diary/DiaryLine.tsx`) on `ui/Lines` wherever lines of a diary are
+  - *a diary line*: `DayLine`s are `dayLines` (`screens/grow/diary/days.ts`), newest first whatever order they are
+    handed, and `forwardsOf` turns them oldest first for Verlauf; a grow split into stages is named by `splitWords`
+    (`screens/grow/progress.ts`); a harvest's weights are corrected in `HarvestWeights` (`screens/grow/`, with the
+    sheet's words in `harvest.ts` and the write `useWeighAgain`, `api/lifecycle.ts`), which `openWeights` of the log
+    context opens from a harvest's line; `DiaryLine` (`screens/grow/diary/DiaryLine.tsx`) on `ui/Lines` wherever lines of a diary are
     listed - Start, the day cards, Bericht, Verlauf, a shared place - and `Line` with `EntryWords` on a device's
     diagnosis; a line's words are composed in `ui/EntryWords.tsx` alone, the plants it is about named by its
     `plants`. A line's pictures are its own control: the count opens `ui/PictureViewer`, and where a share link
@@ -159,9 +166,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     toast; maintenance is begun, told and ended by `MaintenanceControl` (`screens/devices/Maintenance.tsx`),
     whose `standing` form under Alarme never offers a start; whether a device is heard is worded by
     `livenessWords` (`ui/age.ts`) for the pill and for a card's line, and a place by its lead device - the controller or the fridge module, heard or not (`leadOf`), its figures
-    (`leadValuesOf`, both `screens/control/lead.ts`) and its silence - by `judgedBy` (`screens/start/attention.ts`), for
+    (`leadValuesOf`, both `screens/control/lead.ts`), the climate a second one would meet there `climateHeldBy` (a place takes one), and its silence - by `judgedBy` and a lead heard whose first values are coming by `comingOf` (`screens/start/attention.ts`), for
     Start, its card, the header's choice of place and Steuerung's head; a plan step's name by `stepTitle` / `ownStepName`, with `usePlanWords` fetching the catalogue a stored
-    name or reason is in (`screens/control/plan-labels.ts`); the climates of one stage are the chip row
+    name or reason is in, a step's rest in words `leftWords` and a step that writes nothing `stepWritesNothing` (`screens/control/plan-labels.ts`); the devices of a place that wait for their first settings `usePlaceClimate().awaiting` (`screens/grow/phase-climate.ts`), which a stage's climate is sent to as well; the climates of one stage are the chip row
     `StageClimates` (`screens/grow/ClimatePick.tsx`) with `keptPreset` (`ui/presets.ts`), in the phase and split
     sheets and the plan editor, and what a device holds in their figures `heldNow` / `useHeldNow`
     (`screens/grow/phase-climate.ts`); a device's count of alarm rules is the server's (`counts` on the rules
@@ -441,7 +448,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   release waited for every window of the app to close, so an installed app or a tab left open kept the old one
   until somebody emptied the browser's cache. `followReleases()` (`src/app/update.ts`, from `main.tsx`) reloads the
   page once when a new worker claims it - not when the very first one does - and asks for an update whenever the app
-  comes back to the front, since a page that never navigates never looks. The injected `registerSW.js` only
+  comes back to the front, since a page that never navigates never looks - which is when a half-written entry is
+  waiting, so before the reload it keeps the open entry view's draft for the tab (`keepDraft`, `log/draft.ts`:
+  `holdDraft` is what the view registers, `keptDraft` what `LogProvider` opens again, in `sessionStorage` under
+  `terp.draft`). The injected `registerSW.js` only
   registers the worker. Check it on two builds in a real browser (the browser pane refuses service workers):
   load one, build again with another `VITE_API_URL`, bring the page to the front, and it must reload once onto the
   new bundle.
@@ -492,7 +502,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   the window between about 1590 and 1795 px and, held back only, stands up to 200 px off the middle.
 - The window's title follows the page's `<h1>` inside the shell (`app/shell/page-title.ts`). Outside it nothing
   does, so the card every such page stands in names it: `Door` (`src/screens/Door.tsx`) takes `page` - or the
-  step's `title` - and sets "… – Terp Control". A tab that came from the demo carried the demo place's name over
+  step's `title` - and sets "… · Terp Control", composed by `windowTitle` (`app/shell/page-title.ts`) with the one separator every title has, in the app and on its public pages. A tab that came from the demo carried the demo place's name over
   the sign-up form until it did. An address that names nothing has its `<h1>` from `NoLongerHere`
   (`ui/PageState.tsx`).
 - A toast is the entry sheet's (`src/log/LogProvider.tsx`): a line on its way to the server, with Undo. `tell({
