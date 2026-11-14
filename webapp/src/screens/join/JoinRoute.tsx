@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { placePath } from '@/app/places';
+import { windowTitle } from '@/app/shell/page-title';
 import type { InvitePreview } from '@fg2/shared-types/v1';
 import { useAcceptInvite, useInvitePreview } from '@/api/invites';
 import { session, useSession } from '@/api/session';
@@ -13,7 +14,7 @@ import { calendarDay, useZone } from '@/ui/zone';
 import styles from './Join.module.css';
 
 /** Names the window after the page, as `Nothing` does for an invitation that leads nowhere: the shell round them knows no title. */
-const useWindowTitle = (title: string) => useEffect(() => void (document.title = `${title} · Terp Control`), [title]);
+const useWindowTitle = (title: string) => useEffect(() => void (document.title = windowTitle(title)), [title]);
 
 /**
  * `/join/{code}`: what somebody who was sent a link sees, and `/join` on its

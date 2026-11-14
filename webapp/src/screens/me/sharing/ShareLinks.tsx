@@ -75,6 +75,9 @@ type Subject = { known: 'named'; name: string; isPublic: boolean | null } | { kn
  */
 type Stripping = { known: true; hideWeights: boolean; hideCounts: boolean } | { known: false; word: string };
 
+/** What a link onto a place where nothing grows hides of a grow: nothing, because it shows none. */
+const NOTHING_TO_HIDE: Stripping = { known: true, hideWeights: false, hideCounts: false };
+
 function Links({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
@@ -136,11 +139,16 @@ function Links({ userId }: { userId: string | null }) {
     const subject = subjectOf(link);
     // Whether it carries pictures is said only where it could: until the cameras are read, as it was made.
     const pictures = !cameras.data || picturesPossible(cameras.data.items, link.subject);
+    // A place's link shows plants and harvests only of a grow standing there: without one, it hides none of them.
+    const growing =
+      link.subject.type === 'grow' ||
+      !grows.data ||
+      grows.data.items.some(grow => grow.endedAt === null && grow.placements.some(one => one.spaceId === link.subject.id && one.endedAt === null));
     return {
       title: titleOf(t, link, subject),
       parts: isDead(link, now)
         ? deadParts(t, link, now, i18n.language, zone)
-        : grantParts(t, link, subject, privacy, pictures, now, i18n.language, zone),
+        : grantParts(t, link, subject, growing ? privacy : NOTHING_TO_HIDE, pictures, now, i18n.language, zone),
     };
   };
 

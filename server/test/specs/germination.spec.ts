@@ -528,4 +528,28 @@ describe('a climate chosen before the device first sent its settings', () => {
       await sim.close();
     }
   });
+
+  /** "Was wächst hier?" sets the phase and its climate in one answer: the grow's phase waits on the device all the same. */
+  it('reaches it from the phase a new grow is started in, as from a preset applied to the place', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+    const grow = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Awaited run', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }], spaceId })
+        .expect(201)
+    ).body;
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'vegetative', preset: null, climate: true }).expect(201);
+
+    const sim = await startSimulator(device);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'awaited-phase', configuration: document() });
+      for (let tries = 0; tries < 50 && (await controlOf(device))?.preset?.stage !== 'vegetative'; tries++) await settle(100);
+
+      expect(await controlOf(device)).toMatchObject({ preset: { stage: 'vegetative' } });
+    } finally {
+      await sim.close();
+    }
+  });
 });

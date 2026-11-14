@@ -108,7 +108,7 @@ export function RolloutCard({
             <div className={ui.wrapRow}>
               <button
                 type="button"
-                className={`${ui.chip} ${paused ? '' : styles.paused}`}
+                className={`${ui.chip} ${styles.action} ${paused ? '' : styles.paused}`}
                 disabled={update.isPending}
                 onClick={() => update.mutate({ classId: deviceClass.id, body: { rollout: { paused: !paused, percent } } })}
               >

@@ -12,7 +12,7 @@ import { Members } from '@/screens/space/members/Members';
 import { guestsOf, inSentence, mentionsOn, rowsFor } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND, testClient } from './harness';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Sharing a place, from both ends: the list of who sees it, and the
@@ -829,5 +829,16 @@ describe('an invitation somebody was sent', () => {
 
     expect(await screen.findByText(/The demo has no account of its own/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Join/ })).not.toBeInTheDocument();
+  });
+});
+
+/** A guest read "Ändern kann, wer Zelt verwaltet" on Start and "wer den Ort steuert" on Steuerung of the one role "darf steuern". */
+describe('the role that may change a place', () => {
+  it('is said by its name wherever German says who may change something', async () => {
+    const de = (await catalogue('de')) as Record<string, Record<string, Record<string, string>>>;
+    const said = [de.start.targets.whoChanges, de.space.control.youMayLog, de.tasks.stepIsManaged];
+
+    expect((de.space.members as unknown as Record<string, Record<string, string>>).role.can_manage).toBe('darf steuern');
+    for (const sentence of said) expect(sentence).toMatch(/wer .* steuern darf\./);
   });
 });

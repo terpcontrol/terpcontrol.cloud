@@ -37,3 +37,16 @@ describe('the switch´s target', () => {
     expect(lending).toEqual([]);
   });
 });
+
+/** "+ Konto", the fleet's filter chips and "Pausieren" were a chip's 30 px, where every other admin target is 36. */
+describe('the admin pages´ targets', () => {
+  const admin = (name: string) => readFileSync(join(SOURCE, 'screens/admin', name), 'utf8');
+
+  it('are a finger high above a table and under a rollout', () => {
+    const rule = /\.action,\s*\.filters > button,\s*\.filters > select \{([^}]*)\}/.exec(admin('Admin.module.css'))?.[1] ?? '';
+    expect(rule).toMatch(/height:\s*var\(--action-height\)/);
+    expect(admin('Users.tsx')).toMatch(/styles\.action\}`\} onClick=\{\(\) => setMaking\(true\)\}/);
+    expect(admin('RolloutCard.tsx')).toContain('${ui.chip} ${styles.action} ${paused');
+    expect(admin('Fleet.tsx')).toMatch(/className=\{`\$\{ui\.wrapRow\} \$\{styles\.filters\}`\}/);
+  });
+});

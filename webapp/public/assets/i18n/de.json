@@ -150,7 +150,8 @@
       "override": "Handbetrieb",
       "timer": "Steckdosen-Timer",
       "light": "Licht-Handbetrieb",
-      "nothing": "nichts über die Rollen hinaus, mit denen es gebaut wurde"
+      "nothing": "nichts über die Rollen hinaus, mit denen es gebaut wurde",
+      "notReported": "noch nicht gemeldet"
     },
     "panel": {
       "firmware": "Firmware",
@@ -1284,7 +1285,8 @@
       "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
       "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
       "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
-      "secondYes": "Zweiten Grow starten"
+      "secondYes": "Zweiten Grow starten",
+      "climateAwaited": "Klima wartet auf {{device}}"
     },
     "measurements": {
       "title": "Messwerte",
@@ -1813,7 +1815,7 @@
         "yours": "deine",
         "published": "von jemand anderem veröffentlicht"
       },
-      "youMayLog": "Du darfst an diesem Ort eintragen, ihn aber nicht steuern. Plan, Zielwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Ort steuert.",
+      "youMayLog": "Du darfst an diesem Ort eintragen, ihn aber nicht steuern. Plan, Zielwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Ort steuern darf.",
       "told": {
         "paused": "„{{plan}}“ pausiert",
         "resumed": "„{{plan}}“ läuft wieder · {{step}}",
@@ -2921,7 +2923,7 @@
       "askUnnamed": "Das bestätigt den Schritt und startet den nächsten; es lässt sich nicht zurücknehmen.",
       "yes": "Schritt bestätigen"
     },
-    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an das Gerät. Das kann nur, wer den Ort steuert.",
+    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an das Gerät. Das kann nur, wer den Ort steuern darf.",
     "every_one": "jeden Tag",
     "every_other": "alle {{count}} Tage",
     "tickedOff": "Erledigt · {{label}}",
@@ -3282,11 +3284,13 @@
       "apply": "Auf {{stage}} stellen",
       "applying": "Zielwerte werden geschrieben …",
       "wroteNothing": "Kein Gerät hier hat die Zielwerte übernommen.",
+      "waits": "Das Klima wartet auf die ersten Einstellungen von {{device}}: Sobald sie da sind, wird das Gerät darauf gestellt.",
       "wroteTo_one": "Die Zielwerte gingen an {{count}} Gerät.",
       "wroteTo_other": "Die Zielwerte gingen an {{count}} Geräte.",
       "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
       "noPhaseWritten": "Kein Grow ist in die Phase übergegangen; geschrieben wurde nur das Klima.",
       "noPhaseNoClimate": "Kein Grow ist in die Phase übergegangen, und es wurde kein Klima geschrieben.",
+      "noPhase": "Kein Grow ist in die Phase übergegangen.",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
@@ -4969,7 +4973,7 @@
     "targets": {
       "window": "{{on}} bis {{off}}",
       "limit": "Grenze {{percent}} %",
-      "whoChanges": "Ändern kann, wer {{name}} verwaltet.",
+      "whoChanges": "Ändern kann, wer {{name}} steuern darf.",
       "changeOffline": "Zielwerte und Licht ändern",
       "offlineNote": "Geht auch jetzt. Das Gerät übernimmt es, sobald es wieder online ist.",
       "title": "Zielwerte",
@@ -5225,7 +5229,8 @@
       "stored": "{{what}} gespeichert {{saved}}, noch nicht am Gerät"
     },
     "offline": {
-      "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}."
+      "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}.",
+      "textOff": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und bleibt bis dahin ohne Regelung, wie beim Stand von {{time}}."
     },
     "state": {
       "on": "Regelung an",

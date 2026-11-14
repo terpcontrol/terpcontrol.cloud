@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { windowTitle } from '@/app/shell/page-title';
 import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 import styles from './SignIn.module.css';
@@ -14,7 +15,7 @@ export function Door({ title, page, onSubmit, children }: { title?: string; page
   const named = page ?? title;
 
   useEffect(() => {
-    document.title = named ? `${named} – Terp Control` : 'Terp Control';
+    document.title = windowTitle(named);
   }, [named]);
 
   return (

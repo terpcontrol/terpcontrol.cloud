@@ -169,7 +169,7 @@ function Filters({ filter, onChange, types }: { filter: FleetFilter; onChange: (
   const { t } = useTranslation();
 
   return (
-    <div className={ui.wrapRow}>
+    <div className={`${ui.wrapRow} ${styles.filters}`}>
       <select
         className={`${ui.chip} ${ui.menu}`}
         aria-label={t('admin.fleet.filter.type')}

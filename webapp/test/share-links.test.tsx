@@ -509,6 +509,22 @@ describe('the new-link sheet', () => {
     expect(told).toEqual([{ label: 'Link created · Tent 1', undo: null }]);
   });
 
+  /** A link onto a place with no grow listed "weights hidden · plant counts hidden" - of plants it shows none of. */
+  it('says nothing a link hides of a grow on the card of a link onto a place where nothing grows', async () => {
+    const standing = grows[0].placements;
+    grows[0].placements = [];
+    onTestFinished(() => void (grows[0].placements = standing));
+    server.links = [weekView];
+    await drawLoaded();
+
+    await waitFor(() => expect(server.asked.some(path => path.startsWith('/grows'))).toBe(true));
+    await waitFor(() =>
+      expect(card('Tent 1 · Timeline', 'Active')).toHaveTextContent(
+        `read-only view · expires ${dayOf(weekView.expiresAt!)} · camera pictures on · opened 6 times`,
+      ),
+    );
+  });
+
   /** "camera pictures off" stood on the card of a link onto a place no camera has ever stood in. */
   it('says nothing of camera pictures on the card of a link onto a place without a camera', async () => {
     server.cameras = [];

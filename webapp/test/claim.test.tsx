@@ -617,10 +617,11 @@ describe('adding a device', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Strain or name' }), { target: { value: 'Blue Dream' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Plants' }), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    // The controller has sent no settings yet: the climate of the stage picked is sent all the same, and waits for them.
+    fireEvent.click(screen.getByRole('button', { name: /^Start · climate: Veg/ }));
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith('/grows/grow-new/phases', expect.objectContaining({ stage: 'vegetative', preset: null })),
+      expect(api.post).toHaveBeenCalledWith('/grows/grow-new/phases', expect.objectContaining({ stage: 'vegetative', preset: null, climate: true })),
     );
     expect(api.post).toHaveBeenCalledWith(
       '/grows',
@@ -733,12 +734,14 @@ describe('adding a device', () => {
     expect(address()).toBe('/claim?device=sim-controller-7f3a&ask=doing.hardware.notify&at=doing&made=space-new');
   });
 
-  it('ends a step early where a grow already stands, with the count it said', async () => {
+  it('counts no step for what grows where a grow already stands, and ends where the count says', async () => {
     state.grows = [{ ...spring, placements: [{ ...spring.placements[0], spaceId: 'space-new' }] } as GrowListItem];
     draw(left('notify', { ask: GROWS }));
 
     expect(await screen.findByRole('button', { name: 'Done · open the place' })).toBeEnabled();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 4$/);
+    // What grows is not asked where a grow stands, so it is neither counted nor drawn.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add controller · step 3 of 3$/);
+    expect(screen.queryByRole('heading', { level: 2, name: 'What grows here?' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Done · open the place' }));
     expect(address()).toBe('/spaces/space-new');
   });
@@ -1029,6 +1032,12 @@ describe('adding a device', () => {
   });
 
   it('does not report a climate write that no controller took', async () => {
+    // A controller that has sent its settings: one that has sent none waits for the climate (below).
+    const configured = { ...device, configuration: { day: { temperature: 25, humidity: 60 }, night: { temperature: 20, humidity: 55 } } } as Device;
+    state.devices = [configured];
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/sim-controller-7f3a' ? standing(configured) : answers(path)) as never,
+    );
     await drawClaimed();
     vi.mocked(api.post).mockResolvedValue({
       spaceId: 'space-new',
@@ -1052,6 +1061,40 @@ describe('adding a device', () => {
     expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
       'No device here took the targets. No grow entered the phase, and no climate was written.',
     );
+  });
+
+  /**
+   * A stage put on before the device first sent its settings waits for them on the server, and the device is put on
+   * it as they arrive. The step said "no climate was written" - read as a failure, and set again.
+   */
+  it('says the climate waits for the first settings of a device that has sent none', async () => {
+    state.devices = [{ ...device, configuration: null }];
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/devices/sim-controller-7f3a' ? { ...standing(device), configuration: null } : answers(path)) as never,
+    );
+    await drawClaimed();
+    vi.mocked(api.post).mockResolvedValue({
+      spaceId: 'space-new',
+      stage: 'vegetative',
+      preset: null,
+      appliedAt: NOW.toISO(),
+      deviceIds: [],
+      growId: null,
+      phaseId: null,
+      growDecisionNeeded: false,
+      decisions: [],
+      planEffect: 'none',
+    } as never);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Veg' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put it on Veg' }));
+
+    expect(
+      await screen.findByText('The climate waits for the first settings of Terp Controller: as they arrive, the device is put on it.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('No grow entered the phase.')).toBeInTheDocument();
+    expect(screen.queryByText(/no climate was written/)).not.toBeInTheDocument();
   });
 
   it('names the build rather than printing the uuid the hardware reports', async () => {

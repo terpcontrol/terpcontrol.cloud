@@ -3,6 +3,7 @@ import { useLayoutEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { noLongerThere } from '@/api/problem';
+import { windowTitle } from '@/app/shell/page-title';
 import { useTheme } from '@/theme/theme-context';
 import { Logo } from '@/ui/Logo';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -26,7 +27,7 @@ export function PublicShell({ title, children }: { title?: string; children: Rea
   // that leads nowhere names the window itself (`Nothing`).
   useLayoutEffect(() => {
     const before = document.title;
-    document.title = title ? `${title} · Terp Control` : 'Terp Control';
+    document.title = windowTitle(title);
     return () => {
       document.title = before;
     };

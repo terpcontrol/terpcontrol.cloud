@@ -985,6 +985,14 @@ describe('a device on its own page', () => {
       expect(screen.queryByText('Takes')).toBeNull();
     });
 
+    /** A device never heard read "Takes: nothing beyond the roles it was built with" - of what it has yet to say. */
+    it('says what a device never heard takes is not reported yet', async () => {
+      wire.devices = [controller({ state: { lastSeenAt: null } })];
+      await draw('/devices/device-1/details', 'Technical details');
+
+      expect((await screen.findByText('Takes')).nextElementSibling).toHaveTextContent('not reported yet');
+    });
+
     it('leads a page a device has not got to the device itself', async () => {
       wire.devices = [controller({ type: 'plug' })];
       await draw('/devices/device-1/sockets', 'Plantalytix Socket');

@@ -2,6 +2,7 @@ import i18next from 'i18next';
 import { useEffect, useState } from 'react';
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, Plan, StepDuration } from '@fg2/shared-types/v1';
 import { loadCatalogues, saidInAnyLanguage, type Translate } from '@/i18n/i18n';
+import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
 import { isDarkStage, stepLightHours, stepLightsOn, writesNothing } from './plan-edit';
@@ -19,6 +20,22 @@ import { hoursWritten } from './targets/schedule-words';
 /** The words a length is written in - "3 wk", "10 d" - or what a step with no length really is. */
 export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
+
+/**
+ * "12 days", "5 hours" on the last day, "40 minutes" in the last hour: a step
+ * is counted in the unit it still has more than one of, rounded up so it never
+ * reads short - and a step of a few minutes is not said to have an hour left.
+ * Steuerung's "noch 7 T" read as a clock beside a step set in days.
+ */
+export const leftWords = (t: Translate, ms: number): string => {
+  if (ms >= DAY_MS) return t('planLine.days', { count: Math.ceil(ms / DAY_MS) });
+  if (ms >= HOUR_MS) return t('planLine.hours', { count: Math.ceil(ms / HOUR_MS) });
+  return t('planLine.minutes', { count: Math.max(1, Math.ceil(ms / MINUTE_MS)) });
+};
+
+/** A step that writes no setting, no light and no dark stage: the device keeps what it has (after germination, that ends it). */
+export const stepWritesNothing = (step: Pick<StepFacts, 'stage' | 'settings' | 'lightHours'>): boolean =>
+  !isDarkStage(step.stage) && writesNothing(step.settings as DeviceConfiguration) && step.lightHours == null;
 
 /** The facts of a step that its line is made of, which a saved step and one being written both have. */
 interface StepFacts {
@@ -73,9 +90,7 @@ export const stepMeta = (t: Translate, step: StepFacts, offset: number | null = 
     step.stage === 'germination' && step.germinationChoices?.warnTooHumid ? t('space.control.step.warnsTooHumid') : null,
     step.stage === 'germination' && step.germinationChoices?.humidifierHolds === false ? t('space.control.step.humidifierRests') : null,
     step.waitForConfirmation ? t('space.control.waits') : null,
-    !isDarkStage(step.stage) && writesNothing(settings) && step.lightHours == null
-      ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort')
-      : null,
+    stepWritesNothing(step) ? t(afterGermination ? 'space.control.step.endsGerminationShort' : 'space.control.step.writesNothingShort') : null,
   ]
     .filter(Boolean)
     .join(' · ');

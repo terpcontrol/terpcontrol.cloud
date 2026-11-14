@@ -236,13 +236,13 @@ describe('the window´s title outside the shell', () => {
     draw('/sign-up');
 
     await screen.findByLabelText('E-mail');
-    expect(document.title).toBe('Create account – Terp Control');
+    expect(document.title).toBe('Create account · Terp Control');
   });
 
   it('names the sign-in page', async () => {
     draw('/sign-in');
 
     await screen.findByRole('link', { name: 'Create account' });
-    expect(document.title).toBe('Sign in – Terp Control');
+    expect(document.title).toBe('Sign in · Terp Control');
   });
 });

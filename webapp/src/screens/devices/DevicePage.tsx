@@ -326,7 +326,15 @@ function Technical({ device, table }: { device: Device; table: SocketTable | und
         <Fact label={t('devices.fact.type')} value={typeName(device.type, t)} />
         <Fact label={t('devices.fact.build')} value={buildLabel(firmware.running ?? undefined) ?? '—'} />
         {owed ? <Fact label={t('devices.fact.owed')} value={owed} /> : null}
-        {can ? <Fact label={t('devices.fact.can')} value={can.length > 0 ? <FactLine facts={can} /> : t('devices.can.nothing')} /> : null}
+        {/* A device never heard has said nothing of what it understands: not "nothing beyond its roles". */}
+        {can ? (
+          <Fact
+            label={t('devices.fact.can')}
+            value={
+              device.state.lastSeenAt === null ? t('devices.can.notReported') : can.length > 0 ? <FactLine facts={can} /> : t('devices.can.nothing')
+            }
+          />
+        ) : null}
       </Facts>
     </div>
   );

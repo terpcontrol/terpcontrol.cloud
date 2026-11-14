@@ -543,8 +543,24 @@ describe('a tent behind a link', () => {
 
     drawAt(<SharedSpace space={sharedSpace(at(4))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 
-    // The pill above the tiles already aged it; the tiles under it kept saying live.
-    expect(screen.getByText('25.1').closest('[data-age]')).toHaveAttribute('data-age', 'offline');
+    // The pill above the tiles already aged it; the tiles under it kept saying live - and said no age of their own.
+    const tile = screen.getByText('25.1').closest('[data-age]');
+    expect(tile).toHaveAttribute('data-age', 'offline');
+    expect(tile).toHaveTextContent(/last value \d\d:\d\d$|last value \d+ \w+ \d\d:\d\d$/);
+  });
+
+  /** A tent called "Zelt" read "Zelt" again under its name: the kind is said where the name does not say it. */
+  it('says the kind of a place only where its name does not', () => {
+    const { unmount } = drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), grows: [] }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+    expect(screen.queryByText('Tent', { exact: true })).not.toBeInTheDocument();
+    unmount();
+
+    drawAt(
+      <SharedSpace space={{ ...sharedSpace(at(0)), name: 'Mothers', grows: [] }} token="a-token" picture={publicPicture('spring-run')} now={NOW} />,
+    );
+    expect(screen.getByText('Tent', { exact: true })).toBeInTheDocument();
   });
 
   /**

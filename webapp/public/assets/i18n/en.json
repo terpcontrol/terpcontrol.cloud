@@ -150,7 +150,8 @@
       "override": "overrides",
       "timer": "socket timers",
       "light": "light override",
-      "nothing": "nothing beyond the roles it was built with"
+      "nothing": "nothing beyond the roles it was built with",
+      "notReported": "not reported yet"
     },
     "panel": {
       "firmware": "Firmware",
@@ -1274,7 +1275,8 @@
       "plantsRefused": "Plants: a whole number from 1.",
       "stageMissing": "Choose the phase the grow is in now.",
       "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",
-      "secondYes": "Start a second grow"
+      "secondYes": "Start a second grow",
+      "climateAwaited": "climate waits for {{device}}"
     },
     "measurements": {
       "title": "Measurements",
@@ -3272,11 +3274,13 @@
       "apply": "Put it on {{stage}}",
       "applying": "Writing the targets …",
       "wroteNothing": "No device here took the targets.",
+      "waits": "The climate waits for the first settings of {{device}}: as they arrive, the device is put on it.",
       "wroteTo_one": "The targets went to {{count}} device.",
       "wroteTo_other": "The targets went to {{count}} devices.",
       "phaseWritten": "A grow here entered {{stage}}.",
       "noPhaseWritten": "No grow entered the phase; only the climate was written.",
       "noPhaseNoClimate": "No grow entered the phase, and no climate was written.",
+      "noPhase": "No grow entered the phase.",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
@@ -5215,7 +5219,8 @@
       "stored": "{{what}} saved {{saved}}, not with the device yet"
     },
     "offline": {
-      "text": "You can still set everything. It reaches the device once it reports again; until then the device runs on what it held at {{time}}."
+      "text": "You can still set everything. It reaches the device once it reports again; until then the device runs on what it held at {{time}}.",
+      "textOff": "You can still set everything. It reaches the device once it reports again; until then its control is off, as it was at {{time}}."
     },
     "state": {
       "on": "Control on",

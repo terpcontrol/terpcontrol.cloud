@@ -42,7 +42,17 @@ import {
 } from './plan-clock';
 import { draftOf, durationFits, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { followsGermination, ownStepName, pauseReasonOf, stepLengthLabel, stepMeta, stepTitle, usePlanWords } from './plan-labels';
+import {
+  followsGermination,
+  leftWords,
+  ownStepName,
+  pauseReasonOf,
+  stepLengthLabel,
+  stepMeta,
+  stepTitle,
+  stepWritesNothing,
+  usePlanWords,
+} from './plan-labels';
 import styles from './Control.module.css';
 
 /**
@@ -268,7 +278,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
-                  ? ` · ${t('space.control.left', { age: countdownLabel(left) })}`
+                  ? ` · ${t('space.control.left', { age: leftWords(t, left) })}`
                   : ` · ${t('space.control.over')}`}
             </p>
           ) : null}
@@ -305,7 +315,10 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine
           clears it to send the step within its next pass. A plan at rest writes nothing, whether it ever ran or not,
           which the line about what follows says. */}
-      {going ? (
+      {/* A step that writes nothing is sent nothing: the line says that the device keeps what it has. */}
+      {going && step && stepWritesNothing(step) && !followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop) ? (
+        <p className={styles.applied}>{t('space.control.step.writesNothing')}</p>
+      ) : going ? (
         <p className={styles.applied} {...ageAttribute(liveness)}>
           {plan.state.lastAppliedAt
             ? justSent(plan.state.lastAppliedAt, now)

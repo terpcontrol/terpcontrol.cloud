@@ -1,5 +1,6 @@
 import type { Device, GerminationChoices, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
 import type { ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import type { Translate } from '@/i18n/i18n';
@@ -43,12 +44,18 @@ export const climateRequest = (pick: PhaseClimate, stage: GrowthStage): Pick<Pha
  * Until the place has said which that is (`known`), the first device there
  * that states targets.
  */
-export const usePlaceClimate = (spaceId: string | null): { controller: Device | null; known: boolean } => {
+export const usePlaceClimate = (spaceId: string | null): { controller: Device | null; awaiting: Device | null; known: boolean } => {
   const { devices, overview, lead } = useLead(spaceId);
   const holds = (device: Device | null): device is Device => !!device?.configuration && statesTargets(device.configuration);
   const controller = spaceId === null ? null : holds(lead) ? lead : (devices.items.find(holds) ?? null);
+  // A controller or fridge module that has not sent its settings yet: a climate chosen now waits on it, and the
+  // server puts it on that climate as they arrive (`awaitedClimate`).
+  const awaiting =
+    spaceId === null || controller !== null
+      ? null
+      : (devices.items.find(device => OWN_CLIMATE_TYPES.includes(device.type) && device.configuration === null) ?? null);
   // A place whose overview could not be read is answered by the devices alone.
-  return { controller, known: !devices.isPending && !overview.isPending };
+  return { controller, awaiting, known: !devices.isPending && !overview.isPending };
 };
 
 export const usePlaceController = (spaceId: string | null): Device | null => usePlaceClimate(spaceId).controller;

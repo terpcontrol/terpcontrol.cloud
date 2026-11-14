@@ -84,7 +84,7 @@ export function Users() {
             value={search}
             onChange={event => setSearch(event.target.value)}
           />
-          <button type="button" className={ui.chip} onClick={() => setMaking(true)}>
+          <button type="button" className={`${ui.chip} ${styles.action}`} onClick={() => setMaking(true)}>
             {t('admin.users.create')}
           </button>
         </span>

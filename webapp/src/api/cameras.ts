@@ -262,12 +262,24 @@ export const useRequestTimelapse = (cameraId: string) =>
  * camera's row. One read per camera, of one row each: a camera's frames are its
  * own and there is nothing to ask for across them.
  */
+const latestStillQuery = (cameraId: string) => ({
+  queryKey: ['camera', cameraId, 'latest-still'],
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.get<MediaPage>(`/cameras/${cameraId}/frames`, { limit: 1 }, signal),
+  refetchInterval: CAMERAS_REFRESH_MS,
+});
+
 export const useLatestStills = (cameraIds: string[]) =>
   useQueries({
-    queries: cameraIds.map(cameraId => ({
-      queryKey: ['camera', cameraId, 'latest-still'],
-      queryFn: ({ signal }: { signal: AbortSignal }) => api.get<MediaPage>(`/cameras/${cameraId}/frames`, { limit: 1 }, signal),
-      refetchInterval: CAMERAS_REFRESH_MS,
-    })),
+    queries: cameraIds.map(latestStillQuery),
     combine: results => new Map(cameraIds.map((cameraId, index) => [cameraId, results[index]?.data?.items[0]?.id ?? null])),
+  });
+
+/**
+ * When each camera's newest picture was taken, under the same reads: a picture is dated by its own capture, as the
+ * place's picture is, never by when the server stored it - one picture read "13:28" on Start and "13:29" on Steuerung.
+ */
+export const useLatestStillTimes = (cameraIds: string[]) =>
+  useQueries({
+    queries: cameraIds.map(latestStillQuery),
+    combine: results => new Map(cameraIds.map((cameraId, index) => [cameraId, results[index]?.data?.items[0]?.capturedAt ?? null])),
   });

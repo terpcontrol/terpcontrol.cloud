@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { climatePreset, GERMINATION_HUMIDITY, GERMINATION_TEMPERATURE, STAGES_WITH_CLIMATE } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { serverNow } from '@/api/clock';
 import { useDevices } from '@/api/devices';
 import { type useApplyPreset } from '@/api/lifecycle';
+import { deviceName } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -13,7 +15,7 @@ import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
-import { usePlaceController } from '../grow/phase-climate';
+import { usePlaceClimate } from '../grow/phase-climate';
 import { scheduleTitle } from '../control/targets/schedule-words';
 import { draftOf } from '../control/targets/targets-draft';
 import { targetFigure } from '@/ui/units';
@@ -53,21 +55,36 @@ export function DoingStep({
   const { t } = useTranslation();
   // What germination does about the humidity, asked as everywhere germination is set. The screen holds the
   // answer, because its own button carries the choice into the write as well.
-  const controller = usePlaceController(spaceId);
+  const { controller, awaiting } = usePlaceClimate(spaceId);
   const humidifier = useHumidifier(controller);
+  const devices = useDevices();
 
   const { chosen, applied } = doing;
   const stage = chosen === MEASURE ? null : chosen;
   const pick = (next: GrowthStage | typeof MEASURE) => onDoing({ chosen: next, applied: null, germination: doing.germination });
-  // Whether a controller actually took the targets. A place whose device has
-  // never sent its settings takes nothing, and the lines below then have no
-  // climate write to report.
-  const wrote = (applied?.deviceIds.length ?? 0) > 0;
+  // Whether a controller actually took the targets. One that has never sent its settings takes them as they arrive:
+  // until then the climate waits, which is said - "kein Klima geschrieben" was read as a failure and set again -, and
+  // afterwards it counts as the device the climate went to.
+  const tookSince =
+    applied && applied.deviceIds.length === 0
+      ? (devices.data?.items ?? []).filter(
+          one => one.spaceId === spaceId && OWN_CLIMATE_TYPES.includes(one.type) && one.control?.preset?.stage === applied.stage,
+        ).length
+      : 0;
+  const count = (applied?.deviceIds.length ?? 0) || tookSince;
+  const wrote = count > 0;
+  const waits = applied !== null && !wrote && awaiting !== null;
   const window = useWindowOf(spaceId, applied?.stage ?? stage);
-  const wroteLine = applied ? (wrote ? t('claim.doing.wroteTo', { count: applied.deviceIds.length }) : t('claim.doing.wroteNothing')) : '';
+  const wroteLine = !applied
+    ? ''
+    : wrote
+      ? t('claim.doing.wroteTo', { count })
+      : waits
+        ? t('claim.doing.waits', { device: deviceName(awaiting, t) })
+        : t('claim.doing.wroteNothing');
   const phaseLine = applied?.phaseId
     ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
-    : t(wrote ? 'claim.doing.noPhaseWritten' : 'claim.doing.noPhaseNoClimate');
+    : t(wrote ? 'claim.doing.noPhaseWritten' : waits ? 'claim.doing.noPhase' : 'claim.doing.noPhaseNoClimate');
 
   return (
     <>

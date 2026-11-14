@@ -5,7 +5,7 @@ import { Navigate } from 'react-router';
 import type { Device } from '@fg2/shared-types/v1';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
-import { useLiveReads, useSocketTables } from '@/api/devices';
+import { useDeviceLive, useLiveReads, useSocketTables } from '@/api/devices';
 import { useDevicePlans } from '@/api/plans';
 import { useSession } from '@/api/session';
 import { CONTROL_PAGES, controlPath, devicePath, type ControlPage, type PlaceCard } from '@/app/places';
@@ -34,7 +34,8 @@ import { OwnSettings } from './OwnSettings';
 import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
 import { usePlanWords } from './plan-labels';
-import { followsPlan, modeWord, planLine, standOf } from './rows';
+import { followsPlan, modeWord, offNotTaken, onNotTaken, planLine, standOf } from './rows';
+import { pendingByPath } from './climate/figures';
 import styles from './Control.module.css';
 
 const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
@@ -82,6 +83,10 @@ export function Control({
   // The socket rows stand at the page's foot: where it was scrolled to is found again once they are there.
   const tables = useSocketTables(sub === null ? ordered.map(device => device.id) : []);
   useKeptScroll(!waiting && !tables.isPending);
+  // Whether the lead held no regulation when it last reported - off, or a switch-on it has not been handed -, which
+  // its offline box does not call regulating "mit dem Stand von".
+  const pending = pendingByPath(useDeviceLive(lead?.id ?? null).data?.pending);
+  const heldOff = lead !== null && (onNotTaken(lead, pending) !== null || (lead.control?.running === false && offNotTaken(lead, pending) === null));
 
   if (sub !== null && !isSub(sub)) return <Navigate to={controlPath(spaceId)} replace />;
 
@@ -153,7 +158,7 @@ export function Control({
         {/* Its climate device gone quiet: since when, that everything can be set all the same, and a tap away what to try. */}
         {silentSince ? (
           <OfflineBox title={t('offline.title', { device: deviceName(lead, t), time: silentSince })} deviceLink={devicePath(lead.id)}>
-            {t('control.offline.text', { time: silentSince })}
+            {t(heldOff ? 'control.offline.textOff' : 'control.offline.text', { time: silentSince })}
           </OfflineBox>
         ) : null}
         <OwnSettings device={lead} />

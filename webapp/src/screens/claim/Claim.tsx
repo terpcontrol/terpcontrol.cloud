@@ -159,7 +159,10 @@ export function Claim() {
   const asks = (step: Asked) =>
     step === 'place' || ((ownClimate ? !beside || step !== 'doing' : !beside) && (step !== 'grow' || startingGrow || !growing));
   const open = (ready && plan?.slice(Math.max(0, plan.indexOf(params.get('at') as Asked))).find(asks)) || null;
-  const here = plan && open ? plan.indexOf(open) : -1;
+  // The steps the head counts and the list draws: those that will be asked. What grows, where a grow already stands,
+  // was counted and drawn as a fifth step the flow then ended before.
+  const listed = plan?.filter(asks) ?? [];
+  const here = open ? listed.indexOf(open) : -1;
   if (here > furthest) setFurthest(here);
 
   // Before the first question - where the claim has just put the address, or Back has led - and past the last one:
@@ -257,8 +260,8 @@ export function Claim() {
   }
 
   const step = here + 2;
-  const of = plan.length + 1;
-  const after = plan.slice(here + 1).find(asks) ?? null;
+  const of = listed.length + 1;
+  const after = listed[here + 1] ?? null;
 
   // The answer to where it hangs, written; a refusal is said under the answers, and the same tap tries again. A
   // place that exists takes the device and ends the one this flow made. A new one is made only where the device
@@ -369,7 +372,7 @@ export function Claim() {
 
       <Step number={1} state="done" title={<ClaimedTitle device={claimed} />} text={<ClaimedFacts device={claimed} sockets={sockets} now={now} />} />
 
-      {plan.map((name, index) => {
+      {listed.map((name, index) => {
         const state = name === open ? 'open' : index <= furthest ? 'done' : 'ahead';
         const { title, settled, help, body } = rows[name];
 
@@ -380,8 +383,8 @@ export function Claim() {
             state={state}
             title={title}
             help={help}
-            text={state === 'done' && asks(name) ? settled : null}
-            onOpen={asks(name) ? () => go(name) : undefined}
+            text={state === 'done' ? settled : null}
+            onOpen={() => go(name)}
             headingRef={heading}
           >
             {body}

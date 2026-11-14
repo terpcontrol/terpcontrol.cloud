@@ -3,7 +3,8 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview, TimeRange } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
-import { ageAttribute, ageLabel, dayStamp, valueAge } from '@/ui/age';
+import { ageAttribute, ageLabel, dayStamp, sinceLabel, valueAge } from '@/ui/age';
+import { nameKey } from '@fg2/shared-types/v1-schemas/place-names.js';
 import { Term } from '@/ui/Help';
 import { readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
@@ -57,6 +58,8 @@ export function SharedSpace({
   const values = space.climates[0]?.values ?? space.values;
   const liveness = livenessOf({ values, deviceIds: space.deviceIds }, now);
   const shown = TILES.flatMap(metric => values.filter(value => value.metric === metric));
+  const kind = t(`publicPage.spaceKind.${space.kind}`);
+  const facts = [nameKey(space.name).includes(nameKey(kind)) ? null : kind, space.grows.map(grow => grow.name).join(', ')].filter(Boolean).join(' · ');
 
   return (
     <article className={styles.diary}>
@@ -67,9 +70,8 @@ export function SharedSpace({
           <h1 className={styles.title}>{space.name}</h1>
           <LivenessPill liveness={liveness} measuredAt={measuredAtOf(values)} now={now} explain />
         </div>
-        <p className={styles.facts}>
-          {[t(`publicPage.spaceKind.${space.kind}`), space.grows.map(grow => grow.name).join(', ')].filter(Boolean).join(' · ')}
-        </p>
+        {/* The kind where the name does not say it: "Zelt" stood again under a tent called "Zelt". */}
+        {facts ? <p className={styles.facts}>{facts}</p> : null}
       </header>
 
       {shown.length === 0 ? (
@@ -182,9 +184,10 @@ export function SharedSpace({
  */
 function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | null; now: DateTime }) {
   const { t } = useTranslation();
+  const age = valueAge(value, now);
 
   return (
-    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(valueAge(value, now))}>
+    <div className={`${ui.card} ${styles.tile}`} {...ageAttribute(age)}>
       <div className={styles.tileFigure}>
         <span className="figure">{value.value === null ? t('home.card.noReading') : figure(value.value, value.metric)}</span>
         <span className={styles.tileUnit}>{UNIT[value.metric] ?? value.metric}</span>
@@ -193,6 +196,10 @@ function Tile({ value, setpoint, now }: { value: CardValue; setpoint: number | n
         <span>{t(`home.metric.${value.metric}`, { defaultValue: value.metric })}</span>
         <span>{setpoint === null ? t('home.card.noTarget') : `→ ${targetFigure(setpoint, value.metric)}`}</span>
       </div>
+      {/* A figure no longer live says when it was measured, as the owner's tile does: the pill alone dated none of them. */}
+      {age !== 'live' && value.measuredAt ? (
+        <span className={styles.tileAge}>{`${t('offline.lastValue')} ${sinceLabel(value.measuredAt, now, null)}`}</span>
+      ) : null}
     </div>
   );
 }

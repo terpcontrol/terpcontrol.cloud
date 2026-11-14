@@ -25,7 +25,7 @@ import {
 } from '@/screens/control/plan-edit';
 import { climateLanding } from '@/ui/climate-hardware';
 import { deviceWith } from './fixtures';
-import { drawAt } from './harness';
+import { drawAt, json, NOT_FOUND } from './harness';
 import { Toast } from './toast';
 import { catalogue, translate } from './translations';
 
@@ -528,6 +528,37 @@ describe('Steuerung of a place with several devices', () => {
     expect(screen.getByRole('link', { name: /^Terp Cam\s·\s8282/ })).toHaveAttribute('href', '/cameras/cam-2');
   });
 
+  /** One picture read "letztes Bild von 13:28" on the place and "13:29" here: the server's storing, not its taking. */
+  it('dates a camera´s picture by when it was taken, as the place does', async () => {
+    const taken = NOW.minus({ hours: 2, minutes: 1 });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).includes('/cameras/cam-1/frames')
+          ? json({ items: [{ id: 'still-1', capturedAt: taken.toUTC().toISO() }], nextCursor: null })
+          : json(NOT_FOUND, 404),
+      ),
+    );
+    state.devices = [device(NOW.minus({ hours: 3 }))];
+    state.cameras = [
+      {
+        id: 'cam-1',
+        did: 'VSTC007171',
+        name: 'Blue Dream tent',
+        kind: 'terpcam_controller',
+        spaceId: 'space-1',
+        deviceId: 'device-1',
+        removedAt: null,
+        state: { lastStillAt: NOW.minus({ hours: 2 }).toUTC().toISO() },
+      },
+    ];
+    drawTab();
+
+    const row = await screen.findByRole('link', { name: /^Terp Cam/ });
+    await waitFor(() => expect(row).toHaveTextContent(`last picture from ${taken.toFormat('HH:mm')}`));
+    vi.unstubAllGlobals();
+  });
+
   it('names the three things that can be added, the Terp Cam among them', async () => {
     state.devices = [device()];
     drawTab();
@@ -621,6 +652,26 @@ describe('Steuerung of a place with several devices', () => {
     const said = (document.body.textContent ?? '').match(/\boffline\b/g) ?? [];
     expect(said).toHaveLength(1);
     expect(screen.getByRole('region', { name: 'Blue Dream tent' })).not.toHaveTextContent(/offline/);
+  });
+
+  /** The box said a controller that last reported its regulation off "keeps regulating with the state of 13:29". */
+  it('does not say a silent lead regulates where its regulation was off when it last reported', async () => {
+    state.devices = [{ ...device(NOW.minus({ hours: 2 })), control: { ...regulating, running: false } }];
+    drawTab(
+      null,
+      '/control',
+      here(['device-1'], [
+        {
+          deviceId: 'device-1',
+          values: [{ metric: 'temperature', value: 22, measuredAt: NOW.minus({ hours: 2 }).toISO(), state: 'offline' }],
+          setpoints: [],
+        },
+      ] as PlaceCard['climates']),
+    );
+
+    await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / });
+    expect(await screen.findByText(/until then its control is off, as it was at /)).toBeInTheDocument();
+    expect(screen.queryByText(/keeps holding|with the state of/)).not.toBeInTheDocument();
   });
 
   it('names a device that has not sent its settings as its card does: no tail of its id beside one of its kind standing elsewhere', async () => {
@@ -1056,7 +1107,21 @@ describe('the clock under a running step', () => {
 
     // The header states the step's length and the ladder below it repeats it.
     expect(screen.getAllByText('No phase · 7 days')).not.toHaveLength(0);
-    expect(screen.getByText('25 min on this step · 7 d left')).toBeInTheDocument();
+    expect(screen.getByText('25 min on this step · 7 days left')).toBeInTheDocument();
+  });
+
+  /** A step that writes nothing said "Step sent to the device just now" under "writes nothing", and "7 d left" beside "1 week". */
+  it('says a step that writes nothing as that, not as sent, and its time left in words', () => {
+    state.plan = plan(
+      { steps: [step({ stage: 'seedling', settings: {}, duration: { value: 1, unit: 'weeks' } })] },
+      { stepStartedAt: NOW.minus({ minutes: 1 }).toISO()!, lastAppliedAt: NOW.minus({ seconds: 30 }).toISO()! },
+    );
+
+    draw();
+
+    expect(screen.getByText('This step writes nothing: the device keeps what it has.')).toBeInTheDocument();
+    expect(screen.queryByText(/Step sent to the device/)).not.toBeInTheDocument();
+    expect(screen.getByText(/ · 7 days left$/)).toBeInTheDocument();
   });
 
   it('still counts what has been served the way every other age is counted', () => {
@@ -1067,7 +1132,7 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('3 d on this step · 4 d left')).toBeInTheDocument();
+    expect(screen.getByText('3 d on this step · 4 days left')).toBeInTheDocument();
   });
 
   /**
@@ -1085,7 +1150,7 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('extended: this step’s clock starts in 5 h · 6 h left')).toBeInTheDocument();
+    expect(screen.getByText('extended: this step’s clock starts in 5 h · 6 hours left')).toBeInTheDocument();
   });
 
   it('calls a step that has only just been started started, not extended', () => {
@@ -1097,7 +1162,7 @@ describe('the clock under a running step', () => {
     draw();
 
     expect(screen.queryByText(/extended/)).not.toBeInTheDocument();
-    expect(screen.getByText(/on this step · 2 min left/)).toBeInTheDocument();
+    expect(screen.getByText(/on this step · 2 minutes left/)).toBeInTheDocument();
   });
 
   it('reads the same elapsed the engine reads, so a step that is over is over on both sides', () => {

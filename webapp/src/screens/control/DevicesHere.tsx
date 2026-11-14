@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Camera, Device, PendingSettings } from '@fg2/shared-types/v1';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
-import { useCameras, useLatestStills } from '@/api/cameras';
+import { useCameras, useLatestStills, useLatestStillTimes } from '@/api/cameras';
 import type { Translate } from '@/i18n/i18n';
 import { useDeviceLive, useLiveReads, useSocketTables } from '@/api/devices';
 import { mediaUrl, THUMBNAIL_WIDTH } from '@/api/session';
@@ -68,6 +68,7 @@ export function DevicesHere({
   const called = camerasCalled(cameras.map(camera => cameraTitle(camera, devices.find(device => device.id === camera.deviceId) ?? null, t)));
   // A camera's picture stands in its row beside the rail only: a phone is not sent a picture it does not draw.
   const stills = useLatestStills(wide ? cameras.map(camera => camera.id) : []);
+  const takenAt = useLatestStillTimes(cameras.map(camera => camera.id));
   const spokeAt = (device: Device) => heardAt(device.state.lastSeenAt, reads.measuredAt.get(device.id) ?? null);
 
   return (
@@ -95,7 +96,19 @@ export function DevicesHere({
             to={cameraPath(camera.id)}
             lead={wide ? <Thumb stillId={stills.get(camera.id) ?? null} /> : null}
             title={called[index]}
-            line={<Facts facts={cameraFacts(t, camera, carrier, carrier ? deviceLiveness(spokeAt(carrier), now) === 'offline' : false, now, zone)} />}
+            line={
+              <Facts
+                facts={cameraFacts(
+                  t,
+                  camera,
+                  takenAt.get(camera.id) ?? camera.state.lastStillAt,
+                  carrier,
+                  carrier ? deviceLiveness(spokeAt(carrier), now) === 'offline' : false,
+                  now,
+                  zone,
+                )}
+              />
+            }
           />
         );
       })}
@@ -212,10 +225,16 @@ const unsaid = (pending: PendingSettings | null, leads: boolean): number =>
   ).length;
 
 /** "online · letztes Bild 14:31", or that the camera waits for the device it is read through. */
-const cameraFacts = (t: Translate, camera: Camera, carrier: Device | null, carrierOffline: boolean, now: DateTime, zone: string | null): string[] => {
-  const last = camera.state.lastStillAt
-    ? t('camera.picture.last', { time: sinceLabel(camera.state.lastStillAt, now, zone) })
-    : t('control.camera.none');
+const cameraFacts = (
+  t: Translate,
+  camera: Camera,
+  takenAt: string | null,
+  carrier: Device | null,
+  carrierOffline: boolean,
+  now: DateTime,
+  zone: string | null,
+): string[] => {
+  const last = takenAt ? t('camera.picture.last', { time: sinceLabel(takenAt, now, zone) }) : t('control.camera.none');
   if (carrier && carrierOffline) return [last, t('camera.pill.waits', { device: deviceName(carrier, t) })];
   const fresh = cameraFreshness(camera, now);
   return [...(fresh === 'live' ? [t('home.reading.live')] : []), last];

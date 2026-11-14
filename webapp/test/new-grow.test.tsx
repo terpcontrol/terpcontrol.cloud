@@ -234,6 +234,22 @@ describe('the form a grow is started with', () => {
     expect(told[0]).toMatchObject({ label: expect.stringMatching(/ started · targets set$/), undo: null });
   });
 
+  /**
+   * A stage picked before the controller first sent its settings was sent as a record alone: the server never kept a
+   * climate to put the device on as they arrived, and Start said "Alles im Ziel" over its factory figures.
+   */
+  it('sends the climate of a stage the grower chose to a controller that has not sent its settings yet, and says it waits', async () => {
+    stack.devices = [{ ...controller, name: 'Tent controller', configuration: null }];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Veg'));
+    fireEvent.click(screen.getByRole('button', { name: /^Start · climate: Veg/ }));
+
+    await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'vegetative', preset: null, climate: true }));
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0]).toMatchObject({ label: expect.stringMatching(/ started · climate waits for Tent controller$/), undo: null });
+  });
+
   it('writes no climate for the stage the place is already on, though it was tapped', async () => {
     await drawLoaded('space-1');
 

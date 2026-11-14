@@ -341,6 +341,14 @@
   accent-color: var(--green-fill);
 }
 
+/* What a person taps above a table or under a rollout - "+ Konto", the fleet's filters, "Pausieren" - is a finger
+   high, as a row's actions are: a chip's 30 px is a label's, not a target's. */
+.action,
+.filters > button,
+.filters > select {
+  height: var(--action-height);
+}
+
 /* Whether a class's rollout runs, switched beside its buttons: a step shorter than they are, not a chip's. */
 .runs {
   height: var(--action-height);

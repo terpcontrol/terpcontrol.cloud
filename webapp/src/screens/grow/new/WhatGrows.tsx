@@ -18,8 +18,9 @@ import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
 import { Sheet } from '@/ui/Sheet';
 import ui from '@/ui/ui.module.css';
+import { deviceName } from '@/ui/naming';
 import { useZone } from '@/ui/zone';
-import { usePlaceController } from '../phase-climate';
+import { usePlaceClimate } from '../phase-climate';
 import { growBody, growIn, recordsOnly, START_STAGES, suggestedName } from './new-grow';
 import { useStartGrow } from './start-grow';
 import styles from './NewGrow.module.css';
@@ -50,7 +51,10 @@ const NOWHERE = '';
  * is not theirs (`recordsOnly`). Where that climate is germination's, the form
  * asks what germination does about the humidity, as every way of setting
  * germination does - of the device the climate preset is taken on
- * (`usePlaceController`) - and only what was moved is sent.
+ * (`usePlaceClimate`) - and only what was moved is sent. A controller that has
+ * not sent its settings yet is put on the climate as they arrive, so a stage
+ * chosen before its first report is sent all the same, and the toast says it
+ * waits.
  *
  * Drawn on a page the button ends the form; as a `sheet` it is the sheet's
  * foot, which stands while the questions scroll.
@@ -106,13 +110,15 @@ export function WhatGrows({
   const there = spaceId ? growIn(running, spaceId) : null;
   const onPlace = usePlaceStage(spaceId);
   const on = given ?? onPlace;
-  const controller = usePlaceController(spaceId);
+  const { controller, awaiting } = usePlaceClimate(spaceId);
   const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : since === 'today' ? 'seedling' : null;
   const stage = picked ?? opened;
   // Nothing chosen where the place has answered: the button says what it waits for.
   const unstaged = stage === null && on !== undefined;
   const stageMissing = useId();
-  const climate = picked !== null && picked !== on && controller !== null && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
+  // A controller that has not sent its settings yet takes the climate as they arrive: it is sent all the same.
+  const climate =
+    picked !== null && picked !== on && (controller !== null || awaiting !== null) && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
   const germinates = climate && stage === 'germination';
   const plants = /^\s*\d+\s*$/.test(count) ? Number(count) : 0;
   const countRefused = plants < 1;
@@ -144,7 +150,10 @@ export function WhatGrows({
       const growId = await start({ body, stage, startedAt, climate, germinationChoices });
       // The grow is its own answer - its page opens. That the place's targets were written with it is said, since
       // nothing on that page shows it; the way back is Steuerung's, not one call from here.
-      if (climate) tell({ label: `${t('grow.told.started', { name: body.name })} · ${t('log.targetsSet')}`, undo: null });
+      if (climate) {
+        const set = controller ? t('log.targetsSet') : t('grow.new.climateAwaited', { device: deviceName(awaiting!, t) });
+        tell({ label: `${t('grow.told.started', { name: body.name })} · ${set}`, undo: null });
+      }
       onStarted(growId, spaceId);
     } catch {
       // The refusal is drawn under the fields; what already stands is not written again on the next tap.
