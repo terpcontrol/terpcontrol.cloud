@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FastifyReply } from 'fastify';
 import sharp from 'sharp';
-import { TimelapseCreate } from '@fg2/shared-types/v1';
+import { SeriesPoint, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
@@ -47,6 +47,8 @@ const db = useV1TestDatabase();
 let controller: CamerasController;
 let media: MediaService;
 let status: number;
+/** The light output the render would read over the span: on, off, or never measured. */
+let light: SeriesPoint[] = [];
 
 /** The reply only ever has its status set; the body is what the route answers. */
 const reply = (): FastifyReply =>
@@ -73,7 +75,8 @@ const build = (): void => {
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
-  const builder = new TimelapseService(cameras, media, entitlement, {} as never);
+  const context = { contextFor: async () => ({ temperature: [], humidity: [], light, captions: [], growStartedAt: null }) };
+  const builder = new TimelapseService(cameras, media, entitlement, context as never);
   builder.renderQueued = () => undefined;
 
   controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, db.spaces);
@@ -95,6 +98,7 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
 beforeEach(async () => {
   await db.reset();
   status = 0;
+  light = [];
 });
 
 /**
@@ -202,6 +206,22 @@ describe('what is asked of a render', () => {
     const answer = await compose(PHASE);
 
     expect(answer.media.render).toMatchObject({ includeLightsOff: false, aspect: '16_9' });
+  });
+
+  /** Asked at night, the day's film was said to be on its way and then failed: the render's own rule is asked first. */
+  it('refuses at once a span whose every picture was taken in the dark, unless those pictures are asked for', async () => {
+    const hours = Array.from({ length: 30 }, (_, hour) => new Date(Date.parse(PHASE.startsAt) + hour * 3600_000));
+    await db.media.create(
+      hours.map((capturedAt, index) => ({ id: `still-${index}`, kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt })),
+    );
+    light = hours.map(at => ({ measuredAt: at.toISOString(), value: 0 }));
+
+    await expect(compose(PHASE)).rejects.toThrow(/taken with the light off/);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
+
+    expect((await compose({ ...PHASE, includeLightsOff: true })).queued).toBe(true);
+    light = hours.map((at, index) => ({ measuredAt: at.toISOString(), value: index % 2 === 0 ? 0 : 100 }));
+    expect((await compose({ ...PHASE, aspect: '1_1' })).queued).toBe(true);
   });
 
   it('needs both ends of a span it cannot work out for itself', async () => {
@@ -482,6 +502,15 @@ describe('what the builder makes of it', () => {
       expect(x).toBeGreaterThanOrEqual(box.left + 2);
       expect(x).toBeLessThanOrEqual(box.left + box.width - 2);
     }
+    // Nor up through the readings: a spike ran across "20,9 °C". Every point and the cursor stand below their row.
+    const ys = [...layer.matchAll(/<path d="([^"]*)"/g)].flatMap(found =>
+      [...found[1].matchAll(/[ML][\d.]+ ([\d.]+)/g)].map(point => Number(point[1])),
+    );
+    const cursorTop = Number(/<line x1="[\d.]+" y1="([\d.]+)"/.exec(layer)![1]);
+    const readingsRow = Math.max(...[...layer.matchAll(/<text x="\d+" y="(\d+)"[^>]*>[\d,.]+ (?:°C|%)</g)].map(found => Number(found[1])));
+    expect(ys.length).toBeGreaterThan(0);
+    expect(readingsRow).toBeGreaterThan(0);
+    for (const y of [...ys, cursorTop]) expect(y).toBeGreaterThan(readingsRow);
     expect(layer).toContain('stroke-linejoin="round"');
   });
 

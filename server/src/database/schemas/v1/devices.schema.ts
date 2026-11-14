@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { Device, DeviceSettings, DeviceState } from '@fg2/shared-types/v1';
+import type { AppliedClimate, Device, DeviceSettings, DeviceState } from '@fg2/shared-types/v1';
 import { firmwareChannel } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -114,6 +114,13 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    * the firmware has no word for either, and served as `control`.
    */
   germinationChoices?: { warnTooHumid?: boolean; humidifierHolds?: boolean } | null;
+  /**
+   * The climate preset the device was last put on - saved with its targets, a
+   * phase's climate, a preset applied to its place, a plan step's stage -
+   * which names one on Steuerung rather than figures that happen to match.
+   * Absent on a device none was applied to since it is kept.
+   */
+  appliedClimate?: AppliedClimate | null;
   /**
    * The humidity band of the document - `daynight.targetHumidityDiff`, which a
    * controller's dehumidifier switches by - from before a humidifier was rested
@@ -238,6 +245,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     beforeDrying: { type: Schema.Types.Mixed, default: null },
     beforeGermination: { type: Schema.Types.Mixed, default: null },
     germinationChoices: { type: Schema.Types.Mixed, default: null },
+    appliedClimate: { type: Schema.Types.Mixed, default: null },
     restedHumidityBand: { type: Number, default: null },
     // Never served, and not read unless asked for: the camera's password.
     cameraSecret: { type: String, default: null, select: false },

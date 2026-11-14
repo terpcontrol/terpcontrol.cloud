@@ -537,15 +537,14 @@ export declare const humanEntryKind: z.ZodEnum<{
  */
 export declare const entryValuesDraft: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodLiteral<"water">;
-    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
         key: z.ZodString;
         value: z.ZodNumber;
         plantId: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
+    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"feed">;
-    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
         productKey: z.ZodString;
@@ -558,6 +557,7 @@ export declare const entryValuesDraft: z.ZodDiscriminatedUnion<[z.ZodObject<{
         value: z.ZodNumber;
         plantId: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
+    litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodLiteral<"measurement">;
     readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -604,15 +604,14 @@ export declare const entryCreate: z.ZodObject<{
     }>;
     values: z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
-        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"feed">;
-        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
@@ -625,6 +624,7 @@ export declare const entryCreate: z.ZodObject<{
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"measurement">;
         readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -650,15 +650,14 @@ export declare const entryCreate: z.ZodObject<{
 export declare const entryUpdate: z.ZodObject<{
     values: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"water">;
-        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"feed">;
-        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         schemeWeek: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         doses: z.ZodOptional<z.ZodArray<z.ZodObject<{
             productKey: z.ZodString;
@@ -671,6 +670,7 @@ export declare const entryUpdate: z.ZodObject<{
             value: z.ZodNumber;
             plantId: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        litres: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>, z.ZodObject<{
         kind: z.ZodLiteral<"measurement">;
         readings: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -5391,6 +5391,18 @@ export declare const growDiaryDay: z.ZodObject<{
         humidity: z.ZodNullable<z.ZodNumber>;
         inBandFraction: z.ZodNullable<z.ZodNumber>;
     }, z.core.$strip>>;
+    phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+        stageWeek: z.ZodNumber;
+    }, z.core.$strip>>>;
     events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
         kind: z.ZodLiteral<"light">;
         at: z.ZodISODateTime;
@@ -5592,6 +5604,18 @@ export declare const growDiaryWeek: z.ZodObject<{
             humidity: z.ZodNullable<z.ZodNumber>;
             inBandFraction: z.ZodNullable<z.ZodNumber>;
         }, z.core.$strip>>;
+        phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+            stageWeek: z.ZodNumber;
+        }, z.core.$strip>>>;
         events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
             kind: z.ZodLiteral<"light">;
             at: z.ZodISODateTime;
@@ -5795,6 +5819,18 @@ export declare const growDiaryPage: z.ZodObject<{
                 humidity: z.ZodNullable<z.ZodNumber>;
                 inBandFraction: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+                stageWeek: z.ZodNumber;
+            }, z.core.$strip>>>;
             events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
@@ -6260,6 +6296,7 @@ export declare const growHarvest: z.ZodObject<{
     harvestedAt: z.ZodNullable<z.ZodISODateTime>;
     wetWeightG: z.ZodNullable<z.ZodNumber>;
     dryWeightG: z.ZodNullable<z.ZodNumber>;
+    plantIds: z.ZodArray<z.ZodString>;
 }, z.core.$strip>;
 export declare const growTotals: z.ZodObject<{
     entryCount: z.ZodNumber;
@@ -6460,6 +6497,7 @@ export declare const growReport: z.ZodObject<{
         harvestedAt: z.ZodNullable<z.ZodISODateTime>;
         wetWeightG: z.ZodNullable<z.ZodNumber>;
         dryWeightG: z.ZodNullable<z.ZodNumber>;
+        plantIds: z.ZodArray<z.ZodString>;
     }, z.core.$strip>>;
     totals: z.ZodObject<{
         entryCount: z.ZodNumber;
@@ -6530,6 +6568,7 @@ export declare const myGrowCard: z.ZodObject<{
         harvestedAt: z.ZodNullable<z.ZodISODateTime>;
         wetWeightG: z.ZodNullable<z.ZodNumber>;
         dryWeightG: z.ZodNullable<z.ZodNumber>;
+        plantIds: z.ZodArray<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -6575,6 +6614,7 @@ export declare const myGrowPage: z.ZodObject<{
             harvestedAt: z.ZodNullable<z.ZodISODateTime>;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
             dryWeightG: z.ZodNullable<z.ZodNumber>;
+            plantIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
@@ -6741,6 +6781,18 @@ export declare const publicGrowPage: z.ZodObject<{
                 humidity: z.ZodNullable<z.ZodNumber>;
                 inBandFraction: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+                stageWeek: z.ZodNumber;
+            }, z.core.$strip>>>;
             events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
@@ -6907,6 +6959,7 @@ export declare const publicGrowPage: z.ZodObject<{
         harvestedAt: z.ZodNullable<z.ZodISODateTime>;
         wetWeightG: z.ZodNullable<z.ZodNumber>;
         dryWeightG: z.ZodNullable<z.ZodNumber>;
+        plantIds: z.ZodArray<z.ZodString>;
     }, z.core.$strip>>;
     totals: z.ZodObject<{
         entryCount: z.ZodNumber;
@@ -6960,6 +7013,18 @@ export declare const publicWeekPage: z.ZodObject<{
                 humidity: z.ZodNullable<z.ZodNumber>;
                 inBandFraction: z.ZodNullable<z.ZodNumber>;
             }, z.core.$strip>>;
+            phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+                stageWeek: z.ZodNumber;
+            }, z.core.$strip>>>;
             events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                 kind: z.ZodLiteral<"light">;
                 at: z.ZodISODateTime;
@@ -7255,6 +7320,18 @@ export declare const sharedGrow: z.ZodObject<{
                     humidity: z.ZodNullable<z.ZodNumber>;
                     inBandFraction: z.ZodNullable<z.ZodNumber>;
                 }, z.core.$strip>>;
+                phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    stage: z.ZodEnum<{
+                        germination: "germination";
+                        seedling: "seedling";
+                        vegetative: "vegetative";
+                        flowering: "flowering";
+                        drying: "drying";
+                        curing: "curing";
+                    }>;
+                    preset: z.ZodNullable<z.ZodString>;
+                    stageWeek: z.ZodNumber;
+                }, z.core.$strip>>>;
                 events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"light">;
                     at: z.ZodISODateTime;
@@ -7421,6 +7498,7 @@ export declare const sharedGrow: z.ZodObject<{
             harvestedAt: z.ZodNullable<z.ZodISODateTime>;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
             dryWeightG: z.ZodNullable<z.ZodNumber>;
+            plantIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
         totals: z.ZodObject<{
             entryCount: z.ZodNumber;
@@ -8170,6 +8248,18 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     humidity: z.ZodNullable<z.ZodNumber>;
                     inBandFraction: z.ZodNullable<z.ZodNumber>;
                 }, z.core.$strip>>;
+                phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    stage: z.ZodEnum<{
+                        germination: "germination";
+                        seedling: "seedling";
+                        vegetative: "vegetative";
+                        flowering: "flowering";
+                        drying: "drying";
+                        curing: "curing";
+                    }>;
+                    preset: z.ZodNullable<z.ZodString>;
+                    stageWeek: z.ZodNumber;
+                }, z.core.$strip>>>;
                 events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                     kind: z.ZodLiteral<"light">;
                     at: z.ZodISODateTime;
@@ -8336,6 +8426,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             harvestedAt: z.ZodNullable<z.ZodISODateTime>;
             wetWeightG: z.ZodNullable<z.ZodNumber>;
             dryWeightG: z.ZodNullable<z.ZodNumber>;
+            plantIds: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>;
         totals: z.ZodObject<{
             entryCount: z.ZodNumber;
@@ -9096,6 +9187,18 @@ export declare const sharedResolution: z.ZodObject<{
                         humidity: z.ZodNullable<z.ZodNumber>;
                         inBandFraction: z.ZodNullable<z.ZodNumber>;
                     }, z.core.$strip>>;
+                    phase: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        stage: z.ZodEnum<{
+                            germination: "germination";
+                            seedling: "seedling";
+                            vegetative: "vegetative";
+                            flowering: "flowering";
+                            drying: "drying";
+                            curing: "curing";
+                        }>;
+                        preset: z.ZodNullable<z.ZodString>;
+                        stageWeek: z.ZodNumber;
+                    }, z.core.$strip>>>;
                     events: z.ZodArray<z.ZodDiscriminatedUnion<[z.ZodObject<{
                         kind: z.ZodLiteral<"light">;
                         at: z.ZodISODateTime;
@@ -9262,6 +9365,7 @@ export declare const sharedResolution: z.ZodObject<{
                 harvestedAt: z.ZodNullable<z.ZodISODateTime>;
                 wetWeightG: z.ZodNullable<z.ZodNumber>;
                 dryWeightG: z.ZodNullable<z.ZodNumber>;
+                plantIds: z.ZodArray<z.ZodString>;
             }, z.core.$strip>>;
             totals: z.ZodObject<{
                 entryCount: z.ZodNumber;

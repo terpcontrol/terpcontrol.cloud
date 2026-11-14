@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { MediaQuality, TimelapseCreate } from '@fg2/shared-types/v1';
+import { MediaQuality, SeriesPoint, TimelapseCreate } from '@fg2/shared-types/v1';
 import { RENDER_FAILURE_TEXT } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
@@ -290,6 +290,19 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       return { film: existing, queued: false };
     }
 
+    // A span whose every picture was taken in the dark leaves the film nothing: said now, by the render's own rule,
+    // rather than by a render that fails after somebody was told it was being made.
+    if (!render.includeLightsOff) {
+      const { light } = await this.context.contextFor(camera, span, { dayCounter: false, climate: false, captions: false, light: true });
+      const { all, frames } = await this.framesFor(camera.id, span, render.framesPerSecond, light);
+      if (whyNoFilm(all.length, frames.length) === RENDER_FAILURE_TEXT.allDark) {
+        throw unprocessable(
+          'all_dark',
+          'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.',
+        );
+      }
+    }
+
     if (existing) await this.media.delete(existing.id);
 
     // Two taps on the same button are two requests, and the second may reach
@@ -375,8 +388,6 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const endsAt = job.endsAt ?? new Date();
     const span = { startsAt: job.capturedAt, endsAt };
     const open = endsAt.getTime() > Date.now();
-    // Enough frames for a film of a sensible length, however long the span is.
-    const frameInterval = Math.max(Math.round((endsAt.getTime() - job.capturedAt.getTime()) / (render.framesPerSecond * 60)), 1000);
 
     try {
       const quality = job.quality ?? 'sd';
@@ -394,8 +405,12 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         language: overlays.dayCounter || overlays.climate ? await this.cameras.languageOf(camera) : undefined,
       };
 
-      const all = await this.framesOf(camera.id, span.startsAt, endsAt, frameInterval);
-      const frames = render.includeLightsOff ? all : all.filter(frame => !wasDark(frame.capturedAt, context.light));
+      const { all, frames, frameInterval } = await this.framesFor(
+        camera.id,
+        span,
+        render.framesPerSecond,
+        render.includeLightsOff ? null : context.light,
+      );
       const beside = render.secondCameraId ? await this.framesOf(render.secondCameraId, span.startsAt, endsAt, 0) : [];
 
       const built = await this.encode(
@@ -443,6 +458,22 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // -------------------------------------------------------------------------
   // Frames and ffmpeg
   // -------------------------------------------------------------------------
+
+  /**
+   * The frames a film of a span is made of: enough for a film of a sensible length however long the span is, and
+   * those taken in the dark left out where the light it was read with (`light`) is given.
+   */
+  private async framesFor(
+    cameraId: string,
+    span: Span,
+    framesPerSecond: number,
+    light: SeriesPoint[] | null,
+  ): Promise<{ all: MediaPosition[]; frames: MediaPosition[]; frameInterval: number }> {
+    const frameInterval = Math.max(Math.round((span.endsAt.getTime() - span.startsAt.getTime()) / (framesPerSecond * 60)), 1000);
+    const all = await this.framesOf(cameraId, span.startsAt, span.endsAt, frameInterval);
+
+    return { all, frames: light === null ? all : all.filter(frame => !wasDark(frame.capturedAt, light)), frameInterval };
+  }
 
   /** The stills of a span, no closer together than `minIntervalMs`, oldest first. */
   private async framesOf(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<MediaPosition[]> {

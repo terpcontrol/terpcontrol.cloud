@@ -211,7 +211,7 @@ describe('a card', () => {
       { strain: 'Amnesia Haze', count: 1 },
     ]);
     expect(spring.plantCount).toBe(3);
-    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: 1700, dryWeightG: 386 });
+    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: 1700, dryWeightG: 386, plantIds: [] });
     expect(spring.endedAt).toBe(day('2026-06-01').toISOString());
     expect(spring.dayNumber).toBe(121);
     expect(page.items.find(card => card.growId === RUNNING)!.harvest).toBeNull();
@@ -314,6 +314,6 @@ describe('a card', () => {
       { strain: 'Gelato', count: null },
       { strain: 'Amnesia Haze', count: null },
     ]);
-    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: null, dryWeightG: null });
+    expect(spring.harvest).toEqual({ harvestedAt: day('2026-06-01').toISOString(), wetWeightG: null, dryWeightG: null, plantIds: [] });
   });
 });

@@ -66,7 +66,7 @@ const SPRING = card('spring', {
   endedAt: '2026-06-01T10:00:00.000Z',
   dayNumber: 121,
   stage: 'curing',
-  harvest: { harvestedAt: '2026-05-20T10:00:00.000Z', wetWeightG: 1700, dryWeightG: 386 },
+  harvest: { harvestedAt: '2026-05-20T10:00:00.000Z', wetWeightG: 1700, dryWeightG: 386, plantIds: [] },
   coverMediaId: 'photo-1',
 });
 const LAST_YEAR = card('last-year', {
@@ -78,7 +78,7 @@ const LAST_YEAR = card('last-year', {
   strains: [],
   plantCount: 0,
   // Harvested without weighing: nothing the dates above do not already say.
-  harvest: { harvestedAt: '2026-01-10T10:00:00.000Z', wetWeightG: null, dryWeightG: null },
+  harvest: { harvestedAt: '2026-01-10T10:00:00.000Z', wetWeightG: null, dryWeightG: null, plantIds: [] },
 });
 
 const wire = { grows: [] as MyGrowCard[], calls: [] as string[] };

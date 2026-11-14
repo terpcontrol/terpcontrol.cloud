@@ -383,6 +383,18 @@ describe('the days of a diary', () => {
     ]);
   });
 
+  /** The week still running is named after today's stage; the days the diary folds of it are named by their own. */
+  it('say each day´s stage at its middle and that stage´s week then', async () => {
+    const page = await read();
+
+    expect(page.items[0].days.map(day => [day.dayNumber, day.phase?.stage, day.phase?.stageWeek])).toEqual([
+      [11, 'flowering', 1],
+      [10, 'flowering', 1],
+      [9, 'flowering', 1],
+      [8, 'vegetative', 2],
+    ]);
+  });
+
   /**
    * A stage's week is counted from the stage's own start, as a grower counts:
    * on the thirteenth day of flowering it is in its second week, whichever day

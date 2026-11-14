@@ -2,7 +2,16 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
+import {
+  AdminDeviceCreate,
+  AppliedClimate,
+  Device,
+  DeviceClaimCreate,
+  DeviceClaimResult,
+  DeviceControl,
+  DeviceUpdate,
+  SpaceKind,
+} from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES, nameKey, numbered } from '@fg2/shared-types/v1-schemas';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
@@ -420,13 +429,16 @@ export class DevicesService {
         vpdLeafOffsetNight: device.settings.vpdLeafOffsetNight,
         ppfdLuxFactor: device.settings.ppfdLuxFactor,
       },
-      control: controlOf(
-        device.type,
-        device.configuration,
-        device.baseWorkmode,
-        device.beforeDrying,
-        device.beforeGermination ?? null,
-        device.germinationChoices ?? null,
+      control: withApplied(
+        controlOf(
+          device.type,
+          device.configuration,
+          device.baseWorkmode,
+          device.beforeDrying,
+          device.beforeGermination ?? null,
+          device.germinationChoices ?? null,
+        ),
+        device.appliedClimate ?? null,
       ),
       isDemo: device.isDemo,
       state: {
@@ -458,3 +470,7 @@ export class DevicesService {
  */
 const told = (before: Pick<StoredDevice, 'firmware' | 'state'>, body: DeviceUpdate): boolean =>
   body.firmware !== undefined && body.firmware.targetId !== before.firmware.targetId && body.firmware.targetId !== before.state.firmwareId;
+
+/** A device's control with the climate preset it was last put on, which Steuerung names it by. */
+const withApplied = (control: DeviceControl | null, applied: AppliedClimate | null): DeviceControl | null =>
+  control && { ...control, preset: applied };

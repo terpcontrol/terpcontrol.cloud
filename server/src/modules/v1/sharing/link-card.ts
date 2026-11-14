@@ -133,15 +133,18 @@ export const growSentence = (language: string, handle: string | null, dayNumber:
 /** The language a card is written in, as `<html lang>` and the words name it. */
 const cardLanguage = (language: string): 'de' | 'en' => (language.startsWith('de') ? 'de' : 'en');
 
-/** "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language. */
-const metaLineOf = (card: LinkCard): string => {
+/**
+ * "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language, and none the line under
+ * the title says already: a grow without a description of its own is described by the same three (`growSentence`).
+ */
+export const metaLineOf = (card: LinkCard): string => {
   const words = cardWords(card.language);
   return [
     card.handle ? `@${card.handle}` : null,
     card.dayNumber === null ? null : words.day(card.dayNumber),
     card.stage ? words.stage[card.stage] : null,
   ]
-    .filter((part): part is string => part !== null)
+    .filter((part): part is string => part !== null && !card.description.includes(part))
     .join('  ·  ');
 };
 

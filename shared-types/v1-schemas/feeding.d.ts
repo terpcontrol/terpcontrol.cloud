@@ -18,6 +18,11 @@ type EntryDose = z.infer<typeof entryDose>;
  * writes down is the *result*, never the grid: a scheme edited next month leaves
  * every line already written alone.
  */
+/**
+ * The most water one line takes, in litres: more than any tent is given at once, so a figure beyond it is a slip of
+ * the finger and is refused - by the form before it is sent, and by the route - rather than written.
+ */
+export declare const MAX_LITRES = 100;
 /** The row a grid states for that week, or nothing where it states none. */
 export declare const schemeWeekOf: (grid: readonly SchemeWeek[], weekNumber: number) => SchemeWeek | null;
 /** As much of a grow as its own calendar is read from. Instants are ISO strings on the wire and dates in the database. */

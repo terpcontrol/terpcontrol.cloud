@@ -162,7 +162,8 @@ const climateBox = (frame: OverlayFrame): { left: number; width: number; height:
  * instant this frame was taken - which is what makes a film of a tent worth
  * watching rather than a film of a plant. The curves and the cursor are drawn
  * inside the box, a stroke's width in from its edges and joined round, so a
- * steep last step does not poke out of it.
+ * steep last step does not poke out of it - and under the row of the readings,
+ * so a spike does not run through "20,9 °C".
  */
 const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | null => {
   const lines = [
@@ -177,9 +178,11 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
   const top = frame.height - height - pad;
   const size = Math.round(frame.height / 30);
   const inset = Math.max(Math.round(size / 2), STROKE * 2);
-  // The plot inside the box.
+  // The plot inside the box, below the readings' row.
   const left = box.left + inset;
   const width = box.width - inset * 2;
+  const plotTop = top + Math.round(size * 1.5);
+  const plotBottom = top + height - inset;
 
   const first = new Date(lines[0].points[0].measuredAt).getTime();
   const last = new Date(lines[0].points[lines[0].points.length - 1].measuredAt).getTime();
@@ -207,7 +210,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
         if (point.value === null) return [];
 
         const x = left + (width * index) / Math.max(line.points.length - 1, 1);
-        const y = top + height - ((point.value - low) / range) * height * 0.8 - height * 0.1;
+        const y = plotBottom - ((point.value - low) / range) * (plotBottom - plotTop);
         const command = started ? 'L' : 'M';
         started = true;
 
@@ -240,7 +243,7 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
           `<path d="${line.path}" fill="none" stroke="${line.colour}" stroke-width="${STROKE}" stroke-linejoin="round" stroke-linecap="round"/>`,
       )
       .join('')}
-    <line x1="${cursorX.toFixed(1)}" y1="${top}" x2="${cursorX.toFixed(1)}" y2="${top + height}" stroke="${MUTED}" stroke-width="1"/>
+    <line x1="${cursorX.toFixed(1)}" y1="${plotTop}" x2="${cursorX.toFixed(1)}" y2="${plotBottom}" stroke="${MUTED}" stroke-width="1"/>
     ${readings}
   </g>`;
 };

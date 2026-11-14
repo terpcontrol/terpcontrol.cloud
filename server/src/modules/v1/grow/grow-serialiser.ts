@@ -357,8 +357,11 @@ export const serialiseGrow = (
  * state.
  */
 export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
-  const harvested = plants.flatMap(plant => (plant.harvest && !outsideRange(plant.harvest.harvestedAt, range) ? [plant.harvest] : []));
+  const cut = plants.filter(plant => plant.harvest && !outsideRange(plant.harvest.harvestedAt, range));
+  const harvested = cut.map(plant => plant.harvest!);
   if (harvested.length === 0) return null;
+  // The grow is harvested when its last plant is; till then the harvest is the plants'.
+  const growing = plants.some(plant => plant.status !== 'ended' && !cut.includes(plant));
 
   const total = (weights: (number | null)[]): number | null =>
     weights.some(weight => weight !== null) ? weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0) : null;
@@ -367,5 +370,6 @@ export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, ran
     harvestedAt: new Date(Math.min(...harvested.map(one => one.harvestedAt.getTime()))).toISOString(),
     wetWeightG: hide.weights ? null : total(harvested.map(one => one.wetWeightG)),
     dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
+    plantIds: growing ? cut.map(plant => plant.id) : [],
   };
 };

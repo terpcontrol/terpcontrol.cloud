@@ -12,6 +12,7 @@ import {
   baseUrlOf,
   cardWords,
   growSentence,
+  metaLineOf,
   renderCard,
   shellHtml,
 } from '@modules/v1/sharing/link-card';
@@ -288,6 +289,12 @@ describe('the card a chat window draws', () => {
     }
     return green;
   };
+
+  it('says the handle, the day and the stage once: in the line over the title, or in the line under it that already names them', () => {
+    expect(metaLineOf(card)).toBe('Tag 34  ·  Blüte');
+    expect(metaLineOf({ ...card, description: growSentence('de', 'mia', 34, 'flowering') })).toBe('');
+    expect(metaLineOf({ ...card, description: 'Zwei Pflanzen am Fenster' })).toBe('@mia  ·  Tag 34  ·  Blüte');
+  });
 
   it('carries the brand´s small logo in its corner, over the panel and over a cover', async () => {
     const bare = await renderCard(card, null);

@@ -310,7 +310,11 @@ describe('a public diary', () => {
 
   it('leaves out a harvest weight its owner keeps rather than dashing it out', () => {
     drawAt(
-      <Diary page={{ ...page, harvest: { harvestedAt: at(1), wetWeightG: null, dryWeightG: 412 } }} picture={publicPicture(page.slug)} now={NOW} />,
+      <Diary
+        page={{ ...page, harvest: { harvestedAt: at(1), wetWeightG: null, dryWeightG: 412, plantIds: [] } }}
+        picture={publicPicture(page.slug)}
+        now={NOW}
+      />,
     );
 
     expect(screen.getByText(/dry 412 g/)).toBeInTheDocument();

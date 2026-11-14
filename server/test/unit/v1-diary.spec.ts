@@ -796,6 +796,17 @@ describe('the report', () => {
     expect(seen.plantCount).toBeNull();
   });
 
+  it('names the plants a harvest is of while another still grows, and is the grow´s once the last one is cut', async () => {
+    await db.plants.updateOne({ id: PLANT }, { $set: { status: 'harvested', harvest: { harvestedAt: onDay(34), wetWeightG: 480, dryWeightG: 96 } } });
+    expect((await report.read(GROW, await grantFor(session(OWNER)), NOW)).harvest).toMatchObject({ plantIds: [PLANT], wetWeightG: 480 });
+
+    await db.plants.updateOne(
+      { id: 'plant-2' },
+      { $set: { status: 'harvested', harvest: { harvestedAt: onDay(35), wetWeightG: 20, dryWeightG: 4 } } },
+    );
+    expect((await report.read(GROW, await grantFor(session(OWNER)), NOW)).harvest).toMatchObject({ plantIds: [], wetWeightG: 500, dryWeightG: 100 });
+  });
+
   it('reads one window per chapter rather than one per week', async () => {
     await report.read(GROW, await grantFor(session(OWNER)), NOW);
 

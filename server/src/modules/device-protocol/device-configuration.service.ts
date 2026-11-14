@@ -2,7 +2,7 @@ import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import { AppliedClimate, DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import {
   co2FanKey,
@@ -94,8 +94,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * nothing writes nothing. A device whose control was switched off is switched
    * on again by it: somebody who sets targets wants them held. `drying` is
    * whether they are a drying room's, `germination` whether they are for
-   * germinating in the dark, and `choices` what germination does about the
-   * humidity (see `WriteIntent`).
+   * germinating in the dark, `choices` what germination does about the
+   * humidity, and `applied` the climate preset they are, where one was applied
+   * with them (see `WriteIntent`).
    *
    * What is stored is answered, because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
@@ -112,12 +113,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     drying?: boolean,
     germination?: boolean,
     choices?: ChoicesSaid,
+    applied?: AppliedClimate,
   ): Promise<DeviceConfiguration | null> {
     const device = await this.typeAndDocument(deviceId);
     const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
     if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
 
-    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices }, () => configuration);
+    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices, applied }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
     return written?.after ?? null;
@@ -139,13 +141,15 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * drying stage dries, germination germinates in the dark, and anything else
    * puts a device that was off, drying or germinating back on its own mode.
    * `choices` is what germination does about the humidity, where the climate
-   * says so.
+   * says so. The stage and its `preset` are kept as what the device was put on,
+   * which is what names a preset on Steuerung.
    */
   public async applyConfiguration(
     deviceId: string,
     settings: DeviceConfiguration,
     stage: GrowthStage | null = null,
     choices?: ChoicesSaid,
+    preset: string | null = null,
   ): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
@@ -154,7 +158,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // and so does a climate of nothing for a device that germinates: only
     // germination is dark, so any other climate brings it back into the light
     // (a plan step that names nothing after a germination step).
-    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices };
+    const applied = stage === null ? undefined : { stage, preset };
+    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices, applied };
     const written = await this.store(deviceId, intent, current =>
       !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null && current.workmode !== 'breed')
         ? null
@@ -411,6 +416,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
               ? { beforeGermination: null }
               : {}),
           ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
+          ...((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied ? { appliedClimate: intent.applied } : {}),
           ...(ended
             ? { germinationChoices: GERMINATION_FORGOTTEN.germinationChoices }
             : said && Object.keys(said).length > 0

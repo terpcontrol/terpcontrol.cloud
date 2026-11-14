@@ -21,6 +21,12 @@ type EntryDose = z.infer<typeof entryDose>;
  * every line already written alone.
  */
 
+/**
+ * The most water one line takes, in litres: more than any tent is given at once, so a figure beyond it is a slip of
+ * the finger and is refused - by the form before it is sent, and by the route - rather than written.
+ */
+export const MAX_LITRES = 100;
+
 /** The row a grid states for that week, or nothing where it states none. */
 export const schemeWeekOf = (grid: readonly SchemeWeek[], weekNumber: number): SchemeWeek | null =>
   grid.find(week => week.week === weekNumber) ?? null;

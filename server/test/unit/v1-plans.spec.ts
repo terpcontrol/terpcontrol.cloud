@@ -43,6 +43,7 @@ let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
 let appliedFor: (string | null | undefined)[];
+let presetsFor: (string | null | undefined)[];
 let choicesFor: unknown[];
 let mailed: { to: string; subject: string; text: string }[];
 let stages: { deviceId: string; stage: string; preset: string | null }[];
@@ -120,14 +121,16 @@ beforeEach(async () => {
   await db.reset();
   applied = [];
   appliedFor = [];
+  presetsFor = [];
   choicesFor = [];
   mailed = [];
   stages = [];
 
   const configuration: DeviceConfigurationWriter = {
-    applyConfiguration: async (deviceId, settings, stage, choices) => {
+    applyConfiguration: async (deviceId, settings, stage, choices, preset) => {
       applied.push({ deviceId, settings });
       appliedFor.push(stage);
+      presetsFor.push(preset);
       choicesFor.push(choices);
       return true;
     },
@@ -227,6 +230,16 @@ describe('what the step is applied to', () => {
     await engine.run(NOW);
 
     expect(appliedFor).toEqual(['drying']);
+  });
+
+  it('hands on the preset of the step´s stage, which the device keeps as what names it on Steuerung', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Flower', stage: 'flowering', preset: 'late_flowering', settings: { day: { temperature: 24 } } })]);
+
+    await engine.run(NOW);
+
+    expect(appliedFor).toEqual(['flowering']);
+    expect(presetsFor).toEqual(['late_flowering']);
   });
 
   it('sends a step that names only a stage, because the stage decides the work mode', async () => {

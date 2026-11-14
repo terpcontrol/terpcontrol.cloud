@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.dosesFor = exports.growWeekAt = exports.growWeekOfDay = exports.growDayUpTo = exports.growDayAt = exports.growOriginOf = exports.schemeWeekOf = void 0;
+exports.dosesFor = exports.growWeekAt = exports.growWeekOfDay = exports.growDayUpTo = exports.growDayAt = exports.growOriginOf = exports.schemeWeekOf = exports.MAX_LITRES = void 0;
 /**
  * Turning a feeding grid into the doses that go into the can, and working out
  * which row of it a given day of a grow is.
@@ -16,6 +16,11 @@ exports.dosesFor = exports.growWeekAt = exports.growWeekOfDay = exports.growDayU
  * writes down is the *result*, never the grid: a scheme edited next month leaves
  * every line already written alone.
  */
+/**
+ * The most water one line takes, in litres: more than any tent is given at once, so a figure beyond it is a slip of
+ * the finger and is refused - by the form before it is sent, and by the route - rather than written.
+ */
+exports.MAX_LITRES = 100;
 /** The row a grid states for that week, or nothing where it states none. */
 const schemeWeekOf = (grid, weekNumber) => grid.find(week => week.week === weekNumber) ?? null;
 exports.schemeWeekOf = schemeWeekOf;

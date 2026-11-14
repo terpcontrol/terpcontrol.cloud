@@ -240,6 +240,8 @@ describe('a public grow at its own address', () => {
       plants.body.items.map((plant: { label: string }) => plant.label),
     );
     expect(shown.body.harvest).toMatchObject({ wetWeightG: 430, dryWeightG: 97 });
+    // One plant of three cut is that plant's harvest, and the page names it, not the grow's.
+    expect(shown.body.harvest.plantIds).toEqual([plants.body.items[0].id]);
   });
 });
 

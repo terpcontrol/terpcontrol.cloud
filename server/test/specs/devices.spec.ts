@@ -332,6 +332,33 @@ describe('what reaches the hardware', () => {
     expect(read.body.configuration).toEqual(configuration);
   });
 
+  /**
+   * Steuerung named a preset by figures that happened to match one - a plan's "Veg" step holding a flowering
+   * preset's figures read as that flowering preset. What names one is what the device was put on.
+   */
+  it('keeps the climate preset a device was put on, by a save or by its place, and not by what its figures match', async () => {
+    const fridge = await provisionDevice(owner);
+    const presetOf = async () => (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.control.preset;
+    const configuration = { workmode: 'small', day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } };
+
+    await owner.client
+      .put(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ configuration, preset: { stage: 'vegetative', preset: null } })
+      .expect(200);
+    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+
+    // A figure set by hand afterwards leaves it standing: the place is still on it.
+    await owner.client
+      .put(`/v1/devices/${fridge.deviceId}/configuration`)
+      .send({ configuration: { ...configuration, day: { temperature: 26, humidity: 60 } } })
+      .expect(200);
+    expect(await presetOf()).toEqual({ stage: 'vegetative', preset: null });
+
+    const spaceId = (await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.spaceId;
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'flowering', preset: 'late_flowering' }).expect(201);
+    expect(await presetOf()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+  });
+
   it('refuses a figure the firmware would misread, or one outside its range, naming each, and sends the device nothing', async () => {
     const configuration = { day: { temperature: 24 }, night: { temperature: 20 } };
     await owner.client.put(`/v1/devices/${device.deviceId}/configuration`).send({ configuration }).expect(200);
@@ -438,6 +465,7 @@ describe('what reaches the hardware', () => {
         running: false,
         drying: false,
         mode: 'standard',
+        preset: null,
         energySaving: false,
         // Nothing chosen about germination: what holds where nobody said.
         germinationChoices: { warnTooHumid: false, humidifierHolds: true },

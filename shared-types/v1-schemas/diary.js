@@ -5,6 +5,7 @@ exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports
 exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.sharedCurves = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputPoint = exports.timelinePanel = exports.timelineReading = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewClimate = exports.overviewTargets = exports.overviewGrow = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
+const feeding_js_1 = require("./feeding.js");
 const common_js_1 = require("./common.js");
 /**
  * The timeline and everything that is looked at: entries, pictures, cameras,
@@ -205,6 +206,8 @@ exports.entryPage = (0, common_js_1.named)('EntryPage', (0, common_js_1.page)(ex
  * writing one through the diary would be a second way to state the same fact.
  */
 exports.humanEntryKind = (0, common_js_1.named)('HumanEntryKind', common_js_1.entryKind.extract(['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit']));
+/** Water as a line is written: some, and no more than a tent is given at once (`MAX_LITRES`). */
+const litresGiven = zod_1.z.number().positive().max(feeding_js_1.MAX_LITRES).nullable();
 /**
  * What `POST /entries` takes for `values`: the same shapes with the parts the
  * server can work out left optional.
@@ -215,8 +218,8 @@ exports.humanEntryKind = (0, common_js_1.named)('HumanEntryKind', common_js_1.en
  * stored as given, because what went into the can is the fact.
  */
 exports.entryValuesDraft = (0, common_js_1.named)('EntryValuesDraft', zod_1.z.discriminatedUnion('kind', [
-    exports.waterEntryValues.partial({ litres: true, readings: true }),
-    exports.feedEntryValues.partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
+    exports.waterEntryValues.extend({ litres: litresGiven }).partial({ litres: true, readings: true }),
+    exports.feedEntryValues.extend({ litres: litresGiven }).partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
     exports.measurementEntryValues.partial({ readings: true }),
     exports.photoEntryValues,
     exports.noteEntryValues,
@@ -1522,6 +1525,11 @@ exports.growDiaryDay = (0, common_js_1.named)('GrowDiaryDay', zod_1.z.object({
         .nullable()
         .describe('The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.'),
     climate: exports.growDayClimate.nullable().describe('Null where nothing measured where the grow stood that day.'),
+    phase: zod_1.z
+        .object({ stage: common_js_1.growthStage, preset: zod_1.z.string().nullable(), stageWeek: zod_1.z.number().int() })
+        .nullable()
+        .optional()
+        .describe("The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it."),
     events: zod_1.z.array(exports.growDayEvent).describe('In the order they happened.'),
     entries: zod_1.z
         .array(exports.entry)
@@ -1601,6 +1609,9 @@ exports.growHarvest = (0, common_js_1.named)('GrowHarvest', zod_1.z.object({
     harvestedAt: (0, common_js_1.instant)().nullable(),
     wetWeightG: zod_1.z.number().nullable(),
     dryWeightG: zod_1.z.number().nullable(),
+    plantIds: zod_1.z
+        .array((0, common_js_1.id)())
+        .describe("The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's."),
 }));
 exports.growTotals = (0, common_js_1.named)('GrowTotals', zod_1.z.object({
     entryCount: zod_1.z.number().int(),

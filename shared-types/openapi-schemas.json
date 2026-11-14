@@ -1925,6 +1925,24 @@
       "lightLimit"
     ]
   },
+  "AppliedClimate": {
+    "type": "object",
+    "properties": {
+      "stage": {
+        "$ref": "#/components/schemas/GrowthStage"
+      },
+      "preset": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "stage",
+      "preset"
+    ]
+  },
   "DeviceControl": {
     "type": "object",
     "properties": {
@@ -1955,6 +1973,17 @@
       "germinationChoices": {
         "description": "What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.",
         "$ref": "#/components/schemas/GerminationChoices"
+      },
+      "preset": {
+        "description": "The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step - which is what names one on Steuerung, never figures that happen to match one. Figures set by hand afterwards leave it standing. Null, or absent from an older server, where none was applied since it is kept.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -2324,6 +2353,10 @@
             "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
           }
         }
+      },
+      "preset": {
+        "description": "The climate preset the targets saved are, where one was applied with them; left out, the preset last applied stands.",
+        "$ref": "#/components/schemas/AppliedClimate"
       }
     },
     "required": [
@@ -8930,9 +8963,15 @@
             "const": "water"
           },
           "litres": {
-            "type": [
-              "number",
-              "null"
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "readings": {
@@ -8954,9 +8993,15 @@
             "const": "feed"
           },
           "litres": {
-            "type": [
-              "number",
-              "null"
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "schemeWeek": {
@@ -13855,6 +13900,38 @@
         ],
         "description": "Null where nothing measured where the grow stood that day."
       },
+      "phase": {
+        "description": "The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it.",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "$ref": "#/components/schemas/GrowthStage"
+              },
+              "preset": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stageWeek": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "stage",
+              "preset",
+              "stageWeek"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "events": {
         "type": "array",
         "items": {
@@ -14188,12 +14265,21 @@
           "number",
           "null"
         ]
+      },
+      "plantIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's."
       }
     },
     "required": [
       "harvestedAt",
       "wetWeightG",
-      "dryWeightG"
+      "dryWeightG",
+      "plantIds"
     ]
   },
   "GrowTotals": {

@@ -239,6 +239,24 @@ describe('writing the diary', () => {
     await owner.client.delete(`/v1/entries/${entry.id}`).expect(404);
   });
 
+  it('refuses a watering of no water or of more than a tent is given, and names the end it broke', async () => {
+    for (const [kind, litres, code] of [
+      ['water', 999, 'too_big'],
+      ['feed', 101, 'too_big'],
+      ['water', 0, 'too_small'],
+      ['water', -3, 'too_small'],
+    ] as const) {
+      const refused = await owner.client.post('/v1/entries').send({ kind, growId, values: { kind, litres } }).expect(400);
+      expect(refused.body.code).toBe('validation_failed');
+      expect(refused.body.errors).toEqual([expect.objectContaining({ field: 'values.litres', code })]);
+    }
+
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'water', growId, values: { kind: 'water', litres: 100 } })
+      .expect(201);
+  });
+
   it('is not there for a stranger, and not open to a demo session', async () => {
     const line = { kind: 'note', growId, values: { kind: 'note' } };
 

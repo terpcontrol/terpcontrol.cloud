@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { CAPTURE_FAILURES } from './capture.js';
+import { MAX_LITRES } from './feeding.js';
 import {
   accountLayers,
   alertKind,
@@ -300,6 +301,9 @@ export const humanEntryKind = named(
   entryKind.extract(['water', 'feed', 'photo', 'note', 'measurement', 'training', 'visit']),
 );
 
+/** Water as a line is written: some, and no more than a tent is given at once (`MAX_LITRES`). */
+const litresGiven = z.number().positive().max(MAX_LITRES).nullable();
+
 /**
  * What `POST /entries` takes for `values`: the same shapes with the parts the
  * server can work out left optional.
@@ -312,8 +316,8 @@ export const humanEntryKind = named(
 export const entryValuesDraft = named(
   'EntryValuesDraft',
   z.discriminatedUnion('kind', [
-    waterEntryValues.partial({ litres: true, readings: true }),
-    feedEntryValues.partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
+    waterEntryValues.extend({ litres: litresGiven }).partial({ litres: true, readings: true }),
+    feedEntryValues.extend({ litres: litresGiven }).partial({ litres: true, schemeWeek: true, doses: true, readings: true }),
     measurementEntryValues.partial({ readings: true }),
     photoEntryValues,
     noteEntryValues,
@@ -2004,6 +2008,13 @@ export const growDiaryDay = named(
         'The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.',
       ),
     climate: growDayClimate.nullable().describe('Null where nothing measured where the grow stood that day.'),
+    phase: z
+      .object({ stage: growthStage, preset: z.string().nullable(), stageWeek: z.number().int() })
+      .nullable()
+      .optional()
+      .describe(
+        "The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it.",
+      ),
     events: z.array(growDayEvent).describe('In the order they happened.'),
     entries: z
       .array(entry)
@@ -2105,6 +2116,11 @@ export const growHarvest = named(
     harvestedAt: instant().nullable(),
     wetWeightG: z.number().nullable(),
     dryWeightG: z.number().nullable(),
+    plantIds: z
+      .array(id())
+      .describe(
+        "The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's.",
+      ),
   }),
 );
 

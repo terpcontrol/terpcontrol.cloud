@@ -224,6 +224,9 @@ export class GrowDiaryService {
       });
     const switched = [...stretches('maintenance', world.maintenance), ...stretches('controlOff', world.controlOff)];
 
+    // The stage at the day's middle, as a week that is over is named at its own.
+    const phase = headlinePhaseAt(world.grow, new Date((day.startsAt.getTime() + day.endsAt.getTime()) / 2));
+
     return {
       date: day.date,
       dayNumber: day.dayNumber,
@@ -231,6 +234,9 @@ export class GrowDiaryService {
       endsAt: seen.endsAt.toISOString(),
       still: still?.cameraId ? { mediaId: still.id, cameraId: still.cameraId, capturedAt: still.capturedAt.toISOString() } : null,
       climate: climate && outsider ? { ...climate, inBandFraction: null } : climate,
+      phase: phase
+        ? { stage: phase.stage, preset: phase.preset, stageWeek: stageWeekOf(world.origin, phase.startedAt, day.dayNumber, world.zone) }
+        : null,
       events: outsider ? [] : [...events, ...switched, ...world.changes.filter(change => within(seen, new Date(change.at)))].sort(byInstant),
       entries: world.lines
         .filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt)

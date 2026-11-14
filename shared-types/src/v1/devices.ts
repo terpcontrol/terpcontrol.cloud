@@ -97,6 +97,15 @@ export const dryingReturn = named(
   }),
 );
 
+/** A climate preset as it was applied: the stage, and the preset on top of it where one was named. */
+export const appliedClimate = named(
+  'AppliedClimate',
+  z.object({
+    stage: growthStage,
+    preset: z.string().nullable(),
+  }),
+);
+
 export const deviceControl = named(
   'DeviceControl',
   z.object({
@@ -117,6 +126,12 @@ export const deviceControl = named(
     germinationChoices: germinationChoices.describe(
       'What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.',
     ),
+    preset: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step - which is what names one on Steuerung, never figures that happen to match one. Figures set by hand afterwards leave it standing. Null, or absent from an older server, where none was applied since it is kept.",
+      ),
   }),
 );
 
@@ -239,6 +254,7 @@ export const deviceConfigurationEnvelope = named(
       .partial()
       .optional()
       .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+    preset: appliedClimate.optional().describe('The climate preset the targets saved are, where one was applied with them; left out, the preset last applied stands.'),
   }),
 );
 

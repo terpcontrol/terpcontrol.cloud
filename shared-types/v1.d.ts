@@ -848,6 +848,11 @@ export interface DryingReturn {
   lightLimit: number | null;
 }
 
+export interface AppliedClimate {
+  stage: GrowthStage;
+  preset: string | null;
+}
+
 export interface DeviceControl {
   /**
    * Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.
@@ -868,6 +873,10 @@ export interface DeviceControl {
   afterDrying?: DryingReturn1;
   afterGermination?: DryingReturn2;
   germinationChoices: GerminationChoices1;
+  /**
+   * The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step - which is what names one on Steuerung, never figures that happen to match one. Figures set by hand afterwards leave it standing. Null, or absent from an older server, where none was applied since it is kept.
+   */
+  preset?: AppliedClimate | null;
 }
 
 /**
@@ -1016,6 +1025,16 @@ export interface DeviceConfigurationEnvelope {
      */
     humidifierHolds?: boolean;
   };
+  preset?: AppliedClimate1;
+}
+
+/**
+ * The climate preset the targets saved are, where one was applied with them; left out, the preset last applied stands.
+ */
+
+export interface AppliedClimate1 {
+  stage: GrowthStage;
+  preset: string | null;
 }
 
 export interface TimerWindow {
@@ -4386,6 +4405,14 @@ export interface GrowDiaryDay {
    */
   climate: GrowDayClimate | null;
   /**
+   * The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it.
+   */
+  phase?: {
+    stage: GrowthStage;
+    preset: string | null;
+    stageWeek: number;
+  } | null;
+  /**
    * In the order they happened.
    */
   events: GrowDayEvent[];
@@ -4471,6 +4498,10 @@ export interface GrowHarvest {
   harvestedAt: string | null;
   wetWeightG: number | null;
   dryWeightG: number | null;
+  /**
+   * The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's.
+   */
+  plantIds: string[];
 }
 
 export interface GrowTotals {

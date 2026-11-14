@@ -1,4 +1,4 @@
-import type { DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
+import type { AppliedClimate, DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
 import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { dryingReturnOf } from './drying-return';
@@ -42,7 +42,7 @@ export type WriteIntent =
    * `germination` is the same for germination in the dark, which false ends
    * for the standard mode.
    */
-  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid }
+  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid; applied?: AppliedClimate }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
    * dries and germination germinates in the dark; any other stage - or a plan
@@ -51,9 +51,10 @@ export type WriteIntent =
    * it on its own mode. `requested` is what a plan step carries itself.
    * `stated` names the night's figures the write brings of its own, which
    * coming out of germination otherwise puts back (see
-   * `DeviceConfigurationService.store`).
+   * `DeviceConfigurationService.store`). `applied` - here and on the targets -
+   * is the preset the write puts the device on, kept to name it by.
    */
-  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; stated?: readonly string[]; choices?: ChoicesSaid }
+  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; stated?: readonly string[]; choices?: ChoicesSaid; applied?: AppliedClimate }
   /** The settings a person changed one at a time, of which these are about the work mode and germination. */
   | { kind: 'fields'; control?: boolean; drying?: boolean; mode?: OperatingMode; energySaving?: boolean; choices?: ChoicesSaid }
   /** The times of day moved onto the owner's clock, which decides nothing else. */
