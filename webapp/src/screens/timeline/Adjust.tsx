@@ -33,7 +33,7 @@ interface AdjustProps {
   /** Keeping the view in the account, where the session has one: the definition to keep, and what applying one does. */
   views: { definition: ChartViewDefinition; apply: (view: ChartView) => void } | null;
   /** The day the window begins on and the last day there is, as a date field speaks them, and the jump to one. */
-  day: { shown: string; last: string; jump: (day: string) => void };
+  day: { shown: string; first?: string; last: string; jump: (day: string) => void };
   onShare: (() => void) | null;
   onCsv: (() => void) | null;
   onClose: () => void;
@@ -155,7 +155,13 @@ export function Adjust({ view, offered, shown, change, stepDrawn, grained, compa
           ) : null}
           <label className={styles.pickRow}>
             <span>{t('timeline.adjust.day')}</span>
-            <input type="date" value={day.shown} max={day.last} onChange={event => event.target.value && day.jump(event.target.value)} />
+            <input
+              type="date"
+              value={day.shown}
+              min={day.first}
+              max={day.last}
+              onChange={event => event.target.value && day.jump(event.target.value)}
+            />
           </label>
           {curves ? (
             <label className={styles.pickRow}>

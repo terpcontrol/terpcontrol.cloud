@@ -238,6 +238,13 @@ export const zoomed = (
   return around === null && window.live ? held({ from: now - width, to: now }, now, null) : held({ from: to - width, to }, now, cursor);
 };
 
+/** A window held inside another - a link's own: as wide as it may be there, and moved in rather than cut. */
+export const inside = (window: Span, bounds: Span): Span => {
+  const width = Math.min(window.to - window.from, bounds.to - bounds.from);
+  const from = Math.min(Math.max(window.from, bounds.from), bounds.to - width);
+  return { from, to: from + width };
+};
+
 /** A stretch marked on the plot or pinched to, as fractions of the window, made the window: no narrower than the ladder and never past now. */
 export const selected = (window: Span, fractions: Span, cursor: number | null, now: number): Partial<View> => {
   const span = window.to - window.from;

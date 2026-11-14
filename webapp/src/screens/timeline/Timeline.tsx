@@ -67,6 +67,7 @@ import {
   dayHolding,
   definitionOf,
   GRAINED_FROM_MS,
+  inside,
   isRolling,
   nextWidth,
   RANGES,
@@ -221,10 +222,22 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
 
 /**
  * The same page for somebody reading a place through a link: the last day, week or month through the link's own
- * window, with nothing of the account behind it - no grow to name, no line to correct, no view to keep.
+ * window, with nothing of the account behind it - no grow to name, no line to correct, no view to keep. A link whose
+ * window ends (`bounds`) shows that window and nothing else: it opens on the whole of it, a zoom stays inside it,
+ * and no chip, arrow or "jetzt" offers a stretch it does not hold.
  */
-export function SharedTimeline({ spaceId, shared, title }: { spaceId: string; shared: { token: string; picture: Picture }; title: React.ReactNode }) {
-  const page = usePage(spaceId, shared.token);
+export function SharedTimeline({
+  spaceId,
+  shared,
+  title,
+  bounds = null,
+}: {
+  spaceId: string;
+  shared: { token: string; picture: Picture };
+  title: React.ReactNode;
+  bounds?: Span | null;
+}) {
+  const page = usePage(spaceId, shared.token, null, bounds);
   return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} />;
 }
 
@@ -235,23 +248,33 @@ interface Vain {
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
-const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' | null = null) => {
+const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' | null = null, bounds: Span | null = null) => {
   const [params, setParams] = useSearchParams();
   const now = useNow();
   const view = useMemo(() => viewOf(params), [params]);
   const beat = Math.floor(now.toMillis() / LIVE_BEAT_MS) * LIVE_BEAT_MS;
-  const asked = windowOf(view, beat);
+  // A link's window that has not ended yet is shown up to now, and never said to end "jetzt".
+  const confined = bounds && { from: bounds.from, to: Math.min(bounds.to, beat) };
+  // A link without a start is opened on the last day before its end.
+  const whole = confined && (Number.isFinite(confined.from) ? confined : { from: confined.to - DAY_MS, to: confined.to });
+  const asked = confined && whole ? { ...inside(view.fixed ?? whole, confined), live: false } : windowOf(view, beat);
   // Keyed by its two ends, so the clock moving on does not ask again for a window that stands still.
   const ask = useMemo(
-    () => askOf(view, asked, share),
+    () => askOf(confined ? { ...view, range: '24h', growId: null } : view, asked, share),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `asked` is new every render; its ends are what it is
     [view, asked?.from, asked?.to, asked?.live, share],
   );
   // Held back while what the address names is looked up, and for good where it names something in vain.
   const timeline = useTimeline(spaceId, vain === null ? ask : null);
+  // Inside a link's window every change of the stretch - a zoom, a day, the way to a last reading - stands still in it.
+  const held = (over: Partial<View>): Partial<View> => {
+    if (!confined || !('fixed' in over || 'last' in over || 'range' in over)) return over;
+    const next = windowOf({ ...view, ...over }, beat);
+    return { ...over, range: '24h', last: null, fixed: next ? inside(next, confined) : null };
+  };
   const change = (over: Partial<View>) => {
     if (over.show && share === null) writeStored(CURVES_KEY, JSON.stringify(over.show));
-    setParams(withParams(params, viewParams(over)), { replace: true });
+    setParams(withParams(params, viewParams(held(over))), { replace: true });
   };
 
   // What was last ticked in this browser stands in for an address that names no curves, and is written into it:
@@ -265,9 +288,9 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
 
   // A window whose read fails keeps the last picture: the answer before it stays drawn, with the chips and arrows
   // that lead away from the window that would not load.
-  const [kept, setKept] = useState<SpaceTimeline | null>(null);
+  const [before, setBefore] = useState<SpaceTimeline | null>(null);
   const fresh = timeline.data !== undefined && !timeline.isPlaceholderData ? timeline.data : null;
-  if (fresh && fresh !== kept) setKept(fresh);
+  if (fresh && fresh !== before) setBefore(fresh);
   // Which window would not load, and why - held here, since a query asked again goes back to "pending" with no
   // error and the notice would blink away while it tries. It goes when a read succeeds, this window's or another's.
   const asking = hashKey(timelineKey(spaceId, ask));
@@ -306,14 +329,14 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
     asked,
     timeline,
     // The window that failed keeps the picture before it for as long as it is asked again.
-    data: failed ? (kept ?? undefined) : timeline.data,
+    data: failed ? (before ?? undefined) : timeline.data,
     failed,
     refusal: failed ? refusal.error : null,
     dropped,
     change,
     now,
     clock: beat,
-    shared: share !== null,
+    confined,
   };
 };
 
@@ -323,7 +346,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   const zone = useZone();
   const wide = useWideWindow();
   const columns = useTwoColumns();
-  const { view, asked, timeline, data, failed, refusal, change, now, clock } = page;
+  const { view, asked, timeline, data, failed, refusal, change, now, clock, confined } = page;
   // The cursor is what the address says. Only while a mouse or a thumb moves it, and from being set down until the
   // address has followed, is it held here; a change of the address's own cursor clears it: the bar leaves none behind.
   const [scrubbed, setScrubbed] = useState<number | null>(null);
@@ -453,7 +476,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
     span === null
       ? t(direction < 0 ? 'timeline.stretchBefore' : 'timeline.stretchAfter')
       : t(direction < 0 ? 'timeline.earlier' : 'timeline.later', { span });
-  const ranges = RANGES.filter(range => isRolling(range) || (own !== null && growId !== null));
+  const ranges = confined ? [] : RANGES.filter(range => isRolling(range) || (own !== null && growId !== null));
+  // Inside a link's window the zoom goes no wider than the window.
+  const widest = (direction: -1 | 1) => direction < 0 && confined !== null && width >= confined.to - confined.from - 1000;
   // Said only where points are drawn: a window nothing was measured in has no step to speak of.
   const stepDrawn = data && data.stepSeconds > 0 && data.panels.length > 0 && !failed ? data.stepSeconds : null;
   const zoomButtons = ([-1, 1] as const).map(direction => (
@@ -461,7 +486,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       key={direction}
       type="button"
       className={styles.navButton}
-      disabled={!named || nextWidth(width, direction) === null}
+      disabled={!named || nextWidth(width, direction) === null || widest(direction)}
       aria-label={t(direction < 0 ? 'timeline.zoomOut' : 'timeline.zoomIn')}
       onClick={() => zoom(direction)}
     >
@@ -498,26 +523,34 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
           </select>
         </label>
       ) : null}
-      <div className={styles.ranges} role="group" aria-label={t('timeline.rangeLabel')}>
-        {ranges.map(range => (
-          <button
-            key={range}
-            type="button"
-            className={styles.range}
-            aria-pressed={range === chip}
-            onClick={() => go({ range, fixed: null, last: null, at: null, growId: rangeNeedsGrow(range) ? growId : null })}
-          >
-            {t(`timeline.range.${range}`)}
-          </button>
-        ))}
-      </div>
+      {ranges.length > 0 ? (
+        <div className={styles.ranges} role="group" aria-label={t('timeline.rangeLabel')}>
+          {ranges.map(range => (
+            <button
+              key={range}
+              type="button"
+              className={styles.range}
+              aria-pressed={range === chip}
+              onClick={() => go({ range, fixed: null, last: null, at: null, growId: rangeNeedsGrow(range) ? growId : null })}
+            >
+              {t(`timeline.range.${range}`)}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className={styles.nav} role="group" aria-label={t('timeline.navLabel')}>
-        <button type="button" className={styles.navButton} disabled={!named} aria-label={stepName(-1)} onClick={() => step(-1)}>
-          <ChevronLeft size={20} strokeWidth={2} aria-hidden />
-        </button>
+        {confined ? null : (
+          <button type="button" className={styles.navButton} disabled={!named} aria-label={stepName(-1)} onClick={() => step(-1)}>
+            <ChevronLeft size={20} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         <span className={styles.window}>
           {/* Under a window that would not load, the name is of the picture that is drawn. */}
-          {failed && window ? windowLabel(t, window, live, now, zone) : named ? windowLabel(t, named, named.live, now, zone) : '…'}
+          {failed && window
+            ? windowLabel(t, window, live, now, zone, confined !== null)
+            : named
+              ? windowLabel(t, named, named.live, now, zone, confined !== null)
+              : '…'}
           <small>
             {[
               data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
@@ -532,11 +565,13 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
               .join(' · ')}
           </small>
         </span>
-        <button type="button" className={styles.navButton} disabled={!named || named.live} aria-label={stepName(1)} onClick={() => step(1)}>
-          <ChevronRight size={20} strokeWidth={2} aria-hidden />
-        </button>
+        {confined ? null : (
+          <button type="button" className={styles.navButton} disabled={!named || named.live} aria-label={stepName(1)} onClick={() => step(1)}>
+            <ChevronRight size={20} strokeWidth={2} aria-hidden />
+          </button>
+        )}
         {/* The marked way back, wherever the arrows and the zoom led. */}
-        {named && !named.live ? (
+        {named && !named.live && !confined ? (
           <button type="button" className={styles.toNow} onClick={() => go(toNow(named, clock))}>
             {t('timeline.toNow')}
           </button>
@@ -775,7 +810,8 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
           }
           day={{
             shown: firstDay,
-            last: zonedAt(clock, zone).toFormat('yyyy-MM-dd'),
+            first: confined && Number.isFinite(confined.from) ? zonedAt(confined.from, zone).toFormat('yyyy-MM-dd') : undefined,
+            last: zonedAt(confined?.to ?? clock, zone).toFormat('yyyy-MM-dd'),
             // That day of the calendar; today's is shown up to now.
             jump: day =>
               go({ range: '24h', growId: null, fixed: dayHolding(startOfDayOn(day, zone).getTime() + 12 * 3600_000, zone), last: null, at: null }),

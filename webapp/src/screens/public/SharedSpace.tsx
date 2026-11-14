@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
+import type { CardValue, ClimateVerdict, Metric, OverviewCamera, SpaceOverview, TimeRange } from '@fg2/shared-types/v1';
 import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel, dayStamp, valueAge } from '@/ui/age';
 import { Term } from '@/ui/Help';
@@ -18,7 +18,7 @@ import { dayLines } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { SharedTimeline } from '../timeline/Timeline';
 import styles from './Public.module.css';
-import { windowIsCurrent } from './window';
+import { linkBounds, windowIsCurrent } from './window';
 import { clock, DATED_CLOCK } from '@/ui/zone';
 
 /** The four a shared place shows: the three a controller steers and the one it derives. */
@@ -39,6 +39,7 @@ export function SharedSpace({
   picture,
   now,
   banner,
+  range = { startsAt: null, endsAt: null },
 }: {
   space: SpaceOverview;
   /** The link it is read through, which is also what reads its Timeline. */
@@ -46,6 +47,8 @@ export function SharedSpace({
   picture: Picture;
   now: DateTime;
   banner?: ReactNode;
+  /** The link's window: one that ends holds the Timeline inside it. */
+  range?: TimeRange;
 }) {
   const { t, i18n } = useTranslation();
   const [viewing, setViewing] = useState<{ pictures: string[]; from: number } | null>(null);
@@ -99,13 +102,14 @@ export function SharedSpace({
       ))}
 
       {/* "Look at my curves" is why a place is shared, so its Timeline is
-          here: the last day, week or month, read only and through the link's
-          own window. */}
+          here: the last day, week or month, read only - or the link's window
+          and nothing else, where it has one that ends. */}
       <section className={ui.stack2}>
         <SharedTimeline
           spaceId={space.spaceId}
           shared={{ token, picture }}
           title={<h2>{t('publicPage.timeline')}</h2>}
+          bounds={linkBounds(range)}
         />
       </section>
 

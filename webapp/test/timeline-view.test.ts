@@ -9,6 +9,7 @@ import {
   dayHolding,
   dayWindow,
   definitionOf,
+  inside,
   nextWidth,
   selected,
   stepped,
@@ -261,6 +262,18 @@ describe('the way back to now', () => {
   it('keeps the width: a day stepped back to is the last day again, twenty minutes somewhere are the last twenty', () => {
     expect(toNow({ from: NOW - 5 * DAY, to: NOW - 4 * DAY }, NOW)).toEqual({ fixed: null, last: null, range: '24h', at: null });
     expect(toNow({ from: NOW - 5 * DAY, to: NOW - 5 * DAY + 20 * MINUTE }, NOW)).toEqual({ fixed: null, last: 20 * MINUTE, at: null });
+  });
+});
+
+describe('a window held inside a link´s own', () => {
+  it('keeps its width where it fits, is moved in rather than cut, and is never wider than the link', () => {
+    const link = { from: NOW - 2 * DAY, to: NOW - DAY };
+    expect(inside({ from: NOW - 2 * DAY + HOUR, to: NOW - 2 * DAY + 2 * HOUR }, link)).toEqual({
+      from: NOW - 2 * DAY + HOUR,
+      to: NOW - 2 * DAY + 2 * HOUR,
+    });
+    expect(inside({ from: NOW - DAY - HOUR, to: NOW - DAY + 5 * HOUR }, link)).toEqual({ from: NOW - DAY - 6 * HOUR, to: NOW - DAY });
+    expect(inside({ from: NOW - 30 * DAY, to: NOW }, link)).toEqual(link);
   });
 });
 

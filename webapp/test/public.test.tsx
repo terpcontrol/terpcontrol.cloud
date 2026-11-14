@@ -158,6 +158,30 @@ const sharedTimeline = {
   people: [],
 };
 
+/** The window the last read of a Timeline asked for. */
+const askedWindow = () => {
+  const asked = vi
+    .mocked(fetchStub)
+    .mock.calls.map(call => new URL(String(call[0]), 'http://localhost'))
+    .filter(url => url.pathname.endsWith('/timeline'))
+    .at(-1);
+  return [asked?.searchParams.get('from'), asked?.searchParams.get('to')];
+};
+
+/**
+ * A link made for a stretch shows that stretch and nothing else (`SharedTimeline`'s bounds): its label names it, its
+ * axis ends at its end, "now" is never said, and no chip or arrow offers a stretch the link does not hold - only the
+ * zoom stays, and it goes no wider than the window.
+ */
+const expectWindowOnly = async (section: HTMLElement, label: string) => {
+  await waitFor(() => expect(within(section).getByRole('group', { name: 'Move and zoom the window' })).toHaveTextContent(label));
+  expect(within(section).queryByRole('group', { name: 'Range' })).not.toBeInTheDocument();
+  for (const name of [/earlier/, /later/, /before/i, /after/i, /^Now$/])
+    expect(within(section).queryByRole('button', { name })).not.toBeInTheDocument();
+  expect(section).not.toHaveTextContent(/\bnow\b/i);
+  expect(within(section).getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+};
+
 /** Every read made through a link, with the token it carried. */
 const reads: { path: string; share: string | null }[] = [];
 
@@ -166,7 +190,10 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
   const path = url.pathname.replace(/^\/v1/, '');
   reads.push({ path, share: url.searchParams.get('share') });
 
-  if (path === '/spaces/space-1/timeline') return json({ ...sharedTimeline, range: url.searchParams.get('range') });
+  if (path === '/spaces/space-1/timeline') {
+    const [from, to] = [url.searchParams.get('from'), url.searchParams.get('to')];
+    return json({ ...sharedTimeline, range: url.searchParams.get('range'), ...(from && to ? { startsAt: from, endsAt: to } : {}) });
+  }
 
   if (path === `/public/grows/${page.slug}`) return json(page);
   if (path === '/shared/a-token') {
@@ -511,6 +538,23 @@ describe('a tent behind a link', () => {
     vi.unstubAllGlobals();
   });
 
+  it('holds its Timeline inside the window of a link made for a stretch, and a zoom inside it', async () => {
+    vi.stubGlobal('fetch', fetchStub);
+    const range = { startsAt: at(3, 0), endsAt: at(1, 0) };
+    drawAt(<SharedSpace space={sharedSpace(at(1, 0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} range={range} />);
+
+    const section = (await screen.findByRole('heading', { name: 'Timeline' })).closest('section')!;
+    await waitFor(() => expect(askedWindow()).toEqual([range.startsAt, range.endsAt].map(one => new Date(one).toISOString())));
+    await expectWindowOnly(section, '16 Sep to 17 Sep');
+
+    fireEvent.click(within(section).getByRole('button', { name: 'Zoom in' }));
+    await waitFor(() => expect(askedWindow()).not.toEqual([range.startsAt, range.endsAt].map(one => new Date(one).toISOString())));
+    const [from, to] = askedWindow().map(one => new Date(one!).getTime());
+    expect(from).toBeGreaterThanOrEqual(new Date(range.startsAt).getTime());
+    expect(to).toBeLessThanOrEqual(new Date(range.endsAt).getTime());
+    vi.unstubAllGlobals();
+  });
+
   it('explains the day’s in-band share where it states it', () => {
     const shown = sharedSpace(NOW.minus({ minutes: 1 }).toISO()!);
     const space: SpaceOverview = { ...shown, verdict: { ...shown.verdict, rating: 'good', inBandFraction: 0.93 } };
@@ -658,6 +702,7 @@ describe('following a diary', () => {
       'http://localhost',
     );
     expect([asked.searchParams.get('from'), asked.searchParams.get('to')]).toEqual([at(3, 0), at(1, 0)].map(one => new Date(one).toISOString()));
+    await expectWindowOnly(screen.getByRole('heading', { name: 'Timeline · Tent 1' }).closest('section')!, '16 Sep to 17 Sep');
   });
 
   it('draws no curves on a link onto a running grow, which is its diary', async () => {

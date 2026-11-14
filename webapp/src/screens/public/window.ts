@@ -1,5 +1,8 @@
 import { DateTime } from 'luxon';
+import type { TimeRange } from '@fg2/shared-types/v1';
 import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
+import type { Span } from '../timeline/view';
+import { at } from '../timeline/window';
 
 /**
  * Whether the window a public page was built for still reaches the present.
@@ -15,3 +18,7 @@ import { VALUE_AGE } from '@fg2/shared-types/v1-schemas/value-age.js';
  */
 export const windowIsCurrent = (endsAt: string | null, now: DateTime): boolean =>
   endsAt === null || now.toMillis() - DateTime.fromISO(endsAt).toMillis() <= VALUE_AGE.staleSeconds * 1000;
+
+/** A link's window where it ends, as Verlauf holds it (`SharedTimeline`); a window that runs on into now holds nothing. */
+export const linkBounds = ({ startsAt, endsAt }: TimeRange): Span | null =>
+  endsAt === null ? null : { from: startsAt === null ? -Infinity : at(startsAt), to: at(endsAt) };

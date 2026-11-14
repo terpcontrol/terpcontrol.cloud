@@ -13,11 +13,14 @@ import type { Span } from './view';
 
 const BY_WEEKDAY = 10 * DAY_MS;
 
-/** The day an instant falls on: today, yesterday, the weekday within a week, else the date. `then` is the word inside a sentence. */
-const dayWord = (t: Translate, time: number, now: DateTime, zone: string | null, then = false): string => {
+/**
+ * The day an instant falls on: today, yesterday, the weekday within a week, else the date - or the date always where
+ * it is `dated`. `then` is the word inside a sentence.
+ */
+const dayWord = (t: Translate, time: number, now: DateTime, zone: string | null, then = false, dated = false): string => {
   const day = zonedAt(time, zone);
   const today = zonedAt(now.toMillis(), zone).startOf('day');
-  const back = Math.round(today.diff(day.startOf('day'), 'days').days);
+  const back = dated ? Infinity : Math.round(today.diff(day.startOf('day'), 'days').days);
   if (back === 0) return t(then ? 'timeline.day.todayThen' : 'timeline.day.today');
   if (back === 1) return t(then ? 'timeline.day.yesterdayThen' : 'timeline.day.yesterday');
   if (back > 1 && back < 7) return day.toFormat('cccc');
@@ -27,27 +30,27 @@ const dayWord = (t: Translate, time: number, now: DateTime, zone: string | null,
 /**
  * "Gestern 14:30 bis jetzt", "Heute 03:00 bis 03:20", "5. Nov bis 12. Nov": the window, as the row between the
  * arrows names it. A whole day of the calendar is that day and not its two midnights: "Gestern", "Mo, 11. Aug",
- * and today up to now "Heute bis jetzt".
+ * and today up to now "Heute bis jetzt". A link's window is `dated`, as the link's own head says it: it is read on
+ * days its maker never saw, and "gestern" would move.
  */
-export const windowLabel = (t: Translate, window: Span, live: boolean, now: DateTime, zone: string | null): string => {
+export const windowLabel = (t: Translate, window: Span, live: boolean, now: DateTime, zone: string | null, dated = false): string => {
   const start = zonedAt(window.from, zone);
   const midnight = start.equals(start.startOf('day'));
   if (midnight && !live && start.plus({ days: 1 }).toMillis() === window.to) {
     const back = Math.round(zonedAt(now.toMillis(), zone).startOf('day').diff(start, 'days').days);
-    return back === 0 || back === 1 ? dayWord(t, window.from, now, zone) : start.toFormat(`ccc, ${start.year === now.year ? DAY_IN_YEAR : DAY}`);
+    return (back === 0 || back === 1) && !dated
+      ? dayWord(t, window.from, now, zone)
+      : start.toFormat(`ccc, ${start.year === now.year ? DAY_IN_YEAR : DAY}`);
   }
 
   const clocked = window.to - window.from <= BY_CLOCK;
   const clock = (time: number) => zonedAt(time, zone).toFormat(CLOCK);
   const today = midnight && live && start.hasSame(zonedAt(now.toMillis(), zone), 'day');
-  const from = clocked && !today ? `${dayWord(t, window.from, now, zone)} ${clock(window.from)}` : dayWord(t, window.from, now, zone);
+  const day = (time: number, then = false) => dayWord(t, time, now, zone, then, dated);
+  const from = clocked && !today ? `${day(window.from)} ${clock(window.from)}` : day(window.from);
   // The last instant inside the window names its day: a window that closes at midnight has not begun the next date.
   const sameDay = start.hasSame(zonedAt(window.to - 1, zone), 'day');
-  const to = live
-    ? t('timeline.now')
-    : clocked
-      ? `${sameDay ? '' : `${dayWord(t, window.to - 1, now, zone, true)} `}${clock(window.to)}`
-      : dayWord(t, window.to - 1, now, zone, true);
+  const to = live ? t('timeline.now') : clocked ? `${sameDay ? '' : `${day(window.to - 1, true)} `}${clock(window.to)}` : day(window.to - 1, true);
 
   return t('timeline.windowSpan', { from, to });
 };
