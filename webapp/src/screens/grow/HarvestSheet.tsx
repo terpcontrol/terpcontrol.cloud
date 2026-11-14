@@ -2,10 +2,10 @@ import { DateTime } from 'luxon';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import type { GrowListItem, Plant } from '@fg2/shared-types/v1';
+import type { Entry, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useUpdateGrow } from '@/api/grows';
-import { useHarvest, useTakeHarvestBack } from '@/api/lifecycle';
+import { useHarvest, useHarvests, useTakeHarvestBack } from '@/api/lifecycle';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
@@ -25,10 +25,9 @@ import styles from './Lifecycle.module.css';
  * The two weights are totals for what came down together, because that is what
  * a scale says; the model keeps a weight per plant so that a staggered harvest
  * adds up instead of being counted twice, so the server shares the total out
- * over the plants named. The sheet says so beforehand, and once it is opened
- * again lists what each plant down ended up with, since that share is the
- * server's arithmetic and not something the sheet should be trusted to have
- * guessed.
+ * over the plants named. The sheet says so beforehand; once it is opened again
+ * it lists what came down as the diary does - each harvest with its plants and
+ * the amounts typed in -, the one yield every page states.
  *
  * The last plant to come down ends the grow, on the day of the harvest rather
  * than the day it was typed in. That is the one thing here that cannot be taken
@@ -71,6 +70,7 @@ export function HarvestSheet({
 
   const standing = plants.filter(plant => plant.status === 'active' && plant.harvest === null);
   const alreadyDown = plants.filter(plant => plant.harvest !== null);
+  const harvests = useHarvests(grow.id).data?.items ?? [];
   const cut = chosen === null ? standing : standing.filter(plant => chosen.includes(plant.id));
   // The server's own rule for the grow ending, read the same way round: every
   // plant is either coming down now or was never standing.
@@ -174,15 +174,15 @@ export function HarvestSheet({
           </button>
         )}
 
-        {alreadyDown.length === 0 ? null : (
+        {harvests.length === 0 ? null : (
           <Block label={t('grow.lifecycle.harvest.alreadyDown')}>
             <ul className={ui.list}>
-              {alreadyDown.map(plant => (
-                <li key={plant.id} className={styles.row} data-dim>
+              {[...harvests].reverse().map(line => (
+                <li key={line.id} className={styles.row} data-dim>
                   <div className={ui.headRow}>
-                    <span className={styles.rowTitle}>{plant.label}</span>
+                    <span className={styles.rowTitle}>{namesOf(line, plants)}</span>
                     <span className={styles.rowMeta}>
-                      {plant.harvest ? calendarDay(plant.harvest.harvestedAt, zone) : ''} · {weightLine(t, plant)}
+                      {calendarDay(line.occurredAt, zone)} · {weightLine(t, line)}
                     </span>
                   </div>
                 </li>
@@ -290,11 +290,20 @@ const shareNote = (t: Translate, count: number, wet: number | null, dry: number 
   return parts.filter(Boolean).join(' · ');
 };
 
-const weightLine = (t: Translate, plant: Plant): string => {
-  if (!plant.harvest) return '';
+/** The plants a harvest line names, as they are called now. */
+const namesOf = (line: Entry, plants: Plant[]): string =>
+  plants
+    .filter(plant => line.plantIds.includes(plant.id))
+    .map(plant => plant.label)
+    .join(', ');
+
+/** "nass 100 g · trocken 22 g": what was typed in for a harvest, as its line in the diary says it. */
+const weightLine = (t: Translate, line: Entry): string => {
+  if (line.values.kind !== 'harvest') return '';
+  const { wetWeightG, dryWeightG } = line.values;
   const parts = [
-    plant.harvest.wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(plant.harvest.wetWeightG) }),
-    plant.harvest.dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(plant.harvest.dryWeightG) }),
+    wetWeightG === null ? '' : t('grow.report.wet', { grams: looseFigure(wetWeightG) }),
+    dryWeightG === null ? '' : t('grow.report.dry', { grams: looseFigure(dryWeightG) }),
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' · ') : t('grow.lifecycle.harvest.noWeight');

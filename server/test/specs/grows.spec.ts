@@ -1,5 +1,6 @@
-import { anonymous, createAccount, Session } from '../support/api';
+import { anonymous, createAccount, Session, unique } from '../support/api';
 import { claimCodeOf, registerDevice } from '../support/device';
+import { shareLinkOnGrow } from '../support/fixtures';
 
 /**
  * A grow over HTTP: the new-grow sheet, the phase it enters, and the move that
@@ -263,6 +264,46 @@ describe('harvesting', () => {
     const lines = (await owner.client.get(`/v1/entries?growId=${grow.id}&kinds=harvest`).expect(200)).body.items;
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ plantIds: [plants[2]], values: { kind: 'harvest', wetWeightG: 200, dryWeightG: 41 } });
+  });
+
+  /**
+   * The harvest that ends a grow is dated to the instant the grow ended, where its last day ends: read up to that
+   * instant and not through it, the owner's diary and a link's left out the line that ended the grow.
+   */
+  it('ends the diary of the grow it ended, the owner´s and a link´s', async () => {
+    const grow = await startAGrow();
+    const cut = await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45, dryWeightG: 9 }).expect(201);
+    const token = unique('ended-by-harvest');
+    await shareLinkOnGrow(grow.id, token);
+
+    const linesOf = (page: { items: { days: { entries: { id: string }[] }[] }[] }) =>
+      page.items.flatMap(week => week.days.flatMap(day => day.entries.map(line => line.id)));
+    const own = (await owner.client.get(`/v1/grows/${grow.id}/diary`).expect(200)).body;
+    const linked = (await anonymous().get(`/v1/grows/${grow.id}/diary`).set('X-Share-Token', token).expect(200)).body;
+
+    expect(linesOf(own)).toContain(cut.body.entryId);
+    expect(linesOf(linked)).toContain(cut.body.entryId);
+  });
+
+  /**
+   * One yield everywhere, what was weighed: the amounts typed into the harvests' lines. A plant deleted from a harvest
+   * of two kept the line as typed, while the report added up the plants' shares and dropped the deleted one's.
+   */
+  it('states what was typed in on every page, after a plant weighed with others is deleted', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0], plants[1]], wetWeightG: 100, dryWeightG: 22 })
+      .expect(201);
+    await owner.client.delete(`/v1/plants/${plants[1]}`).expect(204);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45, dryWeightG: 9 }).expect(201);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const card = (await owner.client.get('/v1/home/grows').expect(200)).body.items.find((one: { growId: string }) => one.growId === grow.id);
+
+    expect(report.harvest).toMatchObject({ wetWeightG: 145, dryWeightG: 31 });
+    expect(card.harvest).toMatchObject({ wetWeightG: 145, dryWeightG: 31 });
   });
 
   /**

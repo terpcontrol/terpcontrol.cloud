@@ -891,6 +891,22 @@ describe('harvesting', () => {
     expect(line?.spaceId).toBe(TENT);
   });
 
+  /** Every page's yield is read from the harvest lines, so a weight corrected on a plant moves its line by as much. */
+  it('moves the harvest line by what a plant´s weight was corrected by on the plant', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const cut = await grows.harvest(grow.id, { plantIds: [plants[0].id, plants[1].id], wetWeightG: 100, dryWeightG: null }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePlant(
+      plants[0].id,
+      { harvest: { harvestedAt: cut.plants[0].harvest!.harvestedAt, wetWeightG: 60, dryWeightG: 12 } },
+      NOTHING_HIDDEN,
+    );
+
+    const line = await db.entries.findOne({ id: cut.entryId }).lean();
+    expect(line?.values).toMatchObject({ kind: 'harvest', wetWeightG: 110, dryWeightG: 12 });
+  });
+
   it('refuses a plant that has already come down, so the report cannot count it twice', async () => {
     const grow = await started();
     const plants = await plantsOfGrow(grow.id);

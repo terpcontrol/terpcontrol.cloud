@@ -782,8 +782,27 @@ describe('the report', () => {
     expect(seen.totals.photoCount).toBe(0);
   });
 
+  /** A harvest as the route writes it: the plants it cut with their shares, and its line with the totals typed in. */
+  const harvested = async (
+    plantIds: string[],
+    day: number,
+    wet: number,
+    dry: number,
+    shares = plantIds.map(() => [wet / plantIds.length, dry / plantIds.length]),
+  ) => {
+    for (const [index, plantId] of plantIds.entries()) {
+      await db.plants.updateOne(
+        { id: plantId },
+        { $set: { status: 'harvested', harvest: { harvestedAt: onDay(day), wetWeightG: shares[index][0], dryWeightG: shares[index][1] } } },
+      );
+    }
+    await db.entries.create(
+      entry({ growId: GROW, kind: 'harvest', plantIds, occurredAt: onDay(day), values: { kind: 'harvest', wetWeightG: wet, dryWeightG: dry } }),
+    );
+  };
+
   it('adds the harvest up and strips the weights from a reader the owner hides them from', async () => {
-    await db.plants.updateOne({ id: PLANT }, { $set: { harvest: { harvestedAt: onDay(34), wetWeightG: 480, dryWeightG: 96 } } });
+    await harvested([PLANT], 34, 480, 96);
     await db.users.updateOne({ id: OWNER }, { $set: { privacy: { hideWeights: true, hideCounts: true } } });
     await db.grows.updateOne({ id: GROW }, { $set: { visibility: 'public' } });
 
@@ -797,14 +816,24 @@ describe('the report', () => {
   });
 
   it('names the plants a harvest is of while another still grows, and is the grow´s once the last one is cut', async () => {
-    await db.plants.updateOne({ id: PLANT }, { $set: { status: 'harvested', harvest: { harvestedAt: onDay(34), wetWeightG: 480, dryWeightG: 96 } } });
+    await harvested([PLANT], 34, 480, 96);
     expect((await report.read(GROW, await grantFor(session(OWNER)), NOW)).harvest).toMatchObject({ plantIds: [PLANT], wetWeightG: 480 });
 
-    await db.plants.updateOne(
-      { id: 'plant-2' },
-      { $set: { status: 'harvested', harvest: { harvestedAt: onDay(35), wetWeightG: 20, dryWeightG: 4 } } },
-    );
+    await harvested(['plant-2'], 35, 20, 4);
     expect((await report.read(GROW, await grantFor(session(OWNER)), NOW)).harvest).toMatchObject({ plantIds: [], wetWeightG: 500, dryWeightG: 100 });
+  });
+
+  /**
+   * One yield everywhere: what was typed into the harvests' lines. A plant deleted from a harvest of several took its
+   * share off the plants' records while the line kept what the scale said, and the Bericht read 95 g over a diary of
+   * 145 g.
+   */
+  it('states what the harvests´ lines were typed with, whatever became of the plants a weight was shared over', async () => {
+    // Weighed with a plant deleted since: the line names only the one left, and that one holds half of the weight.
+    await harvested([PLANT], 34, 100, 22, [[50, 11]]);
+    await harvested(['plant-2'], 35, 45, 9);
+
+    expect((await report.read(GROW, await grantFor(session(OWNER)), NOW)).harvest).toMatchObject({ wetWeightG: 145, dryWeightG: 31 });
   });
 
   it('reads one window per chapter rather than one per week', async () => {

@@ -16,7 +16,7 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction, growUpTo, harvestOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { DIARY_KINDS, serialiseDiaryEntry, writtenFor } from './diary-entries';
-import { horizonOf } from './grow-calendar';
+import { horizonOf, linesOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
 /**
@@ -115,7 +115,7 @@ export class GrowReportService {
       filmMediaId: grow.filmMediaId,
       // Newest first, which is the order the chapters are read in.
       phases: told.reverse(),
-      harvest: harvestOf(plants, hide, range),
+      harvest: harvestOf(plants, diary, hide, range),
       totals,
       people,
     };
@@ -135,7 +135,8 @@ export class GrowReportService {
     const { grow, horizon } = world;
     const seen = seenOf({ startsAt: chapter.startsAt, endsAt: chapter.endsAt ?? horizon }, world.range);
     const spaceIds = spacesDuring(grow, seen.startsAt, seen.endsAt);
-    const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
+    const lines = linesOf(grow, seen);
+    const entries = world.diary.filter(entry => entry.occurredAt >= lines.startsAt && entry.occurredAt < lines.endsAt);
 
     const controllers = await this.climate.controllersIn(spaceIds, seen);
     const [climate, coverMediaId] = await Promise.all([

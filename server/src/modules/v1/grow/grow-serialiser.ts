@@ -13,10 +13,12 @@ import type {
   PlantLabel,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
+import type { Model } from 'mongoose';
 import { growDayAt, growDayUpTo, growOriginOf, growWeekOfDay, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange } from '@common/v1/access.types';
 import { outsideRange } from '@common/v1/range';
 import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import type { Moved } from './grow-moved';
 
@@ -347,20 +349,45 @@ export const serialiseGrow = (
   summary: summaryOf(grow, plants, hide, zone, now),
 });
 
+/** The harvest lines of some grows, which is what `harvestOf` adds up. */
+export const harvestLinesOf = (
+  entries: Model<EntryDocument>,
+  growIds: string[],
+): Promise<Pick<EntryDocument, 'growId' | 'occurredAt' | 'values' | 'plantIds'>[]> =>
+  entries
+    .find({ growId: { $in: growIds }, kind: 'harvest' }, { growId: 1, occurredAt: 1, values: 1, plantIds: 1 })
+    .lean<Pick<EntryDocument, 'growId' | 'occurredAt' | 'values' | 'plantIds'>[]>();
+
 /**
  * One harvest for the whole grow: when the first plant came down, and what the
- * lot weighed. The report and the public page both state it, and a weight that
- * two places worked out separately is a weight one of them could state wrongly.
+ * lot weighed. The report, the grows list and the public page all state it, and
+ * a weight that two places worked out separately is a weight one of them could
+ * state wrongly.
+ *
+ * What was weighed is the amounts typed into the harvest's lines, as the diary
+ * states them, never the plants' shares added up: a plant deleted from a harvest
+ * of several takes its share with it while the line keeps what the scale said
+ * (Chris, 2026-11-14), and three pages gave three yields.
  *
  * A harvest is dated, so it belongs to the window like any other line: a plant
  * that came down after a link's window closed has not come down as far as that
  * link is concerned, and a grow whose whole harvest falls outside it has none to
  * state.
  */
-export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
+export const harvestOf = (
+  plants: readonly PlantDocument[],
+  lines: readonly Pick<EntryDocument, 'occurredAt' | 'values' | 'plantIds'>[],
+  hide: Redaction,
+  range: AccessRange,
+): GrowHarvest | null => {
   const cut = plants.filter(plant => plant.harvest && !outsideRange(plant.harvest.harvestedAt, range));
-  const harvested = cut.map(plant => plant.harvest!);
-  if (harvested.length === 0) return null;
+  // A plant weighed on the plant alone, without a harvest line naming it, counts by its own weights.
+  const unlined = cut.filter(plant => !lines.some(line => line.plantIds.includes(plant.id))).map(plant => plant.harvest!);
+  const weighed = lines.flatMap(line =>
+    line.values.kind === 'harvest' && !outsideRange(line.occurredAt, range) ? [{ ...line.values, at: line.occurredAt }] : [],
+  );
+  const dates = [...cut.map(plant => plant.harvest!.harvestedAt), ...weighed.map(line => line.at)];
+  if (dates.length === 0) return null;
   // The grow is harvested when its last plant is; till then the harvest is the plants'.
   const growing = plants.some(plant => plant.status !== 'ended' && !cut.includes(plant));
 
@@ -368,9 +395,9 @@ export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, ran
     weights.some(weight => weight !== null) ? weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0) : null;
 
   return {
-    harvestedAt: new Date(Math.min(...harvested.map(one => one.harvestedAt.getTime()))).toISOString(),
-    wetWeightG: hide.weights ? null : total(harvested.map(one => one.wetWeightG)),
-    dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
+    harvestedAt: new Date(Math.min(...dates.map(date => date.getTime()))).toISOString(),
+    wetWeightG: hide.weights ? null : total([...weighed, ...unlined].map(one => one.wetWeightG)),
+    dryWeightG: hide.weights ? null : total([...weighed, ...unlined].map(one => one.dryWeightG)),
     plantIds: growing ? cut.map(plant => plant.id) : [],
   };
 };

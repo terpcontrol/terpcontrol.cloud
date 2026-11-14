@@ -424,10 +424,34 @@ export class GrowsService {
       if (value !== undefined) changes[field] = field === 'harvest' ? storedHarvestOf(body.harvest) : value;
     }
 
-    const changed = await this.plants.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<PlantDocument>();
-    if (!changed) throw notFound('plant_not_found', 'There is no plant with that id.');
+    const before = await this.plants.findOneAndUpdate({ id }, { $set: changes }).lean<PlantDocument>();
+    if (!before) throw notFound('plant_not_found', 'There is no plant with that id.');
+    const changed: PlantDocument = { ...before, ...changes };
+    if (before.harvest && changed.harvest) await this.reweigh(before, changed.harvest);
 
     return serialisePlant(changed, hide);
+  }
+
+  /**
+   * A plant's weight corrected on the plant moves the harvest line that names it by as much: every page's yield is
+   * read from the lines (`harvestOf`), which keep what was typed for the plants a weight was shared over. A line that
+   * was typed without a weight takes the plant's.
+   */
+  private async reweigh(plant: PlantDocument, after: NonNullable<PlantDocument['harvest']>): Promise<void> {
+    const line = await this.entryRows.findOne({ growId: plant.growId, kind: 'harvest', plantIds: plant.id }).lean<EntryDocument>();
+    if (line?.values.kind !== 'harvest') return;
+
+    const moved = (typed: number | null, was: number | null, now: number | null): number | null =>
+      was === now ? typed : typed === null ? now : round(typed - (was ?? 0) + (now ?? 0));
+    await this.entryRows.updateOne(
+      { id: line.id },
+      {
+        $set: {
+          'values.wetWeightG': moved(line.values.wetWeightG, plant.harvest!.wetWeightG, after.wetWeightG),
+          'values.dryWeightG': moved(line.values.dryWeightG, plant.harvest!.dryWeightG, after.dryWeightG),
+        },
+      },
+    );
   }
 
   public async removePlant(id: string): Promise<void> {

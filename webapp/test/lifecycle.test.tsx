@@ -422,16 +422,44 @@ describe('the harvest sheet', () => {
     vi.unstubAllGlobals();
   });
 
-  it('keeps a plant that has already come down on the list, dimmed and unpickable, with what it weighed', () => {
+  /**
+   * What came down is said as the diary says it: the harvest's line with the amounts typed in. Gelato 1 was weighed
+   * with a plant deleted since, whose share the plant's own record lost - the line kept what the scale said, and
+   * "Bereits geerntet" read half of it while the diary and the Bericht read the whole.
+   */
+  it('keeps a plant that has already come down on the list, dimmed and unpickable, and says what its harvest weighed as typed', async () => {
+    const asked: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        asked.push(String(input));
+        return json({
+          items: [
+            {
+              id: 'harvest-1',
+              kind: 'harvest',
+              source: 'human',
+              occurredAt: at(1),
+              plantIds: ['plant-3'],
+              values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 },
+            },
+          ],
+          nextCursor: null,
+        });
+      }),
+    );
     const down = [
       plants[0],
       plants[1],
-      plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 90, dryWeightG: null } }),
+      plant('plant-3', 'Gelato 1', { status: 'harvested', harvest: { harvestedAt: at(1), wetWeightG: 50, dryWeightG: 11 } }),
     ];
     drawHarvest(<HarvestSheet grow={grow} plants={down} onClose={() => {}} />);
 
     expect(screen.getByRole('button', { name: 'Gelato 1' })).toBeDisabled();
-    expect(screen.getByText(/wet 90 g/)).toBeInTheDocument();
+    expect(await screen.findByText(/wet 100 g · dry 22 g/)).toBeInTheDocument();
+    expect(screen.queryByText(/wet 50 g/)).not.toBeInTheDocument();
+    expect(asked.some(url => url.includes('kinds=harvest') && url.includes('growId=grow-1'))).toBe(true);
+    vi.unstubAllGlobals();
   });
 });
 

@@ -35,6 +35,16 @@ const DAYS_A_WEEK = 7;
 /** The last instant the grow has anything to say about: the day it ended, or now. */
 export const horizonOf = (grow: GrowDocument, now: Date): Date => grow.endedAt ?? now;
 
+/**
+ * The lines of a span of the grow, its end instant among them where that end is the grow's own: the harvest that
+ * ends a grow is dated to the instant it ended (and a line may be written up to it), so it is the grow's last line
+ * rather than the first of a day the grow never had.
+ */
+export const linesOf = (grow: Pick<GrowDocument, 'endedAt'>, span: Span): Span =>
+  grow.endedAt !== null && span.endsAt.getTime() === grow.endedAt.getTime()
+    ? { startsAt: span.startsAt, endsAt: new Date(span.endsAt.getTime() + 1) }
+    : span;
+
 /** Where the date an instant falls on begins, on the owner's calendar. */
 export const dateStartOf = (at: Date, zone: string | null): Date => localOf(at, zone).startOf('day').toJSDate();
 

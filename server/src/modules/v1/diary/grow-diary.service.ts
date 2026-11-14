@@ -22,7 +22,7 @@ import { GrowsService } from '../grow/grows.service';
 import { dayClimateOf } from './day-climate';
 import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, stretchEvent, toldOf, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
-import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, middayOf, weeksAfter } from './grow-calendar';
+import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, linesOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService, RecordedController } from './grow-climate.service';
 import type { DeviceChange } from '../timeline/place-history';
 
@@ -239,7 +239,7 @@ export class GrowDiaryService {
         : null,
       events: outsider ? [] : [...events, ...switched, ...world.changes.filter(change => within(seen, new Date(change.at)))].sort(byInstant),
       entries: world.lines
-        .filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt)
+        .filter(entry => within(linesOf(world.grow, seen), entry.occurredAt))
         .map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
     };
   }
@@ -254,7 +254,8 @@ export class GrowDiaryService {
    * stretches and not as lines.
    */
   private async linesIn(grow: GrowDocument, grant: Grant, span: Span, spaceIds: string[]): Promise<ReturnType<typeof toldOf>> {
-    const during = { occurredAt: { $gte: span.startsAt, $lt: span.endsAt } };
+    const lived = linesOf(grow, span);
+    const during = { occurredAt: { $gte: lived.startsAt, $lt: lived.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries
         .find({ growId: grow.id, kind: { $in: DIARY_KINDS }, ...during, ...writtenFor(grant) })

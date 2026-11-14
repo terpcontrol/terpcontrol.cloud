@@ -143,6 +143,17 @@ const world = async (): Promise<void> => {
     },
     { id: 'running-1', growId: RUNNING, strain: 'Zkittlez', label: 'Zkittlez 1', status: 'active', createdAt: day('2026-09-01') },
   ]);
+  // What was weighed, as the harvest typed it in: the yield every page states.
+  await db.entries.create({
+    id: 'spring-harvest',
+    kind: 'harvest',
+    source: 'human',
+    authorId: OWNER,
+    growId: SPRING,
+    plantIds: ['spring-1', 'spring-2', 'spring-3'],
+    occurredAt: day('2026-06-01'),
+    values: { kind: 'harvest', wetWeightG: 1700, dryWeightG: 386 },
+  });
 };
 
 beforeEach(async () => {

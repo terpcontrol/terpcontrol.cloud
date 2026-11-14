@@ -422,6 +422,26 @@ describe('the days of a diary', () => {
   });
 });
 
+describe('an ended grow', () => {
+  /**
+   * The harvest that ends a grow is dated to the instant it ended, and the last day ended there: read up to that
+   * instant and not through it, the diary left out the line that ended it.
+   */
+  it('ends its diary with the harvest that ended it', async () => {
+    const END = berlin(11, '13:49');
+    await db.grows.updateOne({ id: GROW }, { $set: { endedAt: END } });
+    await db.entries.create(
+      entry({ id: 'harvested', growId: GROW, kind: 'harvest', occurredAt: END, values: { kind: 'harvest', wetWeightG: 45, dryWeightG: 9 } }),
+    );
+
+    const page = await read();
+
+    expect(page.items[0].days[0]).toMatchObject({ dayNumber: 10, endsAt: END.toISOString() });
+    // The evening's note was written after the end, and is not the grow's.
+    expect(dayOf(page, 10).entries.map(line => line.id)).toEqual(['harvested']);
+  });
+});
+
 describe('the calendar a diary is told in', () => {
   it('counts the date the clocks go back on once, twenty-five hours long', () => {
     // Berlin leaves summer time on 25 October 2026.

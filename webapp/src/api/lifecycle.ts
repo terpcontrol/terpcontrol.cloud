@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type {
+  EntryPage,
   HarvestCreate,
   HarvestResult,
   Phase,
@@ -15,6 +16,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { startPhase, takeEntryBack } from './entries';
+import { useRead } from './read';
 import { invalidate, useWrite } from './write';
 
 /**
@@ -93,6 +95,19 @@ export const useWithdrawPlacement = (growId: string) =>
 /** Cutting plants down. The weights are totals; the server shares them out over the plants named. */
 export const useHarvest = (growId: string) =>
   useWrite((body: HarvestCreate) => api.post<HarvestResult>(`/grows/${growId}/harvests`, body), growChanged);
+
+/** More harvests than any grow has: every plant cut on its own day. */
+const HARVEST_LINES = 200;
+
+/**
+ * What came down so far, as the diary says it: each harvest with the plants it names and the amounts typed in -
+ * the yield every page states, never the plants' shares added up.
+ */
+export const useHarvests = (growId: string) =>
+  useRead({
+    queryKey: ['entries', 'harvests', growId],
+    queryFn: ({ signal }) => api.get<EntryPage>('/entries', { growId, kinds: 'harvest', limit: HARVEST_LINES }, signal),
+  });
 
 /**
  * A harvest that did not end the grow, taken back: its plants stand again and its line goes. The one that ended the

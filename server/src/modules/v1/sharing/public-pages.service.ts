@@ -35,7 +35,7 @@ import { GrowReportService } from '../diary/report.service';
 import { GrowDiaryService } from '../diary/grow-diary.service';
 import { growsMoved } from '../grow/grow-moved';
 import { spacesDuring } from '../grow/grow-places';
-import { growUpTo, harvestOf, labelOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
+import { growUpTo, harvestLinesOf, harvestOf, labelOf, redactionOf, serialisePublicCard, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { OverviewService } from '../overview/overview.service';
 import { CardCache, baseUrlOf, cardWords, growSentence, renderCard } from './link-card';
@@ -112,9 +112,10 @@ export class PublicPagesService {
     const until = storyEndsAt(range, now);
     const seen = growUpTo(grow, until);
 
-    const [hide, plants, owner, page, totals, zone] = await Promise.all([
+    const [hide, plants, harvests, owner, page, totals, zone] = await Promise.all([
       this.grows.redaction(grant),
       this.grows.plantsOf(grow.id),
+      harvestLinesOf(this.entries, [grow.id]),
       this.ownerOf(grow.ownerId),
       this.diary.page(grow.id, grant, {}, now),
       this.report.totalsOf(grow.id, grant),
@@ -155,7 +156,7 @@ export class PublicPagesService {
       plants: plants.map(labelOf),
       weeks: page.items,
       weeksCursor: page.nextCursor,
-      harvest: harvestOf(plants, hide, range),
+      harvest: harvestOf(plants, harvests, hide, range),
       totals,
     };
   }
