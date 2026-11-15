@@ -1566,4 +1566,40 @@ describe('what the sheet keeps and says', () => {
     // Once open again it is the view's: another reload keeps what is typed then, and nothing older comes back.
     expect(sessionStorage.getItem('terp.draft')).toBeNull();
   });
+
+  /**
+   * A watering for a plant deleted while its sheet stood open was refused: the sheet closed with the litres typed into
+   * it, and the toast offered to try again - which sent the gone plant again. The sheet opens again on what was typed,
+   * about the grow, and the toast says why and offers nothing to retry.
+   */
+  it('opens a line refused for a plant deleted meanwhile again, without that plant, and offers no retry', async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Gelato 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Water/ }));
+    const water = await screen.findByRole('dialog', { name: 'Water' });
+    fireEvent.change(within(water).getByRole('textbox', { name: 'Water in litres' }), { target: { value: '3.5' } });
+    vi.mocked(api.post).mockRejectedValueOnce(
+      new ApiError({ status: 404, code: 'plant_not_found', title: 'Not found', detail: 'There is no plant with that id.', errors: [] }),
+    );
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/grows/grow-1/plants' ? { ...plants, items: plants.items.filter(plant => plant.id !== 'plant-2') } : answers(path),
+        ) as never,
+    );
+    fireEvent.click(within(water).getByRole('button', { name: /^Save/ }));
+
+    expect(await screen.findByText('That plant no longer exists. The entry is not saved and stands open again without it.')).toBeInTheDocument();
+    const again = await screen.findByRole('dialog', { name: 'Water' });
+    expect(within(again).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('3.5');
+    expect(within(again).getByText(/Spring run/)).toBeInTheDocument();
+    expect(within(again).queryByText(/Gelato 1/)).not.toBeInTheDocument();
+    // Neither the release's words nor a way to send the gone plant again.
+    expect(within(again).queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(again).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.post).mock.calls[1][1]).toMatchObject({ plantIds: undefined, values: { kind: 'water', litres: 3.5 } });
+  });
 });

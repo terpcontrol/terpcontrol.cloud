@@ -633,7 +633,6 @@
     },
     "entrySchemeWeek": "scheme week {{week}}",
     "entryRepeatsUntil": "{{count}}× until {{until}}",
-    "readingOfGone": "{{reading}} of a deleted plant",
     "retrying": "Trying …"
   },
   "me": {
@@ -2075,6 +2074,7 @@
     "lastTime": "Last time {{ago}} · {{litres}} L",
     "plantLabel": "Which plant",
     "plantGone": "deleted plant",
+    "plantRefused": "That plant no longer exists. The entry is not saved and stands open again without it.",
     "plantsGone_one": "And one deleted plant: the line still names it, as written.",
     "plantsGone_other": "And {{count}} deleted plants: the line still names them, as written.",
     "linePlants": "Which plants",
@@ -2234,6 +2234,7 @@
       "device": "The device in the address is not in this place. This is the place with its own device.",
       "grow": "The grow in the address was never in this place. This is the place without it.",
       "growNoPlace": "“{{name}}” has no place and so no climate curves. What you measured by hand has its curves under",
+      "toPlace": "Timeline of {{place}}",
       "compare": "The comparison in the address is no longer there. Shown is the place alone."
     },
     "meanOver": "mean {{from}}–{{to}}",

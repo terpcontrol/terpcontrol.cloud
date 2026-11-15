@@ -1,6 +1,6 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Entry, SpaceTimeline } from '@fg2/shared-types/v1';
+import type { Entry, Plant, SpaceTimeline } from '@fg2/shared-types/v1';
 import { dayLines, forwardsOf } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { readingNamesOf } from '@/ui/entries';
@@ -26,6 +26,8 @@ interface DiaryCardProps {
   byline: boolean;
   /** Writes a note dated to the cursor, where the reader may: the instant in words, and the way to the sheet. */
   note: { at: string; write: () => void } | null;
+  /** The plants of the grow the page is of, where the reader is told them: a line about some of them names those. */
+  plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
 }
 
 /**
@@ -33,7 +35,7 @@ interface DiaryCardProps {
  * maintenance as one line, the moment another device took over the measuring - oldest first, the way the curves above run. A line's stamp sets
  * the cursor on its moment; its words open its correction, as everywhere a line is read.
  */
-export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }: DiaryCardProps) {
+export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, plants }: DiaryCardProps) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const [all, setAll] = useKept('timeline-lines', false);
@@ -78,6 +80,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note }:
                 onOpen={entry ? (correct?.(entry) ?? null) : null}
                 onStamp={() => onCursor(Math.max(window.from, at(line.at)))}
                 forwards
+                plants={plants}
                 stampDoes={t('timeline.diary.toMoment')}
               />
             );

@@ -645,7 +645,6 @@
     },
     "entrySchemeWeek": "Schema-Woche {{week}}",
     "entryRepeatsUntil": "{{count}}× bis {{until}}",
-    "readingOfGone": "{{reading}} einer gelöschten Pflanze",
     "retrying": "Versucht es …"
   },
   "me": {
@@ -2085,6 +2084,7 @@
     "lastTime": "Zuletzt {{ago}} · {{litres}} L",
     "plantLabel": "Welche Pflanze",
     "plantGone": "gelöschte Pflanze",
+    "plantRefused": "Diese Pflanze gibt es nicht mehr. Der Eintrag ist nicht gespeichert und steht ohne sie wieder offen.",
     "plantsGone_one": "Dazu eine gelöschte Pflanze: Die Zeile nennt sie weiter, wie geschrieben.",
     "plantsGone_other": "Dazu {{count}} gelöschte Pflanzen: Die Zeile nennt sie weiter, wie geschrieben.",
     "linePlants": "Welche Pflanzen",
@@ -2244,6 +2244,7 @@
       "device": "Das Gerät aus der Adresse steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
       "grow": "Der Grow aus der Adresse stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
       "growNoPlace": "„{{name}}“ hat keinen Ort und damit keine Klimakurven. Was du von Hand gemessen hast, steht als Kurve unter",
+      "toPlace": "Verlauf von {{place}}",
       "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."
     },
     "meanOver": "Mittel {{from}}–{{to}}",

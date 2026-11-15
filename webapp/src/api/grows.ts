@@ -1,3 +1,4 @@
+import { queryOptions } from '@tanstack/react-query';
 import { useRead, useReadPages } from './read';
 import type {
   EntryPage,
@@ -41,12 +42,14 @@ export const useGrow = (growId: string | null) =>
     enabled: growId !== null,
   });
 
-export const useGrowPlants = (growId: string | null) =>
-  useRead({
+/** A grow's plants: read by the pages, and asked again where a line was refused for a plant deleted meanwhile. */
+export const growPlantsQuery = (growId: string | null) =>
+  queryOptions({
     queryKey: ['grow', growId, 'plants'],
     queryFn: ({ signal }) => api.get<PlantPage>(`/grows/${growId}/plants`, undefined, signal),
-    enabled: growId !== null,
   });
+
+export const useGrowPlants = (growId: string | null) => useRead({ ...growPlantsQuery(growId), enabled: growId !== null });
 
 /** How many weeks "Frühere Wochen" asks for: two months, which is what somebody looking back wants in one step. */
 export const EARLIER_WEEKS = 8;

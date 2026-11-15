@@ -2,13 +2,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
-import type { Entry } from '@fg2/shared-types/v1';
+import type { Entry, GrowListItem } from '@fg2/shared-types/v1';
 import { completeTask, diaryChanged, takeEntryBack } from '@/api/entries';
+import { growPlantsQuery } from '@/api/grows';
 import { ApiError } from '@/api/problem';
 import { LogContext, type CompleteOptions, type LogOpening, type LogRequest, type LogTarget, type TileKind, type Told } from './log-context';
 import { LogSheet } from './LogSheet';
 import { EntryDetails } from './EntryDetails';
-import { forgetDraft, keptDraft, type Draft } from './draft';
+import { forgetDraft, keptDraft, openDraft, type Draft } from './draft';
 import { PhotoEntry } from './PhotoEntry';
 import { HarvestWeights } from '@/screens/grow/HarvestWeights';
 import { lastUsed, withRoom } from './toast-room';
@@ -138,6 +139,53 @@ export function LogProvider({ children }: { children: ReactNode }) {
     [change, client, i18n],
   );
 
+  /**
+   * A new line refused because a plant it names was deleted while its sheet stood open: sent again it is refused
+   * again, and the litres typed went with the closed sheet. The sheet opens again on what it held, without the plants
+   * that are gone - a line about one of them is about its grow -, and the toast says why, offering nothing to retry.
+   */
+  const without = useCallback(
+    async (key: number, { kind, target, draft = null }: NonNullable<LoggedLine['details']>, error: unknown) => {
+      const growId = target.growId;
+      const plants = growId ? await client.fetchQuery({ ...growPlantsQuery(growId), staleTime: 0 }).catch(() => null) : null;
+      if (!growId || !plants) return change(key, { state: 'failed', failure: 'write', reason: reasonOf(error), final: true });
+
+      const there = (plantId: string) => plants.items.some(plant => plant.id === plantId);
+      // A reading's field is its key and its plant's id (`slotOf`); one of no plant is the line's.
+      const kept = (slot: string) => {
+        const plantId = slot.split('|')[1];
+        return !plantId || there(plantId);
+      };
+      const aimed = target.plantIds.every(there)
+        ? target
+        : {
+            ...target,
+            key: `grow:${growId}`,
+            label: client.getQueryData<GrowListItem>(['grow', growId])?.name ?? target.label,
+            plantIds: target.plantIds.filter(there),
+          };
+      change(key, saying(i18n.t('log.plantRefused')));
+      setOpening(null);
+      setDetails({
+        kind,
+        target: aimed,
+        entry: null,
+        at: draft?.at ? new Date(draft.at) : null,
+        from: null,
+        taskId: draft?.taskId ?? null,
+        draft: draft && {
+          ...draft,
+          target: aimed,
+          plantIds: draft.plantIds.filter(there),
+          shown: draft.shown.filter(kept),
+          readings: Object.fromEntries(Object.entries(draft.readings).filter(([slot]) => kept(slot))),
+          refused: true,
+        },
+      });
+    },
+    [change, client, i18n],
+  );
+
   /** One attempt at one line. Undo pressed meanwhile is remembered here, so the line is taken back as soon as it exists. */
   const attempt = useCallback(
     (key: number, send: LogRequest['send'], changed?: LogRequest['changed']) => {
@@ -151,12 +199,14 @@ export function LogProvider({ children }: { children: ReactNode }) {
         // Nothing answered - the request never got out, which a browser reports as a TypeError: the line waits, and
         // says so, until the connection is back.
         error => {
+          const line = standing.current.find(one => one.key === key);
+          if (plantGone(error) && line?.details && !takenBack.current.has(key)) return void without(key, line.details, error);
           const waiting = error instanceof TypeError || navigator.onLine === false;
           change(key, { state: 'failed', failure: 'write', reason: waiting ? t('log.noConnection') : reasonOf(error), waiting });
         },
       );
     },
-    [change, client, t, undo],
+    [change, client, t, undo, without],
   );
 
   // A line written without a connection is sent by itself when the connection returns while the app is open.
@@ -184,7 +234,8 @@ export function LogProvider({ children }: { children: ReactNode }) {
         revert: null,
         undone: request.undone,
         answers: lastUsed(),
-        details: request.details ?? null,
+        // What the open sheet held typed, for a refusal that opens it again.
+        details: request.details ? { ...request.details, draft: openDraft() } : null,
         state: 'saving',
         undoable: request.undoable ?? true,
         undoUntil: null,
@@ -308,5 +359,8 @@ const reasonOf = (error: unknown): string | null => (error instanceof ApiError ?
 
 /** The toast's Details: the line that was just written, opened in the tile it came from. */
 const openDetailsOf = (setDetails: (details: Details) => void) => (line: LoggedLine) => {
-  if (line.details) setDetails({ ...line.details, entry: line.entry, at: null, from: null });
+  if (line.details) setDetails({ kind: line.details.kind, target: line.details.target, entry: line.entry, at: null, from: null });
 };
+
+/** A refusal because a plant the line names is gone. */
+const plantGone = (error: unknown): boolean => error instanceof ApiError && error.problem.code === 'plant_not_found';

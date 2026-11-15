@@ -160,7 +160,8 @@ string exists in English and German, with no English left in the German catalogu
   "the code on the display"); the code and the contract keep `claim`. "Übernehmen" stays for what it means
   elsewhere: applying a preset or a choice, a device taking a setting.
 - **A plant deleted after a line named it is "gelöschte Pflanze"** / "deleted plant" - in the correction sheet, and
-  in the diary "pH 5,9 einer gelöschten Pflanze". **A guest's role is said as what they may do**: "wer … steuern
+  in the diary beside its reading, "pH 5,9 · gelöschte Pflanze", as a living plant's reading is "pH 6,1 · Haze 1";
+  a unit that only repeats the reading's name is not said. **A guest's role is said as what they may do**: "wer … steuern
   darf" on Start, Steuerung and Aufgaben alike, as the role is "darf steuern". **Every window title ends "· Terp
   Control"**, in the app and on its public pages (`windowTitle`). (The fifth whole-app walk.)
 - **Giving a device up** asks "Gerät abgeben?", answers yes with "Abgeben" and says "… ist abgegeben und kann

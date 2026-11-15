@@ -346,11 +346,49 @@ describe('a line about some of a grow´s plants', () => {
     });
     const ph = [{ key: 'ph', name: 'pH', unit: '' }];
     const { container, rerender } = render(<Words entry={measured} people={[]} measurements={ph} plants={plants} />);
-    expect(container.textContent).toMatch(/A1 · pH 6\.2 · pH 5\.9 of a deleted plant/);
+    expect(container.textContent).toMatch(/A1 · pH 6\.2 · A1 · pH 5\.9 · deleted plant/);
 
     // A reader not told the grow's plants cannot say which are gone, and says nothing of it.
     rerender(<Words entry={measured} people={[]} measurements={ph} plants={[]} />);
     expect(container.textContent).not.toMatch(/deleted/);
+    cleanup();
+  });
+
+  /**
+   * A round of readings across two plants read "pH 6,1 pH · pH 6,4 pH": the unit repeated the name, and the two
+   * figures stood without their plants. Each says its plant, and its unit only where that is not its name.
+   */
+  it('names the plant of each reading on a line about more than it, and says no unit that repeats the name', () => {
+    const round = entryOf({
+      kind: 'measurement',
+      plantIds: [],
+      values: {
+        kind: 'measurement',
+        readings: [
+          { key: 'ph', value: 6.1, plantId: 'a1' },
+          { key: 'ph', value: 6.4, plantId: 'b2' },
+          { key: 'height', value: 40, plantId: null },
+        ],
+      },
+    });
+    const named = [
+      { key: 'ph', name: 'pH', unit: 'pH' },
+      { key: 'height', name: 'Height', unit: 'cm' },
+    ];
+    const { container, rerender } = render(<Words entry={round} people={[]} measurements={named} plants={plants} />);
+    expect(container.textContent).toMatch(/pH 6\.1 · A1 · pH 6\.4 · B2 · Height 40\u00a0cm/);
+    expect(container.textContent).not.toMatch(/6\.1 pH/);
+
+    // A line about that one plant names it once, at its head.
+    rerender(
+      <Words
+        entry={{ ...round, plantIds: ['a1'], values: { kind: 'measurement', readings: [{ key: 'ph', value: 6.1, plantId: 'a1' }] } }}
+        people={[]}
+        measurements={named}
+        plants={plants}
+      />,
+    );
+    expect(container.textContent).toMatch(/A1 · pH 6\.1$/);
     cleanup();
   });
 });

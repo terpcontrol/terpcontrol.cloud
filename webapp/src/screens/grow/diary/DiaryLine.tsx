@@ -58,7 +58,10 @@ export function DiaryLine({
   /** What a tap on the stamp does, where the list has a use for a line's moment. */
   onStamp?: (() => void) | null;
   stampDoes?: string;
-  /** The list was folded oldest first: a line stands at the first of its run, and the other end of it is until when it went on. */
+  /**
+   * The list was folded oldest first: a line stands at the first of its run, and the other end of it is until when it
+   * went on - except an alarm still open, which stands at its newest firing and says since when, as the diary does.
+   */
   forwards?: boolean;
   /** The plants of the grows these lines belong to, so a line about some of them names those. */
   plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
@@ -92,7 +95,7 @@ export function DiaryLine({
             what.rule,
             device,
             what.count > 1
-              ? forwards
+              ? forwards && !what.stands
                 ? t('home.entryRepeatsUntil', { count: what.count, until: moment(what.since) })
                 : t('home.entryRepeats', { count: what.count, since: moment(what.since) })
               : null,

@@ -1099,9 +1099,16 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   and the view opens on it again with "Die App wurde gerade aktualisiert. Was du hier geschrieben hattest, ist noch
   da." (`log/draft.ts`; a new photo's pictures and a new measurement round are not kept). A line naming a plant
   deleted since is corrected as any other: the sheet calls that plant "gelöschte Pflanze", the diary its reading
-  "pH 5,9 einer gelöschten Pflanze", and a refusal is said in its own words. A reading field shows its unit beside
-  the figure, the time chip keeps its pencil at 320, and Eintrag over an ended grow says that the grow takes no new
-  lines and where this one goes.
+  "pH 5,9 · gelöschte Pflanze", and a refusal is said in its own words. A new line refused because a plant it names
+  was deleted while its sheet stood open is not offered again as it was: the sheet opens again on what was typed,
+  without the plants that are gone - a line about one of them is about its grow -, and the toast says "Diese Pflanze
+  gibt es nicht mehr. Der Eintrag ist nicht gespeichert und steht ohne sie wieder offen." with no "Noch einmal
+  versuchen" (`LogProvider`; the sixth whole-app walk). A reading field shows its unit beside the figure, the time
+  chip keeps its pencil at 320, and Eintrag over an ended grow says that the grow takes no new lines and where this
+  one goes. **A correction's head names the line's grow and the grow's day it falls on**, wherever it was opened -
+  from Verlauf it named the place (`useCorrecting`, `log/corrections.ts`; the sixth whole-app walk). **A reading
+  of one plant names its plant** on a line about more than it - "pH 6,1 · Haze 1 · pH 6,4 · Haze 2" - and no
+  reading repeats its name as its unit ("pH 6,1", never "pH 6,1 pH"; `EntryWords`).
 - **The entry sheet** (`log/LogSheet.tsx`): what the line is about as pills - the places in one row and the
   chosen place's plants in a row of their own, each wrapping where it is longer than the sheet and never cut, so
   a plant's number stays in view beside a long strain name, and the rows wrapping into lines as the harvest
@@ -1547,7 +1554,9 @@ page the same day ("after the walk" below) - none of those is Chris's.
   would be worse (kept after the walk). A bare address that draws the ticks remembered in this browser writes
   them into itself, so a copied address draws the same curves anywhere. A device, a grow or a comparison the
   address names and the place does not have is said in a sentence and dropped; a grow that stands in no place
-  is sent to its page Messwerte, where its hand-measured curves are (after the walk).
+  is sent to its page Messwerte, where its hand-measured curves are (after the walk), and its sentence stands
+  alone, with "Verlauf von Zelt ›" to the chosen place's own page: drawn under it, that place's curves, days and
+  diary read as the grow's, and on a phone nothing named the place (the sixth whole-app walk).
 - **Every stretch of time is three kinds of step away**: the chips 24 Std · 7 Tage · 30 Tage, and Phase · Grow
   where a grow stands; the arrows, back and on by the window's own width and never past now; and the zoom, in and
   out through one ladder of widths - 5 and 20 minutes, an hour, 6 hours, a day, 3, 7, 30 and 90 days, one and
@@ -1747,7 +1756,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   list's stamps are in ("Do 00:39 … 3× bis Do 01:03"; `moment` of `DiaryLine` and `EntryWords`) -, an alarm by
   its rule, open or "behoben" by its newest line ("08:05 Zu feucht · 3× bis 15:04 · behoben"; `dayLines` folds
   newest first whatever it is handed, `forwardsOf` turns the lines; the fifth whole-app walk found the list never
-  saying an alarm was over). A maintenance or regulation off the window cuts is told whole, standing at its true
+  saying an alarm was over). An alarm still open has no end to say: it stands at its newest firing, where
+  Meldungen says it stands open since, and says since when it fired - "09:29 Zu feucht · 5× seit 14:36 ·
+  Luftfeuchte über 60 %"; "bis" its newest read as over. A line or a reading about some plants of the grow the
+  page is of names them, as the grow's diary does (the sixth whole-app walk). A maintenance or regulation off the window cuts is told whole, standing at its true
   start with its true length; its stamp sets the cursor where the window begins, and only one not ended by now
   "läuft". On a phone every panel's Tief and Hoch stand under its name, CO₂'s too. A line's
   stamp sets the cursor on its moment; its words

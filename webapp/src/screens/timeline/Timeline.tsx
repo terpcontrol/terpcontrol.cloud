@@ -3,9 +3,19 @@ import { hashKey, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
-import type { ChartView, Entry, GrowListItem, GrowSeriesPoint, MeasurementDefinition, ShareLink, Space, SpaceTimeline } from '@fg2/shared-types/v1';
+import type {
+  ChartView,
+  Entry,
+  GrowListItem,
+  GrowSeriesPoint,
+  MeasurementDefinition,
+  Plant,
+  ShareLink,
+  Space,
+  SpaceTimeline,
+} from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
-import { useGrow, useGrows, useMeasurementSeries } from '@/api/grows';
+import { useGrow, useGrowPlants, useGrows, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
@@ -103,12 +113,19 @@ interface Own {
   sharing: { grows: GrowListItem[]; spaces: Space[] } | null;
   /** What the address named and the place does not have - a device gone, a grow that never stood here - in a sentence. */
   missing: React.ReactNode;
+  /**
+   * The address named a grow that stands in no place: the page is that sentence alone, and the way on to the place's
+   * own Verlauf - the place's curves, days and diary under it read as the grow's.
+   */
+  away: { place: string; onward: () => void } | null;
   /** That the place has ended and its curves are read only, in a sentence; null for a place in use. */
   ended: string | null;
   correct: (entry: Entry) => (() => void) | undefined;
   /** Opens a note dated to an instant; null where the session may not write here. */
   note: ((time: number) => void) | null;
   byline: boolean;
+  /** The plants of the grow the page is of, so a line or a reading about some of them names those. */
+  plants: readonly Plant[];
 }
 
 interface TimelineProps {
@@ -159,6 +176,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const data = page.data;
   const growId = page.view.growId ?? data?.growId ?? null;
   const grow = useGrow(growId);
+  const plants = useGrowPlants(growId).data?.items;
   const charted = useMemo(() => (grow.data?.measurements ?? []).filter(definition => definition.chart), [grow.data]);
   const series = useMeasurementSeries(
     growId,
@@ -198,6 +216,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
     ],
     known: home.data !== undefined && data !== undefined,
     keeps: user !== null && user.isDemo !== true && !visiting && !ended,
+    away: page.dropped !== null && lost && standsIn(lost) === null ? { place: spaceRow?.name ?? data?.name ?? '', onward: page.forget } : null,
     missing:
       page.dropped === null ? null : lost && standsIn(lost) === null ? (
         // A grow without a place has no climate to draw; what was measured by hand has its curves on its own page.
@@ -217,6 +236,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
     note: mayLog && target && !ended ? time => openDetails('note', target, null, new Date(time)) : null,
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
+    plants: plants ?? [],
   };
 
   return <Screen page={page} spaceId={spaceId} title={title} place={placeName} own={own} />;
@@ -335,6 +355,8 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
     failed,
     refusal: failed ? refusal.error : null,
     dropped,
+    /** The sentence about what the address named has been read, and the place's own page is asked for. */
+    forget: () => setDropped(null),
     change,
     now,
     clock: beat,
@@ -596,6 +618,21 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
     </div>
   );
 
+  if (own?.away) {
+    return (
+      <div className={styles.screen}>
+        <header className={styles.head}>
+          <div className={styles.title}>{title}</div>
+        </header>
+        <p className={`${ui.cardDashed} ${ui.note}`}>{own.missing}</p>
+        <button type="button" className={styles.more} onClick={own.away.onward}>
+          {t('timeline.missing.toPlace', { place: own.away.place })}
+          {'\u00a0›'}
+        </button>
+      </div>
+    );
+  }
+
   if (!data || !model || !window) {
     return (
       <div className={styles.screen}>
@@ -699,6 +736,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         now={now}
         onCursor={setCursor}
         correct={own?.correct}
+        plants={own?.plants}
         byline={own?.byline ?? false}
         note={own?.note && view.at !== null ? { at: cursorStamp(view.at, window, 60, zone), write: () => own.note?.(view.at as number) } : null}
       />

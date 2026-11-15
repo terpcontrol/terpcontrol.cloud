@@ -5,6 +5,7 @@ import type { Entry } from '@fg2/shared-types/v1';
 import { Facts } from '@/ui/Facts';
 import { factsOf } from '@/ui/fact-text';
 import { ANNOUNCER } from '@/ui/live-region';
+import type { Draft } from './draft';
 import type { LogRequest, LogTarget, TileKind } from './log-context';
 import { besideSheet, clearance, GAP, roomFor } from './toast-room';
 import styles from './Toasts.module.css';
@@ -38,12 +39,15 @@ export interface LoggedLine {
   answers: Element | null;
   /** The line could not be sent because nothing answered: it is sent again by itself once the connection is back. */
   waiting?: boolean;
-  details: { kind: TileKind; target: LogTarget } | null;
+  /** The tile it came from, and what its sheet held typed as it was sent - opened again on it where it is refused. */
+  details: { kind: TileKind; target: LogTarget; draft?: Draft | null } | null;
   state: 'saving' | 'saved' | 'failed';
   /** Which thing failed, so Try again knows what to try. */
   failure: 'write' | 'undo' | null;
   /** What the server said when it refused, in its own words; null where the failure has none. */
   reason: string | null;
+  /** Refused for good: sent again it is refused again, so nothing offers to try. */
+  final?: boolean;
   undoing: boolean;
   entry: Entry | null;
   /** Whether Undo is offered at all; a tick that set more than a diary line in motion is not taken back here. */
@@ -343,9 +347,11 @@ function Toast({ line, onUndo, onRetry, onDismiss, onDetails, onGoing }: Omit<To
           {/* Try again sends only what is still missing, so the toast says how much that is. */}
           {line.failure === 'write' && line.progress && line.progress.done > 0 ? ` · ${t('log.uploaded', line.progress)}` : null}
         </span>
-        <button type="button" className={styles.action} onClick={() => onRetry(line)}>
-          {t('home.retry')}
-        </button>
+        {line.final ? null : (
+          <button type="button" className={styles.action} onClick={() => onRetry(line)}>
+            {t('home.retry')}
+          </button>
+        )}
         <button type="button" className={styles.action} onClick={() => onDismiss(line.key)}>
           {t('log.dismiss')}
         </button>

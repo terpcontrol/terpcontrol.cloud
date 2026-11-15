@@ -1,4 +1,6 @@
-import type { Entry } from '@fg2/shared-types/v1';
+import type { Entry, GrowListItem } from '@fg2/shared-types/v1';
+import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
+import { useGrows } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { enough, useMayWith } from '@/ui/session-access';
 import { useLog, type LogTarget, type TileKind } from './log-context';
@@ -40,23 +42,26 @@ const correctableKind = (entry: Entry): TileKind | 'harvest' | null =>
  * What the correction is about, taken from the line rather than from the screen
  * it was opened on: a line corrected from a place's "Zuletzt" must not quietly move
  * onto that tent, and one corrected from a plant's page must not move onto that
- * plant.
+ * plant. Its head says so too - the line's grow and the grow's day it falls on,
+ * wherever it was opened: from Verlauf the same note read "Notiz · Nebelzelt",
+ * the place, and from the grow "Notiz · Nebelprobe · Tag 31". Where the grow is
+ * not among those read, the surface's words stand.
  */
-const targetOf = (entry: Entry, label: string, dayNumber: number | null): LogTarget => ({
+const targetOf = (entry: Entry, on: LineOn, grow: GrowListItem | undefined): LogTarget => ({
   key: `entry:${entry.id}`,
-  label,
+  label: grow?.name ?? on.label,
   growId: entry.growId,
   spaceId: entry.spaceId,
   plantIds: entry.plantIds,
-  dayNumber,
+  dayNumber: grow ? growDayAt(growOriginOf(grow), new Date(entry.occurredAt), grow.summary.zone) : (on.dayNumber ?? null),
   standsIn: entry.spaceId,
 });
 
 /** What the surface knows about the line that the line itself does not say. */
 interface LineOn {
-  /** What the sheet and its toast call what the line is about: the grow's name, the tent's. */
+  /** What the sheet and its toast call what the line is about - the grow's name, the tent's - where the line's grow is not read. */
   label: string;
-  /** The grow's day the line falls on, where the surface counts in them. */
+  /** The grow's day the line falls on, where the surface counts in them, for the same case. */
   dayNumber?: number | null;
   /** Who owns the thing being drawn, where the surface is of one thing; a place's "Zuletzt" draws many and has none. */
   ownerId?: string | null;
@@ -80,6 +85,7 @@ export const useCorrecting = (): ((entry: Entry, on: LineOn) => (() => void) | u
   const { user } = useSession();
   const { openDetails, openWeights } = useLog();
   const mayWith = useMayWith();
+  const grows = useGrows().data?.items;
 
   return (entry, on) => {
     const kind = correctableKind(entry);
@@ -90,6 +96,7 @@ export const useCorrecting = (): ((entry: Entry, on: LineOn) => (() => void) | u
 
     // A harvest's line is corrected in its weights, which its own sheet holds: the dry weight comes days later.
     if (kind === 'harvest') return () => openWeights(entry);
-    return () => openDetails(kind, targetOf(entry, on.label, on.dayNumber ?? null), entry);
+    const grow = grows?.find(one => one.id === entry.growId);
+    return () => openDetails(kind, targetOf(entry, on, grow), entry);
   };
 };

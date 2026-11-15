@@ -246,11 +246,16 @@ export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entr
 
 /**
  * Lines told oldest first, as Verlauf's curves run: a folded run stands at its first and says until when it went on,
- * an alarm open or over by its newest line all the same.
+ * an alarm over by its newest line all the same. An alarm still open has no end to say: it stands at its newest
+ * firing, the one Meldungen says it stands open since, and says since when it fired - "bis" its newest read as over.
  */
 export const forwardsOf = (lines: DayLine[]): DayLine[] =>
   lines
-    .map(line => (line.what.kind === 'said' || line.what.count < 2 ? line : { ...line, at: line.what.since, what: { ...line.what, since: line.at } }))
+    .map(line =>
+      line.what.kind === 'said' || line.what.count < 2 || (line.what.kind === 'alarm' && line.what.stands)
+        ? line
+        : { ...line, at: line.what.since, what: { ...line.what, since: line.at } },
+    )
     .sort((one, other) => one.at.localeCompare(other.at));
 
 /** An entry as a line of the diary, standing for `count` of its kind since `since` where a list folded them. */

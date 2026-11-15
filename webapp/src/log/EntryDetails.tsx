@@ -396,7 +396,8 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
         </button>
       }
     >
-      {draft ? (
+      {/* Opened again on a refusal, the toast says why; on a release's reload, this. */}
+      {draft && !draft.refused ? (
         <p className={ui.note} role="status">
           {t('log.draftKept')}
         </p>

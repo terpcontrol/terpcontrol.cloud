@@ -20,6 +20,8 @@ export interface Draft {
   text: string;
   plantIds: string[];
   stage: GrowthStage | null;
+  /** Opened again because the server refused it - a plant of it was deleted meanwhile -, not because a release reloaded. */
+  refused?: boolean;
 }
 
 const KEY = 'terp.draft';
@@ -34,9 +36,12 @@ export const holdDraft = (read: () => Draft | null): (() => void) => {
   };
 };
 
+/** What the open sheet holds typed now, for a line that may come back refused and is opened on it again. */
+export const openDraft = (): Draft | null => reader?.() ?? null;
+
 /** Kept for this tab, before a release reloads it. Storage that is blocked keeps nothing, as before. */
 export const keepDraft = (): void => {
-  const draft = reader?.() ?? null;
+  const draft = openDraft();
   if (!draft) return;
   try {
     sessionStorage.setItem(KEY, JSON.stringify(draft));

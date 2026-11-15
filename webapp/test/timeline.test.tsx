@@ -167,6 +167,10 @@ const server = {
   wrote: [] as string[],
   /** Whether the account has a second place with a controller of its own standing in it. */
   elsewhere: false,
+  /** The account's grows as the list of them answers, where a test reads it. */
+  grows: null as unknown[] | null,
+  /** The plants of the grow standing here, where a test reads them. */
+  plants: null as unknown[] | null,
 };
 
 const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -216,6 +220,8 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
     return json(view);
   }
   if (path === '/chart-views') return json({ items: server.views, nextCursor: null });
+  if (path === '/grows' && server.grows) return json({ items: server.grows, nextCursor: null });
+  if (path === '/grows/grow-1/plants' && server.plants) return json({ items: server.plants, nextCursor: null });
   return json(NOT_FOUND, 404);
 };
 
@@ -276,6 +282,8 @@ beforeEach(() => {
     views: [],
     wrote: [],
     elsewhere: false,
+    grows: null,
+    plants: null,
   });
   opened.length = 0;
   told.length = 0;
@@ -1116,14 +1124,23 @@ describe('a window that is not what the address asked for', () => {
     await waitFor(() => expect(localStorage.getItem('terp.place')).toBe('space-2'));
   });
 
-  it('sends a grow that stands in no place to its page of measurements, without asking for its curves here', async () => {
+  /**
+   * Under "has no place" stood the chosen place's curves, its day numbers and its diary, and on a phone nothing named
+   * that place: they read as the grow's. The sentence stands alone, with the way on to the place's own Verlauf.
+   */
+  it('sends a grow that stands in no place to its page of measurements, and draws no other place´s curves under it', async () => {
     draw('/timeline?grow=grow-loose');
 
     expect(await screen.findByText(/“Windowsill” has no place and so no climate curves/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Measurements/ })).toHaveAttribute('href', '/grows/grow-loose/measurements');
-    await settled();
+    await waitFor(() => expect(address().searchParams.has('grow')).toBe(false));
     expect(server.asked.every(query => !query.has('growId'))).toBe(true);
-    expect(address().searchParams.has('grow')).toBe(false);
+    expect(screen.queryByRole('region', { name: 'Temperature' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Diary in this window' })).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Timeline of Tent 1/ }));
+    await settled();
+    expect(screen.queryByText(/has no place/)).not.toBeInTheDocument();
   });
 
   it('lights no chip for a stretch of a grow the address names no grow for: it is the last day that is drawn', async () => {
@@ -1329,6 +1346,87 @@ describe('the diary of the window', () => {
     expect(ctrl).not.toMatch(/ over/);
     // The run stands at its first firing and says until its clearing.
     expect(plug).toMatch(/Device offline · .* · 2× until \d\d:\d\d · over/);
+  });
+
+  /**
+   * An open alarm's run read "5× bis 09:29" - "until" its newest firing, which read as its end - while Meldungen said
+   * it stood open since then. It stands at its newest firing, as Meldungen's start, and says since when it fired.
+   */
+  it('says an alarm that still stands since its first firing, at its newest, and never until', async () => {
+    const fired = (id: string, hours: number) =>
+      entry(id, {
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId: 'device-2',
+        severity: 'warning',
+        text: null,
+        occurredAt: ago(hours),
+        message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+        values: { kind: 'alarm' },
+      });
+    server.over = { events: [fired('first', 9), fired('newest', 7)] };
+    server.elsewhere = true;
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
+    const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
+    // The reader's zone is UTC here; a stamp may lead with its day.
+    const stamp = (hours: number) => `(\\w{3} )?${ago(hours).slice(11, 16)}`;
+    // A silence counts from when the device was last heard, eleven minutes before its first firing.
+    // The line itself stands where its newest silence began, as Start's banner dates it.
+    expect(line.textContent).toMatch(new RegExp(`^${stamp(7 + 11 / 60)}, .*Device offline · 2× since ${stamp(9 + 11 / 60)}`));
+    expect(line.textContent).not.toMatch(/until/);
+  });
+
+  /** A round of readings across two plants read "pH 6,1 pH · pH 6,4 pH" here: no plant named, the unit its name. */
+  it('names the plant of each reading, and says no unit that repeats the reading´s name', async () => {
+    const round = entry('entry-round', {
+      kind: 'measurement',
+      growId: 'grow-1',
+      occurredAt: ago(3),
+      text: null,
+      values: {
+        kind: 'measurement',
+        readings: [
+          { key: 'ph', value: 6.1, plantId: 'plant-1' },
+          { key: 'ph', value: 6.4, plantId: 'plant-2' },
+        ],
+      },
+    });
+    server.plants = [
+      { id: 'plant-1', growId: 'grow-1', strain: 'Haze', label: 'Haze 1', status: 'active', harvest: null, createdAt: ago(28 * 24) },
+      { id: 'plant-2', growId: 'grow-1', strain: 'Haze', label: 'Haze 2', status: 'active', harvest: null, createdAt: ago(28 * 24) },
+    ];
+    server.over = { events: [round], readingNames: [{ growId: 'grow-1', readings: [{ key: 'ph', name: 'pH', unit: 'pH' }] }] };
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    const line = () => list.getAllByRole('listitem').find(one => /pH/.test(one.textContent ?? ''));
+    await waitFor(() => expect(line()).toHaveTextContent(/pH 6\.1 · Haze 1 · pH 6\.4 · Haze 2/));
+    expect(line()).not.toHaveTextContent(/6\.1 pH/);
+  });
+
+  /** A note corrected from Verlauf was headed "Note · Tent 1", the place; from the grow's diary "Note · Amnesia · Day 10". */
+  it('heads a line´s correction with its grow and the grow´s day, wherever it is opened', async () => {
+    const note = entry('entry-grow-note', { growId: 'grow-1', occurredAt: ago(3) });
+    // The grow began at midnight nine days before the note's date: the note stands on its tenth day.
+    const began = new Date(`${note.occurredAt.slice(0, 10)}T00:00:00.000Z`).getTime() - 9 * 24 * HOUR;
+    server.grows = [{ id: 'grow-1', name: 'Amnesia', startedAt: new Date(began).toISOString(), phases: [], summary: { zone: 'UTC' } }];
+    server.over = { events: [note] };
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(server.askedFor).toContain('/grows'));
+    await waitFor(() => {
+      opened.length = 0;
+      fireEvent.click(list.getByRole('button', { name: /Correct this line/ }));
+      expect(opened[0]?.[1]).toMatchObject({ label: 'Amnesia', growId: 'grow-1', dayNumber: 10 });
+    });
   });
 
   /** A maintenance that began before the window was lost from its list, or read "is on" where it ended after it. */
