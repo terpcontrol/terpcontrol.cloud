@@ -404,7 +404,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
     // The first settings it sends are what a climate chosen for its place before then can be written into - and what a
-    // lamp module is kept dark by where its place germinates.
+    // lamp module is kept dark by where its place germinates or dries.
     if (device.configuration === null && (device.awaitedClimate || device.type === 'light')) await this.settings?.settingsArrived(device.id);
   }
 }

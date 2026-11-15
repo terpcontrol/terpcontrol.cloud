@@ -3393,7 +3393,10 @@
       "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung.",
       "hereNoClimate": "{{devices}}: eine Kamera, kein Klima.",
       "hereNoClimateNoCamera": "{{devices}}: kein Klima.",
-      "darkHere": "Dort läuft die Keimung: Das Lampenmodul bleibt aus, bis sie endet.",
+      "darkHere": {
+        "germination": "Dort läuft die Keimung: Das Lampenmodul bleibt aus, bis sie endet.",
+        "drying": "Dort läuft die Trocknung: Das Lampenmodul bleibt währenddessen aus."
+      },
       "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen.",
       "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen."
     },
@@ -4992,7 +4995,10 @@
     "card": {
       "light": "{{lamp}} {{level}}",
       "good": "im Ziel",
-      "lightDespite": "{{lamp}} {{level}} trotz Keimung",
+      "lightDespite": {
+        "germination": "{{lamp}} {{level}} trotz Keimung",
+        "drying": "{{lamp}} {{level}} trotz Trocknung"
+      },
       "lightOff": "{{lamp}} aus",
       "due_one": "{{count}} Aufgabe fällig",
       "due_other": "{{count}} Aufgaben fällig",
@@ -5226,8 +5232,11 @@
       "raise": "Lichtgrenze erhöhen",
       "times": "Lichtzeiten",
       "toAuto": "Zurück auf Auto",
-      "inGermination": {
-        "lit": "trotz Keimung · {{why}}",
+      "inTheDark": {
+        "lit": {
+          "germination": "trotz Keimung · {{why}}",
+          "drying": "trotz Trocknung · {{why}}"
+        },
         "own": "seine Helligkeit ist danach gesetzt worden",
         "coming": "das Dunkel ist noch nicht angekommen"
       },
@@ -5261,7 +5270,10 @@
         "controller": "Es setzt das Licht des Controllers.",
         "fridge": "Es setzt das Licht des Kühlschrankmoduls."
       },
-      "lampsDark": "{{lamps}} bleiben aus, bis die Keimung endet.",
+      "lampsDark": {
+        "germination": "{{lamps}} bleiben aus, bis die Keimung endet.",
+        "drying": "{{lamps}} bleiben während der Trocknung aus."
+      },
       "lampLeft": "{{lamp}} bleibt bei {{window}}.",
       "lampLeftAsIs": "{{lamp}} bleibt, wie es ist."
     },

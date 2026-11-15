@@ -3,6 +3,7 @@ import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import { darkStage } from '@/ui/climate-hardware';
 import { Facts } from '@/ui/Facts';
 import { factsOf } from '@/ui/fact-text';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
@@ -74,7 +75,7 @@ export function ClimatePick({
   // it makes starts at the device's hour, and a figure it leaves out stays.
   const chosen = preset ? prefilled(now, preset) : null;
   const offset = offsetOf(serverNow(), zone);
-  const lampsWords = lampsSaid(t, controller, lamps, stage === 'germination', serverNow(), zone, i18n.language);
+  const lampsWords = lampsSaid(t, controller, lamps, darkStage(stage), serverNow(), zone, i18n.language);
 
   // What the devices hold once the phase is written, in figures: the chosen climate, germination's being dark, or -
   // left as they are - what they hold now (`heldNow`).

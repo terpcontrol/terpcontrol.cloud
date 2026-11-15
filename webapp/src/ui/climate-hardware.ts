@@ -79,6 +79,18 @@ export const darkReasonOf = (device: Device | null): DarkReason | null => {
 /** Whether a device germinates in the dark now. */
 export const germinates = (device: Device | null): boolean => darkReasonOf(device) === 'germination';
 
+/** A spell that keeps every lamp of the place dark, a lamp module's too (ADR 0007): germination or drying. */
+export type DarkSpell = 'drying' | 'germination';
+
+/** The spell a device holds its place dark in now, or null. */
+export const darkSpellOf = (device: Device | null): DarkSpell | null => {
+  const reason = darkReasonOf(device);
+  return reason === 'off' ? null : reason;
+};
+
+/** The spell a stage puts a place into, or null for a stage with light. */
+export const darkStage = (stage: string | null | undefined): DarkSpell | null => (stage === 'drying' || stage === 'germination' ? stage : null);
+
 /**
  * What an output is called on this kind of hardware: one name per machine
  * wherever it is met. A fridge module drives one compressor that both cools and

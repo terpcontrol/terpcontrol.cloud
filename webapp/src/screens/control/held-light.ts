@@ -8,7 +8,7 @@ import { isLightRole, useLightHold } from '@/screens/devices/lights';
 import { inSentence } from '@/screens/space/members/people';
 import { lightWindowOf } from '@/screens/start/place';
 import { sinceLabel } from '@/ui/age';
-import { outputsOf } from '@/ui/climate-hardware';
+import { type DarkSpell, outputsOf } from '@/ui/climate-hardware';
 import { deviceName, deviceTitle, givenName } from '@/ui/naming';
 
 /**
@@ -54,21 +54,21 @@ const lampSetWords = (t: Translate, device: Device): string => {
 
 /**
  * What a climate written to `device` does to each lamp of its place, where there is more than one: whose light it
- * sets and what each other lamp keeps, or - germination being dark for every lamp of the place (ADR 0007), a lamp
- * module's too - that all of them stay off until it ends. Null where `device` is the place's one lamp, or none.
+ * sets and what each other lamp keeps, or - germination and drying being dark for every lamp of the place (ADR 0007),
+ * a lamp module's too - that all of them stay off while it lasts. Null where `device` is the place's one lamp, or none.
  */
 export const lampsSaid = (
   t: Translate,
   device: Device,
   lamps: readonly Device[],
-  germination: boolean,
+  dark: DarkSpell | null,
   now: DateTime,
   zone: string | null,
   language: string,
 ): string | null => {
   if (lamps.length < 2 || !lamps.some(one => one.id === device.id)) return null;
-  if (germination)
-    return t('control.preset.lampsDark', {
+  if (dark)
+    return t(`control.preset.lampsDark.${dark}`, {
       lamps: inSentence(
         lamps.map(one => lampName(t, one, lamps)),
         language,
@@ -78,18 +78,18 @@ export const lampsSaid = (
 };
 
 /**
- * Why a lamp burns where its place germinates in the dark (ADR 0007) - held on by hand, set bright on its own since,
- * or not yet handed the dark -, so that no screen shows a lit lamp under "dunkel" without saying it is lit and why:
- * "trotz Keimung · von Hand an bis 13:05".
+ * Why a lamp burns where its place germinates or dries in the dark (ADR 0007) - held on by hand, set bright on its own
+ * since, or not yet handed the dark -, so that no screen shows a lit lamp under "dunkel" without saying it is lit and
+ * why: "trotz Keimung · von Hand an bis 13:05".
  */
-export const litInTheDark = (t: Translate, lamp: Device, held: Held | null, now: DateTime, zone: string | null): string => {
+export const litInTheDark = (t: Translate, spell: DarkSpell, lamp: Device, held: Held | null, now: DateTime, zone: string | null): string => {
   const limit = lamp.type === 'light' ? lamp.configuration?.limit : undefined;
   const why = held
     ? heldWords(t, held, now, zone)
     : typeof limit === 'number' && limit > 0
-      ? t('control.light.inGermination.own')
-      : t('control.light.inGermination.coming');
-  return t('control.light.inGermination.lit', { why });
+      ? t('control.light.inTheDark.own')
+      : t('control.light.inTheDark.coming');
+  return t(`control.light.inTheDark.lit.${spell}`, { why });
 };
 
 /**

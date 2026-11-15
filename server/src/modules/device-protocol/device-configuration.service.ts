@@ -441,8 +441,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
     if (configuration.workmode === 'breed') await this.tellGermination(deviceId);
-    // Its place's lamp modules go dark with it, and come back when it leaves germination.
-    if (germinatesIn(device.type, before, device.baseWorkmode) !== germinatesIn(device.type, configuration, mode?.base ?? device.baseWorkmode)) {
+    // Its place's lamp modules go dark with it, and come back when it leaves germination or drying.
+    if (darkIn(device.type, before, device.baseWorkmode) !== darkIn(device.type, configuration, mode?.base ?? device.baseWorkmode)) {
       const placed = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
       await this.lampsFollow(placed?.spaceId ?? null);
     }
@@ -488,12 +488,12 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   }
 
   /**
-   * The lamp modules of a place kept dark while its climate germinates (ADR 0007): germination is dark, and a lamp
-   * module beside the controller has a brightness of its own that no work mode reaches - it burnt on under "Keimung ·
-   * dunkel". Each is put to nothing whenever the place is put into germination or a lamp comes into such a place,
-   * its brightness from before kept (`beforeGermination.limit`), and given back once the place germinates no longer or
-   * the lamp has left it - unless somebody has set it since, which then stands. `deviceIds` names a lamp that has
-   * just left the place for none. No lamp's write may fail what asked for it.
+   * The lamp modules of a place kept dark while its climate germinates or dries (ADR 0007; Chris, 2026-11-15): both
+   * are dark, and a lamp module beside the controller has a brightness of its own that no work mode reaches - it burnt
+   * on under "Keimung · dunkel". Each is put to nothing whenever the place goes dark or a lamp comes into a dark place,
+   * its brightness from before kept (`limitBeforeDark`), and given back once the place is dark no longer or the lamp has
+   * left it - unless somebody has set it since, which then stands. `deviceIds` names a lamp that has just left the
+   * place for none. No lamp's write may fail what asked for it.
    */
   public async lampsFollow(spaceId: string | null, deviceIds: readonly string[] = []): Promise<void> {
     const here = spaceId
@@ -501,32 +501,32 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           .find({ spaceId }, { id: 1, type: 1, configuration: 1, baseWorkmode: 1 })
           .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration' | 'baseWorkmode'>[]>()
       : [];
-    const dark = here.some(device => germinatesIn(device.type, device.configuration ?? null, device.baseWorkmode));
+    const dark = here.some(device => darkIn(device.type, device.configuration ?? null, device.baseWorkmode));
     const lamps = await this.devices
       .find(
         { type: 'light', $or: [...(spaceId ? [{ spaceId }] : []), { id: { $in: [...deviceIds] } }] },
-        { id: 1, spaceId: 1, configuration: 1, beforeGermination: 1 },
+        { id: 1, spaceId: 1, configuration: 1, limitBeforeDark: 1 },
       )
-      .lean<Pick<StoredDevice, 'id' | 'spaceId' | 'configuration' | 'beforeGermination'>[]>();
+      .lean<Pick<StoredDevice, 'id' | 'spaceId' | 'configuration' | 'limitBeforeDark'>[]>();
 
     for (const lamp of lamps) {
       const limit = lamp.configuration?.limit;
-      const kept = lamp.beforeGermination?.limit;
+      const kept = lamp.limitBeforeDark ?? undefined;
       if (typeof limit !== 'number') continue;
       try {
         if (dark && lamp.spaceId === spaceId) {
           if (limit === 0) continue;
-          if (kept === undefined) await this.devices.updateOne({ id: lamp.id }, { $set: { beforeGermination: { limit } } });
+          if (kept === undefined) await this.devices.updateOne({ id: lamp.id }, { $set: { limitBeforeDark: limit } });
           const written = await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: 0 } : null));
           if (written) await this.writeDown(lamp.id, written, null);
         } else if (kept !== undefined) {
           const written =
             limit === 0 ? await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: kept } : null)) : null;
-          await this.devices.updateOne({ id: lamp.id }, { $set: { beforeGermination: null } });
+          await this.devices.updateOne({ id: lamp.id }, { $set: { limitBeforeDark: null } });
           if (written) await this.writeDown(lamp.id, written, null);
         }
       } catch (error) {
-        logger.error(`Could not keep lamp ${lamp.id} to the germination of its place: ${error}`);
+        logger.error(`Could not keep lamp ${lamp.id} to the dark of its place: ${error}`);
       }
     }
   }
@@ -562,9 +562,14 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 /** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
 const GERMINATION_HUMIDITY_PATH = 'night.humidity';
 
-/** Whether a climate device stands in germination: in the dark mode, or switched off or drying from it, which go back to it. */
-const germinatesIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean =>
-  controlOf(type, configuration, base)?.mode === 'germination';
+/**
+ * Whether a climate device keeps its place dark: germinating - in the dark mode, or switched off from it, which goes
+ * back to it - or drying.
+ */
+const darkIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean => {
+  const control = controlOf(type, configuration, base);
+  return control?.mode === 'germination' || control?.drying === true;
+};
 
 const standingNow = (configuration: DeviceConfiguration | null): string | null =>
   typeof configuration?.workmode === 'string' ? configuration.workmode : null;

@@ -119,6 +119,11 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    */
   beforeGermination?: Record<string, number> | null;
   /**
+   * A lamp module's brightness from before its place went dark - germinating or drying (ADR 0007) -, which the dark
+   * put to nothing and gives back when it ends. Null while it is not held dark.
+   */
+  limitBeforeDark?: number | null;
+  /**
    * What the grower chose germination to do about the humidity: whether the
    * "too humid" alarms warn and whether a humidifier socket holds the night's
    * humidity while the device germinates. Null - or a choice it does not state -
@@ -270,6 +275,7 @@ export const devicesSchema = new Schema<StoredDevice>(
     standardWorkmode: { type: String, default: null },
     beforeDrying: { type: Schema.Types.Mixed, default: null },
     beforeGermination: { type: Schema.Types.Mixed, default: null },
+    limitBeforeDark: { type: Number, default: null },
     germinationChoices: { type: Schema.Types.Mixed, default: null },
     appliedClimate: { type: Schema.Types.Mixed, default: null },
     awaitedClimate: { type: Schema.Types.Mixed, default: null },

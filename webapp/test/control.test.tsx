@@ -513,6 +513,9 @@ describe('Steuerung of a place with several devices', () => {
     // Germination is dark for every lamp of the place, the lamp module's too (ADR 0007): the preset names each.
     fireEvent.click(within(sheet).getByRole('button', { name: 'Germination · dark' }));
     expect(sheet).toHaveTextContent('Light · Blue Dream tent and Light · Lamp module stay off until germination ends.');
+    // And so is drying (Chris, 2026-11-15).
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Drying' }));
+    expect(sheet).toHaveTextContent('Light · Blue Dream tent and Light · Lamp module stay off while drying.');
   });
 
   /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */

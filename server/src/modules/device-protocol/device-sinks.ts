@@ -98,7 +98,7 @@ export const DEVICE_GERMINATION_SINK = 'device-protocol:germination';
  * That a device has sent its settings for the first time - the cloud held none
  * until now. Provided by the climate presets, which put it on the preset its
  * place was put on while it had nothing to be written into, and keep a lamp
- * module dark where its place germinates.
+ * module dark where its place germinates or dries.
  */
 export interface DeviceSettingsSink {
   settingsArrived(deviceId: string): Promise<void>;

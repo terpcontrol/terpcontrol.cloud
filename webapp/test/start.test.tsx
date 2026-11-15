@@ -843,6 +843,31 @@ describe('Start of a place that only regulates', () => {
     expect(coming[1].note).toBe('despite germination · the dark has not reached it yet');
   });
 
+  /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
+  it('says each lamp of a drying place as dark, and one that burns as burning despite drying', () => {
+    const t = i18next.t.bind(i18next);
+    const drying = fridge({ control: { running: true, drying: true, mode: 'standard', energySaving: false } as never });
+    const lamp = fridge({
+      id: 'lamp-1',
+      type: 'light',
+      name: null,
+      configuration: { day: 6 * 3600, night: 21 * 3600, limit: 50 } as never,
+      control: null,
+    });
+    const level = (percent: number) => ({ percent, measuredAt: ago(0.2), state: 'live' as const });
+    const lit = [
+      { device: drying, level: level(0), live: null, held: null },
+      { device: lamp, level: level(65), live: null, held: null },
+    ];
+    const readings = readingsOf(t, { values: [], setpoints: [], device: drying, lit, hold: null, now: DateTime.now(), zone: null });
+
+    expect(readings.map(one => [one.label, one.note])).toEqual([
+      ['Light · Fridge module', 'off · drying'],
+      ['Light · Lamp module', 'despite drying · its brightness was set since'],
+    ]);
+    expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite drying']);
+  });
+
   /** Five figures in the bar ran "TemperatureHumidity" together at 390 and took two rows over the picture at 320. */
   it('stands two lamps in the line under a camera´s picture, each the way to its curve', async () => {
     const lamp = fridge({

@@ -193,8 +193,8 @@ export class DevicesService {
       .lean<StoredDevice>();
     if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
     await this.alerts.updateMany({ deviceId: id, resolvedAt: null }, { $set: { spaceId } });
-    // A lamp module goes dark in a place that germinates, and gets its light back in one that does not; a climate
-    // device that leaves or comes takes its germination along.
+    // A lamp module goes dark in a place that germinates or dries, and gets its light back in one that does not; a
+    // climate device that leaves or comes takes its dark along.
     if (device?.spaceId !== spaceId) {
       if (device?.spaceId) await this.configuration?.lampsFollow(device.spaceId);
       await this.configuration?.lampsFollow(spaceId, [id]);

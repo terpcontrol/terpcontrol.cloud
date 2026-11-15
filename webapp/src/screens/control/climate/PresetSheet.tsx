@@ -5,6 +5,7 @@ import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-prese
 import { serverNow } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
+import { darkStage } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
 import { Refused } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
@@ -121,7 +122,7 @@ export function PresetSheet({
   // Unpicked, the choices of a germination that runs are saved with the stage it is in.
   const chip = picked ?? CLIMATE_CHOICES.find(one => one.stage === 'germination') ?? null;
   const paused = ending ? runs : chip && sets ? pauses(next, chip, said) : null;
-  const lampsWords = lampsSaid(t, device, lamps, picked?.stage === 'germination', serverNow(), zone, i18n.language);
+  const lampsWords = lampsSaid(t, device, lamps, darkStage(picked?.stage), serverNow(), zone, i18n.language);
 
   const save = async () => {
     if (!chip) return;
@@ -209,10 +210,8 @@ export function PresetSheet({
             disabled={busy}
           />
         ) : null}
-        {/* Each lamp is set on its own: a preset that moves the light says whose and what the others keep, and germination darkens every one. */}
-        {lampsWords && (hours || moved.includes('lightLimit') || picked?.stage === 'germination') ? (
-          <p className={styles.note}>{lampsWords}</p>
-        ) : null}
+        {/* Each lamp is set on its own: a preset that moves the light says whose and what the others keep, and germination and drying darken every one. */}
+        {lampsWords && (hours || moved.includes('lightLimit') || darkStage(picked?.stage)) ? <p className={styles.note}>{lampsWords}</p> : null}
         {(sets || ending) && grow?.stage ? (
           <p className={styles.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p>
         ) : null}

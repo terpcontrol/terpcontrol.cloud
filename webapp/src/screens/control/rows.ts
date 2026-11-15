@@ -10,7 +10,7 @@ import { rowsOf, type SocketRowModel } from '@/screens/devices/sockets';
 import { planLineOf } from '@/screens/start/plan-line';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { deviceLiveness, sinceLabel } from '@/ui/age';
-import { climateLanding, germinates } from '@/ui/climate-hardware';
+import { climateLanding, darkSpellOf } from '@/ui/climate-hardware';
 import { deviceName } from '@/ui/naming';
 import { ruleTitle } from './alarms/rules';
 import { MODE_PATHS, pendingField, pendingMode, savedWords } from './climate/figures';
@@ -168,8 +168,8 @@ export const outputsLine = (
 ): RowLine => {
   const sockets = all.flatMap(one => one.sockets);
   const lamps = all.filter(one => one.light).map(one => one.device);
-  // Germination is dark for every lamp of the place: one that burns says so, and why, in amber.
-  const dark = germinates(all[0]?.device ?? null);
+  // Germination and drying are dark for every lamp of the place: one that burns says so, and why, in amber.
+  const dark = darkSpellOf(all[0]?.device ?? null);
   let waits = false;
   let burns = false;
   const facts = all.flatMap((one, index) => {
@@ -181,12 +181,12 @@ export const outputsLine = (
       return waiting ? notTaken(t, text, waiting.savedAt, now, zone) : text;
     };
     const level = one.level?.percent ?? 0;
-    const burning = dark && one.light && (hold ? hold.state === 'on' : level > 0);
+    const burning = dark !== null && one.light && (hold ? hold.state === 'on' : level > 0);
     burns ||= burning;
     const reported = [
       // A light socket follows the lamp and is named "Licht" itself; the output is then said only while it is held.
       ...(burning
-        ? [`${lamp}${level > 0 ? ` ${percentLabel(level)}` : ''} ${litInTheDark(t, one.device, hold ?? null, now, zone)}`]
+        ? [`${lamp}${level > 0 ? ` ${percentLabel(level)}` : ''} ${litInTheDark(t, dark, one.device, hold ?? null, now, zone)}`]
         : hold
           ? [`${lamp} ${heldWords(t, hold, now, zone)}`]
           : one.light && !one.sockets.some(row => isLightRole(row.role))

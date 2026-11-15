@@ -134,6 +134,24 @@ describe('the germination preset', () => {
     expect(await configurationOf(first)).toMatchObject({ limit: 70 });
   });
 
+  /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
+  it('darkens every lamp module of the place while it dries too, and gives their light back when the drying ends', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = await registerDevice('light');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(lamp.deviceId), joinSpaceId: spaceId })
+      .expect(201);
+    await owner.client.put(`/v1/devices/${lamp.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'drying' }).expect(201);
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'dry' });
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 0 });
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'flowering' }).expect(201);
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 70 });
+  });
+
   it('brings a fridge back onto its energy saving when germination ends', async () => {
     const { device, spaceId } = await placed('fridge');
     await owner.client

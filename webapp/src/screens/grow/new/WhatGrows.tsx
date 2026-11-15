@@ -14,6 +14,7 @@ import { choicesOf, useHumidifier } from '@/screens/control/germination/germinat
 import { lampsAmong, lampsSaid } from '@/screens/control/held-light';
 import { useLead } from '@/screens/control/lead';
 import { usePlaceStage } from '@/screens/start/stage';
+import { darkStage } from '@/ui/climate-hardware';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
 import { unbroken } from '@/ui/figures';
 import { fieldValue } from '@/ui/advanced/field-values';
@@ -144,7 +145,7 @@ export function WhatGrows({
   const said =
     climate && stage && controller
       ? [
-          lampsSaid(t, controller, lampsAmong(here), stage === 'germination', serverNow(), zone, i18n.language),
+          lampsSaid(t, controller, lampsAmong(here), darkStage(stage), serverNow(), zone, i18n.language),
           ...here
             .filter(device => device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed')
             .map(fan => t('grow.new.fanFixed', { device: deviceName(fan, t) })),

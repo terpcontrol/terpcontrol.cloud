@@ -1229,6 +1229,18 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: no climate\.$/);
   });
 
+  /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
+  it('says a lamp module goes off in a place that dries, before it is put there', async () => {
+    state.spaces = [mother];
+    joins(light, mother);
+    const drying = { running: true, drying: true, mode: 'standard', energySaving: false } as Device['control'];
+    state.devices = [{ ...device, id: 'sim-controller-0001', spaceId: 'space-mother', control: drying }];
+    claim();
+
+    await screen.findByRole('heading', { level: 2, name: 'Where does the lamp module hang?' });
+    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/Drying runs there: the lamp module stays off while it lasts\.$/);
+  });
+
   /** "One camera" stood under a tent no camera looks into, "one maintenance window" under fans that have none: a place is said by what it has. */
   it('names the camera a device would share only under the place one looks into', async () => {
     const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };
