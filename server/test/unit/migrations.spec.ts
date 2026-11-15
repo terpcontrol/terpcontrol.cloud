@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { AddressInfo } from 'node:net';
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import type { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, Schema, mongo } from 'mongoose';
 import { alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
 import { alertsSchema } from '@database/schemas/v1/alerts.schema';
@@ -48,7 +48,7 @@ import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place-wit
 import { fansWithoutALamp } from '@/migrations/steps/034-fans-without-a-lamp';
 import { lampsDarkWhereItIsDark } from '@/migrations/steps/035-lamps-dark-where-it-is-dark';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
-import { stopMongod } from './support/mongod';
+import { MONGOD_HOOK_MS, startMongod, stopMongod } from './support/mongod';
 
 /**
  * The migrations, run over a database in today's shapes.
@@ -120,7 +120,7 @@ const names = async (database: mongo.Db = db()): Promise<string[]> =>
   (await database.listCollections({}, { nameOnly: true }).toArray()).map(entry => entry.name);
 
 beforeAll(async () => {
-  server = await MongoMemoryServer.create();
+  server = await startMongod();
   connection = mongoose.createConnection(server.getUri('migration-spec'));
   await connection.asPromise();
 
@@ -128,7 +128,7 @@ beforeAll(async () => {
   // has to look like, and building their unique indexes here would be the
   // server's job rather than this spec's.
   for (const [name, schema] of Object.entries(V1_SCHEMAS)) connection.model(name, schema.clone().set('autoIndex', false), name);
-});
+}, MONGOD_HOOK_MS);
 
 afterAll(async () => {
   await connection?.dropDatabase();
