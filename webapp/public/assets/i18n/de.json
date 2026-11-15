@@ -1579,8 +1579,8 @@
       "measuredBy": "Ab hier misst {{name}}",
       "alarmsAmong_one": "davon {{count}} Alarm",
       "alarmsAmong_other": "davon {{count}} Alarme",
-      "controlOffBrief": "Regelung aus und wieder an",
-      "maintenanceBrief": "Wartung beendet"
+      "controlOffBrief": "Regelung aus · unter 1 Min",
+      "maintenanceBrief": "Wartung · unter 1 Min"
     },
     "pictures": {
       "makeEntry": "Als Eintrag ins Tagebuch",
@@ -2153,6 +2153,7 @@
       "fanBackwall": "Rückwand­lüfter"
     },
     "quietWindow": "In diesem Zeitraum wurde nichts gemessen · letzter Wert vor {{age}}",
+    "quietClimate": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert vor {{age}}",
     "noSpaces": "Noch nichts zu zeichnen. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
     "visiting": "Support-Ansicht eines Kundenorts",
@@ -2254,6 +2255,7 @@
     "missing": {
       "device": "Das Gerät aus der Adresse steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
       "grow": "Der Grow aus der Adresse stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
+      "growGone": "Den Grow aus der Adresse gibt es nicht mehr. Gezeigt wird der Ort ohne ihn.",
       "growNoPlace": "„{{name}}“ hat keinen Ort und damit keine Klimakurven. Was du von Hand gemessen hast, steht als Kurve unter",
       "toPlace": "Verlauf von {{place}}",
       "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."
@@ -3210,6 +3212,8 @@
       "silence": "1 Std stumm",
       "unsilence": "Wieder laut",
       "timeline": "Verlauf öffnen",
+      "timelineOf": "Verlauf von {{place}} öffnen",
+      "timelineEarlier": "Verlauf vom früheren Ort öffnen",
       "editRule": "Regel bearbeiten",
       "checkCam": "Kamera prüfen",
       "remove": "Löschen",

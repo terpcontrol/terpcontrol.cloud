@@ -2,7 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
+import { CAMERA_STILLS, OFFLINE_RULE_NAME, RECEIPT_SECONDS, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -157,7 +157,10 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   private spokeAt(devices: readonly AlarmDevice[], at: Date): Promise<NewestSamples> {
     const quiet = devices.filter(device => device.state.lastSeenAt !== null && isOffline(device.state.lastSeenAt, at));
 
-    return this.data.newestSamplesOf(quiet.map(device => ({ deviceId: device.id, since: device.state.lastSeenAt! })));
+    // From a moment before the last message: the sample it carried may be stamped a little earlier (`heardAt`).
+    return this.data.newestSamplesOf(
+      quiet.map(device => ({ deviceId: device.id, since: new Date(device.state.lastSeenAt!.getTime() - RECEIPT_SECONDS * 1000) })),
+    );
   }
 
   /** The instant this device is dated by: its last message, or a stored reading that came after it. */

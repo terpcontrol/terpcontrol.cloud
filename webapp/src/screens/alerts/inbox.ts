@@ -126,17 +126,19 @@ export const spanOf = (t: Translate, alert: Alert): string => (lastedSeconds(ale
  * `span`): only the title with a verb in it changes its tense for that.
  */
 export const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, span: string | null): string => {
-  // A reading or an output is a lower-case word in a language that has them; the sentence starts with it.
-  const said = (key: string, what: string) => {
+  // A reading or an output is a lower-case word in a language that has them; the sentence starts with it. A device's
+  // or a camera's own name is written as it was given: "C8 Lampe" of "c8 Lampe" was a name nobody gave.
+  const said = (key: string, what: string, own = false) => {
     const over = span || (span === '' && key === 'running') ? 'Was' : '';
-    return t(`alerts.title.${key}${over}`, { what: what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
+    return t(`alerts.title.${key}${over}`, { what: own ? what : what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
   };
 
   if (alert.kind === 'offline') {
     const device = alert.deviceId ? names.devices.get(alert.deviceId) : undefined;
-    return said('offline', device ? deviceName(device, t) : (alert.spaceName ?? t('shell.gone.title.device')));
+    return said('offline', device ? deviceName(device, t) : (alert.spaceName ?? t('shell.gone.title.device')), true);
   }
-  if (alert.kind === 'camera_stale') return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'));
+  if (alert.kind === 'camera_stale')
+    return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'), true);
 
   const watch = alert.watched?.watch ?? rule?.watch;
   if (watch?.kind === 'output_running') return said('running', outputName(t, watch.output));

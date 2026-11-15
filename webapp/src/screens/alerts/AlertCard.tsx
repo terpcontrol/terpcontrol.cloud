@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { controlPath, devicePath, timelinePath } from '@/app/places';
 import type { Alert, AlarmRule, AlarmWatch, Device, Me } from '@fg2/shared-types/v1';
 import { useRemoveAlerts } from '@/api/alerts';
+import { useEndedSpaces, useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { maintenanceQuiet } from '@/ui/maintenance';
 import { unitOf, willTell } from '@/screens/control/alarms/rules';
@@ -326,6 +327,17 @@ const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): stri
 };
 
 /**
+ * The place an alert began in where its device has moved since, which its curves open in, though the card names the
+ * place it stands in now: its name, null where the account holds none, undefined where the alert has not moved.
+ */
+const useEarlierPlace = (alert: Alert): string | null | undefined => {
+  const moved = alert.startedIn !== null && alert.startedIn !== alert.spaceId;
+  const inUse = useSpaces(moved).data?.items.find(one => one.id === alert.startedIn);
+  const ended = useEndedSpaces(moved && inUse === undefined).data?.items.find(one => one.id === alert.startedIn);
+  return moved ? ((inUse ?? ended)?.name ?? null) : undefined;
+};
+
+/**
  * What can be done with an alert, in one row. Its curves are for everybody
  * who sees the place, and a camera that stopped delivering is looked at.
  * Behind ⋯ is the rest - one thing alone stands in the row itself: the page
@@ -356,6 +368,7 @@ function Actions({
   const open = alert.resolvedAt === null;
   const camera = alert.kind === 'camera_stale';
   const ruled = open && mayManage && !camera && rule !== null;
+  const earlier = useEarlierPlace(alert);
   const more = [
     open && alert.kind === 'offline' && alert.deviceId && names.devices.has(alert.deviceId) ? (
       <Link key="device" to={devicePath(alert.deviceId)}>
@@ -378,7 +391,15 @@ function Actions({
   return (
     <>
       <div className={`${ui.wrapRow} ${styles.actions}`}>
-        {alert.spaceId && placed ? <Link to={timelineOf(alert.spaceId, alert, rule)}>{t('alerts.action.timeline')}</Link> : null}
+        {alert.spaceId && placed ? (
+          <Link to={timelineOf(alert.spaceId, alert, rule)}>
+            {earlier === undefined
+              ? t('alerts.action.timeline')
+              : earlier === null
+                ? t('alerts.action.timelineEarlier')
+                : t('alerts.action.timelineOf', { place: earlier })}
+          </Link>
+        ) : null}
         {open && camera && alert.cameraId ? <Link to={`/cameras/${alert.cameraId}`}>{t('alerts.action.checkCam')}</Link> : null}
         {more.length > 1 ? <Menu label={t('grow.menu.label', { name: title })}>{more}</Menu> : more}
         {!open && mayManage ? (

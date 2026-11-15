@@ -53,13 +53,22 @@ export const CAMERA_STILLS = { staleAfter: 2, offlineAfter: 10 } as const;
  *
  * A stored reading is proof the device was heard, so the later of the two is
  * the answer. It can only shorten a silence and never invent one: no device is
- * made to look present by a reading older than the last message from it. The
- * alarm that says how long a device has been quiet and the row that dates it go
- * by this one rule, so the sentence never contradicts the chart beside it.
+ * made to look present by a reading older than the last message from it - but
+ * the message that carried the reading itself: a note taken within
+ * `RECEIPT_SECONDS` after the newest sample is that sample arriving, and the
+ * sample's own moment is when the device spoke. The device stamps a sample in
+ * whole seconds by its clock and the cloud its note by its own, and the two fell
+ * either side of a minute: Start said "offline seit 17:43" of the last value and
+ * Meldungen 17:44 of the same silence. The alarm that says how long a device has
+ * been quiet and the row that dates it go by this one rule, so the sentence
+ * never contradicts the chart beside it.
  */
 export const heardAt = <T extends string | Date>(lastSeenAt: T | null, sampleAt: T | null): T | null => {
   if (!lastSeenAt) return sampleAt;
   if (!sampleAt) return lastSeenAt;
 
-  return new Date(sampleAt).getTime() > new Date(lastSeenAt).getTime() ? sampleAt : lastSeenAt;
+  return new Date(lastSeenAt).getTime() - new Date(sampleAt).getTime() <= RECEIPT_SECONDS * 1000 ? sampleAt : lastSeenAt;
 };
+
+/** How long after a sample's own moment the cloud may take the message that carried it (see `heardAt`). */
+export const RECEIPT_SECONDS = 5;

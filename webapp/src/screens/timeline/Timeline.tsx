@@ -16,7 +16,7 @@ import type {
 } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { lampName } from '@/screens/control/held-light';
-import { useGrow, useGrowPlants, useGrows, useMeasurementSeries } from '@/api/grows';
+import { useGrow, useGrowPlants, useGrows, useMeasurementSeries, useNamedGrow } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
 import type { Picture } from '@/api/public';
@@ -161,16 +161,16 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   // not asked a question it can only refuse. A device's curves are drawn under the place it stands in, never one it left.
   const [params] = useSearchParams();
   const named = { deviceId: params.get('device'), growId: params.get('grow') };
-  const namedGrow = useGrow(named.growId);
+  const namedGrow = useNamedGrow(named.growId);
   const vain: Vain | 'checking' | null =
     named.deviceId && !devices.data
       ? 'checking'
       : named.deviceId && !devices.data?.items.some(one => one.id === named.deviceId && one.spaceId === spaceId)
         ? { what: 'device', id: named.deviceId }
-        : named.growId && namedGrow.isPending
+        : named.growId && namedGrow.pending
           ? 'checking'
-          : named.growId && (namedGrow.isError || (namedGrow.data && !namedGrow.data.placements.some(one => one.spaceId === spaceId)))
-            ? { what: 'grow', id: named.growId }
+          : named.growId && (namedGrow.gone || (namedGrow.grow && !namedGrow.grow.placements.some(one => one.spaceId === spaceId)))
+            ? { what: 'grow', id: named.growId, ...(namedGrow.gone ? { gone: true } : {}) }
             : null;
   const page = usePage(spaceId, null, vain);
   const visiting = useVisiting(spaceId);
@@ -181,7 +181,8 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const mayLog = useMayLogIn(spaceId) && user?.isDemo !== true && !visiting;
   const mayManage = useMayManage(spaceId) && user?.isDemo !== true && !visiting;
   const data = page.data;
-  const growId = page.view.growId ?? data?.growId ?? null;
+  // A grow the address names is not asked about until it is known to be there: a deleted one answers 404.
+  const growId = (named.growId !== null && (namedGrow.pending || namedGrow.gone) ? null : page.view.growId) ?? data?.growId ?? null;
   const grow = useGrow(growId);
   const plants = useGrowPlants(growId).data?.items;
   const charted = useMemo(() => (grow.data?.measurements ?? []).filter(definition => definition.chart), [grow.data]);
@@ -191,11 +192,13 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
     charted.map(definition => definition.key),
   );
   // What was read of the grow while the address still named it; it is not asked again for the sentence about it.
-  const lost = useQueryClient().getQueryData<GrowListItem>(['grow', page.dropped?.what === 'grow' ? page.dropped.id : null]);
+  const grows = useGrows().data?.items;
+  const cached = useQueryClient().getQueryData<GrowListItem>(['grow', page.dropped?.what === 'grow' ? page.dropped.id : null]);
+  const lost = cached ?? grows?.find(one => page.dropped?.what === 'grow' && one.id === page.dropped.id);
   const card = (home.data?.spaces ?? []).filter(isPlace).find(one => one.spaceId === spaceId);
   const climates = (card?.climates ?? []).flatMap(climate => (climate.deviceId ? [climate.deviceId] : []));
   // A note at a moment goes to the grow the view shows, which is one of two where two grow here.
-  const here = targetsOf(home.data, useGrows().data?.items).filter(one => one.standsIn === spaceId || one.spaceId === spaceId);
+  const here = targetsOf(home.data, grows).filter(one => one.standsIn === spaceId || one.spaceId === spaceId);
   const target = here.find(one => one.growId === growId) ?? here[0] ?? null;
   const spaceRow = spaces.data?.items.find(space => space.id === spaceId) ?? null;
   // A device the account holds is called as everywhere; one that has left it, by what the answer says it was called.
@@ -258,7 +261,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
           </Link>
         </>
       ) : (
-        t(`timeline.missing.${page.dropped.what}`)
+        t(page.dropped.gone ? 'timeline.missing.growGone' : `timeline.missing.${page.dropped.what}`)
       ),
     // Its curves are promised where this window holds some; one without says only that the place has ended.
     ended: ended
@@ -322,6 +325,8 @@ export function SharedTimeline({
 interface Vain {
   what: 'device' | 'grow';
   id: string;
+  /** A grow the account no longer holds: deleted, not stood elsewhere. */
+  gone?: true;
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
@@ -854,10 +859,13 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
             second column's head. */}
         {nothing || columns ? null : cursorCard}
         <div className={styles.curves}>
-          {nothing ? (
+          {/* A window wholly inside the place's silence keeps a lamp module's strip or the grow's own readings, and says
+              why the climate's panels are gone. */}
+          {nothing || (data.panels.length === 0 && data.lastReadingAt !== null) ? (
             <Nothing
               data={data}
               ended={Boolean(own?.ended)}
+              partly={!nothing}
               now={now}
               // The moment alone: the view gives it its own day around it, and never a window past now.
               toLast={time => change({ range: '24h', fixed: null, last: null, at: time })}
@@ -982,11 +990,14 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
 function Nothing({
   data,
   ended,
+  partly = false,
   now,
   toLast,
 }: {
   data: SpaceTimeline;
   ended: boolean;
+  /** Something else is drawn - a lamp module's strip, the grow's own readings -, and only the climate is missing. */
+  partly?: boolean;
   now: ReturnType<typeof useNow>;
   toLast: (time: number) => void;
 }) {
@@ -997,7 +1008,7 @@ function Nothing({
     <div className={`${ui.cardDashed} ${styles.nothing}`}>
       <p className={ui.note}>
         {last !== null
-          ? t('timeline.quietWindow', { age: ageLabel(last, now) })
+          ? t(partly ? 'timeline.quietClimate' : 'timeline.quietWindow', { age: ageLabel(last, now) })
           : (data.deviceIds ?? []).length > 0
             ? // A device that came from another place has reported there: it waits for its first value here.
               t(data.arrivals.length > 0 ? 'timeline.waitingHere' : 'timeline.waiting')

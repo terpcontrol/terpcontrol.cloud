@@ -1442,11 +1442,12 @@ describe('the diary of the window', () => {
 
     const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
     await waitFor(() => expect(list.getAllByRole('listitem')[1].textContent).toMatch(/Device offline · /));
-    const [ctrl, plug] = list.getAllByRole('listitem').map(line => line.textContent);
+    const [ctrl, first, second] = list.getAllByRole('listitem').map(line => line.textContent);
     expect(ctrl).toMatch(/Device offline · Controller B/);
     expect(ctrl).not.toMatch(/ over/);
-    // The run stands at its first firing and says until its clearing.
-    expect(plug).toMatch(/Device offline · .* · 2× until \d\d:\d\d · over/);
+    // Each silence is a line of its own: the one another followed is over, the next one until its clearing.
+    expect(first).toMatch(/Device offline · [^·]+ · over/);
+    expect(second).toMatch(/Device offline · [^·]+ · until \d\d:\d\d · over/);
   });
 
   /**
@@ -1569,6 +1570,52 @@ describe('the diary of the window', () => {
     await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
     const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
     expect(line.textContent).toMatch(new RegExp(`^${iso(raised - 640_000).slice(11, 16)}, `));
+  });
+
+  /**
+   * Friday's window, as Grow's "Kurven zu diesem Tag" opens it, drew "18:35 Gerät offline" open and red: the line that
+   * says the silence ended lies after the window. The window's alarms know its end, and the line says it.
+   */
+  it('reads the end of a silence the window ends inside from its alert, and draws it over', async () => {
+    const [from, to] = [NOW - 72 * HOUR, NOW - 48 * HOUR];
+    const raised = from + 6 * HOUR;
+    server.over = {
+      alarms: [
+        {
+          alertId: 'alert-1',
+          kind: 'offline',
+          severity: 'critical',
+          metric: null,
+          startedAt: iso(raised),
+          endedAt: iso(NOW - 30 * HOUR),
+          value: 600,
+          extremeValue: 600,
+        },
+      ],
+      events: [
+        entry('quiet', {
+          kind: 'alarm',
+          source: 'alarm',
+          authorId: null,
+          deviceId: 'device-1',
+          alertId: 'alert-1',
+          severity: 'critical',
+          text: null,
+          occurredAt: iso(raised),
+          message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 10 min ago, silent=600'] },
+          values: { kind: 'alarm' },
+        }),
+      ],
+    };
+    draw(`/timeline?from=${iso(from)}&to=${iso(to)}`);
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
+    const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
+    const end = zonedAt(NOW - 30 * HOUR, 'UTC');
+    expect(line.textContent).toMatch(new RegExp(`Device offline · until ${end.toFormat('ccc')}\u00a0${end.toFormat('HH:mm')} · over`));
+    expect(line).not.toHaveAttribute('data-severity');
   });
 
   /** Two grows in one tent: Start's lines say whose a line is since the sixth walk; Verlauf's list said nothing. */
@@ -1754,6 +1801,16 @@ describe('Verlauf with nothing to draw', () => {
     expect(server.askedFor).not.toContain('/spaces/space-1/timeline');
   });
 
+  /** A deleted grow by address read "was never in this place", after a read of it answered 404. */
+  it('says a grow the account no longer holds is gone, and asks for nothing that answers 404', async () => {
+    server.grows = [{ id: 'grow-1', name: 'Amnesia', placements: [], phases: [], summary: { zone: 'UTC' } }];
+    draw('/timeline?grow=grow-deleted');
+
+    expect(await screen.findByText('The grow in the address no longer exists. This is the place without it.')).toBeInTheDocument();
+    expect(server.askedFor.filter(path => path.includes('grow-deleted'))).toEqual([]);
+    expect(server.asked.every(query => !query.has('growId'))).toBe(true);
+  });
+
   it('says that a device waits for its first values', async () => {
     server.over = { panels: [], outputs: [], cameras: [], events: [], machineEvents: { shown: 0, total: 0 } };
     draw();
@@ -1773,6 +1830,17 @@ describe('Verlauf with nothing to draw', () => {
     // The moment alone: the page gives it its own day around it, and never a window past now.
     await waitFor(() => expect(address().search).toBe(`?at=${iso(last)}`));
     await waitFor(() => expect(Object.fromEntries(server.asked.at(-1)!)).toMatchObject({ from: iso(last - 12 * HOUR), to: iso(last + 12 * HOUR) }));
+  });
+
+  /** A day wholly inside the controller's silence kept the lamp module's strip and lost its climate panels without a word. */
+  it('says why the climate is missing from a window that keeps a lamp´s strip, with the way to the last reading', async () => {
+    const last = NOW - 50 * HOUR;
+    server.over = { panels: [], cameras: [], lastReadingAt: iso(last) };
+    draw();
+
+    expect(await screen.findByText(/No climate readings came in this window · last reading 2 d ago/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Go to the last reading/ })).toBeInTheDocument();
+    expect(lane('light')).not.toBeNull();
   });
 
   it('says so where no device measures at all', async () => {

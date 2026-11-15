@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas';
+import { MAINTENANCE_SETTLE_SECONDS, RECEIPT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -687,6 +687,21 @@ describe('the health loop', () => {
     ]);
   });
 
+  /**
+   * The device stamps a sample in whole seconds by its clock, the cloud its note when the message arrives: 17:43:59
+   * and 17:44:00. Start said "offline seit 17:43" of the last value and Meldungen 17:44 of the same silence.
+   */
+  it('dates a silence from the sample the last message carried, not from the moment it arrived', async () => {
+    const at = new Date();
+    const sample = new Date(at.getTime() - 20 * 60_000);
+    await device({ state: { lastSeenAt: new Date(sample.getTime() + 1_300) } });
+    heard.set(DEVICE, sample);
+
+    await health.run(at);
+
+    expect(await openAlert()).toMatchObject({ kind: 'offline', value: 20 * 60 });
+  });
+
   it('calls no device gone that the store heard from since the note was written', async () => {
     const at = new Date();
     await device({ state: { lastSeenAt: new Date(at.getTime() - GONE_MS) } });
@@ -712,7 +727,8 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(heardAsked).toEqual([[{ deviceId: DEVICE, since: seen }]]);
+    // A moment before it: the sample that message carried may be stamped a little earlier.
+    expect(heardAsked).toEqual([[{ deviceId: DEVICE, since: new Date(seen.getTime() - RECEIPT_SECONDS * 1000) }]]);
   });
 
   it('raises for a camera that has stopped delivering stills', async () => {
@@ -868,7 +884,7 @@ describe('the line an alarm writes into the diary', () => {
     expect(await said()).toEqual([expect.stringMatching(/^Fridgegrow, last heard 2 h ago, silent=7200(\.\d+)?$/)]);
   });
 
-  it('dates the end of an absence from the episode rather than from the silence it was resolved on', async () => {
+  it('counts the end of an absence from when the silence began rather than from the alert or the silence it was resolved on', async () => {
     const subject = {
       name: 'Device offline',
       kind: 'offline' as const,
@@ -882,11 +898,12 @@ describe('the line an alarm writes into the diary', () => {
 
     const alert = await episodes.raise(subject, 660, startedAt);
     // What the loop hands the resolution is a fresh reading of the silence, and
-    // by then the device has just spoken: the episode is the hour and a half,
-    // not the twelve seconds that ended it.
+    // by then the device has just spoken: the absence is the hour and a half of
+    // the alert and the eleven minutes before it was raised, not the twelve
+    // seconds that ended it.
     await episodes.settle(subject, alert, 12, new Date());
 
-    expect(await said()).toEqual(['Device offline, last heard 11 min ago, silent=660', 'Device offline, back after 1 h 30 min']);
+    expect(await said()).toEqual(['Device offline, last heard 11 min ago, silent=660', 'Device offline, back after 1 h 41 min']);
   });
 
   it('leaves a threshold alarm in the words it has always used', async () => {

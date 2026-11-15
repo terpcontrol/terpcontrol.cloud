@@ -796,6 +796,8 @@ describe('the choice of place', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Timeline' })).toBeInTheDocument();
     expect(where(router)).toBe('/timeline?space=space-9');
     await waitFor(() => expect(timelinesAsked()).toEqual(['space-9']));
+    // The chip named the chosen place beside the curves of the ended one, which were not its.
+    expect(screen.queryByRole('button', { name: /^Place:/ })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Adjust' }));
     expect(screen.queryByText('Share')).not.toBeInTheDocument();
     expect(screen.queryByText('Views')).not.toBeInTheDocument();

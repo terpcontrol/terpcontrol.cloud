@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useDevices } from '@/api/devices';
-import { useGrow } from '@/api/grows';
+import { useNamedGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -33,8 +33,8 @@ export function Timeline() {
   const stands = deviceId ? devices.data?.items.find(one => one.id === deviceId)?.spaceId : null;
   // An ended grow named without a place is drawn where it stood last - a place that has ended with it, read only -
   // and not over the chosen place's curves, where it never stood.
-  const named = useGrow(params.get('space') === null ? params.get('grow') : null);
-  const grow = named.data;
+  const named = useNamedGrow(params.get('space') === null ? params.get('grow') : null);
+  const grow = named.grow;
   const stoodLast = grow?.endedAt ? [...grow.placements].sort((one, other) => one.startedAt.localeCompare(other.startedAt)).at(-1)?.spaceId : null;
   // The device's own place is written into the address, which is what chooses a place: the header follows.
   const elsewhere =
@@ -49,7 +49,7 @@ export function Timeline() {
   }, [elsewhere]);
 
   // Not the place chosen before, for the moment it takes to learn where the device stands.
-  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending) || (named.isPending && named.fetchStatus !== 'idle'))
+  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending) || named.pending)
     return <Waiting lines={3} title={t('shell.tabs.timeline')} />;
   if (!home.data) return <LoadFailed title={t('shell.tabs.timeline')} read={home} values />;
   if (stray) return <NoLongerHere what="space" />;

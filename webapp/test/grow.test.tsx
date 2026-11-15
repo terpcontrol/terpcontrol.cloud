@@ -949,7 +949,7 @@ describe('a day of the diary', () => {
     // A line stands where its silence began, as Start's banner dates it - not when the alarm was raised.
     expect(lines.find(line => line.key === 'off-2')?.at).toBe(DateTime.fromISO(at(1, 6)).minus({ minutes: 11 }).toUTC().toISO());
     expect(lines.find(line => line.key === 'off-1-back')?.at).toBe(DateTime.fromISO(at(1, 3)).minus({ minutes: 11 }).toUTC().toISO());
-    expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance ended' });
+    expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance · under 1 min' });
   });
 
   /**
@@ -993,6 +993,69 @@ describe('a day of the diary', () => {
     // Start's newest lines take a silence's raise along with its end, though it was raised on another day.
     const ended = quiet('ended', at(1, 11), 'alert-1', 'Device offline, back after 17 h', false);
     expect(onTheirDay(i18next, [ended, ...wednesday.entries], null).map(one => one.id)).toEqual(['ended', 'raised']);
+  });
+
+  /**
+   * Verlauf read "09:44 Gerät offline · 2× bis 15:20 · behoben" once a second silence after a restart was over too,
+   * while Meldungen gave each its own times: each silence stays a line of its own, from its start until its end.
+   */
+  it('keeps two silences parted by a restart two lines once both are over', () => {
+    const quiet = (id: string, hour: number, alertId: string, fired: boolean) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId: 'device-1',
+        alertId,
+        severity: fired ? 'critical' : 'info',
+        occurredAt: at(1, hour),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [fired ? 'Device offline, last heard 10 min ago, silent=600' : 'Device offline, back after 1 h'],
+        },
+        values: { kind: 'alarm' },
+      });
+    const entries = [
+      quiet('back-2', 15, 'alert-2', false),
+      quiet('again', 12, 'alert-2', true),
+      quiet('back-1', 11, 'alert-1', false),
+      quiet('first', 9, 'alert-1', true),
+    ];
+    const lines = dayLines(i18next.t.bind(i18next) as never, i18next, day(1, { entries }), null);
+
+    const minus10 = (hour: number) => DateTime.fromISO(at(1, hour)).minus({ minutes: 10 }).toUTC().toISO();
+    expect(lines.map(line => [line.at, line.what.kind === 'alarm' && [line.what.count, line.what.over, line.what.until]])).toEqual([
+      [minus10(12), [1, true, at(1, 15)]],
+      [minus10(9), [1, true, at(1, 11)]],
+    ]);
+  });
+
+  /**
+   * Friday's card read "18:35 Gerät offline · bis 09:44 · von allein" of a silence that ended on Sunday: "bis 09:44"
+   * read as Saturday morning. A moment of another day than the card's says which.
+   */
+  it('gives a silence´s end its day where it lies on another day than the card´s', () => {
+    const quiet = (id: string, occurredAt: string, fired: boolean) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId: 'device-1',
+        alertId: 'alert-1',
+        severity: fired ? 'critical' : 'info',
+        occurredAt,
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [fired ? 'Device offline, last heard 10 min ago, silent=600' : 'Device offline, back after 1 d 15 h'],
+        },
+        values: { kind: 'alarm' },
+      });
+    drawDay(day(2, { entries: [quiet('raised', at(2, 18), true), quiet('back', at(0, 9), false)] }));
+
+    const end = DateTime.fromISO(at(0, 9));
+    expect(linesOf()).toEqual([expect.stringMatching(new RegExp(`^17:50.*Device offline · until ${end.toFormat('ccc')} 09:00 · over`))]);
   });
 
   /** A card with room for one more line keeps a critical alarm that is over before a warning's of the same minute. */
@@ -1112,6 +1175,56 @@ describe('a day of the diary', () => {
         expect.stringMatching(/^06:49Alarm: Device offline · Controller/),
       ]),
     );
+  });
+
+  /**
+   * With a controller and a lamp module in one place, "15:00 Gerät hat neu gestartet" (the lamp's) stood under the
+   * controller's lines, and "Zu feucht · Luftfeuchte über 60 %" named no device though Start and Meldungen did. A
+   * device's own line says which device where its place holds another; alone in its place it needs no name.
+   */
+  it('names the device of an alarm´s or a restart´s line where its place holds another device', async () => {
+    const humid = entry({
+      id: 'humid',
+      kind: 'alarm',
+      source: 'alarm',
+      authorId: null,
+      deviceId: 'lamp-1',
+      severity: 'warning',
+      occurredAt: at(1, 9),
+      message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=72, upper threshold=60, lower threshold=n/a'] },
+      values: { kind: 'alarm' },
+    });
+    const restart = (id: string, deviceId: string) =>
+      entry({
+        id,
+        kind: 'system',
+        source: 'device',
+        authorId: null,
+        deviceId,
+        occurredAt: at(1, 8),
+        message: { key: 'message-device-booted', params: ['POWERON'] },
+        values: { kind: 'system' } as never,
+      });
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () =>
+      json({
+        items: [
+          { id: 'lamp-1', type: 'light', name: null, spaceId: 'space-1' },
+          { id: 'ctrl-1', type: 'controller', name: null, spaceId: 'space-1' },
+          { id: 'alone-1', type: 'controller', name: 'Cellar', spaceId: 'space-2' },
+        ],
+        nextCursor: null,
+      }),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    drawDay(day(1, { entries: [humid, restart('restart', 'lamp-1'), restart('restart-alone', 'alone-1')] }));
+
+    await waitFor(() => expect(linesOf()[0]).toMatch(/Too humid · Lamp module/));
+    expect(linesOf()).toEqual([
+      expect.stringMatching(/Too humid · Lamp module/),
+      expect.stringMatching(/rebooted · Lamp module/),
+      expect.not.stringMatching(/ · (Controller|Cellar)/),
+    ]);
   });
 
   /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */

@@ -7,7 +7,7 @@ import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { Line } from '@/ui/Lines';
-import { deviceName } from '@/ui/naming';
+import { deviceTitle, standingWith } from '@/ui/naming';
 import ui from '@/ui/ui.module.css';
 import type { DayLine } from './days';
 
@@ -16,8 +16,8 @@ import type { DayLine } from './days';
  * card and under "Zuletzt" on Start: what somebody did as they wrote it, and
  * what the devices did by themselves marked as that - not an alarm still open. An alarm is its rule -
  * with its device, where another device's rule of that name has a line beside
- * it -, how often it fired and the edge it crossed; a silence that is over,
- * until when it went on. A line that carries pictures
+ * it or its place holds another device, as a restart's line is -, how often it
+ * fired and the edge it crossed; a silence that is over, until when it went on. A line that carries pictures
  * counts them as the way to them where the list has one (`onPictures`) - or
  * draws them, for a reader of a share link (`thumbnails`) - and only counts
  * them where it has none.
@@ -41,6 +41,7 @@ export function DiaryLine({
   onPictures = null,
   thumbnails,
   moment = instant => sinceLabel(instant, now, zone),
+  named,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -74,12 +75,16 @@ export function DiaryLine({
   thumbnails?: string[];
   /** How the list says a moment, which a folded run's other end is said in: one form of a date in a row. */
   moment?: (instant: string) => string;
+  /** What a device the account no longer holds is called, where the list was told. */
+  named?: (deviceId: string) => string | null;
 }) {
   const { t } = useTranslation();
   const { what } = line;
   // An alarm still open is no deed of the devices', and "von allein" on its red line read as over by itself.
   const mark = line.own || (what.kind === 'alarm' && what.stands) ? null : t('grow.diary.byItself');
-  const device = useDeviceCalled(what.kind === 'alarm' && what.twin ? what.entry.deviceId : null);
+  // A device's own line - an alarm, a restart - says which device where its place holds another, as Start and Meldungen do.
+  const own = what.kind === 'alarm' || (what.kind === 'entry' && what.entry.kind === 'system');
+  const device = useDeviceCalled(own ? what.entry.deviceId : null, what.kind === 'alarm' && what.twin, named);
 
   if (what.kind === 'said') {
     return (
@@ -103,7 +108,8 @@ export function DiaryLine({
               : what.until
                 ? t('grow.diary.alarmUntil', { until: moment(what.until) })
                 : null,
-            what.over && !what.until ? t('grow.diary.alarmOver') : null,
+            // Over is said of every line that is, one "bis" its end too: "bis 14:55" alone read as a silence not yet ended.
+            what.over ? t('grow.diary.alarmOver') : null,
           ]}
         />
         {what.limit ? <small>{what.limit}</small> : null}
@@ -137,14 +143,22 @@ export function DiaryLine({
         pictures={carried === null}
         plants={plants}
         grow={grow}
+        device={device}
       />
     </Line>
   );
 }
 
-/** What a device is called, read only where a line has to say which device it is about. */
-const useDeviceCalled = (deviceId: string | null): string | null => {
+/**
+ * What a device is called, where a line has to say which device it is about: always (`twin`), or where its place holds
+ * another device. One the account no longer holds - given up since - is called by what the list was told (`named`).
+ */
+const useDeviceCalled = (deviceId: string | null, twin: boolean, named?: (deviceId: string) => string | null): string | null => {
   const { t } = useTranslation();
-  const device = useDevicesShape(deviceId !== null).data?.items.find(one => one.id === deviceId);
-  return device ? deviceName(device, t) : null;
+  const every = useDevicesShape(deviceId !== null).data?.items;
+  const device = every?.find(one => one.id === deviceId);
+  if (!deviceId) return null;
+  if (!device) return named?.(deviceId) ?? null;
+  const among = standingWith(device, every) ?? [];
+  return twin || among.length > 1 ? deviceTitle(device, t, among) : null;
 };

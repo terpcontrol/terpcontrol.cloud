@@ -202,10 +202,13 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
  * a stored reading as readily as a message - and the liveness vocabulary the
  * rest of the app uses was given that wording for exactly this distinction.
  *
- * The end of it is dated from the alert rather than from the value it is handed:
- * the loop resolves an episode from a fresh measurement of the silence, which is
- * a few seconds by the time anything has been heard again, and "last heard 12 s
- * ago" is not what a four-day absence should be remembered as.
+ * The end of it counts from when the silence began - the alert's start less the
+ * seconds it was raised with - rather than from the value it is handed: the loop
+ * resolves an episode from a fresh measurement of the silence, which is a few
+ * seconds by the time anything has been heard again, and "last heard 12 s ago"
+ * is not what a four-day absence should be remembered as. Nor is the alert's own
+ * length: it was raised ten minutes in, and "back after 2 min" of a twelve-minute
+ * silence understated every outage by the patience before it.
  *
  * The raise carries the silence in seconds as well (`silent=`), which the span
  * rounds: the diary dates when the device fell silent from it, as Meldungen
@@ -214,7 +217,7 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
  */
 const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (event === 'resolved') {
-    const episode = alert.resolvedAt ? (alert.resolvedAt.getTime() - alert.startedAt.getTime()) / 1000 : null;
+    const episode = alert.resolvedAt ? (alert.resolvedAt.getTime() - alert.startedAt.getTime()) / 1000 + (alert.value ?? 0) : null;
     return episode === null ? `${subject.name}, back` : `${subject.name}, back after ${spanWords(episode)}`;
   }
 

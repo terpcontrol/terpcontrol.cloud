@@ -9,7 +9,7 @@ import { Term } from '@/ui/Help';
 import { Lines } from '@/ui/Lines';
 import { useKept } from '@/ui/kept';
 import ui from '@/ui/ui.module.css';
-import { clock } from '@/ui/zone';
+import { CLOCK, clock, nowThere, zoned } from '@/ui/zone';
 import {
   alarmsIn,
   climateLine,
@@ -121,8 +121,7 @@ export function DayCard({
                   key={line.key}
                   line={line}
                   stamp={clock(line.at, zone)}
-                  // A moment of the card's own day is its clock, as the stamps are; another day's says which.
-                  moment={instant => (onTheDay(day, instant) ? clock(instant, zone) : sinceLabel(instant, now, zone))}
+                  moment={instant => momentOf(day, instant, now, zone)}
                   zone={zone}
                   now={now}
                   people={people}
@@ -172,3 +171,14 @@ function DayClimate({ to, children }: { to: string | null; children: string }) {
 
 const onTheDay = (day: Pick<GrowDiaryDay, 'startsAt' | 'endsAt'>, instant: string): boolean =>
   Date.parse(day.startsAt) <= Date.parse(instant) && Date.parse(instant) < Date.parse(day.endsAt);
+
+/**
+ * A moment of the card's own day is its clock, as the stamps are; another day's says which - its weekday while that
+ * names one day, its date beyond. Friday's "bis 09:44" of a silence that ended on Sunday read as Saturday morning.
+ */
+const momentOf = (day: Pick<GrowDiaryDay, 'startsAt' | 'endsAt'>, instant: string, now: DateTime, zone: string | null): string => {
+  if (onTheDay(day, instant)) return clock(instant, zone);
+  const at = zoned(instant, zone);
+  const days = Math.abs(Math.round(nowThere(now, zone).startOf('day').diff(at.startOf('day'), 'days').days));
+  return days <= 6 ? at.toFormat(`ccc\u00a0${CLOCK}`) : sinceLabel(instant, now, zone);
+};

@@ -111,6 +111,23 @@ export const useGrows = (enabled = true) =>
   });
 
 /**
+ * A grow an address names, looked up among the account's grows before it is asked by itself: one deleted since is
+ * absent from the list, and asking for it by id was a request answered 404. `gone` once nothing holds it.
+ */
+export const useNamedGrow = (growId: string | null): { grow: GrowListItem | undefined; pending: boolean; gone: boolean } => {
+  const listed = useGrows(growId !== null);
+  const found = listed.data?.items.find(one => one.id === growId);
+  // Beyond the list's one page, or where the list could not be read, a grow is asked by itself.
+  const beyond = growId !== null && found === undefined && (listed.isError || (listed.data !== undefined && listed.data.nextCursor !== null));
+  const asked = useGrow(beyond ? growId : null);
+  return {
+    grow: found ?? asked.data,
+    pending: growId !== null && (listed.isPending || (beyond && asked.isPending)),
+    gone: growId !== null && found === undefined && ((listed.data !== undefined && !beyond) || asked.isError),
+  };
+};
+
+/**
  * Every grow, to the last page of them, for the screens that look a name up
  * rather than list what they were given. A hundred is a generous screenful and
  * the wrong thing to decide an absence by: a share link onto the grow that

@@ -1,11 +1,12 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Plant, SpaceTimeline } from '@fg2/shared-types/v1';
-import { dayLines, forwardsOf, type SilentSince } from '@/screens/grow/diary/days';
+import { dayLines, forwardsOf, type Silences } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { silentSince } from '@/ui/age';
 import { readingNamesOf } from '@/ui/entries';
 import { useKept } from '@/ui/kept';
+import { deviceName } from '@/ui/naming';
 import { Lines } from '@/ui/Lines';
 import { useZone } from '@/ui/zone';
 import { cursorStamp } from './labels';
@@ -50,6 +51,11 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   const grows = new Set(entries.flatMap(entry => (entry.growId ? [entry.growId] : [])));
   const growOf = (entry: Entry | null) => (grows.size > 1 ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null);
   const listed = all ? lines : lines.slice(-SHOWN);
+  // A device the account no longer holds is named by what the answer says it was called.
+  const named = (deviceId: string) => {
+    const told = data.devices.find(one => one.deviceId === deviceId);
+    return told ? deviceName(told, t) : null;
+  };
   // A stretch the window cuts stands at its true start, before the window: the stamps are of the span they reach, in
   // one form, and its stamp sets the cursor where the window begins.
   const reached = { from: Math.min(window.from, ...lines.map(line => at(line.at))), to: window.to };
@@ -87,6 +93,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
                 plants={plants}
                 grow={growOf(entry)}
                 stampDoes={t('timeline.diary.toMoment')}
+                named={named}
               />
             );
           })}
@@ -105,12 +112,20 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   );
 }
 
-/** When each silence the window's alarms tell of began, to the second: a line written before its seconds were has its span rounded. */
-const silencesOf = (data: SpaceTimeline): SilentSince => {
-  const began = new Map(
-    data.alarms.flatMap(alarm =>
-      (alarm.kind === 'offline' || alarm.kind === 'camera_stale') && alarm.value !== null ? [[alarm.alertId, silentSince(alarm)] as const] : [],
-    ),
+/**
+ * When each silence the window's alarms tell of began, to the second - a line written before its seconds were has its
+ * span rounded -, and when it ended: a window that ends inside a silence holds no line of its end.
+ */
+const silencesOf = (data: SpaceTimeline): Silences => {
+  const silences = new Map(
+    data.alarms.flatMap(alarm => (alarm.kind === 'offline' || alarm.kind === 'camera_stale' ? [[alarm.alertId, alarm] as const] : [])),
   );
-  return entry => (entry.alertId ? (began.get(entry.alertId) ?? null) : null);
+  const of = (entry: Entry) => (entry.alertId ? silences.get(entry.alertId) : undefined);
+  return {
+    began: entry => {
+      const alarm = of(entry);
+      return alarm && alarm.value !== null ? silentSince(alarm) : null;
+    },
+    ended: entry => of(entry)?.endedAt ?? null,
+  };
 };

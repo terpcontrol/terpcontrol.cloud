@@ -1569,8 +1569,8 @@
       "measuredBy": "{{name}} measures from here on",
       "alarmsAmong_one": "{{count}} of them an alarm",
       "alarmsAmong_other": "{{count}} of them alarms",
-      "controlOffBrief": "Control off and on again",
-      "maintenanceBrief": "Maintenance ended"
+      "controlOffBrief": "Control off · under 1 min",
+      "maintenanceBrief": "Maintenance · under 1 min"
     },
     "pictures": {
       "makeEntry": "Add to the diary as an entry",
@@ -2143,6 +2143,7 @@
       "fanBackwall": "Back-wall fan"
     },
     "quietWindow": "Nothing was measured in this window · last reading {{age}} ago",
+    "quietClimate": "No climate readings came in this window · last reading {{age}} ago",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow – both on the page",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "visiting": "support view of a customer's place",
@@ -2244,6 +2245,7 @@
     "missing": {
       "device": "The device in the address is not in this place. This is the place with its own device.",
       "grow": "The grow in the address was never in this place. This is the place without it.",
+      "growGone": "The grow in the address no longer exists. This is the place without it.",
       "growNoPlace": "“{{name}}” has no place and so no climate curves. What you measured by hand has its curves under",
       "toPlace": "Timeline of {{place}}",
       "compare": "The comparison in the address is no longer there. Shown is the place alone."
@@ -3200,6 +3202,8 @@
       "silence": "Silence 1 h",
       "unsilence": "Unsilence",
       "timeline": "Open Timeline",
+      "timelineOf": "Open the Timeline of {{place}}",
+      "timelineEarlier": "Open the Timeline of the earlier place",
       "editRule": "Edit rule",
       "checkCam": "Check camera",
       "remove": "Delete",

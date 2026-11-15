@@ -171,11 +171,11 @@ export const dayLines = (
   i18n: I18n,
   day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>,
   zone: string | null,
-  silentSince?: SilentSince,
+  silences?: Silences,
 ): DayLine[] => {
   // The folds read the newest of a run first: Verlauf's entries came oldest first, and an alarm that was over read open.
   const entries = [...day.entries].sort((one, other) => other.occurredAt.localeCompare(one.occurredAt));
-  const alarms = alarmLines(i18n, entries, silentSince);
+  const alarms = alarmLines(i18n, entries, silences);
   const written = foldRepeats(entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) => writtenLine(entry, count, since));
   const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null, moment = false): DayLine => ({
     key,
@@ -335,16 +335,16 @@ const CLEARED = 'message-alarm-resolved';
  * stage's rules, so one device's open alarm read "behoben" because another's of the same name was over. Where two
  * devices' lines share a name, each says its device (`twin`). A camera's silence is named as Meldungen names it,
  * "Terp Cam ohne Bild", and a silence counts from when it was last heard, as Meldungen counts it - to the second
- * where `silentSince` knows its alert -, one silence a line of its own (`silenceRuns`). `told` is every entry these
+ * where `silences` knows its alert -, one silence a line of its own (`silenceRuns`). `told` is every entry these
  * lines stand for.
  */
-const alarmLines = (i18n: I18n, entries: Entry[], silentSince?: SilentSince): { lines: DayLine[]; told: Set<string> } => {
+const alarmLines = (i18n: I18n, entries: Entry[], silences?: Silences): { lines: DayLine[]; told: Set<string> } => {
   const read = entries.flatMap((entry): AlarmRead[] => {
     const alarm = alarmOf(i18n, entry);
     if (!alarm) return [];
     const { parts, fired } = alarm;
     const rule = entry.cameraId ? i18n.t('alerts.title.camera', { what: parts.rule }) : parts.rule;
-    const exact = parts.silentFor === undefined ? null : (silentSince?.(entry) ?? null);
+    const exact = parts.silentFor === undefined ? null : (silences?.began(entry) ?? null);
     const began =
       exact ??
       (parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!);
@@ -361,7 +361,7 @@ const alarmLines = (i18n: I18n, entries: Entry[], silentSince?: SilentSince): { 
       const fired = others.filter(one => one.key === newest.key && one.fired);
       return { newest, at: newest.began, count: Math.max(1, fired.length), since: fired.at(-1)?.began ?? newest.began, fired };
     }),
-    ...silenceRuns(read),
+    ...silenceRuns(read, silences?.ended),
   ];
   const lines = runs.map(({ newest, at, count, since, fired, until, over = !newest.fired }): DayLine => ({
     key: newest.entry.id,
@@ -387,10 +387,14 @@ const alarmLines = (i18n: I18n, entries: Entry[], silentSince?: SilentSince): { 
 };
 
 /**
- * When a silence began, where the reader holds it to the second: the alert's own start and seconds, which a line
- * written before the seconds were (`silent=`) has only rounded down - "10 min" of 10 min 40 s.
+ * A silence's ends as its alert has them, where the reader holds it: when it began to the second - the alert's own
+ * start and seconds, which a line written before the seconds were (`silent=`) has only rounded down, "10 min" of
+ * 10 min 40 s -, and when it ended, which a window ending inside the silence holds no line of.
  */
-export type SilentSince = (entry: Entry) => string | null;
+export interface Silences {
+  began: (entry: Entry) => string | null;
+  ended: (entry: Entry) => string | null;
+}
 
 /** An alarm's line read into its parts: the rule it is of on its device, and when what it is about began - to within `rough` seconds. */
 interface AlarmRead {
@@ -410,7 +414,7 @@ interface AlarmRun {
   since: string;
   fired: AlarmRead[];
   until?: string;
-  /** Whether it is over, where its newest line does not say so: a silence another one of its rule followed. */
+  /** Whether it is over, where its newest line does not say so: a silence another one of its rule followed, or whose alert ended past the lines. */
   over?: boolean;
 }
 
@@ -428,11 +432,11 @@ const ONE_SILENCE_MS = 60_000;
  * A device's or a camera's silences as lines. A silence is one thing however often the cloud raised it - a restart
  * of the server closes an alert and raises it again a minute later, and Saturday read "8× seit 18:36" of one quiet
  * evening - so its raises are one, dated by the earliest start they give, and the line that says it ended (by its
- * alert) is its end. One still going stands alone at its start: "4× seit 18:35" of a silence since 09:46 lumped in
- * the one before a restart. One that is over stands at its start, "bis" its end; several of a rule over are one line
- * as an alarm's are, counted as silences.
+ * alert) is its end, else the alert's own end where `ended` knows it. Each silence is a line of its own, standing at
+ * its start: one still going since then, one that is over "bis" its end - two parted by the device's restart stay two
+ * once both are over, as Meldungen says each.
  */
-const silenceRuns = (read: AlarmRead[]): AlarmRun[] => {
+const silenceRuns = (read: AlarmRead[], ended?: Silences['ended']): AlarmRun[] => {
   const silent = read.filter(one => one.parts.silence);
   // Each silence's raises, earliest start first, and the newest line that says it ended.
   const episodes: { firings: AlarmRead[]; end: AlarmRead | null }[] = [];
@@ -453,36 +457,29 @@ const silenceRuns = (read: AlarmRead[]): AlarmRun[] => {
     else if (!of.end || ms(end.entry.occurredAt) > ms(of.end.entry.occurredAt)) of.end = end;
   }
 
-  // A silence followed by another of its rule is over, whether or not its end is among the lines.
   const lastOf = (one: (typeof episodes)[number]): AlarmRead =>
     one.end ?? one.firings.reduce((newest, other) => (ms(other.entry.occurredAt) > ms(newest.entry.occurredAt) ? other : newest));
+  const untilOf = (one: (typeof episodes)[number]): string | null =>
+    one.end?.entry.occurredAt ?? one.firings.map(firing => ended?.(firing.entry) ?? null).find(Boolean) ?? null;
+  // A silence followed by another of its rule is over, whether or not its end is among the lines.
   const going = episodes.filter(
     one =>
-      one.end === null &&
+      untilOf(one) === null &&
       !episodes.some(other => other !== one && other.firings[0]?.key === one.firings[0].key && ms(startOf(other)) > ms(startOf(one))),
   );
-  const over = episodes
-    .filter(one => !going.includes(one))
-    .sort((one, other) => ms(lastOf(other).entry.occurredAt) - ms(lastOf(one).entry.occurredAt));
-  const ended = [...new Set(over.map(one => lastOf(one).key))].map((key): AlarmRun => {
-    const same = over.filter(one => lastOf(one).key === key);
-    const [last, first] = [same[0], same[same.length - 1]];
-    const fired = same.flatMap(one => one.firings);
-    // Alone it stands where it began and says when it ended; folded with others it is the rule's run of them.
-    return same.length === 1 && last.firings.length > 0
-      ? {
-          newest: lastOf(last),
-          at: startOf(last),
-          count: 1,
-          since: startOf(last),
-          fired,
-          over: true,
-          ...(last.end ? { until: last.end.entry.occurredAt } : {}),
-        }
-      : { newest: lastOf(last), at: lastOf(last).began, count: same.length, since: startOf(first), fired, over: true };
-  });
 
-  return [...going.map(one => ({ newest: lastOf(one), at: startOf(one), count: 1, since: startOf(one), fired: one.firings, over: false })), ...ended];
+  return episodes.map((one): AlarmRun => {
+    const [over, until] = [!going.includes(one), untilOf(one)];
+    return {
+      newest: lastOf(one),
+      at: startOf(one),
+      count: 1,
+      since: startOf(one),
+      fired: one.firings,
+      over,
+      ...(over && until && one.firings.length > 0 ? { until } : {}),
+    };
+  });
 };
 
 /** Which rule an alarm's line is of: its name on its device or its camera, never its name alone. */

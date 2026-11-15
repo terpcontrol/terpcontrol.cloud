@@ -558,7 +558,8 @@ describe('the inbox', () => {
   });
 
   /** The place it stands in now never saw that instant: the device came there since, and its curves of then are where it stood. */
-  it('opens the timeline of an alert that moved with its device where the device stood when it began', async () => {
+  /** The card names the place the device stands in now, and its curves open the one it began in: the link says which. */
+  it('opens the timeline of an alert that moved with its device where the device stood when it began, and says so', async () => {
     server.places = [...server.places, { id: 'space-2', name: 'Cellar' }];
     server.devices = [deviceRow({ spaceId: 'space-2' })];
     server.alerts = [alert({ spaceId: 'space-2', spaceName: 'Cellar', startedIn: 'space-1' })];
@@ -566,7 +567,7 @@ describe('the inbox', () => {
     draw();
 
     const [card] = await waitFor(() => openCards());
-    expect((await within(card).findByRole('link', { name: 'Open Timeline' })).getAttribute('href')).toBe(
+    expect((await within(card).findByRole('link', { name: 'Open the Timeline of Flower room B' })).getAttribute('href')).toBe(
       `/timeline?space=space-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
     );
   });
@@ -899,6 +900,29 @@ describe('the inbox', () => {
     // The one thing a ⋯ would hold stands in the row itself.
     expect(within(quiet).getByRole('link', { name: 'To the device' })).toHaveAttribute('href', '/devices/device-1');
     expect(within(quiet).queryByRole('button', { name: /^More about|^Silence this rule/ })).not.toBeInTheDocument();
+  });
+
+  /** "C8 Lampe 12 Min offline" of a device its owner named "c8 Lampe": a reading's word opens the sentence capitalised, a name as it was given. */
+  it('writes a device´s and a camera´s own name as it was given, opening the title', async () => {
+    server.devices = [deviceRow({ name: 'c8 lamp' })];
+    server.cameras = [{ id: 'cam-2', name: 'cam on the left' }];
+    server.alerts = [
+      alert({ id: 'off', kind: 'offline', ruleId: null, severity: 'warning', value: 1500, startedAt: iso(NOW.minus({ minutes: 10 })) }),
+      alert({
+        id: 'cam',
+        kind: 'camera_stale',
+        ruleId: null,
+        deviceId: null,
+        cameraId: 'cam-2',
+        severity: 'warning',
+        value: 1500,
+        startedAt: iso(NOW.minus({ minutes: 9 })),
+      }),
+    ];
+    draw();
+
+    expect(await screen.findByLabelText('warning · c8 lamp offline')).toBeInTheDocument();
+    expect(await screen.findByLabelText('warning · cam on the left without a picture')).toBeInTheDocument();
   });
 
   /** A reading of a device that has gone silent since is an old one: it says so, and stands under what is about now. */
