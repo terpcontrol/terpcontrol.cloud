@@ -221,9 +221,9 @@ describe('the stranger an invitation was sent to', () => {
       fireEvent.click(screen.getByRole('checkbox'));
       fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
 
-      const said = await screen.findByRole('alert');
-      expect(said).toHaveTextContent('Für diese Adresse gibt es schon ein Konto. Anmelden ›');
-      expect(within(said).getByRole('link', { name: 'Anmelden ›' })).toHaveAttribute('href', '/sign-in');
+      // The alert is a live region that stands empty until the refusal arrives.
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Für diese Adresse gibt es schon ein Konto. Anmelden ›'));
+      expect(within(screen.getByRole('alert')).getByRole('link', { name: 'Anmelden ›' })).toHaveAttribute('href', '/sign-in');
 
       server.refuseSignUp = refusal('handle_taken', 'That handle is taken.');
       fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
