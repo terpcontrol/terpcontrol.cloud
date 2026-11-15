@@ -1,7 +1,7 @@
 ---
 summary: What the server does on its own and for a device, and the rules behind it - alarms and notifications, device settings and plans, tasks and commands, the read models screens judge by
 updated: 2026-11-15
-source: the ninth whole-app walk's lists built - a place's bands follow the climate written, an alarm line every grow's there, a silence stamped at the pass, one silence of split alerts, a device moved away silent (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's lists built - germination judged by the place, a silence from its last sample, "back after" from the silence (the redesign session's fix round of 2026-11-15); the seventh whole-app walk's lists built - stage rules by what a device measures (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's lists built - excursions after a silence, a climate only into the sections a document carries (the redesign session's fix round of 2026-11-15); the fifth whole-app walk's lists built - an alarm ending during maintenance, a silence's seconds, an awaited climate from a grow's phase, excursions from the samples, Verlauf's stretches across its edges, today's done tasks (the redesign session's fix round of 2026-11-14); a climate that waits for a device's first settings, an alarm's firings beside the tail (the redesign session's fix round after the fourth whole-app walk, 2026-11-14); a plan step without a preset clears the preset's name, built as Chris answered (the third whole-app walk's fix round, 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); the climate preset a device was put on, kept (the redesign session's fix round of 2026-11-14); no night shorter than a minute, alarm limits that contradict each other refused (the redesign session's final fix round, second part, 2026-11-13); regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
+source: the tenth whole-app walk's lists built - every climate written moves the place's bands by one way, a spell ended on the climate it came from, a device in a place where no climate was written without bands, a silence across a whole window (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - a place's bands follow the climate written, an alarm line every grow's there, a silence stamped at the pass, one silence of split alerts, a device moved away silent (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's lists built - germination judged by the place, a silence from its last sample, "back after" from the silence (the redesign session's fix round of 2026-11-15); the seventh whole-app walk's lists built - stage rules by what a device measures (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's lists built - excursions after a silence, a climate only into the sections a document carries (the redesign session's fix round of 2026-11-15); the fifth whole-app walk's lists built - an alarm ending during maintenance, a silence's seconds, an awaited climate from a grow's phase, excursions from the samples, Verlauf's stretches across its edges, today's done tasks (the redesign session's fix round of 2026-11-14); a climate that waits for a device's first settings, an alarm's firings beside the tail (the redesign session's fix round after the fourth whole-app walk, 2026-11-14); a plan step without a preset clears the preset's name, built as Chris answered (the third whole-app walk's fix round, 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); the climate preset a device was put on, kept (the redesign session's fix round of 2026-11-14); no night shorter than a minute, alarm limits that contradict each other refused (the redesign session's final fix round, second part, 2026-11-13); regulation off as a stretch of the day, a device's rules counted on their page (the redesign session's final fix round, 2026-11-13); Verlauf's eighth list - the interval pooled and bounded, four and a half of them, one verdict carried by the answer (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence by the interval the device was keeping (the redesign session of 2026-11-13, not Chris); a device heard by any of its fields (the redesign session of 2026-11-13, after Verlauf's sixth walk); Chris (fridge tuning and germination, 2026-10-01..04); app-rewrite sessions and their critics 2026-09..10; commit history up to #141 (2026-10-07); codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the diary read of the navigation redesign (2026-11-12); the redesign session of 2026-11-12, a pending switch read as the firmware reads it included; the Timeline's step, extremes and named window (the redesign session of 2026-11-12, measured on a session stack); Verlauf's walk and its fixes (the redesign session of 2026-11-12); alerts listed by when they ended: the redesign session's clearing-up round of 2026-11-13; the report's count of entries (the redesign session after its critic's walk of the clearing-up round, 2026-11-13)
 paths:
   - server/src/modules/alarm/**
   - server/src/modules/v1/notification/**
@@ -77,17 +77,27 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   can measure: a fan and a lamp module report temperature and humidity and no CO2 (device-protocol.md, 5.4), so they
   get no "CO₂ too high", and one written before is taken away with the next stage (the seventh whole-app walk found it
   on a lamp module claimed into a place in flower).
-- **A place's bands follow the climate written there** (the redesign session of 2026-11-15, after the ninth whole-app
-  walk; ADR 0001, "One phase writer"): a phase entered with its climate - written now or waiting for a device's first
-  settings -, a preset applied, with a grow there or without, and a plan step write the stage's bands
-  (`PhaseWriterService.rereadThresholds`, `restateSpace`); a stage only recorded, a correction and a withdrawal write
-  none - but a germination or a drying recorded over a place that already runs that mode, set under Steuerung or at
-  the device, takes its bands, since that is the climate in force (`runsItsMode`). A second grow recorded in Veg
-  beside a flowering one had moved the tent to Veg's 18 / 72 / 31 and closed the open "too humid" while the air stayed
-  at 62 %. A device put into a place takes the stage its neighbours' bands come from, and where none has any the phase
-  of the grow standing there longest (`restateThresholds`, `stageOf`). Which stage that is the rules say themselves
-  (`presetId`, `stage[:preset]`, `presetIdOf` / `stageOfPresetId` in `climate-presets.ts`), which is what Steuerung ›
-  Alarme heads them by. **An alarm's line is the place's**: it names no grow (`AlertService`), and every grow standing
+- **A place's bands follow the climate written there, by one way** (the redesign session of 2026-11-15, after the
+  ninth whole-app walk, and after the tenth, which found a Steuerung preset, "Blüte · jetzt" over a grow recorded in
+  Blüte and "Keimung beenden" each writing a climate and leaving another stage's bands; ADR 0001, "One phase
+  writer"): every write of a device's settings goes through `DeviceConfigurationService.store`, and a write that puts
+  the device on a climate moves the bands of every device standing in its place to that climate there
+  (`climateWritten`, `StageAlarms.followClimate`) - a preset taken under Steuerung (the configuration `PUT` that names
+  one), a phase with its climate, the stage the grow already stands in included, a preset applied to a place - the
+  claim's step -, a plan step's stage with a grow there or without, and a climate waiting for a device's first
+  settings (`awaitClimate`). No caller moves a band of its own. A spell ended by its own button - "Keimung beenden",
+  "Trocknung beenden" - ends on the climate it came from: the name the device had when the spell began is kept with
+  the figures (`climateBeforeSpell`) and comes back with them, and the bands follow it ("Sämling · mit Licht" before
+  a germination is "Sämling · mit Licht" after it; `namedAfter`); a spell begun at the device's own menu kept nothing,
+  and one whose figures were changed by hand while it ran ends on none, the bands then staying as they were. A stage
+  only recorded, a figure changed by hand, a correction and a withdrawal move none - but a germination or a drying
+  recorded over a place that already runs that mode, set at the device, takes its bands, since that is the climate
+  in force (`runsItsMode`). A device put into a place takes the stage its neighbours' bands come from, else the phase
+  of the grow standing there longest, else - no climate was written there - drops the stage bands it brought
+  (`restateThresholds`, `stageOf`, `dropStage`): a fan claimed "An einem neuen Ort" had first been joined to a tent
+  in flower and watched its empty place for 60 %. Which stage that is the rules say themselves (`presetId`,
+  `stage[:preset]`, `presetIdOf` / `stageOfPresetId` in `climate-presets.ts`), which is what Steuerung › Alarme heads
+  them by. **An alarm's line is the place's**: it names no grow (`AlertService`), and every grow standing
   in the place reads it for the hours it stood there - its diary, Start's "Zuletzt" of it, its export (`linesOfGrow`,
   `diary-entries.ts`); a line from before named the grow begun last there and is read the same way.
 - An alert is the record of an episode: it keeps its severity (changing a rule re-grades open alerts only) and a copy
@@ -171,9 +181,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   every hourly re-send: its stage decides only the work mode, so the device read never carries a stage without a
   preset from a step (Chris, 2026-11-14; the third whole-app walk found "Klima-Preset: Veg" over a step's own
   25 °C). Any other write that moves a figure a preset sets without naming one - a target, the light's limit,
-  hours or ramps saved by hand, a spell ended by its own button - clears it too, since the figures are then the
-  grower's own; one that moves none of them - regulation switched, the clock moved - leaves it (`appliedOf`,
-  `device-configuration.service.ts`). A hand edit taken back from its toast names the preset again: the undo's
+  hours or ramps saved by hand - clears it too, since the figures are then the grower's own; one that moves none of
+  them - regulation switched, the clock moved - leaves it (`appliedOf`, `device-configuration.service.ts`). A spell
+  ended by its own button gives back the name it found with the figures it found (`climateBeforeSpell`, `namedAfter`;
+  the tenth whole-app walk). A hand edit taken back from its toast names the preset again: the undo's
   `PUT` carries the name the device had before. A device none was applied to since has none.
 - **A climate chosen before the device sent its settings waits for them** (the redesign session of 2026-11-14,
   after the fourth whole-app walk found a phase chosen at the claim never written): `applyToSpace` passes a
@@ -317,7 +328,13 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   the offline rule, never by a slow rhythm of its own, and one that left silent is silent here to the window's end
   (`heardStretches`, `silencesOf`; the ninth walk found a backfilled controller moved away offline drawn on to its
   move). An alarm of a silence is answered with the silence's end (`silenceEnds`): an old restart of the server
-  parted one silence into alerts dated from the same last sample, and the window holding the first said its end. No query more than before for a device without pauses. **A night is shaded only through hours somebody reported in** (`nightsOf`): the schedule's
+  parted one silence into alerts dated from the same last sample, and the window holding the first said its end. A
+  window the drawn device was heard nowhere in lies wholly inside one silence, from its last sample here before the
+  window to its first after it, or on where it has said nothing since (`heardNothing`, `DataService.samplesAround`:
+  two reads of that device, in that case only; the tenth whole-app walk found a Saturday of a weekend outage reading
+  "keine Messung" with neither end); a device that never spoke here has none. The raise line of a silence begun
+  before the window and going on into it stands in the window's diary, at its start (`raisedBefore`). No query more
+  than before for a device without pauses. **A night is shaded only through hours somebody reported in** (`nightsOf`): the schedule's
   nights are cut to what was heard as the lamp's always were, mid-window and after the last word.
 - The rail caps machine lines (system, plan) apart from people's lines, so they cannot push the diary out. A
   reader from outside - a share link, a public page - is answered no alarm, no device id, no grow of the place

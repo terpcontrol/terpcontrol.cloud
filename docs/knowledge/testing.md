@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-11-14
-source: a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+updated: 2026-11-15
+source: the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -90,6 +90,16 @@ hardware, the development devices and copies of production data are in
   the image would.
 
 ## Flakes we have had
+- *A whole server unit spec file fails at once, every test with "Instance failed to start within 10000ms" or 'Port
+  "…" already in use':* each jest worker starts a spec file at the same moment, and each starts its own mongod. On a
+  busy machine one took longer than mongodb-memory-server's ten seconds to listen, or lost its port to another
+  process, and the file's `beforeAll` failed every test - all 53 of `v1-account.spec.ts` once in four runs
+  (2026-11-15). Start a spec's mongod with `startMongod` (`server/test/unit/support/mongod.ts`: a minute to come up,
+  another port when one is taken) in a `beforeAll` given `MONGOD_HOOK_MS`; `useV1TestDatabase` also waits there for
+  its collections and indexes (`model.init()`) - built beside the first test, on a busy drive they ran it past 30 s
+  and its writes broke the next with E11000.
+- *`terpcam-keyframe.spec.ts` "repairs a keyframe whose first fragment was lost" over its bound:* the bound is the
+  gap's abandonment (3 s, `GAP_ABANDON_MS`), not a speed - 0.35 s quiet, 2.3 s on a loaded machine.
 - *A spec file fails with "didn't exit with signal SIGINT within 10 seconds" while every test passed:* mongod's clean
   shutdown syncs every table, on macOS each sync is a full drive flush, and a dozen mongods stopping together outlast
   mongodb-memory-server's 10 s. Stop spec mongods with `stopMongod` (`server/test/unit/support/mongod.ts`).
@@ -107,6 +117,9 @@ hardware, the development devices and copies of production data are in
   `vi.useFakeTimers({ toFake: ['Date'] })` plus `vi.setSystemTime(<midday Europe/Berlin>)`, real timers restored
   afterwards; a fixture's live answer says `transition: null` unless the test is about one. Server code takes `now`
   as an argument (`v1-home.spec` was red 22:00-23:00 UTC because `HomeService.read` passed none to `readingsOf`).
+- An assertion that words an instant counted back from now meets the same boundary: "came here on …" for an
+  arrival 20 hours ago is "came here at 01:25" late in the day, when that is still today (`timeline.test.tsx`, red
+  after 20:00 UTC until 2026-11-15) - match both forms, or pin the clock.
 - Such tests were red between 00:00 and 02:20 in Berlin, for good once a fixed fixture date had aged past a limit, in
   early January, and in the quarter hour before a fixture fridge's 18:00 UTC light-off. To hunt them, run the whole
   suite with the process clock moved to every quarter hour of a day in Europe/Berlin, to weeks and months ahead and to
