@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
-import { useLatestStills } from '@/api/cameras';
+import { useLatestStills, useLatestStillTimes } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
@@ -177,9 +177,10 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // A diary kept by hand, with nothing here that measures or watches: the grow is the page.
   const kept = !hasDevice && camera === null ? grow : null;
   const byHand = kept !== null;
-  const lit = offline ? null : lamp.lit;
-  const held = offline ? null : lamp.held;
-  const readings = readingsOf(t, { values, setpoints, device, lit, held, hold: humidifierHold, now, zone });
+  const lit = offline ? [] : lamp.lit;
+  // "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day.
+  const heldLamp = lit.find(one => one.held) ?? null;
+  const readings = readingsOf(t, { values, setpoints, device, lit, hold: humidifierHold, now, zone });
   // A lead with no figures yet leaves the place without any: a socket's CO₂ is no reading of the place's.
   const extras = offline || unread ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
   const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
@@ -293,15 +294,14 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           {wide ? null : sentence}
           {/* A work mode the status already says is not said again under it. */}
           {status.kind === 'mode' ? null : <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />}
-          {/* "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day. */}
-          {held && lit ? (
+          {heldLamp?.held ? (
             <p className={styles.mode}>
               <span>
-                {t('start.metric.light')} {heldWords(t, held, now, zone)}
+                {readings.find(reading => reading.deviceId === heldLamp.device.id)?.label} {heldWords(t, heldLamp.held, now, zone)}
               </span>
               {mayManage ? (
                 <Link
-                  to={controlPath(spaceId, 'outputs', lit.device.id === device?.id ? {} : { device: lit.device.id })}
+                  to={controlPath(spaceId, 'outputs', heldLamp.device.id === device?.id ? {} : { device: heldLamp.device.id })}
                   className={styles.modeChange}
                 >
                   {t('start.change')} ›
@@ -393,13 +393,17 @@ function CameraHead({
   const now = useNow();
   const zone = useZone();
   const called = useCameraCalled();
-  const still = shownStill(camera);
-  // Before the first picture of the day the strip is empty, and the camera's newest frame is yesterday's.
-  const latest = useLatestStills(still === null && camera.lastStillAt ? [camera.cameraId] : []);
-  const mediaId = still?.mediaId ?? latest.get(camera.cameraId) ?? null;
-  const takenAt = still?.capturedAt ?? camera.lastStillAt;
-  const time = takenAt ? sinceLabel(takenAt, now, zone) : null;
   const offline = age === 'offline';
+  // While nothing is heard the head is the last picture there is, not the newest taken in the light: dated as
+  // Steuerung dates it, one picture carries one time.
+  const still = offline ? null : shownStill(camera);
+  // Before the first picture of the day the strip is empty, and the camera's newest frame is yesterday's.
+  const newest = still === null && camera.lastStillAt ? [camera.cameraId] : [];
+  const latest = useLatestStills(newest);
+  const latestAt = useLatestStillTimes(newest);
+  const mediaId = still?.mediaId ?? latest.get(camera.cameraId) ?? null;
+  const takenAt = still?.capturedAt ?? latestAt.get(camera.cameraId) ?? camera.lastStillAt;
+  const time = takenAt ? sinceLabel(takenAt, now, zone) : null;
 
   return (
     <Picture

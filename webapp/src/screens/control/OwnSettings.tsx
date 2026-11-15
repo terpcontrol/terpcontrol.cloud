@@ -3,11 +3,13 @@ import type { Device } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { awaitingClimate, statesTargets } from '@/ui/climate-hardware';
-import { deviceTitle } from '@/ui/naming';
+import { deviceTitle, standingWith } from '@/ui/naming';
+import { climateChoiceName } from '@/ui/presets';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { Climate } from './climate/Climate';
 import { FanPanel } from './devices/FanPanel';
+import { lampsAmong } from './held-light';
 import { LightPanel } from './devices/LightPanel';
 import { PlugPanel } from './devices/PlugPanel';
 
@@ -26,14 +28,22 @@ export function OwnSettings({ device }: { device: Device }) {
   const mayManage = enough(useMayWith()(device), 'manage');
   const all = useDevices();
   const configuration = device.configuration;
+  // The lamps of the place, each set on its own: a light card names the one it sets where another burns beside it.
+  const lamps = lampsAmong((device.spaceId ? standingWith(device, all.data?.items) : undefined) ?? [device]);
 
   if (configuration === null) {
     // A current device sends its settings as it connects: one never heard is waited for, and nobody is sent to the device.
     const unheard = device.state.lastSeenAt === null;
+    // A climate its place was put on meanwhile is said as what it will be set to, not as a climate to be set here.
+    const awaited = device.state.awaitedClimate ?? null;
     const key = awaitingClimate(device)
-      ? unheard
-        ? 'targets.unheard'
-        : 'targets.waiting'
+      ? awaited
+        ? unheard
+          ? 'targets.unheardAwaited'
+          : 'targets.waitingAwaited'
+        : unheard
+          ? 'targets.unheard'
+          : 'targets.waiting'
       : device.type === 'plug' || device.type === 'light'
         ? unheard
           ? 'ownPanel.unheard'
@@ -41,13 +51,14 @@ export function OwnSettings({ device }: { device: Device }) {
         : null;
     // Named as its card under the place names it: by the tail of its id only beside another of its kind standing there.
     const here = all.data?.items.filter(other => other.spaceId === device.spaceId);
-    return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, { device: deviceTitle(device, t, here) })}</p> : null;
+    const said = { device: deviceTitle(device, t, here), climate: awaited ? climateChoiceName(t, awaited) : null };
+    return key ? <p className={`${ui.cardDashed} ${ui.note}`}>{t(key, said)}</p> : null;
   }
 
   if (device.type === 'plug') return <PlugPanel device={device} mayManage={mayManage} />;
   if (device.type === 'light') return <LightPanel device={device} mayManage={mayManage} />;
   if (!statesTargets(configuration)) return null;
-  if (device.type !== 'fan') return <Climate device={device} stored={configuration} mayManage={mayManage} />;
+  if (device.type !== 'fan') return <Climate device={device} stored={configuration} mayManage={mayManage} lamps={lamps} />;
 
   return (
     <>

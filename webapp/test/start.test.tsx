@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
+import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router';
 import type { SpaceOverview } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
+import { readingFacts, readingsOf } from '@/screens/start/readings';
 import { Start, StartOfPlace } from '@/screens/start/Start';
 import { drawAt, reading } from './harness';
 import {
@@ -223,6 +226,23 @@ describe('Start of a place whose controller was never heard beside a socket that
     await waitFor(() => expect(server.calls).toContain('GET /devices/device-1/live'));
     expect(screen.queryByText(/CO₂/)).not.toBeInTheDocument();
     expect(screen.queryByText('Last 24 h')).not.toBeInTheDocument();
+  });
+
+  /** A stage picked at the claim waits for the controller's settings: "Wartet auf die Einstellungen des Geräts." left it out. */
+  it('says the climate the controller is put on once its settings arrive', async () => {
+    server.devices = [
+      fridge({
+        type: 'controller',
+        name: 'Tent controller',
+        configuration: null,
+        state: { lastSeenAt: null, hardware: {}, maintenanceUntil: null, awaitedClimate: { stage: 'vegetative', preset: null } },
+      } as never),
+    ];
+    onePlace(overviewOf({ values: [], setpoints: [], targets: null as never }));
+    draw('/spaces/space-1');
+
+    expect(await screen.findByText('Veg is set as soon as the device sends its settings.')).toBeInTheDocument();
+    expect(screen.queryByText('Waiting for the device’s settings.')).not.toBeInTheDocument();
   });
 });
 
@@ -714,6 +734,35 @@ describe('Start of a place that only regulates', () => {
   });
 
   /**
+   * Each lamp is controlled on its own (ADR 0001, question 4): Start said "Licht 100 % · an bis 19:00" of a place
+   * whose lamp module burned until 23:00, and nothing said which lamp that was.
+   */
+  it('says each lamp of a place with a lamp module beside its device, named, with when each switches', async () => {
+    const lamp = fridge({
+      id: 'lamp-1',
+      type: 'light',
+      name: null,
+      configuration: { day: 6 * 3600, night: 21 * 3600, limit: 100 } as never,
+      control: null,
+    });
+    server.devices = [fridge(), lamp];
+    onePlace(overviewOf({ deviceIds: ['device-1', 'lamp-1'] }));
+    draw();
+
+    expect((await screen.findByRole('link', { name: 'Light · Fridge module' })).closest('div')).toHaveTextContent(
+      'Light · Fridge module65 %on until 18:00',
+    );
+    expect(screen.getByRole('link', { name: 'Lamp module' }).closest('div')).toHaveTextContent(/^Lamp module65 %on until \d\d:00$/);
+    expect(screen.queryByRole('link', { name: 'Light' })).not.toBeInTheDocument();
+    // A place's card among several says them as facts of one line.
+    const t = i18next.t.bind(i18next);
+    const level = { percent: 65, measuredAt: ago(0.2), state: 'live' as const };
+    const lit = [fridge(), lamp].map(device => ({ device, level, live: null, held: null }));
+    const readings = readingsOf(t, { values: [], setpoints: [], device: fridge(), lit, hold: null, now: DateTime.now(), zone: null });
+    expect(readingFacts(t, readings)).toEqual(['Light · Fridge module 65 %', 'Lamp module 65 %']);
+  });
+
+  /**
    * A lamp somebody holds off keeps to no schedule. "All on target" alone over
    * it read as a tent keeping its day, and the tile promised a switch at an
    * hour the hold would pass.
@@ -1108,6 +1157,18 @@ describe('the states of Start', () => {
     expect(picture).toHaveAttribute('data-age', 'offline');
     await waitFor(() => expect(picture).toHaveTextContent(`last picture from ${hhmm(ago(43))}`));
     expect(picture).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
+  });
+
+  /** The place showed the lit picture as "letztes Bild von 13:28" while Steuerung dated the camera's newest 13:29. */
+  it('shows a silent place the last picture there is, dated as Steuerung dates it, not the newest one taken in the light', async () => {
+    server.devices = [fridge({ state: { lastSeenAt: ago(42), hardware: {}, maintenanceUntil: null } as never })];
+    const dark = { ...camera(43), stills: [{ mediaId: 'dark-1', capturedAt: ago(43) }], litStill: { mediaId: 'lit-1', capturedAt: ago(200) } };
+    onePlace(overviewOf({ values: values(42), cameras: [dark], grows: [growOf()] }), true);
+    draw();
+
+    const shown = await screen.findByRole('img', { name: 'Fridge 1: the newest picture' });
+    await waitFor(() => expect(shown).toHaveAttribute('src', '/media/dark-1'));
+    expect(shown.closest('a')!.parentElement!).toHaveTextContent(`last picture from ${hhmm(ago(43))}`);
   });
 
   it('says a device that has sent no value yet is waiting for its first ones, and not that it is offline', async () => {

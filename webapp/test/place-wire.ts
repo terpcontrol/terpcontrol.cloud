@@ -313,6 +313,13 @@ export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
   const one = /^\/devices\/([^/]+)$/.exec(path);
   if (one) return json(server.devices.find(device => device.id === one[1]));
   if (/^\/devices\/[^/]+\/live$/.test(path)) return json(server.live);
+  // A camera's newest frame: the last of its strip, taken when the camera last delivered.
+  const frames = /^\/cameras\/([^/]+)\/frames$/.exec(path);
+  const filmed = frames && [...server.overviews.values()].flatMap(place => place.cameras).find(camera => camera.cameraId === frames[1]);
+  if (filmed) {
+    const newest = filmed.stills.at(-1);
+    return json({ items: newest && filmed.lastStillAt ? [{ id: newest.mediaId, capturedAt: filmed.lastStillAt }] : [], nextCursor: null });
+  }
   if (/^\/devices\/[^/]+\/plan$/.test(path))
     return server.plan ? json(server.plan) : json({ status: 404, code: 'plan_not_found', title: 'No plan', detail: '', errors: [] }, 404);
   if (/^\/spaces\/[^/]+\/timeline$/.test(path)) return json(timeline());

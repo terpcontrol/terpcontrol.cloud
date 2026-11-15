@@ -1,13 +1,15 @@
 import type { DateTime } from 'luxon';
 import type { Device, OpenAlert, SpaceOverview } from '@fg2/shared-types/v1';
 import { useOpenAlerts } from '@/api/alerts';
-import { useDeviceLive } from '@/api/devices';
+import { useDeviceLive, useLiveReads } from '@/api/devices';
 import { itemsOf } from '@/api/pages';
 import { failingSince } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
 import { useHumidifier } from '@/screens/control/germination/germination-choices';
 import { useHeldLight } from '@/screens/control/held-light';
+import { useLightHolds } from '@/screens/devices/lights';
 import { humidifierHoldOf, placeAlerts, type HumidifierHold } from '@/screens/start/place';
+import type { Lamp } from '@/screens/start/readings';
 
 /**
  * A place as its page draws it: the overview, with the values and targets of
@@ -49,23 +51,31 @@ export const usePlace = (spaceId: string) => {
 export const useHumidifierHold = (device: Device | null): HumidifierHold | null => humidifierHoldOf(device, useHumidifier(device));
 
 /**
- * The place's lamp as it last reported, and whether somebody holds it by hand:
- * the climate device's own light output, or else a light of its own standing
- * in the same place. A place's Start and its card among several say the same
- * lamp.
+ * The place's lamps as they last reported, and whether somebody holds one by
+ * hand: the climate device's own light output, and every lamp module standing
+ * in the same place - each is controlled on its own, so each is said. A
+ * place's Start and its card among several say the same lamps. `live` is the
+ * climate device's own read.
  */
 export const useLamp = (device: Device | null, here: Device[], now: DateTime) => {
   const live = useDeviceLive(device?.id ?? null).data;
-  const lamp = here.find(one => one.type === 'light' && one.id !== device?.id) ?? null;
-  const lampLive = useDeviceLive(lamp?.id ?? null).data;
-  const lit =
-    device && live?.outputs.light?.value != null
-      ? { device, live }
-      : lamp && lampLive?.outputs.light?.value != null
-        ? { device: lamp, live: lampLive }
-        : null;
+  const lamps = [...(device ? [device] : []), ...here.filter(one => one.type === 'light' && one.id !== device?.id)];
+  const { levels } = useLiveReads(lamps.map(one => one.id));
+  const reported = lamps.filter(one => levels.get(one.id));
+  // The first lamp's hold is read with its light sockets; a lamp module's is the one this browser sent it.
+  const first = useHeldLight(reported[0] ?? null, now);
+  const holds = useLightHolds(
+    reported.map(one => one.id),
+    now,
+  );
+  const lit: Lamp[] = reported.map((one, index) => ({
+    device: one,
+    level: levels.get(one.id)!,
+    live: one.id === device?.id ? (live ?? null) : null,
+    held: index === 0 ? first : (holds.get(one.id) ?? null),
+  }));
 
-  return { live, lit, held: useHeldLight(lit?.device ?? null, now) };
+  return { live, lit };
 };
 
 /** A place's open alerts for its status (`placeAlerts`), each about the device the account's own list of alerts - Meldungen's - names. */

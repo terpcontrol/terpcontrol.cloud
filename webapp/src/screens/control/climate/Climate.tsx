@@ -8,6 +8,7 @@ import { offlineLabel } from '@/ui/age';
 import { hasCo2Sensor } from '@/ui/climate-hardware';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
+import { deviceTitle } from '@/ui/naming';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
 import { CLIMATE_CHOICES, climateChoiceName, type ClimateChoice } from '@/ui/presets';
 import { figure, targetWithUnit, UNIT } from '@/ui/units';
@@ -30,6 +31,7 @@ import {
   type Regime,
   type Shape,
 } from '../targets/day-night';
+import { lampsLeft } from '../held-light';
 import { ControlOff } from '../Mode';
 import { offNotTaken } from '../rows';
 import { scheduleTitle } from '../targets/schedule-words';
@@ -81,7 +83,18 @@ interface ClimateWrite {
 
 type Open = { kind: 'figure'; field: FigureField } | { kind: 'preset' } | null;
 
-export function Climate({ device: read, stored, mayManage }: { device: Device; stored: DeviceConfiguration; mayManage: boolean }) {
+export function Climate({
+  device: read,
+  stored,
+  mayManage,
+  lamps = [read],
+}: {
+  device: Device;
+  stored: DeviceConfiguration;
+  mayManage: boolean;
+  /** The lamps of its place (`lampsAmong`), each set on its own: the light card and a preset name the one they set. */
+  lamps?: readonly Device[];
+}) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -103,6 +116,8 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
   const switchedOff = !off && read.control?.running === false && read.type !== 'fan';
   const device: Device = (off || switchedOff) && read.control ? { ...read, control: { ...read.control, running: true } } : read;
   const offset = offsetOf(now, zone);
+  // The device is named where another lamp burns in its place: each is set on its own.
+  const lamp = lamps.length > 1 ? deviceTitle(read, t, [...lamps]) : null;
   const isOffline = saved.offline;
   const offline = isOffline ? offlineLabel(spoke, now, zone, true) : null;
   const baseline = draftOf(stored);
@@ -285,6 +300,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
       {regime === 'sensor' ? null : (
         <LightCard
           device={device}
+          lamp={lamp}
           stored={stored}
           shape={shape}
           baseline={baseline}
@@ -410,6 +426,7 @@ export function Climate({ device: read, stored, mayManage }: { device: Device; s
           hasCo2={hasCo2}
           humidifier={humidifier}
           chosen={preset}
+          lamps={lamp ? { set: lamp, left: lampsLeft(t, read, lamps, now, zone) } : null}
           pauses={(next, chip, choices) => (pausesFor(next, chip, choices) ? planName : null)}
           runs={status === 'running' ? planName : null}
           switchesOn={switchedOff}

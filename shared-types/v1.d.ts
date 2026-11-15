@@ -936,6 +936,10 @@ export interface DeviceState {
     by: DeviceRelease;
   } | null;
   /**
+   * The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.
+   */
+  awaitedClimate?: AppliedClimate | null;
+  /**
    * What the device reports it is running, which is the build uuid.
    */
   firmwareId: string | null;

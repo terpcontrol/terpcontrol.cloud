@@ -181,7 +181,7 @@
       "fridge": "Kühlschrank­modul",
       "plug": "Plantalytix Socket",
       "fan": "Lüfter",
-      "light": "Licht"
+      "light": "Lampen­modul"
     },
     "cameraKind": {
       "terpcam_controller": "Terp Cam",
@@ -2955,6 +2955,8 @@
     "title": "Zielwerte",
     "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Bis sie da sind, lässt sich hier nichts setzen.",
     "unheard": "{{device}} hat sich noch nicht gemeldet. Sobald es online ist, schickt es seine Einstellungen, und hier lässt sich ein Klima setzen.",
+    "waitingAwaited": "{{device}} hat seine Einstellungen noch nicht geschickt. {{climate}} wird gesetzt, sobald sie da sind.",
+    "unheardAwaited": "{{device}} hat sich noch nicht gemeldet. {{climate}} wird gesetzt, sobald es seine Einstellungen schickt.",
     "presets": "Klima-Presets",
     "aria": {
       "dayTemperature": "Temperatur am Tag",
@@ -3345,7 +3347,7 @@
         "controller": "Wo hängt der Controller?",
         "fridge": "Wo arbeitet das Kühlschrankmodul?",
         "plug": "Wo steckt der Plantalytix Socket?",
-        "light": "Wo hängt das Licht?",
+        "light": "Wo hängt das Lampenmodul?",
         "other": "Wo hängt das Gerät?"
       },
       "done": {
@@ -3384,7 +3386,7 @@
       "controller": "Controller hinzufügen",
       "fridge": "Kühlschrankmodul hinzufügen",
       "plug": "Plantalytix Socket hinzufügen",
-      "light": "Licht hinzufügen"
+      "light": "Lampenmodul hinzufügen"
     }
   },
   "admin": {
@@ -4968,9 +4970,9 @@
       }
     },
     "card": {
-      "light": "Licht {{level}}",
+      "light": "{{lamp}} {{level}}",
       "good": "im Ziel",
-      "lightOff": "Licht aus",
+      "lightOff": "{{lamp}} aus",
       "due_one": "{{count}} Aufgabe fällig",
       "due_other": "{{count}} Aufgaben fällig",
       "off": "nicht im Ziel",
@@ -5015,6 +5017,7 @@
       "light": "Licht",
       "none": "Noch keine Zielwerte.",
       "awaiting": "Wartet auf die Einstellungen des Geräts.",
+      "awaitingClimate": "{{climate}} wird gesetzt, sobald das Gerät seine Einstellungen schickt.",
       "roundTheClock": "Rund um die Uhr"
     },
     "grow": {
@@ -5098,9 +5101,6 @@
         "germination": "Das Gerät keimt im Dunkeln, der Grow ist in der Phase {{stage}}"
       },
       "changing": "{{metrics}} im Übergang bis {{time}}"
-    },
-    "metric": {
-      "light": "Licht"
     },
     "tile": {
       "high": "{{delta}} zu hoch",
@@ -5196,6 +5196,7 @@
     "stand": "Stand {{time}}",
     "light": {
       "title": "Licht",
+      "of": "Licht · {{device}}",
       "on": "An um {{time}} · {{hours}} Std",
       "off": "aus um {{time}}",
       "change": "Zeiten ändern",
@@ -5228,7 +5229,10 @@
         "drying": "Trocknung beendet",
         "germination": "Keimung beendet"
       },
-      "returns": "Was danach wieder gilt"
+      "returns": "Was danach wieder gilt",
+      "lampSet": "Es setzt das Licht von {{device}}.",
+      "lampLeft": "{{lamp}} bleibt bei {{window}}.",
+      "lampLeftAsIs": "{{lamp}} bleibt, wie es ist."
     },
     "figure": {
       "change": "{{name}} ändern, {{value}}",

@@ -99,6 +99,10 @@ exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
         .nullable()
         .optional()
         .describe('When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.'),
+    awaitedClimate: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe('The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.'),
     firmwareId: (0, common_js_1.id)().nullable().describe('What the device reports it is running, which is the build uuid.'),
     updateStartedAt: (0, common_js_1.instant)().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: (0, common_js_1.instant)().nullable(),

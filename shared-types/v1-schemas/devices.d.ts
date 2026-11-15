@@ -137,6 +137,17 @@ export declare const deviceState: z.ZodObject<{
             account_deleted: "account_deleted";
         }>;
     }, z.core.$strip>>>;
+    awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
     firmwareId: z.ZodNullable<z.ZodString>;
     updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
     updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -227,6 +238,17 @@ export declare const device: z.ZodObject<{
                 account_deleted: "account_deleted";
             }>;
         }, z.core.$strip>>>;
+        awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>>;
         firmwareId: z.ZodNullable<z.ZodString>;
         updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
         updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -313,6 +335,17 @@ export declare const devicePage: z.ZodObject<{
                     given_up: "given_up";
                     account_deleted: "account_deleted";
                 }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -547,6 +580,17 @@ export declare const provisionedDevice: z.ZodObject<{
                     given_up: "given_up";
                     account_deleted: "account_deleted";
                 }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -840,6 +884,17 @@ export declare const deviceClaimResult: z.ZodObject<{
                     given_up: "given_up";
                     account_deleted: "account_deleted";
                 }>;
+            }, z.core.$strip>>>;
+            awaitedClimate: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;

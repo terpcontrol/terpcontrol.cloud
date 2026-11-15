@@ -934,7 +934,8 @@ describe('a device on its own page', () => {
       place.leads = false;
       wire.devices = [controller({ type: 'light', control: null, configuration: { limit: 80, lightsOn: 0, lightsOff: 43200 } })];
       localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: NOW.plus({ minutes: 30 }).toISO() }));
-      await draw('/devices/device-1', 'Light');
+      // An unnamed one is called a lamp module: "Licht" is what it gives, and what a controller's output is called too.
+      await draw('/devices/device-1', 'Lamp module');
 
       const outputs = await within(screen.getByRole('navigation', { name: 'Under Control' })).findByRole('link', { name: /^Outputs/ });
       expect(outputs).toHaveAttribute('href', '/control/outputs?space=space-1&device=device-1');

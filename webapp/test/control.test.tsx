@@ -489,6 +489,26 @@ describe('Steuerung of a place with several devices', () => {
     expect(lead.compareDocumentPosition(short) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  /**
+   * Each lamp is controlled on its own (ADR 0001, question 4): an unnamed "Licht" card beside a lamp module set the
+   * controller alone, and a flowering preset left the module on 16 hours without a word.
+   */
+  it('names the lamp the light card sets where a lamp module burns beside it, and what a preset leaves to the module', async () => {
+    const lamp = { ...device(), id: 'device-4', type: 'light', name: null, control: null, configuration: { day: 25200, night: 82800, limit: 100 } };
+    state.devices = [device(), lamp as Device];
+    drawTab();
+
+    const light = await screen.findByRole('region', { name: 'Light · Blue Dream tent' });
+    fireEvent.click(within(light).getByRole('button', { name: 'Change times' }));
+    expect(await screen.findByRole('dialog', { name: 'Light times · Blue Dream tent' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Climate preset' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Apply a climate preset' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+    expect(sheet).toHaveTextContent(/It sets the light of Blue Dream tent\. Lamp module stays at \d\d:00 to \d\d:00\./);
+  });
+
   /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */
   it('says a device heard late and one gone silent in the pill´s words', async () => {
     state.devices = [
@@ -609,6 +629,18 @@ describe('Steuerung of a place with several devices', () => {
     // "Geräte hier" lists the lead first.
     const listed = document.body.textContent ?? '';
     expect(listed.lastIndexOf('Blue Dream tent')).toBeLessThan(listed.lastIndexOf('Pump socket'));
+  });
+
+  /** A stage chosen at the claim waits for the device's settings: "hier lässt sich ein Klima setzen" said nothing of it. */
+  it('says the climate a never heard controller is put on once its settings arrive', async () => {
+    const awaited = { stage: 'vegetative', preset: null } as const;
+    state.devices = [
+      { ...device(), configuration: null, state: { ...device().state, lastSeenAt: null, awaitedClimate: awaited } } as unknown as Device,
+    ];
+    drawTab();
+
+    expect(await screen.findByText('Blue Dream tent has not been heard from yet. Veg is set as soon as it sends its settings.')).toBeInTheDocument();
+    expect(screen.queryByText(/a climate can be set here/)).not.toBeInTheDocument();
   });
 
   it('dates the device the page leads with in a place of two climates, not whichever of them spoke last', async () => {
@@ -1038,14 +1070,18 @@ describe('what a row says about the page behind it', () => {
     expect(planLine(t, [], NOW, false)).toEqual({ text: 'off' });
   });
 
-  it('leads a further device´s outputs with its name, unless its one output is called the same', () => {
+  /** Each lamp is controlled on its own: "Licht 100 % · Licht 100 %" named neither, and the screen has to make it obvious. */
+  it('names each lamp of a place with several, and leaves the one lamp of a place its short word', () => {
     const level = { percent: 100, measuredAt: NOW.toISO()!, state: 'live' as const };
-    const second = { ...device(), id: 'device-3', name: 'Second controller' } as Device;
+    const fan = { ...device(), id: 'device-3', type: 'fan', name: null, configuration: { mode: 0 } } as Device;
     const lamp = { ...device(), id: 'device-4', type: 'light', name: null, configuration: { day: 68400, night: 25200, limit: 65 } } as Device;
 
-    expect(
-      outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(second, sockets(), level), outputsOf(lamp, sockets(), level)], NOW, null).text,
-    ).toBe('Light 100 % · Second controller · Light 100 % · Light 100 %');
+    expect(outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(lamp, sockets(), { ...level, percent: 0 })], NOW, null).text).toBe(
+      'Light · Blue Dream tent 100 % · Lamp module off',
+    );
+    expect(outputsLine(t, [outputsOf(device(), sockets(), level)], NOW, null).text).toBe('Light 100 %');
+    // A lamp module alone is the place's light, and a fan beside it is led by what it is.
+    expect(outputsLine(t, [outputsOf(lamp, sockets(), level), outputsOf(fan, sockets(), null)], NOW, null).text).toBe('Light 100 % · Fan fixed');
   });
 
   it('says the mode that runs and what else its page offers', () => {
@@ -1129,7 +1165,19 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('3 d on this step · 4 days left')).toBeInTheDocument();
+    expect(screen.getByText('3 d on this step · 3 days 1 hour left')).toBeInTheDocument();
+  });
+
+  /** "16 Std in diesem Schritt · noch 7 Tage" stood over a week's step with six days and eight hours left. */
+  it('says what is left of a step in days and the hours beyond them, never a day too many', () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 1, unit: 'weeks' } })] },
+      { stepStartedAt: NOW.minus({ hours: 16 }).toISO()! },
+    );
+
+    draw();
+
+    expect(screen.getByText('16 h on this step · 6 days 8 hours left')).toBeInTheDocument();
   });
 
   /**

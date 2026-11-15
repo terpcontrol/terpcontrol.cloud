@@ -2,7 +2,8 @@ import type { DateTime } from 'luxon';
 import type { CardSetpoint, CardValue, Device, DeviceLive, ValueState } from '@fg2/shared-types/v1';
 import { timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
-import { heldWords } from '@/screens/control/held-light';
+import type { OutputLevel } from '@/api/devices';
+import { heldWords, lampName } from '@/screens/control/held-light';
 import type { Held } from '@/screens/devices/HandHold';
 import { valueAge } from '@/ui/age';
 import { decimalFigure } from '@/ui/figures';
@@ -42,6 +43,18 @@ export interface Reading {
   lit?: boolean;
   /** For the lamp: that it is held by hand, in words - "von Hand aus bis 13:05". */
   held?: string | null;
+  /** For the lamp: the device whose light it is, which tells two lamps of a place apart. */
+  deviceId?: string;
+}
+
+/** A lamp of the place as it last reported (`useLamp`): what its light output runs at, and whether it is held by hand. */
+export interface Lamp {
+  device: Device;
+  level: OutputLevel;
+  /** The device's live read, which says the half of the day it is in; null where only its level was read. */
+  live: DeviceLive | null;
+  /** Held by hand (`useHeldLight`), which then keeps to no schedule. */
+  held: Held | null;
 }
 
 interface ReadingsInput {
@@ -49,10 +62,8 @@ interface ReadingsInput {
   setpoints: CardSetpoint[];
   /** The device holding the climate, whose document says when the light comes on. */
   device: Device | null;
-  /** What the device with the place's lamp last reported, and that device. */
-  lit: { device: Device; live: DeviceLive } | null;
-  /** The lamp held by hand (`useHeldLight`), which then keeps to no schedule. */
-  held?: Held | null;
+  /** The place's lamps that reported, each named where there are several: each is controlled on its own. */
+  lit: readonly Lamp[];
   hold: HumidifierHold | null;
   now: DateTime;
   zone: string | null;
@@ -62,23 +73,17 @@ const toneOf = (verdict: Verdict): Reading['tone'] =>
   verdict?.kind === 'in' ? 'good' : verdict?.kind === 'high' || verdict?.kind === 'low' ? 'off' : 'quiet';
 
 /** "an bis 20:00": when the lamp switches next, where it keeps to its schedule - a lamp held off by day switches when somebody lets it. */
-const lightNote = (
-  t: Translate,
-  { device, live }: { device: Device; live: DeviceLive },
-  on: boolean,
-  now: DateTime,
-  zone: string | null,
-): string | null => {
+const lightNote = (t: Translate, { device, live }: Lamp, on: boolean, now: DateTime, zone: string | null): string | null => {
   const window = lightWindowOf(device, now, zone);
   if (!window) return null;
   if (window.always) return on ? t('start.light.always') : null;
   if (window.never) return on ? null : t('start.light.never');
-  const half = device.type === 'light' ? null : halfNowOf(device, live, now, false);
+  const half = device.type === 'light' || !live ? null : halfNowOf(device, live, now, false);
   if (on) return half === 'night' ? null : t('start.light.onUntil', { time: window.off });
   return half === 'day' ? null : t('start.light.offUntil', { time: window.on });
 };
 
-export const readingsOf = (t: Translate, { values, setpoints, device, lit, held = null, hold, now, zone }: ReadingsInput): Reading[] => {
+export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold, now, zone }: ReadingsInput): Reading[] => {
   const readings: Reading[] = [];
 
   for (const metric of ['temperature', 'humidity', 'vpd'] as const) {
@@ -100,25 +105,27 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, held 
     });
   }
 
-  const level = lit?.live.outputs.light ?? null;
-  if (lit && level?.value != null) {
+  const lamps = lit.map(lamp => lamp.device);
+  for (const lamp of lit) {
+    const { level, held } = lamp;
     const age = valueAge(level, now);
-    const on = level.value > 0;
+    const on = level.percent > 0;
     // Held by hand, the lamp switches when the hold ends and not by its schedule.
     const byHand = held && age === 'live' ? heldWords(t, held, now, zone) : null;
     readings.push({
       key: 'light',
-      label: t('start.metric.light'),
-      figure: on ? `${decimalFigure(Math.round(level.value), 0)} %` : t('start.light.off'),
+      label: lampName(t, lamp.device, lamps),
+      figure: on ? `${decimalFigure(Math.round(level.percent), 0)} %` : t('start.light.off'),
       note:
         byHand ??
-        (age === 'live' ? lightNote(t, lit, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)),
+        (age === 'live' ? lightNote(t, lamp, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)),
       tone: 'quiet',
       judged: false,
       age,
       focus: 'light',
       lit: on,
       held: byHand,
+      deviceId: lamp.device.id,
     });
   }
 
@@ -133,10 +140,10 @@ export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
       reading.key !== 'light'
         ? reading.figure
         : reading.held
-          ? `${t('start.metric.light')} ${reading.held}`
+          ? `${reading.label} ${reading.held}`
           : reading.lit
-            ? t('start.card.light', { level: reading.figure })
-            : t('start.card.lightOff'),
+            ? t('start.card.light', { lamp: reading.label, level: reading.figure })
+            : t('start.card.lightOff', { lamp: reading.label }),
     );
 
 /** Where a reading's curve is drawn: its panel of Verlauf. */
@@ -174,8 +181,8 @@ export const extrasOf = (t: Translate, values: CardValue[], dark: boolean): Extr
 
 /** Whether the lamp is dark: by its own reading where the place has one, else by the light that reaches the leaf. */
 export const darkOf = (readings: Reading[], values: CardValue[]): boolean => {
-  const lamp = readings.find(reading => reading.key === 'light');
-  if (lamp) return !lamp.lit;
+  const lamps = readings.filter(reading => reading.key === 'light');
+  if (lamps.length > 0) return !lamps.some(lamp => lamp.lit);
   const lux = valueOf(values, 'lux');
   return lux !== null && lux.value! <= 0;
 };

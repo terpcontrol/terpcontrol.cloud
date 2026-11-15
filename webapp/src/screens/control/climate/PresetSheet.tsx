@@ -40,6 +40,7 @@ export function PresetSheet({
   hasCo2,
   humidifier,
   chosen,
+  lamps = null,
   pauses,
   runs,
   switchesOn = false,
@@ -56,6 +57,8 @@ export function PresetSheet({
   humidifier: boolean;
   /** The preset the stored figures are, which is the chip drawn chosen until another is picked. */
   chosen: ClimateChoice | null;
+  /** Where other lamps burn in the place: the device whose light this sets, and what each other lamp keeps (`lampsLeft`). */
+  lamps?: { set: string; left: string[] } | null;
   pauses: (next: TargetsDraft, chip: ClimateChoice, choices?: ChoiceValues) => string | null;
   /** The running plan, by name: ending a spell pauses it. */
   runs: string | null;
@@ -200,6 +203,10 @@ export function PresetSheet({
             humidity={next.nightHumidity}
             disabled={busy}
           />
+        ) : null}
+        {/* Each lamp is set on its own: a preset that moves the light says whose, and what the others keep. */}
+        {lamps && (hours || moved.includes('lightLimit')) ? (
+          <p className={styles.note}>{[t('control.preset.lampSet', { device: lamps.set }), ...lamps.left].join(' ')}</p>
         ) : null}
         {(sets || ending) && grow?.stage ? (
           <p className={styles.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p>

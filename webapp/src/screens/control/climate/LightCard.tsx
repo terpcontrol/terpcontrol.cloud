@@ -38,6 +38,7 @@ const REST_MS = 1500;
  */
 export function LightCard({
   device,
+  lamp = null,
   stored,
   shape,
   baseline,
@@ -59,6 +60,8 @@ export function LightCard({
 }: {
   /** The device whose lamp it is, its document read as a controller's is. */
   device: Device;
+  /** The device named where another lamp burns beside it, "Licht · Controller"; null for the place's one "Licht". */
+  lamp?: string | null;
   stored: DeviceConfiguration;
   shape: Shape;
   baseline: TargetsDraft;
@@ -127,7 +130,7 @@ export function LightCard({
   return (
     <section className={`${ui.panel} ${styles.card} ${styles.light}`} aria-labelledby={`light-${device.id}`}>
       <h2 className={`${ui.cardHeading} ${styles.title}`} id={`light-${device.id}`}>
-        {t('control.light.title')}
+        {lamp ? t('control.light.of', { device: lamp }) : t('control.light.title')}
       </h2>
       {held ? (
         <p className={styles.held} role="status">
@@ -226,6 +229,7 @@ export function LightCard({
       {open ? (
         <LightSheet
           device={device}
+          lamp={lamp}
           shape={shape}
           baseline={baseline}
           now={now}

@@ -184,11 +184,11 @@ function PlaceCard({
   const { t } = useTranslation();
   const zone = useZone();
   const { here, device, values, setpoints, status, words, behind } = useCardStatus(card, devices, judged);
-  const { lit, held } = useLamp(device, here, now);
+  const { lit } = useLamp(device, here, now);
   const tone = toneOf(status);
   const asks = tone === 'warn' || tone === 'alarm';
   const offline = status.kind === 'offline';
-  const readings = readingsOf(t, { values, setpoints, device, lit: offline ? null : lit, held, hold: null, now, zone });
+  const readings = readingsOf(t, { values, setpoints, device, lit: offline ? [] : lit, hold: null, now, zone });
   const figures = readingFacts(t, readings);
   const pill = pillOf(t, status);
   // The pill says "offline" or "Wartung"; the line beside it says since or until when, and not the word a second time.

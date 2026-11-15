@@ -181,7 +181,7 @@
       "fridge": "Fridge module",
       "plug": "Plantalytix Socket",
       "fan": "Fan",
-      "light": "Light"
+      "light": "Lamp module"
     },
     "cameraKind": {
       "terpcam_controller": "Terp Cam",
@@ -2945,6 +2945,8 @@
     "title": "Targets",
     "waiting": "{{device}} has not sent its settings yet, so there is nothing to write a climate into. Until they arrive, nothing can be set here.",
     "unheard": "{{device}} has not been heard from yet. As soon as it is online it sends its settings, and a climate can be set here.",
+    "waitingAwaited": "{{device}} has not sent its settings yet. {{climate}} is set as soon as they arrive.",
+    "unheardAwaited": "{{device}} has not been heard from yet. {{climate}} is set as soon as it sends its settings.",
     "presets": "Climate presets",
     "aria": {
       "dayTemperature": "Day temperature",
@@ -3335,7 +3337,7 @@
         "controller": "Where does the controller hang?",
         "fridge": "Where does the fridge module work?",
         "plug": "Where is the Plantalytix Socket plugged in?",
-        "light": "Where does the light hang?",
+        "light": "Where does the lamp module hang?",
         "other": "Where does the device hang?"
       },
       "done": {
@@ -3374,7 +3376,7 @@
       "controller": "Add controller",
       "fridge": "Add fridge module",
       "plug": "Add Plantalytix Socket",
-      "light": "Add light"
+      "light": "Add lamp module"
     }
   },
   "admin": {
@@ -4958,9 +4960,9 @@
       }
     },
     "card": {
-      "light": "Light {{level}}",
+      "light": "{{lamp}} {{level}}",
       "good": "on target",
-      "lightOff": "Light off",
+      "lightOff": "{{lamp}} off",
       "due_one": "{{count}} task due",
       "due_other": "{{count}} tasks due",
       "off": "off target",
@@ -5005,6 +5007,7 @@
       "light": "Light",
       "none": "No targets yet.",
       "awaiting": "Waiting for the device’s settings.",
+      "awaitingClimate": "{{climate}} is set as soon as the device sends its settings.",
       "roundTheClock": "Round the clock"
     },
     "grow": {
@@ -5088,9 +5091,6 @@
         "germination": "The device is germinating in the dark, the grow is in the {{stage}} phase"
       },
       "changing": "{{metrics}} changing over until {{time}}"
-    },
-    "metric": {
-      "light": "Light"
     },
     "tile": {
       "high": "{{delta}} too high",
@@ -5186,6 +5186,7 @@
     "stand": "as of {{time}}",
     "light": {
       "title": "Light",
+      "of": "Light · {{device}}",
       "on": "On at {{time}} · {{hours}} h",
       "off": "off at {{time}}",
       "change": "Change times",
@@ -5218,7 +5219,10 @@
         "drying": "Drying ended",
         "germination": "Germination ended"
       },
-      "returns": "What applies again afterwards"
+      "returns": "What applies again afterwards",
+      "lampSet": "It sets the light of {{device}}.",
+      "lampLeft": "{{lamp}} stays at {{window}}.",
+      "lampLeftAsIs": "{{lamp}} stays as it is."
     },
     "figure": {
       "change": "Change {{name}}, {{value}}",

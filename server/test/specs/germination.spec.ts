@@ -511,6 +511,9 @@ describe('a climate chosen before the device first sent its settings', () => {
     const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
     const applied = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
     expect(applied.body.deviceIds).toEqual([]);
+    // Said while it waits - "Sämling wird gesetzt, sobald …" -, and no longer once it is set.
+    const awaited = async () => (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.state.awaitedClimate;
+    expect(await awaited()).toEqual({ stage: 'seedling', preset: null });
 
     const sim = await startSimulator(device);
     try {
@@ -519,6 +522,7 @@ describe('a climate chosen before the device first sent its settings', () => {
       for (let tries = 0; tries < 50 && (await controlOf(device))?.preset?.stage !== 'seedling'; tries++) await settle(100);
 
       expect(await controlOf(device)).toMatchObject({ preset: { stage: 'seedling' } });
+      expect(await awaited()).toBeNull();
       expect(await configurationOf(device)).toMatchObject({
         day: { temperature: 24, humidity: 70 },
         night: { temperature: 21, humidity: 65 },

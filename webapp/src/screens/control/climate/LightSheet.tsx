@@ -21,6 +21,7 @@ import styles from './Climate.module.css';
  */
 export function LightSheet({
   device,
+  lamp = null,
   shape,
   baseline,
   now,
@@ -39,6 +40,8 @@ export function LightSheet({
   onClose,
 }: {
   device: Device;
+  /** The device whose lamp it sets, named where another lamp burns beside it. */
+  lamp?: string | null;
   shape: Shape;
   baseline: TargetsDraft;
   now: DateTime;
@@ -76,7 +79,7 @@ export function LightSheet({
 
   return (
     <Sheet
-      title={t('control.light.times')}
+      title={lamp ? `${t('control.light.times')} · ${lamp}` : t('control.light.times')}
       onClose={onClose}
       actions={
         <button

@@ -795,7 +795,10 @@ phase). **A silence's raise line carries its seconds** - `…, last heard 11 min
 diary dates its start, as Meldungen does from the alert's `value`; lines from before are read by their span.
 **`DeviceState.released`** (`{ at, by: 'given_up' | 'account_deleted' }`, null or absent otherwise) says when a
 device's last owner let it go and how, set by giving it up or by account deletion and cleared by the next claim, so
-support tells it from a device nobody added; no migration. **`InvitePreview.hasCamera`** says whether a camera hangs
+support tells it from a device nobody added; no migration. **`DeviceState.awaitedClimate`** (`{ stage, preset }`,
+null or absent otherwise; after the sixth walk) serves the climate a device waits for (`devices.awaitedClimate`
+above) while it still stands in the place it was chosen for, so Steuerung and Start say "Veg wird gesetzt, sobald
+das Gerät seine Einstellungen schickt" rather than that a climate can be set. **`InvitePreview.hasCamera`** says whether a camera hangs
 in the place an invitation is for (false for a dead code), still with no ids. **The report has a chapter for a
 split**: a phase only some plants entered runs from its start to the next phase any of its plants entered, or the
 grow's end, beside the grow's chapters, which still add up to its days.

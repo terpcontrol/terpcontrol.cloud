@@ -11,6 +11,7 @@ import { fieldValue } from '@/ui/advanced/field-values';
 import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
+import { climateChoiceName } from '@/ui/presets';
 import { targetWithUnit } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
@@ -138,6 +139,8 @@ export function Targets({
   const alone = groups.length === 0 && device?.type === 'light';
   const light = lightLine(t, device, now, zone, !alone);
   const lamp = alone ? light : null;
+  // A climate the place was put on before its device sent its settings is said as what will be set.
+  const awaited = device && awaitingClimate(device) ? (device.state.awaitedClimate ?? null) : null;
   // Named by what it holds: a socket its settings, a lamp its light, a fan at a fixed speed its speed, the rest targets.
   const title = alone
     ? t('start.targets.light')
@@ -154,13 +157,15 @@ export function Targets({
       <span>
         {offStored
           ? t('start.latest.stored', { what: t('control.state.off') })
-          : t(
-              darkReasonOf(device) === 'off'
-                ? 'control.state.off'
-                : device && awaitingClimate(device)
-                  ? 'start.targets.awaiting'
-                  : 'start.targets.none',
-            )}
+          : awaited
+            ? t('start.targets.awaitingClimate', { climate: climateChoiceName(t, awaited) })
+            : t(
+                darkReasonOf(device) === 'off'
+                  ? 'control.state.off'
+                  : device && awaitingClimate(device)
+                    ? 'start.targets.awaiting'
+                    : 'start.targets.none',
+              )}
       </span>
     );
 

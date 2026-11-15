@@ -22,13 +22,18 @@ export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
 
 /**
- * "12 days", "5 hours" on the last day, "40 minutes" in the last hour: a step
- * is counted in the unit it still has more than one of, rounded up so it never
- * reads short - and a step of a few minutes is not said to have an hour left.
- * Steuerung's "noch 7 T" read as a clock beside a step set in days.
+ * "6 days 8 hours", "5 hours" on the last day, "40 minutes" in the last hour:
+ * whole days with the hours beyond them, the hours rounded up so it never reads
+ * short - and a step of a few minutes is not said to have an hour left.
+ * Steuerung's "noch 7 T" read as a clock beside a step set in days, and "noch 7
+ * Tage" with six days and eight hours left as a day too many.
  */
 export const leftWords = (t: Translate, ms: number): string => {
-  if (ms >= DAY_MS) return t('planLine.days', { count: Math.ceil(ms / DAY_MS) });
+  if (ms >= DAY_MS) {
+    const hours = Math.ceil(ms / HOUR_MS);
+    const [days, rest] = [Math.floor(hours / 24), hours % 24];
+    return [t('planLine.days', { count: days }), rest > 0 ? t('planLine.hours', { count: rest }) : null].filter(Boolean).join(' ');
+  }
   if (ms >= HOUR_MS) return t('planLine.hours', { count: Math.ceil(ms / HOUR_MS) });
   return t('planLine.minutes', { count: Math.max(1, Math.ceil(ms / MINUTE_MS)) });
 };

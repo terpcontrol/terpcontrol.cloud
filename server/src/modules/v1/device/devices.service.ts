@@ -487,6 +487,11 @@ export class DevicesService {
         lastSeenAt: device.state.lastSeenAt?.toISOString() ?? null,
         claimedAt: device.state.claimedAt?.toISOString() ?? null,
         released: device.state.released ? { at: device.state.released.at.toISOString(), by: device.state.released.by } : null,
+        // Put on as its first settings arrive, and only where it still stands: the climate is the place's.
+        awaitedClimate:
+          device.awaitedClimate && device.awaitedClimate.spaceId === device.spaceId
+            ? { stage: device.awaitedClimate.stage, preset: device.awaitedClimate.preset }
+            : null,
         firmwareId: device.state.firmwareId,
         updateStartedAt: device.state.updateStartedAt?.toISOString() ?? null,
         updateEndedAt: device.state.updateEndedAt?.toISOString() ?? null,

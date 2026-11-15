@@ -389,8 +389,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   says why in one sentence, opened from such a place it stands the device in a place of its own and asks where it
   hangs; "Gerät hierher holen" lists it unopenable with "hier regelt schon …", and "umziehen" refuses the place under
   its chips (`climateHeldBy`, `screens/control/lead.ts`; the server's `place_holds_a_climate`). Fans, sockets and
-  lamps still join, and a lamp or fan alone is called no climate and offered no maintenance it has not got ("Licht:
-  kein Klima." - only a controller or fridge module parks anything, `parksAnything`). **A place that held two
+  lamps still join, and a lamp or fan alone is called no climate and offered no maintenance it has not got
+  ("Lampenmodul: kein Klima." - only a controller or fridge module parks anything, `parksAnything`). **A place that held two
   climates from before is split** (Chris, 2026-11-14, replacing the redesign session's "stays as it is" of
   2026-11-12): migration step `033-one-climate-a-place` stands the second in a place of its own, seen by whoever saw
   the first ([data-operations.md](data-operations.md#migrations-in-operation)), so no screen says a second
@@ -514,7 +514,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   it is online (a current device does on connect, [device-protocol.md](../device-protocol.md)). A climate chosen
   for the place before then reaches the device as its first settings arrive (`awaitedClimate`,
   [server-engines.md](server-engines.md#device-settings-and-plans)), so Start never says "Alles im Ziel" over
-  figures the device brought along. Under a waiting lead Start draws no socket's figure at all - no extras line,
+  figures the device brought along, and while it waits Steuerung's note and Start's Zielwerte say it ("Veg wird
+  gesetzt, sobald das Gerät seine Einstellungen schickt"; `DeviceState.awaitedClimate`, after the sixth walk). Under a waiting lead Start draws no socket's figure at all - no extras line,
   no 24-hour curves, which are the lead's (`DayCurves`). A lead heard whose first values have yet to reach the read
   - a device just claimed - is as alive as it was heard: "online · vor 13 s · erste Werte kommen" on Start and
   Steuerung's head (`comingOf`, `screens/start/attention.ts`); only one never heard waits. Every reading on target
@@ -536,8 +537,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the status sentence where the place asks for somebody - what stands open behind it in the alarm's red where one
   of it is critical, as on the place's Start; none for a late device, which the pill says -, the readings in one line with the
   lamp's level last ("24,3 °C · 66 % · Licht 80 %", "Licht aus" for a dark lamp), what grows there, and the camera's
-  newest picture beside them. The lamp is the climate device's own light output, or, where that has none (a fan
-  leading the place), the level of a `light` device in the same place (Chris, 2026-10-13). Under the cards stand
+  newest picture beside them. The lamp is the climate device's own light output and every lamp module in the same
+  place that reports a level (Chris, 2026-10-13); where there are several each is named, because each is controlled
+  on its own (ADR 0001, question 4; after the sixth walk): "Licht · Controller 100 %", "Lampenmodul aus", on the
+  card and as a tile or a figure of the picture each, with when it switches next (`useLamp`, `lampName`). Under the cards stand
   "Heute" across the places, each row saying where and since when it is due, and "+ Ort hinzufügen". **What is due is seen without
   scrolling**: a card says itself that something is due there ("1 Aufgabe fällig" - the diary's reminders and a
   plan step waiting, the same as "Heute" lists), because on a phone "Heute" stands under the cards. A place in no
@@ -705,8 +708,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     steht kein Gerät, dem ein Plan Zielwerte stellen kann.", "Was hier steht, hat keine eigenen Ausgänge."
   - *What the rows say.* Ausgänge says each output with what it does - "Licht 80 % · Abluft an · Pumpe aus", a
     fridge's fans by their figures, the mode of a further device's AIR fan bound to its name ("Lüfter: Fest ·
-    Tagsüber 70 %"), the outputs of a further device led by its name -, and "alle Auto" only of a list made of
-    sockets, since a lamp reports no hold. What is held by hand turns the line amber. Alarme counts the rules
+    Tagsüber 70 %"), the outputs of a further device led by its name, each lamp named where the place has more than
+    one ("Licht · Controller 100 % · Lampenmodul aus"; "Licht 100 % · Licht 100 %" named neither) -, and "alle Auto"
+    only of a list made of sockets, since a lamp reports no hold. What is held by hand turns the line amber. Alarme counts the rules
     that are on, against those there are once one is off ("1 von 7 Regeln an"), and says in amber that the
     offline rule is among those off ("„Gerät offline“ aus"): nobody is told when that device falls silent.
     Grow-Plan says a paused plan as "<Schritt> pausiert · <reason>" in amber and leads to the plan page, the one
@@ -768,6 +772,19 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   for all of them, `useHeldLight` (`screens/control/held-light.ts`): the light output's hold as this browser
   asked for it (`useLightHold`), else a light socket the device's table reports held. The device reports no hold
   of its own lamp, so another browser knows nothing of one.
+- **Each lamp of a place is named where its light is shown or set** (Chris's answer to ADR 0001's question 4: each
+  light is controlled on its own and the screen makes that obvious; built after the sixth walk, where a place with
+  a lamp module beside its controller read "Licht 100 % · Licht 100 %" and a flowering preset left the module on
+  16 hours without a word). Where a place holds more than one lamp (`lampsAmong`, `screens/control/held-light.ts`:
+  a controller's or a fridge module's light output, a lamp module), Steuerung's light card and its times' sheet
+  name the device they set ("Licht · Controller", "Lichtzeiten · Controller"), Ausgänge's row and Start name each
+  lamp (`lampName`: "Licht · Controller", a lamp module by its own name), and a climate preset - on Steuerung and
+  beside a phase (`ClimatePick`) - says whose light it sets and what each other lamp keeps ("Es setzt das Licht
+  von Controller. Lampenmodul bleibt bei 07:00 bis 23:00."; `lampsLeft`). A place with one lamp keeps its short
+  "Licht". A light output is the hardware's: a stored brightness speaks for one only on a kind of device that
+  drives a light (`lightOutputOf`, `screens/devices/lights.ts`; the outputs by kind are `outputsOf`,
+  `ui/climate-hardware.ts`), so an AIR fan that a climate once gave a lamp's limit draws no "Licht" row (the sixth
+  whole-app walk).
 - **A device has one page** (`/devices/:deviceId`, `screens/devices/DevicePage.tsx`; the redesign session of
   2026-11-12, after the prototype and its critic's walks), reached from its card: the pill that dates it and, under
   the name, where it stands and what its regulation is away from - how it is heard is said once, by the pill -,
@@ -1859,9 +1876,12 @@ page the same day ("after the walk" below) - none of those is Chris's.
 
 - **What a plan step and a silent lead say** (the fifth whole-app walk): a step that writes nothing says "Dieser
   Schritt schreibt nichts: Das Gerät behält, was es hat." rather than that it went to the device, and a step's rest
-  is in words, "noch 7 Tage", on Steuerung as on Start (`leftWords`, `screens/control/plan-labels.ts`); the offline
-  box of a lead whose regulation was off when it last reported says it stays off, not that it regulates with what
-  it held; one Terp Cam picture carries one time on the place and on Steuerung (`useLatestStillTimes`).
+  is in words and true to the hour, "noch 6 Tage 8 Stunden" - whole days and the hours beyond them, the hours
+  rounded up -, on Steuerung as on Start (`leftWords`, `screens/control/plan-labels.ts`; "noch 7 Tage" over six days
+  and eight hours, after the sixth walk); the offline box of a lead whose regulation was off when it last reported
+  says it stays off, not that it regulates with what it held; one Terp Cam picture carries one time on the place
+  and on Steuerung (`useLatestStillTimes`) - also while the place is silent, whose head then shows the last picture
+  there is rather than the newest lit one ("letztes Bild von 13:29" where it said 13:28 beside Steuerung's 13:29).
 
 ## 9. Look, beyond ADR 0002
 - Admin's "+ Konto", the fleet's filter chips and search field, the demo's "Öffnen" and "Pausieren" are 36 px

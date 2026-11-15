@@ -95,11 +95,11 @@ export function Picture({
                 </>
               );
               return curveOf ? (
-                <Link key={reading.key} to={curveOf(reading)} className={styles.pictureFigure}>
+                <Link key={`${reading.key}${reading.deviceId ?? ''}`} to={curveOf(reading)} className={styles.pictureFigure}>
                   {figure}
                 </Link>
               ) : (
-                <span key={reading.key} className={styles.pictureFigure}>
+                <span key={`${reading.key}${reading.deviceId ?? ''}`} className={styles.pictureFigure}>
                   {figure}
                 </span>
               );

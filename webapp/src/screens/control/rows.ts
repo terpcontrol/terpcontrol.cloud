@@ -15,7 +15,7 @@ import { deviceName } from '@/ui/naming';
 import { ruleTitle } from './alarms/rules';
 import { MODE_PATHS, pendingField, pendingMode, savedWords } from './climate/figures';
 import { fanFactsOf } from './devices/own-summary';
-import { heldWords } from './held-light';
+import { heldWords, lampName } from './held-light';
 import { activeStep, isWaiting, readingAt } from './plan-clock';
 import { pauseReasonOf } from './plan-labels';
 import { countsOf } from '@/api/alarm-rules';
@@ -167,10 +167,11 @@ export const outputsLine = (
   pending: ReadonlyMap<string, PendingSetting> = new Map(),
 ): RowLine => {
   const sockets = all.flatMap(one => one.sockets);
+  const lamps = all.filter(one => one.light).map(one => one.device);
   let waits = false;
   const facts = all.flatMap((one, index) => {
     const hold = held.get(one.device.id);
-    const lamp = t('control.rows.light');
+    const lamp = lampName(t, one.device, lamps);
     const set = (name: string, text: string): string => {
       const waiting = index === 0 ? pendingField(pending, one.device, name) : undefined;
       waits ||= waiting !== undefined;
@@ -181,7 +182,7 @@ export const outputsLine = (
       ...(hold
         ? [`${lamp} ${heldWords(t, hold, now, zone)}`]
         : one.light && !one.sockets.some(row => isLightRole(row.role))
-          ? [one.level ? (one.level.percent > 0 ? `${lamp} ${percentLabel(one.level.percent)}` : t('start.card.lightOff')) : lamp]
+          ? [one.level ? (one.level.percent > 0 ? `${lamp} ${percentLabel(one.level.percent)}` : t('start.card.lightOff', { lamp })) : lamp]
           : []),
       ...one.sockets.map(row => socketFact(t, row, now)),
     ];
@@ -194,9 +195,10 @@ export const outputsLine = (
         ? fanFactsOf(t, one.device).map((fact, at) => set(FAN_SETTINGS[at], at === 0 ? (fanModeFact(t, one.device) ?? fact) : fact))
         : [];
     const own = [...(index === 0 && stand && reported.length > 0 ? [stand] : []), ...reported, ...stored];
-    // A device called what its one output is called - a lamp, a fan - needs no name before it; any other is a fact of its own in front.
+    // A device called what its one output is called - a lamp, a fan -, or whose lamp is named after it, needs no name
+    // before it; any other is a fact of its own in front.
     const name = deviceName(one.device, t);
-    return index > 0 && own.length > 0 && !own[0].startsWith(name) ? [name, ...own] : own;
+    return index > 0 && own.length > 0 && !own[0].includes(name) ? [name, ...own] : own;
   });
   const byHand = all.some(one => held.has(one.device.id)) || sockets.some(row => forcedOf(row));
   const allAuto = !byHand && sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed);

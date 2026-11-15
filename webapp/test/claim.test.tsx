@@ -562,7 +562,7 @@ describe('adding a device', () => {
     claim();
 
     await waitFor(() => expect(openStep()).toHaveTextContent('How will you hear about problems?'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add light · step 2 of 3$/);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add lamp module · step 2 of 3$/);
     expect(screen.queryByRole('heading', { level: 2, name: /Cam/ })).not.toBeInTheDocument();
     expect(claimedFacts()).not.toHaveTextContent(/camera|sockets/);
     expect(screen.getByRole('button', { name: 'Next · grow' })).toBeEnabled();

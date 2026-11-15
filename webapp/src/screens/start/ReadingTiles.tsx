@@ -17,7 +17,7 @@ export function ReadingTiles({ spaceId, readings }: { spaceId: string; readings:
   return (
     <div className={styles.tiles}>
       {readings.map(reading => (
-        <div key={reading.key} className={styles.tile} {...ageAttribute(reading.age)}>
+        <div key={`${reading.key}${reading.deviceId ?? ''}`} className={styles.tile} {...ageAttribute(reading.age)}>
           <span className={styles.tileHead}>
             <Link to={curvePath(spaceId, reading)} className={styles.tileLabel}>
               {reading.label}
