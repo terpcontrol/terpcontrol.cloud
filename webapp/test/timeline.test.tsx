@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1401,6 +1401,29 @@ describe('the sheet "Adjust"', () => {
 });
 
 describe('the diary of the window', () => {
+  /** The devices the window held: its own fridge module, and Controller B, which stood here too. */
+  const BOTH = [
+    { deviceId: 'device-1', name: null, type: 'fridge' },
+    { deviceId: 'device-2', name: 'Controller B', type: 'controller' },
+  ];
+
+  /** One rule with the diary: a line is named among the devices of the window, not those standing in the place now. */
+  it('names a device´s line where the window held another device, and not for one that came after it', async () => {
+    server.lamp = true;
+    server.over = { events: [restart], devices: [BOTH[0]] };
+    draw();
+    await settled();
+    const line = () => within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem')[0];
+    await waitFor(() => expect(line()).toHaveTextContent(/rebooted/));
+    expect(line()).not.toHaveTextContent(/rebooted · /);
+
+    cleanup();
+    server.over = { events: [restart], devices: [BOTH[0], { deviceId: 'lamp-1', name: 'Grow light', type: 'light' }] };
+    draw();
+    await settled();
+    await waitFor(() => expect(line()).toHaveTextContent(/rebooted · /));
+  });
+
   it('says a folded run´s end in the form its stamps are in: one form of a date in a row', async () => {
     const again = (hours: number) => ({ ...restart, id: `restart-${hours}`, occurredAt: ago(hours) });
     server.over = { events: [again(52), again(51), again(50)] };
@@ -1471,7 +1494,7 @@ describe('the diary of the window', () => {
         message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=72, upper threshold=60, lower threshold=n/a'] },
         values: { kind: 'alarm' },
       });
-    server.over = { events: [fired('first', 9), fired('newest', 7)] };
+    server.over = { events: [fired('first', 9), fired('newest', 7)], devices: BOTH };
     server.elsewhere = true;
     draw();
     await settled();
@@ -1517,6 +1540,7 @@ describe('the diary of the window', () => {
         offline('back', 4, 'alert-3', false),
         offline('now', 3 - 10 / 60, 'alert-4', true, 600),
       ],
+      devices: BOTH,
     };
     server.elsewhere = true;
     draw();
@@ -1921,6 +1945,20 @@ describe('Verlauf with nothing to draw', () => {
     const then = zonedAt(last, 'UTC');
     expect(await screen.findByText(`Nothing was measured in this window · last reading ${then.toFormat('ccc HH:mm')}`)).toBeInTheDocument();
     expect(screen.queryByText(/ago/)).not.toBeInTheDocument();
+  });
+
+  /** Saturday, wholly inside a silence from Friday to Sunday, said "letzter Wert So 15:20" of a value after it. */
+  it('says the silence a past window lies wholly inside, and leads to the last value before it', async () => {
+    const [from, to, quiet, back] = [NOW - 72 * HOUR, NOW - 48 * HOUR, NOW - 77 * HOUR, NOW - 30 * HOUR];
+    server.over = { panels: [], outputs: [], cameras: [], lastReadingAt: ago(1), silences: [{ startsAt: iso(quiet), endsAt: iso(back) }] };
+    draw(`/timeline?from=${iso(from)}&to=${iso(to)}`);
+
+    const [start, end] = [zonedAt(quiet, 'UTC'), zonedAt(back, 'UTC')];
+    expect(
+      await screen.findByText(`Nothing was measured in this window · ${start.toFormat('ccc HH:mm')} to ${end.toFormat('ccc HH:mm')}`),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Go to the last reading/ }));
+    await waitFor(() => expect(address().search).toBe(`?at=${iso(quiet)}`));
   });
 
   /** A day wholly inside the controller's silence kept the lamp module's strip and lost its climate panels without a word. */

@@ -413,18 +413,32 @@ const laneOf = (
  * stretches it was heard over, of any of its fields, and before the first and after the last of them. A device that
  * left the place silent is silent here to the window's end: nothing was heard here after its last word, and its
  * leaving is no word - "keine Messung · 17:10 bis 17:22" said it came back when it went.
+ *
+ * A device heard nowhere in the window is one silence across it, from its last word before the window to its first
+ * after (`around`, `heardNothing`) - or on, where it has said nothing since: a day wholly inside a weekend's silence
+ * read "keine Messung" with neither end. One that has never said anything here has no silence to tell.
  */
-export const silencesOf = (history: DeviceHistory | null, window: SeriesWindow): TimelineSpan[] => {
+export const silencesOf = (history: DeviceHistory | null, window: SeriesWindow, around: SamplesAround | null = null): TimelineSpan[] => {
   if (!history) return [];
   const read = readOf(history.series, window);
   const heard = heardStretches(heardIn(history.series), history.series, window, heardAt(history));
-  const quietAtEnd = heard.length > 0 && heard[heard.length - 1].to < read.endsAt.getTime();
+  if (heard.length === 0) {
+    return around?.before ? [asSpan({ from: around.before.getTime(), to: (around.after ?? window.endsAt).getTime() })] : [];
+  }
+  const quietAtEnd = heard[heard.length - 1].to < read.endsAt.getTime();
   const edges = [read.startsAt.getTime(), ...heard.flatMap(one => [one.from, one.to]), (quietAtEnd ? window : read).endsAt.getTime()];
 
-  return heard.length === 0
-    ? []
-    : edges.flatMap((from, index) => (index % 2 === 0 && edges[index + 1] > from ? [asSpan({ from, to: edges[index + 1] })] : []));
+  return edges.flatMap((from, index) => (index % 2 === 0 && edges[index + 1] > from ? [asSpan({ from, to: edges[index + 1] })] : []));
 };
+
+/** Where a device's last word before a window and its first after it fell, where it was asked (`DataService.samplesAround`). */
+export interface SamplesAround {
+  before: Date | null;
+  after: Date | null;
+}
+
+/** Whether a device said nothing at all in the window, of any of its fields: its silence then reaches past both ends. */
+export const heardNothing = (history: DeviceHistory): boolean => heardIn(history.series).length === 0;
 
 /** The windows a device was heard in, of whichever of its fields: a device is heard when any of them reports. */
 const heardIn = (series: DeviceSeries): SeriesPoint[] => {

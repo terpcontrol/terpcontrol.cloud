@@ -2159,6 +2159,8 @@
     "quietClimate": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert vor {{age}}",
     "quietWindowAt": "In diesem Zeitraum wurde nichts gemessen · letzter Wert {{time}}",
     "quietClimateAt": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert {{time}}",
+    "quietWindowSpan": "In diesem Zeitraum wurde nichts gemessen · {{span}}",
+    "quietClimateSpan": "In diesem Zeitraum kamen keine Klimawerte · {{span}}",
     "noSpaces": "Noch nichts zu zeichnen. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
     "visiting": "Support-Ansicht eines Kundenorts",

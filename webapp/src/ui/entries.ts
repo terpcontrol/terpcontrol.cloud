@@ -30,6 +30,14 @@ export const readingNamesOf = (named: GrowReadingNames[], growId: string | null)
   (growId === null ? undefined : named.find(one => one.growId === growId)?.readings) ?? [];
 
 /**
+ * The grow a line names among the lines of two - "Veg begonnen" stood beside "Du hast gedüngt" of the other -, alike
+ * on Start, in Verlauf and on a place's link: none beside one grow, and none of an alarm, which is the place's and
+ * every grow's there, whichever one a line written before names.
+ */
+export const lineGrow = (entry: Pick<Entry, 'kind' | 'growId'> | null, grows: readonly { growId: string; name: string }[]): string | null =>
+  grows.length > 1 && entry && entry.kind !== 'alarm' ? (grows.find(one => one.growId === entry.growId)?.name ?? null) : null;
+
+/**
  * The readings the app writes itself rather than a grow's own measurements:
  * the two weights of a CO2 cylinder, written into a place's diary when one goes
  * in. A grow that defines them - every grow carried over from the old app does -

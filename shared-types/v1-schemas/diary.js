@@ -1519,7 +1519,7 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
         .describe('Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read.'),
     grows: zod_1.z
         .array(exports.timelineGrow)
-        .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),
+        .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. A link on the place is told the grows that stood here in the window, whose lines it reads, so that a line names its grow; any other shared or public read is given one grow and is not told what else has stood in the room, and gets none.'),
     readingNames: zod_1.z
         .array(exports.growReadingNames)
         .describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed. On a read through a link, only the grows that stood here inside its window.'),
@@ -1584,6 +1584,10 @@ exports.growDiaryDay = (0, common_js_1.named)('GrowDiaryDay', zod_1.z.object({
     entries: zod_1.z
         .array(exports.entry)
         .describe('The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device.'),
+    deviceIds: zod_1.z
+        .array((0, common_js_1.id)())
+        .optional()
+        .describe('The devices that stood where the grow stood that day, while it stood there: a line of the day names its device where another of them stood there too, as Verlauf names one where its window held another (`SpaceTimeline.devices`). What each is called is `GrowDiaryPage.devices`. Absent for a reader from outside, and from a server that does not say it.'),
 }));
 /**
  * A week of the diary: seven days of the grow, newest first, under the stage
@@ -1623,7 +1627,7 @@ exports.growDiaryPage = (0, common_js_1.named)('GrowDiaryPage', (0, common_js_1.
     earlier: zod_1.z.array(exports.entry).describe('Newest first; empty on every page but the last.'),
     devices: zod_1.z
         .array(timelineDevice)
-        .describe('What each device the page’s lines name is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.'),
+        .describe('What each device the page’s lines name, or its days’ `deviceIds`, is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.'),
 }));
 /**
  * One stretch of the grow at one stage, as the report tells its story: a

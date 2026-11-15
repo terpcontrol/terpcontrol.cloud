@@ -117,6 +117,7 @@ export class AccessService {
       privacyOwnerId: subject.ownerId,
       redacted: !full,
       includeCameras: link ? link.includeCameras : grantee === 'public' ? subject.publicCameras : true,
+      ...(link ? { linkOn: link.subject.type } : {}),
     };
   }
 

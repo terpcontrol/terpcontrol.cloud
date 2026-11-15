@@ -784,6 +784,56 @@ describe('what the devices did', () => {
   });
 });
 
+/**
+ * "19:44 Gerät offline" in the diary and "Gerät offline · c10 Probecontroller" in Verlauf of one line: a lamp module
+ * stood beside the controller that day and was given up since. A line names its device among those of its day.
+ */
+describe('the devices a day´s lines are named among', () => {
+  const LAMP = 'device-lamp';
+
+  beforeEach(async () => {
+    // Twenty minutes in the tent on the eleventh, from the spare tent and back.
+    await db.devices.create({
+      id: LAMP,
+      type: 'light',
+      ownerId: OWNER,
+      spaceId: SPARE_TENT,
+      placements: [
+        { spaceId: SPARE_TENT, startedAt: new Date(0), endedAt: berlin(11, '10:00') },
+        { spaceId: TENT, startedAt: berlin(11, '10:00'), endedAt: berlin(11, '10:20') },
+        { spaceId: SPARE_TENT, startedAt: berlin(11, '10:20'), endedAt: null },
+      ],
+      configuration: null,
+    });
+  });
+
+  it('are the devices that stood where the grow stood that day, called as the place calls them', async () => {
+    const page = await read();
+
+    expect([...(dayOf(page, 10).deviceIds ?? [])].sort()).toEqual([CONTROLLER, LAMP]);
+    expect(dayOf(page, 9).deviceIds).toEqual([CONTROLLER]);
+    expect(page.devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
+  });
+
+  it('are not told a reader from outside', async () => {
+    await db.shareLinks.create({
+      id: 'share-devices',
+      token: 'devices-token',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: false,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    const page = await read(visitor('devices-token'));
+
+    expect(dayOf(page, 10).deviceIds).toBeUndefined();
+    expect(page.devices).toEqual([]);
+  });
+});
+
 describe('maintenance', () => {
   const maintenanceOf = (day: GrowDiaryDay) => day.events.filter(event => event.kind === 'maintenance');
 

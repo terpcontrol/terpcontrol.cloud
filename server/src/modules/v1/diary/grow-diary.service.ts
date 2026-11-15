@@ -86,6 +86,8 @@ interface PageWorld {
   changes: DeviceChange[];
   stills: Map<number, DayStill>;
   films: WeekFilm[];
+  /** The devices that stood where the grow stood, and when; null for a reader from outside. */
+  alongside: { deviceId: string; alongside: Span[] }[] | null;
 }
 
 @Injectable()
@@ -124,7 +126,7 @@ export class GrowDiaryService {
     const cameraIds = grant.includeCameras && named.length > 0 ? await this.camerasIn(named) : [];
     const days = page.items.flatMap(week => week.days.map(day => ({ day, life: lifeOf(day, life) })).filter(one => one.life !== null));
 
-    const [hide, { lines, maintenance, controlOff }, earlier, controllers, changes, films, stills] = await Promise.all([
+    const [hide, { lines, maintenance, controlOff }, earlier, controllers, changes, films, stills, alongside] = await Promise.all([
       this.grows.redaction(grant),
       this.linesIn(grow, grant, seen, isOutsider(grant) ? [] : named),
       // What was dated to before the grow began has no day, and stands after the last of them.
@@ -138,6 +140,8 @@ export class GrowDiaryService {
         days.map(({ day, life: lived }) => ({ key: day.dayNumber, ...lived!, ...pictureOf(day, lived!, horizon, grow) })),
         life,
       ),
+      // A reader from outside is told no device: the lines they read name none.
+      isOutsider(grant) ? null : this.climate.alongside(grow.placements, spaceIds, life),
     ]);
     // One read of the store per week of the page, each over the part of the week the grow lived and the reader may see.
     const stretches = page.items.map(week => lifeOf(week, life));
@@ -150,7 +154,7 @@ export class GrowDiaryService {
       page.items.filter((_week, index) => stretches[index] !== null).map((week, index) => [week.weekNumber, recorded[index]] as const),
     );
 
-    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, controlOff, changes, stills, films };
+    const world: PageWorld = { grow, grant, hide, range, origin, horizon, zone, lines, maintenance, controlOff, changes, stills, films, alongside };
     const weeks = page.items.map(week => this.weekOf(week, world, recordedOf.get(week.weekNumber) ?? []));
 
     const before = earlier.map(entry => serialiseDiaryEntry(entry, hide, grant));
@@ -159,14 +163,12 @@ export class GrowDiaryService {
       ...before.map(entry => entry.authorId),
     ]);
 
-    // What the devices the lines name are called where they stood, for one the reader holds no longer or never did.
+    // What the devices the lines name, and those they are named among, are called where they stood, for one the reader
+    // holds no longer or never did.
     const said = [...weeks.flatMap(week => week.days.flatMap(day => day.entries)), ...before];
     const devices = isOutsider(grant)
       ? []
-      : await this.climate.calledIn(
-          said.map(entry => entry.deviceId),
-          grow.ownerId,
-        );
+      : await this.climate.calledIn([...said.map(entry => entry.deviceId), ...(alongside ?? []).map(one => one.deviceId)], grow.ownerId);
 
     return { items: weeks, nextCursor: page.nextCursor, people, earlier: before, devices };
   }
@@ -249,6 +251,14 @@ export class GrowDiaryService {
       entries: world.lines
         .filter(entry => within(linesOf(world.grow, seen), entry.occurredAt))
         .map(entry => serialiseDiaryEntry(entry, world.hide, world.grant)),
+      // The devices a line of the day is named among: where the place held another that day, it says which it means.
+      ...(world.alongside
+        ? {
+            deviceIds: world.alongside
+              .filter(one => one.alongside.some(stay => stay.startsAt < seen.endsAt && stay.endsAt > seen.startsAt))
+              .map(one => one.deviceId),
+          }
+        : {}),
     };
   }
 

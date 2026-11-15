@@ -146,6 +146,20 @@ export class GrowClimateService {
   }
 
   /**
+   * Every device that stood where the grow stood over a stretch, each with the parts of it it did (`staysWith`): what a
+   * line of a day names its device among, as Verlauf's lines do among the devices of the window.
+   */
+  public async alongside(stays: GrowStays, spaceIds: readonly (string | null)[], span: Span): Promise<{ deviceId: string; alongside: Span[] }[]> {
+    const named = spaceIds.filter((id): id is string => id !== null);
+    const stood = await stoodIn(this.devices, named, span, { type: 1 });
+
+    return stood.flatMap(({ device }) => {
+      const alongside = staysWith(device.placements, stays, span);
+      return alongside.length > 0 ? [{ deviceId: device.id, alongside }] : [];
+    });
+  }
+
+  /**
    * When another device took over the climate where the grow stood, over the
    * part of a stretch it stood in each place - as the place's own Verlauf
    * tells it (`changesOf`). The grow moving to another tent is no such change:

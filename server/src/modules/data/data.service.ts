@@ -737,9 +737,21 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
    * where the retention sweep picks up. Null is "nothing that old is left",
    * which is how a device that has been swept says it is done.
    */
-  public async oldestSampleBefore(deviceId: string, before: Date): Promise<Date | null> {
-    const instants = instantsOf(await this.read(oldestSampleQuery(this.bucket, deviceId, before)));
+  public async oldestSampleBefore(deviceId: string, before: Date, from: Date | null = null): Promise<Date | null> {
+    const instants = instantsOf(await this.read(oldestSampleQuery(this.bucket, deviceId, before, from)));
     return instants.length > 0 ? new Date(Math.min(...instants)) : null;
+  }
+
+  /**
+   * The last sample a device wrote before a window and the first after it, each within the stretch it stood where the
+   * window is read: where a silence across the whole window began, and where it ended - null where it has not.
+   */
+  public async samplesAround(deviceId: string, window: TimeWindow, stood: TimeWindow): Promise<{ before: Date | null; after: Date | null }> {
+    const [before, after] = await Promise.all([
+      stood.startsAt < window.startsAt ? this.newestSampleAt(deviceId, stood.startsAt, window.startsAt) : null,
+      window.endsAt < stood.endsAt ? this.oldestSampleBefore(deviceId, stood.endsAt, window.endsAt) : null,
+    ]);
+    return { before, after };
   }
 
   /** How often a device's CO2 valve opened over a stretch (see `valveOpeningsQuery`); nought where it never reported one. */

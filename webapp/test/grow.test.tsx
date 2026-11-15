@@ -1273,6 +1273,43 @@ describe('a day of the diary', () => {
     expect(linesOf().join('\n')).toMatch(/Device offline · c8 Lampe/);
   });
 
+  /**
+   * "19:44 Gerät offline" in the diary, "Gerät offline · c10 Probecontroller" in Verlauf: a lamp module stood beside
+   * the controller that day and was given up since. A line is named among the devices of its day, as Verlauf's among
+   * those of its window - and on a day the controller stood alone, it needs no name.
+   */
+  it('names a device among the devices that stood there that day, one given up since among them', async () => {
+    const offline = entry({
+      id: 'ctrl-off',
+      kind: 'alarm',
+      source: 'alarm',
+      authorId: null,
+      deviceId: 'ctrl-1',
+      spaceId: 'space-1',
+      severity: 'warning',
+      occurredAt: at(1, 9),
+      message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+      values: { kind: 'alarm' },
+    });
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () =>
+      json({ items: [{ id: 'ctrl-1', type: 'controller', name: 'Probe', spaceId: 'space-1' }], nextCursor: null }),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    const devices = [
+      { deviceId: 'ctrl-1', name: 'Probe', type: 'controller' },
+      { deviceId: 'lamp-gone', name: 'c10 Lampe', type: 'light' },
+    ];
+
+    const { unmount } = draw(<Card one={day(1, { entries: [offline], deviceIds: ['ctrl-1', 'lamp-gone'] })} live={false} devices={devices} />);
+    await waitFor(() => expect(linesOf().join('\n')).toMatch(/Device offline · Probe/));
+    unmount();
+
+    draw(<Card one={day(1, { entries: [offline], deviceIds: ['ctrl-1'] })} live={false} devices={devices} />);
+    await waitFor(() => expect(linesOf().join('\n')).toMatch(/Device offline/));
+    expect(linesOf().join('\n')).not.toMatch(/Probe/);
+  });
+
   /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */
   it('marks no line a person´s doing that a device wrote as the device´s own', () => {
     const switched = (key: string, params: string[] = []) =>

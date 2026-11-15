@@ -73,6 +73,11 @@ export interface Grant {
   redacted: boolean;
   /** Camera pictures are only ever part of an answer through a link that includes them. */
   includeCameras: boolean;
+  /**
+   * What the share link of a `share` grant is on: a place's link is shown the grows that stood in the place, which a
+   * link on one grow is not. Absent for every other grant.
+   */
+  linkOn?: SubjectType;
 }
 
 /**

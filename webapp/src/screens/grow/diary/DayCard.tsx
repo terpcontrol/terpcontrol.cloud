@@ -131,6 +131,7 @@ export function DayCard({
                   onOpen={entry ? reader.correct(entry, day.dayNumber) : null}
                   plants={reader.plants}
                   told={reader.devices}
+                  stood={day.deviceIds}
                   onPictures={pictures.length > 0 ? index => onPicture(pictures[index]) : null}
                   thumbnails={reader.thumbnails ? pictures.map(one => reader.picture(one.mediaId, THUMBNAIL_WIDTH.still) ?? '') : undefined}
                 />

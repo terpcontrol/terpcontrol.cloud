@@ -15,6 +15,7 @@ import {
   readAt,
   restOf,
   overTime,
+  silenceAcross,
   silenceAt,
   singleAt,
   shownOf,
@@ -517,6 +518,19 @@ describe('the strips', () => {
     expect(silenceAt(quiet, FROM + HOUR)).toEqual([null, FROM + 3 * HOUR]);
     // Outside any, at the very edge of one, and inside one an hour and a half wide at an hour a point: none.
     expect([FROM + 5 * HOUR, FROM + 8 * HOUR, FROM + 20.5 * HOUR].map(time => silenceAt(quiet, time))).toEqual([null, null, null]);
+  });
+
+  /** Saturday's card said "keine Messung" alone, wholly inside a silence from Friday 18:35 to Sunday 09:44. */
+  it('names both ends of a silence the window lies wholly inside, and the start of one still going', () => {
+    const across = answer({ silences: [{ startsAt: at(-5.5), endsAt: at(33.75) }] });
+    expect(silenceAt(across, FROM + 9 * HOUR)).toEqual([FROM - 5.5 * HOUR, FROM + 33.75 * HOUR]);
+    expect(silenceAcross(across)).toEqual({ startsAt: at(-5.5), endsAt: at(33.75) });
+
+    const going = answer({ silences: [{ startsAt: at(-5.5), endsAt: at(24) }] });
+    expect(silenceAt(going, FROM + 9 * HOUR)).toEqual([FROM - 5.5 * HOUR, null]);
+    expect(silenceAcross(going)).toEqual({ startsAt: at(-5.5), endsAt: null });
+    // One the window cuts at its start is no silence it lies inside.
+    expect(silenceAcross(answer({ silences: [{ startsAt: at(0), endsAt: at(24) }] }))).toBeNull();
   });
 
   /** "Lücke bis 15:18" at a three-minute step and "bis 15:20" at two, where the card and the lines said 15:20. */

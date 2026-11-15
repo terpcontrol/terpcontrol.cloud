@@ -6,7 +6,7 @@ import { PUBLIC_WIDTH, type Picture } from '@/api/public';
 import { ageAttribute, ageLabel, dayStamp, sinceLabel, valueAge } from '@/ui/age';
 import { nameKey } from '@fg2/shared-types/v1-schemas/place-names.js';
 import { Term } from '@/ui/Help';
-import { readingNamesOf } from '@/ui/entries';
+import { lineGrow, readingNamesOf } from '@/ui/entries';
 import ui from '@/ui/ui.module.css';
 import { growDay } from '@/screens/grow/progress';
 import { livenessOf, measuredAtOf } from '@/screens/start/attention';
@@ -158,6 +158,7 @@ export function SharedSpace({
                   measurements={entry ? readingNamesOf(space.readingNames, entry.growId) : []}
                   byline={false}
                   plants={space.plants}
+                  grow={lineGrow(entry, space.grows)}
                   onPictures={from => setViewing({ pictures: mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.cover)), from })}
                   thumbnails={mediaIds.map(mediaId => picture(mediaId, PUBLIC_WIDTH.dayTile))}
                 />

@@ -2149,6 +2149,8 @@
     "quietClimate": "No climate readings came in this window · last reading {{age}} ago",
     "quietWindowAt": "Nothing was measured in this window · last reading {{time}}",
     "quietClimateAt": "No climate readings came in this window · last reading {{time}}",
+    "quietWindowSpan": "Nothing was measured in this window · {{span}}",
+    "quietClimateSpan": "No climate readings came in this window · {{span}}",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow – both on the page",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "visiting": "support view of a customer's place",

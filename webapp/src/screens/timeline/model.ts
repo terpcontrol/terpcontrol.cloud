@@ -737,7 +737,18 @@ export const readAt = (curves: readonly Curve[], cursor: number, reach: (curve: 
 export const silenceAt = (data: SpaceTimeline, cursor: number): [number | null, number | null] | null => {
   const [from, to] = [at(data.startsAt), at(data.endsAt)];
   const quiet = data.silences.map(span => [at(span.startsAt), at(span.endsAt)]).find(([since, until]) => since < cursor && cursor < until);
-  return quiet && quiet[1] - quiet[0] > 2 * data.stepSeconds * 1000 ? [quiet[0] > from ? quiet[0] : null, quiet[1] < to ? quiet[1] : null] : null;
+  // An end the window cut was not seen; one past it was - a silence the window lies wholly inside reaches out to both.
+  return quiet && quiet[1] - quiet[0] > 2 * data.stepSeconds * 1000 ? [quiet[0] !== from ? quiet[0] : null, quiet[1] !== to ? quiet[1] : null] : null;
+};
+
+/**
+ * A silence that began before the window and lasts at least to its end: the window lies wholly inside it. Its end is
+ * null where it goes on past the window's - still going, as far as the window can say.
+ */
+export const silenceAcross = (data: SpaceTimeline): { startsAt: string; endsAt: string | null } | null => {
+  const [from, to] = [at(data.startsAt), at(data.endsAt)];
+  const quiet = data.silences.find(span => at(span.startsAt) < from && at(span.endsAt) >= to);
+  return quiet ? { startsAt: quiet.startsAt, endsAt: at(quiet.endsAt) > to ? quiet.endsAt : null } : null;
 };
 
 /**

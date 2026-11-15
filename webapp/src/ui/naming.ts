@@ -74,6 +74,10 @@ export const deviceTitle = (device: Called, t: Translate, among?: readonly Calle
  * holds no longer or never did, what the answer says its record names (`told`, `SpaceTimeline.devices` and its like),
  * which is all that is known of them. A line that names no place is read where the device stands. `alone` is whether
  * the place is known to hold no other, where a line need not say which device it means.
+ *
+ * Where the lines are read over a stretch - a day of the diary, Verlauf's window - they are named among the devices
+ * that stood there in it (`stood`), whoever holds them now: the diary said "Gerät offline" of a day a lamp module
+ * stood beside the controller, which Verlauf named, once the lamp was given up.
  */
 export const calledIn = (
   deviceId: string,
@@ -81,13 +85,21 @@ export const calledIn = (
   t: Translate,
   every: readonly Pick<Device, 'id' | 'name' | 'type' | 'spaceId'>[] | undefined,
   told: readonly TimelineDevice[] = [],
+  stood?: readonly string[],
 ): { name: string; alone: boolean } | null => {
   const held = new Set((every ?? []).map(one => one.id));
   const place = spaceId ?? every?.find(one => one.id === deviceId)?.spaceId ?? null;
-  const among: Called[] = [
-    ...(every ?? []).filter(one => one.id === deviceId || (place !== null && one.spaceId === place)),
-    ...told.filter(one => !held.has(one.deviceId)).map(one => ({ id: one.deviceId, name: one.name, type: one.type })),
-  ];
+  const ofTold = (one: TimelineDevice): Called => ({ id: one.deviceId, name: one.name, type: one.type });
+  const known = (id: string): Called | undefined => {
+    const said = told.find(one => one.deviceId === id);
+    return every?.find(one => one.id === id) ?? (said && ofTold(said));
+  };
+  const among: Called[] = stood
+    ? [...new Set([deviceId, ...stood])].flatMap(id => known(id) ?? [])
+    : [
+        ...(every ?? []).filter(one => one.id === deviceId || (place !== null && one.spaceId === place)),
+        ...told.filter(one => !held.has(one.deviceId)).map(ofTold),
+      ];
   const device = among.find(one => one.id === deviceId);
   return device ? { name: deviceTitle(device, t, among), alone: among.length === 1 } : null;
 };

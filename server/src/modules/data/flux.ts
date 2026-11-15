@@ -734,10 +734,10 @@ export const summaryQuery = (bucket: string, deviceId: string, fields: readonly 
  * nothing and a server that was down for a month catches up a chunk at a time.
  * `first()` answers one row per field; the earliest of them is the answer.
  */
-export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date): string => `${head(
+export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date, from: Date | null = null): string => `${head(
   bucket,
   deviceId,
-  `start: 0, stop: ${before.toISOString()}`,
+  `start: ${from ? from.toISOString() : 0}, stop: ${before.toISOString()}`,
 )}
     |> first()`;
 

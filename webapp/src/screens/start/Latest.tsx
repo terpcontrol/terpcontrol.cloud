@@ -11,7 +11,7 @@ import { notTaken } from '@/screens/control/rows';
 import { dayLines, onTheirDay } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { dayStamp } from '@/ui/age';
-import { readingNamesOf } from '@/ui/entries';
+import { lineGrow, readingNamesOf } from '@/ui/entries';
 import { Lines } from '@/ui/Lines';
 import { PictureViewer } from '@/ui/PictureViewer';
 import { useZone } from '@/ui/zone';
@@ -108,8 +108,7 @@ export function Latest({
               byline={byline}
               onOpen={entry ? correcting(entry, on) : null}
               plants={named}
-              // An alarm is the place's, every grow's standing there, whichever a line written before names.
-              grow={grows.length > 1 && entry?.kind !== 'alarm' ? (grows.find(one => one.growId === entry?.growId)?.name ?? null) : null}
+              grow={lineGrow(entry, grows)}
               told={devices}
               onPictures={from =>
                 setViewing({ pictures: (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []), from })

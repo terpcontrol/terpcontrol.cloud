@@ -59,6 +59,7 @@ import {
   reachOf,
   readAt,
   restOf,
+  silenceAcross,
   silenceAt,
   singleAt,
   SAMPLE_SECONDS,
@@ -991,7 +992,8 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
 /**
  * A window with no curve and no strip, said as what it is: a place that measures and was not heard in this window -
  * dated, with the way to its last reading: how long ago in a window that ends now, and when in one that is past,
- * whose "vor 1 Std" was counted from a now it does not reach -, one whose device has sent nothing yet, or one where
+ * whose "vor 1 Std" was counted from a now it does not reach, and in a past one wholly inside a silence that silence,
+ * "Fr 18:35 bis So 09:44" -, one whose device has sent nothing yet, or one where
  * nothing measures. Only the answer's `lastReadingAt` and devices tell them apart.
  */
 function Nothing({
@@ -1012,7 +1014,12 @@ function Nothing({
 }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const last = data.lastReadingAt;
+  const window = { from: at(data.startsAt), to: at(data.endsAt) };
+  // A past window wholly inside a silence says the silence, and its way back is to the last value before it: the
+  // newest reading lay after the window - "letzter Wert So 15:20" under Saturday.
+  const across = live ? null : silenceAcross(data);
+  const last = across ? across.startsAt : data.lastReadingAt;
+  const [since, until] = across ? [across.startsAt, across.endsAt].map(time => time && cursorStamp(at(time), window, 60, zone)) : [];
 
   return (
     <div className={`${ui.cardDashed} ${styles.nothing}`}>
@@ -1020,9 +1027,11 @@ function Nothing({
         {last !== null
           ? live
             ? t(partly ? 'timeline.quietClimate' : 'timeline.quietWindow', { age: ageLabel(last, now) })
-            : t(partly ? 'timeline.quietClimateAt' : 'timeline.quietWindowAt', {
-                time: cursorStamp(at(last), { from: at(data.startsAt), to: at(data.endsAt) }, 60, zone),
-              })
+            : across
+              ? t(partly ? 'timeline.quietClimateSpan' : 'timeline.quietWindowSpan', {
+                  span: t(`timeline.silence.${until ? 'between' : 'since'}`, { from: since, to: until }),
+                })
+              : t(partly ? 'timeline.quietClimateAt' : 'timeline.quietWindowAt', { time: cursorStamp(at(last), window, 60, zone) })
           : (data.deviceIds ?? []).length > 0
             ? // A device that came from another place has reported there: it waits for its first value here.
               t(data.arrivals.length > 0 ? 'timeline.waitingHere' : 'timeline.waiting')

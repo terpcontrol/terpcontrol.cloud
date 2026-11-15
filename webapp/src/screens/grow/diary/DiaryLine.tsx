@@ -42,6 +42,7 @@ export function DiaryLine({
   thumbnails,
   moment = instant => sinceLabel(instant, now, zone),
   told,
+  stood,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -77,6 +78,8 @@ export function DiaryLine({
   moment?: (instant: string) => string;
   /** What the answer the lines came in says its devices are called: all that is known of one the reader does not hold. */
   told?: readonly TimelineDevice[];
+  /** The devices that stood where the line was written over the stretch it is read in - its day, Verlauf's window - which it names its own among. */
+  stood?: readonly string[];
 }) {
   const { t } = useTranslation();
   const { what } = line;
@@ -84,7 +87,7 @@ export function DiaryLine({
   const mark = line.own || (what.kind === 'alarm' && what.stands) ? null : t('grow.diary.byItself');
   // A device's own line - an alarm, a restart - says which device where its place holds another, as Start and Meldungen do.
   const own = what.kind === 'alarm' || (what.kind === 'entry' && what.entry.kind === 'system');
-  const device = useDeviceCalled(own ? what.entry : null, what.kind === 'alarm' && what.twin, told);
+  const device = useDeviceCalled(own ? what.entry : null, what.kind === 'alarm' && what.twin, told, stood);
 
   if (what.kind === 'said') {
     return (
@@ -153,9 +156,14 @@ export function DiaryLine({
  * What a device is called, where a line has to say which device it is about: always (`twin`), or where the place the
  * line is of holds another device (`calledIn`).
  */
-const useDeviceCalled = (entry: Pick<Entry, 'deviceId' | 'spaceId'> | null, twin: boolean, told?: readonly TimelineDevice[]): string | null => {
+const useDeviceCalled = (
+  entry: Pick<Entry, 'deviceId' | 'spaceId'> | null,
+  twin: boolean,
+  told?: readonly TimelineDevice[],
+  stood?: readonly string[],
+): string | null => {
   const { t } = useTranslation();
   const every = useDevicesShape(!!entry?.deviceId).data?.items;
-  const called = entry?.deviceId ? calledIn(entry.deviceId, entry.spaceId, t, every, told) : null;
+  const called = entry?.deviceId ? calledIn(entry.deviceId, entry.spaceId, t, every, told, stood) : null;
   return called && (twin || !called.alone) ? called.name : null;
 };

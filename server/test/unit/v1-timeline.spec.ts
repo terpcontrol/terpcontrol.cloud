@@ -134,7 +134,24 @@ const fakeData = {
     liveAsked.push(deviceId);
     return { metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null };
   },
+  /** The device's last word before the window and its first after, a second at a time and a week at most each way. */
+  samplesAround: async (deviceId: string, window: { startsAt: Date; endsAt: Date }, stood: { startsAt: Date; endsAt: Date }) => {
+    around.push(deviceId);
+    const said = (time: number) => reports[deviceId]?.(new Date(time)) != null;
+    const seek = (from: number, to: number, by: number): Date | null => {
+      for (let time = from; by < 0 ? time >= to : time < to; time += by) if (said(time)) return new Date(time);
+      return null;
+    };
+    const week = 7 * 24 * 3600_000;
+    return {
+      before: seek(window.startsAt.getTime() - 1000, Math.max(stood.startsAt.getTime(), window.startsAt.getTime() - week), -1000),
+      after: seek(window.endsAt.getTime(), Math.min(stood.endsAt.getTime(), window.endsAt.getTime() + week), 1000),
+    };
+  },
 } as unknown as DataService;
+
+/** The devices a silence's ends were asked of. */
+let around: string[] = [];
 
 const build = (): TimelineService => {
   access = accessOn(db);
@@ -360,6 +377,7 @@ beforeEach(async () => {
   quietUntil = null;
   sampleEverySeconds = 0;
   lastReading = {};
+  around = [];
   timeline = build();
   await world();
 });
@@ -1468,7 +1486,8 @@ describe('who may read it', () => {
     expect(theirs.machineEvents).toEqual({ shown: 0, total: 0 });
     expect(theirs.deviceIds).toBeNull();
     expect(theirs.outputs.every(lane => lane.deviceId === null)).toBe(true);
-    expect(theirs.grows).toEqual([]);
+    // The place's link reads the grow's lines, and is told whose they are.
+    expect(theirs.grows.map(one => one.growId)).toEqual([GROW]);
     expect(JSON.stringify(theirs)).not.toMatch(/entry-restart|device-controller|alert-/);
     // Whoever keeps the tent reads the restart in the same window.
     expect((await readAs(session(OWNER), asked)).events.map(line => line.id)).toContain('entry-restart');
@@ -1540,10 +1559,63 @@ describe('who may read it', () => {
     // What people wrote; the line the controller wrote about the tent is not among them.
     expect(page.events.map(line => line.id)).toEqual(['entry-water', 'entry-training']);
     expect(page.events.some(line => line.kind === 'system' || line.kind === 'plan')).toBe(false);
-    // Nothing was cut, because none was offered; and a stranger shown one grow's
-    // week is not handed a list of everything else that has stood in the room.
+    // Nothing was cut, because none was offered.
     expect(page.machineEvents).toEqual({ shown: 0, total: 0 });
-    expect(page.grows).toEqual([]);
+  });
+
+  /**
+   * A place's link with two grows: the owner's Verlauf named each line's grow, the reader's named none. The reader is
+   * told the grows that stood in the window, whose lines it reads - and a link on one grow still no other.
+   */
+  it('tells a place´s link the grows of its window, and a grow´s link none', async () => {
+    await db.grows.create({
+      id: 'grow-winter',
+      ownerId: OWNER,
+      name: 'Winter run',
+      type: 'photoperiod',
+      phases: [],
+      placements: [
+        {
+          id: 'placement-winter',
+          spaceId: TENT,
+          startedAt: new Date('2026-01-01T00:00:00.000Z'),
+          endedAt: new Date('2026-02-01T00:00:00.000Z'),
+          plantIds: null,
+        },
+      ],
+      measurements: [],
+      slug: 'winter-run',
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      endedAt: new Date('2026-02-01T00:00:00.000Z'),
+    });
+    await db.grows.create({
+      id: 'grow-beside',
+      ownerId: OWNER,
+      name: 'Beside',
+      type: 'photoperiod',
+      phases: [],
+      placements: [{ id: 'placement-beside', spaceId: TENT, startedAt: new Date('2026-06-01T00:00:00.000Z'), endedAt: null, plantIds: null }],
+      measurements: [],
+      slug: 'beside',
+      startedAt: new Date('2026-06-01T00:00:00.000Z'),
+      endedAt: null,
+    });
+    const token = await linkFor({ range: { startsAt: null, endsAt: null } });
+    expect((await readAs(visitor(token))).grows.map(one => one.name).sort()).toEqual(['Beside', 'Spring run #3']);
+
+    await db.shareLinks.create({
+      id: 'link-grow',
+      token: 'grow-token',
+      kind: 'view',
+      subject: { type: 'grow', id: GROW },
+      // A grow's link reaches the place it stood in for a stretch of days.
+      range: { startsAt: new Date('2026-06-03T00:00:00.000Z'), endsAt: new Date('2026-06-10T00:00:00.000Z') },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('grow-token'))).grows).toEqual([]);
   });
 });
 
@@ -2577,5 +2649,97 @@ describe('two lamps in one place', () => {
 
     await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp', 'state.released': null });
     expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
+  });
+});
+
+/**
+ * A day wholly inside a weekend's silence: Saturday's window answered no silence, so its card said "keine Messung"
+ * with neither end, and the line that raised the silence stood before it, so its diary said nothing either.
+ */
+describe('a window the device was silent across', () => {
+  const SATURDAY = { startsAt: new Date('2026-06-09T00:00:00.000Z'), endsAt: new Date('2026-06-10T00:00:00.000Z') };
+
+  const raise = async (resolvedAt: Date | null) => {
+    await db.alerts.create({
+      id: 'alert-weekend',
+      deviceId: CONTROLLER,
+      spaceId: TENT,
+      kind: 'offline',
+      severity: 'critical',
+      startedAt: new Date('2026-06-08T18:45:00.000Z'),
+      resolvedAt,
+      value: 600,
+    });
+    await db.entries.create(
+      entry({
+        id: 'entry-raised',
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        alertId: 'alert-weekend',
+        occurredAt: new Date('2026-06-08T18:45:00.000Z'),
+        values: { kind: 'alarm' } as never,
+      }),
+    );
+  };
+
+  it('reads one silence from the device´s last word before the window to its first after it', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-06-10T09:44:00.000Z');
+    const page = await readAs(session(OWNER), { range: '24h', window: SATURDAY });
+
+    expect(page.panels).toEqual([]);
+    expect(page.silences).toEqual([{ startsAt: '2026-06-08T18:34:59.000Z', endsAt: '2026-06-10T09:44:00.000Z' }]);
+  });
+
+  it('reads one still going on to the window´s end, and asks nothing of a device it heard', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-07-01T00:00:00.000Z');
+    expect((await readAs(session(OWNER), { range: '24h', window: SATURDAY })).silences).toEqual([
+      { startsAt: '2026-06-08T18:34:59.000Z', endsAt: SATURDAY.endsAt.toISOString() },
+    ]);
+    expect(around).toEqual([CONTROLLER]);
+
+    around = [];
+    quietFrom = null;
+    await readAs(session(OWNER), { range: '24h', window: SATURDAY });
+    expect(around).toEqual([]);
+  });
+
+  it('tells nothing of a device that has never said a word here', async () => {
+    reports = {};
+    expect((await readAs(session(OWNER), { range: '24h', window: SATURDAY })).silences).toEqual([]);
+  });
+
+  it('stands the line that raised a silence still going in the window´s diary, and one over after the window too', async () => {
+    quietFrom = new Date('2026-06-08T18:35:00.000Z');
+    quietUntil = new Date('2026-07-01T00:00:00.000Z');
+    await raise(null);
+    const lines = async () => (await readAs(session(OWNER), { range: '24h', window: SATURDAY })).events.map(line => line.id);
+    expect(await lines()).toContain('entry-raised');
+
+    await db.alerts.updateOne({ id: 'alert-weekend' }, { resolvedAt: new Date('2026-06-10T09:45:00.000Z') });
+    expect(await lines()).toContain('entry-raised');
+    // A silence over before the window began is none of its.
+    await db.alerts.updateOne({ id: 'alert-weekend' }, { resolvedAt: new Date('2026-06-08T23:00:00.000Z') });
+    expect(await lines()).not.toContain('entry-raised');
+  });
+
+  it('tells a reader from outside no alarm line of it', async () => {
+    await raise(null);
+    await db.shareLinks.create({
+      id: 'link-weekend',
+      token: 'weekend-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    expect((await readAs(visitor('weekend-token'), { range: '24h', window: SATURDAY })).events.map(line => line.id)).not.toContain('entry-raised');
   });
 });

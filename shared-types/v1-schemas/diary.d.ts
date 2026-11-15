@@ -5644,6 +5644,7 @@ export declare const growDiaryDay: z.ZodObject<{
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
     }, z.core.$strip>>;
+    deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
 /**
  * A week of the diary: seven days of the grow, newest first, under the stage
@@ -5857,6 +5858,7 @@ export declare const growDiaryWeek: z.ZodObject<{
             mediaIds: z.ZodArray<z.ZodString>;
             undoUntil: z.ZodNullable<z.ZodISODateTime>;
         }, z.core.$strip>>;
+        deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -6072,6 +6074,7 @@ export declare const growDiaryPage: z.ZodObject<{
                 mediaIds: z.ZodArray<z.ZodString>;
                 undoUntil: z.ZodNullable<z.ZodISODateTime>;
             }, z.core.$strip>>;
+            deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
@@ -7039,6 +7042,7 @@ export declare const publicGrowPage: z.ZodObject<{
                 mediaIds: z.ZodArray<z.ZodString>;
                 undoUntil: z.ZodNullable<z.ZodISODateTime>;
             }, z.core.$strip>>;
+            deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     weeksCursor: z.ZodNullable<z.ZodString>;
@@ -7271,6 +7275,7 @@ export declare const publicWeekPage: z.ZodObject<{
                 mediaIds: z.ZodArray<z.ZodString>;
                 undoUntil: z.ZodNullable<z.ZodISODateTime>;
             }, z.core.$strip>>;
+            deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
     nextCursor: z.ZodNullable<z.ZodString>;
@@ -7584,6 +7589,7 @@ export declare const sharedGrow: z.ZodObject<{
                     mediaIds: z.ZodArray<z.ZodString>;
                     undoUntil: z.ZodNullable<z.ZodISODateTime>;
                 }, z.core.$strip>>;
+                deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
         weeksCursor: z.ZodNullable<z.ZodString>;
@@ -8518,6 +8524,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     mediaIds: z.ZodArray<z.ZodString>;
                     undoUntil: z.ZodNullable<z.ZodISODateTime>;
                 }, z.core.$strip>>;
+                deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
         weeksCursor: z.ZodNullable<z.ZodString>;
@@ -9463,6 +9470,7 @@ export declare const sharedResolution: z.ZodObject<{
                         mediaIds: z.ZodArray<z.ZodString>;
                         undoUntil: z.ZodNullable<z.ZodISODateTime>;
                     }, z.core.$strip>>;
+                    deviceIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
                 }, z.core.$strip>>;
             }, z.core.$strip>>;
             weeksCursor: z.ZodNullable<z.ZodString>;

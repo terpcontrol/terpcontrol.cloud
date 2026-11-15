@@ -6,7 +6,7 @@ import { outputMetric } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant, isOutsider } from '@common/v1/access.types';
 import { calledIn } from '@common/v1/device-called';
-import { Stood, arrivalOf } from '@common/v1/device-placements';
+import { Stood, arrivalOf, stayOf } from '@common/v1/device-placements';
 import { badRequest, notFound } from '@common/v1/problem';
 import { zoneOfOwner } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
@@ -38,7 +38,7 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingsOf, newestOf } from './last-reading';
-import { PANEL_METRICS, chartPartsOf, panelsOf, readingOf, silencesOf } from './timeline-series';
+import { PANEL_METRICS, SamplesAround, chartPartsOf, heardNothing, panelsOf, readingOf, silencesOf } from './timeline-series';
 import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
@@ -64,7 +64,9 @@ import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretches
  * record where the first two found it, and a redacted reader reads the diary
  * alone. A third time-series read per device is paid by
  * a window with no curves in it at all, and by no other: it is the one window
- * that cannot say for itself whether this place measures - see `lastReadingsOf`.
+ * that cannot say for itself whether this place measures - see `lastReadingsOf`;
+ * and two of the drawn device where it was heard nowhere in the window, for the
+ * ends of the silence the window lies in (`samplesAround`).
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
@@ -159,7 +161,8 @@ export class TimelineService {
     const steering = steeringOf(devices);
     // Somebody who asked for one device is shown that device, not the place's climate through time.
     const before = asked.deviceId ? [] : predecessorsOf(present, steering?.id ?? null, [spaceId]);
-    const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
+    const inWindow = known.filter(one => stoodDuring(one, spaceId, window));
+    const growIds = inWindow.map(one => one.id);
 
     const [read, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
@@ -192,13 +195,14 @@ export class TimelineService {
       recordAcross(this.targetRecord, present.find(one => one.device.id === steering?.id) ?? null, before, window),
     ]);
 
-    const [watched, frames, hide, ends] = await Promise.all([
+    const [watched, frames, hide, ends, raised] = await Promise.all([
       this.metricsOf(alerts),
       framesOf(this.media, cameras, window, FRAME_SLOTS),
       grantRedaction(this.users, grant),
       this.silenceEnds(alerts),
+      this.raisedBefore(grant, alerts, window),
     ]);
-    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
+    const told = [...raised, ...recorded.entries].map(entry => serialiseDiaryEntry(entry, hide, grant));
     // The curve and the strips of the leading device begin where it took the place over.
     const series = read.map(one => (one.series.deviceId === steering?.id ? fromHandover(one, before) : one));
     const leading = ownOf(devices, series);
@@ -224,6 +228,9 @@ export class TimelineService {
             devices.filter(device => device.spaceId === spaceId && (!steering || asked.deviceId !== undefined || device.id === steering.id)),
             spaceId,
           );
+    // The silences are the drawn device's: the one the curves are of, else the one device whose outputs speak for the place.
+    const quiet = own ?? series.find(one => one.series.deviceId === drawn?.id) ?? null;
+    const around = quiet && heardNothing(quiet) ? await this.samplesAround(quiet.series.deviceId, present, spaceId, window, now) : null;
 
     return {
       spaceId: space.id,
@@ -248,8 +255,7 @@ export class TimelineService {
       // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
       deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,
-      // Of the device that is drawn: the one the curves are of, else the one device whose outputs speak for the place.
-      silences: silencesOf(own ?? series.find(one => one.series.deviceId === drawn?.id) ?? null, window),
+      silences: silencesOf(quiet, window, around),
       // One `last()` more per read: "now" is then the same figures for the owner, a member and a link's reader.
       reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
       lastReadingAt: newestOf([...heard.values()]),
@@ -264,8 +270,10 @@ export class TimelineService {
       // What each device is called, for one that has left since: as everywhere a place's record names it (`calledIn`).
       devices: isOutsider(grant) ? [] : devices.map(device => calledIn(device, space.ownerId)),
       // A reader who is shown one grow's week is not shown what else has stood
-      // in the room, so the chips they have not got are answered as none.
-      grows: grant.redacted ? [] : stood.map(one => growOf(one)),
+      // in the room, so the chips they have not got are answered as none; a
+      // place's link is told the grows that stood in its window, whose lines it
+      // reads, so a line names its own as the owner's does.
+      grows: !grant.redacted ? stood.map(one => growOf(one)) : grant.linkOn === 'space' ? inWindow.map(one => growOf(one)) : [],
       readingNames: readingNamesOf(known),
       people: await peopleNamed(
         this.users,
@@ -427,6 +435,32 @@ export class TimelineService {
 
     const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
     return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
+  }
+
+  /**
+   * Where a device heard nowhere in the window last spoke before it and first spoke after it, each while it stood
+   * here: what it said elsewhere is the other place's, and its first word after a move away is no end of a silence here.
+   */
+  private samplesAround(deviceId: string, present: readonly Stood[], spaceId: string, window: Span, now: Date): Promise<SamplesAround> | null {
+    const device = present.find(one => one.device.id === deviceId)?.device;
+    const stood = device ? stayOf(device.placements, [spaceId], { startsAt: new Date(0), endsAt: now }) : null;
+    return stood ? this.data.samplesAround(deviceId, window, stood) : null;
+  }
+
+  /**
+   * The lines that raised a silence the window begins inside of, though they stand before it: the diary tells a
+   * silence at its start, and one raised before the window - still going, or over after it began - is the window's
+   * too. A device quiet for three days had no line in a day of them, while the curves said it was quiet.
+   */
+  private raisedBefore(grant: Grant, alerts: readonly StoredAlert[], window: Span): Promise<EntryDocument[]> {
+    const ids = alerts.filter(alert => isSilence(alert) && alert.startedAt < window.startsAt).map(alert => alert.id);
+    if (grant.redacted || ids.length === 0) return Promise.resolve([]);
+
+    return this.entries
+      .find({ $and: [{ kind: 'alarm', alertId: { $in: ids }, occurredAt: { $lt: window.startsAt } }, writtenFor(grant)] })
+      .sort({ occurredAt: 1, id: 1 })
+      .limit(MAX_SILENCE_PIECES)
+      .lean<EntryDocument[]>();
   }
 
   /**

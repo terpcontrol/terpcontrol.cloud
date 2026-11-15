@@ -769,6 +769,39 @@ describe('a tent behind a link', () => {
     expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/B2/);
   });
 
+  /** A place's link with two grows: the owner's lines said whose they were, the reader's said nothing. */
+  it('names the grow of each line where two grow in the place, and none beside one', () => {
+    const grow = (growId: string, name: string) => ({ growId, name, dayNumber: 4, stage: null, strains: [], plantCount: 0 });
+    const lines = [
+      entry({ id: 'e-first', growId: 'grow-1', text: 'In the first', occurredAt: at(0, 2) }),
+      entry({ id: 'e-second', growId: 'grow-2', text: 'In the second', occurredAt: at(0, 1) }),
+    ];
+    const drawn = drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: lines, grows: [grow('grow-1', 'Erstgrow'), grow('grow-2', 'Zweitgrow')] as never }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+
+    const said = within(screen.getByRole('region', { name: 'Latest' })).getAllByRole('listitem');
+    expect(said.find(line => /In the first/.test(line.textContent ?? ''))).toHaveTextContent(/Erstgrow/);
+    expect(said.find(line => /In the second/.test(line.textContent ?? ''))).toHaveTextContent(/Zweitgrow/);
+    drawn.unmount();
+
+    // One grow there: nothing to tell apart.
+    drawAt(
+      <SharedSpace
+        space={{ ...sharedSpace(at(0)), entries: lines.slice(0, 1), grows: [grow('grow-1', 'Erstgrow')] as never }}
+        token="a-token"
+        picture={publicPicture('spring-run')}
+        now={NOW}
+      />,
+    );
+    expect(within(screen.getByRole('region', { name: 'Latest' })).getByRole('listitem')).not.toHaveTextContent(/Erstgrow/);
+  });
+
   it('says an empty diary once: the curves´ own diary card says it, and no empty "Latest" follows', () => {
     drawAt(<SharedSpace space={sharedSpace(at(0))} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
 

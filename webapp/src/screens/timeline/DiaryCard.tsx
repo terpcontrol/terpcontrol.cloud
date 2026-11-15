@@ -4,7 +4,7 @@ import type { Entry, Plant, SpaceTimeline } from '@fg2/shared-types/v1';
 import { dayLines, forwardsOf, type Silences } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { silentSince } from '@/ui/age';
-import { readingNamesOf } from '@/ui/entries';
+import { lineGrow, readingNamesOf } from '@/ui/entries';
 import { useKept } from '@/ui/kept';
 import { Lines } from '@/ui/Lines';
 import { useZone } from '@/ui/zone';
@@ -46,10 +46,11 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   // each as the grow's diary says it - a maintenance one line for on and off together.
   const events = shown.machine ? [...data.deviceChanges, ...(data.stretches ?? [])] : [];
   const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone, silencesOf(data)));
-  // Where the lines are of two grows, each names its own, as Start's do; an alarm is the place's, every grow's there.
-  const grows = new Set(entries.flatMap(entry => (entry.growId && entry.kind !== 'alarm' ? [entry.growId] : [])));
-  const growOf = (entry: Entry | null) =>
-    grows.size > 1 && entry?.kind !== 'alarm' ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null;
+  // Where the lines are of two grows, each names its own, as Start's do.
+  const ofLines = new Set(entries.flatMap(entry => (entry.growId && entry.kind !== 'alarm' ? [entry.growId] : [])));
+  const grows = data.grows.filter(one => ofLines.has(one.growId));
+  // A device is named among those of the window, as a day of the diary names it among the day's.
+  const stood = data.devices.map(one => one.deviceId);
   const listed = all ? lines : lines.slice(-SHOWN);
   // A stretch the window cuts stands at its true start, before the window: the stamps are of the span they reach, in
   // one form, and its stamp sets the cursor where the window begins.
@@ -86,9 +87,10 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
                 onStamp={() => onCursor(Math.max(window.from, at(line.at)))}
                 forwards
                 plants={plants}
-                grow={growOf(entry)}
+                grow={lineGrow(entry, grows)}
                 stampDoes={t('timeline.diary.toMoment')}
                 told={data.devices}
+                stood={stood}
               />
             );
           })}
