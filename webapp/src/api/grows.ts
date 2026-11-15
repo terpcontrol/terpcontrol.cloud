@@ -17,6 +17,7 @@ import type {
   PlantUpdate,
 } from '@fg2/shared-types/v1';
 import { api } from './client';
+import { ApiError } from './problem';
 import { growChanged } from './lifecycle';
 import { readEvery } from './pages';
 import { invalidate, useWrite } from './write';
@@ -112,18 +113,21 @@ export const useGrows = (enabled = true) =>
 
 /**
  * A grow an address names, looked up among the account's grows before it is asked by itself: one deleted since is
- * absent from the list, and asking for it by id was a request answered 404. `gone` once nothing holds it.
+ * absent from the list, and asking for it by id was a request answered 404. `gone` once nothing holds it - the whole
+ * list read without it, or a 404 -, and `unread` where it could not be asked at all: a failing read is no deletion.
  */
-export const useNamedGrow = (growId: string | null): { grow: GrowListItem | undefined; pending: boolean; gone: boolean } => {
+export const useNamedGrow = (growId: string | null): { grow: GrowListItem | undefined; pending: boolean; gone: boolean; unread: boolean } => {
   const listed = useGrows(growId !== null);
   const found = listed.data?.items.find(one => one.id === growId);
   // Beyond the list's one page, or where the list could not be read, a grow is asked by itself.
   const beyond = growId !== null && found === undefined && (listed.isError || (listed.data !== undefined && listed.data.nextCursor !== null));
   const asked = useGrow(beyond ? growId : null);
+  const missing = asked.error instanceof ApiError && asked.error.status === 404;
   return {
     grow: found ?? asked.data,
     pending: growId !== null && (listed.isPending || (beyond && asked.isPending)),
-    gone: growId !== null && found === undefined && ((listed.data !== undefined && !beyond) || asked.isError),
+    gone: growId !== null && found === undefined && ((listed.data !== undefined && !beyond) || missing),
+    unread: beyond && asked.isError && !missing,
   };
 };
 

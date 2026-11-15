@@ -119,7 +119,8 @@ export class AlarmEngineService implements MetricSampleSink {
   public async onVerdict(rule: StoredAlarmRule, device: AlarmDevice, value: number, outOfBand: boolean, at: Date): Promise<void> {
     const release = await this.lock(device.id);
     try {
-      await this.evaluate(rule, device, value, at, outOfBand);
+      // Stamped at the pass's moment, which the silence it counts is counted to: its start is then the last sample.
+      await this.evaluate(rule, device, value, at, outOfBand, at);
     } finally {
       release();
     }
@@ -161,12 +162,12 @@ export class AlarmEngineService implements MetricSampleSink {
    * reading for up to ten minutes after the door shut, and the record called a
    * stretch of eighteen minutes twenty-seven.
    */
-  private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean): Promise<void> {
+  private async evaluate(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean, moment?: Date): Promise<void> {
     if (this.saysNothingNew(rule, at)) return;
 
     const workedOn = device.state.maintenanceUntil && device.state.maintenanceUntil.getTime() + MAINTENANCE_COOLDOWN_MS > Date.now();
     if (outOfBand !== rule.state.triggered && (!workedOn || !outOfBand)) {
-      await this.turn(rule, device, value, at, outOfBand, !workedOn);
+      await this.turn(rule, device, value, at, outOfBand, !workedOn, moment);
       return;
     }
 
@@ -211,9 +212,21 @@ export class AlarmEngineService implements MetricSampleSink {
     if (alert) await this.alerts.quieten(alert, new Date());
   }
 
-  /** The turn itself: what is written down first, and what is said afterwards - an end during maintenance is not `told`. */
-  private async turn(rule: StoredAlarmRule, device: AlarmDevice, value: number, at: Date, outOfBand: boolean, told = true): Promise<void> {
-    const now = new Date();
+  /**
+   * The turn itself: what is written down first, and what is said afterwards - an end during maintenance is not `told`.
+   * `now` is when a verdict's value was counted to: a silence raised a second later than its seconds were counted
+   * began a second after the device's last word, and one whose last word fell in a minute's last second split that
+   * minute between Start and Meldungen.
+   */
+  private async turn(
+    rule: StoredAlarmRule,
+    device: AlarmDevice,
+    value: number,
+    at: Date,
+    outOfBand: boolean,
+    told = true,
+    now = new Date(),
+  ): Promise<void> {
     const subject = subjectOf(rule, device);
 
     if (!outOfBand) {

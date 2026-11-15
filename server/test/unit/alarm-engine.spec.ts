@@ -702,6 +702,24 @@ describe('the health loop', () => {
     expect(await openAlert()).toMatchObject({ kind: 'offline', value: 20 * 60 });
   });
 
+  /**
+   * The alert was stamped a moment after the pass its seconds were counted to: its start, `startedAt` less `value`,
+   * fell a second after the last sample, and a last word in a minute's final second split the minute between Start
+   * and Meldungen again.
+   */
+  it('stamps a silence at the pass its seconds are counted to, so it begins on the last sample', async () => {
+    const at = new Date(Date.now() - 5_000);
+    const sample = new Date(at.getTime() - 20 * 60_000 - 250);
+    await device({ state: { lastSeenAt: sample } });
+    heard.set(DEVICE, sample);
+
+    await health.run(at);
+
+    const alert = (await openAlert())!;
+    expect(alert.startedAt.getTime()).toBe(at.getTime());
+    expect(alert.startedAt.getTime() - alert.value! * 1000).toBe(sample.getTime());
+  });
+
   it('calls no device gone that the store heard from since the note was written', async () => {
     const at = new Date();
     await device({ state: { lastSeenAt: new Date(at.getTime() - GONE_MS) } });

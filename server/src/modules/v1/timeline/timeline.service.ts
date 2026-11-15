@@ -192,10 +192,11 @@ export class TimelineService {
       recordAcross(this.targetRecord, present.find(one => one.device.id === steering?.id) ?? null, before, window),
     ]);
 
-    const [watched, frames, hide] = await Promise.all([
+    const [watched, frames, hide, ends] = await Promise.all([
       this.metricsOf(alerts),
       framesOf(this.media, cameras, window, FRAME_SLOTS),
       grantRedaction(this.users, grant),
+      this.silenceEnds(alerts),
     ]);
     const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
     // The curve and the strips of the leading device begin where it took the place over.
@@ -253,7 +254,7 @@ export class TimelineService {
       reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
       lastReadingAt: newestOf([...heard.values()]),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
-      alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
+      alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null, ends)),
       events: told,
       stretches: recorded.stretches,
       // Which device measured when is the hardware in the tent as well.
@@ -427,7 +428,56 @@ export class TimelineService {
     const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
     return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
+
+  /**
+   * Where each silence among the alerts ended: with the last alert of its device's or camera's that is the same silence
+   * - one dated from the same last sample. A restart of the server closed an alert and raised it again a minute later,
+   * and Friday's window read "bis 01:14" of a silence that went on to Sunday, which the diary and a wider window tell
+   * as one. Null where it still goes on; one read, and none where no silence among them is over.
+   */
+  private async silenceEnds(alerts: readonly StoredAlert[]): Promise<Map<string, Date | null>> {
+    const over = alerts.filter(alert => isSilence(alert) && alert.resolvedAt !== null);
+    if (over.length === 0) return new Map();
+
+    const ids = (of: (alert: StoredAlert) => string | null) => [...new Set(over.flatMap(alert => of(alert) ?? []))];
+    const later = await this.alerts
+      .find({
+        $or: [
+          { kind: 'offline', deviceId: { $in: ids(alert => (alert.kind === 'offline' ? alert.deviceId : null)) } },
+          { kind: 'camera_stale', cameraId: { $in: ids(alert => (alert.kind === 'camera_stale' ? alert.cameraId : null)) } },
+        ],
+        startedAt: { $gte: new Date(Math.min(...over.map(alert => alert.startedAt.getTime()))) },
+      })
+      .sort({ startedAt: 1 })
+      .limit(MAX_SILENCE_PIECES)
+      .lean<StoredAlert[]>();
+    return new Map(over.map(alert => [alert.id, endOfSilence(alert, later)]));
+  }
 }
+
+/** The alerts that are about nothing arriving, which a restart of the server could part into pieces. */
+const isSilence = (alert: Pick<StoredAlert, 'kind'>): boolean => alert.kind === 'offline' || alert.kind === 'camera_stale';
+
+/** Two pieces whose silence began this close are one: the diary's rule (`ONE_SILENCE_MS`, `screens/grow/diary/days.ts`). */
+const ONE_SILENCE_MS = 60_000;
+
+/** A safety net over the pieces read after a window's silences: a night of restarts is a handful. */
+const MAX_SILENCE_PIECES = 200;
+
+/** When an alert's silence began: its device's or camera's last word before it, which its value counts from. */
+const silentSince = (alert: Pick<StoredAlert, 'startedAt' | 'value'>): number => alert.startedAt.getTime() - (alert.value ?? 0) * 1000;
+
+/** The end of the silence an alert is a piece of: the end of the last later piece that began with it, null while one is open. */
+const endOfSilence = (alert: StoredAlert, later: readonly StoredAlert[]): Date | null => {
+  const subject = (one: StoredAlert) => [one.kind, one.deviceId ?? '', one.cameraId ?? ''].join('|');
+  let end = alert.resolvedAt;
+  for (const piece of later) {
+    if (end === null) break;
+    const same = piece.id !== alert.id && subject(piece) === subject(alert) && piece.startedAt >= alert.startedAt;
+    if (same && alert.value !== null && Math.abs(silentSince(piece) - silentSince(alert)) <= ONE_SILENCE_MS) end = piece.resolvedAt;
+  }
+  return end;
+};
 
 /** The lines of the window, and how many of the machines' own the window held behind the two hundred it was given. */
 interface SpaceEvents {
@@ -495,13 +545,13 @@ const stoodDuring = (grow: GrowDocument, spaceId: string, window: { startsAt: Da
       (placement.endedAt === null || window.startsAt === null || placement.endedAt >= window.startsAt),
   );
 
-const alarmOf = (alert: StoredAlert, metric: Metric | null): TimelineAlarm => ({
+const alarmOf = (alert: StoredAlert, metric: Metric | null, ends: ReadonlyMap<string, Date | null>): TimelineAlarm => ({
   alertId: alert.id,
   kind: alert.kind,
   severity: alert.severity,
   metric,
   startedAt: alert.startedAt.toISOString(),
-  endedAt: alert.resolvedAt?.toISOString() ?? null,
+  endedAt: (ends.has(alert.id) ? ends.get(alert.id) : alert.resolvedAt)?.toISOString() ?? null,
   value: alert.value,
   extremeValue: alert.extremeValue,
 });

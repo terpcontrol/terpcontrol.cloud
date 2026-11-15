@@ -2144,6 +2144,8 @@
     },
     "quietWindow": "Nothing was measured in this window · last reading {{age}} ago",
     "quietClimate": "No climate readings came in this window · last reading {{age}} ago",
+    "quietWindowAt": "Nothing was measured in this window · last reading {{time}}",
+    "quietClimateAt": "No climate readings came in this window · last reading {{time}}",
     "noSpaces": "Nothing to draw yet. Add a device or start a grow – both on the page",
     "demoNoSpaces": "The demo has nothing to draw; nothing has been left in this one to look at.",
     "visiting": "support view of a customer's place",
@@ -2246,6 +2248,7 @@
       "device": "The device in the address is not in this place. This is the place with its own device.",
       "grow": "The grow in the address was never in this place. This is the place without it.",
       "growGone": "The grow in the address no longer exists. This is the place without it.",
+      "growUnread": "The grow in the address could not be loaded just now.",
       "growNoPlace": "“{{name}}” has no place and so no climate curves. What you measured by hand has its curves under",
       "toPlace": "Timeline of {{place}}",
       "compare": "The comparison in the address is no longer there. Shown is the place alone."

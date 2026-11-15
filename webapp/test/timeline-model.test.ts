@@ -519,6 +519,27 @@ describe('the strips', () => {
     expect([FROM + 5 * HOUR, FROM + 8 * HOUR, FROM + 20.5 * HOUR].map(time => silenceAt(quiet, time))).toEqual([null, null, null]);
   });
 
+  /** "Lücke bis 15:18" at a three-minute step and "bis 15:20" at two, where the card and the lines said 15:20. */
+  it('ends a lamp`s gap where the answer says the silence ended, not at the window the next point closes', () => {
+    const quiet = answer({
+      silences: [{ startsAt: at(4), endsAt: at(9 + 20 / 60) }],
+      outputs: [
+        {
+          output: 'light',
+          deviceId: 'device-1',
+          spans: [{ startsAt: at(0), endsAt: at(4) }],
+          heardUntil: at(24),
+          points: counted(24, hour => (hour <= 4 ? [12, 12, 65] : [12, 0, 0])).flatMap(point => {
+            const hour = (Date.parse(point.measuredAt) - FROM) / HOUR;
+            return hour > 4 && hour < 10 ? [] : [hour === 10 ? { ...point, resumed: true } : point];
+          }),
+        },
+      ],
+    });
+    const light = stripsOf(t, quiet, { zone: 'UTC', live: false, quietAt: null }).find(strip => strip.output === 'light')!;
+    expect(light.said!.slice(0, 2)).toEqual(['until 18:30', 'gap until 23:50']);
+  });
+
   it('counts two devices that drive the same output together', () => {
     const lane = (heard: number, on: number, level: number) => ({
       output: 'heater' as const,
@@ -917,6 +938,12 @@ describe('the table', () => {
     expect(rows.at(-1)!.startsWith('2026-11-11T20:00:00')).toBe(true);
   });
 
+  /** "Licht · Lampen­modul (%)" carried the soft hyphen the screen breaks the word at, which a spreadsheet shows. */
+  it('writes a heading without the soft hyphens of a screen', () => {
+    const column = { label: 'Licht · Lampen­modul (%)', decimals: 0, points: [[FROM, 100] as [number, number]] };
+    expect(csvOf([column], 'UTC', 'Zeit').slice(1).split('\n')[0]).toBe('"Zeit","Licht · Lampenmodul (%)"');
+  });
+
   it('says of the deficit`s column that it is worked out', () => {
     const { panels } = drawn(answer(), ['vpd']);
     expect(csvFor(t, panels, [], HOUR, null, new Map(), 'UTC', false).slice(1).split('\n')[0]).toBe(
@@ -989,6 +1016,20 @@ describe('how the page says when', () => {
     // A week's window names weekdays already, and dates an instant further back than one.
     expect(stamp('2026-11-05T17:35:00Z', { from: Date.parse('2026-11-08T11:38:00Z'), to: window.to })).toBe('5 Nov 17:35');
     expect(cursorStamp(Date.parse('2026-11-13T17:35:00Z'), window, 60, 'UTC')).toBe('Fri\u00a017:35');
+  });
+
+  /** Thursday's window said "16:17 Ger\u00e4t offline \u00b7 bis 06:55" of an end on Friday morning. */
+  it('gives an instant on the day after a day\u00b4s window its day, however far past the window', () => {
+    const thursday = { from: Date.parse('2026-11-12T00:00:00Z'), to: Date.parse('2026-11-13T00:00:00Z') };
+    const stamp = (instant: string) => cursorStamp(Date.parse(instant), thursday, 60, 'UTC').replace(/\u00a0/g, ' ');
+    expect(stamp('2026-11-12T16:17:00Z')).toBe('16:17');
+    expect(stamp('2026-11-13T06:55:00Z')).toBe('Fri 06:55');
+    expect(stamp('2026-11-13T00:00:00Z')).toBe('Fri 00:00');
+    // An end weeks after the window is dated, not a weekday that could be any week's.
+    expect(stamp('2026-11-28T09:44:00Z')).toBe('28 Nov 09:44');
+    // A window that ends now keeps a stamp a moment past its end on its own day.
+    const live = { from: Date.parse('2026-11-14T15:00:00Z'), to: Date.parse('2026-11-15T15:00:00Z') };
+    expect(cursorStamp(Date.parse('2026-11-15T15:00:20Z'), live, 60, 'UTC')).toBe('15:00');
   });
 
   it('says of a mean that it is one, and over which stretch', () => {

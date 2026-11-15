@@ -178,6 +178,8 @@ const server = {
   plants: null as unknown[] | null,
   /** Whether the account has a place that has ended, "Old tent", where an ended grow stood last. */
   gone: false,
+  /** Whether every read of the account's grows fails, as a server error does. */
+  growsFail: false,
 };
 
 const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -188,6 +190,7 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
   else server.askedFor.push(path);
 
   const second = server.elsewhere;
+  if (server.growsFail && path.startsWith('/grows')) return json({ status: 500, code: 'unexpected', title: 'Broken', detail: '', errors: [] }, 500);
   if (path === '/home') {
     const cards = [
       cardOf({ name: 'Tent 1', kind: 'tent' }),
@@ -309,6 +312,7 @@ beforeEach(() => {
     grows: null,
     plants: null,
     gone: false,
+    growsFail: false,
   });
   opened.length = 0;
   told.length = 0;
@@ -1619,6 +1623,51 @@ describe('the diary of the window', () => {
     expect(line).not.toHaveAttribute('data-severity');
   });
 
+  /** The 24 h view said "09:44 Gerät offline · behoben" of a silence begun the evening before: neither start nor span. */
+  it('stands a silence begun before the window at its start, with its day, until its end', async () => {
+    const [quiet, back] = [NOW - 40 * HOUR, NOW - 2 * HOUR];
+    server.over = {
+      alarms: [
+        {
+          alertId: 'alert-1',
+          kind: 'offline',
+          severity: 'critical',
+          metric: null,
+          startedAt: iso(quiet + 600_000),
+          endedAt: iso(back),
+          value: 600,
+          extremeValue: 600,
+        },
+      ],
+      events: [
+        entry('back', {
+          kind: 'alarm',
+          source: 'alarm',
+          authorId: null,
+          deviceId: 'device-1',
+          alertId: 'alert-1',
+          severity: 'info',
+          text: null,
+          occurredAt: iso(back),
+          message: { key: 'message-alarm-resolved', params: ['Device offline, back after 38 h'] },
+          values: { kind: 'alarm' },
+        }),
+      ],
+    };
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
+    const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
+    const [start, end] = [zonedAt(quiet, 'UTC'), zonedAt(back, 'UTC')];
+    expect(line.textContent).toMatch(
+      new RegExp(
+        `^${start.toFormat('ccc')}\u00a0${start.toFormat('HH:mm')}, .*Device offline.* · until ${end.toFormat('ccc')}\u00a0${end.toFormat('HH:mm')}`,
+      ),
+    );
+  });
+
   /**
    * Two grows in one tent: Start's lines say whose a line is since the sixth walk; Verlauf's list said nothing. An
    * alarm is the place's, both grows': a line written before named the grow begun last, and is not called its own.
@@ -1830,6 +1879,17 @@ describe('Verlauf with nothing to draw', () => {
     expect(server.asked.every(query => !query.has('growId'))).toBe(true);
   });
 
+  /** With `/v1/grows` failing, an existing grow was called deleted and `grow=` left the address for good. */
+  it('says a grow it could not read could not be read, and keeps it in the address', async () => {
+    server.growsFail = true;
+    draw('/timeline?grow=grow-1');
+
+    expect(await screen.findByText('The grow in the address could not be loaded just now.')).toBeInTheDocument();
+    expect(screen.queryByText(/no longer exists/)).not.toBeInTheDocument();
+    expect(address().searchParams.get('grow')).toBe('grow-1');
+    await waitFor(() => expect(server.asked.some(query => query.get('growId') === 'grow-1')).toBe(true));
+  });
+
   it('says that a device waits for its first values', async () => {
     server.over = { panels: [], outputs: [], cameras: [], events: [], machineEvents: { shown: 0, total: 0 } };
     draw();
@@ -1843,12 +1903,23 @@ describe('Verlauf with nothing to draw', () => {
     const last = NOW - 50 * HOUR;
     server.over = { panels: [], outputs: [], cameras: [], lastReadingAt: iso(last) };
     draw();
-    fireEvent.click(await screen.findByRole('button', { name: /Go to the last reading/ }));
+    expect(await screen.findByText(/Nothing was measured in this window · last reading 2 d ago/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Go to the last reading/ }));
 
-    expect(screen.getByText(/Nothing was measured in this window · last reading 2 d ago/)).toBeInTheDocument();
     // The moment alone: the page gives it its own day around it, and never a window past now.
     await waitFor(() => expect(address().search).toBe(`?at=${iso(last)}`));
     await waitFor(() => expect(Object.fromEntries(server.asked.at(-1)!)).toMatchObject({ from: iso(last - 12 * HOUR), to: iso(last + 12 * HOUR) }));
+  });
+
+  /** Saturday's window, wholly inside a silence, said "letzter Wert vor 1 Std" of a value 1 h 46 min before now. */
+  it('dates the last reading of a past window by its time, not its age from now', async () => {
+    const [from, to, last] = [NOW - 72 * HOUR, NOW - 48 * HOUR, NOW - 75 * HOUR];
+    server.over = { panels: [], outputs: [], cameras: [], lastReadingAt: iso(last) };
+    draw(`/timeline?from=${iso(from)}&to=${iso(to)}`);
+
+    const then = zonedAt(last, 'UTC');
+    expect(await screen.findByText(`Nothing was measured in this window · last reading ${then.toFormat('ccc HH:mm')}`)).toBeInTheDocument();
+    expect(screen.queryByText(/ago/)).not.toBeInTheDocument();
   });
 
   /** A day wholly inside the controller's silence kept the lamp module's strip and lost its climate panels without a word. */

@@ -1114,6 +1114,38 @@ describe('the night, the lanes and the alarms', () => {
       },
     ]);
   });
+
+  /** Friday's window read "bis 01:14" of a silence a server restart had parted, which went on to Sunday. */
+  it('ends a piece of a silence where the silence ended, and one still going nowhere', async () => {
+    const offline = (id: string, startedAt: string, silentSeconds: number, resolvedAt: string | null) => ({
+      id,
+      deviceId: CONTROLLER,
+      spaceId: TENT,
+      kind: 'offline',
+      severity: 'critical',
+      startedAt: new Date(startedAt),
+      resolvedAt: resolvedAt ? new Date(resolvedAt) : null,
+      value: silentSeconds,
+    });
+    await db.alerts.create([
+      // Silent from 03:00: closed by a restart at 03:40 and raised again from the same last sample.
+      offline('piece-1', '2026-06-10T03:10:00.000Z', 600, '2026-06-10T03:40:00.000Z'),
+      offline('piece-2', '2026-06-10T03:41:00.000Z', 2460, '2026-06-10T05:30:00.000Z'),
+      // Heard again at 05:30 and silent from 07:00: another silence, still going in two pieces.
+      offline('again-1', '2026-06-10T07:10:00.000Z', 600, '2026-06-10T07:30:00.000Z'),
+      offline('again-2', '2026-06-10T07:31:00.000Z', 1860, null),
+    ]);
+
+    const ends = Object.fromEntries((await readAs(session(OWNER))).alarms.map(alarm => [alarm.alertId, alarm.endedAt]));
+    expect(ends).toMatchObject({
+      'piece-1': '2026-06-10T05:30:00.000Z',
+      'piece-2': '2026-06-10T05:30:00.000Z',
+      'again-1': null,
+      'again-2': null,
+      // A silence the alerts give no seconds of keeps its own end.
+      'alert-inside': '2026-06-10T06:00:00.000Z',
+    });
+  });
 });
 
 describe('the rail and the frames', () => {
@@ -1853,6 +1885,40 @@ describe('a lane of a tent that has gone quiet', () => {
 
     expect(lanesOf([quiet], WINDOW)[0].heardUntil).toBe(morning.toISOString());
     expect(lanesOf([quiet], WINDOW)[0].spans.at(-1)!.endsAt).toBe(morning.toISOString());
+  });
+
+  /** A device moved away offline drew "07:10 bis letzter Wert 17:22" - the move - of a last value at 17:10. */
+  it('ends the lane of a device moved away offline at its last sample, and its silence at the window`s end', () => {
+    const closes = new Date('2026-09-23T19:00:00.000Z');
+    const opens = new Date(closes.getTime() - 24 * 3600_000);
+    const [last, moved] = [new Date('2026-09-23T17:10:00.000Z'), new Date('2026-09-23T17:22:00.000Z')];
+    const step = 180_000;
+    // A backfilled day: a sample every quarter of an hour, slower than the step, up to its last at 17:10.
+    const points = [];
+    for (let stamp = opens.getTime() + step; stamp <= moved.getTime(); stamp += step) {
+      const sampled = ((stamp - opens.getTime()) / 60_000) % 15 === 12 && stamp <= last.getTime() + step;
+      points.push({ measuredAt: new Date(stamp).toISOString(), value: sampled ? 60 : null });
+    }
+    const away: DeviceHistory = {
+      series: {
+        deviceId: CONTROLLER,
+        startsAt: opens.toISOString(),
+        endsAt: moved.toISOString(),
+        stepSeconds: step / 1000,
+        metrics: [],
+        outputs: [{ output: 'light', points }],
+      },
+      outputs: [{ output: 'light', switchings: [{ at: opens.toISOString(), on: true }] }],
+      lastSampleAt: last.toISOString(),
+    };
+    const window = { startsAt: opens, endsAt: closes };
+
+    const [lane] = lanesOf([away], window);
+    expect([lane.heardUntil, lane.spans.at(-1)!.endsAt]).toEqual([last.toISOString(), last.toISOString()]);
+    expect(silencesOf(away, window).at(-1)).toEqual({ startsAt: last.toISOString(), endsAt: closes.toISOString() });
+    // One still standing here keeps the rhythm it reports in: within it, it is reporting at the read's end.
+    const here = { ...away, series: { ...away.series, endsAt: closes.toISOString() } };
+    expect(lanesOf([here], { startsAt: opens, endsAt: moved })[0].heardUntil).toBe(moved.toISOString());
   });
 
   it('ends and begins a stretch with the samples where the read says when they were written, whatever the step', () => {

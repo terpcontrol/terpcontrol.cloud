@@ -2154,6 +2154,8 @@
     },
     "quietWindow": "In diesem Zeitraum wurde nichts gemessen · letzter Wert vor {{age}}",
     "quietClimate": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert vor {{age}}",
+    "quietWindowAt": "In diesem Zeitraum wurde nichts gemessen · letzter Wert {{time}}",
+    "quietClimateAt": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert {{time}}",
     "noSpaces": "Noch nichts zu zeichnen. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
     "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
     "visiting": "Support-Ansicht eines Kundenorts",
@@ -2256,6 +2258,7 @@
       "device": "Das Gerät aus der Adresse steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
       "grow": "Der Grow aus der Adresse stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
       "growGone": "Den Grow aus der Adresse gibt es nicht mehr. Gezeigt wird der Ort ohne ihn.",
+      "growUnread": "Der Grow aus der Adresse ließ sich gerade nicht laden.",
       "growNoPlace": "„{{name}}“ hat keinen Ort und damit keine Klimakurven. Was du von Hand gemessen hast, steht als Kurve unter",
       "toPlace": "Verlauf von {{place}}",
       "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."

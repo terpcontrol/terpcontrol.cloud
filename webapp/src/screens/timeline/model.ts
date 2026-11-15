@@ -241,12 +241,17 @@ const startsOf = (points: readonly StripPoint[], from: number, stepMs: number): 
  * are few, the share of the time it was on, how bright - with its stretch, or once where every stretch ran alike.
  * A stretch is named by the ends it has, a switch only where one is, and each fact once (app-ux.md §7).
  */
-const lightWords = (t: Translate, light: Pick<Strip, 'points' | 'runs'>, data: SpaceTimeline, share: number, said: Said): string[] => {
+const lightWords = (t: Translate, light: Pick<Strip, 'points' | 'runs' | 'reads'>, data: SpaceTimeline, share: number, said: Said): string[] => {
   const { zone, live, quietAt } = said;
   const [from, to, stepMs] = [at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000];
   const clock = (time: number) => zonedAt(time, zone).toFormat(stepMs < 60_000 ? `${CLOCK}:ss` : CLOCK);
   const percent = (level: number | null) => (level === null ? null : `${level}\u00a0%`);
   const gapTo = (time: number) => t('timeline.lightGap', { to: clock(time) });
+  // A gap of the drawn device ends where the answer says its silence did, by the samples, at every step.
+  const silenceEnd = (after: number, before: number): number | undefined =>
+    light.reads
+      ? data.silences.map(span => [at(span.startsAt), at(span.endsAt)]).find(([since, until]) => since >= after - stepMs && until <= before)?.[1]
+      : undefined;
   // How bright a stretch ran while it was lit: the middle of its points' levels, which a ramp at either end does not move.
   const levelOf = (run: PlotSpan): number | null => {
     const lit = light.points.filter(([end, , on]) => end > run.from && end <= run.to + stepMs && on > 0);
@@ -278,7 +283,7 @@ const lightWords = (t: Translate, light: Pick<Strip, 'points' | 'runs'>, data: S
     // The gap after it is said here unless the next stretch begins where it ends, and says it.
     const gap = quiet && back && !(resumed[index + 1] && lit[index + 1].from <= back[0]);
     const facts = [resumed[index] ? gapTo(one.from) : null, t(`timeline.${key}`, { from: clock(one.from), to: until })];
-    return [...facts, alike ? null : percent(levels[index]), gap ? gapTo(back[0] - stepMs) : null];
+    return [...facts, alike ? null : percent(levels[index]), gap ? gapTo(silenceEnd(one.to, back[0]) ?? back[0] - stepMs) : null];
   });
   const always = Math.round(share * 100) === 100;
   return [...stretches, always ? null : ran, alike && !(always && (levels[0] ?? 100) >= 100) ? percent(levels[0]) : null].flatMap(one => one ?? []);

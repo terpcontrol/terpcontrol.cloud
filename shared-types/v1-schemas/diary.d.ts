@@ -4937,7 +4937,9 @@ export declare const timelineOutputLane: z.ZodObject<{
 /**
  * One alarm as a span of the window. `endedAt` is null for an alert that is
  * still open - it has not ended, and closing it at the edge of the window would
- * say it had.
+ * say it had. Of a silence it is when the silence ended: a restart of the server
+ * parted one into alerts dated from the same last sample, and the end of the
+ * first was not the end of anything that happened at the device.
  */
 export declare const timelineAlarm: z.ZodObject<{
     alertId: z.ZodString;

@@ -232,5 +232,8 @@ const measured = (points: readonly [number, number | null][], times: readonly nu
   return times.map(time => byTime.get(time) ?? null);
 };
 
-/** A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled. */
-const quoted = (cell: string): string => `"${cell.replace(/"/g, '""')}"`;
+/**
+ * A name a grower gave a measurement may hold a comma, so every heading is quoted and its own quotes doubled - and
+ * written without the soft hyphens a screen breaks a long word at, which a spreadsheet shows as a character.
+ */
+const quoted = (cell: string): string => `"${cell.replace(/\u00ad/g, '').replace(/"/g, '""')}"`;

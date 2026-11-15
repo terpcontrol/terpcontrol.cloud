@@ -250,8 +250,13 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
     known: home.data !== undefined && data !== undefined,
     keeps: user !== null && user.isDemo !== true && !visiting && !ended,
     away: page.dropped !== null && lost && standsIn(lost) === null ? { place: spaceRow?.name ?? data?.name ?? '', onward: page.forget } : null,
+    // A grow that could not be read is not called gone: the address keeps it, and the server answers for it.
     missing:
-      page.dropped === null ? null : lost && standsIn(lost) === null ? (
+      page.dropped === null ? (
+        namedGrow.unread ? (
+          t('timeline.missing.growUnread')
+        ) : null
+      ) : lost && standsIn(lost) === null ? (
         // A grow without a place has no climate to draw; what was measured by hand has its curves on its own page.
         <>
           {t('timeline.missing.growNoPlace', { name: lost.name })}{' '}
@@ -867,6 +872,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
               ended={Boolean(own?.ended)}
               partly={!nothing}
               now={now}
+              live={live}
               // The moment alone: the view gives it its own day around it, and never a window past now.
               toLast={time => change({ range: '24h', fixed: null, last: null, at: time })}
             />
@@ -984,14 +990,16 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
 
 /**
  * A window with no curve and no strip, said as what it is: a place that measures and was not heard in this window -
- * dated, with the way to its last reading -, one whose device has sent nothing yet, or one where nothing measures.
- * Only the answer's `lastReadingAt` and devices tell them apart.
+ * dated, with the way to its last reading: how long ago in a window that ends now, and when in one that is past,
+ * whose "vor 1 Std" was counted from a now it does not reach -, one whose device has sent nothing yet, or one where
+ * nothing measures. Only the answer's `lastReadingAt` and devices tell them apart.
  */
 function Nothing({
   data,
   ended,
   partly = false,
   now,
+  live,
   toLast,
 }: {
   data: SpaceTimeline;
@@ -999,16 +1007,22 @@ function Nothing({
   /** Something else is drawn - a lamp module's strip, the grow's own readings -, and only the climate is missing. */
   partly?: boolean;
   now: ReturnType<typeof useNow>;
+  live: boolean;
   toLast: (time: number) => void;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
   const last = data.lastReadingAt;
 
   return (
     <div className={`${ui.cardDashed} ${styles.nothing}`}>
       <p className={ui.note}>
         {last !== null
-          ? t(partly ? 'timeline.quietClimate' : 'timeline.quietWindow', { age: ageLabel(last, now) })
+          ? live
+            ? t(partly ? 'timeline.quietClimate' : 'timeline.quietWindow', { age: ageLabel(last, now) })
+            : t(partly ? 'timeline.quietClimateAt' : 'timeline.quietWindowAt', {
+                time: cursorStamp(at(last), { from: at(data.startsAt), to: at(data.endsAt) }, 60, zone),
+              })
           : (data.deviceIds ?? []).length > 0
             ? // A device that came from another place has reported there: it waits for its first value here.
               t(data.arrivals.length > 0 ? 'timeline.waitingHere' : 'timeline.waiting')
