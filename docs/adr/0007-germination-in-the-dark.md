@@ -1,12 +1,13 @@
 ---
 summary: The owner's decisions on germination (Keimung) - two stages, germination in the dark and the seedling stage with light, 24 °C and 75 % for the seeds, and the grower's two humidity choices - with their reasons and what they mean for work modes, alarms and stored plans - read before touching the germination stage, the breed work mode, a humidifier socket's behaviour in the dark or the "too humid" alarm
 updated: 2026-11-15
-source: the eighth whole-app walk's lists built - the place's germination for every sensor and lamp, a darkened lamp said, step 035 (the redesign session's fix round of 2026-11-15); a lamp module dark while its place dries too (Chris, 2026-11-15); every lamp of a germinating place kept dark, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); Chris (owner's decisions of 2026-10-03 and 10-04), rewrite commits merged with PR #104; checked against shared-types/, server/ and firmware/ on 2026-10-08
+source: the ninth whole-app walk's lists built - the lamps follow a germination or drying begun at the device's menu (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's lists built - the place's germination for every sensor and lamp, a darkened lamp said, step 035 (the redesign session's fix round of 2026-11-15); a lamp module dark while its place dries too (Chris, 2026-11-15); every lamp of a germinating place kept dark, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); Chris (owner's decisions of 2026-10-03 and 10-04), rewrite commits merged with PR #104; checked against shared-types/, server/ and firmware/ on 2026-10-08
 paths:
   - shared-types/src/v1/climate-presets.ts
   - shared-types/src/v1/configuration-fields.ts
   - server/src/modules/device-protocol/work-modes.ts
   - server/src/modules/device-protocol/germination-memory.ts
+  - server/src/modules/device-protocol/device-ingest.service.ts
   - server/src/modules/alarm/germination-alarms.service.ts
   - server/src/migrations/steps/022-dark-germination.ts
 ---
@@ -78,8 +79,9 @@ mode reaches, and burnt on under "Keimung · dunkel". While a place's controller
 however it came to - the server puts each lamp module of the place to nothing (`limit: 0`), keeps the brightness
 it had and gives it back when germination ends there or the lamp leaves the place, unless somebody set one since
 (`DeviceConfigurationService.lampsFollow`): applied again with every germination climate, when a device is put in a
-place and when a lamp module sends its first settings. Germination ended at the device's own menu does not reach
-the lamps; the screens then say a lamp that burns as burning, and why. **Drying too** (Chris, 2026-11-15): a lamp
+place, when a lamp module sends its first settings, and when a device's own settings enter or leave germination or
+drying - begun or ended at its menu, which had left the lamp module lit under "das Dunkel ist noch nicht
+angekommen" (the ninth whole-app walk; `DeviceIngestService.configuration`). **Drying too** (Chris, 2026-11-15): a lamp
 module is dark while its place dries as while it germinates, by the same rule and on the same paths, and gets its
 brightness back when the drying ends (`limitBeforeDark` on the device row); the screens say "trotz Trocknung" and
 "bleiben während der Trocknung aus". A lamp module joining a place in either is darkened without a question, and
