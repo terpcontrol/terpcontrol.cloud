@@ -84,7 +84,10 @@ export function Report({
         </p>
       ) : null}
 
-      {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.report.noPhase')}</p> : null}
+      {/* A grow that ended without a phase has none coming: said as how long it ran, which its chapters would have told. */}
+      {report.data.phases.length === 0 ? (
+        <p className={styles.empty}>{grow.endedAt ? t('grow.report.noPhaseEnded', { count: report.data.dayCount }) : t('grow.report.noPhase')}</p>
+      ) : null}
 
       {report.data.phases.map(chapter => (
         <Chapter

@@ -36,6 +36,7 @@ export function DiaryLine({
   stampDoes,
   forwards = false,
   plants,
+  grow = null,
   onPictures = null,
   thumbnails,
   moment = instant => sinceLabel(instant, now, zone),
@@ -61,6 +62,8 @@ export function DiaryLine({
   forwards?: boolean;
   /** The plants of the grows these lines belong to, so a line about some of them names those. */
   plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** The name of the grow a written line is of, where the list holds lines of more than one. */
+  grow?: string | null;
   /** What opens the line's pictures, by their place among them. */
   onPictures?: ((index: number) => void) | null;
   /** The addresses of the line's pictures, where they are drawn in the line. */
@@ -126,6 +129,7 @@ export function DiaryLine({
         brief
         pictures={carried === null}
         plants={plants}
+        grow={grow}
       />
     </Line>
   );

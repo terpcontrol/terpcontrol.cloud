@@ -190,7 +190,14 @@ function Facts({ page }: { page: PublicGrowPage }) {
   const until = page.endedAt ? DateTime.fromISO(page.endedAt) : null;
 
   const parts = [
-    page.stage ? stageLabel(t, page.stage, page.preset) : t('home.card.noPhase'),
+    // A grow that ended without a phase is said by how long it ran: "Noch keine Phase" waits for one.
+    page.stage
+      ? stageLabel(t, page.stage, page.preset)
+      : page.endedAt
+        ? page.dayNumber !== null
+          ? t('grow.days', { count: page.dayNumber })
+          : null
+        : t('home.card.noPhase'),
     // The week of the stage the word before it names, which is what the owner's
     // own header says. Glued to a stage name, the week of the whole grow
     // told a reader that a grow had been curing for thirty-two weeks when it

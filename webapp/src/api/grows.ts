@@ -87,6 +87,10 @@ export const useUpdateGrow = (growId: string) =>
       void invalidate(client, ['home']);
       // The list carries the start too: a twin of a place is ordered by it, and its day counted from it.
       if (body.visibility !== undefined || body.startedAt !== undefined) void invalidate(client, ['grows']);
+      // An end or a reopen moves the grow's last day and its reminders: its diary and report are read again - a diary
+      // read before a reopen ended on the day the grow had ended -, with the lists that tell a running grow from an
+      // ended one and the tasks its reminders come back to.
+      if (body.endedAt !== undefined) void invalidate(client, ['grow', growId], ['grows'], ['space'], ['tasks'], ['reminders']);
     },
   );
 

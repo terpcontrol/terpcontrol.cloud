@@ -165,6 +165,12 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
   const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
   // A grow that has ended says how long it ran and when it ended; a running one its day and its phase, each explained where it is met.
   const stage = summary.stage ? stageLabel(t, summary.stage, summary.preset) : t('home.card.noPhase');
+  // How long an ended grow ran, which is also what its bar says where it ended without a phase: "Noch keine Phase" waits for one.
+  const ran = endedOn
+    ? [summary.dayNumber !== null ? t('grow.days', { count: summary.dayNumber }) : null, t('grow.ended', { date: endedOn })]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
   const places = summary.locations.map(location => ({ spaceId: location.spaceId, name: placeName(t, spaces, location.spaceId) }));
   const stood = places.length > 0 ? null : lastPlaceOf(grow);
   // Plants gone their own way are said beside the stage most of the grow is in - those still standing by their
@@ -197,11 +203,7 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
         <h1>{grow.name}</h1>
         <p className={styles.facts}>
           <span>
-            {endedOn ? (
-              [summary.dayNumber !== null ? t('grow.days', { count: summary.dayNumber }) : null, t('grow.ended', { date: endedOn })]
-                .filter(Boolean)
-                .join(' · ')
-            ) : (
+            {ran ?? (
               <>
                 {summary.dayNumber !== null ? (
                   <>
@@ -252,7 +254,7 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
         label={
           summary.stage
             ? t(endedOn ? 'grow.phaseBarEndedLabel' : 'grow.phaseBarLabel', { stage: t(`home.stage.${summary.stage}`) })
-            : t('home.card.noPhase')
+            : (ran ?? t('home.card.noPhase'))
         }
       />
     </header>

@@ -26,20 +26,23 @@ export const litresOf = (entry: Entry | null): number | null =>
  * Not simply the newest: a watering can be recorded without a volume - a task
  * ticked off writes one, and so does a tap on a tile that had nothing to go by -
  * and one of those in between must not make the tile forget the can that has
- * been used every time before it.
+ * been used every time before it. Nor a can poured for other plants: half a
+ * litre for one plant is no can for the whole grow.
  */
-const lastPour = (entries: Entry[], kind: HumanEntryKind): { litres: number; at: string } | null => {
-  const entry = entries.find(one => one.kind === kind && litresOf(one) !== null);
+const lastPour = (entries: Entry[], kind: HumanEntryKind, plantIds: readonly string[]): { litres: number; at: string } | null => {
+  const scope = [...plantIds].sort().join();
+  const entry = entries.find(one => one.kind === kind && litresOf(one) !== null && [...one.plantIds].sort().join() === scope);
   return entry ? { litres: litresOf(entry)!, at: entry.occurredAt } : null;
 };
 
 /**
- * The can a tile opens on, and when it was poured: what that kind last used.
- * A grow that has been watered but never fed still knows how big the can is,
- * so a feed falls back to it rather than asking from nothing.
+ * The can a tile opens on, and when it was poured: what that kind last used
+ * for the same plants - none is the whole grow. A grow that has been watered
+ * but never fed still knows how big the can is, so a feed falls back to it
+ * rather than asking from nothing.
  */
-export const lastCan = (entries: Entry[], kind: HumanEntryKind): { litres: number; at: string } | null =>
-  kind === 'feed' ? (lastPour(entries, 'feed') ?? lastPour(entries, 'water')) : lastPour(entries, kind);
+export const lastCan = (entries: Entry[], kind: HumanEntryKind, plantIds: readonly string[] = []): { litres: number; at: string } | null =>
+  kind === 'feed' ? (lastPour(entries, 'feed', plantIds) ?? lastPour(entries, 'water', plantIds)) : lastPour(entries, kind, plantIds);
 
 export const readingsOf = (entry: Entry | null): EntryReading[] => (entry && 'readings' in entry.values ? entry.values.readings : []);
 

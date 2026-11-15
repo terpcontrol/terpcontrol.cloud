@@ -330,8 +330,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     rule, the plan's steps, no support log. A place without a grow shows what happened there by those rules. The
     lamp and a reading outside its targets are a day's and are not in it. A line stands there the moment it is
     written and is gone the moment it is taken back. An alarm is one line per rule, its start and its end
-    together ("Zu warm · behoben", "Gerät offline · 2× seit 01:21"), a silence counted from when the device was
-    last heard as Meldungen counts it, a camera's as "Terp Cam ohne Bild" (`alarmLines`,
+    together ("Zu warm · behoben", "Gerät offline · 2× seit 01:21"), a silence counted - and its line dated - from
+    when the device was last heard as Start's banner and Meldungen count it ("09:58 Gerät offline" stood under
+    "offline seit 09:48" until the fix round after the sixth walk), a camera's as "Terp Cam ohne Bild" (`alarmLines`,
     `screens/grow/diary/days.ts`), in the diary as on Start; a window of maintenance or of regulation off that
     ended within its first minute reads "Wartung beendet", never "Wartung · 0 s" (the third whole-app walk).
     **A rule is its device's** (the fourth whole-app walk): every device carries "Gerät offline" and a controller
@@ -341,7 +342,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     Plantalytix Socket · behoben"). Start counts an alarm's repeats as the day's card does: the server sends each
     shown alarm's other firings along (`diaryTail`), and Start counts those of the day its newest line stands on
     (`onTheirDay`). A switch-off a silent device has not been handed is said in Zuletzt as stored ("Regelung aus
-    gespeichert um …, noch nicht am Gerät"), not as regulation off.
+    gespeichert um …, noch nicht am Gerät"), not as regulation off. Where two grows run in the place, a line of
+    one names it ("Du hast gedüngt · Haze"; `grows` of `Latest`, `EntryWords`' `grow`) - "Veg begonnen" of one
+    stood beside "Du hast gedüngt" of the other (the sixth whole-app walk).
   - *A row of tiles has no hole*: an odd reading tile at the end takes the row.
   - *One name per place.* The head is the place's name, also where the place holds nothing but a grow, and
     "Ort bearbeiten" renames what the head shows. A grow that stands in no place has no place to name and is titled by itself
@@ -909,7 +912,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *A day is a date* on the owner's calendar - "Heute" is since midnight - and its number is the day of the grow
     that begins on it ([app-wording.md](app-wording.md#grow-time)). The server cuts and numbers the days
     (`GET /v1/grows/{id}/diary`); the app names them: Heute, Gestern, the weekday while it names one day, then the
-    date.
+    date - "Heute" by the clock on the grow's calendar (`summary.zone`), not the newest day read: a diary read
+    before its grow was reopened ended on the day it had ended, and said "Heute" over yesterday's lines. Ending or
+    reopening a grow reads its diary and report again (`useUpdateGrow`; the sixth whole-app walk).
   - *The picture* is the camera's of that day, taken in the light nearest midday; today's is the newest lit one
     and leads to the camera, a past day's opens large. Without a camera the first photo written that day stands
     there. A day without any has no picture and no frame for one, and today has none until its lamp has come on.
@@ -1022,7 +1027,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     harvested plant's page offers "Gewicht nachtragen" while a weight is empty, else "Gewicht korrigieren", and a
     harvest's line opens the same sheet from any diary (`HarvestWeights`, `log/corrections.ts`); what it corrects is
     the line's typed amounts - weighed together, still one amount, shared over its plants again by the server - or
-    the plant's own weight where no line names it; the toast takes it back. A harvest of some plants closes its sheet and answers with its toast, so "… und Grow
+    the plant's own weight where no line names it; the toast takes it back. On a plant's own page a harvest cut
+    with others names them beside its total ("Geerntet · nass 120 g · mit Haze 4"), which read alone was that
+    plant's yield (the sixth whole-app walk). A harvest of some plants closes its sheet and answers with its toast, so "… und Grow
     beenden" never stands where the person just pressed. **An ended grow is reopened under its ⋯** (Chris,
     2026-11-14): "Grow wieder öffnen" asks first, then it runs on where it stood and its resting reminders come
     back; one whose place was removed with it runs on at "Kein fester Ort", which the question and the toast say,
@@ -1111,7 +1118,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *A kind's view leads back to the tiles* (‹), beside the cross that closes it. "Speichern" stands on the
     sheet's bottom edge and stays in view with the keyboard up. A note that says nothing is not written.
   - *The litres can be typed* as well as stepped, and under them stands what the field opened on: "Zuletzt vor
-    2 Tagen · 4,5 L". What is no number is refused with a word and stays in the field, and so is 0 L or less and
+    2 Tagen · 4,5 L" - the last can of that kind poured for the same plants, none being the whole grow, and none
+    at all for a plant never poured for on its own (`lastCan`, `log/defaults.ts`; half a litre for one plant opened
+    the whole grow's next feed, the sixth whole-app walk).
+    What is no number is refused with a word and stays in the field, and so is 0 L or less and
     more than 100 L, which no tent takes at once ("Höchstens 100 L."; `MAX_LITRES`, `shared-types/src/v1/feeding.ts`,
     which the route holds a watering and a feed to as well, 400 `validation_failed`). The keypad for a reading carries the decimal mark of the reader's language.
   - *A view's title is its kind* ("Düngen"), so it fits beside the moment; which week of which scheme the doses

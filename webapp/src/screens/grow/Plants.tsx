@@ -117,7 +117,8 @@ function PlantList({ grow, page, spaces }: { grow: GrowListItem; page: PlantPage
               </span>
             </Link>
             <div className={styles.rowAside}>
-              <span>{stage ? t(`home.stage.${stage}`) : t('home.card.noPhase')}</span>
+              {/* A grow that ended without a phase has none coming, and its plants are said without one. */}
+              {stage || grow.endedAt === null ? <span>{stage ? t(`home.stage.${stage}`) : t('home.card.noPhase')}</span> : null}
               {place ? <span className={styles.muted}>{place}</span> : null}
             </div>
           </li>

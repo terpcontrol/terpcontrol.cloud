@@ -423,6 +423,19 @@ describe('a public diary', () => {
     expect(screen.getByText(/^No phase yet · Amnesia, Gelato/)).toBeInTheDocument();
   });
 
+  it('says how long a grow ran that ended without a phase, rather than that none has come yet', () => {
+    drawAt(
+      <Diary
+        page={{ ...page, stage: null, preset: null, dayNumber: 19, stageWeek: null, endedAt: NOW.toISO() }}
+        picture={publicPicture(page.slug)}
+        now={NOW}
+      />,
+    );
+
+    expect(screen.getByText(/^19 days · Amnesia, Gelato/)).toBeInTheDocument();
+    expect(screen.queryByText(/No phase yet/)).not.toBeInTheDocument();
+  });
+
   it('names a reading by what the grow calls it, not by its key', () => {
     const measured = entry({ authorId: null, values: { kind: 'water', litres: 2, readings: [{ key: 'runoff_ec', value: 1.8, plantId: null }] } });
     drawAt(<Diary page={{ ...page, weeks: [{ ...week, days: [day(0, { entries: [measured] })] }] }} picture={publicPicture(page.slug)} now={NOW} />);

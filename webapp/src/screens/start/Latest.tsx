@@ -38,6 +38,7 @@ export function Latest({
   diary,
   byline = true,
   plants,
+  grows = [],
   now,
   offStored = null,
 }: {
@@ -52,6 +53,8 @@ export function Latest({
   byline?: boolean;
   /** The plants of the grows standing here, so a line about some of them names those. */
   plants: readonly PlantLabel[];
+  /** The grows running here: where there are two, a line of one names it - "Veg begonnen" stood beside "Du hast gedüngt" of the other. */
+  grows?: readonly { growId: string; name: string }[];
   now: DateTime;
   /** Since when a switch-off is stored that the silent device has not been handed: regulation off is then not said as fact. */
   offStored?: string | null;
@@ -102,6 +105,7 @@ export function Latest({
               byline={byline}
               onOpen={entry ? correcting(entry, on) : null}
               plants={named}
+              grow={grows.length > 1 ? (grows.find(one => one.growId === entry?.growId)?.name ?? null) : null}
               onPictures={from =>
                 setViewing({ pictures: (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []), from })
               }

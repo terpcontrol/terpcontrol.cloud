@@ -36,8 +36,15 @@
   font-weight: var(--weight-medium);
 }
 
+/* A row's name keeps its line where it fits: what stands beside it goes under it, at the right, rather than breaking
+   "Haze 3, Haze 4" after "Haze". */
+.row :has(> .rowMeta) {
+  flex-wrap: wrap;
+}
+
 .rowMeta {
   flex-shrink: 0;
+  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--muted);
   text-align: right;

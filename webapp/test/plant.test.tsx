@@ -421,6 +421,14 @@ describe('a harvest´s weights, later', () => {
     expect(screen.getByText('Harvest Amnesia 1, Amnesia 2: wet 100 g')).toBeInTheDocument();
   });
 
+  /** "Harvest · wet 1,000 g" on one plant's page read as that plant's own yield. */
+  it('names the plants a harvest was weighed together with beside its total', async () => {
+    await drawLoaded();
+
+    const own = within(screen.getByRole('list', { name: 'Own entries' })).getAllByRole('listitem');
+    expect(own[0]).toHaveTextContent(/Harvested · wet 1000 g · with Amnesia 2/);
+  });
+
   it('opens the harvest´s own line on its weights', async () => {
     await drawLoaded();
 

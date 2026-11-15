@@ -466,6 +466,32 @@ describe('Start of one place with a camera and a grow', () => {
     expect(within(latest).getByRole('listitem')).not.toHaveTextContent(/A1/);
   });
 
+  /** "Veg begonnen" of one grow stood beside "Du hast gedüngt" of the other, and neither said whose. */
+  it('names the grow of each line where two grows run in the place, and none where one does', async () => {
+    const lines = [
+      entry('entry-2', { kind: 'water', text: null, growId: 'grow-2', values: { kind: 'water' } as never }),
+      entry('entry-3', { kind: 'water', text: null, growId: 'grow-1', values: { kind: 'water' } as never, occurredAt: ago(30) }),
+    ];
+    onePlace(overviewOf({ grows: [growOf({ growId: 'grow-2', name: 'Gelato' }), growOf()], entries: lines }), true);
+    const drawn = draw();
+
+    const latest = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() =>
+      expect(
+        within(latest)
+          .getAllByRole('listitem')
+          .map(line => line.textContent),
+      ).toEqual([expect.stringMatching(/You watered · Spring run/), expect.stringMatching(/You watered · Gelato/)]),
+    );
+    drawn.unmount();
+
+    onePlace(overviewOf({ grows: [growOf()], entries: lines.slice(1) }), true);
+    draw();
+    const one = (await screen.findByRole('heading', { name: 'Latest' })).closest('section')!;
+    await waitFor(() => expect(within(one).getByRole('listitem')).toHaveTextContent(/You watered/));
+    expect(within(one).getByRole('listitem')).not.toHaveTextContent(/Spring run/);
+  });
+
   it('keeps amber for what needs a person: an alarm raised, not a restart or an alarm that is over', async () => {
     const alarm = (id: string, minutes: number, severity: 'warning' | 'info') =>
       entry(id, {

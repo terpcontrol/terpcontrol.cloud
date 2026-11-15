@@ -31,6 +31,7 @@ export function EntryWords({
   brief = false,
   pictures = false,
   plants = [],
+  grow = null,
   moment = instant => sinceOf(instant, now, zone),
 }: {
   entry: Entry;
@@ -62,6 +63,8 @@ export function EntryWords({
   pictures?: boolean;
   /** The plants of the grow the line belongs to, where the surface is answered them: a line about some of them names those. */
   plants?: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** The grow the line is of, named where the list holds lines of two grows side by side. */
+  grow?: string | null;
   /** How the list says a moment, where it has a form of its own: a folded run's other end is said in it. */
   moment?: (instant: string) => string;
 }) {
@@ -93,6 +96,7 @@ export function EntryWords({
       {/* A person writes in lines, so the breaks they typed are kept rather than collapsed into one run-on sentence. */}
       <span className={styles.headline}>{doneBy ?? headlineOf(t, i18n, entry)}</span>
     </span>,
+    grow,
     about,
     ...(amount ? factsOf(amount) : []).map(part => <span key={part}>{unbroken(part)}</span>),
     repeats && repeats.count > 1 ? (

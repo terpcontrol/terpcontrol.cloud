@@ -1108,6 +1108,8 @@
         "noteNoClimate": "Everything about this grow in one zip: the diary and the readings as CSV, and every photo of it."
       },
       "noPhase": "No phase yet · the report begins with the first phase",
+      "noPhaseEnded_one": "{{count}} day without a phase · so the report has no chapters",
+      "noPhaseEnded_other": "{{count}} days without a phase · so the report has no chapters",
       "harvestPart": "Partly harvested"
     },
     "presetName": {
@@ -1406,6 +1408,7 @@
       "harvest": "Harvest this plant",
       "weigh": "Add the weight",
       "reweigh": "Correct the weight",
+      "cutWith": "with {{others}}",
       "renameTitle": "Rename {{label}}",
       "label": "Label",
       "strain": "Strain",

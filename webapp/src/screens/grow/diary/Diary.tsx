@@ -101,6 +101,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
           now={now}
           named={named}
           running={grow.endedAt === null}
+          calendar={grow.summary.zone}
           more={diary.hasNextPage ? { load: () => void diary.fetchNextPage(), pending: diary.isFetchingNextPage } : null}
           onPicture={setViewing}
         />
@@ -161,6 +162,7 @@ export function Days({
   now,
   named = null,
   running,
+  calendar = null,
   more,
   onPicture,
 }: {
@@ -173,13 +175,17 @@ export function Days({
   named?: number | null;
   /** Whether the newest day is today - the grow runs and the reader's window is open - or the last one there is to read. */
   running: boolean;
+  /** The zone of the grow's calendar where the reader knows it; without one, today is the newest day the diary holds. */
+  calendar?: string | null;
   /** The weeks before these, where there are any to ask for. */
   more: { load: () => void; pending: boolean } | null;
   onPicture: (picture: GrowPicture) => void;
 }) {
   const { t } = useTranslation();
-  // Today is the date the grow's own calendar is on, which is its owner's and not always the reader's.
-  const today = running ? (weeks[0]?.days[0]?.date ?? null) : null;
+  // Today is the date the grow's own calendar is on, which is its owner's and not always the reader's - read off the
+  // clock where that calendar is known: a diary read before the grow was reopened ends on the day it ended, and its
+  // newest day was "Heute" over yesterday's lines.
+  const today = running ? (calendar ? now.setZone(calendar).toISODate() : (weeks[0]?.days[0]?.date ?? null)) : null;
   const live = (day: GrowDiaryDay) => day.date === today;
   const days = weeks.flatMap(week => week.days).filter(day => live(day) || hasSomething(day));
   const open = days.slice(0, OPEN_DAYS);

@@ -7,6 +7,7 @@ import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus, Plant } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
+import { useUpdateGrow } from '@/api/grows';
 import { mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
 import { DayCard } from '@/screens/grow/diary/DayCard';
@@ -288,6 +289,14 @@ describe('the report tab', () => {
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Flower · 1 of 2 plants' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Veg' })).toBeInTheDocument();
+  });
+
+  it('says how long a grow ran that ended without a phase, rather than waiting for its first', async () => {
+    wire.report = { ...REPORT, dayCount: 19 };
+    draw(<Report grow={{ ...grow, phases: [], endedAt: at(0) }} spaces={[]} mayOwn now={NOW} picturesTo="/grow/pictures" />);
+
+    expect(await screen.findByText('19 days without a phase · so the report has no chapters')).toBeInTheDocument();
+    expect(screen.queryByText(/No phase yet/)).not.toBeInTheDocument();
   });
 
   /**
@@ -619,6 +628,14 @@ describe('the head of a grow´s page', () => {
       expect(screen.getByRole('img')).toHaveAccessibleName('Phase progress, ended in Flower');
     });
 
+    it('says how long it ran where it ended without a phase, rather than that none has come yet', () => {
+      const phaseless: GrowListItem = { ...finished, phases: [], summary: { ...finished.summary, stage: null, preset: null, stageWeek: null } };
+      draw(<GrowHead grow={phaseless} plants={[]} spaces={tent} />);
+
+      expect(screen.getByRole('img')).toHaveAccessibleName('35 days · ended 18 Sep 2026');
+      expect(screen.queryByText(/No phase yet/)).not.toBeInTheDocument();
+    });
+
     it('names the tent it stood in, which its own report names on every chapter', () => {
       // An ended grow has no open placement, so "where the plants are" is empty.
       draw(<GrowHead grow={finished} plants={[]} spaces={tent} />);
@@ -917,6 +934,8 @@ describe('a day of the diary', () => {
       ['Device offline', false],
     ]);
     expect(alarms[1]).toMatchObject({ count: 2, since: DateTime.fromISO(at(1, 3)).minus({ minutes: 11 }).toUTC().toISO() });
+    // The line itself stands where the silence began, as Start's banner dates it - not when the alarm was raised.
+    expect(lines.find(line => line.key === 'off-2')?.at).toBe(DateTime.fromISO(at(1, 6)).minus({ minutes: 11 }).toUTC().toISO());
     expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance ended' });
   });
 
@@ -1033,7 +1052,8 @@ describe('a day of the diary', () => {
     await waitFor(() =>
       expect(linesOf()).toEqual([
         '09:00Alarm: Device offline · Plantalytix Socket · overautomatic',
-        '07:00Alarm: Device offline · Controllerautomatic',
+        // A silence stands where it began, eleven minutes before it was raised.
+        '06:49Alarm: Device offline · Controllerautomatic',
       ]),
     );
   });
@@ -1195,6 +1215,16 @@ describe('a day of the diary', () => {
   });
 });
 
+/** At 390 "Bereits geerntet" broke "Haze 3, Haze 4" after "Haze" to keep the date and weights beside it. */
+describe('a row of a lifecycle sheet', () => {
+  it('keeps its name on one line where it fits, and puts what stands beside it under it, at the right', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/grow/Lifecycle.module.css'), 'utf8');
+
+    expect(sheet).toMatch(/\.row :has\(> \.rowMeta\)\s*\{\s*flex-wrap: wrap;/);
+    expect(sheet).toMatch(/\.rowMeta\s*\{[^}]*margin-left: auto;/);
+  });
+});
+
 describe('the diary', () => {
   const written = (id: string, back: number) => entry({ id, kind: 'note', text: `Note ${id}`, occurredAt: at(back, 9), values: { kind: 'note' } });
   const climate = { temperature: 25, humidity: 55, inBandFraction: 1 };
@@ -1234,6 +1264,45 @@ describe('the diary', () => {
     // The rest of the week the cards began in, then the week before with what it holds.
     expect(screen.getByRole('button', { name: reads(/^Day 29 to 32 · Flower, week 2/) })).toHaveTextContent('1 entry');
     expect(screen.getByRole('button', { name: reads(/^Day 26 to 28 · Flower, week 1/) })).toHaveTextContent('3 pictures · Weekly film');
+  });
+
+  /** A grow ended yesterday and opened again today: the diary read before ends on yesterday, which is not "Today". */
+  it('names today from the clock, and is read again once the grow is reopened', async () => {
+    const days = (backs: number[]) => ({
+      items: [
+        diaryWeek(
+          5,
+          backs.map(back => day(back, { climate, entries: back === 0 ? [] : [written(`n${back}`, back)] })),
+        ),
+      ],
+      nextCursor: null,
+      people,
+    });
+    function Reopen() {
+      const update = useUpdateGrow('grow-1');
+      return (
+        <button type="button" onClick={() => update.mutate({ endedAt: null })}>
+          reopen
+        </button>
+      );
+    }
+    wire.diary[''] = days([1, 2]);
+    draw(
+      <>
+        <Diary grow={grow} now={NOW} picturesTo="/grow/pictures" />
+        <Reopen />
+      </>,
+    );
+
+    expect(await screen.findByRole('article', { name: 'Yesterday · Day 34' })).toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: /^Today/ })).not.toBeInTheDocument();
+
+    wire.diary[''] = days([0, 1, 2]);
+    fireEvent.click(screen.getByRole('button', { name: 'reopen' }));
+
+    expect(await screen.findByRole('article', { name: 'Today · Day 35' })).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Yesterday · Day 34' })).toBeInTheDocument();
+    expect(wire.calls.filter(path => path === '/grows/grow-1/diary')).toHaveLength(2);
   });
 
   /** The week still running is named by today's stage; the days of it folded away are named by most of their own. */

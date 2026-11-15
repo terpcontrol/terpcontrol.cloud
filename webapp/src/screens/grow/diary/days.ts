@@ -345,7 +345,9 @@ const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set
     const over = !newest.fired;
     return {
       key: newest.entry.id,
-      at: newest.entry.occurredAt,
+      // A silence stands where it began, as Start's banner and Meldungen date it: raised ten minutes later, "09:58
+      // Gerät offline" stood under "offline seit 09:48".
+      at: newest.began,
       own: false,
       routine: false,
       what: {

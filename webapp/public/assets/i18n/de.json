@@ -1118,6 +1118,8 @@
         "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
       },
       "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase",
+      "noPhaseEnded_one": "{{count}} Tag ohne Phase · der Bericht hat darum keine Kapitel",
+      "noPhaseEnded_other": "{{count}} Tage ohne Phase · der Bericht hat darum keine Kapitel",
       "harvestPart": "Teilweise geerntet"
     },
     "presetName": {
@@ -1416,6 +1418,7 @@
       "harvest": "Diese Pflanze ernten",
       "weigh": "Gewicht nachtragen",
       "reweigh": "Gewicht korrigieren",
+      "cutWith": "mit {{others}}",
       "renameTitle": "{{label}} umbenennen",
       "label": "Bezeichnung",
       "strain": "Sorte",

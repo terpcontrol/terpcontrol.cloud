@@ -127,7 +127,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
 
   const definitions = (grow?.measurements ?? []).filter(measurement => measurement.key !== WATER_KEY);
   // The same can the tile offers, so opening the details never changes the line a tap would have written.
-  const last = kind === 'water' || kind === 'feed' ? lastCan(recent?.items ?? [], kind) : null;
+  const last = kind === 'water' || kind === 'feed' ? lastCan(recent?.items ?? [], kind, target.plantIds) : null;
   const opensOn = last?.litres ?? null;
 
   // When the line says it happened, or null where nobody said: a new line left

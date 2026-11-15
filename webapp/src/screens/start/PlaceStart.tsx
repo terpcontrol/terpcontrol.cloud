@@ -335,6 +335,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             diary={grow !== null}
             byline={!demo}
             plants={overview.plants}
+            grows={diary ? overview.grows : []}
             now={now}
             offStored={offStored?.savedAt ?? null}
           />

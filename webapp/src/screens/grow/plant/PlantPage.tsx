@@ -20,7 +20,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { zoned, NARROW_DAY, useZone } from '@/ui/zone';
 import { BackLink } from '@/ui/BackLink';
-import { weightsOf } from '../harvest';
+import { namesOf, weightsOf } from '../harvest';
 import { HarvestSheet } from '../HarvestSheet';
 import { HarvestWeights } from '../HarvestWeights';
 import { withUnit } from '../measurements/definitions';
@@ -182,7 +182,7 @@ export function PlantPage() {
       ) : (
         <ul className={styles.lines} aria-label={t('grow.plant.ownEntries')}>
           {lines.slice(0, LINES).map(entry => (
-            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} />
+            <Line key={entry.id} entry={entry} grow={grow.data!} plant={plant} plants={all} />
           ))}
         </ul>
       )}
@@ -342,6 +342,8 @@ interface LineProps {
   entry: Entry;
   grow: GrowListItem;
   plant: Plant;
+  /** The grow's plants, which name the others a harvest came down with. */
+  plants: Plant[];
 }
 
 /**
@@ -358,8 +360,11 @@ interface LineProps {
  * else's is `manage`, which is the rule the server writes down in one place and
  * this row has to agree with - otherwise a member taps somebody else's reading,
  * fills the sheet in and is refused on save.
+ *
+ * A harvest cut with other plants weighs them all together, as the scale did: its line names the others beside the
+ * total ("mit Haze 4"), which read alone on this page was this plant's yield.
  */
-function Line({ entry, grow, plant }: LineProps) {
+function Line({ entry, grow, plant, plants }: LineProps) {
   const { t, i18n } = useTranslation();
   const zone = useZone();
   const { user } = useSession();
@@ -367,6 +372,7 @@ function Line({ entry, grow, plant }: LineProps) {
   const Icon = KIND_ICON[entry.kind];
   const day = growDayOf(grow, entry.occurredAt);
   const readings = 'readings' in entry.values ? entry.values.readings : [];
+  const cutWith = entry.values.kind === 'harvest' ? namesOf({ plantIds: entry.plantIds.filter(id => id !== plant.id) }, plants) : '';
   // The plant's own label rather than the grow's: a line drawn here is about
   // this plant, and the toast that acknowledges the correction says so.
   const open = correcting(entry, { label: plant.label, dayNumber: day, ...growStanding(grow) });
@@ -381,6 +387,7 @@ function Line({ entry, grow, plant }: LineProps) {
       </span>
       <span className={styles.lineText}>
         {headlineOf(t, i18n, entry)}
+        {cutWith ? ` · ${t('grow.plant.cutWith', { others: cutWith })}` : null}
         {readings.map(reading => {
           const definition = grow.measurements.find(one => one.key === reading.key);
 

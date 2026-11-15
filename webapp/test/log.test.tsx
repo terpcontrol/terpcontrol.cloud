@@ -578,6 +578,26 @@ describe('the log sheet', () => {
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
 
+  /** Half a litre poured for one plant opened the next feed of the whole grow on half a litre. */
+  it('opens a line for the whole grow on the last can of the whole grow, not on one plant´s', async () => {
+    const onePlant: Entry = {
+      ...lastFeed,
+      id: 'entry-one-plant',
+      occurredAt: daysAgo(0.5),
+      plantIds: ['plant-1'],
+      values: { kind: 'feed', litres: 0.5, schemeWeek: 5, doses: [], readings: [] },
+    };
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      Promise.resolve(path === '/entries' ? { items: [onePlant, lastFeed, lastWater], nextCursor: null } : answers(path)),
+    );
+
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Feed/ }));
+
+    const details = await screen.findByRole('dialog', { name: 'Feed' });
+    expect(within(details).getByRole('textbox', { name: 'Water in litres' })).toHaveValue('4');
+  });
+
   it('ticks a due task off once, however often the card is tapped', async () => {
     let answered: (entry: Entry) => void = () => undefined;
     vi.mocked(api.post).mockReturnValue(new Promise<Entry>(resolve => (answered = resolve)) as never);
@@ -1131,7 +1151,8 @@ describe('the log sheet', () => {
       // Dated when it was written, so a line that only gets through later is still of that moment.
       occurredAt: expect.any(String),
       text: undefined,
-      values: { kind: 'water', litres: 2, readings: [] },
+      // The grow's last can was poured for every plant: one plant's line knows no can of its own and opens on none.
+      values: { kind: 'water', litres: null, readings: [] },
     });
     expect(await screen.findByRole('button', { name: 'Details' })).toBeInTheDocument();
   });
