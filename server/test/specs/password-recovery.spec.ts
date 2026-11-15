@@ -22,6 +22,13 @@ describe('recovering a password by the code in the mail', () => {
     expect(code).toBeDefined();
     expect(mail.body).not.toMatch(/https?:\/\//);
 
+    // The code is asked about before a new password is chosen: a mistyped one is refused, the right one spends nothing.
+    const mistyped = `${code?.slice(0, -1)}${code?.endsWith('0') ? '1' : '0'}`;
+    const typo = await anonymous().get(`/v1/password-resets/${mistyped}`).expect(404);
+    expect(typo.body.code).toBe('reset_unknown');
+    await anonymous().get(`/v1/password-resets/${code}`).expect(204);
+    await anonymous().get(`/v1/password-resets/${code}`).expect(204);
+
     await anonymous().post(`/v1/password-resets/${code}/redemptions`).send({ password: NEW_PASSWORD }).expect(204);
 
     await expect(login(user.username, NEW_PASSWORD)).resolves.toBeDefined();
@@ -29,6 +36,7 @@ describe('recovering a password by the code in the mail', () => {
 
     const again = await anonymous().post(`/v1/password-resets/${code}/redemptions`).send({ password: 'Th1rd!pass' }).expect(404);
     expect(again.body.code).toBe('reset_unknown');
+    expect((await anonymous().get(`/v1/password-resets/${code}`).expect(404)).body.code).toBe('reset_unknown');
   });
 
   it('answers an address with no account exactly as one that has one', async () => {

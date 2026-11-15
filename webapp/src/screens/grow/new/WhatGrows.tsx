@@ -160,7 +160,7 @@ export function WhatGrows({
     const startedAt = since === 'today' ? now : since === 'week' ? new Date(now.getTime() - 7 * DAY_MS) : date;
     const typed = name.trim();
     const body = growBody(
-      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed || t('grow.new.unnamedStrain'), count: plants },
+      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed, count: plants },
       spaceId,
       startedAt,
     );

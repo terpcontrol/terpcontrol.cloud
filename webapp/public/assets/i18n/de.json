@@ -32,6 +32,7 @@
       "create": "Konto anlegen",
       "creating": "Legt an …",
       "haveOne": "Schon ein Konto?",
+      "takenSignIn": "Anmelden ›",
       "signInFailed": "Das Konto gibt es, aber die Anmeldung damit schlug fehl. Melde dich von Hand an.",
       "activation": {
         "title": "Noch ein Schritt: Aktivierung",
@@ -1283,7 +1284,6 @@
       "title": "Neuer Grow",
       "firstName": "Erster Grow",
       "plants": "Pflanzen",
-      "unnamedStrain": "Ohne Namen",
       "type": "Art",
       "photoperiod": "Photoperiode",
       "autoflower": "Autoflower",
@@ -1658,6 +1658,7 @@
         "at": "Schritt vor {{age}} an das Gerät geschickt",
         "justNow": "Schritt gerade eben an das Gerät geschickt",
         "never": "Die Einstellungen dieses Schritts gehen innerhalb der nächsten Minute an das Gerät",
+        "waits": "Die Einstellungen dieses Schritts gehen an das Gerät, sobald es sich wieder meldet",
         "quiet": "{{offline}} · was das Gerät gerade wirklich fährt, kann ein älterer Stand sein"
       },
       "move": {
@@ -3713,6 +3714,8 @@
       "grow_here": "Hier läuft noch ein Grow.",
       "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
+      "email_taken": "Für diese Adresse gibt es schon ein Konto.",
+      "handle_taken": "Diesen Benutzernamen trägt schon ein anderes Konto. Wähle einen anderen.",
       "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
@@ -4487,6 +4490,7 @@
     "codeIntro": "Kopiere den Code aus der Mail in dieses Feld. Danach wählst du dein neues Passwort.",
     "code": "Code aus der Mail",
     "next": "Weiter",
+    "codeUnknown": "Zu diesem Code wartet keine Wiederherstellung. Vergleiche ihn mit der Mail – ein Code gilt 60 Minuten und nur einmal.",
     "newTitle": "Neues Passwort",
     "newIntro": "Wähle ein neues Passwort für dein Konto. Danach meldest du dich damit an.",
     "set": "Passwort setzen",
@@ -4577,8 +4581,8 @@
     "plan": "Plan:",
     "days_one": "{{count}} Tag",
     "days_other": "{{count}} Tage",
-    "hours_one": "{{count}} Stunde",
-    "hours_other": "{{count}} Stunden",
+    "hours_one": "{{count}} Std",
+    "hours_other": "{{count}} Std",
     "left": "{{step}}, noch {{left}}, dann {{next}}",
     "leftLast": "{{step}}, noch {{left}}, dann ist der Plan fertig",
     "waiting": "{{step}} wartet auf deine Bestätigung",
@@ -4586,8 +4590,8 @@
     "changing": "{{step}}, gleich geht es weiter mit {{next}}",
     "ending": "{{step}}, der Plan ist gleich fertig",
     "paused": "{{step}}, pausiert – fortsetzen unter Steuerung",
-    "minutes_one": "{{count}} Minute",
-    "minutes_other": "{{count}} Minuten"
+    "minutes_one": "{{count}} Min",
+    "minutes_other": "{{count}} Min"
   },
   "co2Report": {
     "title": "CO₂-Flasche",
@@ -5294,7 +5298,9 @@
     },
     "offline": {
       "text": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und regelt bis dahin mit dem Stand von {{time}}.",
-      "textOff": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und bleibt bis dahin ohne Regelung, wie beim Stand von {{time}}."
+      "textOff": "Du kannst trotzdem alles einstellen. Das Gerät übernimmt es, sobald es sich wieder meldet, und bleibt bis dahin ohne Regelung, wie beim Stand von {{time}}.",
+      "reader": "Bis es sich wieder meldet, regelt es mit dem Stand von {{time}}.",
+      "readerOff": "Bis es sich wieder meldet, bleibt es ohne Regelung, wie beim Stand von {{time}}."
     },
     "state": {
       "on": "Regelung an",

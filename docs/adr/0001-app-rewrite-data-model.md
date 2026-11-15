@@ -277,7 +277,7 @@ rule that names an output and a threshold nothing would read cannot be written d
 | `memberships` | `spaceId`, `userId` (unique together), `role: can_log · can_manage`, `invitedBy`, `inviteId`. A membership on a room covers its spaces; a person may hold a row on a room and one of their own on a tent in it, and the stronger role counts (amended 2026-09-22). The owner is `spaces.ownerId`, never a row |
 | `invites` | `code` (unique, 8 characters from the claim-code alphabet), `spaceId`, `role`, `createdBy`, `expiresAt`, `revokedAt`, `state { useCount, lastUsedAt }` |
 | `grows` | `ownerId`, `name`, `description`, `type: photoperiod · autoflower`, `phases[]`, `placements[]`, `scheme`, `measurements[]`, `visibility: private · public`, `publicCameras` (whether the public page shows the camera's pictures; amended 2026-10-02), `slug` (unique), `coverMediaId`, `filmMediaId`, `startedAt`, `endedAt`, `isDemo`, `updatedAt` |
-| `plants` | `growId`, `strain`, `label`, `status: active · harvested · ended`, `harvest { harvestedAt, wetWeightG, dryWeightG }` |
+| `plants` | `growId`, `strain` (empty where nobody named one; such plants are labelled with the grow's name and a number), `label`, `status: active · harvested · ended`, `harvest { harvestedAt, wetWeightG, dryWeightG }` |
 | `follows` | `userId`, `growId` (unique together) |
 
 - **A plant is a document.** "Amnesia × 8" on the new-grow sheet creates eight plants labelled "Amnesia 1" to
@@ -637,7 +637,7 @@ removed together with the Angular app.
 | Area | Routes |
 | --- | --- |
 | Sessions | `POST /sessions` (log in), `POST /sessions/demo`, `POST /sessions/automation`, `POST /sessions/refresh`, `GET /sessions`, `DELETE /sessions` (every other session), `DELETE /sessions/{id}` |
-| Account | `POST /users` (sign up), `POST /users/activations`, `POST /password-resets`, `POST /password-resets/{token}/redemptions`, `GET/PATCH/DELETE /me`, `PUT /me/password`, `GET /me/export`, `POST/DELETE /me/push-subscriptions[/{id}]`, `POST /me/telegram-link`, `POST /me/email-alarms` |
+| Account | `POST /users` (sign up), `POST /users/activations`, `POST /password-resets`, `GET /password-resets/{token}` (whether it can still set a password), `POST /password-resets/{token}/redemptions`, `GET/PATCH/DELETE /me`, `PUT /me/password`, `GET /me/export`, `POST/DELETE /me/push-subscriptions[/{id}]`, `POST /me/telegram-link`, `POST /me/email-alarms` |
 | Home | `GET /home` (one card per space, and one per grow that stands in no place: live values with age, setpoints, the 24-hour trend, the grow with its newest entries, latest still, open alerts; followed grows; `layers`), `GET /home/grows` (every grow the account can see, in one read) |
 | Spaces | `GET/POST /spaces`, `GET/PATCH/DELETE /spaces/{id}`, `GET /spaces/{id}/overview` (with the 24 h climate verdict), `GET /spaces/{id}/live`, `GET /spaces/{id}/timeline` (one answer per range chip: panels with their bands, night, alarms, output lanes, the event rail and the camera frames), `GET /spaces/{id}/co2-report`, `DELETE /spaces/{id}/devices/{deviceId}`, `POST /spaces/{id}/preset-applications` |
 | Members | `GET/POST /spaces/{id}/members`, `PATCH/DELETE /spaces/{id}/members/{userId}`, `GET/POST /spaces/{id}/invites`, `PUT /invites/{code}/revocation`, `DELETE /invites/{code}`, `GET /invites/{code}` (public preview), `POST /invites/{code}/acceptances` |

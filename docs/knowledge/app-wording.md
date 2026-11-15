@@ -271,7 +271,9 @@ string exists in English and German, with no English left in the German catalogu
   writes ("5 d 10 h") are rewritten into the reader's units. The symbol stands beside a figure in a tile or a pill;
   **in a line of words the day is written out** - "Tag 23" in front of a line of the report, "vor 1 Tag" under a
   measurement (`spokenAgo`, `ui/age.ts`) - because "T 23" and "vor 1 T" ask to be worked out (the redesign session
-  of 2026-11-12). An age under ten seconds is "gerade eben" (`isJustNow`, `ui/age.ts`): the admin screens say
+  of 2026-11-12). A plan's time is one family on a line: the days written out, then Std and Min - "1 Tag 2 Std in
+  diesem Schritt · noch 22 Std" (`leftWords`, `servedWords`; after the seventh walk, which read "1 T in diesem
+  Schritt · noch 22 Stunden"). An age under ten seconds is "gerade eben" (`isJustNow`, `ui/age.ts`): the admin screens say
   "Stand: gerade eben" and "Zahlen von gerade eben", never "vor 0 s".
 - **A litre is "L" in both languages**, alone and in a dose ("1,5 L", "2 ml/L", "0,4 g/L"; the redesign session of
   2026-11-13, after the whole-app walk read "4 l" as "4 I" in Albert Sans, whose small "l" is a capital "I" and a

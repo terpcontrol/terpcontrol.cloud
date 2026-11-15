@@ -13,6 +13,12 @@
   margin-bottom: var(--space-4);
 }
 
+/* The plants' row says it is one, set off from the places above it. */
+.plantsLabel {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
 /* A finger high, and a name longer than the sheet wrapped as a sheet's choices are: a plant's number stands at the
    end of its name, and cut away it left every chip of a long strain reading alike. */
 .targets > button {

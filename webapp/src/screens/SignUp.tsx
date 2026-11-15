@@ -47,6 +47,8 @@ export function SignUp() {
   const signUp = useSignUp();
   const activate = useActivateAccount();
   const [problem, setProblem] = useState<string | null>(null);
+  // An address that has an account already: the refusal leads to signing in with it.
+  const [taken, setTaken] = useState(false);
   const [awaiting, setAwaiting] = useState<UserCreate | null>(null);
   const [activationCode, setActivationCode] = useState('');
   // Whether the session about to appear is the one this page just made. The
@@ -75,6 +77,7 @@ export function SignUp() {
 
   const submit = form.handleSubmit(async body => {
     setProblem(null);
+    setTaken(false);
     if (!agreed) {
       setUnagreed(true);
       return;
@@ -88,6 +91,7 @@ export function SignUp() {
       if (error instanceof ApiError) {
         for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof UserCreate, { message: detail });
         setProblem(refusalText(error));
+        setTaken(error.problem.code === 'email_taken');
       } else {
         setProblem(t('shell.unreachable'));
       }
@@ -205,7 +209,17 @@ export function SignUp() {
       </label>
       <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
 
-      <Problem>{problem}</Problem>
+      <Problem>
+        {problem}
+        {taken ? (
+          <>
+            {' '}
+            <Link to="/sign-in" state={{ from: destination }}>
+              {t('login.signUp.takenSignIn')}
+            </Link>
+          </>
+        ) : null}
+      </Problem>
 
       <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={busy}>
         {busy ? t('login.signUp.creating') : t('login.signUp.create')}

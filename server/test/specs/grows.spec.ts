@@ -66,6 +66,17 @@ describe('the new-grow sheet', () => {
     expect(plants.body.items.map((plant: { label: string }) => plant.label)).toEqual(['Amnesia 1', 'Amnesia 2', 'Gelato 1']);
   });
 
+  /** A grow started without a name stored the sheet's "Ohne Namen" as its plants' strain. */
+  it('keeps no strain for plants nobody named one for, and numbers them under the grow´s name', async () => {
+    const grow = await startAGrow({ name: 'Erster Grow', plants: [{ strain: '', count: 2 }] });
+
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    expect(plants.body.items.map((plant: { label: string; strain: string }) => [plant.label, plant.strain])).toEqual([
+      ['Erster Grow 1', ''],
+      ['Erster Grow 2', ''],
+    ]);
+  });
+
   it('counts its days from its start before the grow has entered a phase, and names no stage', async () => {
     const grow = await startAGrow();
 

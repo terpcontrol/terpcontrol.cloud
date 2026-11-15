@@ -13,6 +13,7 @@ import type { i18n as I18n } from 'i18next';
 import type { Translate } from '@/i18n/i18n';
 import { settingWords } from '@/i18n/configuration-change';
 import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
+import { sensorFactorsOf } from '@/ui/climate-hardware';
 import { EntryWords } from '@/ui/EntryWords';
 import { foldRepeats, warningOf } from '@/ui/entries';
 import { Line, Lines } from '@/ui/Lines';
@@ -98,7 +99,7 @@ export function DeviceDiagnosis() {
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noSettings')}</p>
           )}
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.factors')}</h2>
-          <Settings rows={inWords(i18n, one, flatten({ ...one.settings, control: one.control }), owner?.preferences.timezone ?? null)} />
+          <Settings rows={inWords(i18n, one, flatten({ ...factorsOf(one), control: one.control }), owner?.preferences.timezone ?? null)} />
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.hardware')}</h2>
           <Settings rows={asStored(flatten(one.state.hardware))} />
         </section>
@@ -176,6 +177,10 @@ interface SettingRow {
 }
 
 const asStored = (rows: [string, string][]): SettingRow[] => rows.map(([name, value]) => ({ name, value }));
+
+/** The figures the cloud keeps beside the document that this device has a use for: a fan's leaf offsets are none. */
+const factorsOf = (device: Device): Partial<Device['settings']> =>
+  Object.fromEntries(sensorFactorsOf(device).map(name => [name, device.settings[name]]));
 
 /**
  * The document - and what the cloud keeps beside it - in the words the app's own screens and diary use for each

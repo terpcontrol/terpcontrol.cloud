@@ -570,7 +570,7 @@ describe('the climate under Steuerung', () => {
     it('says before the tap that saving a figure the plan writes pauses it, pauses first, and resumes on undo', async () => {
       wire.plan = plan('running');
       await drawn();
-      expect(screen.getByText(/set by the running plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
+      expect(within(screen.getByRole('region', { name: 'Targets' })).getByText(/set by the running plan “Autoflower, 12 weeks”/)).toBeInTheDocument();
 
       fireEvent.click(figure('Day temperature'));
       type('Day temperature', 24);
@@ -634,16 +634,20 @@ describe('the climate under Steuerung', () => {
       expect(screen.queryByRole('button', { name: /Resume|Stop/ })).not.toBeInTheDocument();
     });
 
-    /** A lone calendar glyph under the times and beside the limit said nothing to anybody who had not read the targets' legend. */
-    it('says in words what of the light the plan sets', async () => {
+    /**
+     * A lone calendar glyph under the times and beside the limit said nothing to anybody who had not read the targets'
+     * legend; then the light card said it in words of its own under the targets' mark and legend - one plan in two forms.
+     */
+    it('marks what of the light the plan sets as the targets are marked, with the legend in its own card', async () => {
       wire.plan = plan('running');
       await drawn();
 
+      const legend = 'set by the running plan “Autoflower, 12 weeks” – again every hour.';
       const light = screen.getByRole('region', { name: 'Light' });
-      expect(within(light).queryByRole('img', { name: 'set by the running plan' })).not.toBeInTheDocument();
-      expect(
-        within(light).getByText('Plan: “Autoflower, 12 weeks” sets the light times and the light limit – again every hour.'),
-      ).toBeInTheDocument();
+      expect(within(light).getAllByRole('img', { name: 'set by the running plan' }).length).toBeGreaterThan(0);
+      expect(within(light).getByText(legend)).toBeInTheDocument();
+      expect(within(screen.getByRole('region', { name: 'Targets' })).getByText(legend)).toBeInTheDocument();
+      expect(screen.queryByText(/^Plan: /)).not.toBeInTheDocument();
     });
   });
 

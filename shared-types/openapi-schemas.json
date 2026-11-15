@@ -7465,7 +7465,8 @@
     "type": "object",
     "properties": {
       "strain": {
-        "type": "string"
+        "type": "string",
+        "description": "Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name."
       },
       "count": {
         "type": "integer",

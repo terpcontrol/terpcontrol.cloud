@@ -463,7 +463,7 @@ exports.inviteAcceptance = (0, common_js_1.named)('InviteAcceptance', zod_1.z.ob
  * "Amnesia 1" to "Amnesia 8".
  */
 exports.plantBatch = (0, common_js_1.named)('PlantBatch', zod_1.z.object({
-    strain: zod_1.z.string(),
+    strain: zod_1.z.string().describe("Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name."),
     count: zod_1.z.number().int().min(1),
 }));
 exports.growCreate = (0, common_js_1.named)('GrowCreate', zod_1.z.object({

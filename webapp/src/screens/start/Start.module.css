@@ -700,6 +700,12 @@ a.tileLabel::after {
   text-align: center;
 }
 
+/* Half of a 320 px card leaves a button about 120 px: an outlined button's own 16 px a side broke "Grow hierher"
+   onto two lines beside a one-line "Grow starten". */
+.pair > :is(button, a) {
+  padding-inline: var(--space-2);
+}
+
 /* A third answer - "Nein danke" beside two ways in - takes the row under them. */
 .pair > :nth-child(3) {
   grid-column: 1 / -1;

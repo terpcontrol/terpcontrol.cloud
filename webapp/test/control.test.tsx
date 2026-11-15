@@ -11,6 +11,8 @@ import { PlanEditor } from '@/screens/control/PlanEditor';
 import { PlanPanel } from '@/screens/control/PlanPanel';
 import { alarmsLine, followsPlan, modeLine, notTaken, offNotTaken, onNotTaken, outputsLine, outputsOf, planLine } from '@/screens/control/rows';
 import { elapsedMs, leftMs, movesOf, throughStep } from '@/screens/control/plan-clock';
+import { leftWords, servedWords } from '@/screens/control/plan-labels';
+import { HOUR_MS as HOUR } from '@/ui/days';
 import {
   asWritableBy,
   CLIMATE_FIGURES,
@@ -707,6 +709,27 @@ describe('Steuerung of a place with several devices', () => {
     expect(screen.queryByText(/keeps holding|with the state of/)).not.toBeInTheDocument();
   });
 
+  /** A member who may log but not steer read "Du kannst trotzdem alles einstellen" above fields that were all read-only. */
+  it('tells a reader who may not steer a silent lead only what is true for them', async () => {
+    may.youMay = 'log';
+    state.devices = [{ ...device(NOW.minus({ hours: 2 })), ownerId: 'user-2', control: regulating }];
+    drawTab(
+      null,
+      '/control',
+      here(['device-1'], [
+        {
+          deviceId: 'device-1',
+          values: [{ metric: 'temperature', value: 22, measuredAt: NOW.minus({ hours: 2 }).toISO(), state: 'offline' }],
+          setpoints: [],
+        },
+      ] as PlaceCard['climates']),
+    );
+
+    await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / });
+    expect(screen.getByText(/^Until it reports again, the device runs on what it held at /)).toBeInTheDocument();
+    expect(screen.queryByText(/You can still set everything/)).not.toBeInTheDocument();
+  });
+
   it('names a device that has not sent its settings as its card does: no tail of its id beside one of its kind standing elsewhere', async () => {
     const unnamed = { ...device(), name: null, configuration: null };
     state.devices = [unnamed, { ...unnamed, id: 'device-9', spaceId: 'space-2' }];
@@ -1177,7 +1200,7 @@ describe('the clock under a running step', () => {
     expect(screen.getByText(/ · 7 days left$/)).toBeInTheDocument();
   });
 
-  it('still counts what has been served the way every other age is counted', () => {
+  it('counts what has been served down, in the words of what is left', () => {
     state.plan = plan(
       { steps: [step({ stage: null, duration: { value: 7, unit: 'days' } })] },
       { stepStartedAt: NOW.minus({ days: 3, hours: 23 }).toISO()! },
@@ -1185,7 +1208,23 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('3 d on this step · 3 days 1 hour left')).toBeInTheDocument();
+    expect(screen.getByText('3 days 23 h on this step · 3 days 1 h left')).toBeInTheDocument();
+  });
+
+  /** "1 T in diesem Schritt · noch 22 Stunden" said one step's time in two families of words. */
+  it('says what a step has served and what is left in one family of words, in German too', async () => {
+    state.plan = plan(
+      { steps: [step({ stage: null, duration: { value: 2, unit: 'days' } })] },
+      { stepStartedAt: NOW.minus({ days: 1, hours: 2 }).toISO()! },
+    );
+    draw();
+    expect(screen.getByText('1 day 2 h on this step · 22 h left')).toBeInTheDocument();
+
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    const de = i18next.getFixedT('de');
+    expect(de('space.control.served', { age: servedWords(de, 26 * HOUR) })).toBe('1 Tag 2 Std in diesem Schritt');
+    expect(de('space.control.left', { age: leftWords(de, 22 * HOUR) })).toBe('noch 22 Std');
+    i18next.removeResourceBundle('de', 'translation');
   });
 
   /** "16 Std in diesem Schritt · noch 7 Tage" stood over a week's step with six days and eight hours left. */
@@ -1197,7 +1236,7 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('16 h on this step · 6 days 8 hours left')).toBeInTheDocument();
+    expect(screen.getByText('16 h on this step · 6 days 8 h left')).toBeInTheDocument();
   });
 
   /**
@@ -1215,7 +1254,7 @@ describe('the clock under a running step', () => {
 
     draw();
 
-    expect(screen.getByText('extended: this step’s clock starts in 5 h · 6 hours left')).toBeInTheDocument();
+    expect(screen.getByText('extended: this step’s clock starts in 5 h · 6 h left')).toBeInTheDocument();
   });
 
   it('calls a step that has only just been started started, not extended', () => {
@@ -1227,7 +1266,7 @@ describe('the clock under a running step', () => {
     draw();
 
     expect(screen.queryByText(/extended/)).not.toBeInTheDocument();
-    expect(screen.getByText(/on this step · 2 minutes left/)).toBeInTheDocument();
+    expect(screen.getByText(/on this step · 2 min left/)).toBeInTheDocument();
   });
 
   it('reads the same elapsed the engine reads, so a step that is over is over on both sides', () => {
@@ -1560,5 +1599,14 @@ describe('the plan panel', () => {
     // In the one wording the app has for a device gone quiet, rather than "the controller has said nothing for 2 h" about a fridge module.
     const line = screen.getByText(/offline since 10:00 · what the device is really running may be older than this/);
     expect(line).toHaveAttribute('data-age', 'offline');
+  });
+
+  /** "…gehen innerhalb der nächsten Minute an das Gerät" stood under a device silent for 22 hours. */
+  it('says a step owed to a silent device reaches it once it reports again, not within the minute', () => {
+    state.plan = plan({}, { lastAppliedAt: null });
+    draw(device(NOW.minus({ hours: 22 })));
+
+    expect(screen.getByText(/^This step’s settings go to the device once it reports again · offline since /)).toBeInTheDocument();
+    expect(screen.queryByText(/within the minute/)).not.toBeInTheDocument();
   });
 });

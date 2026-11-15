@@ -14,7 +14,7 @@ import type { DayLine } from './days';
 /**
  * One line of the diary as it is drawn wherever the diary is read - on a day's
  * card and under "Zuletzt" on Start: what somebody did as they wrote it, and
- * what the devices did by themselves marked as that. An alarm is its rule -
+ * what the devices did by themselves marked as that - not an alarm still open. An alarm is its rule -
  * with its device, where another device's rule of that name has a line beside
  * it -, how often it fired and the edge it crossed; a silence that is over,
  * until when it went on. A line that carries pictures
@@ -76,8 +76,9 @@ export function DiaryLine({
   moment?: (instant: string) => string;
 }) {
   const { t } = useTranslation();
-  const mark = line.own ? null : t('grow.diary.byItself');
   const { what } = line;
+  // An alarm still open is no deed of the devices', and "von allein" on its red line read as over by itself.
+  const mark = line.own || (what.kind === 'alarm' && what.stands) ? null : t('grow.diary.byItself');
   const device = useDeviceCalled(what.kind === 'alarm' && what.twin ? what.entry.deviceId : null);
 
   if (what.kind === 'said') {

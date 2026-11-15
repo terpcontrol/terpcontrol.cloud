@@ -26,7 +26,6 @@ import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
 import {
   activeStep,
-  countdownLabel,
   elapsedMs,
   isGoing,
   isOpenEnded,
@@ -36,7 +35,6 @@ import {
   nextStepIndex,
   overdueMs,
   readingAt,
-  spanLabel,
   startsInMs,
   throughStep,
 } from './plan-clock';
@@ -47,6 +45,7 @@ import {
   leftWords,
   ownStepName,
   pauseReasonOf,
+  servedWords,
   stepLengthLabel,
   stepMeta,
   stepTitle,
@@ -271,9 +270,9 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           {going ? (
             <p className={`mono ${styles.clock}`}>
               {ahead === null
-                ? t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })
+                ? t('space.control.served', { age: servedWords(t, elapsedMs(plan.state, now)) })
                 : t(plan.state.status === 'paused' ? 'space.control.extendedPausedClock' : 'space.control.extendedClock', {
-                    age: countdownLabel(ahead),
+                    age: leftWords(t, ahead),
                   })}
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
@@ -293,7 +292,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           <Announce text={t('space.control.waiting.title')} />
           <span className="label">{t('space.control.waiting.title')}</span>
           <p className={styles.waitingWhat}>{step.confirmationMessage || t('space.control.waiting.noMessage')}</p>
-          <p className={ui.note}>{t('space.control.waiting.since', { age: spanLabel(overdueMs(plan, now) ?? 0) })}</p>
+          <p className={ui.note}>{t('space.control.waiting.since', { age: servedWords(t, overdueMs(plan, now) ?? 0) })}</p>
         </div>
       ) : null}
 
@@ -313,8 +312,8 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       ) : null}
 
       {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine
-          clears it to send the step within its next pass. A plan at rest writes nothing, whether it ever ran or not,
-          which the line about what follows says. */}
+          clears it to send the step within its next pass, which a silent device takes once it reports again. A plan
+          at rest writes nothing, whether it ever ran or not, which the line about what follows says. */}
       {/* A step that writes nothing is sent nothing: the line says that the device keeps what it has. */}
       {going && step && stepWritesNothing(step) && !followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop) ? (
         <p className={styles.applied}>{t('space.control.step.writesNothing')}</p>
@@ -324,7 +323,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
             ? justSent(plan.state.lastAppliedAt, now)
               ? t('space.control.applied.justNow')
               : t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
-            : t('space.control.applied.never')}
+            : t(liveness === 'offline' ? 'space.control.applied.waits' : 'space.control.applied.never')}
           {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
         </p>
       ) : null}

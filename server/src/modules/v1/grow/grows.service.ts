@@ -244,25 +244,30 @@ export class GrowsService {
       isDemo: false,
     });
 
-    const plants = await this.sow(id, body.plants);
+    const plants = await this.sow(id, body.name, body.plants);
     return serialiseGrow(grow.toObject<GrowDocument>(), plants, NOTHING_HIDDEN, await this.zoneOf(grow));
   }
 
-  /** "Amnesia × 8" is eight plants labelled "Amnesia 1" to "Amnesia 8". */
-  private async sow(growId: string, batches: GrowCreate['plants']): Promise<PlantDocument[]> {
+  /**
+   * "Amnesia × 8" is eight plants labelled "Amnesia 1" to "Amnesia 8". A batch nobody named a strain for keeps none
+   * and is numbered under the grow's name: a placeholder strain stored the sheet's "Ohne Namen" as a fact about the
+   * plants, in one language.
+   */
+  private async sow(growId: string, growName: string, batches: GrowCreate['plants']): Promise<PlantDocument[]> {
     const createdAt = new Date();
     const counted = new Map<string, number>();
 
     const plants = batches.flatMap(batch =>
       Array.from({ length: batch.count }, () => {
-        const number = (counted.get(batch.strain) ?? 0) + 1;
-        counted.set(batch.strain, number);
+        const stem = batch.strain.trim() || growName.trim();
+        const number = (counted.get(stem) ?? 0) + 1;
+        counted.set(stem, number);
 
         return {
           id: uuidv4(),
           growId,
-          strain: batch.strain,
-          label: `${batch.strain} ${number}`,
+          strain: batch.strain.trim(),
+          label: `${stem} ${number}`,
           status: 'active' as const,
           harvest: null,
           createdAt,

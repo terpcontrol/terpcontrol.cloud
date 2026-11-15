@@ -220,6 +220,9 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   route; the budget is the redesign session's).
 - Sign-in, password reset, adding a member by handle and invite previews answer alike whether or not the account or
   code exists. An inactive account gets 403 `account_not_activated` and its code mailed again (at most every 10 min).
+  A recovery token is asked about before a new password is chosen - `GET /v1/password-resets/{token}`, 204 or 404
+  `reset_unknown`, rate-limited as its redemption and spending nothing -, which tells a stranger no more than a
+  redemption would: the token is a random UUID mailed to one address.
 - `DELETE /v1/me` and `DELETE /v1/admin/users/{id}` run one resumable cascade (`account-deletion.service.ts`). It
   refuses the `ADMINUSER_*` account (409 `admin_account_kept`), which the next boot would re-create anyway.
 

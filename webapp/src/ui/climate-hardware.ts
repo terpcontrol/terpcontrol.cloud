@@ -1,5 +1,6 @@
-import type { Device, DeviceConfiguration, OutputMetric } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, DeviceSettings, OutputMetric } from '@fg2/shared-types/v1';
 import { figureAt, workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 
 /**
  * Whether a climate could land anywhere in a tent, asked of the hardware in it:
@@ -103,3 +104,15 @@ const OUTPUTS_OF: Record<string, OutputMetric[]> = {
 };
 
 export const outputsOf = (device: Pick<Device, 'type'>): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
+
+/**
+ * The figures the cloud works a device's readings out with that it has a use for: the leaf offsets where Start and
+ * the targets draw its VPD - a fridge and a tent controller; a plug, a fan and a lamp measure the air too, but beside
+ * one of those their VPD is not the one anybody reads - and the lux factor where its light sensor reports lux. The
+ * device page offers these and support's view lists these - a fan's listed leaf offsets and a lux factor it had no
+ * use for.
+ */
+export const sensorFactorsOf = (device: Pick<Device, 'type' | 'state'>): (keyof DeviceSettings)[] => [
+  ...(OWN_CLIMATE_TYPES.includes(device.type) ? (['vpdLeafOffsetDay', 'vpdLeafOffsetNight'] as const) : []),
+  ...(device.state?.hardware?.ppfd === 'on' ? (['ppfdLuxFactor'] as const) : []),
+];

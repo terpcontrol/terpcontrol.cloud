@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { useRedeemReset, useRequestReset } from '@/api/account';
+import { useCheckReset, useRedeemReset, useRequestReset } from '@/api/account';
 import { ApiError, refusalCode } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
@@ -15,8 +15,9 @@ import styles from './SignIn.module.css';
  * whether or not the address has an account here, because the server answers
  * both the same and so must the page. The mail carries a link to this page with
  * its token, and the same token as a code for somebody who reads it on another
- * device: "Enter the code" takes it typed and goes on as the link would. With a
- * token it asks for the new password and, once it is set, sends the person to
+ * device: "Enter the code" takes it typed and goes on as the link would, once
+ * the server knows it - a code typed wrong is refused there, before a new
+ * password has been thought of for it. With a token it asks for the new password and, once it is set, sends the person to
  * sign in with it; it opens no session of its own.
  */
 export function Recover() {
@@ -33,6 +34,7 @@ function AskForMail() {
   const location = useLocation();
   const typed = (location.state as { email?: string } | null)?.email ?? '';
   const request = useRequestReset();
+  const check = useCheckReset();
   const [stage, setStage] = useState<Asking>('address');
   const [email, setEmail] = useState(typed);
   const [code, setCode] = useState('');
@@ -48,8 +50,20 @@ function AskForMail() {
     }
   };
 
+  const proceed = async () => {
+    setProblem(null);
+    const typed = code.trim();
+    try {
+      await check.mutateAsync(typed);
+    } catch (error) {
+      setProblem(refusalCode(error) === 'reset_unknown' ? t('recover.codeUnknown') : refusalText(error));
+      return;
+    }
+    await navigate(`/recover/${encodeURIComponent(typed)}`);
+  };
+
   return (
-    <Door onSubmit={() => (stage === 'code' ? void navigate(`/recover/${encodeURIComponent(code.trim())}`) : void send())} title={t('recover.title')}>
+    <Door onSubmit={() => void (stage === 'code' ? proceed() : send())} title={t('recover.title')}>
       {stage === 'sent' ? (
         <p className={styles.lead} role="status">
           {t('recover.sent', { email: email.trim() })}
@@ -100,7 +114,7 @@ function AskForMail() {
           {request.isPending ? t('recover.sending') : t('recover.send')}
         </button>
       ) : stage === 'code' ? (
-        <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={code.trim() === ''}>
+        <button className={`${ui.button} ${ui.primary} ${styles.submit}`} type="submit" disabled={check.isPending || code.trim() === ''}>
           {t('recover.next')}
         </button>
       ) : (

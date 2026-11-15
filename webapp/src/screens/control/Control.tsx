@@ -155,10 +155,19 @@ export function Control({
         <h2 className={styles.label} data-wide>
           {over.climate}
         </h2>
-        {/* Its climate device gone quiet: since when, that everything can be set all the same, and a tap away what to try. */}
+        {/* Its climate device gone quiet: since when, that whoever steers can set everything all the same, and a tap away what to try. */}
         {silentSince ? (
           <OfflineBox title={t('offline.title', { device: deviceName(lead, t), time: silentSince })} deviceLink={devicePath(lead.id)}>
-            {t(heldOff ? 'control.offline.textOff' : 'control.offline.text', { time: silentSince })}
+            {t(
+              mayManage
+                ? heldOff
+                  ? 'control.offline.textOff'
+                  : 'control.offline.text'
+                : heldOff
+                  ? 'control.offline.readerOff'
+                  : 'control.offline.reader',
+              { time: silentSince },
+            )}
           </OfflineBox>
         ) : null}
         <OwnSettings device={lead} />

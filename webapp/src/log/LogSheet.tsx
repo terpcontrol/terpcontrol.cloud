@@ -1,5 +1,5 @@
 import { Camera, Droplet, Flag, FlaskConical, Gauge, Pencil, TrendingUp, type LucideIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRecentEntries } from '@/api/entries';
 import { useGrow, useGrowPlants, useGrows } from '@/api/grows';
@@ -81,6 +81,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const { isLoading: loadingDefaults } = useRecentEntries(place?.growId ?? null, place?.spaceId ?? null);
 
   const narrower = useMemo(() => narrowerTargets(place, plants?.items ?? []), [place, plants]);
+  const plantsNamed = useId();
   const target = narrower.find(one => one.key === narrowKey) ?? place;
   // One tent and no plants to tell apart is one thing a line can be about: nothing to choose, so no chips.
   const several = places.length > 1;
@@ -132,7 +133,8 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
           ) : null}
           {ended && place ? <p className={ui.note}>{t('log.growEnded', { grow: ended.name, target: place.label })}</p> : null}
           {/* The places in one row, and under it the plants of the chosen one: which place, then whether the line
-              is about one plant of it. Pressed rather than linked, so the sheet stays where it is. */}
+              is about one plant of it. Pressed rather than linked, so the sheet stays where it is. The plants' row
+              is named on screen: a grow's only plant, wrapped under the places, read as one more place. */}
           {choosable || missed ? (
             <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-label={t('log.targetLabel')}>
               {places.map(one => (
@@ -143,13 +145,18 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
             </div>
           ) : null}
           {narrower.length > 0 ? (
-            <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-label={t('log.plantLabel')}>
-              {narrower.map(one => (
-                <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
-                  {one.label}
-                </Choice>
-              ))}
-            </div>
+            <>
+              <p id={plantsNamed} className={`label ${styles.plantsLabel}`}>
+                {t('log.plantLabel')}
+              </p>
+              <div className={`${ui.wrap} ${styles.targets}`} role="group" aria-labelledby={plantsNamed}>
+                {narrower.map(one => (
+                  <Choice key={one.key} chosen={one.key === target?.key} onChoose={() => choose(one, true)}>
+                    {one.label}
+                  </Choice>
+                ))}
+              </div>
+            </>
           ) : null}
 
           <div className={styles.tiles}>

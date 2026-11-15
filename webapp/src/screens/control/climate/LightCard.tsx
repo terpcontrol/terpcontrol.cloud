@@ -17,7 +17,7 @@ import { hasDay, type Field, type NowHolding, type Shape } from '../targets/day-
 import { scheduleTitle, windowWords } from '../targets/schedule-words';
 import { Stepper } from '../targets/Stepper';
 import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
-import { FIGURES, figureText, pendingFigure, pendingWindow, planWords, type PendingItem } from './figures';
+import { FIGURES, figureText, pendingFigure, pendingWindow, type PendingItem } from './figures';
 import { LightSheet } from './LightSheet';
 import { PendingNote } from './Pending';
 import { rangeRefusal } from './range';
@@ -32,8 +32,9 @@ const REST_MS = 1500;
  * its window, with "Ändern" opening the day's plan on its sheet, and the
  * limit it is dimmed to, stepped where it stands and sent once it rests. A
  * lamp held by hand says so over its times, with the way to the hold's own
- * control under Ausgänge. What a running plan writes back every hour is said
- * in words at the card's foot. A limit typed outside its range is refused
+ * control under Ausgänge. What a running plan writes back every hour carries
+ * the targets' mark, said once at the card's foot in the targets' words - the
+ * two cards had told one plan in two forms. A limit typed outside its range is refused
  * under the row and not sent.
  */
 export function LightCard({
@@ -97,7 +98,9 @@ export function LightCard({
   const limitName = t('targets.aria.lightLimit');
   const limitRefused = typed === null ? null : rangeRefusal(t, limitName, typed, { ...FIGURES.lightLimit, unit: '%' });
   const regime = shape.regime;
-  const planSays = plan ? planWords(t, plan.name, owned) : null;
+  // What a running plan writes back is marked where it stands and said once under the card, as the targets' card does.
+  const plannedTimes = plan !== null && (owned.has('lightHours') || owned.has('lightsOn'));
+  const plannedLimit = plan !== null && owned.has('lightLimit');
   const words = windowWords(baseline, offset);
   const scheduled = regime === 'cycle' || regime === 'always' || regime === 'never';
   const windowHeld = pendingWindow(pending, { day: figureOf(stored, 'daynight', 'day'), night: figureOf(stored, 'daynight', 'night') });
@@ -151,6 +154,7 @@ export function LightCard({
               <>
                 <span className={styles.short}>
                   {unbroken(t('control.light.on', { time: words.on, hours: words.hours }))}
+                  {plannedTimes ? <PlanMark /> : null}
                   <span className={styles.sub}>{t('control.light.off', { time: words.off })}</span>
                 </span>
                 {/* Beside the rail the three stand in one line, and break between two of them where they must. */}
@@ -158,6 +162,7 @@ export function LightCard({
                   <Facts
                     facts={[...factsOf(t('control.light.on', { time: words.on, hours: words.hours })), t('control.light.off', { time: words.off })]}
                   />
+                  {plannedTimes ? <PlanMark /> : null}
                 </span>
               </>
             )}
@@ -186,6 +191,7 @@ export function LightCard({
           <span className={styles.limitLabel}>
             <span className={styles.short}>{t('targets.aria.lightLimit')}</span>
             <span className={styles.long}>{t('control.light.limit')}</span>
+            {plannedLimit ? <PlanMark /> : null}
             <Help topic="lightLimit" />
           </span>
           {mayManage ? (
@@ -223,7 +229,11 @@ export function LightCard({
         </p>
       ) : null}
       {hasDay(regime) && baseline.lightLimit <= 0 ? <p className={styles.warn}>{t('targets.table.zeroLimit')}</p> : null}
-      {planSays ? <p className={styles.note}>{planSays}</p> : null}
+      {plan && (plannedTimes || plannedLimit) ? (
+        <p className={styles.note}>
+          <PlanMark legend /> {t('targets.planTable.legend', { name: plan.name })}
+        </p>
+      ) : null}
       <PendingNote items={waiting} />
       {open ? null : <Refused error={limit.failed ? error : null} />}
       {open ? (

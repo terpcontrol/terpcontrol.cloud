@@ -52,6 +52,9 @@ export const useActivateAccount = () => useMutation({ mutationFn: (body: UserAct
  */
 export const useRequestReset = () => useMutation({ mutationFn: (body: PasswordResetCreate) => api.post<void>('/password-resets', body) });
 
+/** Whether a code from a recovery mail can still set a password; it spends nothing (`reset_unknown` where it cannot). */
+export const useCheckReset = () => useMutation({ mutationFn: (token: string) => api.get<void>(`/password-resets/${encodeURIComponent(token)}`) });
+
 export const useRedeemReset = () =>
   useMutation({
     mutationFn: ({ token, ...body }: PasswordResetRedemption & { token: string }) =>

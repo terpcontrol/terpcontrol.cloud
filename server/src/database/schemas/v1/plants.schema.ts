@@ -28,7 +28,8 @@ export const plantsSchema = new Schema<PlantDocument>(
   {
     id: { type: String, required: true, unique: true },
     growId: { type: String, required: true, index: true },
-    strain: { type: String, required: true },
+    // Empty where nobody named one: mongoose's `required` refuses an empty string.
+    strain: { type: String, default: '' },
     label: { type: String, required: true },
     status: { type: String, enum: plantStatus.options, required: true, default: 'active' },
     harvest: { type: harvestSchema, default: null },

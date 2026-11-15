@@ -7,6 +7,7 @@ import { useLog } from '@/log/log-context';
 import { FigureButton, ValueSheet, type SheetValues } from '@/screens/control/climate/ValueSheet';
 import { SettingLine, SettingsBlock } from '@/screens/control/devices/Settings';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
+import { sensorFactorsOf } from '@/ui/climate-hardware';
 import type { HelpTopic } from '@/ui/explain';
 import { decimalFigure, unbroken } from '@/ui/figures';
 import { Choice, Choices } from '@/ui/SheetParts';
@@ -24,13 +25,6 @@ import { Choice, Choices } from '@/ui/SheetParts';
  */
 
 type Name = keyof typeof DEVICE_SETTING_RANGES;
-
-/**
- * The hardware whose VPD Start and the targets draw: a fridge and a
- * tent controller. A plug, a fan and a lamp measure the air too, but where they
- * stand beside one of those their VPD is not the one anybody reads.
- */
-const CLIMATE = ['fridge', 'controller'];
 
 /** The lamps the factor is known for, the figure a grower would otherwise have to look up. */
 const LAMPS = [
@@ -150,15 +144,14 @@ export const items = [
     scope: 'device',
     id: 'leaf-offsets',
     order: 70,
-    shows: ({ device }) => CLIMATE.includes(device.type) && device.settings != null,
+    shows: ({ device }) => sensorFactorsOf(device).includes('vpdLeafOffsetDay') && device.settings != null,
     Item: LeafOffsets,
   }),
-  // Only a device whose light sensor reports lux has a PPFD to calibrate.
   advancedItem({
     scope: 'device',
     id: 'lux-factor',
     order: 80,
-    shows: ({ device }) => device.state?.hardware?.ppfd === 'on' && device.settings != null,
+    shows: ({ device }) => sensorFactorsOf(device).includes('ppfdLuxFactor') && device.settings != null,
     Item: LuxFactor,
   }),
 ];

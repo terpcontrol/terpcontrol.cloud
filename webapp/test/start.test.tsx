@@ -320,6 +320,12 @@ describe('Start of one place with a camera and a grow', () => {
    * of text and each reading reaches into its padding, under the words of the one beside it (measured in a browser: a
    * wrapped reading 20 px lower, every reading's words its own, one row 44 px high as before).
    */
+  /** At 320 px "Grow hierher" broke onto two lines beside a one-line "Grow starten": an outlined button kept 16 px a side. */
+  it('leaves the two ways into a grow side by side room for their words', () => {
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/start/Start.module.css'), 'utf8');
+    expect(/\.pair > :is\(button, a\) \{([^}]*)\}/.exec(sheet)?.[1]).toMatch(/padding-inline: var\(--space-2\)/);
+  });
+
   it('keeps the further readings one line of text, each a finger high by its reach', () => {
     const sheet = readFileSync(resolve(__dirname, '../src/screens/start/Start.module.css'), 'utf8');
     expect(/\n\.extra \{([^}]*)\}/.exec(sheet)?.[1]).not.toMatch(/min-height/);

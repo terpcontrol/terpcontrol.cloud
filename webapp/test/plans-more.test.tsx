@@ -523,7 +523,7 @@ describe('Start´s line for a running plan', () => {
   it('says the step, how long it has left and what follows', () => {
     expect(planLineOf(t, plan(), NOW)).toBe('Veg, 10 days to go, then Flower');
     expect(planLineOf(t, plan({}, { activeStepIndex: 1, stepStartedAt: NOW.minus({ days: 42 }).plus({ hours: 5 }).toISO()! }), NOW)).toBe(
-      'Flower, 5 hours to go, then the plan is done',
+      'Flower, 5 h to go, then the plan is done',
     );
   });
 
@@ -532,12 +532,12 @@ describe('Start´s line for a running plan', () => {
       { steps: [step({ duration: { value: 40, unit: 'minutes' } }), step({ id: 'step-2', name: 'Flower' })] },
       { stepStartedAt: NOW.minus({ minutes: 10 }).toISO()! },
     );
-    expect(planLineOf(t, short, NOW)).toBe('Veg, 30 minutes to go, then Flower');
+    expect(planLineOf(t, short, NOW)).toBe('Veg, 30 min to go, then Flower');
     const ending = plan(
       { steps: [step({ duration: { value: 1, unit: 'hours' } }), step({ id: 'step-2', name: 'Flower' })] },
       { stepStartedAt: NOW.minus({ minutes: 59, seconds: 30 }).toISO()! },
     );
-    expect(planLineOf(t, ending, NOW)).toBe('Veg, 1 minute to go, then Flower');
+    expect(planLineOf(t, ending, NOW)).toBe('Veg, 1 min to go, then Flower');
   });
 
   it('says a step that waits is waiting, and one with no length runs until it is moved on', () => {

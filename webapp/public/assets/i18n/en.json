@@ -32,6 +32,7 @@
       "create": "Create the account",
       "creating": "Creating …",
       "haveOne": "Already have an account?",
+      "takenSignIn": "Sign in ›",
       "signInFailed": "The account exists, but signing in with it failed. Sign in by hand.",
       "activation": {
         "title": "One more step: activation",
@@ -1273,7 +1274,6 @@
       "title": "New grow",
       "firstName": "First grow",
       "plants": "Plants",
-      "unnamedStrain": "Unnamed",
       "type": "Type",
       "photoperiod": "Photoperiod",
       "autoflower": "Autoflower",
@@ -1648,6 +1648,7 @@
         "at": "Step sent to the device {{age}} ago",
         "justNow": "Step sent to the device just now",
         "never": "This step’s settings go to the device within the minute",
+        "waits": "This step’s settings go to the device once it reports again",
         "quiet": "{{offline}} · what the device is really running may be older than this"
       },
       "move": {
@@ -3703,6 +3704,8 @@
       "grow_here": "A grow is still running here.",
       "room_ended": "That room is gone: it ended with its last place.",
       "current_password_wrong": "That is not your current password.",
+      "email_taken": "There is already an account for this address.",
+      "handle_taken": "Another account already goes by this username. Choose another.",
       "name_taken": "Another place or room already carries that name. Choose another.",
       "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.",
@@ -4477,6 +4480,7 @@
     "codeIntro": "Paste the code from the mail into this field. Then you choose your new password.",
     "code": "Code from the mail",
     "next": "Continue",
+    "codeUnknown": "No recovery is waiting for this code. Compare it with the mail – a code works for 60 minutes, and once.",
     "newTitle": "New password",
     "newIntro": "Choose a new password for your account, then sign in with it.",
     "set": "Set password",
@@ -4567,8 +4571,8 @@
     "plan": "Plan:",
     "days_one": "{{count}} day",
     "days_other": "{{count}} days",
-    "hours_one": "{{count}} hour",
-    "hours_other": "{{count}} hours",
+    "hours_one": "{{count}} h",
+    "hours_other": "{{count}} h",
     "left": "{{step}}, {{left}} to go, then {{next}}",
     "leftLast": "{{step}}, {{left}} to go, then the plan is done",
     "waiting": "{{step}} is waiting for you to confirm",
@@ -4576,8 +4580,8 @@
     "changing": "{{step}}, moving on to {{next}} shortly",
     "ending": "{{step}}, the plan is about to finish",
     "paused": "{{step}}, paused – resume under Control",
-    "minutes_one": "{{count}} minute",
-    "minutes_other": "{{count}} minutes"
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min"
   },
   "co2Report": {
     "title": "CO₂ cylinder",
@@ -5284,7 +5288,9 @@
     },
     "offline": {
       "text": "You can still set everything. It reaches the device once it reports again; until then the device runs on what it held at {{time}}.",
-      "textOff": "You can still set everything. It reaches the device once it reports again; until then its control is off, as it was at {{time}}."
+      "textOff": "You can still set everything. It reaches the device once it reports again; until then its control is off, as it was at {{time}}.",
+      "reader": "Until it reports again, the device runs on what it held at {{time}}.",
+      "readerOff": "Until it reports again, its control is off, as it was at {{time}}."
     },
     "state": {
       "on": "Control on",

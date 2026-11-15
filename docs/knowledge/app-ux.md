@@ -35,7 +35,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   again at once: the question is put off for a day in this browser (`putGrowOff` / `growPutOff`,
   `screens/start/loaded.ts`; the redesign session of 2026-11-14), and then stands as a card on Start, "Was wächst
   hier?" with "Grow starten", "Grow hierher" wherever a grow could move in - opened on the grow that left this place
-  for "Kein fester Ort" (`MoveHereSheet`'s `chosen`) - and "Nein danke" in the row under them (`screens/start/Offers.tsx`): "Nein danke" is kept with the account while it keeps
+  for "Kein fester Ort" (`MoveHereSheet`'s `chosen`) - and "Nein danke" in the row under them (`screens/start/Offers.tsx`;
+  the two side by side keep 8 px a side, so "Grow hierher" stays one line at 320 px): "Nein danke" is kept with the account while it keeps
   no diary at all (`preferences.diary`, also under Ich › Grow-Tagebuch: Automatisch / An / Aus), and with the one place
   (`presetPrompt: never`) for somebody who keeps a diary elsewhere. Until an answer the Start of a device is its
   readings, what happened last, the targets and maintenance, and nothing of the diary. An account nothing is known
@@ -968,7 +969,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     and on again ("Regelung aus · 12 Min", "Regelung ist aus" while it is; a `controlOff` event of the day, the
     whole-app walk), and a line a device wrote of somebody's doing
     ([app-wording.md](app-wording.md#grow-time)). Lines the devices wrote in a row carry "von allein" once, at the head of the run
-    (`data-marked`, `ui/Lines.module.css`). A phase the grower set - with a climate chip or without, a grow started
+    (`data-marked`, `ui/Lines.module.css`). An alarm still open carries no mark: on its red line "von allein" read as
+    over by itself (`DiaryLine`, after the seventh walk). A phase the grower set - with a climate chip or without, a grow started
     with one - is his (`source: 'human'`); "von allein" on a phase is what a plan or a preset applied to the place
     did. **A device's support log is not the
     diary**: restarts, a sensor deviating, a socket lost stay with Meldungen, the device and Verlauf. From the
@@ -1114,7 +1116,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   hier?" stands behind every "Grow starten" and "+ Neuer Grow" - setup's last step, Start's card, Grow, Alle
   Grows, the entry sheet, `/grows/new` - and the longer sheet that asked strains, kind, scheme and a new place is
   gone. It asks what cannot wait: a name, since when, how many, where - only where it was opened for no place - and the
-  phase. **It never proposes a place a grow runs in** (with none free, "Kein fester Ort"); a place chosen where one
+  phase. A grow nobody named takes the name it suggests, and its plants keep no strain and are numbered under that
+  name ("Erster Grow 1"): it stored the sheet's "Ohne Namen" as the strain, in one language (after the seventh walk). **It never proposes a place a grow runs in** (with none free, "Kein fester Ort"); a place chosen where one
   runs asks first - "In Zelt Eins wächst schon Gelato – trotzdem einen zweiten Grow dort starten?" with "Zweiten
   Grow starten", the one filled button while it asks, and "Abbrechen" (the redesign session of 2026-11-14). It opens
   on the stage the place is on, read off the device its questions are about (§1; `usePlaceStage`,
@@ -1148,7 +1151,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   of one plant names its plant** on a line about more than it - "pH 6,1 · Haze 1 · pH 6,4 · Haze 2" - and no
   reading repeats its name as its unit ("pH 6,1", never "pH 6,1 pH"; `EntryWords`).
 - **The entry sheet** (`log/LogSheet.tsx`): what the line is about as pills - the places in one row and the
-  chosen place's plants in a row of their own, each wrapping where it is longer than the sheet and never cut, so
+  chosen place's plants in a row of their own under "Welche Pflanze" (a grow's only plant, wrapped under the places,
+  read as one more place until the row was named, after the seventh walk), each wrapping where it is longer than the sheet and never cut, so
   a plant's number stays in view beside a long strain name, and the rows wrapping into lines as the harvest
   sheet's do, never scrolled sideways (`log/Log.module.css`; the redesign session of 2026-11-14, the third
   whole-app walk) -, seven
@@ -1957,11 +1961,18 @@ page the same day ("after the walk" below) - none of those is Chris's.
   redesign session of 2026-11-12, after its critic's second walk).
 
 - **What a plan step and a silent lead say** (the fifth whole-app walk): a step that writes nothing says "Dieser
-  Schritt schreibt nichts: Das Gerät behält, was es hat." rather than that it went to the device, and a step's rest
-  is in words and true to the hour, "noch 6 Tage 8 Stunden" - whole days and the hours beyond them, the hours
-  rounded up -, on Steuerung as on Start (`leftWords`, `screens/control/plan-labels.ts`; "noch 7 Tage" over six days
-  and eight hours, after the sixth walk); the offline box of a lead whose regulation was off when it last reported
-  says it stays off, not that it regulates with what it held; one Terp Cam picture carries one time on the place
+  Schritt schreibt nichts: Das Gerät behält, was es hat." rather than that it went to the device, and a plan's time
+  is in one family of words and true to the hour - "noch 6 Tage 8 Std", "noch 22 Std", "1 Tag 2 Std in diesem
+  Schritt": whole days with the hours beyond them, what is left rounded up and what was served floored -, on
+  Steuerung as on Start (`leftWords`, `servedWords`, `screens/control/plan-labels.ts`; "noch 7 Tage" over six days
+  and eight hours after the sixth walk, "1 T in diesem Schritt · noch 22 Stunden" after the seventh); a step owed
+  to a device that is offline goes to it "sobald es sich wieder meldet", not "innerhalb der nächsten Minute"; what
+  a running plan writes back every hour carries the calendar mark on the light card as on the targets, each card
+  with the legend "setzt der laufende Plan „…“ – jede Stunde neu." under it (the light card had said it in words of
+  its own; its sheet, which has no marks, still does); the offline box of a lead whose regulation was off when it
+  last reported says it stays off, not that it regulates with what it held, and one read by somebody who may not
+  steer says only what the device does until it reports again, never "Du kannst trotzdem alles einstellen"
+  (`control.offline.reader`, after the seventh walk); one Terp Cam picture carries one time on the place
   and on Steuerung (`useLatestStillTimes`) - also while the place is silent, whose head then shows the last picture
   there is rather than the newest lit one ("letztes Bild von 13:29" where it said 13:28 beside Steuerung's 13:29).
 
@@ -1969,7 +1980,8 @@ page the same day ("after the walk" below) - none of those is Chris's.
 - Admin's "+ Konto", the fleet's filter chips and search field, the demo's "Öffnen" and "Pausieren" are 36 px
   targets. The support view says a device's configuration in the app's words - also what the server writes into a
   fridge's document (`co2.sunsetOff`, the dehumidifier's tuning) and what the cloud keeps beside it (the leaf
-  offsets, the lux factor, `control.*`) -, the stored path small under each name and a time on both clocks, and a device
+  offsets where the device's VPD is read, the lux factor where its light sensor reports lux - `sensorFactorsOf`,
+  `ui/climate-hardware.ts`, as the device page offers them -, `control.*`) -, the stored path small under each name and a time on both clocks, and a device
   nobody owns whether its owner gave it up or deleted their account (`DeviceState.released`); a never-heard device's
   Technische Details says "noch nicht gemeldet" of what it understands. Every window title ends "· Terp Control"
   (`windowTitle`, `app/shell/page-title.ts`).
@@ -2061,6 +2073,11 @@ no real name is stored (`shared-types/src/v1/accounts.ts`). A share link and a p
 Follow is offered on the grow's public page and its author's profile to an account of its own, never to the demo nor
 through a share link, which is a window, not a subscription (`screens/public/FollowButton.tsx`). Every sign-up agrees
 to a privacy statement (the install's `PRIVACY_URL`, else the app's own `/privacy`); the server does not record it.
+An address that has an account already is refused in its own words with the way to sign in ("Für diese Adresse gibt
+es schon ein Konto. Anmelden ›"), a username taken in its own; the generic conflict told the person to reload the
+page. A code typed into "Passwort vergessen" is asked of the server before a new password is chosen
+(`GET /password-resets/{token}`): a mistyped one is refused where it was typed, in its own words, and kept there to
+be put right.
 An invitation names the cameras only where one hangs in the place (`InvitePreview.hasCamera`). The shared place
 page dates a tile that is no longer live ("letzter Wert 14:29"), names the kind of a place only where its name does
 not, and a place link's card lists no grow switches where no grow stands; a link onto an ended grow says "Du liest

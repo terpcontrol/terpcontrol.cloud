@@ -2578,6 +2578,9 @@ export interface InviteAcceptance {
 }
 
 export interface PlantBatch {
+  /**
+   * Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name.
+   */
   strain: string;
   count: number;
 }

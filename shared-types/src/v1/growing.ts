@@ -602,7 +602,7 @@ export const inviteAcceptance = named(
 export const plantBatch = named(
   'PlantBatch',
   z.object({
-    strain: z.string(),
+    strain: z.string().describe("Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name."),
     count: z.number().int().min(1),
   }),
 );

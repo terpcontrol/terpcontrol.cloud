@@ -2,6 +2,7 @@ import i18next from 'i18next';
 import { useEffect, useState } from 'react';
 import type { DeviceConfiguration, GerminationChoices, GrowthStage, Plan, StepDuration } from '@fg2/shared-types/v1';
 import { loadCatalogues, saidInAnyLanguage, type Translate } from '@/i18n/i18n';
+import { durationFigure } from '@/ui/age';
 import { DAY_MS, HOUR_MS, MINUTE_MS } from '@/ui/days';
 import { stageChoiceName } from '@/ui/presets';
 import { wallClock } from '@/ui/wall-clock';
@@ -22,21 +23,26 @@ export const stepLengthLabel = (t: Translate, duration: StepDuration): string =>
   duration.value > 0 ? t(`space.control.unit.${duration.unit}`, { count: duration.value }) : t('space.control.openEnded');
 
 /**
- * "6 days 8 hours", "5 hours" on the last day, "40 minutes" in the last hour:
- * whole days with the hours beyond them, the hours rounded up so it never reads
- * short - and a step of a few minutes is not said to have an hour left.
- * Steuerung's "noch 7 T" read as a clock beside a step set in days, and "noch 7
- * Tage" with six days and eight hours left as a day too many.
+ * A plan's time in one family of words: whole days with the hours beyond them, "6 Tage 8 Std", then "22 Std", then
+ * "40 Min" - so a step of a few minutes is not said to have an hour left. Steuerung read "noch 7 T" as a clock beside a
+ * step set in days, and "1 T in diesem Schritt · noch 22 Stunden" in two families on one line.
  */
-export const leftWords = (t: Translate, ms: number): string => {
+const planTimeWords = (t: Translate, ms: number, round: (figure: number) => number): string => {
   if (ms >= DAY_MS) {
-    const hours = Math.ceil(ms / HOUR_MS);
+    const hours = round(ms / HOUR_MS);
     const [days, rest] = [Math.floor(hours / 24), hours % 24];
     return [t('planLine.days', { count: days }), rest > 0 ? t('planLine.hours', { count: rest }) : null].filter(Boolean).join(' ');
   }
-  if (ms >= HOUR_MS) return t('planLine.hours', { count: Math.ceil(ms / HOUR_MS) });
-  return t('planLine.minutes', { count: Math.max(1, Math.ceil(ms / MINUTE_MS)) });
+  if (ms >= HOUR_MS) return t('planLine.hours', { count: round(ms / HOUR_MS) });
+  return t('planLine.minutes', { count: Math.max(1, round(ms / MINUTE_MS)) });
 };
+
+/** What is left of a step, rounded up so it never reads short: "noch 7 Tage" over six days and eight hours was a day too many. */
+export const leftWords = (t: Translate, ms: number): string => planTimeWords(t, ms, Math.ceil);
+
+/** What a step has served, floored as every age is; its first minute in seconds. */
+export const servedWords = (t: Translate, ms: number): string =>
+  ms < MINUTE_MS ? durationFigure(Math.max(0, Math.floor(ms / 1000)), 's') : planTimeWords(t, ms, Math.floor);
 
 /** A step that writes no setting, no light and no dark stage: the device keeps what it has (after germination, that ends it). */
 export const stepWritesNothing = (step: Pick<StepFacts, 'stage' | 'settings' | 'lightHours'>): boolean =>

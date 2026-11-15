@@ -856,7 +856,8 @@ describe('a day of the diary', () => {
     });
     drawDay(day(1, { entries: [alarm] }));
 
-    expect(linesOf()).toEqual([expect.stringMatching(/Alarm: Too warmTemperature above 28 °Cautomatic$/)]);
+    // Still open: no "automatic" on its line, which read as over by itself.
+    expect(linesOf()).toEqual([expect.stringMatching(/Alarm: Too warmTemperature above 28 °C$/)]);
     expect(screen.queryByRole('button', { name: /Too warm/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Too warm/ })).not.toBeInTheDocument();
   });

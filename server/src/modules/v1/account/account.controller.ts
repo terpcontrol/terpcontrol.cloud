@@ -87,6 +87,15 @@ export class AccountController {
     return this.resets.request(body.email);
   }
 
+  @Get('password-resets/:token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RateLimited({ limit: 10, message: 'Too many recovery attempts, please try again later.' })
+  @ApiOperation({ summary: 'Whether the token from a recovery mail can still set a password', ...PUBLIC_OPERATION })
+  @ApiNoContentResponse({ description: 'It can: ask for the new password. A code nobody mailed, or one used or run out, is `reset_unknown`.' })
+  public check(@Param('token') token: string): Promise<void> {
+    return this.resets.check(token);
+  }
+
   @Post('password-resets/:token/redemptions')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RateLimited({ limit: 10, message: 'Too many recovery attempts, please try again later.' })

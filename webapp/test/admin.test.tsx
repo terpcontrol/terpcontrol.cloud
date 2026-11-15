@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
@@ -89,6 +89,12 @@ const device = (over: Partial<Device> & { id: string }): Device =>
     },
     ...over,
   });
+
+/** A fan and a lamp module, each in support's view: the cloud keeps leaf offsets and a lux factor beside every device. */
+const SUPPORTED: Device[] = [
+  device({ id: 'af-31', type: 'fan', classId: 'class-fan', name: 'Exhaust', configuration: { day: { temperature: 26 } } }),
+  device({ id: 'lm-12', type: 'light', classId: 'class-light', name: 'Lamp', configuration: { lights: { limit: 80 } } }),
+];
 
 const DEVICES: Device[] = [
   device({ id: 'tc-7f3a', name: 'Tent 1' }),
@@ -244,9 +250,13 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
     return json({ items: server.cameras[at] ?? [], nextCursor: at + 1 < server.cameras.length ? `page-${at + 1}` : null });
   }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
+  const other = SUPPORTED.find(one => path === `/devices/${one.id}`);
+  if (other) return json(other);
   if (path === '/devices/tc-7f3a') {
     return json({
       ...DEVICES[0],
+      // Its light sensor reports lux, so the lux factor is one of its figures.
+      state: { ...DEVICES[0].state, hardware: { ...DEVICES[0].state.hardware, ppfd: 'on' } },
       configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800, linearChange: 1 }, co2: { sunsetOff: 1 }, workmode: 'small' },
       control: {
         running: true,
@@ -642,6 +652,33 @@ describe('support for a customer', () => {
     expect(row('control.preset = null')).toHaveTextContent(/^Climate preset.*–$/);
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);
+  });
+
+  /** A fan's and a lamp module's support view listed leaf offsets and a lux-to-PPFD factor they have no use for. */
+  it('lists of a fan and a lamp module only the figures they have a use for', async () => {
+    for (const { id } of SUPPORTED) {
+      drawAt(
+        <ThemeProvider>
+          <Routes>
+            <Route
+              path="/admin/devices/:deviceId"
+              element={
+                <AdminOnly>
+                  <DeviceDiagnosis />
+                </AdminOnly>
+              }
+            />
+          </Routes>
+        </ThemeProvider>,
+        { at: `/admin/devices/${id}` },
+      );
+
+      // Its own document is listed, so its figures are on the page.
+      expect(await screen.findByText(id === 'af-31' ? 'day.temperature = 26' : 'lights.limit = 80')).toBeInTheDocument();
+      expect(screen.queryByText(/^vpdLeafOffset/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^ppfdLuxFactor/)).not.toBeInTheDocument();
+      cleanup();
+    }
   });
 
   it('says of a device nobody owns that its owner deleted their account with it, not that nobody ever added it', async () => {

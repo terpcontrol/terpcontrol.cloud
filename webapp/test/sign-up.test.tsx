@@ -1,4 +1,5 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { Route, Routes, useParams } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -94,7 +95,7 @@ const draw = (at: string) =>
 
 const fillIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-beforeAll(() => translate());
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
@@ -206,6 +207,31 @@ describe('the stranger an invitation was sent to', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('There is already an account with that address.');
     expect(screen.getByRole('button', { name: 'Create the account' })).toBeInTheDocument();
+  });
+
+  /** In German the generic conflict - "reload the page" - stood there, and nobody learnt an account existed. */
+  it('says in its own words that the address or the username is taken, and leads an address that has an account to the sign-in', async () => {
+    await act(() => i18next.changeLanguage('de'));
+    try {
+      server.refuseSignUp = refusal('email_taken', 'There is already an account with that address.');
+      draw('/sign-up');
+      fillIn('E-Mail', 'mara@example.com');
+      fillIn('Benutzername', 'mara');
+      fillIn('Passwort', 'a long enough secret');
+      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
+
+      const said = await screen.findByRole('alert');
+      expect(said).toHaveTextContent('Für diese Adresse gibt es schon ein Konto. Anmelden ›');
+      expect(within(said).getByRole('link', { name: 'Anmelden ›' })).toHaveAttribute('href', '/sign-in');
+
+      server.refuseSignUp = refusal('handle_taken', 'That handle is taken.');
+      fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Diesen Benutzernamen trägt schon ein anderes Konto.'));
+      expect(screen.queryByRole('link', { name: 'Anmelden ›' })).not.toBeInTheDocument();
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
   });
 
   it('can type a code that was read to them and reach the same invitation', async () => {

@@ -63,8 +63,8 @@ export const growIn = (grows: GrowListItem[], spaceId: string): GrowListItem | n
 
 /**
  * The grow as it is created: one strain and how many of it, in a place or in
- * none. A count is enough - a plant's label is made from its strain, so one
- * nobody named goes across under a stand-in name rather than being refused.
+ * none. A count is enough - a plant's label is made from its strain, and one
+ * nobody named keeps no strain and is numbered under the grow's name.
  * The kind of plant and what it is fed are the grow page's to change.
  */
 export const growBody = (plants: { name: string; strain: string; count: number }, spaceId: string | null, startedAt: Date): GrowCreate => ({

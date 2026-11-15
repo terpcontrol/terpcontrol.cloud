@@ -868,6 +868,8 @@ describe('the log sheet', () => {
     expect(named(places)).toEqual(['Tent 1 · Spring run', 'Balcony']);
     const ofThePlace = within(sheet).getByRole('group', { name: 'Which plant' });
     expect(named(ofThePlace)).toEqual(plants.items.filter(plant => plant.status === 'active').map(plant => plant.label));
+    // Named on screen, so a grow's one plant wrapped under the places reads as a plant and not as one more place.
+    expect(ofThePlace.previousElementSibling).toHaveTextContent(/^Which plant$/);
 
     // A plant narrows the line and leaves its place chosen; the other place has no plants to offer.
     fireEvent.click(within(ofThePlace).getByRole('button', { name: 'Gelato 1' }));

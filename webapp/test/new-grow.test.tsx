@@ -423,11 +423,12 @@ describe('the form a grow is started with', () => {
     expect(screen.queryByRole('group', { name: 'During germination' })).not.toBeInTheDocument();
   });
 
-  it('names a grow nobody named after the last run in its place', async () => {
+  /** A grow started without a name stored "Ohne Namen" as its plants' strain, in the language of whoever started it. */
+  it('names a grow nobody named after the last run in its place, and invents no strain for its plants', async () => {
     await drawLoaded('space-1');
     fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
 
-    await waitFor(() => expect(sent('/grows')).toMatchObject({ name: 'Spring run #2', plants: [{ strain: 'Unnamed', count: 1 }] }));
+    await waitFor(() => expect(sent('/grows')).toMatchObject({ name: 'Spring run #2', plants: [{ strain: '', count: 1 }] }));
   });
 
   it('leaves the grow standing when its first phase is refused, and retries only that', async () => {
