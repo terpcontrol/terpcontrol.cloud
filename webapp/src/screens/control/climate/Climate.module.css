@@ -16,6 +16,11 @@
   min-height: var(--control-height);
 }
 
+/* A heading with no button beside it, for a reader who may not steer: no room is kept for one. */
+.line[data-bare] {
+  min-height: 0;
+}
+
 .says {
   flex: 1;
   min-width: 0;

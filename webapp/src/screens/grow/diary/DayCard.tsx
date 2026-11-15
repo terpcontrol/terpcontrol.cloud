@@ -130,6 +130,7 @@ export function DayCard({
                   to={line.what.kind === 'said' && (line.what.metric || line.what.moment) ? reader.curveOf(line.what.metric, line.at) : null}
                   onOpen={entry ? reader.correct(entry, day.dayNumber) : null}
                   plants={reader.plants}
+                  told={reader.devices}
                   onPictures={pictures.length > 0 ? index => onPicture(pictures[index]) : null}
                   thumbnails={reader.thumbnails ? pictures.map(one => reader.picture(one.mediaId, THUMBNAIL_WIDTH.still) ?? '') : undefined}
                 />

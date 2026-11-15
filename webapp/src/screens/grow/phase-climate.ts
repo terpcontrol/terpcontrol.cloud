@@ -1,10 +1,12 @@
-import type { Device, GerminationChoices, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
+import type { Device, GerminationChoices, GrowListItem, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
 import type { ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import { useGrows } from '@/api/grows';
 import type { Translate } from '@/i18n/i18n';
 import { useLead } from '@/screens/control/lead';
+import { alsoIn } from '@/screens/space/movable-grows';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
 import { draftOf } from '@/screens/control/targets/targets-draft';
 import { germinates, statesTargets } from '@/ui/climate-hardware';
@@ -60,14 +62,21 @@ export const usePlaceClimate = (spaceId: string | null): { controller: Device | 
 
 export const usePlaceController = (spaceId: string | null): Device | null => usePlaceClimate(spaceId).controller;
 
+/** The other grows standing where a phase's plants do: a climate written there is theirs as well. */
+export const useGrowsBeside = (spaceId: string | null, growId: string | null): GrowListItem[] => {
+  const grows = useGrows().data?.items;
+  return spaceId === null ? [] : alsoIn(grows, spaceId, growId ?? undefined);
+};
+
 /**
  * What a phase sheet starts on: the targets as they are - nothing is chosen for
  * the grower - except where the device germinates and the stage is another
  * with a climate. The light comes back with that stage, and its own climate is
- * the one it is owed.
+ * the one it is owed - unless another grow stands there (`beside`), whose
+ * climate it is too.
  */
-export const defaultPick = (stage: GrowthStage, controller: Device | null): PhaseClimate =>
-  stage !== 'germination' && writesClimate(stage) && germinates(controller) ? { climate: true, preset: null } : KEEP_CLIMATE;
+export const defaultPick = (stage: GrowthStage, controller: Device | null, beside = false): PhaseClimate =>
+  !beside && stage !== 'germination' && writesClimate(stage) && germinates(controller) ? { climate: true, preset: null } : KEEP_CLIMATE;
 
 /** What a sheet says a device holds, in the figures of a targets draft. */
 interface Figures {

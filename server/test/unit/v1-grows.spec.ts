@@ -509,11 +509,30 @@ describe('moving plants', () => {
   it('names no place the plants came from where a split stays where it is', async () => {
     const grow = await started();
     const plants = await plantsOfGrow(grow.id);
-    await grows.addPlacement(session(OWNER), grow.id, { spaceId: TENT, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+    await grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], stage: 'drying', spaceId: TENT }, OWNER, NOTHING_HIDDEN);
 
     const [line] = await db.entries.find({ growId: grow.id, kind: 'move' }).lean();
     expect(line.values).toMatchObject({ to: 'Tent 1' });
     expect(line.values).not.toHaveProperty('from');
+  });
+
+  /** A move to where the grow stands ended its stay and began it again there, and the diary said it had been put there. */
+  it('refuses a move to where the plants already stand, and writes nothing', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const ALREADY = { status: 409, code: 'grow_already_there' };
+
+    await expect(grows.addPlacement(session(OWNER), grow.id, { spaceId: TENT }, OWNER, NOTHING_HIDDEN)).rejects.toMatchObject({ problem: ALREADY });
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+    await expect(
+      grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN),
+    ).rejects.toMatchObject({ problem: ALREADY });
+
+    // The whole grow into the fridge is a move for the two plants still in the tent.
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+    const read = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect([...new Set(read.summary.locations.map(row => row.spaceId))]).toEqual([FRIDGE]);
+    expect(await db.entries.countDocuments({ growId: grow.id, kind: 'move' })).toBe(2);
   });
 
   it('refuses a space the caller may not manage', async () => {

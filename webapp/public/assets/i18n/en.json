@@ -1208,7 +1208,7 @@
         "correctionNote": "This repairs the row that is already there, and the line that announced the move moves with it. Moving the plants again is the button above.",
         "withdrawEffect": "The row goes, as if the move had never been recorded.",
         "confirmWithdraw": "Withdraw this move",
-        "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row",
+        "nowhereThenWithdraw": "Put the grow at no fixed place first, then withdraw",
         "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected.",
         "hereNote": "From that day the grow stands here; its time at its old place ends, and what was recorded there stays with it.",
         "backTo": {
@@ -2743,6 +2743,7 @@
       "switchedOff": "switched off",
       "restsInGermination": "rests during germination",
       "restsInGerminationChange": "rests during germination · change under Control ›",
+      "restsInGerminationPhase": "rests during germination · ends with the phase ›",
       "germinationLine": "during germination · {{bound}} again afterwards"
     },
     "severity": {
@@ -3023,6 +3024,7 @@
       "co2Night": "no CO₂",
       "planMark": "set by the running plan",
       "zeroLimit": "Light limit 0 %: the lamp stays dark, but it is still day – with the day figures and with CO₂.",
+      "zeroLimitLamp": "Light limit 0 %: the lamp module stays dark until the limit is raised again.",
       "keptNight": "Night figures – apply again as soon as there is a night",
       "keptDay": "Day figures – apply again as soon as there is a day",
       "keptLight": "light limit {{percent}} %"
@@ -3727,7 +3729,8 @@
       "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.",
       "too_few_pictures": "That span holds too few pictures for a film.",
       "place_holds_a_climate": "A place has one climate, and a controller or fridge module already holds that one. Give this device a place of its own.",
-      "grow_stands_nowhere": "This is where the grow first stood – there is no place before it for it to stand in again."
+      "grow_stands_nowhere": "This is where the grow first stood – there is no place before it for it to stand in again.",
+      "grow_already_there": "The grow already stands there. Pick another place."
     }
   },
   "alarmLine": {
@@ -4424,7 +4427,9 @@
     "sets": "New: {{figures}}",
     "figures": "{{light}} · day {{day}} °C · {{dayHumidity}} % · night {{night}} °C · {{nightHumidity}} %",
     "dark": "light off · {{day}} °C · {{humidity}} %",
-    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
+    "noClimate": "{{stage}} has no climate of its own – the targets stay as they are.",
+    "alsoFor": "This applies to {{grows}} too – until now: {{figures}}",
+    "growIn": "{{name}} in the {{stage}} phase"
   },
   "germinationChoices": {
     "label": "During germination",

@@ -1218,7 +1218,7 @@
         "correctionNote": "Das repariert die vorhandene Zeile, und die Tagebuchzeile zum Umzug zieht mit. Die Pflanzen erneut umzuziehen macht der Knopf oben.",
         "withdrawEffect": "Die Zeile verschwindet, als wäre der Umzug nie aufgeschrieben worden.",
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
-        "nowhereThenWithdraw": "Grow auf „kein fester Ort“ setzen und diese Zeile zurücknehmen",
+        "nowhereThenWithdraw": "Grow erst auf „kein fester Ort“ setzen, dann zurücknehmen",
         "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren.",
         "hereNote": "Ab diesem Tag steht der Grow hier; seine Zeit am bisherigen Ort endet, und was dort aufgezeichnet wurde, bleibt bei ihm.",
         "backTo": {
@@ -2753,6 +2753,7 @@
       "switchedOff": "ausgeschaltet",
       "restsInGermination": "ruht während der Keimung",
       "restsInGerminationChange": "ruht während der Keimung · unter Steuerung ändern ›",
+      "restsInGerminationPhase": "ruht während der Keimung · endet mit der Phase ›",
       "germinationLine": "gilt in der Keimung · danach wieder {{bound}}"
     },
     "severity": {
@@ -3033,6 +3034,7 @@
       "co2Night": "kein CO₂",
       "planMark": "setzt der laufende Plan",
       "zeroLimit": "Lichtgrenze 0 %: Die Lampe bleibt dunkel, der Tag gilt aber weiter – mit den Tageswerten und mit CO₂.",
+      "zeroLimitLamp": "Lichtgrenze 0 %: Das Lampenmodul bleibt dunkel, bis die Grenze wieder steigt.",
       "keptNight": "Nachtwerte – gelten wieder, sobald es eine Nacht gibt",
       "keptDay": "Tageswerte – gelten wieder, sobald es einen Tag gibt",
       "keptLight": "Lichtgrenze {{percent}} %"
@@ -3737,7 +3739,8 @@
       "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
       "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film.",
       "place_holds_a_climate": "Ein Ort hat ein Klima, und dort hält es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort.",
-      "grow_stands_nowhere": "Hier stand der Grow zuerst – davor gibt es keinen Ort, an dem er wieder stehen könnte."
+      "grow_stands_nowhere": "Hier stand der Grow zuerst – davor gibt es keinen Ort, an dem er wieder stehen könnte.",
+      "grow_already_there": "Dort steht der Grow schon. Wähle einen anderen Ort."
     }
   },
   "alarmLine": {
@@ -4434,7 +4437,9 @@
     "sets": "Neu: {{figures}}",
     "figures": "{{light}} · Tag {{day}} °C · {{dayHumidity}} % · Nacht {{night}} °C · {{nightHumidity}} %",
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
-    "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
+    "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind.",
+    "alsoFor": "Das gilt auch für {{grows}} – bisher: {{figures}}",
+    "growIn": "{{name}} in der Phase {{stage}}"
   },
   "germinationChoices": {
     "label": "In der Keimung",

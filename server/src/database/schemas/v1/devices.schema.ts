@@ -46,8 +46,11 @@ export interface StoredDeviceState extends Omit<
 > {
   lastSeenAt: Date | null;
   claimedAt: Date | null;
-  /** Absent on a row from before it was kept, which reads as never released. */
-  released?: { at: Date; by: DeviceRelease } | null;
+  /**
+   * Absent on a row from before it was kept, which reads as never released. `ownerId` and `name` are who held it and
+   * what they called it, so the record of a place it stood in still names it while nobody holds it.
+   */
+  released?: { at: Date; by: DeviceRelease; ownerId?: string | null; name?: string | null } | null;
   updateStartedAt: Date | null;
   updateEndedAt: Date | null;
   updateFailedAt: Date | null;
@@ -223,9 +226,18 @@ const stateSchema = new Schema<StoredDeviceState>(
     lastSeenAt: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
     // When its last owner let it go and how, until somebody claims it again: support tells a device given up from
-    // one nobody ever added by it, which `ownerId: null` alone cannot say.
+    // one nobody ever added by it, which `ownerId: null` alone cannot say. Who that was and the name they gave it are
+    // what the places it stood in go on calling it by.
     released: {
-      type: new Schema({ at: { type: Date, required: true }, by: { type: String, required: true } }, { _id: false, versionKey: false }),
+      type: new Schema(
+        {
+          at: { type: Date, required: true },
+          by: { type: String, required: true },
+          ownerId: { type: String, default: null },
+          name: { type: String, default: null },
+        },
+        { _id: false, versionKey: false },
+      ),
       default: null,
     },
     firmwareId: { type: String, default: null },

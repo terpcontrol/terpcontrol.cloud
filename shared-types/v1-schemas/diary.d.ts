@@ -4467,6 +4467,11 @@ export declare const spaceOverview: z.ZodObject<{
             unit: z.ZodString;
         }, z.core.$strip>>;
     }, z.core.$strip>>;
+    devices: z.ZodArray<z.ZodObject<{
+        deviceId: z.ZodString;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
+    }, z.core.$strip>>;
     plants: z.ZodArray<z.ZodObject<{
         id: z.ZodString;
         growId: z.ZodString;
@@ -6195,6 +6200,11 @@ export declare const growDiaryPage: z.ZodObject<{
         }, z.core.$strip>], "kind">;
         mediaIds: z.ZodArray<z.ZodString>;
         undoUntil: z.ZodNullable<z.ZodISODateTime>;
+    }, z.core.$strip>>;
+    devices: z.ZodArray<z.ZodObject<{
+        deviceId: z.ZodString;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
     }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
@@ -8210,6 +8220,11 @@ export declare const sharedSpace: z.ZodObject<{
                 unit: z.ZodString;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
+        devices: z.ZodArray<z.ZodObject<{
+            deviceId: z.ZodString;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
+        }, z.core.$strip>>;
         plants: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
             growId: z.ZodString;
@@ -9132,6 +9147,11 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 name: z.ZodString;
                 unit: z.ZodString;
             }, z.core.$strip>>;
+        }, z.core.$strip>>;
+        devices: z.ZodArray<z.ZodObject<{
+            deviceId: z.ZodString;
+            name: z.ZodNullable<z.ZodString>;
+            type: z.ZodString;
         }, z.core.$strip>>;
         plants: z.ZodArray<z.ZodObject<{
             id: z.ZodString;
@@ -10072,6 +10092,11 @@ export declare const sharedResolution: z.ZodObject<{
                     name: z.ZodString;
                     unit: z.ZodString;
                 }, z.core.$strip>>;
+            }, z.core.$strip>>;
+            devices: z.ZodArray<z.ZodObject<{
+                deviceId: z.ZodString;
+                name: z.ZodNullable<z.ZodString>;
+                type: z.ZodString;
             }, z.core.$strip>>;
             plants: z.ZodArray<z.ZodObject<{
                 id: z.ZodString;

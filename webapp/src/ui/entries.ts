@@ -19,7 +19,7 @@ import type { Entry, EntryKind, GrowListItem, GrowReadingNames, Person, ReadingN
 import { growDayAt, growOriginOf } from '@fg2/shared-types/v1-schemas/feeding.js';
 import type { Translate } from '@/i18n/i18n';
 import { looseFigure } from '@/ui/figures';
-import { entryHeadline, machineLineParts } from '@/i18n/device-message';
+import { CONFIGURATION_CHANGE, entryHeadline, machineLineParts } from '@/i18n/device-message';
 
 /**
  * What the grow a line belongs to calls its measurements, keyed by the line's
@@ -175,14 +175,18 @@ interface FoldedEntry {
  * Runs of identical machine lines folded into one, newest first: a device's, the
  * plan's or an alarm's line that repeats the one before it (same source, device,
  * key and parameters, no pictures) is counted rather than drawn again. What a
- * person wrote is never folded.
+ * person wrote is never folded. A `brief` list draws a settings line without what
+ * it moved, so there a run of them reads alike and is one: "Einstellungen
+ * geändert · 10×".
  */
-export const foldRepeats = (entries: Entry[]): FoldedEntry[] => {
+export const foldRepeats = (entries: Entry[], brief = false): FoldedEntry[] => {
   const folded: FoldedEntry[] = [];
+  const said = (entry: Entry): Entry =>
+    brief && entry.message?.key === CONFIGURATION_CHANGE ? { ...entry, message: { key: CONFIGURATION_CHANGE, params: [] } } : entry;
 
   for (const entry of entries) {
     const last = folded.at(-1);
-    if (last && sameMachineLine(last.entry, entry)) {
+    if (last && sameMachineLine(said(last.entry), said(entry))) {
       last.count += 1;
       last.since = entry.occurredAt;
     } else {

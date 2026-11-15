@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime, Settings } from 'luxon';
 import { Route, Routes } from 'react-router';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Device, GrowListItem, Plant } from '@fg2/shared-types/v1';
 import { LogProvider } from '@/log/LogProvider';
 import { HarvestSheet } from '@/screens/grow/HarvestSheet';
@@ -127,6 +127,24 @@ describe('the grow´s menu', () => {
     open();
 
     expect(offered()).toEqual(['Measurements', 'Tips for this phase']);
+  });
+
+  // A fan's "too humid" resting in germination leads here: the page opens on the phase, which ends the rest.
+  it('opens on the phase sheet where the page was opened for it, for whoever may manage the grow', () => {
+    const view = drawAt(
+      <LogProvider>
+        <GrowMenu grow={grow} plants={plants} spaces={[]} mayManage mayOwn opening="phase" />
+      </LogProvider>,
+    );
+    expect(screen.getByRole('dialog', { name: 'Phase' })).toBeInTheDocument();
+    view.unmount();
+
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={grow} plants={plants} spaces={[]} mayManage={false} mayOwn={false} opening="phase" />
+      </LogProvider>,
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens four tips for the stage the grow is in', () => {
@@ -797,13 +815,47 @@ describe('taking a move back', () => {
     expect(screen.getByRole('button', { name: 'Withdraw this move' })).toBeInTheDocument();
   });
 
-  it('says why the stay a grow first stood in cannot go, and offers the move it asks for instead', () => {
+  it('says only why the stay a grow first stood in cannot go, and offers the move it asks for instead', () => {
     sheet(grow);
     fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
 
     expect(screen.getByText(/This is where the grow first stood/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Put the grow nowhere, then withdraw this row' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Put the grow at no fixed place first, then withdraw' })).toBeInTheDocument();
     expect(screen.queryByText(/changed in the meantime/)).not.toBeInTheDocument();
+    // It was never a move, and no row or diary line is spoken of.
+    expect(screen.queryByText(/as if the move had never been recorded/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/The diary line that announced it/)).not.toBeInTheDocument();
+  });
+
+  it('offers no escape where the grow first stood at no fixed place, which the move would go to', () => {
+    sheet({
+      ...grow,
+      placements: [{ id: 'pl1', spaceId: null, startedAt: at(34), endedAt: null, plantIds: null }],
+      summary: { ...grow.summary, locations: [{ spaceId: null, plantIds: ['plant-1', 'plant-2', 'plant-3'] }] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+    expect(screen.getByText(/This is where the grow first stood/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /no fixed place first/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('names no move to where the grow stands once a move is taken back under it', () => {
+    const { rerender } = sheet(moved);
+    expect(screen.getByRole('button', { name: 'Move · Blue Dream tent' })).toBeInTheDocument();
+
+    // The newest stay taken back: the grow stands in the Blue Dream tent again, and the sheet stays open.
+    rerender(
+      <LogProvider>
+        <MoveSheet grow={grow} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'Move · Blue Dream tent' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Move · Second tent' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Move to' })).getByRole('button', { name: 'Second tent' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('offers no move into the place the grow already stands in', () => {
@@ -1295,6 +1347,62 @@ describe('the climate beside a phase', () => {
     // Left as they are, nothing is written: the device goes on germinating in the dark, and the sheet says so.
     fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));
     expect(screen.getByText(reading(/^Stay: light off · /))).toBeInTheDocument();
+  });
+
+  /**
+   * A climate is the place's. "Keimung · dunkel" chosen for seeds sown beside flowering plants said "Licht aus" over
+   * them without naming them: every chip that writes a climate names the other grow and what it had, and the sheet
+   * starts on leaving the targets even where the device germinates.
+   */
+  describe('in a place where another grow stands', () => {
+    const blueDream: GrowListItem = { ...grow, id: 'grow-2', name: 'Blue Dream', summary: { ...grow.summary, stage: 'flowering' } };
+    const seeds: GrowListItem = {
+      ...grow,
+      id: 'grow-3',
+      name: 'Seeds',
+      phases: [phase('p1', 'germination', 3)],
+      summary: { ...grow.summary, stage: 'germination' },
+    };
+    beforeEach(() => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) =>
+          new URL(String(input), 'http://localhost').pathname.endsWith('/grows') ? json({ items: [seeds, blueDream], nextCursor: null }) : json({}),
+        ),
+      );
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('names the other grow and what it had on every climate chosen, and none while the targets are left', async () => {
+      hardware.devices = [tent()];
+      drawAt(
+        <LogProvider>
+          <PhaseSheet grow={seeds} onClose={() => {}} />
+        </LogProvider>,
+      );
+      const choices = screen.getByRole('group', { name: 'Targets' });
+      expect(screen.queryByText(/This applies to/)).not.toBeInTheDocument();
+
+      fireEvent.click(within(choices).getByRole('button', { name: 'Seedling · with light' }));
+      const said =
+        'This applies to Blue Dream in the Flower phase too – until now: Light on 06:00–00:00 · 18 h · day 26 °C · 62 % · night 22 °C · 58 %';
+      expect(await screen.findByText(said)).toBeInTheDocument();
+    });
+
+    it('starts on leaving the targets though the device germinates', async () => {
+      const dark = { running: true, drying: false, mode: 'germination' as const, energySaving: false };
+      hardware.devices = [{ ...tent(), type: 'fridge', control: dark }];
+      drawAt(
+        <LogProvider>
+          <PhaseSheet grow={seeds} onClose={() => {}} />
+        </LogProvider>,
+      );
+
+      const choices = screen.getByRole('group', { name: 'Targets' });
+      await waitFor(() => expect(within(choices).getByRole('button', { name: 'Leave as they are' })).toHaveAttribute('aria-pressed', 'true'));
+      fireEvent.click(within(choices).getByRole('button', { name: 'Seedling · with light' }));
+      expect(await screen.findByText(/^This applies to Blue Dream in the Flower phase too – until now: light off · /)).toBeInTheDocument();
+    });
   });
 
   it('is not asked where nothing standing there states a climate', () => {

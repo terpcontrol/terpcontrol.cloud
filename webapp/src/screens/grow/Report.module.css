@@ -18,6 +18,19 @@
   font-size: var(--text-xl);
 }
 
+/* Under 360 px five equal shares left "Einträge" and "Düngen" touching their hairlines: each count takes its caption's
+   width and the room left over is shared out. */
+@media (max-width: 359px) {
+  .report .totals > * {
+    flex: 1 1 auto;
+    padding-inline: var(--space-2);
+  }
+
+  .report .totals > :first-child {
+    padding-left: 0;
+  }
+}
+
 .harvest,
 .empty {
   font-size: var(--text-sm);
@@ -61,6 +74,23 @@
 .chapterMeta {
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+/* The share inside the band explains itself on a tap, a finger high round its line: the row's cut is moved out by
+   that reach, which the rows round it and the card's padding have room for. */
+.chapterText .chapterMeta {
+  clip-path: inset(-14px -6px -14px var(--dot));
+}
+
+/* Its cut makes the row a layer of its own, which the row under it would be drawn over. */
+.chapterMeta:has(button) {
+  position: relative;
+  z-index: 1;
+}
+
+.chapterMeta button {
+  padding-block: calc((var(--control-height) - 1lh) / 2);
+  margin-block: calc((var(--control-height) - 1lh) / -2);
 }
 
 .training {
@@ -112,12 +142,15 @@
 }
 
 /* A count that opens what it counts: underlined like a link, in the figure's own size. */
-/* A finger's target round a figure of one or two digits, without moving the strip: the margin takes back the padding. */
+/* A finger's target round a figure of one or two digits, 44 px, without moving the strip: the margin takes back the
+   padding, and it lies over its caption, which it reaches into. */
 .totalOpen {
+  position: relative;
+  z-index: 1;
   display: inline-block;
-  min-width: var(--action-height);
-  padding: 5px var(--space-3);
-  margin: -5px calc(-1 * var(--space-3));
+  min-width: var(--control-height);
+  padding: calc((var(--control-height) - 1lh) / 2) var(--space-3);
+  margin: calc((var(--control-height) - 1lh) / -2) calc(-1 * var(--space-3));
   background: none;
   border: 0;
   font: inherit;

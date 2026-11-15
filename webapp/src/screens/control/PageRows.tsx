@@ -15,7 +15,7 @@ import { useZone } from '@/ui/zone';
 import { watchable } from './alarms/rules';
 import { pendingByPath } from './climate/figures';
 import { usePlanWords } from './plan-labels';
-import { alarmsLine, followsPlan, hasMode, hasOutputs, modeLine, outputsLine, outputsOf, planLine, standOf, type RowLine } from './rows';
+import { alarmsLine, followsPlan, hasMode, hasOutputs, lineFacts, modeLine, outputsLine, outputsOf, planLine, standOf, type RowLine } from './rows';
 
 /**
  * The rows that open the pages behind Steuerung - alarm rules, grow plan,
@@ -63,7 +63,7 @@ export function PageRows({
         key={page}
         to={controlPath(spaceId, page, alone && first ? { device: first.id } : {})}
         title={t(`control.page.${page}`)}
-        line={line ? <Facts facts={line.text.split(' · ')} /> : null}
+        line={line ? <Facts facts={lineFacts(line)} /> : null}
         warn={line?.warn}
       />
     ) : null;

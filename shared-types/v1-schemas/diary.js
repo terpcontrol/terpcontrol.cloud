@@ -975,7 +975,7 @@ const timelineDevice = (0, common_js_1.named)('TimelineDevice', zod_1.z.object({
     name: zod_1.z
         .string()
         .nullable()
-        .describe('What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.'),
+        .describe('What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.'),
     type: zod_1.z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
 }));
 /**
@@ -1229,6 +1229,9 @@ exports.spaceOverview = (0, common_js_1.named)('SpaceOverview', zod_1.z.object({
         .array(exports.growDayEvent)
         .describe('When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
     readingNames: zod_1.z.array(exports.growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    devices: zod_1.z
+        .array(timelineDevice)
+        .describe('What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside.'),
     plants: zod_1.z
         .array(exports.plantLabel)
         .describe('The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.'),
@@ -1616,6 +1619,9 @@ exports.growDiaryWeek = (0, common_js_1.named)('GrowDiaryWeek', zod_1.z.object({
 exports.growDiaryPage = (0, common_js_1.named)('GrowDiaryPage', (0, common_js_1.page)(exports.growDiaryWeek).extend({
     people: zod_1.z.array(common_js_1.person),
     earlier: zod_1.z.array(exports.entry).describe('Newest first; empty on every page but the last.'),
+    devices: zod_1.z
+        .array(timelineDevice)
+        .describe('What each device the page’s lines name is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.'),
 }));
 /**
  * One stretch of the grow at one stage, as the report tells its story: a

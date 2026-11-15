@@ -22,7 +22,7 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick, StageClimates } from './ClimatePick';
 import { RepairAnswer } from './RepairAnswer';
-import { climateRequest, defaultPick, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
+import { climateRequest, defaultPick, useGrowsBeside, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -61,7 +61,8 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   // Null until somebody picks: what the sheet starts on depends on the device there (`defaultPick`).
   const [picked, setPick] = useState<PhaseClimate | null>(null);
   const controller = usePlaceController(ended ? null : standsIn(grow));
-  const pick = picked ?? defaultPick(stage, controller);
+  const beside = useGrowsBeside(ended ? null : standsIn(grow), grow.id);
+  const pick = picked ?? defaultPick(stage, controller, beside.length > 0);
   const preset = pick.preset;
   // A grow that is over opens on the day it ended; one still running opens on
   // now as the server reckons it, which is what the field's cap is measured
@@ -102,7 +103,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} until={grow.endedAt ? new Date(grow.endedAt) : null} />
           {/* A grow that is over is a record being repaired, and a record moves no tent. */}
-          {ended ? null : <ClimatePick stage={stage} spaceId={standsIn(grow)} value={pick} onChange={setPick} />}
+          {ended ? null : <ClimatePick stage={stage} spaceId={standsIn(grow)} growId={grow.id} value={pick} onChange={setPick} />}
 
           {standsThere ? (
             <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.alreadyThereEnded' : 'grow.lifecycle.phase.alreadyThere')}</p>

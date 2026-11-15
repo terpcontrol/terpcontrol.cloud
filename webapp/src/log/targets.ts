@@ -91,12 +91,23 @@ interface Aim {
   missed: boolean;
 }
 
+/** When a target's grow came to stand where it stands now; '' where that is not known, which ranks first. */
+const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): string =>
+  (grows ?? [])
+    .find(grow => grow.id === target.growId)
+    ?.placements.filter(placement => placement.spaceId === target.standsIn && placement.endedAt === null)
+    .map(placement => placement.startedAt)
+    .sort()[0] ?? '';
+
 /**
  * Which chip starts chosen: the grow or tent the screen underneath is about,
  * then whatever was chosen last time, then the first place where something
  * grows - an empty tent listed first is not where a line is most likely about -,
  * then the first place there is. A sheet opened on the grow page is already
- * pointed at that grow.
+ * pointed at that grow. Opened over a place where two grows stand, it is the
+ * one the last line was written for, else the one standing there longest: the
+ * home leads with the newer, and seeds sown beside flowering plants are not
+ * where most lines go.
  *
  * The fallback is for an opening that named nothing, and for that only. A link
  * that did name a subject and missed is a different answer and not a smaller
@@ -108,11 +119,12 @@ interface Aim {
  * would land in a running grow's diary under somebody else's name. So the miss
  * is carried out of here as a miss, and the sheet says it and waits.
  */
-export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null): Aim => {
+export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null, grows?: GrowListItem[]): Aim => {
+  const here = targets
+    .filter(target => opening.spaceId && target.standsIn === opening.spaceId)
+    .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
   const asked =
-    targets.find(target => opening.growId && target.growId === opening.growId) ??
-    targets.find(target => opening.spaceId && target.standsIn === opening.spaceId) ??
-    null;
+    targets.find(target => opening.growId && target.growId === opening.growId) ?? here.find(target => target.key === last) ?? here[0] ?? null;
 
   if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };
 

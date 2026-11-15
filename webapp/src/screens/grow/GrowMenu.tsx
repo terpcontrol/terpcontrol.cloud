@@ -47,18 +47,18 @@ export function GrowMenu({
   spaces,
   mayManage,
   mayOwn,
-  sharing = false,
+  opening = null,
 }: {
   grow: GrowListItem;
   plants: Plant[];
   spaces: Space[];
   mayManage: boolean;
   mayOwn: boolean;
-  /** Whether the page was opened on the share sheet, as a place's "Grow teilen" does. */
-  sharing?: boolean;
+  /** The sheet the page was opened on: a place's "Grow teilen" opens sharing, a rule resting with the phase the phase. */
+  opening?: 'share' | 'phase' | null;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState<GrowSheet | null>(sharing && mayOwn ? 'share' : null);
+  const [open, setOpen] = useState<GrowSheet | null>((opening === 'share' && mayOwn) || (opening === 'phase' && mayManage) ? opening : null);
   const close = () => setOpen(null);
   const running = grow.endedAt === null;
   const tips = running ? (grow.summary.stage === 'curing' ? 'drying' : grow.summary.stage) : null;

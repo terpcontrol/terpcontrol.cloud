@@ -3835,7 +3835,7 @@ export interface DeviceArrival {
 export interface TimelineDevice {
   deviceId: string;
   /**
-   * What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.
+   * What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.
    */
   name: string | null;
   /**
@@ -4127,6 +4127,10 @@ export interface SpaceOverview {
    * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
    */
   readingNames: GrowReadingNames[];
+  /**
+   * What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside.
+   */
+  devices: TimelineDevice[];
   /**
    * The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.
    */
@@ -4556,6 +4560,10 @@ export interface GrowDiaryPage {
    * Newest first; empty on every page but the last.
    */
   earlier: Entry[];
+  /**
+   * What each device the page’s lines name is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.
+   */
+  devices: TimelineDevice[];
 }
 
 export interface GrowReportPhase {

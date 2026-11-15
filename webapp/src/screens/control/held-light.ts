@@ -107,11 +107,13 @@ const keptBrightness = (lamp: Device): number | null => {
 
 /**
  * A lamp module where its place germinates or dries (ADR 0007), said where the lamp itself is shown - its page, its
- * card, a move into such a place: "dunkel, solange der Ort keimt · danach wieder 100 %", or lit and why.
+ * card, a move into such a place: "dunkel, solange der Ort keimt · danach wieder 100 %", or lit, how bright and why -
+ * "5 % trotz Keimung · …", as Ausgänge says it.
  */
 export const lampInTheDark = (t: Translate, spell: DarkSpell, lamp: Device, now: DateTime, zone: string | null, held: Held | null = null): string => {
   const limit = lamp.configuration?.limit;
-  if (held || (typeof limit === 'number' && limit > 0)) return litInTheDark(t, spell, lamp, held, now, zone);
+  const lit = typeof limit === 'number' && limit > 0;
+  if (held || lit) return [lit ? figureText('lightLimit', limit) : null, litInTheDark(t, spell, lamp, held, now, zone)].filter(Boolean).join(' ');
   const kept = keptBrightness(lamp);
   return [t(`control.light.darkened.${spell}`), kept === null ? null : t('control.light.darkenedBack', { level: figureText('lightLimit', kept) })]
     .filter(Boolean)

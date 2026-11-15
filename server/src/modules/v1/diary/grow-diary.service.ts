@@ -112,7 +112,7 @@ export class GrowDiaryService {
       at: week.startsAt,
       id: String(week.weekNumber),
     }));
-    if (page.items.length === 0) return { items: [], nextCursor: null, people: [], earlier: [] };
+    if (page.items.length === 0) return { items: [], nextCursor: null, people: [], earlier: [], devices: [] };
 
     // What the reader may see of the page, and of that what the grow lived
     // through: the first date begins at midnight and the grow some hours later.
@@ -159,7 +159,16 @@ export class GrowDiaryService {
       ...before.map(entry => entry.authorId),
     ]);
 
-    return { items: weeks, nextCursor: page.nextCursor, people, earlier: before };
+    // What the devices the lines name are called where they stood, for one the reader holds no longer or never did.
+    const said = [...weeks.flatMap(week => week.days.flatMap(day => day.entries)), ...before];
+    const devices = isOutsider(grant)
+      ? []
+      : await this.climate.calledIn(
+          said.map(entry => entry.deviceId),
+          grow.ownerId,
+        );
+
+    return { items: weeks, nextCursor: page.nextCursor, people, earlier: before, devices };
   }
 
   private weekOf(week: DiaryWeek, world: PageWorld, devices: RecordedController[]): GrowDiaryWeek {

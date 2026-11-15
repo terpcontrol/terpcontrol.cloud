@@ -6,7 +6,6 @@ import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
 import { silentSince } from '@/ui/age';
 import { readingNamesOf } from '@/ui/entries';
 import { useKept } from '@/ui/kept';
-import { deviceName } from '@/ui/naming';
 import { Lines } from '@/ui/Lines';
 import { useZone } from '@/ui/zone';
 import { cursorStamp } from './labels';
@@ -52,11 +51,6 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   const growOf = (entry: Entry | null) =>
     grows.size > 1 && entry?.kind !== 'alarm' ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null;
   const listed = all ? lines : lines.slice(-SHOWN);
-  // A device the account no longer holds is named by what the answer says it was called.
-  const named = (deviceId: string) => {
-    const told = data.devices.find(one => one.deviceId === deviceId);
-    return told ? deviceName(told, t) : null;
-  };
   // A stretch the window cuts stands at its true start, before the window: the stamps are of the span they reach, in
   // one form, and its stamp sets the cursor where the window begins.
   const reached = { from: Math.min(window.from, ...lines.map(line => at(line.at))), to: window.to };
@@ -94,7 +88,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
                 plants={plants}
                 grow={growOf(entry)}
                 stampDoes={t('timeline.diary.toMoment')}
-                named={named}
+                told={data.devices}
               />
             );
           })}

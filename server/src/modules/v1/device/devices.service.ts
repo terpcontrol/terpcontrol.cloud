@@ -53,7 +53,8 @@ import { accountOf } from '../caller';
 /**
  * What kind of place a device of this type stands in, which is as close as the
  * hardware gets to saying: a fridge controller is in a fridge and a tent
- * controller in a tent. Anything else is in something, but nothing says what.
+ * controller in a tent. Anything else is in something, but nothing says what -
+ * so a claim makes it a tent, which is what the place it names "Zelt" is.
  */
 const SPACE_KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
 
@@ -385,6 +386,7 @@ export class DevicesService {
    */
   public async releaseClaim(id: string, by: DeviceRelease = 'given_up'): Promise<void> {
     await this.place(id, null);
+    const held = await this.devices.findOne({ id }, { ownerId: 1, name: 1 }).lean<Pick<StoredDevice, 'ownerId' | 'name'> | null>();
     const released = await this.devices
       .findOneAndUpdate(
         { id },
@@ -396,7 +398,10 @@ export class DevicesService {
             isDemo: false,
             scheduleClock: null,
             'state.claimedAt': null,
-            'state.released': { at: new Date(), by },
+            // The places it stood in go on calling it what its holder did (`calledIn`) - unless that account is
+            // being deleted, whose places go with it and whose name for the device is nobody's to keep.
+            'state.released':
+              by === 'account_deleted' ? { at: new Date(), by } : { at: new Date(), by, ownerId: held?.ownerId ?? null, name: held?.name ?? null },
           },
         },
       )
@@ -444,7 +449,7 @@ export class DevicesService {
    * what it is - never a scrap of an id on the first card of a grower's home.
    */
   private async spaceFor(ownerId: string, device: StoredDevice, name: string | null): Promise<SpaceDocument> {
-    const kind = SPACE_KIND[device.type] ?? 'other';
+    const kind = SPACE_KIND[device.type] ?? 'tent';
 
     return {
       id: uuidv4(),

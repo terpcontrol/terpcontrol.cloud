@@ -228,6 +228,13 @@ export class OverviewService {
       ),
       cameras: cameras.map(camera => cameraHere(camera, stills.get(camera.id) ?? [], lit.get(camera.id) ?? null, closed)),
       entries: told,
+      // What the devices those lines name are called there, for one the reader holds no longer or never did.
+      devices: outsider
+        ? []
+        : await this.live.calledIn(
+            told.map(entry => entry.deviceId),
+            space.ownerId,
+          ),
       events: tail.events,
       readingNames: readingNamesOf(grows),
       // By name whatever the counts switch says: it hides how many there are, and a line about some of them says which.

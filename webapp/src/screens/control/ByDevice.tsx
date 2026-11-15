@@ -6,7 +6,7 @@ import { Facts } from '@/ui/Facts';
 import { useKept } from '@/ui/kept';
 import { deviceTitle } from '@/ui/naming';
 import { Row } from '@/ui/Rows';
-import type { RowLine } from './rows';
+import { lineFacts, type RowLine } from './rows';
 import styles from './Control.module.css';
 
 /**
@@ -102,7 +102,7 @@ function Folded({
         <Row
           alone
           title={title}
-          line={line && !open ? <Facts facts={line.text.split(' · ')} /> : null}
+          line={line && !open ? <Facts facts={lineFacts(line)} /> : null}
           warn={line?.warn}
           unfolded={open}
           onOpen={() => setOpen(!open)}

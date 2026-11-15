@@ -244,7 +244,7 @@ export function LightCard({
       {dark ? (
         <p className={baseline.lightLimit > 0 ? styles.warn : styles.note}>{dark}</p>
       ) : hasDay(regime) && baseline.lightLimit <= 0 ? (
-        <p className={styles.warn}>{t('targets.table.zeroLimit')}</p>
+        <p className={styles.warn}>{t(device.type === 'light' ? 'targets.table.zeroLimitLamp' : 'targets.table.zeroLimit')}</p>
       ) : null}
       {plan && (plannedTimes || plannedLimit) ? (
         <p className={styles.note}>

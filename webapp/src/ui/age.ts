@@ -3,6 +3,7 @@ import { DateTime } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
+import type { Translate } from '@/i18n/i18n';
 import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, nowThere, zoned } from './zone';
 
 /**
@@ -48,6 +49,29 @@ export const spanLabel = (seconds: number): string => {
   if (whole < 3600) return durationFigure(Math.floor(whole / 60), 'min');
   if (whole < 86_400) return durationFigure(Math.floor(whole / 3600), 'h');
   return durationFigure(Math.floor(whole / 86_400), 'd');
+};
+
+/**
+ * A span in one family of words on a line: whole days written out with the hours beyond them, then hours, then
+ * minutes - "6 Tage 8 Std", "22 Std", "40 Min" - so a plan's step of a few minutes is not said to have an hour left.
+ * With `minutes` an hour keeps its minutes, "4 Std 39 Min", as a length that is over is said: "4 Std" was most of an
+ * hour short. `round` is an age's floor or a countdown's ceiling.
+ */
+export const timeWords = (t: Translate, seconds: number, round: (figure: number) => number, minutes = false): string => {
+  if (seconds >= 86_400) {
+    const hours = round(seconds / 3600);
+    return [t('planLine.days', { count: Math.floor(hours / 24) }), hours % 24 > 0 ? t('planLine.hours', { count: hours % 24 }) : null]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (seconds >= 3600 && minutes) {
+    const whole = round(seconds / 60);
+    return [t('planLine.hours', { count: Math.floor(whole / 60) }), whole % 60 > 0 ? t('planLine.minutes', { count: whole % 60 }) : null]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (seconds >= 3600) return t('planLine.hours', { count: round(seconds / 3600) });
+  return t('planLine.minutes', { count: Math.max(1, round(seconds / 60)) });
 };
 
 /** "30 s", "15 min", "6 h", "24 h": a length somebody chooses, in the coarsest unit the number is whole in. */

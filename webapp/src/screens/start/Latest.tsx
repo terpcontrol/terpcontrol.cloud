@@ -2,7 +2,7 @@ import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Entry, GrowDayEvent, GrowReadingNames, Person, PlantLabel } from '@fg2/shared-types/v1';
+import type { Entry, GrowDayEvent, GrowReadingNames, Person, PlantLabel, TimelineDevice } from '@fg2/shared-types/v1';
 import { useGrowPlants } from '@/api/grows';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
 import { GROW } from '@/app/places';
@@ -39,6 +39,7 @@ export function Latest({
   byline = true,
   plants,
   grows = [],
+  devices,
   now,
   offStored = null,
 }: {
@@ -55,6 +56,8 @@ export function Latest({
   plants: readonly PlantLabel[];
   /** The grows running here: where there are two, a line of one names it - "Veg begonnen" stood beside "Du hast gedüngt" of the other. */
   grows?: readonly { growId: string; name: string }[];
+  /** What the answer says the devices the lines name are called: all that is known of one the reader does not hold. */
+  devices?: readonly TimelineDevice[];
   now: DateTime;
   /** Since when a switch-off is stored that the silent device has not been handed: regulation off is then not said as fact. */
   offStored?: string | null;
@@ -107,6 +110,7 @@ export function Latest({
               plants={named}
               // An alarm is the place's, every grow's standing there, whichever a line written before names.
               grow={grows.length > 1 && entry?.kind !== 'alarm' ? (grows.find(one => one.growId === entry?.growId)?.name ?? null) : null}
+              told={devices}
               onPictures={from =>
                 setViewing({ pictures: (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []), from })
               }

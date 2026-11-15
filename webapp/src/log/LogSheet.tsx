@@ -61,7 +61,7 @@ export function LogSheet({ opening, lastKey, onChosen, onClose }: LogSheetProps)
   const [narrowKey, setNarrowKey] = useState<string | null>(null);
   // When the line happened, or null for now: asked once here, for whichever kind is then chosen.
   const [at, setAt] = useState<Date | null>(null);
-  const aim = useMemo(() => openingTarget(places, opening, lastKey), [places, opening, lastKey]);
+  const aim = useMemo(() => openingTarget(places, opening, lastKey, grows.data?.items), [places, opening, lastKey, grows.data]);
   // The chip the sheet opened on is held until somebody presses another: a grow's start moved from the sheet's foot
   // makes the other grow of its place the newer one, and the line must not follow it there.
   if (placeKey === null && aim.target) setPlaceKey(aim.target.key);

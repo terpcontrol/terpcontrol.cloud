@@ -12,7 +12,7 @@ import { TimelineService } from '@modules/v1/timeline/timeline.service';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { session, visitor } from './support/callers';
 import { isLit, lastSampleOf, seriesOf, SWITCHING_GRAIN_MS, switchingsOf } from './support/fake-data';
-import { accessOn, spacesOn } from './support/services';
+import { accessOn, devicesOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 import { standingIn } from './support/placed';
 
@@ -2501,6 +2501,15 @@ describe('two lamps in one place', () => {
 
   it('names a device the place´s owner holds no longer by its type alone', async () => {
     await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp' });
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
+  });
+
+  /** "c8 Lampe", given up, read as "Lampenmodul": nobody holds it, and the name it stood there under is the owner's. */
+  it('names a device nobody holds by the name its owner let it go under, and one claimed since by its type', async () => {
+    await devicesOn(db, accessOn(db)).releaseClaim(LAMP);
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: 'Grow light', type: 'light' }]));
+
+    await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp', 'state.released': null });
     expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
   });
 });

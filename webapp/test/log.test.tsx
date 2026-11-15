@@ -1218,17 +1218,30 @@ describe('the log sheet in a place where two grows stand', () => {
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Water' })).getByRole('button', { name: /^Save/ }));
   };
 
-  it('offers both grows of the place, the newer chosen first, and writes to the one pressed', async () => {
+  it('offers both grows of the place, the one standing there longest chosen first, and writes to the one pressed', async () => {
     await openWith({ spaceId: 'space-1', underneath: true });
     const sheet = await screen.findByRole('dialog', { name: 'Log' });
     const chips = await within(sheet).findByRole('group', { name: 'What the entry is about' });
 
-    expect(within(chips).getByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(within(chips).getByRole('button', { name: 'Tent 1 · Amnesia' }));
+    // Start leads with Spring run, the newer; Amnesia has stood there six days longer.
+    expect(within(chips).getByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(chips).getByRole('button', { name: 'Tent 1 · Spring run' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
     await waterSaved();
 
-    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ kind: 'water', growId: 'grow-2' }));
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ kind: 'water', growId: grow.id }));
+  });
+
+  it('opens on the grow the last line in the place was written for', async () => {
+    await openWith({ spaceId: 'space-1', underneath: true });
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Log' })).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'open here' }));
+    const again = await screen.findByRole('dialog', { name: 'Log' });
+    expect(await within(again).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('writes to the grow whose page it was opened over, though the place leads with the other', async () => {

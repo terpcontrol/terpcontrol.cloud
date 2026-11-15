@@ -445,6 +445,8 @@ describe('the hardware', () => {
     expect(device?.ownerId).toBeNull();
     expect(device?.spaceId).toBeNull();
     expect(device?.name).toBeNull();
+    // Nor what that owner called it, which the places of a device given up go on reading (`calledIn`).
+    expect(device?.state.released).toMatchObject({ by: 'account_deleted', ownerId: null, name: null });
 
     expect(await db.plans.countDocuments({})).toBe(0);
     expect(await db.alarmRules.countDocuments({})).toBe(0);

@@ -23,11 +23,11 @@ import { Sheet } from '@/ui/Sheet';
 import { OfflineSteps } from '@/ui/OfflineHelp';
 import { figure, targetFigure } from '@/ui/units';
 import ui from '@/ui/ui.module.css';
-import { beganAt, crossedBound, ruleName, spanOf, titleOf } from './inbox';
+import { beganAt, crossedBound, lastedWords, ruleName, spanOf, titleOf } from './inbox';
 import type { AlertNames } from './names';
 import { looseFigure, unbroken } from '@/ui/figures';
 import styles from './Alerts.module.css';
-import { deviceName } from '@/ui/naming';
+import { calledIn } from '@/ui/naming';
 
 interface AlertProps {
   alert: Alert;
@@ -103,7 +103,7 @@ export function ResolvedRow(
     elsewhere ? alert.spaceName : null,
     dayStamp(alert.resolvedAt ?? alert.startedAt, now, zone),
     count > 1 ? t('home.entryRepeats', { count, since: sinceLabel(since, now, zone) }) : null,
-    lasted ? t('alerts.together', { span: spanLabel(lasted) }) : null,
+    lasted ? t('alerts.together', { span: lastedWords(t, lasted) }) : null,
   ];
 
   return (
@@ -171,16 +171,14 @@ function Said({
 /**
  * Where it stands or happened: the place by the name the alert carries, and
  * with it the device where another one stands there and naming it is the only
- * way to tell two cards apart. An alert that names no place is placed by the
+ * way to tell two cards apart - as Verlauf names it, with its tag beside another
+ * of its kind (`calledIn`). An alert that names no place is placed by the
  * device it came from; a camera and a device gone quiet are named by the title.
  */
 const placeOf = (t: Translate, alert: Alert, names: AlertNames, device: Device | null): string[] => {
-  const told =
-    device !== null &&
-    alert.kind !== 'offline' &&
-    (alert.spaceName === null || [...names.devices.values()].some(one => one.id !== device.id && one.spaceId === alert.spaceId));
+  const called = device && alert.kind !== 'offline' ? calledIn(device.id, alert.spaceId, t, [...names.devices.values()]) : null;
 
-  return [alert.spaceName, told ? deviceName(device, t) : null].filter(part => part !== null);
+  return [alert.spaceName, called && (alert.spaceName === null || !called.alone) ? called.name : null].filter(part => part !== null);
 };
 
 /**

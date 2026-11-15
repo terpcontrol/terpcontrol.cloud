@@ -19,7 +19,7 @@ type MessagePart = 'title' | 'text';
 
 const ALARM_LINES = new Set(['message-alarm-triggered', 'message-alarm-resolved']);
 
-const CONFIGURATION_CHANGE = 'message-device-configuration-updated';
+export const CONFIGURATION_CHANGE = 'message-device-configuration-updated';
 
 /**
  * The lines the server writes about a firmware update name the build before

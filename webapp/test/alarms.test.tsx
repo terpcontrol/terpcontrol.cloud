@@ -740,15 +740,44 @@ describe('the alarm rules page', () => {
     const page = (germination: { warnTooHumid: boolean; humidifierHolds: boolean } | null) => ({ ...rulePage([humid]), germination });
     let answered = page({ warnTooHumid: false, humidifierHolds: true });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? answered : answers(path)) as never,
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules' ? answered : path === '/devices/device-2/alarm-rules' ? rulePage([]) : answers(path),
+        ) as never,
     );
-    const view = draw([device({ type: 'light', configuration: { limit: 0 }, control: null })]);
+    // The place's controller germinates: the lamp module's rule rests by it, and the choice is the controller's.
+    const here = () => [device({ type: 'light', configuration: { limit: 0 }, control: null }), device({ id: 'device-2' })];
+    const view = draw(here());
     expect(within(await card('Too humid')).getByRole('link', { name: 'rests during germination · change under Control ›' })).toBeInTheDocument();
     view.unmount();
 
     answered = page({ warnTooHumid: true, humidifierHolds: true });
-    draw([device({ type: 'light', configuration: { limit: 0 }, control: null })]);
+    draw(here());
     expect(within(await card('Too humid')).getByText('above 90 %')).toBeInTheDocument();
+  });
+
+  /**
+   * A fan alone in a germinating place rests by the climate the grow's phase put it on. Its line led to a Steuerung that
+   * shows only the fan's mode and speeds: it leads where the rest ends, the grow's phase.
+   */
+  it('leads a fan alone´s resting "too humid" to the grow´s phase, which ends the rest, and not to Steuerung', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules'
+            ? { ...rulePage([humid]), germination: { warnTooHumid: false, humidifierHolds: true } }
+            : answers(path),
+        ) as never,
+    );
+    draw([device({ type: 'fan', configuration: { mode: 2 }, control: null })]);
+
+    const card_ = await card('Too humid');
+    expect(within(card_).getByRole('link', { name: 'rests during germination · ends with the phase ›' })).toHaveAttribute(
+      'href',
+      '/grows/grow-1?phase=1',
+    );
+    expect(within(card_).queryByText(/change under Control/)).not.toBeInTheDocument();
   });
 });
 

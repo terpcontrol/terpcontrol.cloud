@@ -11895,7 +11895,7 @@
         "minLength": 1
       },
       "name": {
-        "description": "What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.",
+        "description": "What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.",
         "type": [
           "string",
           "null"
@@ -13053,6 +13053,13 @@
         },
         "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
       },
+      "devices": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside."
+      },
       "plants": {
         "type": "array",
         "items": {
@@ -13090,6 +13097,7 @@
       "entries",
       "events",
       "readingNames",
+      "devices",
       "plants",
       "openAlerts",
       "people"
@@ -14329,13 +14337,21 @@
           "$ref": "#/components/schemas/Entry"
         },
         "description": "Newest first; empty on every page but the last."
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "What each device the page’s lines name is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside."
       }
     },
     "required": [
       "items",
       "nextCursor",
       "people",
-      "earlier"
+      "earlier",
+      "devices"
     ]
   },
   "GrowReportPhase": {

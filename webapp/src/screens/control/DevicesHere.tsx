@@ -184,15 +184,13 @@ function DeviceCard({
       ? { label: t('lightSettings.title'), value: lampInTheDark(t, spell, device, now, zone) }
       : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
+  // A card with nothing to say under its name - a reader's, of a device whose silence the page says above - keeps no line.
+  const facts = [...says, firmware, own ? `${own.label}: ${own.value}` : null].filter(Boolean);
 
   return (
-    <section className={`${ui.panel} ${styles.device}`} aria-label={title} data-short={!leads || undefined}>
+    <section className={`${ui.panel} ${styles.device}`} aria-label={title} data-short={!(leads && mayManage) || undefined}>
       <div className={styles.deviceHead}>
-        <RowText
-          title={title}
-          line={<Facts facts={[...says, firmware, own ? `${own.label}: ${own.value}` : null]} />}
-          warn={offline && !waiting && !silenceSaid}
-        />
+        <RowText title={title} line={facts.length > 0 ? <Facts facts={facts} /> : null} warn={offline && !waiting && !silenceSaid} />
         {leads && mayManage ? <UpdateButton device={device} offline={offline} /> : null}
       </div>
       {/* Maintenance, a restart and an update of a further device are on its own page, so the list stays short. */}
@@ -203,7 +201,7 @@ function DeviceCard({
         </p>
       ) : null}
       <Link to={devicePath(device.id)} className={styles.all}>
-        {t('control.device.all', { name: deviceName(device, t) })} <span aria-hidden>›</span>
+        {t('control.device.all', { name: title })} <span aria-hidden>›</span>
       </Link>
     </section>
   );

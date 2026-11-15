@@ -610,6 +610,25 @@ describe('what was last written', () => {
     expect(ids).not.toContain('elsewhere');
   });
 
+  /**
+   * A member's Zuletzt left a lamp's line unnamed once the lamp had gone to another place: the member's list of
+   * devices does not hold it. The answer says what the devices its lines name are called there, as Verlauf's does.
+   */
+  it('says what the devices its lines name are called, one that has left the place too', async () => {
+    await db.devices.create({ id: 'device-lamp', type: 'light', name: 'c8 Lampe', ownerId: OWNER, spaceId: 'space-elsewhere', configuration: null });
+    await db.entries.create(
+      machine('lamp-silent', '2026-06-10T11:00:00.000Z', {
+        kind: 'alarm',
+        source: 'alarm',
+        deviceId: 'device-lamp',
+        message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+        values: { kind: 'alarm' },
+      }),
+    );
+
+    expect((await readAs(session(MEMBER))).devices).toEqual(expect.arrayContaining([{ deviceId: 'device-lamp', name: 'c8 Lampe', type: 'light' }]));
+  });
+
   it('leaves a maintenance still on without an end', async () => {
     await db.entries.create(maintenance('maintenance-on', '2026-06-10T11:50:00.000Z', 30));
 
@@ -674,6 +693,7 @@ describe('who may read it', () => {
 
     expect(theirs.entries.map(line => line.id)).toEqual(['entry-old']);
     expect(JSON.stringify(theirs.entries)).not.toMatch(/alarm|alert-1|booted/);
+    expect(theirs.devices).toEqual([]);
     expect(theirs.events).toEqual([]);
     // Whoever keeps the tent reads the alarm; what a device logs about itself is no line of a diary for them either.
     const keepers = (await readAs(session(OWNER))).entries.map(line => line.id);

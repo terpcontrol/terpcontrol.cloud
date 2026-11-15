@@ -593,6 +593,35 @@ describe('Steuerung of a place with several devices', () => {
     expect(sheet).toHaveTextContent('The lamp module gets 100 % back.');
   });
 
+  /**
+   * A lamp module lit by hand during germination read "Licht: trotz Keimung · …" with no level on its card, and three
+   * lamp modules' cards led to three alike "Lampenmodul: alles Weitere ›": its level is said, and the way to its page
+   * names it as its heading does.
+   */
+  it('says how bright a lamp module lit in the dark is, and names each lamp module´s page as its card does', async () => {
+    const germinating = {
+      ...device(),
+      configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+      control: { running: true, drying: false, mode: 'germination', energySaving: false },
+    } as unknown as Device;
+    const lamp = (id: string, limit: number) =>
+      ({
+        ...device(),
+        id,
+        type: 'light',
+        name: null,
+        control: null,
+        configuration: { day: 25200, night: 82800, limit },
+        state: { ...device().state, limitBeforeDark: 100 },
+      }) as Device;
+    state.devices = [germinating, lamp('device-5', 5), lamp('device-6', 0)];
+    drawTab();
+
+    const lit = await screen.findByRole('region', { name: /^Lamp module\W+ICE5$/ });
+    expect(lit).toHaveTextContent('Light: 5 % despite germination · its brightness was set since');
+    expect(within(lit).getByRole('link', { name: /^Everything about Lamp module\W+ICE5/ })).toBeInTheDocument();
+  });
+
   /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */
   it('says a device heard late and one gone silent in the pill´s words', async () => {
     state.devices = [
@@ -806,6 +835,11 @@ describe('Steuerung of a place with several devices', () => {
     await screen.findByRole('heading', { name: /^Blue Dream tent has been offline since / });
     expect(screen.getByText(/^Until it reports again, the device runs on what it held at /)).toBeInTheDocument();
     expect(screen.queryByText(/You can still set everything/)).not.toBeInTheDocument();
+    // Its card keeps no band where the buttons of somebody who may steer stand, and no empty line under its name.
+    const card = screen.getByRole('region', { name: 'Blue Dream tent' });
+    expect(card).toHaveAttribute('data-short');
+    expect(card.textContent).toBe('Blue Dream tentEverything about Blue Dream tent ›');
+    expect(card.querySelectorAll('span > span:empty')).toHaveLength(0);
   });
 
   it('names a device that has not sent its settings as its card does: no tail of its id beside one of its kind standing elsewhere', async () => {
@@ -1084,19 +1118,19 @@ describe('what a row says about the page behind it', () => {
   it('says each output with what it does, and "all on auto" only of sockets', () => {
     const lampless = { ...device(), configuration: { day: { temperature: 25 } } } as Device;
     const withSockets = outputsOf(lampless, sockets(socket('exhaust', 0), socket('humidifier', 1, { state: 'off' })), null);
-    expect(outputsLine(t, [withSockets], NOW, null)).toEqual({ text: 'Exhaust on · Humidifier off · all on auto', warn: false });
+    expect(outputsLine(t, [withSockets], NOW, null)).toMatchObject({ text: 'Exhaust on · Humidifier off · all on auto', warn: false });
 
     const held = outputsOf(
       lampless,
       sockets(socket('exhaust', 0, { override: { state: 'on', validUntil: NOW.plus({ minutes: 40 }).toISO() } })),
       null,
     );
-    expect(outputsLine(t, [held], NOW, null, 'as of 13:49')).toEqual({ text: 'as of 13:49 · Exhaust held on, 40 min', warn: true });
+    expect(outputsLine(t, [held], NOW, null, 'as of 13:49')).toMatchObject({ text: 'as of 13:49 · Exhaust held on, 40 min', warn: true });
 
     // The controller's own lamp reports no hold back, so nothing is claimed about it - only what it runs at.
     const level = { percent: 80, measuredAt: NOW.toISO()!, state: 'live' as const };
     const lamp = outputsOf(device(), sockets(socket('exhaust', 0)), level);
-    expect(outputsLine(t, [lamp], NOW, null)).toEqual({ text: 'Light 80 % · Exhaust on', warn: false });
+    expect(outputsLine(t, [lamp], NOW, null)).toMatchObject({ text: 'Light 80 % · Exhaust on', warn: false });
     expect(outputsLine(t, [outputsOf(device(), sockets(), { ...level, percent: 0 })], NOW, null).text).toBe('Light off');
   });
 
@@ -1104,7 +1138,7 @@ describe('what a row says about the page behind it', () => {
     const lamp = outputsOf(device(), sockets(socket('exhaust', 0)), { percent: 0, measuredAt: NOW.toISO()!, state: 'live' });
     const hold = new Map([['device-1', { state: 'off' as const, until: NOW.plus({ minutes: 65 }).toISO()! }]]);
 
-    expect(outputsLine(t, [lamp], NOW, null, null, hold)).toEqual({ text: 'Light held off until 13:05 · Exhaust on', warn: true });
+    expect(outputsLine(t, [lamp], NOW, null, null, hold)).toMatchObject({ text: 'Light held off until 13:05 · Exhaust on', warn: true });
   });
 
   /** A fan's mode stands with the fan it is of as one fact, so no line ends on a bare "Fixed" nor reads "Fan: Fixed". */
@@ -1128,7 +1162,7 @@ describe('what a row says about the page behind it', () => {
       configuration: { mode: 1, day: { max_speed: 100 }, night: { max_speed: 60 } },
     } as unknown as Device;
     const waits = new Map([['mode', { field: 'mode', held: 0, savedAt: saved }]]);
-    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits)).toEqual({
+    expect(outputsLine(t, [outputsOf(fan, sockets(), null)], NOW, null, 'as of 09:54', new Map(), waits)).toMatchObject({
       text: 'Fan by temperature saved at 11:40, not with the device yet',
       warn: true,
     });
@@ -1143,7 +1177,7 @@ describe('what a row says about the page behind it', () => {
     } as unknown as Device;
     const level = { percent: 100, measuredAt: NOW.minus({ hours: 2 }).toISO()!, state: 'offline' as const };
     const pending = new Map([['fans.external', { field: 'fans.external', held: 40, savedAt: saved }]]);
-    expect(outputsLine(t, [outputsOf(fridge, sockets(), level)], NOW, null, 'as of 09:54', new Map(), pending)).toEqual({
+    expect(outputsLine(t, [outputsOf(fridge, sockets(), level)], NOW, null, 'as of 09:54', new Map(), pending)).toMatchObject({
       text: 'as of 09:54 · Light 100 % · Clip fan 50 % saved at 11:40, not with the device yet · Inner fans, at least 60 %',
       warn: true,
     });
@@ -1202,14 +1236,16 @@ describe('what a row says about the page behind it', () => {
       state: { ...device().state, limitBeforeDark: 100 },
     } as Device;
 
+    // Each lamp's words are one fact, which the row's line does not break apart: "Licht · Lampenmodul" stood on two lines.
     expect(outputsLine(t, [outputsOf(germinating, sockets(), { ...level, percent: 0 }), outputsOf(lamp, sockets(), level)], NOW, null)).toEqual({
       text: 'Light · Blue Dream tent off · Light · Lamp module 100 % despite germination · its brightness was set since',
+      facts: ['Light · Blue Dream tent off', 'Light · Lamp module 100 % despite germination · its brightness was set since'],
       warn: true,
     });
     // Dark as germination keeps it, nothing is said beyond it.
     expect(
       outputsLine(t, [outputsOf(germinating, sockets(), { ...level, percent: 0 }), outputsOf(lamp, sockets(), { ...level, percent: 0 })], NOW, null),
-    ).toEqual({ text: 'Light · Blue Dream tent off · Light · Lamp module off', warn: false });
+    ).toMatchObject({ text: 'Light · Blue Dream tent off · Light · Lamp module off', warn: false });
   });
 
   it('says the mode that runs and what else its page offers', () => {

@@ -1,13 +1,13 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
-import type { Person, Plant, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, Person, Plant, ReadingName, TimelineDevice } from '@fg2/shared-types/v1';
 import { useDevicesShape } from '@/api/devices';
 import { sinceLabel } from '@/ui/age';
 import { warningOf } from '@/ui/entries';
 import { EntryWords } from '@/ui/EntryWords';
 import { Facts } from '@/ui/Facts';
 import { Line } from '@/ui/Lines';
-import { deviceTitle, standingWith } from '@/ui/naming';
+import { calledIn } from '@/ui/naming';
 import ui from '@/ui/ui.module.css';
 import type { DayLine } from './days';
 
@@ -41,7 +41,7 @@ export function DiaryLine({
   onPictures = null,
   thumbnails,
   moment = instant => sinceLabel(instant, now, zone),
-  named,
+  told,
 }: {
   line: DayLine;
   /** When it happened, as the list it stands in says moments. */
@@ -75,8 +75,8 @@ export function DiaryLine({
   thumbnails?: string[];
   /** How the list says a moment, which a folded run's other end is said in: one form of a date in a row. */
   moment?: (instant: string) => string;
-  /** What a device the account no longer holds is called, where the list was told. */
-  named?: (deviceId: string) => string | null;
+  /** What the answer the lines came in says its devices are called: all that is known of one the reader does not hold. */
+  told?: readonly TimelineDevice[];
 }) {
   const { t } = useTranslation();
   const { what } = line;
@@ -84,7 +84,7 @@ export function DiaryLine({
   const mark = line.own || (what.kind === 'alarm' && what.stands) ? null : t('grow.diary.byItself');
   // A device's own line - an alarm, a restart - says which device where its place holds another, as Start and Meldungen do.
   const own = what.kind === 'alarm' || (what.kind === 'entry' && what.entry.kind === 'system');
-  const device = useDeviceCalled(own ? what.entry.deviceId : null, what.kind === 'alarm' && what.twin, named);
+  const device = useDeviceCalled(own ? what.entry : null, what.kind === 'alarm' && what.twin, told);
 
   if (what.kind === 'said') {
     return (
@@ -150,15 +150,12 @@ export function DiaryLine({
 }
 
 /**
- * What a device is called, where a line has to say which device it is about: always (`twin`), or where its place holds
- * another device. One the account no longer holds - given up since - is called by what the list was told (`named`).
+ * What a device is called, where a line has to say which device it is about: always (`twin`), or where the place the
+ * line is of holds another device (`calledIn`).
  */
-const useDeviceCalled = (deviceId: string | null, twin: boolean, named?: (deviceId: string) => string | null): string | null => {
+const useDeviceCalled = (entry: Pick<Entry, 'deviceId' | 'spaceId'> | null, twin: boolean, told?: readonly TimelineDevice[]): string | null => {
   const { t } = useTranslation();
-  const every = useDevicesShape(deviceId !== null).data?.items;
-  const device = every?.find(one => one.id === deviceId);
-  if (!deviceId) return null;
-  if (!device) return named?.(deviceId) ?? null;
-  const among = standingWith(device, every) ?? [];
-  return twin || among.length > 1 ? deviceTitle(device, t, among) : null;
+  const every = useDevicesShape(!!entry?.deviceId).data?.items;
+  const called = entry?.deviceId ? calledIn(entry.deviceId, entry.spaceId, t, every, told) : null;
+  return called && (twin || !called.alone) ? called.name : null;
 };

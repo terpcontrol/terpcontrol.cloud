@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowHarvest, GrowListItem, Metric, Plant, ReadingName } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowHarvest, GrowListItem, Metric, Plant, ReadingName, TimelineDevice } from '@fg2/shared-types/v1';
 import type { i18n as I18n } from 'i18next';
 import { alarmLineParts } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
@@ -35,6 +35,8 @@ export interface DiaryReader {
   byline: boolean;
   /** The grow's plants by name, where the reader is answered them: a line about some of them names those. */
   plants: readonly Pick<Plant, 'id' | 'growId' | 'label'>[];
+  /** What the answer says the devices its lines name are called: all that is known of one the reader does not hold. */
+  devices?: readonly TimelineDevice[];
   /** Whether a line draws the pictures it carries: for a reader from outside, who is shown the diary. A member's line counts them. */
   thumbnails: boolean;
   /** The sheet that corrects a line, where this reader may correct it. */
@@ -344,7 +346,8 @@ const alarmLines = (i18n: I18n, entries: Entry[], silences?: Silences): { lines:
     if (!alarm) return [];
     const { parts, fired } = alarm;
     const rule = entry.cameraId ? i18n.t('alerts.title.camera', { what: parts.rule }) : parts.rule;
-    const exact = parts.silentFor === undefined ? null : (silences?.began(entry) ?? null);
+    // A silence's end is dated from its start too, where its alert says it: its raise may lie before what was read.
+    const exact = parts.silence ? (silences?.began(entry) ?? null) : null;
     const began =
       exact ??
       (parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!);
@@ -477,7 +480,8 @@ const silenceRuns = (read: AlarmRead[], ended?: Silences['ended']): AlarmRun[] =
       since: startOf(one),
       fired: one.firings,
       over,
-      ...(over && until && one.firings.length > 0 ? { until } : {}),
+      // An end whose raise was not read stands at its start where its alert says when that was, "bis" its end.
+      ...(over && until && ms(until) !== ms(startOf(one)) ? { until } : {}),
     };
   });
 };

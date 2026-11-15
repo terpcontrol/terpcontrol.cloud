@@ -1288,7 +1288,9 @@ const timelineDevice = named(
     name: z
       .string()
       .nullable()
-      .describe('What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.'),
+      .describe(
+        'What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.',
+      ),
     type: z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
   }),
 );
@@ -1616,6 +1618,9 @@ export const spaceOverview = named(
       .array(growDayEvent)
       .describe('When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.'),
     readingNames: z.array(growReadingNames).describe('What the grows those lines belong to call their measurements, so a reading is named rather than keyed.'),
+    devices: z
+      .array(timelineDevice)
+      .describe('What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside.'),
     plants: z
       .array(plantLabel)
       .describe('The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.'),
@@ -2136,6 +2141,9 @@ export const growDiaryPage = named(
   page(growDiaryWeek).extend({
     people: z.array(person),
     earlier: z.array(entry).describe('Newest first; empty on every page but the last.'),
+    devices: z
+      .array(timelineDevice)
+      .describe('What each device the page’s lines name is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.'),
   }),
 );
 

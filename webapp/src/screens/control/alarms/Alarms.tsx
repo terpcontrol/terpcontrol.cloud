@@ -7,7 +7,9 @@ import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, Device, GerminationChoices, Me } from '@fg2/shared-types/v1';
 import { restsInGermination, stageOfPresetId, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { targetWithUnit } from '@/ui/units';
@@ -46,9 +48,10 @@ import styles from './Alarms.module.css';
  * are the server's answers. What the page adds is what the account's routing
  * would do with the rule, once the account has answered; the demo has none.
  */
-export function Alarms({ devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
+export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
+  const overview = useSpaceOverview(spaceId);
   const me = useAccountMe();
   const [params] = useSearchParams();
 
@@ -57,6 +60,14 @@ export function Alarms({ devices, mayManage }: { spaceId: string; devices: Devic
   const held = useAlarmRulesOf(devices.map(device => device.id));
   const holding = new Set([...held.rules.values()].map(rule => rule.deviceId));
   const watched = devices.filter(device => watchable(device) || holding.has(device.id));
+  // Where a stage's rule resting in germination can end: under Steuerung, where the place's controller or fridge
+  // module germinates; a fan alone rests by the climate the grow's phase put it on, which no Steuerung offers.
+  const sprouting = overview.data?.grows.find(one => one.stage === 'germination') ?? overview.data?.grows[0] ?? null;
+  const restEnds: RestEnds | null = devices.some(device => workModesOf(device.type).length > 0)
+    ? { to: controlPath(spaceId), words: 'alarms.meta.restsInGerminationChange' }
+    : sprouting
+      ? { to: `/grows/${sprouting.growId}?phase=1`, words: 'alarms.meta.restsInGerminationPhase' }
+      : null;
   // An account no alarm reaches at all is told so once, over the list, with
   // the one-tap fix - rather than "erreicht dich nicht" under every card.
   const reachesNoOne = me.data !== undefined && !(['critical', 'warning'] as const).some(severity => severityReaches(me.data!, severity));
@@ -94,6 +105,7 @@ export function Alarms({ devices, mayManage }: { spaceId: string; devices: Devic
               toldAbove={reachesNoOne}
               mayManage={mayManage}
               highlighted={params.get('rule')}
+              restEnds={restEnds}
               now={now}
             />
           )}
@@ -122,11 +134,18 @@ interface DeviceRulesProps {
   mayManage: boolean;
   /** The rule an alert linked to, which is scrolled to and marked. */
   highlighted: string | null;
+  restEnds: RestEnds | null;
   now: DateTime;
 }
 
+/** Where a stage's rule resting in germination can end, and what the way there says. */
+interface RestEnds {
+  to: string;
+  words: string;
+}
+
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
+function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, restEnds, now }: DeviceRulesProps) {
   const { t } = useTranslation();
   const Heading = level === 2 ? 'h2' : 'h3';
   const { tell } = useLog();
@@ -211,6 +230,7 @@ function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, now
                 now={now}
                 // Among all the device's rules, whatever group each stands in.
                 germination={rules.data.germination}
+                restEnds={restEnds}
                 twin={rules.data.items.some(other => other.id !== rule.id && ruleTitle(t, other) === ruleTitle(t, rule))}
                 onOpen={() => setOpen(rule)}
                 onToggle={enabled => toggle(rule, enabled)}
@@ -326,6 +346,7 @@ interface RuleCardProps {
   device: Device;
   /** What was chosen where the device's place germinates (the server's `germination`); absent from an older server. */
   germination?: GerminationChoices | null;
+  restEnds: RestEnds | null;
   me: Me | undefined;
   /** Whether the page already says, over the list, that no alarm reaches anybody. */
   toldAbove: boolean;
@@ -352,7 +373,22 @@ interface RuleCardProps {
  * the rule watches - a CO2 rule the stage wrote for a controller with no
  * sensor - and the reason stands under it.
  */
-function RuleCard({ rule, device, germination, me, toldAbove, mayManage, highlighted, made, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
+function RuleCard({
+  rule,
+  device,
+  germination,
+  restEnds,
+  me,
+  toldAbove,
+  mayManage,
+  highlighted,
+  made,
+  busy,
+  now,
+  twin,
+  onOpen,
+  onToggle,
+}: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
   const opens = useRef<HTMLButtonElement>(null);
@@ -374,6 +410,7 @@ function RuleCard({ rule, device, germination, me, toldAbove, mayManage, highlig
   const workmode = germination === undefined ? device.configuration?.workmode : germination ? 'breed' : null;
   const resting = rule.enabled && restsInGermination(rule, workmode, germination ?? device.control?.germinationChoices);
   const watch = watchNow(rule, workmode);
+  const restLink = resting && mayManage ? restEnds : null;
   const ownLine = !resting && boundLabel(t, watch) !== boundLabel(t, rule.watch) ? boundLabel(t, rule.watch) : null;
   // An output watched for running at all crosses no line, so what it watches is
   // said in words and only the duration it has to run for is a figure; a rule
@@ -397,7 +434,7 @@ function RuleCard({ rule, device, germination, me, toldAbove, mayManage, highlig
       </span>
       <span className={styles.meta}>{metaLine(t, rule, told.said)}</span>
       {missing ? <span className={styles.reason}>{t(`alarms.needs.${missing}`)}</span> : null}
-      {resting && !(mayManage && device.spaceId) ? <span className={styles.reason}>{t('alarms.meta.restsInGermination')}</span> : null}
+      {resting && !restLink ? <span className={styles.reason}>{t('alarms.meta.restsInGermination')}</span> : null}
       {ownLine ? <span className={styles.meta}>{t('alarms.meta.germinationLine', { bound: ownLine })}</span> : null}
     </>
   );
@@ -437,11 +474,11 @@ function RuleCard({ rule, device, germination, me, toldAbove, mayManage, highlig
           <Refused error={silence.error} />
         </span>
       ) : null}
-      {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it.
-          Where the choice is made is Steuerung, which shows it while the device germinates. */}
-      {resting && mayManage && device.spaceId ? (
-        <Link to={controlPath(device.spaceId)} className={styles.fix}>
-          {t('alarms.meta.restsInGerminationChange')}
+      {/* Outside the card's button, which a link cannot stand in, and on a line of its own across it: where the rest
+          can end - Steuerung, which shows the choice while the place germinates, or for a fan alone the grow's phase. */}
+      {restLink ? (
+        <Link to={restLink.to} className={styles.fix}>
+          {t(restLink.words)}
         </Link>
       ) : null}
       {!toldAbove && rule.enabled && told.unreached ? (

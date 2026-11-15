@@ -2,8 +2,8 @@ import { DateTime } from 'luxon';
 import type { AlarmRule, Alert, OutputLevelWatch, OutputMetric, ReadingWatch, Severity } from '@fg2/shared-types/v1';
 import { metricName, ruleTitle } from '@/i18n/alarm-line';
 import type { Translate } from '@/i18n/i18n';
-import { silentSince, spanLabel } from '@/ui/age';
-import { deviceName } from '@/ui/naming';
+import { silentSince, spanLabel, timeWords } from '@/ui/age';
+import { calledIn } from '@/ui/naming';
 import type { AlertNames } from './names';
 
 /**
@@ -112,8 +112,11 @@ export const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): st
 
 const outputName = (t: Translate, output: OutputMetric): string => t(`alerts.output.${output}`, { defaultValue: output });
 
-/** How long an episode that is over stood, for its title: "22 Min", and "kurz" under a minute - a blip has no length worth a figure. */
-export const spanOf = (t: Translate, alert: Alert): string => (lastedSeconds(alert) < 60 ? t('alerts.brief') : spanLabel(lastedSeconds(alert)));
+/** How long episodes that are over stood, never rounded down by most of an hour: "22 Min", "4 Std 39 Min", "1 Tag 3 Std". */
+export const lastedWords = (t: Translate, seconds: number): string => (seconds < 60 ? spanLabel(seconds) : timeWords(t, seconds, Math.floor, true));
+
+/** How long an episode that is over stood, for its title (`lastedWords`), and "kurz" under a minute - a blip has no length worth a figure. */
+export const spanOf = (t: Translate, alert: Alert): string => (lastedSeconds(alert) < 60 ? t('alerts.brief') : lastedWords(t, lastedSeconds(alert)));
 
 /**
  * The event in one sentence: "Luftfeuchte zu hoch" while it stands - an open
@@ -134,8 +137,8 @@ export const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, name
   };
 
   if (alert.kind === 'offline') {
-    const device = alert.deviceId ? names.devices.get(alert.deviceId) : undefined;
-    return said('offline', device ? deviceName(device, t) : (alert.spaceName ?? t('shell.gone.title.device')), true);
+    const device = alert.deviceId ? calledIn(alert.deviceId, alert.spaceId, t, [...names.devices.values()]) : null;
+    return said('offline', device?.name ?? alert.spaceName ?? t('shell.gone.title.device'), true);
   }
   if (alert.kind === 'camera_stale')
     return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'), true);

@@ -327,7 +327,7 @@ export function Climate({
       )}
 
       <section className={`${ui.panel} ${styles.card}`} aria-labelledby={`targets-${device.id}`}>
-        <div className={styles.line}>
+        <div className={styles.line} data-bare={!mayManage || undefined}>
           <h2 className={`${ui.cardHeading} ${styles.title}`} id={`targets-${device.id}`}>
             {t('targets.title')}
           </h2>

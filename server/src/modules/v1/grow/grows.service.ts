@@ -684,6 +684,9 @@ export class GrowsService {
     requireStillRunning(grow, startedAt, 'startedAt');
     await this.scopeOf(grow, body.plantIds ?? null);
     await this.requireSpaceFor(ctx, body.spaceId);
+    if (standsThereAlready(grow, body.spaceId, body.plantIds ?? null)) {
+      throw conflict('grow_already_there', 'The plants already stand in that place, and a move to where they stand moves nothing.');
+    }
 
     const placement = await this.movePlants(grow, { spaceId: body.spaceId, startedAt, plantIds: body.plantIds ?? null }, authorId);
 
@@ -1094,6 +1097,19 @@ const spaceOf = (grow: GrowDocument, plantIds: string[]): string | null => {
 
   const covering = open.find(placement => placement.plantIds === null || placement.plantIds.some(plantId => plantIds.includes(plantId)));
   return covering?.spaceId ?? null;
+};
+
+/**
+ * Whether every plant a move names already stands where it is to go: each open stay covering one of them is there.
+ * Such a move ended the stay and began it again in the same place, and the diary said the grow had been put where it
+ * stood. A grow that has ended has no open stay, and a move written into its record is a repair.
+ */
+const standsThereAlready = (grow: GrowDocument, spaceId: string | null, plantIds: string[] | null): boolean => {
+  const covering = grow.placements.filter(
+    placement =>
+      placement.endedAt === null && (plantIds === null || placement.plantIds === null || placement.plantIds.some(id => plantIds.includes(id))),
+  );
+  return covering.length > 0 && covering.every(placement => placement.spaceId === spaceId);
 };
 
 /**

@@ -30,7 +30,7 @@ import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
-import { climateRequest, defaultPick, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
+import { climateRequest, defaultPick, KEEP_CLIMATE, useGrowsBeside, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
 import { Facts } from '@/ui/Facts';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Asking } from '@/ui/Asking';
@@ -177,7 +177,8 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
    */
   const [picked, setClimate] = useState<PhaseClimate | null>(null);
   const placeController = usePlaceController(target.spaceId ?? target.standsIn);
-  const climate = picked ?? (stage ? defaultPick(stage, placeController) : KEEP_CLIMATE);
+  const beside = useGrowsBeside(target.spaceId ?? target.standsIn, target.growId);
+  const climate = picked ?? (stage ? defaultPick(stage, placeController, beside.length > 0) : KEEP_CLIMATE);
   const [saving, setSaving] = useState(false);
   /** The corner's pop-up stands open on a moment it refuses: nothing is saved under a moment nobody chose. */
   const [refusedMoment, setRefusedMoment] = useState(false);
@@ -573,7 +574,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       ) : null}
       {kind === 'phase' && grow && stage ? (
         <div className={styles.climate}>
-          <ClimatePick stage={stage} spaceId={target.spaceId ?? target.standsIn} value={climate} onChange={setClimate} />
+          <ClimatePick stage={stage} spaceId={target.spaceId ?? target.standsIn} growId={target.growId} value={climate} onChange={setClimate} />
           {/* A phase dated back starts back then in the diary; the devices can only be told now. */}
           {dated && climate.climate ? <p className={ui.note}>{t('log.moment.climateNow')}</p> : null}
         </div>

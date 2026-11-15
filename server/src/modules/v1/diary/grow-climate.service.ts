@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { PhaseTargets, SeriesPoint } from '@fg2/shared-types/v1';
+import type { PhaseTargets, SeriesPoint, TimelineDevice } from '@fg2/shared-types/v1';
 import { STEERED } from '@fg2/shared-types/v1-schemas';
+import { devicesCalledIn } from '@common/v1/device-called';
 import { staysWith, stoodIn } from '@common/v1/device-placements';
 import { Span } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
@@ -137,6 +138,11 @@ export class GrowClimateService {
       .map(one => one.device)
       .filter(device => targetsOf(device.configuration) !== null || device.type === LIGHT_TYPE)
       .map(device => ({ deviceId: device.id, placements: device.placements ?? [], hardware: device.state?.hardware ?? {} }));
+  }
+
+  /** What the devices some lines of the grow's places name are called there (`calledIn`). */
+  public calledIn(deviceIds: readonly (string | null)[], ownerId: string): Promise<TimelineDevice[]> {
+    return devicesCalledIn(this.devices, deviceIds, ownerId);
   }
 
   /**

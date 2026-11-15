@@ -1477,7 +1477,8 @@ describe('the diary of the window', () => {
     const [line] = list.getAllByRole('listitem').filter(one => /Too humid/.test(one.textContent ?? ''));
     // The reader's zone is UTC here; a stamp may lead with its day.
     const stamp = (hours: number) => `(\\w{3}\\s)?${ago(hours).slice(11, 16)}`;
-    expect(line.textContent).toMatch(new RegExp(`^${stamp(7)}, .*Too humid · 2× since ${stamp(9)}`));
+    // The line is of this place, which holds another device: it names its own (`calledIn`).
+    expect(line.textContent).toMatch(new RegExp(`^${stamp(7)}, .*Too humid · Controller B · 2× since ${stamp(9)}`));
     expect(line.textContent).not.toMatch(/until/);
   });
 
@@ -1523,9 +1524,9 @@ describe('the diary of the window', () => {
     const day = (hours: number) => zonedAt(NOW - hours * HOUR, 'UTC').toFormat('ccc');
     expect(lines).toEqual([
       expect.stringMatching(
-        new RegExp(`^${day(40)}\\u00a0${ago(40).slice(11, 16)}, .*Device offline · until ${day(4)}\\u00a0${ago(4).slice(11, 16)}`),
+        new RegExp(`^${day(40)}\\u00a0${ago(40).slice(11, 16)}, .*Device offline · Controller B · until ${day(4)}\\u00a0${ago(4).slice(11, 16)}`),
       ),
-      expect.stringMatching(new RegExp(`^${day(3)}\\u00a0${ago(3).slice(11, 16)}, .*Device offline(?! ·)`)),
+      expect.stringMatching(new RegExp(`^${day(3)}\\u00a0${ago(3).slice(11, 16)}, .*Device offline · Controller B(?! ·)`)),
     ]);
   });
 

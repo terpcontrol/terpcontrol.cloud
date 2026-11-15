@@ -23,8 +23,13 @@ import { countsOf } from '@/api/alarm-rules';
 /** What a row under Steuerung's climate says of the page behind it, in a few words; amber is for what needs a person. */
 export interface RowLine {
   text: string;
+  /** The facts it is made of, where one holds a " · " of its own and stays whole: a lamp's "Licht · Lampenmodul 100 %". */
+  facts?: string[];
   warn?: boolean;
 }
+
+/** A row's line as the facts it is drawn in. */
+export const lineFacts = (line: RowLine): string[] => line.facts ?? line.text.split(' · ');
 
 /**
  * The one rule for a line that sums up a device. What it reported is dated
@@ -211,7 +216,8 @@ export const outputsLine = (
   const byHand = all.some(one => held.has(one.device.id)) || sockets.some(row => forcedOf(row));
   const allAuto = !byHand && sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed);
 
-  return { text: [...facts, allAuto ? t('control.rows.allAuto') : null].filter(Boolean).join(' · '), warn: byHand || waits || burns };
+  const said = [...facts, ...(allAuto ? [t('control.rows.allAuto')] : [])];
+  return { text: said.join(' · '), facts: said, warn: byHand || waits || burns };
 };
 
 /**

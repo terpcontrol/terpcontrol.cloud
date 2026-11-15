@@ -1,4 +1,4 @@
-import type { Camera, Device, Firmware, SpaceKind } from '@fg2/shared-types/v1';
+import type { Camera, Device, Firmware, SpaceKind, TimelineDevice } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
 
 /** What a device is called by: a device the account holds, or one an answer names that it may hold no longer. */
@@ -66,6 +66,30 @@ export const deviceTitle = (device: Called, t: Translate, among?: readonly Calle
   const alike = among?.some(other => other.id !== device.id && deviceName(other, t) === word) ?? true;
 
   return alike ? t('devices.unnamed', { type: word, tag: deviceTag(device) }) : word;
+};
+
+/**
+ * What a line or an alert of a place calls the device it is about, alike in Verlauf, on Start, in the diary and in
+ * Meldungen: as `deviceTitle` among the devices of that place - those standing there now and, of the ones the reader
+ * holds no longer or never did, what the answer says its record names (`told`, `SpaceTimeline.devices` and its like),
+ * which is all that is known of them. A line that names no place is read where the device stands. `alone` is whether
+ * the place is known to hold no other, where a line need not say which device it means.
+ */
+export const calledIn = (
+  deviceId: string,
+  spaceId: string | null,
+  t: Translate,
+  every: readonly Pick<Device, 'id' | 'name' | 'type' | 'spaceId'>[] | undefined,
+  told: readonly TimelineDevice[] = [],
+): { name: string; alone: boolean } | null => {
+  const held = new Set((every ?? []).map(one => one.id));
+  const place = spaceId ?? every?.find(one => one.id === deviceId)?.spaceId ?? null;
+  const among: Called[] = [
+    ...(every ?? []).filter(one => one.id === deviceId || (place !== null && one.spaceId === place)),
+    ...told.filter(one => !held.has(one.deviceId)).map(one => ({ id: one.deviceId, name: one.name, type: one.type })),
+  ];
+  const device = among.find(one => one.id === deviceId);
+  return device ? { name: deviceTitle(device, t, among), alone: among.length === 1 } : null;
 };
 
 /** The devices standing where a device stands (or in `spaceId`, where it is about to), itself among them: the list its card is drawn in. */

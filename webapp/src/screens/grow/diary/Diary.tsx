@@ -82,6 +82,7 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
     plants: plants.data?.items ?? [],
+    devices: diary.data.pages.flatMap(page => page.devices),
     thumbnails: false,
     correct: (entry, dayNumber) => correcting(entry, { label: grow.name, dayNumber, ...growStanding(grow) }),
     curveOf: (metric, at) => {

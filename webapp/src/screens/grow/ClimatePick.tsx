@@ -16,7 +16,7 @@ import { useLead } from '../control/lead';
 import { draftOf, prefilled } from '../control/targets/targets-draft';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
-import { darkFigures, figuresSaid, heldNow, KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
+import { darkFigures, figuresSaid, heldNow, KEEP_CLIMATE, useGrowsBeside, usePlaceController, type PhaseClimate } from './phase-climate';
 
 /**
  * Whether moving the grow into a stage also moves the tent's climate - asked
@@ -50,11 +50,14 @@ import { darkFigures, figuresSaid, heldNow, KEEP_CLIMATE, usePlaceController, ty
 export function ClimatePick({
   stage,
   spaceId,
+  growId,
   value,
   onChange,
 }: {
   stage: GrowthStage;
   spaceId: string | null;
+  /** The grow the phase is entered for: a climate chosen here names every other grow standing in the place. */
+  growId: string | null;
   value: PhaseClimate;
   onChange: (value: PhaseClimate) => void;
 }) {
@@ -64,6 +67,7 @@ export function ClimatePick({
   const humidifier = useHumidifier(controller);
   // Each lamp of the place is set on its own: a climate that sets the controller's light says whose, and what the others keep.
   const lamps = lampsAmong(useLead(spaceId).devices.items);
+  const beside = useGrowsBeside(spaceId, growId);
 
   if (!controller?.configuration) return null;
   if (!writesClimate(stage)) return <p className={ui.note}>{t('climatePick.noClimate', { stage: t(`home.stage.${stage}`) })}</p>;
@@ -76,14 +80,19 @@ export function ClimatePick({
   const chosen = preset ? prefilled(now, preset) : null;
   const offset = offsetOf(serverNow(), zone);
   const lampsWords = lampsSaid(t, controller, lamps, darkStage(stage), serverNow(), zone);
+  const held = heldNow(t, controller, offset)?.figures ?? figuresSaid(t, now, null, offset);
 
   // What the devices hold once the phase is written, in figures: the chosen climate, germination's being dark, or -
   // left as they are - what they hold now (`heldNow`).
   const after = (): string => {
     if (chosen && stage === 'germination') return darkFigures(t, chosen.nightTemperature, chosen.nightHumidity);
     if (chosen) return figuresSaid(t, chosen, preset, offset);
-    return heldNow(t, controller, offset)?.figures ?? figuresSaid(t, now, null, offset);
+    return held;
   };
+  // A climate is the place's: chosen beside another grow, it is said whom else it reaches and what that grow had.
+  const alsoFor = beside
+    .map(other => (other.summary.stage ? t('climatePick.growIn', { name: other.name, stage: t(`home.stage.${other.summary.stage}`) }) : other.name))
+    .join(', ');
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
@@ -101,6 +110,7 @@ export function ClimatePick({
       <p className={ui.note} role="status">
         <Facts facts={factsOf(t(chosen ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
+      {chosen && alsoFor ? <p className={ui.note}>{t('climatePick.alsoFor', { grows: alsoFor, figures: held })}</p> : null}
       {chosen && lampsWords ? <p className={ui.note}>{lampsWords}</p> : null}
       {/* Left as they are, every other lamp keeps its own times too. */}
       {chosen

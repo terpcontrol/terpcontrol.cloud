@@ -55,7 +55,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   const plants = useGrowPlants(growId);
   const spaces = useSpaces();
   const mayWith = useMayWith();
-  // "Grow teilen" in a place's menu opens the grow on its share sheet.
+  // "Grow teilen" in a place's menu opens the grow on its share sheet, a rule resting with the phase on the phase's.
   const [params] = useSearchParams();
 
   // While the grow is on its way the page is already Grow, under its own heading.
@@ -95,7 +95,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
           spaces={spaces.data?.items ?? []}
           mayManage={mayManage}
           mayOwn={mayOwn}
-          sharing={params.get('share') === '1'}
+          opening={params.get('share') === '1' ? 'share' : params.get('phase') === '1' ? 'phase' : null}
         />
       </GrowHead>
       <RefreshFailed failedAt={grow.isError ? grow.dataUpdatedAt : null} now={now} />

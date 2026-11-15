@@ -51,7 +51,12 @@ export function MoveSheet({
   const here = grow.summary.locations.length === 1 ? grow.summary.locations[0].spaceId : null;
   const open = placesFor(spaces).filter(space => space.id !== here);
   const nowhere = grow.summary.locations.length > 0;
-  const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
+  const [picked, setSpaceId] = useState<string | null | undefined>(undefined);
+  // A destination is one still offered: a move taken back below makes the place picked the one the grow stands in, and
+  // the button then named a move to where it already was.
+  const offered = (id: string | null | undefined) => (id === null ? nowhere : open.some(space => space.id === id));
+  const first = open.find(space => !standsIn(grow, space.id))?.id ?? (nowhere ? null : undefined);
+  const spaceId = offered(picked) ? picked : first;
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   // Now as the server reckons it. The day field below caps at the server's
   // today, so a browser running fast would open this sheet on a day its own
@@ -64,7 +69,7 @@ export function MoveSheet({
   const moved = () => {
     onClose();
     const name = chosen === null ? grow.name : t('grow.lifecycle.somePlants', { count: chosen.length });
-    const label = spaceId === null ? t('grow.told.movedNowhere', { name }) : t('grow.told.moved', { place: placeName(t, spaces, spaceId), name });
+    const label = spaceId == null ? t('grow.told.movedNowhere', { name }) : t('grow.told.moved', { place: placeName(t, spaces, spaceId), name });
     tell({ label, undo: null });
   };
 
@@ -94,7 +99,13 @@ export function MoveSheet({
           <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
         ) : (
           <Block label={t('grow.lifecycle.move.moveTo')}>
-            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={open} nowhere={nowhere} chosen={spaceId} onChoose={setSpaceId} />
+            <PlaceChoices<null | undefined>
+              label={t('grow.lifecycle.move.moveTo')}
+              places={open}
+              nowhere={nowhere}
+              chosen={spaceId}
+              onChoose={setSpaceId}
+            />
 
             <PlantPicker
               plants={plants}
@@ -111,10 +122,17 @@ export function MoveSheet({
             <button
               type="button"
               className={`${ui.button} ${ui.primary} ${styles.submit}`}
-              disabled={move.isPending}
-              onClick={() => move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: moved })}
+              disabled={move.isPending || spaceId === undefined}
+              onClick={() =>
+                spaceId !== undefined &&
+                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: moved })
+              }
             >
-              {move.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.submit', { place: placeName(t, spaces, spaceId) })}
+              {move.isPending
+                ? t('grow.lifecycle.saving')
+                : spaceId === undefined
+                  ? t('grow.lifecycle.actions.move')
+                  : t('grow.lifecycle.move.submit', { place: placeName(t, spaces, spaceId) })}
             </button>
           </Block>
         )}
@@ -268,20 +286,30 @@ function PlacementWithdrawal({ grow, placement, spaces, onDone }: { grow: GrowLi
 
   return (
     <div className={styles.editor}>
-      <ul className={`${ui.effects} ${styles.effect}`}>
-        <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
-        {before ? (
-          <li>
-            {t(`grow.lifecycle.move.backTo.${placement.plantIds === null ? 'grow' : 'plants'}`, { place: placeName(t, spaces, before.spaceId) })}
-          </li>
-        ) : null}
-        <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
-      </ul>
+      {/* The stay a grow first stood in was no move: what a withdrawal does is not said of it, only why it cannot go. */}
+      {standsNowhere ? null : (
+        <ul className={`${ui.effects} ${styles.effect}`}>
+          <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
+          {before ? (
+            <li>
+              {t(`grow.lifecycle.move.backTo.${placement.plantIds === null ? 'grow' : 'plants'}`, { place: placeName(t, spaces, before.spaceId) })}
+            </li>
+          ) : null}
+          <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
+        </ul>
+      )}
 
       {standsNowhere && !withdraw.error ? <p className={ui.note}>{t('problem.code.grow_stands_nowhere')}</p> : <Refused error={withdraw.error} />}
       <Refused error={move.error} />
 
-      {standsNowhere ? (
+      {/* A first stay at no fixed place has no escape: the move it would start with goes where the grow stands. */}
+      {standsNowhere && placement.spaceId === null ? (
+        <div className={ui.wrap}>
+          <button type="button" className={ui.button} onClick={onDone}>
+            {t('asking.cancel')}
+          </button>
+        </div>
+      ) : standsNowhere ? (
         <RepairAnswer yes={t('grow.lifecycle.move.nowhereThenWithdraw')} busy={move.isPending || withdraw.isPending} onYes={rescue} onDone={onDone} />
       ) : (
         <RepairAnswer

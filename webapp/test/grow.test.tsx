@@ -5,7 +5,7 @@ import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { LogProvider } from '@/log/LogProvider';
 import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
-import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus, Plant } from '@fg2/shared-types/v1';
+import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Media, MediaRenderStatus, Plant, TimelineDevice } from '@fg2/shared-types/v1';
 import { exportFilename } from '@/api/exports';
 import { useUpdateGrow } from '@/api/grows';
 import { mediaUrl } from '@/api/session';
@@ -677,7 +677,7 @@ describe('a day of the diary', () => {
   const seen: string[] = [];
 
   /** The card as the grow's own page hands it its reader: the sheet that corrects a line, the curve of a moment. */
-  function Card({ one, live, cameras = true }: { one: GrowDiaryDay; live: boolean; cameras?: boolean }) {
+  function Card({ one, live, cameras = true, devices }: { one: GrowDiaryDay; live: boolean; cameras?: boolean; devices?: TimelineDevice[] }) {
     const correcting = useCorrecting();
     const reader: DiaryReader = {
       zone: null,
@@ -687,6 +687,7 @@ describe('a day of the diary', () => {
       cameras,
       byline: session.user.user?.isDemo !== true,
       plants: [],
+      devices,
       thumbnails: false,
       correct: (line, dayNumber) => correcting(line, { label: grow.name, dayNumber, ...growStanding(grow) }),
       curveOf: (metric, moment) => `/timeline?space=space-1${metric ? `&focus=${metric}` : ''}&at=${moment}`,
@@ -1194,13 +1195,14 @@ describe('a day of the diary', () => {
       message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=72, upper threshold=60, lower threshold=n/a'] },
       values: { kind: 'alarm' },
     });
-    const restart = (id: string, deviceId: string) =>
+    const restart = (id: string, deviceId: string, spaceId = 'space-1') =>
       entry({
         id,
         kind: 'system',
         source: 'device',
         authorId: null,
         deviceId,
+        spaceId,
         occurredAt: at(1, 8),
         message: { key: 'message-device-booted', params: ['POWERON'] },
         values: { kind: 'system' } as never,
@@ -1217,7 +1219,7 @@ describe('a day of the diary', () => {
       }),
     );
     onTestFinished(() => void (globalThis.fetch = before));
-    drawDay(day(1, { entries: [humid, restart('restart', 'lamp-1'), restart('restart-alone', 'alone-1')] }));
+    drawDay(day(1, { entries: [humid, restart('restart', 'lamp-1'), restart('restart-alone', 'alone-1', 'space-2')] }));
 
     await waitFor(() => expect(linesOf()[0]).toMatch(/Too humid · Lamp module/));
     expect(linesOf()).toEqual([
@@ -1225,6 +1227,50 @@ describe('a day of the diary', () => {
       expect.stringMatching(/rebooted · Lamp module/),
       expect.not.stringMatching(/ · (Controller|Cellar)/),
     ]);
+  });
+
+  /**
+   * "15:00 Gerät offline · bis 15:12" stood unnamed between two "· Zeltcontroller" lines: the lamp had been given up, and
+   * the diary knew no name for a device the reader no longer holds. It names it as Verlauf does, from what the answer
+   * says the devices of its lines are called - with its tag beside another of its kind.
+   */
+  it('names a device the reader holds no longer as Verlauf does, from what the diary was told', async () => {
+    const offline = (id: string, deviceId: string) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId,
+        severity: 'warning',
+        occurredAt: at(1, 9),
+        message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+        values: { kind: 'alarm' },
+      });
+    const before = globalThis.fetch;
+    globalThis.fetch = vi.fn(async () =>
+      json({
+        items: [
+          { id: 'ctrl-1', type: 'controller', name: null, spaceId: 'space-1' },
+          { id: 'lamp-held', type: 'light', name: null, spaceId: 'space-1' },
+        ],
+        nextCursor: null,
+      }),
+    );
+    onTestFinished(() => void (globalThis.fetch = before));
+    draw(
+      <Card
+        one={day(1, { entries: [offline('named', 'lamp-named'), offline('unnamed', 'lamp-gone')] })}
+        live={false}
+        devices={[
+          { deviceId: 'lamp-named', name: 'c8 Lampe', type: 'light' },
+          { deviceId: 'lamp-gone', name: null, type: 'light' },
+        ]}
+      />,
+    );
+
+    await waitFor(() => expect(linesOf().join('\n')).toMatch(/Device offline · Lamp module · GONE/));
+    expect(linesOf().join('\n')).toMatch(/Device offline · c8 Lampe/);
   });
 
   /** "Wartung in der App gestartet" is somebody's doing, though a device wrote it: no "von allein". */

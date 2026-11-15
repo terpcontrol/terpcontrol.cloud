@@ -224,10 +224,11 @@ describe('claiming a device with a place to join', () => {
     expect(await db.spaces.findOne({ id: claimed.device.spaceId }).lean()).toMatchObject({ name: 'Zelt 2', kind: 'tent' });
   });
 
+  // A fan's place was "Zelt" of the kind "Sonstiges", and its share page said so: what is called a tent is one.
   it.each([
     ['fridge', 'Kühlschrank', 'fridge'],
-    ['fan', 'Zelt', 'other'],
-  ])('calls the place a %s gets "%s": the type is known to the server alone', async (type, name, kind) => {
+    ['fan', 'Zelt', 'tent'],
+  ])('calls the place a %s gets "%s", of the kind its name says: the type is known to the server alone', async (type, name, kind) => {
     await db.spaces.deleteMany({});
     await unclaimed(type);
 
@@ -239,7 +240,7 @@ describe('claiming a device with a place to join', () => {
   it.each([
     ['controller', 'Tent'],
     ['fridge', 'Fridge'],
-    ['plug', 'Place'],
+    ['plug', 'Tent'],
   ])('calls the place of a %s claimed without a name "%s"', async (type, word) => {
     await unclaimed(type);
 

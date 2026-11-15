@@ -7,13 +7,13 @@ import { Rail } from '@/app/shell/Rail';
 import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { Alerts } from '@/screens/Alerts';
-import { crossedBound, worstFirst } from '@/screens/alerts/inbox';
+import { crossedBound, lastedWords, worstFirst } from '@/screens/alerts/inbox';
 import { forgetKept } from '@/ui/kept';
 import { alertLabel } from '@/ui/units';
 import { deviceWith, rulePage } from './fixtures';
 import { drawAt, json, reading } from './harness';
 import { spaceWhere, THE_HOST } from './session';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * The inbox behind the bell is the alarm engine's own record drawn as it came,
@@ -809,6 +809,20 @@ describe('the inbox', () => {
     expect(await screen.findByText(reading(`${since} · Flower room B · Blue Dream tent · 68 % · above 60 %`))).toBeInTheDocument();
   });
 
+  /** "Zelt 4 · Lampenmodul · 95 %" where Zelt 4 holds three: Verlauf names the lamp with its tag, and so does Meldungen. */
+  it('names an unnamed device by its type and its tag where the place holds another of its kind, as Verlauf does', async () => {
+    server.devices = [
+      deviceRow({ id: 'lamp-b8l3', type: 'light', name: null }),
+      deviceRow({ id: 'lamp-b7l2', type: 'light', name: null }),
+      deviceRow({ id: 'device-2', name: 'Cutting fridge' }),
+    ];
+    server.alerts = [alert({ deviceId: 'lamp-b8l3' })];
+    server.rules = [rule({ deviceId: 'lamp-b8l3' })];
+    draw();
+
+    expect(await screen.findByText(reading(`${since} · Flower room B · Lamp module · B8L3 · 68 % · above 60 %`))).toBeInTheDocument();
+  });
+
   it('draws the cards as soon as the alerts are there, under the place each names, waiting for no list to do it', async () => {
     let arrive = () => {};
     state.hold = {
@@ -1115,7 +1129,8 @@ describe('the inbox', () => {
     draw();
 
     const sheet = await openRow(/^Humidity too high for 1 h/);
-    expect(sheet).toHaveAccessibleName('Humidity too high for 1 h');
+    // An hour and twenty minutes: never rounded down to the hour.
+    expect(sheet).toHaveAccessibleName('Humidity too high for 1 h 20 min');
     expect(
       within(sheet).getByText(reading(`${clock(began)} · Flower room B · worst 71 % · above 60 % · back on target since then`)),
     ).toBeInTheDocument();
@@ -1155,7 +1170,7 @@ describe('the inbox', () => {
       server.ended = [{ id: 'space-gone', name: 'Old tent' }];
       draw();
 
-      await waitFor(() => expect(overRows()).toEqual([['Humidity too high for 1 h', `Old tent · ${stamp(NOW.minus({ hours: 1 }))}`]]));
+      await waitFor(() => expect(overRows()).toEqual([['Humidity too high for 1 h 20 min', `Old tent · ${stamp(NOW.minus({ hours: 1 }))}`]]));
       const sheet = await openRow(/^Humidity too high for 1 h/);
       expect(within(sheet).getByText(reading(/ · Old tent · worst 71 % · above 60 % · back on target since then$/))).toBeInTheDocument();
       expect((await within(sheet).findByRole('link', { name: 'Open Timeline' })).getAttribute('href')).toMatch(/^\/timeline\?space=space-gone&/);
@@ -1765,6 +1780,18 @@ describe('what is due', () => {
 });
 
 describe('the arithmetic behind the cards', () => {
+  /** "Luftfeuchte 4 Std zu hoch" stood for 4 h 39 min: a length that is over keeps its minutes, in one family of words. */
+  it('says how long episodes stood in hours and minutes, never rounded down, and days written out', async () => {
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    const de = i18next.getFixedT('de');
+    expect(lastedWords(de, 4 * 3600 + 39 * 60 + 30)).toBe('4 Std 39 Min');
+    expect(lastedWords(de, 2 * 3600)).toBe('2 Std');
+    expect(lastedWords(de, 22 * 60)).toBe('22 Min');
+    expect(lastedWords(de, 27 * 3600 + 50 * 60)).toBe('1 Tag 3 Std');
+    expect(lastedWords(de, 40)).toBe('40 s');
+    i18next.removeResourceBundle('de', 'translation');
+  });
+
   /**
    * A band that is moved while its episode is open leaves the alert with the
    * reading it was raised on and the rule with an edge that reading never went

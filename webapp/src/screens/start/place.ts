@@ -26,7 +26,7 @@ import { fieldValue } from '@/ui/advanced/field-values';
 import { deviceLiveness, offlineLabel, silentSince, sinceLabel, valueAge } from '@/ui/age';
 import { darkReasonOf, figureOf, statesTargets } from '@/ui/climate-hardware';
 import type { Quiet } from '@/ui/maintenance';
-import { deviceName } from '@/ui/naming';
+import { deviceTitle } from '@/ui/naming';
 import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
@@ -363,7 +363,8 @@ export const contradictedModeOf = (device: Device | null, stage: GrowthStage | n
  * A place's open alert as its card lists it, about a device where the account's own list of alerts names one:
  * `device` for one gone silent, `sensor` for the device a reading is of where another here measures it too.
  */
-export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device; sensor?: Device };
+/** `among` is the place's devices, beside which a device named carries its tag where another is called alike, as in Meldungen. */
+export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device; sensor?: Device; among?: Device[] };
 
 /**
  * A place's open alerts for its status: each with the device the account's
@@ -376,9 +377,9 @@ export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device
 export const placeAlerts = (listed: OpenAlert[], open: readonly Alert[] | undefined, here: Device[], now: DateTime): PlaceAlert[] =>
   listed.flatMap((alert): PlaceAlert[] => {
     const deviceId = open?.find(one => one.id === alert.alertId)?.deviceId ?? null;
-    if (!isSilence(alert)) return [{ ...alert, deviceId, ...sensorOf(alert, deviceId, here) }];
+    if (!isSilence(alert)) return [{ ...alert, deviceId, ...sensorOf(alert, deviceId, here), among: here }];
     const device = here.find(one => one.id === deviceId);
-    return device && deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? [{ ...alert, deviceId, device }] : [];
+    return device && deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? [{ ...alert, deviceId, device, among: here }] : [];
   });
 
 /** The device a reading's alert is about, where another device of the place measures the same: "62 %" alone would be read as the lead's. */
@@ -534,8 +535,8 @@ const statusWords = (t: Translate, status: Status, now: DateTime, zone: string |
       const alert = { ...status.alert, name: status.alert.name && ruleTitle(t, { name: status.alert.name }) };
       // A device of the place gone silent beside one that reports is named, as Meldungen names it.
       const what = alert.device
-        ? t('alerts.title.offline', { what: deviceName(alert.device, t) })
-        : [alertLabel(t, alert, now, zone), alert.sensor && deviceName(alert.sensor, t)].filter(Boolean).join(' · ');
+        ? t('alerts.title.offline', { what: deviceTitle(alert.device, t, alert.among) })
+        : [alertLabel(t, alert, now, zone), alert.sensor && deviceTitle(alert.sensor, t, alert.among)].filter(Boolean).join(' · ');
       const since = t('start.status.since', { time: sinceLabel(alert.device ? silentSince(alert) : alert.startedAt, now, zone) });
       return `${what} · ${since}`;
     }

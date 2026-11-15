@@ -128,7 +128,7 @@ export function DeviceDiagnosis() {
             <div className={styles.cardNote}>
               <Lines>
                 {/* Each line as the diary says it, stamped with its hour: support reads when, not only on which day. */}
-                {foldRepeats(lines.data.items).map(({ entry, count, since }) => (
+                {foldRepeats(lines.data.items, true).map(({ entry, count, since }) => (
                   <Line key={entry.id} stamp={sinceLabel(entry.occurredAt, now, zone)} severity={warningOf(entry)}>
                     <EntryWords entry={entry} people={[]} now={now} zone={zone} byline={false} brief repeats={count > 1 ? { count, since } : null} />
                   </Line>
