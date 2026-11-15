@@ -24,7 +24,7 @@ import {
   silenceOf,
 } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { UNIT, targetFigure } from '@/ui/units';
-import { CO2_HOLDERS, hasCo2Sensor, outputWord } from '@/ui/climate-hardware';
+import { CO2_HOLDERS, hasCo2Sensor, outputWord, outputsOf } from '@/ui/climate-hardware';
 import { looseFigure } from '@/ui/figures';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { timeOf } from '@/screens/notifications/settings';
@@ -63,21 +63,8 @@ export const watchesOffline = (watch: AlarmWatch | RuleDraft['watch']): boolean 
 /** What a rule is called, here and wherever else it is named. */
 export { metricName, ruleTitle } from '@/i18n/alarm-line';
 
-/**
- * The outputs each kind of hardware drives, from the list of what every type
- * reports in `docs/device-protocol.md`, section 5.4. A rule can only watch a
- * series the device actually sends, so a tent controller is not offered the
- * fridge's three fans and a fridge is not offered a relay.
- */
-const OUTPUTS_OF: Record<string, OutputMetric[]> = {
-  controller: ['dehumidifier', 'heater', 'light', 'co2'],
-  fridge: ['co2', 'dehumidifier', 'heater', 'light', 'fanInternal', 'fanExternal', 'fanBackwall'],
-  plug: ['relais'],
-  fan: ['fan'],
-  light: ['light'],
-};
-
-export const outputsOf = (device: Device): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
+/** A rule can only watch a series the device actually sends, so a tent controller is not offered the fridge's three fans and a fridge is not offered a relay. */
+export { outputsOf };
 
 /** What an output is called on this kind of hardware, so "Kompressor läuft dauerhaft" is found where it is looked for. */
 export const outputName = (t: Translate, output: OutputMetric, deviceType: string | null): string =>

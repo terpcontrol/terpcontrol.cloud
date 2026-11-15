@@ -718,6 +718,14 @@ describe("the controller's own light output", () => {
     expect(lightOutputOf(device({}), none, null)).toBeNull();
   });
 
+  // A climate meant for the place once wrote a lamp's limit into an AIR fan, and Steuerung drew "Licht" for it.
+  it('is not there for a fan, whatever its document was given', () => {
+    const none: DeviceCapabilities = { ...CAPABILITIES, lightOverride: false };
+    const fan = device({ day: { temperature: 25 }, lights: LIGHTS, daynight: { day: 21600, night: 64800 } }, 'fan');
+
+    expect(lightOutputOf(fan, none, null)).toBeNull();
+  });
+
   /** A Light keeps its brightness at the top of its document and reads nothing else, so a lamp capped at 0 % was no light output at all. */
   it('reads a Light´s brightness where the Light keeps it, and tells it of no hold it could never take', () => {
     const lamp = device({ day: 21600, night: 79200, sunrise: 0, sunset: 0, limit: 0 }, 'light');

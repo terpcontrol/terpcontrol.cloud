@@ -88,3 +88,18 @@ export const germinates = (device: Device | null): boolean => darkReasonOf(devic
  */
 export const outputWord = <O extends OutputMetric>(output: O, fridge: boolean): O | 'compressor' =>
   fridge && output === 'dehumidifier' ? 'compressor' : output;
+
+/**
+ * The outputs each kind of hardware drives, from the list of what every type
+ * reports in `docs/device-protocol.md`, section 5.4: what an alarm rule may
+ * watch, and which devices of a place light it.
+ */
+const OUTPUTS_OF: Record<string, OutputMetric[]> = {
+  controller: ['dehumidifier', 'heater', 'light', 'co2'],
+  fridge: ['co2', 'dehumidifier', 'heater', 'light', 'fanInternal', 'fanExternal', 'fanBackwall'],
+  plug: ['relais'],
+  fan: ['fan'],
+  light: ['light'],
+};
+
+export const outputsOf = (device: Pick<Device, 'type'>): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];

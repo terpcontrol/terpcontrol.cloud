@@ -45,6 +45,7 @@ import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-aler
 import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from '@/migrations/steps/032-resting-reminders-of-ended-grows';
 import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place';
+import { fansWithoutALamp } from '@/migrations/steps/034-fans-without-a-lamp';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -559,6 +560,37 @@ describe('the CO2 sensor of a fridge', () => {
     expect(await hardwareOf('fridge-stale')).toEqual({ sockets: 'none' });
     expect(await hardwareOf('controller-without')).toEqual({ co2: 'off' });
     expect(context.stats).toMatchObject({ 'devices.fridgeCo2ReportCleared': 1 });
+  });
+});
+
+describe('a fan given a lamp', () => {
+  const documentOf = async (id: string) => (await one<{ configuration: Record<string, unknown> | null }>('devices', { id }))?.configuration;
+
+  it('takes the lamp´s sections out of a fan, leaves a controller´s and the fan´s targets alone, and finds nothing a second time', async () => {
+    const targets = { day: { temperature: 25, humidity: 50, max_speed: 100 }, night: { temperature: 20, humidity: 50, max_speed: 60 } };
+    await collection('devices').insertMany([
+      { id: 'fan-given-a-lamp', type: 'fan', configuration: { mode: 3, ...targets, lights: { limit: 100 }, daynight: { day: 21600, night: 64800 } } },
+      { id: 'fan-as-it-came', type: 'fan', configuration: { mode: 0, ...targets } },
+      { id: 'fan-never-heard', type: 'fan', configuration: null },
+      { id: 'controller', type: 'controller', configuration: { ...targets, lights: { limit: 80 }, daynight: { day: 21600, night: 64800 } } },
+    ]);
+
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await fansWithoutALamp.run(rehearsal);
+    expect(rehearsal.stats).toEqual({ 'devices.fanLampSectionsRemoved': 1, rejected: 0 });
+    expect(await documentOf('fan-given-a-lamp')).toHaveProperty('lights');
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await fansWithoutALamp.run(context);
+    expect(await documentOf('fan-given-a-lamp')).toEqual({ mode: 3, ...targets });
+    expect(await documentOf('fan-as-it-came')).toEqual({ mode: 0, ...targets });
+    expect(await documentOf('fan-never-heard')).toBeNull();
+    expect(await documentOf('controller')).toMatchObject({ lights: { limit: 80 }, daynight: { day: 21600, night: 64800 } });
+    expect(context.stats).toEqual({ 'devices.fanLampSectionsRemoved': 1, rejected: 0 });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await fansWithoutALamp.run(again);
+    expect(again.stats).toEqual({ 'devices.fanLampSectionsRemoved': 0, rejected: 0 });
   });
 });
 

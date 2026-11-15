@@ -4,6 +4,7 @@ import type { Device, DeviceCapabilities, DeviceConfiguration, SocketRole } from
 import { figureAt, finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import type { OutputLevel } from '@/api/devices';
 import { isAhead } from '@/ui/age';
+import { outputsOf } from '@/ui/climate-hardware';
 import { readStored, writeStored } from '@/ui/stored';
 import type { Held } from './HandHold';
 
@@ -61,13 +62,15 @@ export interface LightOutput {
  * The light output of one device, or null where nothing says it drives one.
  *
  * Three witnesses, in the order they are worth: a build that announced the
- * override drives a light, a stored configuration that states a brightness is a
- * device that has one, and a level that has been reported is the lamp itself. A
- * device type is deliberately not one of them - the set of types grows with the
- * hardware, and a plug that one day gained a dimmed output would be missed.
+ * override drives a light, a level that has been reported is the lamp itself,
+ * and a stored configuration that states a brightness is a device that has one
+ * - where its kind of hardware drives a light at all (`outputsOf`). A document
+ * is what the server wrote into it, too: an AIR fan once given a lamp's limit
+ * by a climate meant for the place drew a light output it does not have.
  */
 export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, level: OutputLevel | null): LightOutput | null => {
-  if (!capabilities.lightOverride && lightLimitOf(device.configuration, device.type) === null && level === null) return null;
+  const statesBrightness = lightLimitOf(device.configuration, device.type) !== null && outputsOf(device).includes('light');
+  if (!capabilities.lightOverride && !statesBrightness && level === null) return null;
 
   return { deviceId: device.id, level, type: device.type, takesOverride: capabilities.lightOverride };
 };

@@ -664,6 +664,21 @@ describe('what a preset and a plan step write', () => {
     expect(presetConfiguration('flowering', null, always, true)?.daynight).toEqual({ day: 8 * HOUR, night: 20 * HOUR, linearChange: 1 });
   });
 
+  it('writes a section only into a document that carries it: an AIR fan gets its targets and no lamp', () => {
+    const fan = {
+      mode: 3,
+      min_speed: 10,
+      day: { temperature: 25, humidity: 60, fixed_speed: 50, max_speed: 100 },
+      night: { temperature: 22, humidity: 55, fixed_speed: 30, max_speed: 60 },
+    };
+    const preset = presetConfiguration('flowering', null, fan, true);
+
+    expect(Object.keys(preset ?? {}).sort()).toEqual(['day', 'night']);
+    expect(preset?.day).toMatchObject({ fixed_speed: 50, max_speed: 100 });
+    // A document written flat by an older client carries its sections all the same.
+    expect(presetConfiguration('flowering', null, { 'day.temperature': 25, 'lights.limit': 80 }, false)).toHaveProperty('lights.limit', 100);
+  });
+
   const step = (over: Partial<PlanStep>): PlanStep => ({
     id: 'step',
     name: 'Veg',

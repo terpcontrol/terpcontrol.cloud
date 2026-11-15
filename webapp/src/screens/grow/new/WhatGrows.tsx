@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import type { GerminationChoices as Choices, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { serverNow } from '@/api/clock';
 import { useGrows } from '@/api/grows';
 import { useSpaces } from '@/api/spaces';
@@ -55,6 +56,10 @@ const NOWHERE = '';
  * not sent its settings yet is put on the climate as they arrive, so a stage
  * chosen before its first report is sent all the same, and the toast says it
  * waits.
+ *
+ * A place whose one device with targets is an AIR fan holds no climate: the
+ * stage sets the fan's targets and nothing else, and the button says that
+ * rather than "Klima".
  *
  * Drawn on a page the button ends the form; as a `sheet` it is the sheet's
  * foot, which stands while the questions scroll.
@@ -189,7 +194,9 @@ export function WhatGrows({
           {busy
             ? t('grow.new.starting')
             : climate && stage
-              ? t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
+              ? controller && !OWN_CLIMATE_TYPES.includes(controller.type)
+                ? t('grow.new.startAndSetTargets', { device: deviceName(controller, t), climate: unbroken(stageChoiceName(t, stage)) })
+                : t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
               : t('home.invite.startGrow')}
         </button>
       )}

@@ -454,6 +454,29 @@ describe('applying a climate preset', () => {
     });
   });
 
+  // An AIR fan states day and night targets, which drive its speed, and has no lamp and no light window to be given.
+  it('writes into a fan alone only the targets its document carries, also with a grow´s first phase', async () => {
+    const fan = await provisionDevice(owner, 'fan');
+    const spaceId = (await owner.client.get(`/v1/devices/${fan.deviceId}`).expect(200)).body.spaceId as string;
+    await owner.client
+      .put(`/v1/devices/${fan.deviceId}/configuration`)
+      .send({ configuration: { mode: 3, min_speed: 10, day: { temperature: 25, humidity: 60 }, night: { temperature: 21, humidity: 55 } } })
+      .expect(200);
+    const grow = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Fan run', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }], spaceId })
+        .expect(201)
+    ).body;
+
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering', climate: true }).expect(201);
+
+    const read = (await owner.client.get(`/v1/devices/${fan.deviceId}/configuration`).expect(200)).body.configuration;
+    expect(read).toMatchObject({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20 }, mode: 3 });
+    expect(read).not.toHaveProperty('lights');
+    expect(read).not.toHaveProperty('daynight');
+  });
+
   it('puts the grow standing there into the stage, as the phase of whoever applied the preset', async () => {
     const spaceId = await tentWithAController();
     const grow = (

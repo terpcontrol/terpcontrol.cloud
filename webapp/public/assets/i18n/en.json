@@ -1280,6 +1280,7 @@
       "schemeUnreadable": "That scheme could not be read, so the grow cannot be started on it.",
       "starting": "Starting the grow …",
       "startAndSet": "Start · climate: {{climate}}",
+      "startAndSetTargets": "Start · targets for {{device}}: {{climate}}",
       "plantsRefused": "Plants: a whole number from 1.",
       "stageMissing": "Choose the phase the grow is in now.",
       "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",

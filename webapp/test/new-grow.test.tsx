@@ -250,6 +250,25 @@ describe('the form a grow is started with', () => {
     expect(told[0]).toMatchObject({ label: expect.stringMatching(/ started · climate waits for Tent controller$/), undo: null });
   });
 
+  // An AIR fan holds day and night targets and nothing else: the place has no climate to be put on.
+  it('says a fan´s targets, not a climate, where a fan is all the place holds', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        type: 'fan',
+        name: 'Air fan',
+        configuration: { mode: 3, day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } },
+      },
+    ];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Veg'));
+    expect(screen.queryByRole('button', { name: /climate/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Start · targets for Air fan: Veg/ }));
+
+    await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'vegetative', climate: true }));
+  });
+
   it('writes no climate for the stage the place is already on, though it was tapped', async () => {
     await drawLoaded('space-1');
 

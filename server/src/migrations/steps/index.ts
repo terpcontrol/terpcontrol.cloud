@@ -32,6 +32,7 @@ import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-devi
 import { handSetPhases } from './031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
 import { oneClimateAPlace } from './033-one-climate-a-place';
+import { fansWithoutALamp } from './034-fans-without-a-lamp';
 
 /**
  * In order, and the order matters in eight places:
@@ -98,4 +99,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   handSetPhases,
   restingRemindersOfEndedGrows,
   oneClimateAPlace,
+  fansWithoutALamp,
 ];

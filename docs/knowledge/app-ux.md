@@ -68,7 +68,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - never the length of the day, which read a factory controller's 12 hours of light as "Blüte" (the redesign
   session of 2026-11-14). Where nothing says, a grow started today opens on Sämling - a tent that already
   regulates rarely holds seeds - and one started earlier on no stage, its button held with "Wähl die Phase, in der
-  der Grow gerade ist.": one tap must not record a grow on its first day as flowering.
+  der Grow gerade ist.": one tap must not record a grow on its first day as flowering. A stage chosen there puts
+  the place on its climate and the button says so ("Starten · Klima: Blüte") - where an AIR fan is all that holds
+  targets, the place has no climate, and it says what it sets: "Starten · Zielwerte für Lüfter: Blüte" (the sixth
+  whole-app walk; the server writes the fan its day and night and no lamp, ADR 0001).
 - **Every setting has one place** (Chris, 2026-11-11, decision 7 of the navigation redesign; it replaces the rule
   of 2026-10-06 that Steuerung and the device list draw the same Erweitert): what a place is held at is
   Steuerung's - the light, the targets, the work mode, the outputs -, what is the hardware's is on the device's

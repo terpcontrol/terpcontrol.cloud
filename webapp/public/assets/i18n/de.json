@@ -1290,6 +1290,7 @@
       "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
       "starting": "Grow wird gestartet …",
       "startAndSet": "Starten · Klima: {{climate}}",
+      "startAndSetTargets": "Starten · Zielwerte für {{device}}: {{climate}}",
       "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
       "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
       "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
