@@ -25,6 +25,8 @@ export interface DayDevice {
   hardware: Record<string, string>;
   /** Its raw samples around where its readings left their band and came back (`edgesOf`), by metric, oldest first. */
   samples?: ReadonlyMap<Metric, readonly SeriesPoint[]>;
+  /** Where it stood with the grow, where that is not the whole stretch: its lamp switched nothing for the grow elsewhere. */
+  alongside?: readonly Span[];
 }
 
 /** A share of a day is stated once at least this much of it was judged, and never for less than an hour. */
@@ -233,7 +235,13 @@ const lightOf = (devices: readonly DayDevice[], from: number, to: number, runnin
   const lamp = devices.find(device => (device.history.outputs.find(output => output.output === 'light')?.switchings ?? []).length > 0);
   const inDay = (lamp?.history.outputs.find(output => output.output === 'light')?.switchings ?? []).slice(1).filter(switching => {
     const at = Date.parse(switching.at);
-    return at >= from && at < to;
+    return (
+      at >= from &&
+      at < to &&
+      (lamp?.alongside ?? [{ startsAt: new Date(from), endsAt: new Date(to) }]).some(
+        stay => at >= stay.startsAt.getTime() && at < stay.endsAt.getTime(),
+      )
+    );
   });
   const last = inDay[inDay.length - 1];
   if (!lamp || !last) return [];

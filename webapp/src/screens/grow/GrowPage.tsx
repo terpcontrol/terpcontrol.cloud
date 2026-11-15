@@ -164,7 +164,9 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
   // The date is read where the account is: the day a grow ended on moves with the zone.
   const endedOn = grow.endedAt ? calendarDay(grow.endedAt, zone) : null;
   // A grow that has ended says how long it ran and when it ended; a running one its day and its phase, each explained where it is met.
-  const stage = summary.stage ? stageLabel(t, summary.stage, summary.preset) : t('home.card.noPhase');
+  // A grow reopened after its last plant came down is in no stage: that it is cut is what is true of it, as Start says.
+  const cut = !grow.endedAt && !summary.stage && plants.length > 0 && plants.every(plant => plant.status !== 'active');
+  const stage = summary.stage ? stageLabel(t, summary.stage, summary.preset) : t(cut ? 'start.allCut' : 'home.card.noPhase');
   // How long an ended grow ran, which is also what its bar says where it ended without a phase: "Noch keine Phase" waits for one.
   const ran = endedOn
     ? [summary.dayNumber !== null ? t('grow.days', { count: summary.dayNumber }) : null, t('grow.ended', { date: endedOn })]
@@ -252,9 +254,7 @@ export function GrowHead({ grow, plants, spaces, children = null }: { grow: Grow
       <GrowBar
         grow={{ growId: grow.id, stage: summary.stage, dayNumber: summary.dayNumber }}
         label={
-          summary.stage
-            ? t(endedOn ? 'grow.phaseBarEndedLabel' : 'grow.phaseBarLabel', { stage: t(`home.stage.${summary.stage}`) })
-            : (ran ?? t('home.card.noPhase'))
+          summary.stage ? t(endedOn ? 'grow.phaseBarEndedLabel' : 'grow.phaseBarLabel', { stage: t(`home.stage.${summary.stage}`) }) : (ran ?? stage)
         }
       />
     </header>

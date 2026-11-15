@@ -1210,7 +1210,11 @@
         "confirmWithdraw": "Withdraw this move",
         "nowhereThenWithdraw": "Put the grow nowhere, then withdraw this row",
         "endedNote": "This grow has ended, so it does not move any more. A row below that was recorded wrongly can still be corrected.",
-        "hereNote": "From that day the grow stands here; its time at its old place ends, and what was recorded there stays with it."
+        "hereNote": "From that day the grow stands here; its time at its old place ends, and what was recorded there stays with it.",
+        "backTo": {
+          "grow": "The grow then stands where it stood before: {{place}}.",
+          "plants": "The plants then stand where they stood before: {{place}}."
+        }
       },
       "harvest": {
         "title": "Harvest",
@@ -1288,7 +1292,8 @@
       "stageMissing": "Choose the phase the grow is in now.",
       "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",
       "secondYes": "Start a second grow",
-      "climateAwaited": "climate waits for {{device}}"
+      "climateAwaited": "climate waits for {{device}}",
+      "keepsClimate": "{{grow}} is already growing here, so the start sets no climate: what is set stays, for both. Set another one under Control."
     },
     "measurements": {
       "title": "Measurements",
@@ -3717,7 +3722,8 @@
       "not_a_stream_address": "A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Every picture in that span was taken with the light off. To film them, use “Put together your own timelapse” with “Lights-off frames” on.",
       "too_few_pictures": "That span holds too few pictures for a film.",
-      "place_holds_a_climate": "A place has one climate, and a controller or fridge module already holds that one. Give this device a place of its own."
+      "place_holds_a_climate": "A place has one climate, and a controller or fridge module already holds that one. Give this device a place of its own.",
+      "grow_stands_nowhere": "This is where the grow first stood – there is no place before it for it to stand in again."
     }
   },
   "alarmLine": {
@@ -4412,7 +4418,7 @@
     "keep": "Leave as they are",
     "keeps": "Stay: {{figures}}",
     "sets": "New: {{figures}}",
-    "figures": "{{light}} · day {{day}} °C · night {{night}} °C · {{humidity}} %",
+    "figures": "{{light}} · day {{day}} °C · {{dayHumidity}} % · night {{night}} °C · {{nightHumidity}} %",
     "dark": "light off · {{day}} °C · {{humidity}} %",
     "noClimate": "{{stage}} has no climate of its own – the targets stay as they are."
   },

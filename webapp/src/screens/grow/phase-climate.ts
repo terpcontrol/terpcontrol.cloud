@@ -113,10 +113,11 @@ export const useHeldNow = (spaceId: string | null) => {
 const darkOf = (figures: Figures, preset: ClimatePreset | null): boolean => preset?.lightHours === null || figures.lightLimit === 0;
 
 /**
- * "Licht an 08:00–02:00 · 18 Std · Tag 25 °C · Nacht 20 °C · 50 %", or the
- * dark of a drying room. The window is said whole: a preset of eighteen hours
- * from the device's eight in the morning burns until two at night, which "18
- * Std" alone never told anybody.
+ * "Licht an 08:00–02:00 · 18 Std · Tag 25 °C · 60 % · Nacht 20 °C · 55 %", or
+ * the dark of a drying room. The window is said whole: a preset of eighteen
+ * hours from the device's eight in the morning burns until two at night, which
+ * "18 Std" alone never told anybody; and each half with its own humidity, which
+ * one figure after the night's read as the night's.
  */
 export const figuresSaid = (t: Translate, figures: Figures, preset: ClimatePreset | null, offset: number): string =>
   t(darkOf(figures, preset) ? 'climatePick.dark' : 'climatePick.figures', {
@@ -124,4 +125,6 @@ export const figuresSaid = (t: Translate, figures: Figures, preset: ClimatePrese
     day: targetFigure(figures.dayTemperature, 'temperature'),
     night: targetFigure(figures.nightTemperature, 'temperature'),
     humidity: targetFigure(figures.dayHumidity, 'humidity'),
+    dayHumidity: targetFigure(figures.dayHumidity, 'humidity'),
+    nightHumidity: targetFigure(figures.nightHumidity, 'humidity'),
   });

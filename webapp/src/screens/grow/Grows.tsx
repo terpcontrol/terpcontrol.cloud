@@ -189,12 +189,15 @@ function Cover({ mediaId }: { mediaId: string | null }) {
   return src && !failed ? <img className={styles.cover} src={src} alt="" loading="lazy" onError={() => setFailed(true)} /> : null;
 }
 
-/** "Tag 29 · Blüte, Woche 3", as the grow's own page states it; a grow with no phase yet says that. */
+/**
+ * "Tag 29 · Blüte, Woche 3", as the grow's own page states it; a grow with no phase yet says that, and one running
+ * on after its last plant came down that every plant is cut - its harvest is then the grow's (`plantIds` empty).
+ */
 const progressOf = (t: Translate, grow: MyGrowCard): (string | null)[] => [
   growDay(t, grow),
   grow.stage
     ? [t(`home.stage.${grow.stage}`), grow.stageWeek !== null ? t('grow.week', { week: grow.stageWeek }) : null].filter(Boolean).join(', ')
-    : t('home.card.noPhase'),
+    : t(!grow.endedAt && grow.harvest?.plantIds.length === 0 ? 'start.allCut' : 'home.card.noPhase'),
 ];
 
 /** Where the grow stands; "Kein fester Ort" for a grow that stands in none, as its own page calls it. */

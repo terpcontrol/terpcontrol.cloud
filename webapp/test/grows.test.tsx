@@ -138,6 +138,21 @@ describe('the page', () => {
     expect(cuttings.querySelector('img')).toBeNull();
   });
 
+  /** A grow reopened after its last plant came down read "Noch keine Phase" here while Start said every plant was down. */
+  it('says every plant is down of a running grow whose last plant came down', async () => {
+    wire.grows = [
+      card('reopened', {
+        name: 'Haze',
+        stage: null,
+        stageWeek: null,
+        harvest: { harvestedAt: '2026-10-01T10:00:00.000Z', wetWeightG: null, dryWeightG: null, plantIds: [] },
+      }),
+    ];
+    draw(<Grows />);
+
+    expect(await screen.findByRole('link', { name: /Haze/ })).toHaveTextContent('Day 33 · Every plant harvested');
+  });
+
   it('says whose a grow is that somebody else runs in a place the grower was let into', async () => {
     draw(<Grows />);
 

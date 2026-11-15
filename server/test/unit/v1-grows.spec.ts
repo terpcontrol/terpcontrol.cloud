@@ -834,6 +834,27 @@ describe('taking a move back', () => {
 
     await expect(grows.removePlacement(grow.id, open.id)).rejects.toThrow(ProblemException);
   });
+
+  it('puts the grow back where it stood when its newest stay is taken back', async () => {
+    const grow = await started();
+    const first = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    const moved = await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlacement(grow.id, moved.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).placements).toMatchObject([{ id: first.id, spaceId: TENT, endedAt: null, plantIds: null }]);
+  });
+
+  it('folds the plants that did not go back into the stay they stood in', async () => {
+    const grow = await started();
+    const first = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    const one = (await plantsOfGrow(grow.id)).slice(0, 1).map(plant => plant.id);
+    const moved = await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: one }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlacement(grow.id, moved.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).placements).toMatchObject([{ id: first.id, spaceId: TENT, endedAt: null, plantIds: null }]);
+  });
 });
 
 // ---------------------------------------------------------------------------

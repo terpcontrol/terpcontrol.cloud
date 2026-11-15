@@ -301,6 +301,21 @@ describe('the form a grow is started with', () => {
     ).toBeInTheDocument();
   });
 
+  it('names a fan´s targets by the stage alone: a fan has no lamp to keep dark', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        type: 'fan',
+        name: 'Air fan',
+        configuration: { mode: 3, day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } },
+      },
+    ];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Germination'));
+    expect(screen.getByRole('button', { name: 'Start · targets for Air fan: Germination' })).toBeInTheDocument();
+  });
+
   it('writes no climate for the stage the place is already on, though it was tapped', async () => {
     await drawLoaded('space-1');
 
@@ -322,6 +337,24 @@ describe('the form a grow is started with', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Start a second grow' }));
 
     await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'germination' }));
+    expect(sent('/grows/grow-new/phases')).not.toHaveProperty('climate');
+  });
+
+  /** Veg chosen beside flowering plants set the Veg climate under them, behind a question that did not say so. */
+  it('only records any stage beside a grow already growing there, and says the climate stays for both', async () => {
+    stack.grows = [standing];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Veg'));
+    expect(
+      screen.getByText(
+        'Autumn run is already growing here, so the start sets no climate: what is set stays, for both. Set another one under Control.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start a grow' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Start a second grow' }));
+
+    await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'vegetative' }));
     expect(sent('/grows/grow-new/phases')).not.toHaveProperty('climate');
   });
 

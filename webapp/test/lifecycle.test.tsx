@@ -761,6 +761,52 @@ describe('the answer of a move and a split', () => {
   });
 });
 
+/** Taking back a move puts the grow back where it stood, and the sheet says so before anything is sent. */
+describe('taking a move back', () => {
+  const tent = spaceWhere('own', { name: 'Blue Dream tent' });
+  const other = spaceWhere('own', { id: 'space-2', name: 'Second tent' });
+  const moved: GrowListItem = {
+    ...grow,
+    placements: [
+      { id: 'pl1', spaceId: 'space-1', startedAt: at(34), endedAt: at(1), plantIds: null },
+      { id: 'pl2', spaceId: 'space-2', startedAt: at(1), endedAt: null, plantIds: null },
+    ],
+    summary: { ...grow.summary, locations: [{ spaceId: 'space-2', plantIds: ['plant-1', 'plant-2', 'plant-3'] }] },
+  };
+  const sheet = (of: GrowListItem) =>
+    drawAt(
+      <LogProvider>
+        <MoveSheet grow={of} plants={plants} spaces={[tent, other]} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+  it('says the grow stands where it stood before, once its newest stay is taken back', () => {
+    sheet(moved);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Withdraw' })[0]);
+
+    expect(screen.getByText('The grow then stands where it stood before: Blue Dream tent.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Withdraw this move' })).toBeInTheDocument();
+  });
+
+  it('says why the stay a grow first stood in cannot go, and offers the move it asks for instead', () => {
+    sheet(grow);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+
+    expect(screen.getByText(/This is where the grow first stood/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Put the grow nowhere, then withdraw this row' })).toBeInTheDocument();
+    expect(screen.queryByText(/changed in the meantime/)).not.toBeInTheDocument();
+  });
+
+  it('offers no move into the place the grow already stands in', () => {
+    sheet(moved);
+    const choices = within(screen.getByRole('group', { name: 'Move to' }))
+      .getAllByRole('button')
+      .map(button => button.textContent);
+
+    expect(choices).toEqual(['Blue Dream tent', 'No fixed place']);
+  });
+});
+
 /**
  * Where a grow that stands nowhere any more stood. `summary.locations` is empty
  * once the last placement is closed, and the sheet read that as a present fact.
@@ -948,7 +994,20 @@ describe('the climate beside a phase', () => {
     expect(within(choices).getByRole('button', { name: 'Late flower' })).toBeInTheDocument();
     expect(within(choices).getByRole('button', { name: 'Auto · Flower' })).toBeInTheDocument();
     // Eighteen hours from six in the morning: said as the window it makes, which ends at midnight.
-    expect(screen.getByText(reading('Stay: Light on 06:00–00:00 · 18 h · day 26 °C · night 22 °C · 62 %'))).toBeInTheDocument();
+    expect(screen.getByText(reading('Stay: Light on 06:00–00:00 · 18 h · day 26 °C · 62 % · night 22 °C · 58 %'))).toBeInTheDocument();
+  });
+
+  /** "Bleiben" named the controller's window alone where a lamp module beside it burns 07:00 to 23:00. */
+  it('says, under the targets left as they are, the times every other lamp keeps', () => {
+    const lamp = { ...standing(), id: 'lamp-1', type: 'light', name: null, configuration: { day: 7 * 3600, night: 23 * 3600, limit: 100 } };
+    hardware.devices = [tent(), lamp as Device];
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={veg} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    expect(screen.getByText(/lamp module.*07:00.*23:00/i)).toBeInTheDocument();
   });
 
   it('puts the tent on the stage´s own climate with the phase when that is chosen, and says what it sets', async () => {
@@ -969,7 +1028,7 @@ describe('the climate beside a phase', () => {
 
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     // A preset moves how long the light is on, never when it comes on: twelve hours from the device's six.
-    expect(screen.getByText(reading('New: Light on 06:00–18:00 · 12 h · day 25 °C · night 20 °C · 50 %'))).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–18:00 · 12 h · day 25 °C · 50 % · night 20 °C · 50 %'))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
 
     await waitFor(() => expect(asked.filter(call => call.method === 'POST')).toHaveLength(1));
@@ -1222,7 +1281,7 @@ describe('the climate beside a phase', () => {
 
     const choices = screen.getByRole('group', { name: 'Targets' });
     expect(within(choices).getByRole('button', { name: 'Seedling · with light' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 24 °C · night 21 °C · 70 %'))).toBeInTheDocument();
+    expect(screen.getByText(reading('New: Light on 06:00–00:00 · 18 h · day 24 °C · 70 % · night 21 °C · 65 %'))).toBeInTheDocument();
 
     // Left as they are, nothing is written: the device goes on germinating in the dark, and the sheet says so.
     fireEvent.click(within(choices).getByRole('button', { name: 'Leave as they are' }));

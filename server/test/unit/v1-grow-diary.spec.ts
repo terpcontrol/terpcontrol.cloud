@@ -48,8 +48,8 @@ const db = useV1TestDatabase();
 let access: AccessService;
 let diary: GrowDiaryService;
 
-/** What the store holds: readings by instant, null for a window nothing was heard in. */
-let measured: (at: Date) => { temperature: number | null; humidity: number | null };
+/** What the store holds: readings by instant and device, null for a window nothing was heard in. */
+let measured: (at: Date, deviceId: string) => { temperature: number | null; humidity: number | null };
 let readWindows: { deviceId: string; startsAt: Date; endsAt: Date }[];
 
 /** The hours of the Berlin clock the lamp is lit between: six in the morning to six in the evening unless a test says otherwise. */
@@ -79,8 +79,8 @@ const sampledIn = (startsAt: number, endsAt: number): number[] => {
   return Array.from({ length: Math.max(0, Math.ceil((endsAt - first) / SAMPLE_MS)) }, (_, index) => first + index * SAMPLE_MS);
 };
 
-const sampleOf = (metric: Metric, at: number): number | null =>
-  metric === 'temperature' ? measured(new Date(at)).temperature : metric === 'humidity' ? measured(new Date(at)).humidity : null;
+const sampleOf = (metric: Metric, at: number, deviceId: string): number | null =>
+  metric === 'temperature' ? measured(new Date(at), deviceId).temperature : metric === 'humidity' ? measured(new Date(at), deviceId).humidity : null;
 
 /** The store's windows over a read: aligned to the step, each stamped at its end. */
 const windowsIn = (request: FakeRequest): number[] => {
@@ -96,7 +96,7 @@ const fakeData = {
     const points = (value: (startsAt: number) => number | null): SeriesPoint[] =>
       windows.map(startsAt => ({ measuredAt: new Date(startsAt + STEP_SECONDS * 1000).toISOString(), value: value(startsAt) }));
     const meanOf = (metric: Metric, startsAt: number): number | null => {
-      const values = sampledIn(startsAt, startsAt + STEP_SECONDS * 1000).flatMap(at => sampleOf(metric, at) ?? []);
+      const values = sampledIn(startsAt, startsAt + STEP_SECONDS * 1000).flatMap(at => sampleOf(metric, at, deviceId) ?? []);
       return values.length === 0 ? null : values.reduce((sum, value) => sum + value, 0) / values.length;
     };
 
@@ -122,13 +122,13 @@ const fakeData = {
       lastSampleAt: (silentFrom && silentFrom < request.endsAt ? silentFrom : request.endsAt).toISOString(),
     };
   },
-  rawSamples: async (_deviceId: string, metrics: readonly Metric[], stretches: readonly { startsAt: Date; endsAt: Date }[]) =>
+  rawSamples: async (deviceId: string, metrics: readonly Metric[], stretches: readonly { startsAt: Date; endsAt: Date }[]) =>
     new Map(
       metrics.map(metric => [
         metric,
         stretches.flatMap(stretch =>
           sampledIn(stretch.startsAt.getTime(), stretch.endsAt.getTime()).flatMap(at => {
-            const value = sampleOf(metric, at);
+            const value = sampleOf(metric, at, deviceId);
             return value === null ? [] : [{ measuredAt: new Date(at).toISOString(), value }];
           }),
         ),
@@ -636,6 +636,28 @@ describe('what a day says about its climate', () => {
     const page = await read();
 
     expect(dayOf(page, 8).climate).toBeNull();
+    expect(dayOf(page, 9).climate).toMatchObject({ temperature: 22.5, humidity: 55 });
+  });
+
+  it('takes each place only for the hours the grow stood there', async () => {
+    // Moved to the spare tent at 15:04 on its tenth day and back at 15:15; the spare tent was ten degrees all day.
+    await db.grows.updateOne(
+      { id: GROW },
+      {
+        $set: {
+          placements: [
+            { id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: berlin(11, '15:04'), plantIds: null },
+            { id: 'placement-2', spaceId: SPARE_TENT, startedAt: berlin(11, '15:04'), endedAt: berlin(11, '15:15'), plantIds: null },
+            { id: 'placement-3', spaceId: TENT, startedAt: berlin(11, '15:15'), endedAt: null, plantIds: null },
+          ],
+        },
+      },
+    );
+    measured = (at, deviceId) => ({ temperature: deviceId === SPARE_CONTROLLER ? 10 : lit(at.getTime()) ? 25 : 20, humidity: 55 });
+    const page = await read();
+
+    // 141 windows lit at 25 °C and 144 dark at 20 °C in the tent, three of ten in the spare tent.
+    expect(dayOf(page, 10).climate).toMatchObject({ temperature: 22.3, humidity: 55 });
     expect(dayOf(page, 9).climate).toMatchObject({ temperature: 22.5, humidity: 55 });
   });
 

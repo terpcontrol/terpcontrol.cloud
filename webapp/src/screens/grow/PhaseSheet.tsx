@@ -226,7 +226,7 @@ function PhaseRow({
       </div>
 
       {open === null ? (
-        <div className={ui.wrap}>
+        <div className={`${ui.wrap} ${styles.rowActions}`}>
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.phase.correct')}
           </button>

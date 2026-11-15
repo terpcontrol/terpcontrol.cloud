@@ -8,7 +8,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, type PlaceCard as Place } from '@/app/places';
-import { ageAttribute, sinceLabel } from '@/ui/age';
+import { ageAttribute, livenessWords, sinceLabel } from '@/ui/age';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
@@ -191,15 +191,18 @@ function PlaceCard({
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? [] : lit, hold: null, now, zone });
   const figures = readingFacts(t, readings);
   const pill = pillOf(t, status);
-  // The pill says "offline" or "Wartung"; the line beside it says since or until when, and not the word a second time.
+  // The pill says "offline", "veraltet" or "Wartung"; the line beside it says since or until when, or how old the
+  // values are, and not the word a second time.
   const said =
     status.kind === 'offline'
       ? status.since
         ? t('start.status.since', { time: sinceLabel(status.since, judged, zone) })
         : null
-      : status.kind === 'maintenance' && status.quiet.parked
-        ? t('start.status.maintenanceUntil', { until: clock(status.quiet.until, zone) })
-        : words;
+      : status.kind === 'stale'
+        ? livenessWords('stale', status.at, judged)[1]
+        : status.kind === 'maintenance' && status.quiet.parked
+          ? t('start.status.maintenanceUntil', { until: clock(status.quiet.until, zone) })
+          : words;
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
   // A place that holds two grows names both: the card's answer carries the newer one alone.
   const others = alsoIn(useGrows(diary && card.grow !== null).data?.items, card.spaceId, card.grow?.growId);
@@ -222,8 +225,8 @@ function PlaceCard({
             </span>
           ) : null}
         </span>
-        {/* A late device is said by the pill alone; what stands open is red where one of it is critical, as on the place's page. */}
-        {status.kind === 'good' || status.kind === 'none' || status.kind === 'stale' ? null : (
+        {/* What stands open is red where one of it is critical, as on the place's page. */}
+        {status.kind === 'good' || status.kind === 'none' ? null : (
           <span className={styles.placeStatus} data-tone={tone}>
             <Facts
               facts={[

@@ -1220,7 +1220,11 @@
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
         "nowhereThenWithdraw": "Grow auf „kein fester Ort“ setzen und diese Zeile zurücknehmen",
         "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren.",
-        "hereNote": "Ab diesem Tag steht der Grow hier; seine Zeit am bisherigen Ort endet, und was dort aufgezeichnet wurde, bleibt bei ihm."
+        "hereNote": "Ab diesem Tag steht der Grow hier; seine Zeit am bisherigen Ort endet, und was dort aufgezeichnet wurde, bleibt bei ihm.",
+        "backTo": {
+          "grow": "Danach steht der Grow wieder dort, wo er davor stand: {{place}}.",
+          "plants": "Danach stehen die Pflanzen wieder dort, wo sie davor standen: {{place}}."
+        }
       },
       "harvest": {
         "title": "Ernte",
@@ -1298,7 +1302,8 @@
       "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
       "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
       "secondYes": "Zweiten Grow starten",
-      "climateAwaited": "Klima wartet auf {{device}}"
+      "climateAwaited": "Klima wartet auf {{device}}",
+      "keepsClimate": "Hier wächst schon {{grow}}, deshalb setzt der Start kein Klima: Was eingestellt ist, bleibt für beide. Ein anderes stellst du unter Steuerung ein."
     },
     "measurements": {
       "title": "Messwerte",
@@ -3727,7 +3732,8 @@
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
       "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film.",
-      "place_holds_a_climate": "Ein Ort hat ein Klima, und dort hält es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort."
+      "place_holds_a_climate": "Ein Ort hat ein Klima, und dort hält es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort.",
+      "grow_stands_nowhere": "Hier stand der Grow zuerst – davor gibt es keinen Ort, an dem er wieder stehen könnte."
     }
   },
   "alarmLine": {
@@ -4422,7 +4428,7 @@
     "keep": "Lassen, wie sie sind",
     "keeps": "Bleiben: {{figures}}",
     "sets": "Neu: {{figures}}",
-    "figures": "{{light}} · Tag {{day}} °C · Nacht {{night}} °C · {{humidity}} %",
+    "figures": "{{light}} · Tag {{day}} °C · {{dayHumidity}} % · Nacht {{night}} °C · {{nightHumidity}} %",
     "dark": "Licht aus · {{day}} °C · {{humidity}} %",
     "noClimate": "{{stage}} hat kein eigenes Klima – die Zielwerte bleiben, wie sie sind."
   },

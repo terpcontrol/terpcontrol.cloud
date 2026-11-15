@@ -596,6 +596,36 @@ describe('the report', () => {
     expect(humid.phases[0].inBandPercent).toBe(0);
   });
 
+  it('takes a place the plants stood in for an hour for that hour, not for the whole phase', async () => {
+    // Moved on day 30 into a second tent, ten degrees colder, for half an hour - whose controller has run all along.
+    await db.spaces.create({ id: 'space-cellar', ownerId: OWNER, kind: 'tent', name: 'Cellar', roomId: null });
+    await db.devices.create({
+      id: 'device-cellar',
+      type: 'controller',
+      ownerId: OWNER,
+      ...standingIn('space-cellar'),
+      configuration: { day: { temperature: 25 }, night: { temperature: 20 } },
+    });
+    await db.grows.updateOne(
+      { id: GROW },
+      {
+        $set: {
+          placements: [
+            { id: 'placement-1', spaceId: TENT, startedAt: ORIGIN, endedAt: onDay(30, 2), plantIds: null },
+            { id: 'placement-3', spaceId: 'space-cellar', startedAt: onDay(30, 2), endedAt: onDay(30, 2.5), plantIds: null },
+            { id: 'placement-4', spaceId: TENT, startedAt: onDay(30, 2.5), endedAt: null, plantIds: null },
+          ],
+        },
+      },
+    );
+    canned = deviceId => ({ temperature: deviceId === 'device-cellar' ? 15 : 25, humidity: 55, co2: null });
+
+    const [flowering] = (await report.read(GROW, await grantFor(session(OWNER)), NOW)).phases;
+
+    expect(flowering.spaceIds).toEqual([TENT, 'space-cellar']);
+    expect(flowering.climate.find(row => row.metric === 'temperature')?.dayAverage).toBeGreaterThan(24.9);
+  });
+
   it('grades no phase that recorded no band, rather than against what the controller runs today', async () => {
     // Every phase of a migrated grow carries `targets: null`, and the fridge
     // they stood in is set for whatever is growing in it now. Judging a

@@ -537,6 +537,16 @@ describe('the head of a grow´s page', () => {
     expect(screen.queryByText(/2 Seedling/)).not.toBeInTheDocument();
   });
 
+  /** Reopened with every plant down, its head read "Noch keine Phase" while Start said "Alle Pflanzen geerntet". */
+  it('says every plant is down of a grow reopened after its last plant came down, as Start does', () => {
+    const cut: GrowListItem = { ...grow, summary: { ...grow.summary, stage: null, preset: null, phaseDay: null, stageWeek: null, groups: [] } };
+    const plant = (id: string) => ({ id, growId: 'grow-1', strain: 'X', label: id, status: 'harvested', harvest: null, createdAt: at(3) }) as Plant;
+    draw(<GrowHead grow={cut} plants={[plant('a'), plant('b')]} spaces={tent} />);
+
+    expect(screen.getAllByText(/Every plant harvested/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/No phase yet/)).not.toBeInTheDocument();
+  });
+
   /** "Blüte, Woche 1 · 1 Blüte, 1 Veg" read as if the whole grow flowered: a split is named by the plants in its stage. */
   it('names a split by the plants in the stage at its head, without the whole grow´s week', () => {
     const split: GrowListItem = {

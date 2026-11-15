@@ -812,25 +812,29 @@ export class GrowsService {
 
   /**
    * A move that never happened. The line that announced it goes with it, because
-   * a diary entry naming a placement that is gone points at nothing.
+   * a diary entry naming a placement that is gone points at nothing - and the stay
+   * the move closed goes on as if it had not been made (`undoneMove`): the plants
+   * stand where they stood, for as long as the stay taken back lasted.
    *
    * A grow always answers where it is - the overview, the diary's days and
    * `access()` all read the open placements to say which spaces a grow is in -
-   * so the last open one is not removed. Saying "nowhere" is a move to a
-   * `spaceId` of null, which is a place a grow can be in rather than the absence
-   * of one.
+   * so the last open one is not removed where no stay before it takes over: the
+   * grow's first. Saying "nowhere" is a move to a `spaceId` of null, which is a
+   * place a grow can be in rather than the absence of one.
    */
   public async removePlacement(growId: string, placementId: string): Promise<void> {
     const grow = await this.require(growId);
-    if (!grow.placements.some(placement => placement.id === placementId)) {
-      throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
-    }
+    const gone = grow.placements.find(placement => placement.id === placementId);
+    if (!gone) throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
 
     // A running grow has to answer where it is now; one that has ended answers
     // where it last stood, which any row left behind can say.
-    const kept = grow.placements.filter(placement => placement.id !== placementId);
+    const kept = undoneMove(grow.placements, gone, await this.scopeOf(grow, null));
     if (grow.endedAt === null ? !kept.some(placement => placement.endedAt === null) : kept.length === 0) {
-      throw conflict('grow_stands_nowhere', 'This is the only placement saying where the grow is. Move the grow instead of removing it.');
+      throw conflict(
+        'grow_stands_nowhere',
+        'This is where the grow first stood, and no stay before it can take over. Move the grow instead of removing it.',
+      );
     }
 
     await this.grows.updateOne({ id: growId }, { $set: { placements: kept } });
@@ -1088,4 +1092,39 @@ const spaceOf = (grow: GrowDocument, plantIds: string[]): string | null => {
 
   const covering = open.find(placement => placement.plantIds === null || placement.plantIds.some(plantId => plantIds.includes(plantId)));
   return covering?.spaceId ?? null;
+};
+
+/**
+ * The placements once a move is taken back. Each stay it closed - ended the instant it began, holding its plants -
+ * runs on to where the stay taken back ended, so the plants stand where they stood; where only some plants had
+ * moved, the row the move opened for those that stayed is folded back into it. A stay closed by hand at another
+ * instant, or one whose stayed plants have moved on since, is left as it is.
+ */
+const undoneMove = (placements: readonly PlacementDocument[], gone: PlacementDocument, everything: readonly string[]): PlacementDocument[] => {
+  const plantsOf = (one: PlacementDocument): string[] => one.plantIds ?? [...everything];
+  const moved = new Set(plantsOf(gone));
+  const rest = placements.filter(one => one.id !== gone.id);
+  const closed = rest.filter(
+    one => one.endedAt?.getTime() === gone.startedAt.getTime() && (gone.plantIds === null || plantsOf(one).some(id => moved.has(id))),
+  );
+  const reopened = closed.flatMap((before): { before: PlacementDocument; behind: PlacementDocument | null }[] => {
+    const stayed = plantsOf(before).filter(id => !moved.has(id));
+    if (stayed.length === 0) return [{ before, behind: null }];
+    // The plants that did not go stood on in a row of their own, which has to be standing still to be folded back.
+    const behind = rest.find(
+      one =>
+        one.endedAt === null &&
+        gone.endedAt === null &&
+        one.spaceId === before.spaceId &&
+        one.startedAt.getTime() === gone.startedAt.getTime() &&
+        one.plantIds !== null &&
+        one.plantIds.length === stayed.length &&
+        stayed.every(id => one.plantIds!.includes(id)),
+    );
+    return behind ? [{ before, behind }] : [];
+  });
+
+  return rest
+    .filter(one => !reopened.some(({ behind }) => behind === one))
+    .map(one => (reopened.some(({ before }) => before === one) ? { ...one, endedAt: gone.endedAt } : one));
 };

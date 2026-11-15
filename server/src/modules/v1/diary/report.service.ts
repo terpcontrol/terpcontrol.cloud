@@ -153,7 +153,7 @@ export class GrowReportService {
 
     const controllers = await this.climate.controllersIn(spaceIds, seen);
     const [climate, coverMediaId] = await Promise.all([
-      this.climate.summarise(controllers, spaceIds, seen, bandOf(chapter)),
+      this.climate.summarise(controllers, stood.placements, seen, bandOf(chapter)),
       this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range).then(
         cover => cover ?? photoOf(entries, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant),
       ),

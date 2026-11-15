@@ -87,6 +87,25 @@ export const stayOf = (placements: readonly DevicePlacement[] | undefined, space
   return to > from ? { startsAt: new Date(from), endsAt: new Date(to) } : null;
 };
 
+/**
+ * The parts of a stretch a device stood where a grow stood: each of the grow's stays over the stretch - its first
+ * reaching back, as a device's does - met with the device's own in that place, oldest first. A grow moved away for
+ * an hour is told neither the place it left for that hour nor the place it went to for the rest of the day.
+ */
+export const staysWith = (
+  placements: readonly DevicePlacement[] | undefined,
+  stays: readonly { spaceId: string | null; startedAt: Date; endedAt: Date | null }[],
+  span: Span,
+): Span[] =>
+  stays
+    .flatMap((stay, index) => {
+      const from = Math.max(span.startsAt.getTime(), index === 0 ? -Infinity : stay.startedAt.getTime());
+      const to = Math.min(span.endsAt.getTime(), stay.endedAt?.getTime() ?? Infinity);
+      const met = stay.spaceId !== null && to > from ? stayOf(placements, [stay.spaceId], { startsAt: new Date(from), endsAt: new Date(to) }) : null;
+      return met ? [met] : [];
+    })
+    .sort((one, other) => one.startsAt.getTime() - other.startsAt.getTime());
+
 /** A device, and the part of a stretch it stood in the places asked about. */
 export interface Stood<T extends Pick<StoredDevice, 'id'> = StoredDevice> {
   device: T;

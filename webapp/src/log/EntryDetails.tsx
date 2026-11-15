@@ -567,7 +567,9 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       ) : null}
       {/* The head names the plants a phase goes to; one that names none says it is the whole grow's, a split rejoined. */}
       {kind === 'phase' && grow && wholeGrow && standing.length > 1 ? (
-        <p className={ui.note}>{t(wholeGrowNote(grow.summary.groups.length > 0, standing.length), { count: standing.length })}</p>
+        <p className={`${ui.note} ${styles.scope}`}>
+          {t(wholeGrowNote(grow.summary.groups.length > 0, standing.length), { count: standing.length })}
+        </p>
       ) : null}
       {kind === 'phase' && grow && stage ? (
         <div className={styles.climate}>

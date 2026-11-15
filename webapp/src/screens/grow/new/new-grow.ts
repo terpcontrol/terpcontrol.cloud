@@ -77,10 +77,10 @@ export const growBody = (plants: { name: string; strain: string; count: number }
 });
 
 /**
- * Whether the stage a new grow begins in is only recorded in a place that
- * already holds a grow. Germination is dark, and the plants growing there need
- * their light: the seeds' darkness is not the default for them. The grower who
- * means it sets "Keimung · dunkel" under Steuerung, where the plants already
- * there are in view.
+ * Whether the stage a new grow begins in is only recorded: in a place that
+ * already holds a grow, whatever the stage. A place has one climate, and the
+ * plants growing there keep theirs - seeds' darkness would take their light,
+ * a Veg day would turn flowering plants back. The grower who means it sets the
+ * climate under Steuerung, where the plants already there are in view.
  */
-export const recordsOnly = (stage: GrowthStage, standing: unknown): boolean => stage === 'germination' && standing !== null;
+export const recordsOnly = (standing: unknown): boolean => standing !== null;

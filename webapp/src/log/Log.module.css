@@ -244,6 +244,11 @@
   margin-top: var(--space-4);
 }
 
+/* Whose phase it is, apart from the chips it is about. */
+.scope {
+  margin-top: var(--space-3);
+}
+
 /* Taking a line back, under everything the line still is. It is the alarm
    colour and only ever an outline: it is offered, not urged. */
 .takingBack {

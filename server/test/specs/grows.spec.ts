@@ -217,6 +217,18 @@ describe('correcting what was written down', () => {
     const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
     expect(read.body.placements.map((row: { id: string }) => row.id)).not.toContain(moved.body.id);
     expect(await diaryOf(grow.id, 'move')).toEqual([]);
+    // The plant stands where it stood, with the rest of the grow, as one stay again.
+    expect(read.body.placements).toMatchObject([{ id: grow.placements[0].id, endedAt: null, plantIds: null }]);
+  });
+
+  it('takes the newest stay of a whole grow back to the stay before it', async () => {
+    const grow = await startAGrow();
+    const moved = await owner.client.post(`/v1/grows/${grow.id}/placements`).send({ spaceId: null }).expect(201);
+
+    await owner.client.delete(`/v1/grows/${grow.id}/placements/${moved.body.id}`).expect(204);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.placements).toMatchObject([{ id: grow.placements[0].id, spaceId: grow.placements[0].spaceId, endedAt: null }]);
   });
 });
 

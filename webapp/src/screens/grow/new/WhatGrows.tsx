@@ -52,8 +52,9 @@ const NOWHERE = '';
  *
  * A stage the form only opened on is recorded and moves nothing. A stage the
  * grower chose puts the place's controller on its climate, and then the button
- * says so - except seeds beside plants already growing there, whose darkness
- * is not theirs (`recordsOnly`). Where that climate is germination's, the form
+ * says so - except beside plants already growing there, whose climate is not
+ * the new grow's to change: there the stage is recorded and the form says why
+ * (`recordsOnly`). Where that climate is germination's, the form
  * asks what germination does about the humidity, as every way of setting
  * germination does - of the device the climate preset is taken on
  * (`usePlaceClimate`) - and only what was moved is sent. A controller that has
@@ -127,8 +128,8 @@ export function WhatGrows({
   const unstaged = stage === null && on !== undefined;
   const stageMissing = useId();
   // A controller that has not sent its settings yet takes the climate as they arrive: it is sent all the same.
-  const climate =
-    picked !== null && picked !== on && (controller !== null || awaiting !== null) && !recordsOnly(picked, spaceId ? growIn(running, spaceId) : null);
+  const steered = picked !== null && picked !== on && (controller !== null || awaiting !== null);
+  const climate = steered && !recordsOnly(there);
   const germinates = climate && stage === 'germination';
   const plants = /^\s*\d+\s*$/.test(count) ? Number(count) : 0;
   const countRefused = plants < 1;
@@ -199,6 +200,7 @@ export function WhatGrows({
         </p>
       ) : null}
       {said.length > 0 && !asking ? <p className={ui.note}>{said.join(' ')}</p> : null}
+      {steered && there ? <p className={ui.note}>{t('grow.new.keepsClimate', { grow: there.name })}</p> : null}
       {/* While the question stands, its yes is the one way on: one filled button, not two. */}
       {asking ? null : (
         <button
@@ -212,7 +214,8 @@ export function WhatGrows({
             ? t('grow.new.starting')
             : climate && stage
               ? controller && !OWN_CLIMATE_TYPES.includes(controller.type)
-                ? t('grow.new.startAndSetTargets', { device: deviceName(controller, t), climate: unbroken(stageChoiceName(t, stage)) })
+                ? // A fan has no lamp: its targets are the stage's, never "dunkel" or "mit Licht".
+                  t('grow.new.startAndSetTargets', { device: deviceName(controller, t), climate: unbroken(t(`home.stage.${stage}`)) })
                 : t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
               : t('home.invite.startGrow')}
         </button>

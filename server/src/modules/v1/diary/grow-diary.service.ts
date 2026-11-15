@@ -7,7 +7,6 @@ import { growDayAt, growOriginOf, stageWeekOf } from '@fg2/shared-types/v1-schem
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { pageOf } from '@common/v1/pages';
 import { peopleNamed } from '@common/v1/people';
-import { stayOf } from '@common/v1/device-placements';
 import { Span, clampRange, overlapsRange, seenOf } from '@common/v1/range';
 import { pageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -144,7 +143,7 @@ export class GrowDiaryService {
     const stretches = page.items.map(week => lifeOf(week, life));
     const recorded = await this.climate.recorded(
       controllers,
-      spaceIds,
+      grow.placements,
       stretches.filter((stretch): stretch is Span => stretch !== null),
     );
     const recordedOf = new Map(
@@ -205,11 +204,10 @@ export class GrowDiaryService {
     // The day's lines are filed by the date; its climate and its picture are of the hours the grow lived.
     const life = lifeOf(seen, { startsAt: world.origin, endsAt: world.horizon });
     const still = world.stills.get(day.dayNumber) ?? null;
-    // Only the controllers that stood where the grow stood that day speak for it.
-    const here = life ? spacesDuring(world.grow, life.startsAt, life.endsAt) : [];
+    // Only the controllers that stood where the grow stood that day speak for it, each for the hours it did.
     const { climate, events } = life
       ? dayClimateOf(
-          devices.filter(device => stayOf(device.placements, here, life) !== null),
+          devices.filter(device => device.alongside.some(stay => stay.startsAt < life.endsAt && stay.endsAt > life.startsAt)),
           life,
           world.grow.endedAt === null && day.endsAt > world.horizon,
         )

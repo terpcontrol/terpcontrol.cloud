@@ -11,7 +11,7 @@ import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { lampsAmong, lampsSaid } from '../control/held-light';
+import { lampsAmong, lampsLeft, lampsSaid } from '../control/held-light';
 import { useLead } from '../control/lead';
 import { draftOf, prefilled } from '../control/targets/targets-draft';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
@@ -102,6 +102,14 @@ export function ClimatePick({
         <Facts facts={factsOf(t(chosen ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
       {chosen && lampsWords ? <p className={ui.note}>{lampsWords}</p> : null}
+      {/* Left as they are, every other lamp keeps its own times too. */}
+      {chosen
+        ? null
+        : lampsLeft(t, controller, lamps, serverNow(), zone).map(line => (
+            <p key={line} className={ui.note}>
+              {line}
+            </p>
+          ))}
       {/* The climate that puts the device into germination asks what it does about the humidity. */}
       {stage === 'germination' && value.climate ? (
         <GerminationChoices

@@ -47,7 +47,10 @@ export function MoveSheet({
   const move = useMovePlants(grow.id);
   const { tell } = useLog();
 
-  const open = placesFor(spaces);
+  // The place the whole grow stands in is no destination, nor "no fixed place" for a grow that stands nowhere.
+  const here = grow.summary.locations.length === 1 ? grow.summary.locations[0].spaceId : null;
+  const open = placesFor(spaces).filter(space => space.id !== here);
+  const nowhere = grow.summary.locations.length > 0;
   const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   // Now as the server reckons it. The day field below caps at the server's
@@ -91,7 +94,7 @@ export function MoveSheet({
           <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
         ) : (
           <Block label={t('grow.lifecycle.move.moveTo')}>
-            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={open} nowhere chosen={spaceId} onChoose={setSpaceId} />
+            <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={open} nowhere={nowhere} chosen={spaceId} onChoose={setSpaceId} />
 
             <PlantPicker
               plants={plants}
@@ -169,7 +172,7 @@ function PlacementRow({
       </div>
 
       {open === null ? (
-        <div className={ui.wrap}>
+        <div className={`${ui.wrap} ${styles.rowActions}`}>
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.move.correct')}
           </button>
@@ -180,7 +183,7 @@ function PlacementRow({
       ) : open === 'correct' ? (
         <PlacementEditor grow={grow} placement={placement} spaces={spaces} onDone={() => onOpen(null)} />
       ) : (
-        <PlacementWithdrawal grow={grow} placement={placement} onDone={() => onOpen(null)} />
+        <PlacementWithdrawal grow={grow} placement={placement} spaces={spaces} onDone={() => onOpen(null)} />
       )}
     </li>
   );
@@ -234,22 +237,27 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
 }
 
 /**
- * A move that never happened.
+ * A move that never happened: the stay the move closed goes on, so the plants stand where they stood before it.
  *
  * The one refusal this round has to make a person able to act on lives here: a
- * grow always answers where it is, so the row that says so is not the one to
- * remove. The way out is the move nobody has made yet, so it is offered as that
- * move - "put the grow nowhere, then take this row out" - rather than as the
- * rule it broke.
+ * grow always answers where it is, so the row that says where it first stood,
+ * with nothing before it, is not the one to remove. The way out is the move
+ * nobody has made yet, so it is offered as that move - "put the grow nowhere,
+ * then take this row out" - beside the reason, before anything is sent.
  */
-function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; placement: Placement; onDone: () => void }) {
+function PlacementWithdrawal({ grow, placement, spaces, onDone }: { grow: GrowListItem; placement: Placement; spaces: Space[]; onDone: () => void }) {
   const { t } = useTranslation();
   const withdraw = useWithdrawPlacement(grow.id);
   const move = useMovePlants(grow.id);
 
+  // The stay this move closed, which the server lets run on (`undoneMove`, `grows.service.ts`).
+  const before = grow.placements.find(
+    one => one.id !== placement.id && one.endedAt !== null && Date.parse(one.endedAt) === Date.parse(placement.startedAt),
+  );
+  const last = placement.endedAt === null && !grow.placements.some(one => one.id !== placement.id && one.endedAt === null);
   // Offered only on a grow still running: one that has ended moves nowhere, and
   // the server refuses the move the escape would start with.
-  const standsNowhere = refusalCode(withdraw.error) === 'grow_stands_nowhere' && !grow.endedAt;
+  const standsNowhere = !grow.endedAt && ((last && !before) || refusalCode(withdraw.error) === 'grow_stands_nowhere');
 
   /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
   const rescue = () =>
@@ -262,10 +270,15 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
     <div className={styles.editor}>
       <ul className={`${ui.effects} ${styles.effect}`}>
         <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
+        {before ? (
+          <li>
+            {t(`grow.lifecycle.move.backTo.${placement.plantIds === null ? 'grow' : 'plants'}`, { place: placeName(t, spaces, before.spaceId) })}
+          </li>
+        ) : null}
         <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
       </ul>
 
-      <Refused error={withdraw.error} />
+      {standsNowhere && !withdraw.error ? <p className={ui.note}>{t('problem.code.grow_stands_nowhere')}</p> : <Refused error={withdraw.error} />}
       <Refused error={move.error} />
 
       {standsNowhere ? (

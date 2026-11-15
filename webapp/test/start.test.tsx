@@ -1887,6 +1887,8 @@ describe('Start with several places', () => {
         ?.querySelector('[data-tone]');
     await waitFor(() => expect(pill('space-1')).toHaveTextContent(/^Maintenance$/));
     expect(pill('space-2')).toHaveTextContent(/^stale$/);
+    // How old its values are, as the place's own page says beside "stale".
+    expect(screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')).toHaveTextContent(/stale5\smin\sago/);
     expect(screen.queryByText('check')).not.toBeInTheDocument();
     // The line beside the pill says until when, and not "Maintenance" a second time.
     const card = screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;

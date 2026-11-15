@@ -50,6 +50,11 @@
   text-align: right;
 }
 
+/* What a row offers - put it right, take it back - is a target a finger finds: a chip's 30 px is a label's. */
+.rowActions > button {
+  height: var(--action-height);
+}
+
 /* The correction or the withdrawal, opened inside the row it is about. */
 .editor {
   display: flex;
