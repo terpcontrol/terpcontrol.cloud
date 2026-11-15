@@ -4760,6 +4760,18 @@
           "null"
         ]
       },
+      "startedIn": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place."
+      },
       "kind": {
         "$ref": "#/components/schemas/AlertKind"
       },
@@ -4821,6 +4833,7 @@
       "cameraId",
       "spaceId",
       "spaceName",
+      "startedIn",
       "kind",
       "severity",
       "startedAt",
@@ -11783,6 +11796,63 @@
       "stageGroups"
     ]
   },
+  "DeviceArrival": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "description": "What the device is called, as `Device.name`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": {
+        "type": "string",
+        "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+      },
+      "at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When it was put here."
+      },
+      "from": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "spaceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "spaceId",
+              "name"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place."
+      }
+    },
+    "required": [
+      "deviceId",
+      "name",
+      "type",
+      "at",
+      "from"
+    ]
+  },
   "GrowDayEvent": {
     "oneOf": [
       {
@@ -13773,6 +13843,13 @@
         },
         "description": "When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read."
       },
+      "arrivals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DeviceArrival"
+        },
+        "description": "The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read."
+      },
       "machineEvents": {
         "$ref": "#/components/schemas/TimelineMachineEvents"
       },
@@ -13827,6 +13904,7 @@
       "events",
       "stretches",
       "deviceChanges",
+      "arrivals",
       "machineEvents",
       "grows",
       "readingNames",

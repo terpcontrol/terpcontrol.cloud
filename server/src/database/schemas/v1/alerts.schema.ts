@@ -14,7 +14,7 @@ import { alertKind, severity } from '@fg2/shared-types/v1-schemas';
  * The place is stored by id alone; what it is called is read when the alert is
  * answered, so a renamed place is never quoted by its old name.
  */
-export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested' | 'spaceName'> {
+export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested' | 'spaceName' | 'startedIn'> {
   createdAt: Date;
   startedAt: Date;
   resolvedAt: Date | null;

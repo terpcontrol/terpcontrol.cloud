@@ -1134,6 +1134,11 @@ export const alert = named(
       .string()
       .nullable()
       .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
+    startedIn: id()
+      .nullable()
+      .describe(
+        'The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.',
+      ),
     kind: alertKind,
     severity: severity,
     startedAt: instant(),

@@ -80,17 +80,28 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   ending or deleting a grow left them under Rhythmen until then, so any database that ran the rewrite can hold some.
   A deleting version named `032-reminders-of-ended-grows` ran on the session's own test stack and never shipped; a
   record holding that name is answered by no step, and the resting step runs on the next boot.
-  `033-one-climate-a-place` (Chris, 2026-11-14, after the fifth walk's fix round; unit tests only) splits the places
-  that hold two controllers or fridge modules - a place holds one climate, and the server refuses a second since. The
-  lead stays (of them the first that holds targets, else the first, by `createdAt` and id); each other one moves
-  into a new place named after it - else after the old place - and numbered where the owner has that name, of the
-  old place's kind, room, owner, preset question and retention, with the old place's memberships copied role and all
-  (invitations and share links stay with the old place), its placement ended and begun at the step's instant, and
-  its Terp Cam and the open alerts of both moved along; grows, entries, reminders and stream cameras stay. Counted
-  as `spaces.madeForASecondClimate`, `devices.movedToAPlaceOfTheirOwn`, `memberships.copiedToTheNewPlace`,
-  `cameras.movedWithTheirDevice` and `alerts.movedWithTheirDevice`. Ids are derived from the device and the
-  membership, so a killed run makes no second place; ended places and rooms are left. Production probably holds no
-  such place; the session's stack holds some from its critics' accounts, and they are split on its next boot.
+  `033-one-climate-a-place-with-its-past` (Chris, 2026-11-14, after the fifth walk's fix round; changed after the
+  seventh walk; unit tests, and its repair run on a copy of the session's stack) splits the places that hold two
+  controllers or fridge modules - a place holds one climate, and the server refuses a second since. The lead stays
+  (of them the first that holds targets, else the first, by `createdAt` and id); each other one moves into a new place
+  named after it - else after the old place - and numbered where the owner has that name, of the old place's kind,
+  room, owner, preset question and retention, with the old place's memberships copied role and all (invitations and
+  share links stay with the old place). **The new place holds the device's whole stay**: it was a climate of its own
+  all along, so its open placement keeps its start and only changes its place (a first placement still reaching back
+  past its start), and the alerts it and its Terp Cam raised over that stay, an open one wherever it began, and the
+  lines it, its alarms and its plan wrote there (`system`, `alarm`, `plan`, never a person's) go along - the lines out
+  of the old place's grow (`growId: null`). Grows, a person's lines, phase lines, reminders and stream cameras stay.
+  Counted as `spaces.madeForASecondClimate`, `devices.movedToAPlaceOfTheirOwn`, `memberships.copiedToTheNewPlace`,
+  `cameras.movedWithTheirDevice`, `alerts.movedWithTheirDevice` and `entries.movedWithTheirDevice`. Ids are derived
+  from the device and the membership, so a killed run makes no second place; ended places and rooms are left.
+  Its first version, `033-one-climate-a-place`, began the new place's stay at the step's instant, so a split place
+  said nothing had been measured there while its tiles and alerts showed the device's last reading; it ran only on
+  the session's stack. The step under its new name runs once more there and **repairs** what that version did: a
+  placement in a place the step made (the id is derived from the device) that begins when that place was made,
+  straight after one that ended then, becomes one stay from where the first began, and what the device left in the
+  old place goes along as above - counted as `devices.givenTheirPastInTheirPlace`. A repaired stay no longer begins
+  when its place was made, so a second run finds nothing; on the stack's copy it gave 9 devices their past, moved 2
+  alerts and 22 lines, and a second run found nothing. A record of the old name is answered by no step.
   `034-fans-without-a-lamp` (the redesign session of 2026-11-15, after the sixth whole-app walk; unit tests only)
   takes `configuration.lights` and `configuration.daynight` out of every AIR fan's document, counted as
   `devices.fanLampSectionsRemoved`: a climate written to a place merged a preset's lamp limit and light window into

@@ -308,17 +308,18 @@ const metaOf = (
 };
 
 /**
- * Verlauf of the place, opened on what the episode was about, when it began
- * and on the device it happened to: the curve of the reading it crossed, or
- * the lane of the output it watched, with the cursor on its start - so
- * yesterday's "Zu warm" opens on yesterday, and in a place of two climates on
- * the one that raised it.
+ * Verlauf of the place the episode began in, opened on what it was about, when it began and on the device it
+ * happened to: the curve of the reading it crossed, or the lane of the output it watched, with the cursor on its
+ * start - so yesterday's "Zu warm" opens on yesterday, and in a place of two climates on the one that raised it. An
+ * open alert that moved with its device since opens where the device stood then, which holds that instant; the
+ * device is not named there, as a page names only a device standing in its place.
  */
 const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): string => {
+  const began = alert.startedIn ?? spaceId;
   const watch = alert.watched?.watch ?? rule?.watch ?? null;
   const focus = !watch ? null : watch.kind === 'reading' ? (watch.metric === 'offline' ? null : watch.metric) : watch.output;
 
-  return timelinePath(spaceId, focus, alert.startedAt, null, null, alert.deviceId);
+  return timelinePath(began, focus, alert.startedAt, null, null, began === spaceId ? alert.deviceId : null);
 };
 
 /**

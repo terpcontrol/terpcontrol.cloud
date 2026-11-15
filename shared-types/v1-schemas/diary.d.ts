@@ -5350,6 +5350,16 @@ export declare const spaceTimeline: z.ZodObject<{
         name: z.ZodNullable<z.ZodString>;
         type: z.ZodString;
     }, z.core.$strip>>;
+    arrivals: z.ZodArray<z.ZodObject<{
+        deviceId: z.ZodString;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
+        at: z.ZodISODateTime;
+        from: z.ZodNullable<z.ZodObject<{
+            spaceId: z.ZodString;
+            name: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
     machineEvents: z.ZodObject<{
         shown: z.ZodNumber;
         total: z.ZodNumber;

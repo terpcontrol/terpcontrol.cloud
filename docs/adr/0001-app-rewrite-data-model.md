@@ -483,7 +483,7 @@ like a place.
      first); no migration step and no boot moves a grower's devices by itself, and "several climates in one place"
      below stays in force for the places that have them. *Amended 2026-11-14 (Chris):* a second one is no longer
      offered at all - the server refuses it - and the places that hold two are split by step
-     `033-one-climate-a-place` ("Amended after the fifth walk" under "The API").
+     `033-one-climate-a-place-with-its-past` ("Amended after the fifth walk" under "The API").
    - The kinds of a place stay `tent · fridge · room · balcony · other`; a room that itself holds a device, a camera
      or a running grow - possible since the rewrite - is not emptied by any step, and counts as not empty.
    - No route is added for removing a place with what stands in it: the app sends each device, camera and grow to the
@@ -776,14 +776,17 @@ Chris):* **a place holds one climate** (Chris) - one controller or fridge module
 number of sockets, fans and lights beside it; a claim naming such a place by `spaceId` and `PATCH /devices/{id}` moving
 such a device into it are refused, 409 `place_holds_a_climate` (field `spaceId`, code `climate_held`), and the code is
 not spent; `joinSpaceId` was already ignored for such a device. This narrows "several climates in one place" above,
-and **places that hold two from before are split** (Chris, after the fix round): step `033-one-climate-a-place`
+and **places that hold two from before are split** (Chris, after the fix round): step `033-one-climate-a-place-with-its-past`
 keeps the lead - of the place's controllers and fridge modules the first that holds targets, else the first, by
 `createdAt` and id - and stands every other one in a new place: named after the device, else the old place,
 numbered as the server numbers a name; of the old place's kind, room, owner, `presetPrompt` and retention; a
 demo place for a demo device; with each of the old place's memberships copied, role and all (a room's cover it
 already), so nobody loses sight of a device they saw - invitations and share links name one place and stay with the
-old one. The device's stay ends at the step's instant and the new one begins there (`movedTo`); its Terp Cam and the
-open alerts of both go along; grows, entries, reminders and a stream camera stay. Ended places and rooms are left. **An ended grow is reopened** (Chris) by `PATCH /grows/{id}` with `endedAt: null`, as
+old one. *Amended after the seventh walk:* the second one was a climate of its own all along, so the new place holds
+its whole stay - its placement keeps its start and changes its place -, and the alerts it and its Terp Cam raised
+over that stay and the lines it, its alarms and its plan wrote there go along, out of the old place's grow; grows, a
+person's lines, reminders and a stream camera stay. The step's first version began the new place at its own instant,
+and the step under its new name repairs that where it ran (data-operations.md). Ended places and rooms are left. **An ended grow is reopened** (Chris) by `PATCH /grows/{id}` with `endedAt: null`, as
 before; where its open placement stands in a place that has ended since - "Ort entfernen" with "Grow beenden" leaves
 it open as the record of where it stood -, that placement closes at the old end and a placement at no fixed place
 opens there. **A harvest line's weights are corrected on the line**: `EntryUpdate.values` takes `HarvestEntryValues`

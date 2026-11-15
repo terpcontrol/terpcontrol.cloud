@@ -22,7 +22,7 @@ import type { Picture } from '@/api/public';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { rangeNeedsGrow, timelineKey, useTimeline } from '@/api/timeline';
-import { isPlace, SHARE_LINKS } from '@/app/places';
+import { isPlace, SHARE_LINKS, timelinePath } from '@/app/places';
 import { useScrub, type Selection } from '@/charts/scrub';
 import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
@@ -44,7 +44,7 @@ import { readStoredJson, writeStored } from '@/ui/stored';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useWideWindow } from '@/ui/wide-window';
-import { useZone, zonedAt } from '@/ui/zone';
+import { DATED_CLOCK, useZone, zonedAt } from '@/ui/zone';
 import { Adjust, type Comparable } from './Adjust';
 import { CursorCard } from './CursorCard';
 import { DiaryCard } from './DiaryCard';
@@ -120,9 +120,11 @@ interface Own {
   away: { place: string; onward: () => void } | null;
   /** That the place has ended and its curves are read only, in a sentence; null for a place in use. */
   ended: string | null;
+  /** The devices that came here from another place, each when and where its earlier readings are. */
+  arrived: React.ReactNode[];
   correct: (entry: Entry) => (() => void) | undefined;
-  /** Opens a note dated to an instant; null where the session may not write here. */
-  note: ((time: number) => void) | null;
+  /** Opens a note dated to an instant; null where the session may not write here, or not at that instant. */
+  note: (time: number) => (() => void) | null;
   byline: boolean;
   /** The plants of the grow the page is of, so a line or a reading about some of them names those. */
   plants: readonly Plant[];
@@ -149,6 +151,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const { t } = useTranslation();
   const { user } = useSession();
   const devices = useDevices();
+  const zone = useZone();
   // What the address names is looked up in what the account already holds before the place is asked: a device it
   // has not got or that stands elsewhere, a grow in no place or in another, are told from here, and the server is
   // not asked a question it can only refuse. A device's curves are drawn under the place it stands in, never one it left.
@@ -230,10 +233,33 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
       ) : (
         t(`timeline.missing.${page.dropped.what}`)
       ),
-    ended: ended ? t('timeline.ended', { name: placeName ?? data?.name ?? '' }) : null,
+    // Its curves are promised where this window holds some; one without says only that the place has ended.
+    ended: ended
+      ? t(data && data.panels.length + data.outputs.length > 0 ? 'timeline.ended' : 'timeline.endedBare', { name: placeName ?? data?.name ?? '' })
+      : null,
     sharing: mayManage && !ended && (spaceRow || grow.data) ? { grows: grow.data ? [grow.data] : [], spaces: spaceRow ? [spaceRow] : [] } : null,
     correct: entry => (ended ? undefined : correcting(entry, { label: data?.name ?? '', spaceId })),
-    note: mayLog && target && !ended ? time => openDetails('note', target, null, new Date(time)) : null,
+    // A note is about the place at that moment, so none is offered for a moment before the place existed.
+    note: time =>
+      mayLog && target && !ended && time >= Date.parse(spaceRow?.createdAt ?? '') ? () => openDetails('note', target, null, new Date(time)) : null,
+    arrived: (data?.arrivals ?? []).map(arrival => {
+      const device = devices.data?.items.find(one => one.id === arrival.deviceId);
+      const said = {
+        device: device ? deviceTitle(device, t, devices.data?.items ?? []) : (arrival.name ?? t(`devices.type.${arrival.type}`)),
+        date: zonedAt(Date.parse(arrival.at), zone).toFormat(DATED_CLOCK),
+      };
+      return arrival.from ? (
+        <>
+          {t('timeline.arrived', said)}{' '}
+          <Link to={timelinePath(arrival.from.spaceId, null, arrival.at)} className={styles.more}>
+            {t('timeline.arrivedFrom', { place: arrival.from.name })}
+            {'\u00a0›'}
+          </Link>
+        </>
+      ) : (
+        t('timeline.arrivedElsewhere', said)
+      );
+    }),
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
     plants: plants ?? [],
@@ -728,6 +754,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
     />
   );
 
+  const noted = view.at !== null ? (own?.note(view.at) ?? null) : null;
   const diary =
     shown.diary || shown.machine ? (
       <DiaryCard
@@ -738,7 +765,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         correct={own?.correct}
         plants={own?.plants}
         byline={own?.byline ?? false}
-        note={own?.note && view.at !== null ? { at: cursorStamp(view.at, window, 60, zone), write: () => own.note?.(view.at as number) } : null}
+        note={noted && view.at !== null ? { at: cursorStamp(view.at, window, 60, zone), write: noted } : null}
       />
     ) : null;
 
@@ -759,6 +786,11 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       )}
       {own?.ended ? <p className={`${ui.cardDashed} ${ui.note}`}>{own.ended}</p> : null}
       {own?.missing ? <p className={`${ui.cardDashed} ${ui.note}`}>{own.missing}</p> : null}
+      {own?.arrived.map((said, index) => (
+        <p key={index} className={`${ui.cardDashed} ${ui.note}`}>
+          {said}
+        </p>
+      ))}
       {view.compare !== null && own?.known && comparedTo === null ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('timeline.missing.compare')}</p>
       ) : null}
@@ -780,6 +812,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
           {nothing ? (
             <Nothing
               data={data}
+              ended={Boolean(own?.ended)}
               now={now}
               // The moment alone: the view gives it its own day around it, and never a window past now.
               toLast={time => change({ range: '24h', fixed: null, last: null, at: time })}
@@ -901,7 +934,17 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
  * dated, with the way to its last reading -, one whose device has sent nothing yet, or one where nothing measures.
  * Only the answer's `lastReadingAt` and devices tell them apart.
  */
-function Nothing({ data, now, toLast }: { data: SpaceTimeline; now: ReturnType<typeof useNow>; toLast: (time: number) => void }) {
+function Nothing({
+  data,
+  ended,
+  now,
+  toLast,
+}: {
+  data: SpaceTimeline;
+  ended: boolean;
+  now: ReturnType<typeof useNow>;
+  toLast: (time: number) => void;
+}) {
   const { t } = useTranslation();
   const last = data.lastReadingAt;
 
@@ -912,7 +955,8 @@ function Nothing({ data, now, toLast }: { data: SpaceTimeline; now: ReturnType<t
           ? t('timeline.quietWindow', { age: ageLabel(last, now) })
           : (data.deviceIds ?? []).length > 0
             ? t('timeline.waiting')
-            : t('timeline.noDevice')}
+            : // An ended place has no device left; whether one stood here at another time this window cannot say.
+              t(ended ? 'timeline.noDeviceThen' : 'timeline.noDevice')}
       </p>
       {last !== null ? (
         <button type="button" className={styles.more} onClick={() => toLast(at(last))}>

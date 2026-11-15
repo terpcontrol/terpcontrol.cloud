@@ -103,6 +103,11 @@ describe('a move', () => {
     expect(await alerts.read(OPEN, as(OWNER))).toMatchObject({ spaceId: NEW, spaceName: 'New tent' });
   });
 
+  it('says where the open alert began, which is the place whose Verlauf shows that instant', async () => {
+    expect(await alerts.read(OPEN, as(OWNER))).toMatchObject({ spaceId: NEW, startedIn: OLD });
+    expect(await alerts.read(OVER, as(OWNER))).toMatchObject({ spaceId: OLD, startedIn: OLD });
+  });
+
   it('gives a manager of the new place the open alert, with what a manager may do, and nothing of the place it left', async () => {
     expect(await inboxOf(OF_THE_NEW, true)).toEqual([[OPEN, NEW, 'New tent']]);
     expect(await inboxOf(OF_THE_NEW, false)).toEqual([]);

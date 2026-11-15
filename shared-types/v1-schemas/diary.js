@@ -954,6 +954,17 @@ const deviceChange = zod_1.z.object({
     name: zod_1.z.string().nullable().describe('What the device is called, as `Device.name`.'),
     type: zod_1.z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
 });
+/** A device that came into a place from another one, and where its earlier readings are. */
+const deviceArrival = (0, common_js_1.named)('DeviceArrival', zod_1.z.object({
+    deviceId: (0, common_js_1.id)(),
+    name: zod_1.z.string().nullable().describe('What the device is called, as `Device.name`.'),
+    type: zod_1.z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
+    at: (0, common_js_1.instant)().describe('When it was put here.'),
+    from: zod_1.z
+        .object({ spaceId: (0, common_js_1.id)(), name: zod_1.z.string() })
+        .nullable()
+        .describe('The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place.'),
+}));
 /**
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
@@ -1477,6 +1488,9 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
     deviceChanges: zod_1.z
         .array(deviceChange)
         .describe('When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.'),
+    arrivals: zod_1.z
+        .array(deviceArrival)
+        .describe('The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.'),
     machineEvents: exports.timelineMachineEvents,
     grows: zod_1.z
         .array(exports.timelineGrow)

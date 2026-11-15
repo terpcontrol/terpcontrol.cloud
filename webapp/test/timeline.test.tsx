@@ -10,6 +10,7 @@ import { SharedTimeline } from '@/screens/timeline/Timeline';
 import { Timeline } from '@/screens/Timeline';
 import { forgetKept } from '@/ui/kept';
 import { LoadFailed } from '@/ui/PageState';
+import { zonedAt } from '@/ui/zone';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { cardOf, entry, fridge, homeOf } from './place-wire';
 import { meWith, spacePage, spaceWhere } from './session';
@@ -114,6 +115,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     events: [restart, watered],
     stretches: [],
     deviceChanges: [],
+    arrivals: [],
     machineEvents: { shown: 1, total: 1 },
     grows: [{ growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null }],
     readingNames: [],
@@ -171,6 +173,8 @@ const server = {
   grows: null as unknown[] | null,
   /** The plants of the grow standing here, where a test reads them. */
   plants: null as unknown[] | null,
+  /** Whether the account has a place that has ended, "Old tent", where an ended grow stood last. */
+  gone: false,
 };
 
 const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -188,8 +192,20 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
     ];
     return json(homeOf(cards, true));
   }
+  if (path === '/spaces' && url.searchParams.get('archived') === 'true')
+    return json(spacePage(...(server.gone ? [spaceWhere('own', { id: 'space-gone', name: 'Old tent', archivedAt: ago(48) })] : [])));
   if (path === '/spaces')
     return json(spacePage(spaceWhere(server.youMay), ...(second ? [spaceWhere('own', { id: 'space-2', name: 'Tent 2' })] : [])));
+  if (server.gone && path === '/spaces/space-gone/timeline') {
+    server.asked.push(url.searchParams);
+    return json(
+      answerTo(url.searchParams, { spaceId: 'space-gone', name: 'Old tent', panels: [], outputs: [], cameras: [], deviceIds: [], ...server.over }),
+    );
+  }
+  if (server.gone && path === '/grows/grow-gone') {
+    const placements = [{ id: 'placement-gone', spaceId: 'space-gone', startedAt: ago(40 * 24), endedAt: ago(48), plantIds: null }];
+    return json({ id: 'grow-gone', name: 'Old haze', measurements: [], placements, endedAt: ago(48), ownerId: 'user-1' });
+  }
   if (path === '/devices') {
     return json({
       items: [fridge(), ...(second ? [fridge({ id: 'device-2', type: 'controller', name: 'Controller B', spaceId: 'space-2' })] : [])],
@@ -284,6 +300,7 @@ beforeEach(() => {
     elsewhere: false,
     grows: null,
     plants: null,
+    gone: false,
   });
   opened.length = 0;
   told.length = 0;
@@ -1466,6 +1483,14 @@ describe('the diary of the window', () => {
     expect((opened[0][3] as Date).getTime()).toBe(cursor);
   });
 
+  it('offers no note for a moment before the place existed', async () => {
+    draw(`/timeline?at=${iso(Date.parse('2025-12-31T12:00:00.000Z'))}`);
+    await settled();
+    await waitFor(() => expect(server.asked.at(-1)?.get('to')).toBe('2026-01-01T00:00:00.000Z'));
+
+    expect(screen.queryByRole('button', { name: /Write a note/ })).not.toBeInTheDocument();
+  });
+
   it('offers no note to somebody who may only read, nor to the demo', async () => {
     server.youMay = 'view';
     draw(`/timeline?at=${ago(6)}`);
@@ -1476,6 +1501,51 @@ describe('the diary of the window', () => {
 });
 
 describe('Verlauf with nothing to draw', () => {
+  it('says when a device came here and where its earlier readings are, and points to no last reading of there', async () => {
+    const came = NOW - 20 * HOUR;
+    server.over = {
+      panels: [],
+      outputs: [],
+      cameras: [],
+      lastReadingAt: null,
+      deviceIds: ['device-1'],
+      arrivals: [{ deviceId: 'device-1', name: null, type: 'fridge', at: iso(came), from: { spaceId: 'space-old', name: 'Zelt' } }],
+    };
+    draw();
+
+    const earlier = await screen.findByRole('link', { name: /^Timeline of Zelt/ });
+    expect(earlier.closest('p')).toHaveTextContent(
+      new RegExp(`came here on ${zonedAt(came, 'UTC').toFormat('d LLL HH:mm')} · earlier readings under`),
+    );
+    expect(earlier.getAttribute('href')).toContain('space=space-old');
+    expect(screen.queryByRole('button', { name: /Go to the last reading/ })).not.toBeInTheDocument();
+  });
+
+  it('says where a device came from without a way there, for a reader who may not read that place', async () => {
+    server.over = { arrivals: [{ deviceId: 'device-1', name: 'Box', type: 'fridge', at: ago(20), from: null }] };
+    draw();
+
+    expect(await screen.findByText(/came here on .* · earlier readings are with the place it stood in before\./)).toBeInTheDocument();
+  });
+
+  it('says of an ended place without curves that it has ended, and promises none', async () => {
+    server.gone = true;
+    draw('/timeline?space=space-gone');
+
+    expect(await screen.findByText('The place Old tent no longer exists. Nothing can be changed here any more.')).toBeInTheDocument();
+    expect(screen.getByText('No device stood here in this window.')).toBeInTheDocument();
+    expect(screen.queryByText(/curves can still be read/)).not.toBeInTheDocument();
+  });
+
+  it('draws an ended grow named alone where it stood last, a place that has ended, and no other place´s curves', async () => {
+    server.gone = true;
+    draw('/timeline?grow=grow-gone');
+
+    await waitFor(() => expect(address().searchParams.get('space')).toBe('space-gone'));
+    expect(await screen.findByText(/The place Old tent no longer exists/)).toBeInTheDocument();
+    expect(server.askedFor).not.toContain('/spaces/space-1/timeline');
+  });
+
   it('says that a device waits for its first values', async () => {
     server.over = { panels: [], outputs: [], cameras: [], events: [], machineEvents: { shown: 0, total: 0 } };
     draw();

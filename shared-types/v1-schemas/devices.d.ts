@@ -2404,6 +2404,7 @@ export declare const alert: z.ZodObject<{
     cameraId: z.ZodNullable<z.ZodString>;
     spaceId: z.ZodNullable<z.ZodString>;
     spaceName: z.ZodNullable<z.ZodString>;
+    startedIn: z.ZodNullable<z.ZodString>;
     kind: z.ZodEnum<{
         threshold: "threshold";
         offline: "offline";
@@ -2475,6 +2476,7 @@ export declare const alertPage: z.ZodObject<{
         cameraId: z.ZodNullable<z.ZodString>;
         spaceId: z.ZodNullable<z.ZodString>;
         spaceName: z.ZodNullable<z.ZodString>;
+        startedIn: z.ZodNullable<z.ZodString>;
         kind: z.ZodEnum<{
             threshold: "threshold";
             offline: "offline";

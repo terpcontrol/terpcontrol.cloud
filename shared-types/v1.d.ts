@@ -1784,6 +1784,10 @@ export interface Alert {
    * What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.
    */
   spaceName: string | null;
+  /**
+   * The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.
+   */
+  startedIn: string | null;
   kind: AlertKind;
   severity: Severity;
   startedAt: string;
@@ -3787,6 +3791,29 @@ export interface GrowCard {
   stageGroups: GrowCardStageGroup[];
 }
 
+export interface DeviceArrival {
+  deviceId: string;
+  /**
+   * What the device is called, as `Device.name`.
+   */
+  name: string | null;
+  /**
+   * Its type, as `Device.type`, which is what an unnamed device is called by.
+   */
+  type: string;
+  /**
+   * When it was put here.
+   */
+  at: string;
+  /**
+   * The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place.
+   */
+  from: {
+    spaceId: string;
+    name: string;
+  } | null;
+}
+
 export interface HomeClimate {
   deviceId: string;
   values: CardValue[];
@@ -4372,6 +4399,10 @@ export interface SpaceTimeline {
      */
     type: string;
   }[];
+  /**
+   * The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.
+   */
+  arrivals: DeviceArrival[];
   machineEvents: TimelineMachineEvents;
   /**
    * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.

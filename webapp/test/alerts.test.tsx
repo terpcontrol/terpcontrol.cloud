@@ -74,6 +74,7 @@ const alert = (over: Partial<Alert>): Alert => ({
   cameraId: null,
   spaceId: 'space-1',
   spaceName: 'Flower room B',
+  startedIn: null,
   kind: 'threshold',
   severity: 'critical',
   startedAt: iso(NOW.minus({ hours: 2, minutes: 20 })),
@@ -522,6 +523,20 @@ describe('the inbox', () => {
       /^\/timeline\?space=space-2&device=device-1&/,
     );
     expect(within(more(card)).getByRole('link', { name: 'Edit rule' })).toHaveAttribute('href', '/control/alarms?space=space-2&rule=rule-1');
+  });
+
+  /** The place it stands in now never saw that instant: the device came there since, and its curves of then are where it stood. */
+  it('opens the timeline of an alert that moved with its device where the device stood when it began', async () => {
+    server.places = [...server.places, { id: 'space-2', name: 'Cellar' }];
+    server.devices = [deviceRow({ spaceId: 'space-2' })];
+    server.alerts = [alert({ spaceId: 'space-2', spaceName: 'Cellar', startedIn: 'space-1' })];
+    server.rules = [rule()];
+    draw();
+
+    const [card] = await waitFor(() => openCards());
+    expect((await within(card).findByRole('link', { name: 'Open Timeline' })).getAttribute('href')).toBe(
+      `/timeline?space=space-1&focus=humidity&at=${encodeURIComponent(iso(NOW.minus({ hours: 2, minutes: 20 })))}`,
+    );
   });
 
   /** A place may hold a second climate, so the curves an alert opens are those of the device it came from. */

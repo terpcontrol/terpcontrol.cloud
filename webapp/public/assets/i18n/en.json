@@ -2267,7 +2267,12 @@
       "none": "no reading"
     },
     "lightOn": "on",
-    "ended": "The place {{name}} no longer exists. Its curves can still be read here; nothing can be changed any more."
+    "ended": "The place {{name}} no longer exists. Its curves can still be read here; nothing can be changed any more.",
+    "arrived": "{{device}} came here on {{date}} · earlier readings under",
+    "arrivedFrom": "Timeline of {{place}}",
+    "arrivedElsewhere": "{{device}} came here on {{date}} · earlier readings are with the place it stood in before.",
+    "endedBare": "The place {{name}} no longer exists. Nothing can be changed here any more.",
+    "noDeviceThen": "No device stood here in this window."
   },
   "camera": {
     "lastError": "Last try failed: {{reason}}",

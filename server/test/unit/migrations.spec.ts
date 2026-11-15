@@ -19,7 +19,7 @@ import { plansSchema } from '@database/schemas/v1/plans.schema';
 import { spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { targetChangesSchema } from '@database/schemas/v1/target-changes.schema';
 import { usersSchema } from '@database/schemas/v1/users.schema';
-import { cameraIdOf, planIdOf, spaceIdOf } from '@/migrations/ids';
+import { cameraIdOf, derivedId, planIdOf, spaceIdOf } from '@/migrations/ids';
 import { grows } from '@/migrations/steps/010-grows';
 import { newestRepeatedLines } from '@/migrations/steps/011-entries';
 import { MigrationContext } from '@/migrations/migration';
@@ -44,7 +44,7 @@ import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ende
 import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
 import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from '@/migrations/steps/032-resting-reminders-of-ended-grows';
-import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place';
+import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place-with-its-past';
 import { fansWithoutALamp } from '@/migrations/steps/034-fans-without-a-lamp';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
@@ -1054,8 +1054,32 @@ describe('one climate a place', () => {
     await collection('alerts').insertMany([
       { id: 'open-of-second', deviceId: 'second', cameraId: null, spaceId: 'tent', resolvedAt: null },
       { id: 'open-of-its-cam', deviceId: null, cameraId: 'terp-cam', spaceId: 'tent', resolvedAt: null },
-      { id: 'over-of-second', deviceId: 'second', cameraId: null, spaceId: 'tent', resolvedAt: new Date(AT - DAY) },
+      {
+        id: 'over-of-second',
+        deviceId: 'second',
+        cameraId: null,
+        spaceId: 'tent',
+        startedAt: new Date(AT - 2 * DAY),
+        resolvedAt: new Date(AT - DAY),
+      },
       { id: 'open-of-first', deviceId: 'first', cameraId: null, spaceId: 'tent', resolvedAt: null },
+    ]);
+    const line = (id: string, fields: Record<string, unknown>) => ({
+      id,
+      kind: 'system',
+      source: 'device',
+      deviceId: 'second',
+      spaceId: 'tent',
+      growId: null,
+      occurredAt: new Date(AT - DAY),
+      ...fields,
+    });
+    await collection('entries').insertMany([
+      line('rebooted', {}),
+      line('its-alarm', { kind: 'alarm', source: 'alarm', growId: 'grow-in-tent' }),
+      line('by-a-person', { kind: 'note', source: 'human', growId: 'grow-in-tent' }),
+      line('a-phase-of-its-plan', { kind: 'phase', source: 'plan', growId: 'grow-in-tent' }),
+      line('of-the-lead', { deviceId: 'first' }),
     ]);
     const where = async (name: string) => Object.fromEntries((await collection(name).find({}).toArray()).map(row => [row.id, row.spaceId]));
     const before = await where('devices');
@@ -1080,25 +1104,35 @@ describe('one climate a place', () => {
       retention: { climateDays: 90 },
     });
     expect(moved).toMatchObject({ kind: 'fridge', name: 'Schrankcontroller', roomId: null });
+    // It was a climate of its own all along: its whole stay in the tent is the new place's, a first placement reaching back still.
     expect((await collection('devices').findOne({ id: 'second' }))!.placements).toEqual([
-      { spaceId: 'tent', startedAt: new Date(AT - 5 * DAY), endedAt: new Date(AT) },
-      { spaceId: devices.second, startedAt: new Date(AT), endedAt: null },
+      { spaceId: devices.second, startedAt: new Date(AT - 5 * DAY), endedAt: null },
     ]);
     // Whoever saw the tent sees the new place, with the same role.
     expect(await collection('memberships').findOne({ spaceId: devices.second })).toMatchObject({ userId: 'guest', role: 'can_log', inviteId: null });
     expect(await where('cameras')).toEqual({ 'terp-cam': devices.second, stream: 'tent' });
+    // Its alarms over that stay and what it wrote there go along; the grow, a person's lines and the phase stay.
     expect(await where('alerts')).toEqual({
       'open-of-second': devices.second,
       'open-of-its-cam': devices.second,
-      'over-of-second': 'tent',
+      'over-of-second': devices.second,
       'open-of-first': 'tent',
+    });
+    const lines = Object.fromEntries((await collection('entries').find({}).toArray()).map(row => [row.id, [row.spaceId, row.growId]]));
+    expect(lines).toEqual({
+      rebooted: [devices.second, null],
+      'its-alarm': [devices.second, null],
+      'by-a-person': ['tent', 'grow-in-tent'],
+      'a-phase-of-its-plan': ['tent', 'grow-in-tent'],
+      'of-the-lead': ['tent', null],
     });
     expect(context.stats).toEqual({
       'spaces.madeForASecondClimate': 2,
       'devices.movedToAPlaceOfTheirOwn': 2,
       'memberships.copiedToTheNewPlace': 1,
       'cameras.movedWithTheirDevice': 1,
-      'alerts.movedWithTheirDevice': 2,
+      'alerts.movedWithTheirDevice': 3,
+      'entries.movedWithTheirDevice': 2,
       rejected: 0,
     });
 
@@ -1106,6 +1140,157 @@ describe('one climate a place', () => {
     await oneClimateAPlace.run(again);
     expect(again.stats).toEqual({ rejected: 0 });
     expect(await collection('spaces').countDocuments()).toBe(7);
+  });
+
+  it('begins the new place where the stay in the old one began, and leaves what the device did before it came where it was', async () => {
+    await collection('spaces').insertMany([
+      { id: 'tent', ownerId: 'owner', kind: 'tent', name: 'Zelt', roomId: null, archivedAt: null },
+      { id: 'balcony', ownerId: 'owner', kind: 'tent', name: 'Balkon', roomId: null, archivedAt: null },
+    ]);
+    const came = AT - 5 * DAY;
+    await collection('devices').insertMany([
+      controller('first', 'tent'),
+      controller('second', 'tent', {
+        name: 'Zweiter',
+        placements: [
+          { spaceId: 'balcony', startedAt: new Date(AT - 9 * DAY), endedAt: new Date(came) },
+          { spaceId: 'tent', startedAt: new Date(came), endedAt: null },
+        ],
+      }),
+    ]);
+    await collection('alerts').insertMany([
+      { id: 'on-the-balcony', deviceId: 'second', spaceId: 'balcony', startedAt: new Date(came - DAY), resolvedAt: new Date(came - DAY) },
+      { id: 'in-the-tent-before-it-came', deviceId: 'second', spaceId: 'tent', startedAt: new Date(came - DAY), resolvedAt: new Date(came - DAY) },
+      { id: 'in-the-tent', deviceId: 'second', spaceId: 'tent', startedAt: new Date(came + DAY), resolvedAt: new Date(came + DAY) },
+      // Open since before it came, and moved with it into the tent: an open alert stands where its device stands.
+      { id: 'open-since-the-balcony', deviceId: 'second', spaceId: 'tent', startedAt: new Date(came - DAY), resolvedAt: null },
+    ]);
+
+    await oneClimateAPlace.run(new MigrationContext(db(), false, new Date(AT)));
+    const own = derivedId('one-climate-place', 'second');
+    expect((await collection('devices').findOne({ id: 'second' }))!.placements).toEqual([
+      { spaceId: 'balcony', startedAt: new Date(AT - 9 * DAY), endedAt: new Date(came) },
+      { spaceId: own, startedAt: new Date(came), endedAt: null },
+    ]);
+    expect(Object.fromEntries((await collection('alerts').find({}).toArray()).map(row => [row.id, row.spaceId]))).toEqual({
+      'on-the-balcony': 'balcony',
+      'in-the-tent-before-it-came': 'tent',
+      'in-the-tent': own,
+      'open-since-the-balcony': own,
+    });
+  });
+
+  it('puts right what its first version did: the new place holds the stay from where it began, once', async () => {
+    const split = AT - 2 * DAY;
+    const own = (deviceId: string) => derivedId('one-climate-place', deviceId);
+    await collection('spaces').insertMany([
+      { id: 'tent', ownerId: 'owner', kind: 'tent', name: 'Zelt', roomId: null, archivedAt: null, createdAt: new Date(AT - 30 * DAY) },
+      { id: 'balcony', ownerId: 'owner', kind: 'tent', name: 'Balkon', roomId: null, archivedAt: null, createdAt: new Date(AT - 30 * DAY) },
+      { id: 'later', ownerId: 'owner', kind: 'tent', name: 'Später', roomId: null, archivedAt: null, createdAt: new Date(AT - 30 * DAY) },
+      ...['stayed', 'came', 'moved-on'].map(id => ({
+        id: own(id),
+        ownerId: 'owner',
+        kind: 'tent',
+        name: id,
+        roomId: null,
+        archivedAt: null,
+        createdAt: new Date(split),
+      })),
+    ]);
+    const firstVersion = (
+      before: { spaceId: string; startedAt: number }[],
+      after: { spaceId: string; startedAt: number; endedAt: number | null }[],
+    ) => [
+      ...before.map((one, index) => ({
+        spaceId: one.spaceId,
+        startedAt: new Date(one.startedAt),
+        endedAt: new Date(before[index + 1]?.startedAt ?? split),
+      })),
+      ...after.map(one => ({
+        spaceId: one.spaceId,
+        startedAt: new Date(one.startedAt),
+        endedAt: one.endedAt === null ? null : new Date(one.endedAt),
+      })),
+    ];
+    await collection('devices').insertMany([
+      controller('lead', 'tent'),
+      // Stood in the tent from its claim on.
+      controller('stayed', own('stayed'), {
+        placements: firstVersion([{ spaceId: 'tent', startedAt: AT - 10 * DAY }], [{ spaceId: own('stayed'), startedAt: split, endedAt: null }]),
+      }),
+      // Came into the tent from the balcony before the split.
+      controller('came', own('came'), {
+        placements: firstVersion(
+          [
+            { spaceId: 'balcony', startedAt: AT - 10 * DAY },
+            { spaceId: 'tent', startedAt: AT - 6 * DAY },
+          ],
+          [{ spaceId: own('came'), startedAt: split, endedAt: null }],
+        ),
+      }),
+      // Moved on by its person after the split.
+      controller('moved-on', 'later', {
+        placements: firstVersion(
+          [{ spaceId: 'tent', startedAt: AT - 10 * DAY }],
+          [
+            { spaceId: own('moved-on'), startedAt: split, endedAt: AT - DAY },
+            { spaceId: 'later', startedAt: AT - DAY, endedAt: null },
+          ],
+        ),
+      }),
+    ]);
+    await collection('alerts').insertMany([
+      { id: 'over-in-the-tent', deviceId: 'stayed', spaceId: 'tent', startedAt: new Date(split - DAY), resolvedAt: new Date(split - DAY) },
+      { id: 'over-on-the-balcony', deviceId: 'came', spaceId: 'balcony', startedAt: new Date(AT - 8 * DAY), resolvedAt: new Date(AT - 8 * DAY) },
+      { id: 'of-the-lead', deviceId: 'lead', spaceId: 'tent', startedAt: new Date(split - DAY), resolvedAt: new Date(split - DAY) },
+    ]);
+    await collection('entries').insertMany([
+      {
+        id: 'offline-in-the-tent',
+        kind: 'alarm',
+        source: 'alarm',
+        deviceId: 'stayed',
+        spaceId: 'tent',
+        growId: 'grow',
+        occurredAt: new Date(split - DAY),
+      },
+      { id: 'after-it-moved-on', kind: 'system', source: 'device', deviceId: 'moved-on', spaceId: 'later', growId: null, occurredAt: new Date(AT) },
+    ]);
+
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await oneClimateAPlace.run(rehearsal);
+    expect(rehearsal.stats).toEqual({
+      'devices.givenTheirPastInTheirPlace': 3,
+      'alerts.movedWithTheirDevice': 1,
+      'entries.movedWithTheirDevice': 1,
+      rejected: 0,
+    });
+    expect((await collection('devices').findOne({ id: 'stayed' }))!.placements).toHaveLength(2);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await oneClimateAPlace.run(context);
+    const placements = async (id: string) => (await collection('devices').findOne({ id }))!.placements;
+    expect(await placements('stayed')).toEqual([{ spaceId: own('stayed'), startedAt: new Date(AT - 10 * DAY), endedAt: null }]);
+    expect(await placements('came')).toEqual([
+      { spaceId: 'balcony', startedAt: new Date(AT - 10 * DAY), endedAt: new Date(AT - 6 * DAY) },
+      { spaceId: own('came'), startedAt: new Date(AT - 6 * DAY), endedAt: null },
+    ]);
+    expect(await placements('moved-on')).toEqual([
+      { spaceId: own('moved-on'), startedAt: new Date(AT - 10 * DAY), endedAt: new Date(AT - DAY) },
+      { spaceId: 'later', startedAt: new Date(AT - DAY), endedAt: null },
+    ]);
+    expect(Object.fromEntries((await collection('alerts').find({}).toArray()).map(row => [row.id, row.spaceId]))).toEqual({
+      'over-in-the-tent': own('stayed'),
+      'over-on-the-balcony': 'balcony',
+      'of-the-lead': 'tent',
+    });
+    expect(await collection('entries').findOne({ id: 'offline-in-the-tent' })).toMatchObject({ spaceId: own('stayed'), growId: null });
+    expect(context.stats).toEqual(rehearsal.stats);
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await oneClimateAPlace.run(again);
+    expect(again.stats).toEqual({ rejected: 0 });
+    expect(await placements('came')).toHaveLength(2);
   });
 });
 

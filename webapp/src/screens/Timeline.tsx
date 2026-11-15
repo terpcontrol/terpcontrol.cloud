@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
 import { useDevices } from '@/api/devices';
+import { useGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
@@ -19,7 +20,8 @@ import styles from './timeline/Timeline.module.css';
  * device: its curves, in the place it stands in - whichever place the address
  * or the header named before. A link that names a place of the account's own
  * that has ended draws that place's curves, read only, rather than another
- * place's.
+ * place's, and so does one that names an ended grow alone whose last place has
+ * ended.
  */
 export function Timeline() {
   const { t } = useTranslation();
@@ -29,15 +31,25 @@ export function Timeline() {
   const devices = useDevices();
   const deviceId = params.get('device');
   const stands = deviceId ? devices.data?.items.find(one => one.id === deviceId)?.spaceId : null;
+  // An ended grow named without a place is drawn where it stood last - a place that has ended with it, read only -
+  // and not over the chosen place's curves, where it never stood.
+  const named = useGrow(params.get('space') === null ? params.get('grow') : null);
+  const grow = named.data;
+  const stoodLast = grow?.endedAt ? [...grow.placements].sort((one, other) => one.startedAt.localeCompare(other.startedAt)).at(-1)?.spaceId : null;
   // The device's own place is written into the address, which is what chooses a place: the header follows.
-  const elsewhere = stands && stands !== params.get('space') && places.some(place => place.spaceId === stands) ? stands : null;
+  const elsewhere =
+    stands && stands !== params.get('space') && places.some(place => place.spaceId === stands)
+      ? stands
+      : stoodLast && !places.some(place => place.spaceId === stoodLast)
+        ? stoodLast
+        : null;
   useEffect(() => {
     if (elsewhere) setParams(withParams(params, { space: elsewhere }), { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per place the device turns out to stand in
   }, [elsewhere]);
 
   // Not the place chosen before, for the moment it takes to learn where the device stands.
-  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending))
+  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending) || (named.isPending && named.fetchStatus !== 'idle'))
     return <Waiting lines={3} title={t('shell.tabs.timeline')} />;
   if (!home.data) return <LoadFailed title={t('shell.tabs.timeline')} read={home} values />;
   if (stray) return <NoLongerHere what="space" />;

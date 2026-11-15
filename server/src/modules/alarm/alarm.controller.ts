@@ -136,8 +136,8 @@ export class AlertsController {
     if (!where) return { items: [], nextCursor: null };
 
     const page = await this.inbox.list(where, query, open === false);
-    const nameOf = await this.inbox.placeNames(page.items);
-    return mapPage(page, alert => alertOf(alert, nameOf(alert)));
+    const placeOf = await this.inbox.placesOf(page.items);
+    return mapPage(page, alert => alertOf(alert, placeOf(alert)));
   }
 
   @Get(':id')
@@ -145,7 +145,7 @@ export class AlertsController {
   @V1Answer(alert)
   public async read(@Param('id') id: string, @Caller() caller: AccessContext): Promise<Alert> {
     const alert = await this.reachable(caller, id, 'view');
-    return alertOf(alert, (await this.inbox.placeNames([alert]))(alert));
+    return alertOf(alert, (await this.inbox.placesOf([alert]))(alert));
   }
 
   @Delete(':id')

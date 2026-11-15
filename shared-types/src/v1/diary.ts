@@ -1259,6 +1259,21 @@ const deviceChange = z.object({
   type: z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
 });
 
+/** A device that came into a place from another one, and where its earlier readings are. */
+const deviceArrival = named(
+  'DeviceArrival',
+  z.object({
+    deviceId: id(),
+    name: z.string().nullable().describe('What the device is called, as `Device.name`.'),
+    type: z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
+    at: instant().describe('When it was put here.'),
+    from: z
+      .object({ spaceId: id(), name: z.string() })
+      .nullable()
+      .describe('The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place.'),
+  }),
+);
+
 /**
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
@@ -1948,6 +1963,11 @@ export const spaceTimeline = named(
       .array(deviceChange)
       .describe(
         'When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.',
+      ),
+    arrivals: z
+      .array(deviceArrival)
+      .describe(
+        'The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.',
       ),
     machineEvents: timelineMachineEvents,
     grows: z

@@ -55,6 +55,15 @@ export const movedTo = (placements: readonly DevicePlacement[], spaceId: string 
  */
 const beginsAt = (placement: DevicePlacement, index: number): number => (index === 0 ? -Infinity : placement.startedAt.getTime());
 
+/**
+ * When a device standing in a place came there from another, and from which: its stay there now, where that is not
+ * its first placement. What it measured before is the other place's, and no read of this one shows it.
+ */
+export const arrivalOf = (placements: readonly DevicePlacement[] | undefined, spaceId: string): { at: Date; from: string } | null => {
+  const stay = (placements ?? []).findIndex(placement => placement.spaceId === spaceId && placement.endedAt === null);
+  return stay > 0 ? { at: placements![stay].startedAt, from: placements![stay - 1].spaceId } : null;
+};
+
 /** The placements in these places that reach into the stretch, each with when it begins for a read. */
 const reaching = (placements: readonly DevicePlacement[] | undefined, spaceIds: readonly (string | null)[], span: Span) =>
   (placements ?? [])

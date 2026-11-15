@@ -2277,7 +2277,12 @@
       "none": "keine Messung"
     },
     "lightOn": "an",
-    "ended": "Den Ort {{name}} gibt es nicht mehr. Seine Kurven bleiben hier lesbar, ändern lässt sich nichts mehr."
+    "ended": "Den Ort {{name}} gibt es nicht mehr. Seine Kurven bleiben hier lesbar, ändern lässt sich nichts mehr.",
+    "arrived": "{{device}} kam am {{date}} hierher · frühere Werte unter",
+    "arrivedFrom": "Verlauf von {{place}}",
+    "arrivedElsewhere": "{{device}} kam am {{date}} hierher · frühere Werte stehen bei dem Ort, an dem es vorher stand.",
+    "endedBare": "Den Ort {{name}} gibt es nicht mehr. Ändern lässt sich hier nichts mehr.",
+    "noDeviceThen": "In diesem Zeitraum stand hier kein Gerät."
   },
   "camera": {
     "lastError": "Letzter Versuch fehlgeschlagen: {{reason}}",

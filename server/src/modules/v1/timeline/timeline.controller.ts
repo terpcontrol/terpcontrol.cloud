@@ -3,8 +3,8 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { SpaceTimeline } from '@fg2/shared-types/v1';
 import { metric, spaceTimeline, timelineRange } from '@fg2/shared-types/v1-schemas';
-import { AccessGuard, CurrentGrant, Requires } from '@common/v1/access.guard';
-import { Grant } from '@common/v1/access.types';
+import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
+import { AccessContext, Grant } from '@common/v1/access.types';
 import { V1Query, inOrder, instantQuery, repeated } from '@common/v1/validation';
 import { OptionalSessionGuard } from '@common/auth/auth.guard';
 import { V1Answer } from '../answer-shape';
@@ -71,10 +71,11 @@ export class TimelineController {
   @V1Answer(spaceTimeline)
   public read(
     @CurrentGrant() grant: Grant,
+    @Caller() caller: AccessContext,
     @Param('id') id: string,
     @V1Query(timelineQuery) query: z.infer<typeof timelineQuery>,
   ): Promise<SpaceTimeline> {
     const { from, to, ...asked } = query;
-    return this.timeline.read(grant, id, { ...asked, ...(from && to ? { window: { startsAt: from, endsAt: to } } : {}) });
+    return this.timeline.read(grant, id, { ...asked, ...(from && to ? { window: { startsAt: from, endsAt: to } } : {}) }, new Date(), caller);
   }
 }

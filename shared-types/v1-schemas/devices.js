@@ -833,6 +833,9 @@ exports.alert = (0, common_js_1.named)('Alert', zod_1.z.object({
         .string()
         .nullable()
         .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
+    startedIn: (0, common_js_1.id)()
+        .nullable()
+        .describe('The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.'),
     kind: common_js_1.alertKind,
     severity: common_js_1.severity,
     startedAt: (0, common_js_1.instant)(),

@@ -175,7 +175,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     where the rounds of place and room and of Meldungen meet): an open alert stands where its device stands - it
     moves with the device, so the card, its ⋯, "Regel bearbeiten" and "Verlauf öffnen" name that place and Start
     marks that place alone -, and one that is over keeps the place it happened in, an ended place by the name it
-    had. No card, row or sheet shows an id; without a name a card says the kind of thing. What a card offers
+    had. "Verlauf öffnen" opens the place the device stood in when the alert began (`Alert.startedIn`, after the
+    seventh walk): an open alert that moved with its device since opens where that instant is drawn, without
+    naming the device there, as a page names only a device standing in its place. No card, row or sheet shows an id; without a name a card says the kind of thing. What a card offers
     goes by that place: the ⋯ and "Löschen" need `manage` there, looked up among the places in use and, for an
     ended one, among the account's ended places; "Verlauf öffnen" is offered for a place in use and, to its
     owner, for one of the reader's own that has ended (Chris, 2026-11-13; `placed`, `screens/Alerts.tsx`). A ⋯ exists
@@ -395,9 +397,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   lamps still join, and a lamp or fan alone is called no climate and offered no maintenance it has not got
   ("Lampenmodul: kein Klima." - only a controller or fridge module parks anything, `parksAnything`). **A place that held two
   climates from before is split** (Chris, 2026-11-14, replacing the redesign session's "stays as it is" of
-  2026-11-12): migration step `033-one-climate-a-place` stands the second in a place of its own, seen by whoever saw
-  the first ([data-operations.md](data-operations.md#migrations-in-operation)), so no screen says a second
-  climate.
+  2026-11-12): migration step `033-one-climate-a-place-with-its-past` stands the second in a place of its own, seen by
+  whoever saw the first ([data-operations.md](data-operations.md#migrations-in-operation)), so no screen says a second
+  climate. **That place holds the device's whole stay** (after the seventh walk, which found a split place's Verlauf
+  saying nothing was measured beside tiles and alarms with the device's last reading): it was a climate of its own
+  all along, so its readings, alarms and lines before the split are the new place's past.
 - **The claim says a camera as "Terp Cam gekoppelt" or "keine Kamera"** (the redesign session of 2026-11-13, after
   "Cam: F33B" beside "Terp Cam koppeln"): never by a fragment of its id, and "Terp Cam koppeln" is offered only while
   none is coupled (`camCoupled`, `cameraSaid`, `screens/claim/steps.ts`). Its steps go on with "Weiter · <noun>".
@@ -1777,7 +1781,16 @@ page the same day ("after the walk" below) - none of those is Chris's.
   camera's with the cursor on the day's picture, so this morning's picture is two taps from the camera page.
 - **Nothing to draw is said as what it is**: a device that has sent nothing "wartet auf erste Werte"; a window
   nothing was measured in is dated by the last reading and leads to it; a place no device measures in says so and
-  lists what was written. While another window is on its way the one before it stays, dimmed; a place gone quiet
+  lists what was written. **A device's past is found where it is looked for** (after the seventh walk): "letzter
+  Wert" is a reading taken in this place - a device moved here from another place speaks here from when it came, so
+  the way to the last value never leads into a window that shows nothing -, and where the window reaches back before
+  a device came, or it has measured nothing here since, a dashed note says so: "Controller kam am 15. Nov 10:20
+  hierher · frühere Werte unter Verlauf von Zelt ›", the link opening that place at the moment it left; a reader who
+  may not read that place is told it without a name or a link (`SpaceTimeline.arrivals`, `arrivalOf` in
+  `server/src/common/v1/device-placements.ts`). A note at the cursor is offered only for a moment the place existed
+  (`Space.createdAt`). An ended place whose window holds no curve says that it has ended and promises no curves, and
+  "In diesem Zeitraum stand hier kein Gerät" rather than that nothing measures there; an address naming an ended grow
+  alone opens the place it stood in last where that place has ended with it (`screens/Timeline.tsx`). While another window is on its way the one before it stays, dimmed; a place gone quiet
   rests the cursor on its last reading and says that it is the last, and the band and the night end with it. A
   window a device that fills every window left empty is a gap at every range, and no night is shaded through
   hours nobody reported in (after the fourth walk; [server-engines.md](server-engines.md#read-models)). **No

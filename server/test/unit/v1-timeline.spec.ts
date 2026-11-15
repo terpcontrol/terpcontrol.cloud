@@ -149,6 +149,8 @@ const build = (): TimelineService => {
     db.alarmRules,
     db.users,
     db.targetChanges,
+    db.spaces,
+    access,
     places,
     new SpaceLiveService(db.devices, db.cameras, fakeData),
     fakeData,
@@ -158,7 +160,7 @@ const build = (): TimelineService => {
 /** Exactly what the route does: the guard decides, and the answer is built from what it decided. */
 const readAs = async (ctx: AccessContext, asked: Parameters<TimelineService['read']>[2] = { range: '24h' }, spaceId = TENT) => {
   const grant: Grant = await access.require(ctx, subjectRef('space', spaceId), 'view');
-  return timeline.read(grant, spaceId, asked, NOW);
+  return timeline.read(grant, spaceId, asked, NOW, ctx);
 };
 
 const entry = (over: Partial<EntryDocument>): EntryDocument =>
@@ -724,6 +726,57 @@ describe('the stacked panels', () => {
       reports = { [CONTROLLER]: () => null };
 
       expect((await readAs(session(OWNER))).lastReadingAt).toBeNull();
+    });
+
+    describe('a device that came from another place', () => {
+      /** The controller was moved here from the second tent three days ago, silent since the day before. */
+      const CAME = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const measuredAt = new Date(CAME.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+      beforeEach(async () => {
+        await db.devices.updateOne(
+          { id: CONTROLLER },
+          {
+            $set: {
+              placements: [
+                { spaceId: BARE, startedAt: new Date(0), endedAt: CAME },
+                { spaceId: TENT, startedAt: CAME, endedAt: null },
+              ],
+            },
+          },
+        );
+        reports = { [CONTROLLER]: () => null };
+        lastReading = { temperature: { value: 24, measuredAt, state: 'offline' } };
+      });
+
+      it('points to no last reading it took elsewhere, and says where it came from and when', async () => {
+        const page = await readAs(session(OWNER));
+        expect(page.panels).toEqual([]);
+        expect(page.lastReadingAt).toBeNull();
+        expect(page.arrivals).toEqual([
+          { deviceId: CONTROLLER, name: null, type: 'controller', at: CAME.toISOString(), from: { spaceId: BARE, name: 'Tent 2' } },
+        ]);
+      });
+
+      it('names the place it came from only to a reader who may read that place', async () => {
+        expect((await readAs(session(MEMBER))).arrivals).toEqual([expect.objectContaining({ deviceId: CONTROLLER, from: null })]);
+      });
+
+      it('answers its last reading here, and no arrival, where it has measured here since and came before the window', async () => {
+        const since = new Date(CAME.getTime() + 60 * 60 * 1000).toISOString();
+        lastReading = { temperature: { value: 24, measuredAt: since, state: 'offline' } };
+
+        const page = await readAs(session(OWNER));
+        expect(page.lastReadingAt).toBe(since);
+        expect(page.arrivals).toEqual([]);
+      });
+
+      it('says when it came where the window reaches back before that, curves and all', async () => {
+        reports = { [CONTROLLER]: controllerReport };
+        const page = await readAs(session(OWNER), { range: '7d' });
+        expect(page.panels.length).toBeGreaterThan(0);
+        expect(page.arrivals.map(one => one.at)).toEqual([CAME.toISOString()]);
+      });
     });
 
     it('does not pay the read where the window already has curves to draw', async () => {

@@ -3,8 +3,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import type { GrowDayEvent, Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
-import { Grant, isOutsider } from '@common/v1/access.types';
-import { Stood } from '@common/v1/device-placements';
+import { AccessService, subjectRef } from '@common/v1/access.service';
+import { AccessContext, Grant, isOutsider } from '@common/v1/access.types';
+import { Stood, arrivalOf } from '@common/v1/device-placements';
 import { badRequest, notFound } from '@common/v1/problem';
 import { zoneOfOwner } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
@@ -16,6 +17,8 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
@@ -33,7 +36,7 @@ import { grantRedaction } from '../grow/redactions';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
-import { lastReadingOf } from './last-reading';
+import { lastReadingsOf, newestOf } from './last-reading';
 import { PANEL_METRICS, chartPartsOf, panelsOf, readingOf, silencesOf } from './timeline-series';
 import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
@@ -60,7 +63,7 @@ import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretches
  * record where the first two found it, and a redacted reader reads the diary
  * alone. A third time-series read per device is paid by
  * a window with no curves in it at all, and by no other: it is the one window
- * that cannot say for itself whether this place measures - see `lastReadingOf`.
+ * that cannot say for itself whether this place measures - see `lastReadingsOf`.
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
@@ -117,12 +120,20 @@ export class TimelineService {
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
+    private readonly access: AccessService,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
   ) {}
 
-  public async read(grant: Grant, spaceId: string, asked: TimelineQuery, now: Date = new Date()): Promise<SpaceTimeline> {
+  public async read(
+    grant: Grant,
+    spaceId: string,
+    asked: TimelineQuery,
+    now: Date = new Date(),
+    caller: AccessContext | null = null,
+  ): Promise<SpaceTimeline> {
     const at = asked.at ?? now;
     const [space, stood] = await Promise.all([
       this.places.require(spaceId),
@@ -200,6 +211,17 @@ export class TimelineService {
     const drawn =
       devices.find(device => device.id === (own?.series.deviceId ?? steering?.id) && device.spaceId === spaceId) ??
       (alone.length === 1 ? alone[0] : null);
+    // Of the device the curves are of - the one asked for, else the place's own - so "to the last reading" lands on a
+    // value of the curve it stands under and not on another climate's that happens to be newer. Read only where the
+    // window has no curve: one with curves has answered the question already.
+    const heard =
+      panels.length > 0
+        ? new Map<string, string | null>()
+        : await lastReadingsOf(
+            this.data,
+            devices.filter(device => device.spaceId === spaceId && (!steering || asked.deviceId !== undefined || device.id === steering.id)),
+            spaceId,
+          );
 
     return {
       spaceId: space.id,
@@ -227,21 +249,14 @@ export class TimelineService {
       silences: silencesOf(own ?? series.find(one => one.series.deviceId === drawn?.id) ?? null, window),
       // One `last()` more per read: "now" is then the same figures for the owner, a member and a link's reader.
       reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
-      lastReadingAt:
-        panels.length > 0
-          ? null
-          : // Of the device the curves are of - the one asked for, else the place's own - so "to the last reading"
-            // lands on a value of the curve it stands under and not on another climate's that happens to be newer.
-            await lastReadingOf(
-              this.data,
-              devices.filter(device => device.spaceId === spaceId && (!steering || asked.deviceId !== undefined || device.id === steering.id)),
-            ),
+      lastReadingAt: newestOf([...heard.values()]),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
       events: told,
       stretches: recorded.stretches,
       // Which device measured when is the hardware in the tent as well.
       deviceChanges: isOutsider(grant) ? [] : changesOf(present, steering?.id ?? null, before),
+      arrivals: isOutsider(grant) ? [] : await this.arrivalsOf(caller, spaceId, devices, window, heard),
       machineEvents: recorded.machine,
       // A reader who is shown one grow's week is not shown what else has stood
       // in the room, so the chips they have not got are answered as none.
@@ -327,6 +342,43 @@ export class TimelineService {
       ].sort((one, other) => one.at.localeCompare(other.at)),
       machine: { shown: machine.length, total },
     };
+  }
+
+  /**
+   * The devices standing here that came from another place, where that matters to the window: it reaches back before
+   * one came, or nothing the device measured here is in it - its "last reading" is then from the other place, and
+   * this one has none to point at. Where it stood before is named to a reader who may read that place.
+   */
+  private async arrivalsOf(
+    caller: AccessContext | null,
+    spaceId: string,
+    devices: readonly StoredDevice[],
+    window: Span,
+    heard: ReadonlyMap<string, string | null>,
+  ): Promise<SpaceTimeline['arrivals']> {
+    const came = devices.flatMap(device => {
+      const arrival = device.spaceId === spaceId ? arrivalOf(device.placements, spaceId) : null;
+      const quiet = heard.has(device.id) && heard.get(device.id) === null;
+      return arrival && (arrival.at > window.startsAt || quiet) ? [{ device, ...arrival }] : [];
+    });
+    if (came.length === 0) return [];
+
+    const from = [...new Set(came.map(one => one.from))];
+    const readable = caller
+      ? await Promise.all(from.map(async id => ((await this.access.access(caller, subjectRef('space', id), 'view')) !== null ? [id] : [])))
+      : [];
+    const named = await this.spaces.find({ id: { $in: readable.flat() } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>();
+
+    return came.map(({ device, at, from: fromId }) => {
+      const place = named.find(one => one.id === fromId);
+      return {
+        deviceId: device.id,
+        name: device.name ?? null,
+        type: device.type,
+        at: at.toISOString(),
+        from: place ? { spaceId: place.id, name: place.name } : null,
+      };
+    });
   }
 
   /**

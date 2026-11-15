@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
+import type { Alert } from '@fg2/shared-types/v1';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
-import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { DevicePlacement, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { AccessContext, SubjectRef } from '@common/v1/access.types';
@@ -83,14 +84,24 @@ export class AlertInboxService {
     return findPage(this.alerts, [where], query, { field: over ? 'resolvedAt' : 'startedAt' });
   }
 
-  /** What the places these alerts name are called now, an ended place included: no reader is to show an id. */
-  public async placeNames(alerts: readonly StoredAlert[]): Promise<(alert: StoredAlert) => string | null> {
+  /**
+   * Where these alerts are: what the place each names is called now, an ended place included - no reader is to show
+   * an id -, and the place its device stood in when it began, which an open one that moved with its device has left.
+   */
+  public async placesOf(alerts: readonly StoredAlert[]): Promise<(alert: StoredAlert) => Pick<Alert, 'spaceName' | 'startedIn'>> {
     const ids = [...new Set(alerts.flatMap(alert => (alert.spaceId ? [alert.spaceId] : [])))];
-    const named =
-      ids.length === 0 ? [] : await this.spaces.find({ id: { $in: ids } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>();
+    const moved = [...new Set(alerts.flatMap(alert => (alert.resolvedAt === null && alert.deviceId ? [alert.deviceId] : [])))];
+    const [named, placed] = await Promise.all([
+      ids.length === 0 ? [] : this.spaces.find({ id: { $in: ids } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>(),
+      moved.length === 0 ? [] : this.devices.find({ id: { $in: moved } }, { id: 1, placements: 1 }).lean<Pick<StoredDevice, 'id' | 'placements'>[]>(),
+    ]);
     const names = new Map(named.map(space => [space.id, space.name]));
+    const placements = new Map(placed.map(device => [device.id, device.placements ?? []]));
 
-    return alert => (alert.spaceId ? (names.get(alert.spaceId) ?? null) : null);
+    return alert => {
+      const stood = placements.get(alert.deviceId ?? '')?.find(standingAt(alert.startedAt));
+      return { spaceName: alert.spaceId ? (names.get(alert.spaceId) ?? null) : null, startedIn: stood ? stood.spaceId : alert.spaceId };
+    };
   }
 
   /** The filter a list is held to, or null where the caller can see nothing at all. */
@@ -144,3 +155,9 @@ export class AlertInboxService {
     return withSpacesInside(this.spaces, [...owned.map(space => space.id), ...memberships.map(membership => membership.spaceId)]);
   }
 }
+
+/** The placement a device stood in at an instant; a first one reaches back past its own start, as a read takes it. */
+const standingAt =
+  (at: Date) =>
+  (placement: DevicePlacement, index: number): boolean =>
+    (index === 0 || placement.startedAt <= at) && (placement.endedAt === null || placement.endedAt > at);

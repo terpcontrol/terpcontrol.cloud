@@ -133,6 +133,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
   events: [],
   stretches: [],
   deviceChanges: [],
+  arrivals: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],
