@@ -44,6 +44,8 @@ interface Field {
   words?: readonly string[] | ((mode: string | null) => readonly string[]);
   /** Where the words of a choice's values are kept. */
   values?: string;
+  /** How many digits after the point a figure keeps, where one is not enough: a factor of 0.0185. */
+  digits?: number;
 }
 
 /** The row a socket's switch point stands in: on below and off above it for what it raises, the other way round for what it lowers. */
@@ -74,6 +76,23 @@ const dayNightWords = (mode: string | null): readonly string[] => [
       : 'plugSettings.dayLabel',
 ];
 
+/** The targets drying and germination put aside, which the device row keeps until they are put back. */
+const SET_ASIDE: Readonly<Record<string, Field>> = Object.fromEntries(
+  ['afterDrying', 'afterGermination'].flatMap(spell =>
+    Object.entries({
+      dayTemperature: ['day.temperature', '°C'],
+      dayHumidity: ['day.humidity', '%'],
+      nightTemperature: ['night.temperature', '°C'],
+      nightHumidity: ['night.humidity', '%'],
+      co2: ['co2.target', 'ppm'],
+      lightLimit: ['lights.limit', '%'],
+    }).map(([key, [place, unit]]) => [
+      `control.${spell}.${key}`,
+      { kind: 'number', unit, words: [`configChange.field.control.${spell}`, `configChange.field.${place}`] },
+    ]),
+  ),
+);
+
 const FIELDS: Readonly<Record<string, Field>> = {
   workmode: { kind: 'choice', values: 'configChange.mode' },
   'day.temperature': { kind: 'number', unit: '°C' },
@@ -89,6 +108,12 @@ const FIELDS: Readonly<Record<string, Field>> = {
   'daynight.day': { kind: 'time' },
   'daynight.night': { kind: 'time' },
   'daynight.minimalDehumidifierOffTime': { kind: 'number', unit: 's' },
+  // The dehumidifier's tuning and a fridge's ramps, which the server writes into every document a fridge is sent.
+  'daynight.maxDehumidifySeconds': { kind: 'number', unit: 's' },
+  'daynight.targetHumidityDiff': { kind: 'number', unit: '%' },
+  'daynight.useLongHumidityAvg': { kind: 'switch' },
+  'daynight.linearChange': { kind: 'switch' },
+  'co2.sunsetOff': { kind: 'switch' },
   'fans.external': { kind: 'number', unit: '%' },
   'fans.internal': { kind: 'number', unit: '%' },
   // Not figures of the device's document but what germination does about the
@@ -139,6 +164,23 @@ const FIELDS: Readonly<Record<string, Field>> = {
   'limits.time.enabled': { kind: 'switch', words: ['plugProtections.least'] },
   'limits.time.min_on': { kind: 'number', unit: 's', words: ['plugProtections.least', 'plugProtections.leastOn'] },
   'limits.time.min_off': { kind: 'number', unit: 's', words: ['plugProtections.least', 'plugProtections.leastOff'] },
+  // Not the document's: what the cloud keeps of a device beside it (`Device.settings`, `Device.control`), which
+  // support reads in the same words.
+  vpdLeafOffsetDay: { kind: 'number', unit: '°C', words: ['sensorFactors.day'] },
+  vpdLeafOffsetNight: { kind: 'number', unit: '°C', words: ['sensorFactors.night'] },
+  ppfdLuxFactor: { kind: 'number', digits: 4, words: ['sensorFactors.lux'] },
+  // A plug, a fan or a lamp has no control to keep: it is said as none.
+  control: { kind: 'switch', words: ['configChange.field.control.running'] },
+  'control.running': { kind: 'switch' },
+  'control.drying': { kind: 'switch' },
+  'control.mode': { kind: 'choice', values: 'operatingMode', words: ['operatingMode.label'] },
+  'control.energySaving': { kind: 'switch', words: ['control.rows.mode.energySaving'] },
+  'control.germinationChoices.warnTooHumid': { kind: 'switch', as: 'germination.warnTooHumid' },
+  'control.germinationChoices.humidifierHolds': { kind: 'switch', as: 'germination.humidifierHolds' },
+  'control.preset': { kind: 'choice', values: 'home.stage' },
+  'control.preset.stage': { kind: 'choice', values: 'home.stage', words: ['configChange.field.control.preset', 'grow.lifecycle.phase.stageLabel'] },
+  'control.preset.preset': { kind: 'choice', values: 'grow.presetName', words: ['configChange.field.control.preset'] },
+  ...SET_ASIDE,
 };
 
 /**
@@ -210,7 +252,8 @@ const unitOf = (i18n: I18n, unit: string | undefined): string => (unit === 'min'
 const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext): string | null => {
   // A fan is slowed for a socket's CO2 while its section names the socket, whichever socket it is.
   if (field.kind === 'coupled') return i18n.t(raw === '–' || raw === '' ? 'configChange.off' : 'configChange.on');
-  if (raw === '–') return raw;
+  // A figure kept as nothing - a target drying did not put aside - is one that was not there.
+  if (raw === '–' || raw === 'null') return '–';
   switch (field.kind) {
     case 'choice': {
       const word = `${field.values}.${raw}`;
@@ -241,7 +284,8 @@ const valueOf = (i18n: I18n, field: Field, raw: string, context: ChangeContext):
     case 'number': {
       const number = figureIn(raw);
       if (number === null) return null;
-      return `${new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1, useGrouping: false }).format(number)} ${unitOf(i18n, field.unit)}`.trim();
+      const format = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: field.digits ?? 1, useGrouping: false });
+      return `${format.format(number)} ${unitOf(i18n, field.unit)}`.trim();
     }
   }
 };

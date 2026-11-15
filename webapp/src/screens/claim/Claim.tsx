@@ -297,6 +297,7 @@ export function Claim() {
       <AirStep
         device={claimed}
         places={joinOrder(own(places), every, claimed.id).filter(one => one.id !== made)}
+        made={space !== null && space.id === made ? space : null}
         every={every}
         headingRef={heading}
         hang={hang}

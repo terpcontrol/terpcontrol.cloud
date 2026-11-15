@@ -798,8 +798,9 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/spaces/space-new/preset-applications', { stage: 'flowering' }));
-    expect(await screen.findByText('The targets went to 1 device.')).toBeInTheDocument();
-    expect(screen.getByText('No grow entered the phase; only the climate was written.')).toBeInTheDocument();
+    expect(await screen.findByText('The targets went to 1 device.', { selector: 'li' })).toBeInTheDocument();
+    // An account that keeps no diary is told what was written, and nothing about a grow that never was.
+    expect(screen.queryByText(/No grow/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Start a grow/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Only the climate/ })).not.toBeInTheDocument();
   });
@@ -824,7 +825,7 @@ describe('adding a device', () => {
     expect(await screen.findByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
-    expect(await screen.findByText('The targets went to 1 device.')).toBeInTheDocument();
+    expect(await screen.findByText('The targets went to 1 device.', { selector: 'li' })).toBeInTheDocument();
     expect(screen.getByText('Light on 06:00–18:00 · 12 h – when it comes on is changed under Control.').tagName).toBe('LI');
   });
 
@@ -1055,12 +1056,10 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
-    expect(await screen.findByText('No device here took the targets.')).toBeInTheDocument();
-    expect(screen.getByText('No grow entered the phase, and no climate was written.')).toBeInTheDocument();
+    expect(await screen.findByText('No device here took the targets.', { selector: 'li' })).toBeInTheDocument();
+    expect(screen.queryByText(/No grow/)).not.toBeInTheDocument();
     // Said to a screen reader too, in the region that was on the page before the write.
-    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
-      'No device here took the targets. No grow entered the phase, and no climate was written.',
-    );
+    expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('No device here took the targets.');
   });
 
   /**
@@ -1091,10 +1090,11 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Veg' }));
 
     expect(
-      await screen.findByText('The climate waits for the first settings of Terp Controller: as they arrive, the device is put on it.'),
+      await screen.findByText('The climate waits for the first settings of Terp Controller: as they arrive, the device is put on it.', {
+        selector: 'li',
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText('No grow entered the phase.')).toBeInTheDocument();
-    expect(screen.queryByText(/no climate was written/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No grow|no climate was written/)).not.toBeInTheDocument();
   });
 
   it('names the build rather than printing the uuid the hardware reports', async () => {
@@ -1206,11 +1206,11 @@ describe('adding a device', () => {
     claim();
 
     await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
-    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/^Mother tentFan\W+0001, Fan\W+0002: one maintenance/);
-    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one maintenance/);
+    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/^Mother tentFan\W+0001, Fan\W+0002: no climate\.$/);
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: no climate\.$/);
   });
 
-  /** "One camera" stood under a tent no camera looks into: a place is said by what it has. */
+  /** "One camera" stood under a tent no camera looks into, "one maintenance window" under fans that have none: a place is said by what it has. */
   it('names the camera a device would share only under the place one looks into', async () => {
     const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };
     state.spaces = [mother, drying];
@@ -1223,9 +1223,9 @@ describe('adding a device', () => {
     claim();
 
     await screen.findByRole('heading', { level: 2, name: 'Where is the Plantalytix Socket plugged in?' });
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/one camera, one maintenance window\.$/));
-    // A fan alone is no climate: the place is said by what it has.
-    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: one maintenance window\.$/);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(/one camera, no climate\.$/));
+    // A fan alone is no climate and parks nothing for maintenance: the place is said by what it has.
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: no climate\.$/);
   });
 
   /** The place's Start judged the device by a read cut before it was heard: "waiting for the first values" under a claim that said "online". */
@@ -1389,7 +1389,9 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: /^At a new place/ })).toHaveAttribute('aria-current', 'true');
     expect(screen.getByRole('button', { name: /^Mother tent/ })).not.toHaveAttribute('aria-current');
     expect(screen.getByText('No device is there yet.')).toBeInTheDocument();
-    expect(screen.getByText('A second tent, say, with a climate of its own.')).toBeInTheDocument();
+    // The answer that holds is the place the claim made, and it is named: "At a new place" alone, chosen already, said
+    // nothing of where the device now stands.
+    expect(screen.getByRole('button', { name: /^At a new place/ })).toHaveTextContent(/^At a new placeAlready set up: Terp Controller\.$/);
 
     fireEvent.click(screen.getByRole('button', { name: /^At a new place/ }));
 
@@ -1421,8 +1423,8 @@ describe('adding a device', () => {
     expect(
       screen.getByText('Mother tent already has a controller or fridge module. A place has one climate, so this device gets a place of its own.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentLight: one maintenance window\.$/);
-    expect(screen.queryByText(/one climate, one maintenance window/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tent.+: no climate\.$/);
+    expect(screen.queryByText(/maintenance/)).not.toBeInTheDocument();
   });
 
   it('offers neither a room nor a place that was put away', async () => {
@@ -1643,11 +1645,7 @@ describe('adding a device', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Flower' }));
     fireEvent.click(screen.getByRole('button', { name: 'Put it on Flower' }));
 
-    await waitFor(() =>
-      expect(screen.getAllByRole('status').map(one => one.textContent)).toContain(
-        'The targets went to 1 device. No grow entered the phase; only the climate was written.',
-      ),
-    );
+    await waitFor(() => expect(screen.getAllByRole('status').map(one => one.textContent)).toContain('The targets went to 1 device.'));
   });
 
   it('reads the resumed step off the server rather than claiming nothing was set', async () => {

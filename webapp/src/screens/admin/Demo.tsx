@@ -79,7 +79,7 @@ export function Demo() {
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
                 </Liveness>
                 {device.spaceId ? (
-                  <Link className={ui.chip} to={placePath(device.spaceId)}>
+                  <Link className={`${ui.chip} ${styles.action}`} to={placePath(device.spaceId)}>
                     {t('admin.demo.open')}
                   </Link>
                 ) : null}

@@ -17,20 +17,23 @@ import ui from '@/ui/ui.module.css';
  * account that already has a place: in the air of a place that exists - by
  * its name alone, what stands there under it - or at a new place of its own.
  *
- * What hanging there means is said by what the place has: its climate where a controller or fridge module holds
- * one, its maintenance, which the device shares, and its camera only where one looks in - "eine Kamera" stood under
- * a tent with none, "ein Klima" under a lamp alone. A place has one climate (Chris, 2026-11-14): a second controller
- * or fridge module is offered no place that holds one, and one sentence says why it stands in a place of its own.
+ * What hanging there means is said by what the place has: its climate and its maintenance where a controller or
+ * fridge module holds one - nothing else there parks for maintenance -, and its camera only where one looks in -
+ * "eine Kamera" stood under a tent with none, "ein Klima" under a lamp alone, "eine Wartung" under a fan. A place has
+ * one climate (Chris, 2026-11-14): a second controller or fridge module is offered no place that holds one, and one
+ * sentence says why it stands in a place of its own.
  *
  * The device hangs somewhere before the question is put - a fan, a socket or
  * a lamp in the place listed first, where its claim put it, a second
  * controller or fridge module in the new place its claim made - so the page
  * shows that answer as the one that holds, and a flow left here leaves the
- * device where it reads. The head counts no steps: this answer decides them.
+ * device where it reads; a new place already made is named. The head counts no
+ * steps: this answer decides them.
  */
 export function AirStep({
   device,
   places,
+  made,
   every,
   headingRef,
   hang,
@@ -40,6 +43,8 @@ export function AirStep({
   device: Device;
   /** The account's own places it may hang in, as they are offered (`joinOrder`); the one it hangs in among them unless that is a new one. */
   places: readonly Space[];
+  /** The place this flow made, where the device stands in it: the new place is that one. */
+  made: Space | null;
   /** The account's devices, for what stands in each place. */
   every: Device[];
   headingRef: RefObject<HTMLHeadingElement | null>;
@@ -87,7 +92,11 @@ export function AirStep({
       const seen = cameras.some(camera => camera.spaceId === one.id);
       return answer(one, one.name, there.length > 0 ? t(seen ? shares : `${shares}NoCamera`, { devices }) : t('claim.air.hereEmpty'));
     });
-  const fresh = answer(null, t('claim.air.new'), t(`claim.air.newNote.${ownClimate ? device.type : 'other'}`));
+  const fresh = answer(
+    null,
+    t('claim.air.new'),
+    made ? t('claim.air.made', { place: made.name }) : t(`claim.air.newNote.${ownClimate ? device.type : 'other'}`),
+  );
 
   return (
     <section className={`${ui.stack4} ${ui.page} ${styles.screen}`}>

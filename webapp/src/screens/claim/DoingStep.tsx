@@ -82,9 +82,8 @@ export function DoingStep({
       : waits
         ? t('claim.doing.waits', { device: deviceName(awaiting, t) })
         : t('claim.doing.wroteNothing');
-  const phaseLine = applied?.phaseId
-    ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) })
-    : t(wrote ? 'claim.doing.noPhaseWritten' : waits ? 'claim.doing.noPhase' : 'claim.doing.noPhaseNoClimate');
+  // Asked only of an account that keeps no diary: a grow is spoken of only where one here did enter the phase.
+  const phaseLine = applied?.phaseId ? t('claim.doing.phaseWritten', { stage: t(`home.stage.${applied.stage}`) }) : null;
 
   return (
     <>
@@ -92,7 +91,7 @@ export function DoingStep({
           this one is always drawn and says nothing until a write has happened.
           What it reads is what the lines below say, so nothing is read twice. */}
       <p className={ui.visuallyHidden} role="status">
-        {applied ? [wroteLine, phaseLine].join(' ') : ''}
+        {applied ? [wroteLine, phaseLine].filter(Boolean).join(' ') : ''}
       </p>
 
       <Choices label={t('claim.doing.pick')}>
@@ -147,7 +146,7 @@ export function DoingStep({
         <ul className={ui.effects}>
           <li>{wroteLine}</li>
           {wrote && window ? <li>{t('claim.doing.window', { light: window })}</li> : null}
-          <li>{phaseLine}</li>
+          {phaseLine ? <li>{phaseLine}</li> : null}
         </ul>
       ) : null}
     </>

@@ -93,12 +93,12 @@ export function DeviceDiagnosis() {
         <section className={styles.tableCard}>
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.settings')}</h2>
           {one.configuration ? (
-            <Settings rows={inWords(i18n, one, owner?.preferences.timezone ?? null)} />
+            <Settings rows={inWords(i18n, one, flatten(one.configuration), owner?.preferences.timezone ?? null)} />
           ) : (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noSettings')}</p>
           )}
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.factors')}</h2>
-          <Settings rows={asStored(flatten({ ...one.settings, control: one.control }))} />
+          <Settings rows={inWords(i18n, one, flatten({ ...one.settings, control: one.control }), owner?.preferences.timezone ?? null)} />
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.hardware')}</h2>
           <Settings rows={asStored(flatten(one.state.hardware))} />
         </section>
@@ -178,14 +178,15 @@ interface SettingRow {
 const asStored = (rows: [string, string][]): SettingRow[] => rows.map(([name, value]) => ({ name, value }));
 
 /**
- * The document in the words the app's own screens and diary use for each figure it sets (`settingWords`), each
- * with where it is stored; a figure the app does not set as it is stored. A time of day is said on both clocks:
- * UTC, which is what the device runs on, and the customer's own, which is what the customer reads in the app -
- * "21600" alone had support doing arithmetic on the phone with somebody whose lamp comes on at eight.
+ * The document - and what the cloud keeps beside it - in the words the app's own screens and diary use for each
+ * figure it sets (`settingWords`), each with where it is stored; a figure the app does not set as it is stored. A
+ * time of day is said on both clocks: UTC, which is what the device runs on, and the customer's own, which is what
+ * the customer reads in the app - "21600" alone had support doing arithmetic on the phone with somebody whose lamp
+ * comes on at eight.
  */
-const inWords = (i18n: I18n, device: Device, zone: string | null): SettingRow[] => {
+const inWords = (i18n: I18n, device: Device, stored: [string, string][], zone: string | null): SettingRow[] => {
   const context = { type: device.type, mode: typeof device.configuration?.workmode === 'string' ? device.configuration.workmode : null };
-  return flatten(device.configuration ?? {}).map(([path, raw]) => {
+  return stored.map(([path, raw]) => {
     const said = settingWords(i18n, path, raw, { ...context, zone: 'UTC' });
     if (!said) return { name: path, value: raw };
     const there = said.clock && zone ? settingWords(i18n, path, raw, { ...context, zone })?.value : null;

@@ -389,7 +389,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   says why in one sentence, opened from such a place it stands the device in a place of its own and asks where it
   hangs; "Gerät hierher holen" lists it unopenable with "hier regelt schon …", and "umziehen" refuses the place under
   its chips (`climateHeldBy`, `screens/control/lead.ts`; the server's `place_holds_a_climate`). Fans, sockets and
-  lamps still join, and a lamp or fan alone is called no climate ("Licht: eine Wartung."). **A place that held two
+  lamps still join, and a lamp or fan alone is called no climate and offered no maintenance it has not got ("Licht:
+  kein Klima." - only a controller or fridge module parks anything, `parksAnything`). **A place that held two
   climates from before is split** (Chris, 2026-11-14, replacing the redesign session's "stays as it is" of
   2026-11-12): migration step `033-one-climate-a-place` stands the second in a place of its own, seen by whoever saw
   the first ([data-operations.md](data-operations.md#migrations-in-operation)), so no screen says a second
@@ -401,7 +402,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   redesign session of 2026-11-12, `screens/claim/AirStep.tsx`). Adding one - a controller, a fridge module, an AIR
   fan, a Plantalytix Socket, a LIGHT - makes a place for it, and where the account owns another place the next page
   asks "Wo hängt …?": in the air of a place that exists ("ein Klima, eine Kamera, eine Wartung" with what stands
-  there) or at a new place. A fan, a socket and a lamp are offered the place that exists first, a second controller
+  there) or at a new place - named once it is made ("Schon angelegt: Zelt 2."), as a second controller's is, whose
+  claim made it and where every place holds a climate is the one answer. A fan, a socket and a lamp are offered the place that exists first, a second controller
   or fridge module the new one, because that is a second climate. The first device of an account is asked nothing;
   a flow opened from a place ("Gerät hierher holen") claims into that place and asks nothing; what hangs on a
   controller's smart socket is never claimed and never asked.
@@ -430,7 +432,9 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *A device that joins a climate is done there.* A fan, a socket or a lamp hung beside a controller or a fridge
     module is asked nothing more - no climate, no camera, no alarms, no grow: the flow ends on that place's Start
     with a toast that names what hangs where ("Zelt: Lüfter hängt jetzt hier"). The step that sets a climate writes
-    the place's targets, so it is asked only of a controller or fridge module that is its place's first; the camera
+    the place's targets, so it is asked only of a controller or fridge module that is its place's first - and only
+    of an account that keeps no diary, so what it says it did speaks of no grow unless one there entered the phase
+    (`DoingStep.tsx`); the camera
     step only of a device that can carry one; how alarms reach somebody only while nothing reaches the account.
   - *A place the app names itself* is "Zelt", then "Zelt 2" - "Kühlschrank" for a fridge module - by the rule the
     server numbers by (`numbered`), also for a first fan, socket or lamp. Name and kind are not asked in the flow;
@@ -629,8 +633,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   redesign session of 2026-11-12, and again after its critic's walk - the rules below are that session's;
   `screens/place/RemovePlace.tsx` with `remove-plan.ts`, at `/spaces/:id/remove`, outside the bar). A select per
   device, per camera and per running grow, and it replaced the sheet that moved everything to one place.
-  - *A tent is kept together.* One device leads - the first controller or fridge module, else the first device -
-    and goes to another place of the account that fits: a place of its kind that holds no climate of its own yet,
+  - *A tent is kept together.* One device leads - the place's lead, as Ort bearbeiten lists it first (`leadOf`,
+    with the climates the place's overview names): a fan before a socket never heard - and goes to another place of the account that fits: a place of its kind that holds no climate of its own yet,
     else a new place ("Zelt 2", in the room the place stood in). Every other device and every camera defaults to
     "bleibt bei <the leading device>" and goes wherever that one goes; another place, a place of its own and
     "abgeben" stay in the select. Giving the leading device up hands the lead to the next. One new place at most
@@ -970,7 +974,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     link's card says how long it lasts once, by its end ("läuft ab 21. Nov"), and says nothing of camera pictures
     where no camera could take any (`picturesPossible`, `screens/me/sharing/links.ts`). "Zurückziehen" asks first,
     with the one danger yes, on Ich › Freigabelinks and in a grow's share sheet alike: nothing starts a link again
-    (Chris, 2026-11-14). A line from an earlier year says
+    (Chris, 2026-11-14). With none active above links that stopped, the page says "Gerade ist keiner aktiv", not
+    that none was ever handed out. A line from an earlier year says
     its year (`sinceLabel`, `dayStamp`, `ui/age.ts`).
 - **Bilder** (`screens/grow/pictures/`): Alle · Deine Fotos · Kamera - "Kamera" only where a camera watches the
   grow or once pictured it, and the choice is part of the address (`?show=`); the newest week film on top, played
@@ -1859,8 +1864,10 @@ page the same day ("after the walk" below) - none of those is Chris's.
   it held; one Terp Cam picture carries one time on the place and on Steuerung (`useLatestStillTimes`).
 
 ## 9. Look, beyond ADR 0002
-- Admin's "+ Konto", the fleet's filter chips and "Pausieren" are 36 px targets. The support view says a device's
-  configuration in the app's words, the stored path small under each name and a time on both clocks, and a device
+- Admin's "+ Konto", the fleet's filter chips and search field, the demo's "Öffnen" and "Pausieren" are 36 px
+  targets. The support view says a device's configuration in the app's words - also what the server writes into a
+  fridge's document (`co2.sunsetOff`, the dehumidifier's tuning) and what the cloud keeps beside it (the leaf
+  offsets, the lux factor, `control.*`) -, the stored path small under each name and a time on both clocks, and a device
   nobody owns whether its owner gave it up or deleted their account (`DeviceState.released`); a never-heard device's
   Technische Details says "noch nicht gemeldet" of what it understands. Every window title ends "· Terp Control"
   (`windowTitle`, `app/shell/page-title.ts`).

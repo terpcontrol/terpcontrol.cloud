@@ -9,7 +9,7 @@ import { useSpaceGrows } from '@/api/grows';
 import { useMembers } from '@/api/members';
 import { together } from '@/api/read';
 import { useReminders } from '@/api/reminders';
-import { useEndPlace, useSpaces, type EndNote } from '@/api/spaces';
+import { useEndPlace, useSpaceOverview, useSpaces, type EndNote } from '@/api/spaces';
 import { editPath, leaveUnderSheet, placesOf } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { newPlaceName } from '@/screens/claim/steps';
@@ -70,6 +70,8 @@ export function RemovePlace() {
   // Who is let in is the owner's to read; anybody else is sent on below without asking.
   const members = useMembers(spaceId, owns);
   const reminders = useReminders();
+  // Which device leads, as Ort bearbeiten names it: a place without one keeps the order of the devices alone.
+  const overview = useSpaceOverview(spaceId);
 
   if (spaces.isPending) return <Waiting lines={5} />;
   // Asked before anything else is read: a place that has ended, or never was, has nothing to try again for.
@@ -79,7 +81,7 @@ export function RemovePlace() {
   // Ending a place is its owner's.
   if (space && !owns) return <Navigate to={editPath(space.id)} replace />;
   const reads = [spaces, devices, cameras, grows, members, reminders];
-  if (reads.some(read => read.isPending)) return <Waiting lines={5} />;
+  if (reads.some(read => read.isPending) || overview.isPending) return <Waiting lines={5} />;
   if (!spaces.data || !space || !devices.data || !cameras.data || !grows.data || !members.data || !reminders.data) {
     return <LoadFailed title={space ? t('place.remove.title', { name: space.name }) : undefined} read={together(...reads)} />;
   }
@@ -96,7 +98,7 @@ export function RemovePlace() {
           space={space}
           places={places}
           every={devices.data.items}
-          here={standingIn(space.id, devices.data.items, cameras.data.items, running)}
+          here={standingIn(space.id, devices.data.items, cameras.data.items, running, overview.data?.climates)}
           alive={new Set([...devices.data.items, ...cameras.data.items.filter(camera => camera.removedAt === null), ...running].map(one => one.id))}
           letIn={members.data}
           reminders={reminders.data.items.filter(one => one.subject.type === 'space' && one.subject.id === space.id).length}

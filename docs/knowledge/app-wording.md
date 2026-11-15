@@ -239,7 +239,9 @@ string exists in English and German, with no English left in the German catalogu
   diary. The server stores them under English names and composes its lines with them
   ([server-engines.md](server-engines.md)); nothing stored is changed - a stored name is read as the rule it
   names, so a rule somebody called exactly "Too hot" reads as the stage's wherever only its line is in hand. A
-  rule a person or the firmware named keeps its name.
+  rule a person or the firmware named keeps its name. The rule's sheet opens its name field on that title - one
+  set up in one tap ("Mit einem Tipp einrichten") as one a stage wrote -, and a name left as it opened is saved
+  under the name it is stored by, so the rule goes on reading in every reader's language (`RuleSheet.tsx`).
 - Films: Tagesfilm, Wochenfilm, Film der Phase, Film des Grows, Eigener Film. A picture's caption has one form,
   "Bild von 18:17" (`start.picture.takenAt`), with what makes it not the newest in front: "Licht aus · Bild von
   18:17", "letztes Bild von 18:17".

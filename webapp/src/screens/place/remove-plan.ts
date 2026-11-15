@@ -2,6 +2,7 @@ import { nameKey, numbered } from '@fg2/shared-types/v1-schemas/place-names.js';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { Camera, Device, Space } from '@fg2/shared-types/v1';
 import type { EndStep, EndTo } from '@/api/spaces';
+import { inOrder, leadOf } from '@/screens/control/lead';
 import { placeKindOf } from '@/ui/naming';
 
 /**
@@ -39,7 +40,7 @@ type Place = Pick<Space, 'id' | 'name' | 'roomId'>;
 type Grow = { id: string; name: string; day: number | null };
 
 export interface Standing {
-  /** Those that hold a climate of their own first: the first that is kept leads. */
+  /** The place's lead first, as Ort bearbeiten lists them (`leadOf`): the first that is kept leads. */
   devices: readonly Device[];
   /** Cameras paired at one of those devices: they follow it unless taken off it. */
   paired: readonly Camera[];
@@ -48,14 +49,20 @@ export interface Standing {
   grows: readonly Grow[];
 }
 
-/** What stands in a place, from the lists the account already has. */
-export const standingIn = (spaceId: string, devices: readonly Device[], cameras: readonly Camera[], grows: readonly Grow[]): Standing => {
+/** What stands in a place, from the lists the account already has, and the climates its overview names. */
+export const standingIn = (
+  spaceId: string,
+  devices: readonly Device[],
+  cameras: readonly Camera[],
+  grows: readonly Grow[],
+  climates?: readonly { deviceId: string | null }[],
+): Standing => {
   const here = devices.filter(device => device.spaceId === spaceId);
   const ids = new Set(here.map(device => device.id));
   const looking = cameras.filter(camera => camera.spaceId === spaceId && camera.removedAt === null);
 
   return {
-    devices: [...here.filter(device => OWN_CLIMATE_TYPES.includes(device.type)), ...here.filter(device => !OWN_CLIMATE_TYPES.includes(device.type))],
+    devices: inOrder(here, leadOf(here, climates)),
     paired: looking.filter(camera => camera.deviceId !== null && ids.has(camera.deviceId)),
     loose: looking.filter(camera => camera.deviceId === null || !ids.has(camera.deviceId)),
     grows,

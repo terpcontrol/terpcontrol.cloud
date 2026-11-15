@@ -157,8 +157,9 @@ function Links({ userId }: { userId: string | null }) {
       <RefreshFailed failedAt={links.isError ? links.dataUpdatedAt : null} now={now} />
 
       <SectionHead label={t('me.shareLinks.active')} count={active.length} />
+      {/* "Noch keine Links vergeben" stood above the link just revoked: none is handed out only where none ever was. */}
       {active.length === 0 ? (
-        <NothingHere>{t('me.shareLinks.none')}</NothingHere>
+        <NothingHere>{t(dead.length > 0 ? 'me.shareLinks.noneActive' : 'me.shareLinks.none')}</NothingHere>
       ) : (
         <ul className={ui.group} aria-label={t('me.shareLinks.active')}>
           {active.map(link => (

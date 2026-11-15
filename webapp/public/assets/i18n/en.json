@@ -781,6 +781,7 @@
       "active": "Active",
       "dead": "Expired or revoked",
       "none": "No links handed out yet",
+      "noneActive": "None is active right now",
       "kind": {
         "public_page": "public page",
         "view": "Timeline"
@@ -3295,9 +3296,6 @@
       "wroteTo_one": "The targets went to {{count}} device.",
       "wroteTo_other": "The targets went to {{count}} devices.",
       "phaseWritten": "A grow here entered {{stage}}.",
-      "noPhaseWritten": "No grow entered the phase; only the climate was written.",
-      "noPhaseNoClimate": "No grow entered the phase, and no climate was written.",
-      "noPhase": "No grow entered the phase.",
       "onStage": "on {{stage}}",
       "measuring": "measuring only",
       "nothingYet": "nothing set yet",
@@ -3363,10 +3361,11 @@
         "fridge": "A second fridge, say, with a climate of its own.",
         "other": "A drying tent, say, with no other device in it."
       },
+      "made": "Already set up: {{place}}.",
       "back": "Back",
       "hereNoteNoCamera": "{{devices}}: one climate, one maintenance window.",
-      "hereNoClimate": "{{devices}}: one camera, one maintenance window.",
-      "hereNoClimateNoCamera": "{{devices}}: one maintenance window.",
+      "hereNoClimate": "{{devices}}: one camera, no climate.",
+      "hereNoClimateNoCamera": "{{devices}}: no climate.",
       "oneClimate_one": "{{places}} already has a controller or fridge module. A place has one climate, so this device gets a place of its own.",
       "oneClimate_other": "{{places}} already have a controller or fridge module. A place has one climate, so this device gets a place of its own."
     },
@@ -4809,7 +4808,8 @@
       },
       "co2": {
         "target": "CO₂ target",
-        "night": "CO₂ at night"
+        "night": "CO₂ at night",
+        "sunsetOff": "No CO₂ during sunset"
       },
       "lights": {
         "limit": "Light limit",
@@ -4820,7 +4820,11 @@
       "daynight": {
         "day": "Light on at",
         "night": "Light off at",
-        "minimalDehumidifierOffTime": "Compressor rest"
+        "minimalDehumidifierOffTime": "Compressor rest",
+        "maxDehumidifySeconds": "Dehumidifying at most in one go",
+        "targetHumidityDiff": "Dehumidifying from target plus",
+        "useLongHumidityAvg": "Long average of the humidity",
+        "linearChange": "Targets glide through sunrise and sunset"
       },
       "fans": {
         "external": "Clip fan",
@@ -4843,7 +4847,14 @@
         "period": "CO₂ dosing · interval",
         "duration": "CO₂ dosing · per interval"
       },
-      "mqttcontrol": "Direct control of the outputs"
+      "mqttcontrol": "Direct control of the outputs",
+      "control": {
+        "running": "Control",
+        "drying": "Drying",
+        "preset": "Climate preset",
+        "afterDrying": "Back after drying",
+        "afterGermination": "Back after germination"
+      }
     },
     "mode": {
       "off": "control off",

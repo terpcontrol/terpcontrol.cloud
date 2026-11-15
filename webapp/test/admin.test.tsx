@@ -245,7 +245,18 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   }
   if (path.startsWith('/alerts')) return json({ items: [], nextCursor: null });
   if (path === '/devices/tc-7f3a') {
-    return json({ ...DEVICES[0], configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800 }, workmode: 'small' } });
+    return json({
+      ...DEVICES[0],
+      configuration: { day: { temperature: 26 }, daynight: { day: 21600, night: 64800, linearChange: 1 }, co2: { sunsetOff: 1 }, workmode: 'small' },
+      control: {
+        running: true,
+        drying: false,
+        mode: 'standard',
+        energySaving: false,
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+        preset: null,
+      },
+    });
   }
   // Nobody's: its owner deleted their account with it two days ago.
   if (path === '/devices/tc-00d4') {
@@ -620,6 +631,15 @@ describe('support for a customer', () => {
     expect(await screen.findByText('Blue Dream tent')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Timeline' })).toHaveAttribute('href', '/timeline?space=space-1');
     expect(screen.getByText('The device has reported nothing yet.')).toBeInTheDocument();
+    // What the server writes into a fridge's document, and what the cloud keeps beside it, in words as well.
+    expect(row('co2.sunsetOff = 1')).toHaveTextContent(/^No CO₂ during sunset.*on$/);
+    expect(row('daynight.linearChange = 1')).toHaveTextContent(/^Targets glide through sunrise and sunset.*on$/);
+    expect(row('vpdLeafOffsetDay = -2')).toHaveTextContent(/^Leaf against air · day.*-2 °C$/);
+    expect(row('ppfdLuxFactor = 0.015')).toHaveTextContent(/^Lux to PPFD factor.*0\.015$/);
+    expect(row('control.running = true')).toHaveTextContent(/^Control.*on$/);
+    expect(row('control.mode = standard')).toHaveTextContent(/^Operating mode.*Standard$/);
+    expect(row('control.germinationChoices.humidifierHolds = true')).toHaveTextContent(/^Germination · hold the humidity/);
+    expect(row('control.preset = null')).toHaveTextContent(/^Climate preset.*–$/);
     // It reads and writes nothing.
     expect(server.wrote).toEqual([]);
   });

@@ -793,6 +793,7 @@
       "active": "Aktiv",
       "dead": "Abgelaufen oder zurückgezogen",
       "none": "Noch keine Links vergeben",
+      "noneActive": "Gerade ist keiner aktiv",
       "kind": {
         "public_page": "öffentliche Seite",
         "view": "Verlauf"
@@ -3305,9 +3306,6 @@
       "wroteTo_one": "Die Zielwerte gingen an {{count}} Gerät.",
       "wroteTo_other": "Die Zielwerte gingen an {{count}} Geräte.",
       "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
-      "noPhaseWritten": "Kein Grow ist in die Phase übergegangen; geschrieben wurde nur das Klima.",
-      "noPhaseNoClimate": "Kein Grow ist in die Phase übergegangen, und es wurde kein Klima geschrieben.",
-      "noPhase": "Kein Grow ist in die Phase übergegangen.",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
@@ -3373,10 +3371,11 @@
         "fridge": "Zum Beispiel ein zweiter Kühlschrank, mit eigenem Klima.",
         "other": "Zum Beispiel ein Trockenzelt, in dem sonst kein Gerät steht."
       },
+      "made": "Schon angelegt: {{place}}.",
       "back": "Zurück",
       "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung.",
-      "hereNoClimate": "{{devices}}: eine Kamera, eine Wartung.",
-      "hereNoClimateNoCamera": "{{devices}}: eine Wartung.",
+      "hereNoClimate": "{{devices}}: eine Kamera, kein Klima.",
+      "hereNoClimateNoCamera": "{{devices}}: kein Klima.",
       "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen.",
       "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen."
     },
@@ -4819,7 +4818,8 @@
       },
       "co2": {
         "target": "CO₂-Ziel",
-        "night": "CO₂ nachts"
+        "night": "CO₂ nachts",
+        "sunsetOff": "Kein CO₂ im Sonnenuntergang"
       },
       "lights": {
         "limit": "Lichtgrenze",
@@ -4830,7 +4830,11 @@
       "daynight": {
         "day": "Licht an um",
         "night": "Licht aus um",
-        "minimalDehumidifierOffTime": "Kompressor-Pause"
+        "minimalDehumidifierOffTime": "Kompressor-Pause",
+        "maxDehumidifySeconds": "Entfeuchten höchstens am Stück",
+        "targetHumidityDiff": "Entfeuchten ab Ziel plus",
+        "useLongHumidityAvg": "Langer Mittelwert der Luftfeuchte",
+        "linearChange": "Zielwerte gleiten durch Sonnenauf- und -untergang"
       },
       "fans": {
         "external": "Klemmlüfter",
@@ -4853,7 +4857,14 @@
         "period": "CO₂-Dosierung · Intervall",
         "duration": "CO₂-Dosierung · je Intervall"
       },
-      "mqttcontrol": "Direktsteuerung der Ausgänge"
+      "mqttcontrol": "Direktsteuerung der Ausgänge",
+      "control": {
+        "running": "Regelung",
+        "drying": "Trocknung",
+        "preset": "Klima-Preset",
+        "afterDrying": "Nach der Trocknung zurück",
+        "afterGermination": "Nach der Keimung zurück"
+      }
     },
     "mode": {
       "off": "Regelung aus",

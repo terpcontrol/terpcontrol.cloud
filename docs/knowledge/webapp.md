@@ -139,7 +139,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     place a target of its own (the home's card names the newer alone, `alsoIn` the others), which Verlauf's note
     reads too; what a recorded feed is corrected with `keptDoses` (`log/defaults.ts`);
   - *names*: a device's settings by the one table that names a device document's figures, `settingWords` and
-    `configurationChange` (`i18n/configuration-change.ts`), for the diary's change lines and admin's support view; a
+    `configurationChange` (`i18n/configuration-change.ts`), for the diary's change lines and admin's support view -
+    which reads what the cloud keeps beside the document (`settings`, `control`) by the same table; a
     camera's newest picture and when it was taken by `useLatestStills` / `useLatestStillTimes` (`api/cameras.ts`, one
     query); a device by `deviceName` / `deviceTitle` among `standingWith`, a camera by `cameraTitle`,
     `camerasCalled` and `useCameraCalled`, the tail that tells two apart by `camTag` (`ui/naming.ts`,

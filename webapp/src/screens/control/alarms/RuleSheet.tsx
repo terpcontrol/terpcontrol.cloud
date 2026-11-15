@@ -72,11 +72,11 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const update = useUpdateAlarmRule(device.id);
   const remove = useRemoveAlarmRule(device.id);
   const readings = readingsOf(device);
-  // A rule a stage wrote carries the server's English name; the field opens on
-  // the name the list shows it by, so "Zu warm" is not edited as "Too hot".
-  const [draft, setDraft] = useState<RuleDraft>(() =>
-    rule ? { ...draftOf(rule), name: rule.origin === 'preset' ? ruleTitle(t, rule) : rule.name } : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH),
-  );
+  // A rule a stage or one tap wrote carries an English name; the field opens on the name the list shows it by, so
+  // "Zu warm" is not edited as "Too hot". Left as it opened, the rule keeps the name it is stored under, which is what
+  // titles it in every reader's language.
+  const shown = rule ? ruleTitle(t, rule) : '';
+  const [draft, setDraft] = useState<RuleDraft>(() => (rule ? { ...draftOf(rule), name: shown } : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH)));
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
   const noBound = refusedBound && !hasBound(draft);
@@ -111,7 +111,8 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
       return;
     }
     setRefusedBound(false);
-    if (rule) update.mutate({ ruleId: rule.id, body: updateBody(draft) }, { onSuccess: onClose });
+    const kept = rule && draft.name.trim() === shown ? { ...draft, name: rule.name } : draft;
+    if (rule) update.mutate({ ruleId: rule.id, body: updateBody(kept) }, { onSuccess: onClose });
     else create.mutate(createBody(draft), { onSuccess: onClose });
   };
 

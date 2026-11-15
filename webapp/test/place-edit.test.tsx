@@ -571,6 +571,16 @@ describe('what ending a place does with what stands in it', () => {
     expect(standing.loose.map(one => one.id)).toEqual(['cam-loose']);
   });
 
+  /** "Lüfter bleibt bei Plantalytix Socket": the removal led with a socket never heard where Ort bearbeiten leads with the fan. */
+  it('lists the place´s lead first, as Ort bearbeiten does, where no device holds a climate of its own', () => {
+    const socket = device({ id: 'plug', type: 'plug', name: 'plug', configuration: null });
+    const air = device({ id: 'air', type: 'fan', name: 'fan', configuration: { day: { temperature: 25, humidity: 60 } } });
+
+    expect(standingIn('tent', [socket, air], [], []).devices.map(one => one.id)).toEqual(['air', 'plug']);
+    // The climate the place's overview names leads, as it does on Ort bearbeiten.
+    expect(standingIn('tent', [air, socket], [], [], [{ deviceId: 'plug' }]).devices.map(one => one.id)).toEqual(['plug', 'air']);
+  });
+
   it('sends the leading device to a place of its kind, a new one where there is none, and keeps the rest with it', () => {
     expect(choicesOf(standing, [FRIDGE, LOFT], {})).toEqual({ ctrl: 'move:loft', fan: STAY, 'cam-paired': STAY, 'cam-loose': STAY, 'grow-1': '' });
     expect(choicesOf(standing, [FRIDGE], {})).toEqual({ ctrl: NEW_PLACE, fan: STAY, 'cam-paired': STAY, 'cam-loose': STAY, 'grow-1': '' });

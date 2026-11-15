@@ -1196,6 +1196,26 @@ describe('the rule sheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Edit the alarm' })).getByRole('textbox', { name: 'Name' })).toHaveValue('Too humid');
   });
 
+  it('opens a rule set up in one tap under its name in the reader´s language, and an untouched save keeps the name it is stored under', async () => {
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await i18next.changeLanguage('de');
+    try {
+      const tapped = rule({ id: 'rule-tap', name: 'Too hot', origin: 'human' });
+      vi.mocked(api.get).mockImplementation(
+        (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([tapped]) : answers(path)) as never,
+      );
+      draw();
+      fireEvent.click(await screen.findByRole('button', { name: /Zu warm/ }));
+      const sheet = screen.getByRole('dialog', { name: 'Alarm bearbeiten' });
+
+      expect(within(sheet).getByRole('textbox', { name: 'Name' })).toHaveValue('Zu warm');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Alarm speichern' }));
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/alarm-rules/rule-tap', expect.objectContaining({ name: 'Too hot' })));
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
+  });
+
   it('opens a rule filled in, says what the stage will do to it, and patches the whole of what it asks', async () => {
     draw();
     fireEvent.click(await screen.findByRole('button', { name: /Too hot/ }));

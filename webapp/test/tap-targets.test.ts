@@ -38,7 +38,7 @@ describe('the switch´s target', () => {
   });
 });
 
-/** "+ Konto", the fleet's filter chips and "Pausieren" were a chip's 30 px, where every other admin target is 36. */
+/** "+ Konto", the fleet's filter chips and search, the demo's "Öffnen" and "Pausieren" were a chip's 30 px, where every other admin target is 36. */
 describe('the admin pages´ targets', () => {
   const admin = (name: string) => readFileSync(join(SOURCE, 'screens/admin', name), 'utf8');
 
@@ -48,5 +48,7 @@ describe('the admin pages´ targets', () => {
     expect(admin('Users.tsx')).toMatch(/styles\.action\}`\} onClick=\{\(\) => setMaking\(true\)\}/);
     expect(admin('RolloutCard.tsx')).toContain('${ui.chip} ${styles.action} ${paused');
     expect(admin('Fleet.tsx')).toMatch(/className=\{`\$\{ui\.wrapRow\} \$\{styles\.filters\}`\}/);
+    expect(/\.search \{([^}]*)\}/.exec(admin('Admin.module.css'))?.[1]).toMatch(/height:\s*var\(--action-height\)/);
+    expect(admin('Demo.tsx')).toContain('className={`${ui.chip} ${styles.action}`} to={placePath(device.spaceId)}');
   });
 });

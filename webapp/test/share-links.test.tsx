@@ -354,6 +354,15 @@ describe('links that have stopped', () => {
     expect(screen.getByText('Active').nextElementSibling).toHaveTextContent('0');
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
+
+  it('says none is active, not that none was handed out, above the links that stopped', async () => {
+    server.links = [revoked];
+    await drawLoaded();
+
+    expect(screen.getByText('None is active right now')).toBeInTheDocument();
+    expect(screen.queryByText('No links handed out yet')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Expired or revoked' })).getAllByRole('listitem')).toHaveLength(1);
+  });
 });
 
 describe('a link’s own sheet', () => {
