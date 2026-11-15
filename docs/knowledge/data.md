@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-11-14
-source: an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+updated: 2026-11-15
+source: an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -186,7 +186,8 @@ Pitfalls, each met at least once:
   factor, so its extremes are the reading's.
 - **An excursion of the diary is dated by its samples** (`DataService.rawSamples`, through `samplesIn`; the fix round
   after the fifth whole-app walk): the raw samples of temperature, humidity and CO₂ over two 10-minute stretches
-  per run outside the band - where it began and where it ended -, sentinels dropped, one script for up to sixty
+  per run outside the band - where it began and where it ended -, or over the whole of a run up to two hours (the
+  fix round after the sixth walk, to part it where it was back inside), sentinels dropped, one script for up to sixty
   stretches and at most `MAX_EDGES` (240) a controller and week; a day whose samples were summarised away keeps its
   5-minute windows' edges ([server-engines.md](server-engines.md)).
 - **A grain the lamp switched in is worked out from its own samples** (`switchedGrains`, `samplesInQuery`; the

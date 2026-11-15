@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-11-14
-source: a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-11-15
+source: maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -924,8 +924,11 @@ is controlling. It answers with `message-maintenance-mode-activated-remote:<minu
 device's own menu is logged as `message-maintenance-mode-activated:<minutes>`.
 
 The server keeps its own window, `devices.state.maintenanceUntil`: set before the command is published, so it
-survives a device that never heard it; set again from either log line when it arrives; and sent to the device again
-on its next `fetch` while a minute or more of it is left ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
+survives a device that never heard it; set again from either log line when it arrives - except where the line's
+whole minutes end up to a minute before the window already kept, which is the device saying back what it was told
+(set from such an echo, "bis 09:46" became "bis 09:45" a moment later; the fix round after the sixth whole-app
+walk) -; and sent to the device again on its next `fetch` while a minute or more of it is left
+([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
 The minutes the server sends are its seconds rounded, and on the repeat rounded down, so the device never holds
 past the end the screens name (`device-publisher.service.ts`, `device-ingest.service.ts`). Ending a window sends
 `durationMinutes: 0` and moves the server's end only where a window is open.

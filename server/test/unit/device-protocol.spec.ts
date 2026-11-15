@@ -328,6 +328,19 @@ describe('what a device logs', () => {
     expect(until?.getTime()).toBeGreaterThanOrEqual(before + 30 * 60 * 1000);
   });
 
+  /** The window was told for whole minutes, rounded down: taken from the device's echo, "bis 09:46" became "bis 09:45". */
+  it('keeps the end it handed out when the device says the window back in whole minutes', async () => {
+    const handed = new Date(Date.now() + 14 * 60_000 + 45_000);
+    await device({ state: { maintenanceUntil: handed } as never });
+
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated-remote:14' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBe(handed.getTime());
+
+    // A window the device itself opened for longer moves the end.
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated:20' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBeGreaterThan(handed.getTime() + 5 * 60_000);
+  });
+
   it('keeps a hardware report out of the diary and in the device', async () => {
     await device();
 

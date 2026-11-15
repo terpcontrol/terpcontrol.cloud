@@ -60,18 +60,17 @@ export const dayClimateOf = (
     ...lightOf(devices, from, to, running),
     ...verdicts.flatMap(judging =>
       judging.verdict.metrics.flatMap(row =>
-        row.excursions.map(excursion => {
-          const { leftAt, backAt } = edgesOfRun(judging, row.metric, excursion);
-          return {
+        row.excursions.flatMap(excursion =>
+          piecesOfRun(judging, row.metric, excursion).map(({ leftAt, backAt, extremeValue }) => ({
             kind: 'excursion' as const,
             // No earlier than its device was read from.
             at: new Date(Math.max(judging.readFrom, leftAt)).toISOString(),
             endedAt: backAt,
             metric: row.metric,
             above: excursion.above,
-            extremeValue: excursion.extremeValue,
-          };
-        }),
+            extremeValue,
+          })),
+        ),
       ),
     ),
   ].sort((one, other) => one.at.localeCompare(other.at));
@@ -89,11 +88,18 @@ export const dayClimateOf = (
   };
 };
 
+/** A run outside the band up to this long is read sample by sample, so the minutes in band inside it part it (`piecesOfRun`). */
+const WHOLE_RUN_MS = 2 * 3600 * 1000;
+
+/** Back inside the band for this long parts a run: the windows' means joined 2, 3½ and 3½ minutes out, 6 in between, into 22. */
+const PARTED_MS = 3 * 60 * 1000;
+
 /**
  * The stretches of raw samples that tell where a device's runs outside the
- * band over a stretch began and ended (`edgesOfRun`): the window before each
- * run's first and its first, its last and the one after - joined where they
- * meet, so a read asks for each sample once.
+ * band over a stretch began and ended (`piecesOfRun`): the window before each
+ * run's first and its first, its last and the one after - and the whole of a
+ * run up to two hours - joined where they meet, so a read asks for each sample
+ * once.
  */
 export const edgesOf = (device: DayDevice, stretch: Span): Span[] => {
   const judging = judgedOf(device, stretch);
@@ -103,6 +109,8 @@ export const edgesOf = (device: DayDevice, stretch: Span): Span[] => {
     .flatMap(excursion => {
       const first = Date.parse(excursion.startedAt);
       const last = excursion.endedAt === null ? null : Date.parse(excursion.endedAt);
+      const ends = last ?? stretch.endsAt.getTime();
+      if (ends - first <= WHOLE_RUN_MS) return [[first - 2 * step, ends + step]];
       return [[first - 2 * step, first], ...(last === null ? [] : [[last - step, last + step]])];
     })
     .sort((one, other) => one[0] - other[0]);
@@ -145,20 +153,28 @@ const judgedOf = (device: DayDevice, stretch: Span): Judging | null => {
   };
 };
 
+/** One stretch a run outside the band is told as. */
+interface Piece {
+  leftAt: number;
+  backAt: string | null;
+  extremeValue: number | null;
+}
+
 /**
- * Where a run outside the band began and ended, to the sample. The verdict
- * reads windows of means, and a mean says the window, not the minute: a rise
- * at 17:08 read 17:05, and a humidity that jumped on the same sample, whose
- * first window still averaged inside its band, 17:10. So the raw samples either
- * side of the run's first and last window are judged, each by the band of the
- * window it fell in: the run began at the sample that left after one inside,
- * and ended at the first back inside. Where no such crossing is seen - a run
- * already going where the read began, a gap, a half the metric is not steered
- * in, a day whose samples were summarised away - its window's edge stands: the
+ * Where a run outside the band began and ended, to the sample - and where the
+ * samples show it back inside for minutes on end, the runs it was. The verdict
+ * reads windows of means, and a mean says the window, not the minute: a rise at
+ * 17:08 read 17:05, a humidity that jumped on the same sample, whose first
+ * window still averaged inside its band, 17:10, and three short runs with six
+ * minutes in band between them averaged into one of 22. So the raw samples
+ * around the run (`edgesOf`) are judged, each by the band of the window it fell
+ * in: a run begins at the first sample outside - after one inside, or the first
+ * heard after a silence - and ends at the first back inside. Where no sample says
+ * - a day whose samples were summarised away - its windows' edges stand: the
  * verdict stamps a run at the end of its first window, and it began where that
  * window did.
  */
-const edgesOfRun = (judging: Judging, metric: Metric, excursion: ClimateExcursion): { leftAt: number; backAt: string | null } => {
+const piecesOfRun = (judging: Judging, metric: Metric, excursion: ClimateExcursion): Piece[] => {
   const step = judging.verdict.stepSeconds * 1000;
   const points = judging.series.metrics.find(row => row.metric === metric)?.points ?? [];
   const opens = points.length > 0 ? Date.parse(points[0].measuredAt) - step : 0;
@@ -169,23 +185,35 @@ const edgesOfRun = (judging: Judging, metric: Metric, excursion: ClimateExcursio
     const band = stamp - step <= at && at < stamp ? judging.bandAt(metric, index) : null;
     return band === null ? null : excursion.above ? value > band.high : value < band.low;
   };
-  const crossings = (startsAt: number, endsAt: number, outward: boolean): number[] => {
-    let previous: boolean | null = null;
-    return (judging.samples.get(metric) ?? []).flatMap(sample => {
-      const at = Date.parse(sample.measuredAt);
-      if (at < startsAt || at >= endsAt || sample.value === null) return [];
-      const outside = outsideAt(at, sample.value);
-      const crossed = outside === outward && previous === !outward;
-      previous = outside;
-      return crossed ? [at] : [];
-    });
-  };
+  const worse = (one: number, other: number): number => (excursion.above ? Math.max(one, other) : Math.min(one, other));
 
   const first = Date.parse(excursion.startedAt);
-  const left = crossings(first - 2 * step, first, true).pop();
   const last = excursion.endedAt === null ? null : Date.parse(excursion.endedAt);
-  const back = last === null ? undefined : crossings(last - step, last + step, false)[0];
-  return { leftAt: left ?? first - step, backAt: back === undefined ? excursion.endedAt : new Date(back).toISOString() };
+  const pieces: Piece[] = [];
+  let open: { leftAt: number; extremeValue: number } | null = null;
+  // The first sample back inside since the open piece's last one outside.
+  let backSince: number | null = null;
+  for (const sample of judging.samples.get(metric) ?? []) {
+    const at = Date.parse(sample.measuredAt);
+    if (at < first - 2 * step || (last !== null && at >= last + step) || sample.value === null) continue;
+    const outside = outsideAt(at, sample.value);
+    if (outside === false && open !== null && backSince === null) backSince = at;
+    if (outside !== true) continue;
+    if (open !== null && backSince !== null && at - backSince >= PARTED_MS) {
+      pieces.push({ leftAt: open.leftAt, extremeValue: open.extremeValue, backAt: new Date(backSince).toISOString() });
+      open = null;
+    }
+    backSince = null;
+    open = open === null ? { leftAt: at, extremeValue: sample.value } : { leftAt: open.leftAt, extremeValue: worse(open.extremeValue, sample.value) };
+  }
+  // A run its windows say still goes on has no end, whatever its newest samples did.
+  if (open !== null) pieces.push({ ...open, backAt: last === null || backSince === null ? excursion.endedAt : new Date(backSince).toISOString() });
+
+  // A stretch that ended before the run's first window began is not this run, nor one that began after its last.
+  const ours = pieces.filter(piece => (piece.backAt === null || Date.parse(piece.backAt) > first - step) && (last === null || piece.leftAt < last));
+  if (ours.length === 0) return [{ leftAt: first - step, backAt: excursion.endedAt, extremeValue: excursion.extremeValue }];
+  // Told as one, a run keeps the extreme its windows reached; parted, each part its own.
+  return ours.length === 1 ? [{ ...ours[0], extremeValue: excursion.extremeValue }] : ours;
 };
 
 /**

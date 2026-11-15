@@ -541,6 +541,49 @@ describe('what a day says about its climate', () => {
     ]);
   });
 
+  /** Back at 09:29:44 already too warm, the card read "09:25 Temperatur 22 Min zu hoch": the edge of the window. */
+  it('starts a stretch that a device came back into from a silence at its first sample back', async () => {
+    measured = at =>
+      at >= berlin(10, '17:00') && at < berlin(10, '17:32')
+        ? { temperature: null, humidity: null }
+        : { temperature: at >= berlin(10, '17:32') && at < berlin(10, '17:50') ? 30 : lit(at.getTime()) ? 25 : 20, humidity: 55 };
+
+    expect(dayOf(await read(), 9).events.filter(event => event.kind === 'excursion')).toEqual([
+      {
+        kind: 'excursion',
+        at: berlin(10, '17:32').toISOString(),
+        endedAt: berlin(10, '17:50').toISOString(),
+        metric: 'temperature',
+        above: true,
+        extremeValue: 30,
+      },
+    ]);
+  });
+
+  /** Two, three and a half and three and a half minutes too warm, six in band between them, read as one run of 22. */
+  it('tells runs with minutes in band between them apart, each with its own extreme', async () => {
+    const runs: [string, string, number][] = [
+      ['17:08', '17:11', 40],
+      ['17:18', '17:22', 41],
+      ['17:28', '17:32', 42],
+    ];
+    measured = at => {
+      const run = runs.find(([from, until]) => at >= berlin(10, from) && at < berlin(10, until));
+      return { temperature: run ? run[2] : lit(at.getTime()) ? 25 : 20, humidity: 55 };
+    };
+
+    expect(dayOf(await read(), 9).events.filter(event => event.kind === 'excursion')).toEqual(
+      runs.map(([from, until, extremeValue]) => ({
+        kind: 'excursion',
+        at: berlin(10, from).toISOString(),
+        endedAt: berlin(10, until).toISOString(),
+        metric: 'temperature',
+        above: true,
+        extremeValue,
+      })),
+    );
+  });
+
   it('says nothing of a day from before the record of what was aimed at', async () => {
     const page = await read();
 

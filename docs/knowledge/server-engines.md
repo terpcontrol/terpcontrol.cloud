@@ -303,10 +303,14 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   a few weeks a page, each day a date of that calendar (`grow-calendar.ts`). Per day: the lit still nearest midday
   (`diary-pictures.ts`; the day still running takes the newest lit one and no dark one), the means of temperature
   and humidity, the share inside the targets, and what happened that is nobody's line: the lamp, the stretches
-  outside the band - each from the sample where its reading left the band to the first back inside, read from the
-  raw samples around the run's first and last 5-minute window (`edgesOf`, `DataService.rawSamples`; one read for a
-  week whose readings left their band, at most `MAX_EDGES` stretches, the window's edge where no crossing is seen;
-  the fifth whole-app walk found a rise at 17:08 dated 17:05) -, and maintenance somebody switched - the lines a device writes when it goes on and off, of
+  outside the band - each from the first sample outside, after one inside or the first heard after a silence, to
+  the first back inside, read from the raw samples around the run's first and last 5-minute window and over the
+  whole of a run up to two hours (`edgesOf`, `piecesOfRun` in `day-climate.ts`, `DataService.rawSamples`; one read
+  for a week whose readings left their band, at most `MAX_EDGES` stretches, the windows' edges where no sample
+  says; the fifth whole-app walk found a rise at 17:08 dated 17:05, the sixth a run begun after a silence dated
+  at its window's edge) and parted where the samples stand back inside for three minutes or more (`PARTED_MS`;
+  the sixth walk found runs of 2, 3½ and 3½ minutes with six in band between them told as one of 22), each part
+  with its own extreme -, and maintenance somebody switched - the lines a device writes when it goes on and off, of
   every device of the place, told as one stretch (`maintenanceRuns`), and regulation switched off and on again -
   the settings line whose work mode goes to `off` and back, a `controlOff` stretch per device, overlapping runs
   merged and one still running left open (the redesign session of 2026-11-13, after the whole-app walk: switching

@@ -339,12 +339,18 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     });
   }
 
-  /** The device says for how many minutes it is being worked on; the cloud silences its own alarms for as long. */
+  /**
+   * The device says for how many minutes it is being worked on; the cloud silences its own alarms for as long. A device
+   * saying back a window the cloud handed it counts whole minutes, rounded down, so an end up to a minute later than
+   * that is the window it was told and stands: taken from the device, "bis 09:46" became "bis 09:45" a moment later.
+   */
   private async maintenance(device: StoredDevice, minutes: string | undefined): Promise<void> {
     const forMinutes = Number(minutes);
     if (!Number.isFinite(forMinutes) || forMinutes <= 0) return;
 
     const until = new Date(Date.now() + forMinutes * 60 * 1000);
+    const told = (device.state.maintenanceUntil?.getTime() ?? 0) - until.getTime();
+    if (told >= 0 && told < 60_000) return;
     await this.devices.updateOne({ id: device.id }, { $set: { 'state.maintenanceUntil': until } });
   }
 
