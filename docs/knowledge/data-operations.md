@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
 updated: 2026-11-15
-source: step 033 changed to hold a second climate's past and repair its first version, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); step 034 (the redesign session's fix round of 2026-11-15, after the sixth whole-app walk); step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+source: the eighth whole-app walk's lists built - step 035 (the redesign session's fix round of 2026-11-15); step 033 changed to hold a second climate's past and repair its first version, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); step 034 (the redesign session's fix round of 2026-11-15, after the sixth whole-app walk); step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -108,6 +108,14 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   any document that stated targets, a fan's too, until the server wrote a section only where a document carries it.
   Any database where a grow was started with a stage, a preset applied or a plan run in a place holding a fan can
   hold some; a fan's own upload never carries them, so a second run finds none.
+  `035-lamps-dark-where-it-is-dark` (the redesign session's fix round after the eighth whole-app walk, 2026-11-15;
+  unit tests only) puts every lamp module to nothing that stands where a controller or fridge module germinates or
+  dries and that no spell has darkened yet (`configuration.limit` over 0, no `limitBeforeDark`), keeping its
+  brightness in `limitBeforeDark` - what `lampsFollow` does as a spell begins, done once for places that were already
+  germinating or drying when lamps were first kept dark (ADR 0007). Counted as `devices.lampsDarkened`; a lamp
+  somebody lit since its spell darkened it keeps that brightness. The lamp is handed the stored document at its next
+  `fetch`, which the release's recreated broker makes every device send; a second run finds every such lamp at
+  nothing.
   Its reads are empty over "the last 24 hours" for a
   reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
   there with `?at=` on that day, and a grow's diary on its older pages.
