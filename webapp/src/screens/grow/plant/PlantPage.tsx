@@ -286,7 +286,9 @@ function Hero({ plant, photos, grow }: { plant: Plant; photos: Entry[]; grow: Gr
   return (
     <figure className={styles.hero}>
       <img src={src} alt={t('grow.plant.photoAlt', { label: plant.label, day: growDayOf(grow, newest.occurredAt) ?? '—' })} loading="lazy" />
-      <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>{t('grow.plant.photos', { count: photos.length })}</figcaption>
+      <figcaption className={`${ui.photoCaption} ${styles.heroChip}`}>
+        {t('grow.plant.photos', { count: photos.reduce((sum, line) => sum + line.mediaIds.length, 0) })}
+      </figcaption>
     </figure>
   );
 }

@@ -2460,6 +2460,7 @@ export declare const growCard: z.ZodObject<{
     preset: z.ZodNullable<z.ZodString>;
     isAuto: z.ZodBoolean;
     plantCount: z.ZodNullable<z.ZodNumber>;
+    standingCount: z.ZodNullable<z.ZodNumber>;
     strains: z.ZodArray<z.ZodString>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     stageGroups: z.ZodArray<z.ZodObject<{
@@ -2734,6 +2735,7 @@ export declare const homeSpaceCard: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         isAuto: z.ZodBoolean;
         plantCount: z.ZodNullable<z.ZodNumber>;
+        standingCount: z.ZodNullable<z.ZodNumber>;
         strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         stageGroups: z.ZodArray<z.ZodObject<{
@@ -3119,6 +3121,7 @@ export declare const homeAnswer: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            standingCount: z.ZodNullable<z.ZodNumber>;
             strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
@@ -3581,6 +3584,7 @@ export declare const overviewGrow: z.ZodObject<{
     preset: z.ZodNullable<z.ZodString>;
     isAuto: z.ZodBoolean;
     plantCount: z.ZodNullable<z.ZodNumber>;
+    standingCount: z.ZodNullable<z.ZodNumber>;
     strains: z.ZodArray<z.ZodString>;
     coverMediaId: z.ZodNullable<z.ZodString>;
     stageGroups: z.ZodArray<z.ZodObject<{
@@ -4265,6 +4269,7 @@ export declare const spaceOverview: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         isAuto: z.ZodBoolean;
         plantCount: z.ZodNullable<z.ZodNumber>;
+        standingCount: z.ZodNullable<z.ZodNumber>;
         strains: z.ZodArray<z.ZodString>;
         coverMediaId: z.ZodNullable<z.ZodString>;
         stageGroups: z.ZodArray<z.ZodObject<{
@@ -8000,6 +8005,7 @@ export declare const sharedSpace: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            standingCount: z.ZodNullable<z.ZodNumber>;
             strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
@@ -8922,6 +8928,7 @@ export declare const sharedSubject: z.ZodDiscriminatedUnion<[z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             isAuto: z.ZodBoolean;
             plantCount: z.ZodNullable<z.ZodNumber>;
+            standingCount: z.ZodNullable<z.ZodNumber>;
             strains: z.ZodArray<z.ZodString>;
             coverMediaId: z.ZodNullable<z.ZodString>;
             stageGroups: z.ZodArray<z.ZodObject<{
@@ -9861,6 +9868,7 @@ export declare const sharedResolution: z.ZodObject<{
                 preset: z.ZodNullable<z.ZodString>;
                 isAuto: z.ZodBoolean;
                 plantCount: z.ZodNullable<z.ZodNumber>;
+                standingCount: z.ZodNullable<z.ZodNumber>;
                 strains: z.ZodArray<z.ZodString>;
                 coverMediaId: z.ZodNullable<z.ZodString>;
                 stageGroups: z.ZodArray<z.ZodObject<{

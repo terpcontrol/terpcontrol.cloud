@@ -143,7 +143,13 @@ export class GrowReportService {
       : grow;
     const spaceIds = spacesDuring(stood, seen.startsAt, seen.endsAt);
     const lines = linesOf(grow, seen);
-    const entries = world.diary.filter(entry => entry.occurredAt >= lines.startsAt && entry.occurredAt < lines.endsAt);
+    // A split's chapter counts the lines about its own plants and those about the whole grow, never the other plants'.
+    const entries = world.diary.filter(
+      entry =>
+        entry.occurredAt >= lines.startsAt &&
+        entry.occurredAt < lines.endsAt &&
+        (!split || entry.plantIds.length === 0 || entry.plantIds.some(id => split.includes(id))),
+    );
 
     const controllers = await this.climate.controllersIn(spaceIds, seen);
     const [climate, coverMediaId] = await Promise.all([

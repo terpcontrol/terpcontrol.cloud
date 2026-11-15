@@ -62,6 +62,7 @@ const home: HomeAnswer = {
         preset: 'flower',
         isAuto: false,
         plantCount: 2,
+        standingCount: 2,
         strains: ['Amnesia', 'Gelato'],
         coverMediaId: null,
         stageGroups: [],
@@ -557,7 +558,7 @@ describe('the log sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
 
     const phase = await screen.findByRole('dialog', { name: 'Phase' });
-    expect(await within(phase).findByText('The phase is for the whole grow, all 2 plants.')).toBeInTheDocument();
+    expect(await within(phase).findByText('The phase is for the whole grow, both plants.')).toBeInTheDocument();
     fireEvent.click(within(phase).getByRole('button', { name: /^Save/ }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.anything()));
     const [, body] = vi.mocked(api.post).mock.calls.find(([path]) => path === '/grows/grow-1/phases')!;

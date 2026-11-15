@@ -448,10 +448,14 @@ export const picturesOfDay = (day: GrowDiaryDay): GrowPicture[] => {
   return [...camera, ...written].sort((one, other) => other.takenAt.localeCompare(one.takenAt));
 };
 
-/** The picture a day's card is headed by: the camera's, else the first photo written that day. */
+/**
+ * The picture a day's card is headed by: the camera's, else the first picture of the first line written with one
+ * that day - a line's first, as a plant's page is headed by too.
+ */
 export const headPicture = (day: GrowDiaryDay): GrowPicture | null => {
   const pictures = picturesOfDay(day);
-  return pictures.find(picture => picture.entry === null) ?? pictures.at(-1) ?? null;
+  const first = pictures.at(-1)?.entry;
+  return pictures.find(picture => picture.entry === null) ?? pictures.find(picture => picture.entry === first) ?? null;
 };
 
 /** How many lines of these days people wrote, which is what "Einträge" counts: not the machines' own. */

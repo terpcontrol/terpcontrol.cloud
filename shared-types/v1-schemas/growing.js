@@ -307,7 +307,7 @@ exports.growSummary = (0, common_js_1.named)('GrowSummary', zod_1.z.object({
         .int()
         .nullable()
         .describe('1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase.'),
-    stage: common_js_1.growthStage.nullable().describe('The stage of the largest group of plants.'),
+    stage: common_js_1.growthStage.nullable().describe('The stage of the largest group of the plants still standing; of all of them where none stands.'),
     preset: zod_1.z.string().nullable(),
     phaseDay: zod_1.z.number().int().nullable(),
     weekNumber: zod_1.z.number().int().nullable().describe("Counted like `dayNumber`, so it lines up with the feeding scheme's grid."),

@@ -1240,9 +1240,16 @@ export const growCard = named(
     preset: z.string().nullable(),
     isAuto: z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: z.number().int().nullable().describe('Null where the owner hides counts.'),
+    standingCount: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        'How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.',
+      ),
     strains: z.array(z.string()).describe('Each strain once, in the order it was planted.'),
     coverMediaId: id().nullable(),
-    stageGroups: z.array(growCardStageGroup),
+    stageGroups: z.array(growCardStageGroup).describe('Each stage the plants still standing are in, with how many; every plant’s where none stands.'),
   }),
 );
 

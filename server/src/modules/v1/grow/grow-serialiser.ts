@@ -186,7 +186,10 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
   // every screen beneath it, as dates of its owner's calendar.
   const origin = growOriginOf(grow);
   const groups = groupsOf(grow.phases, plants);
-  const headline = groups[0]?.phase ?? latestPhase(grow.phases);
+  // The grow is in the stage of the plants still standing: one cut in its own drying is in no stage of the grow's,
+  // and a grow headed by it read "Trocknung" over a plant in flower, offering Reifung next.
+  const standing = plants.filter(plant => plant.status === 'active');
+  const headline = (standing.length > 0 ? groupsOf(grow.phases, standing) : groups)[0]?.phase ?? latestPhase(grow.phases);
   // Counted from the grow's start whether a phase was entered or not, as its diary counts: one count everywhere.
   const dayNumber = growDayUpTo(origin, asOf, zone);
 
@@ -226,22 +229,29 @@ export const growCardOf = (
   zone: string | null,
   now: Date,
   summary: GrowSummary = summaryOf(grow, plants, hide, zone, now),
-): GrowCard => ({
-  growId: grow.id,
-  name: grow.name,
-  type: grow.type,
-  dayNumber: summary.dayNumber,
-  phaseDay: summary.phaseDay,
-  stageWeek: summary.stageWeek,
-  stage: summary.stage,
-  stagesReached: stagesReachedOf(grow, summary.stage, now),
-  preset: summary.preset,
-  isAuto: summary.isAuto,
-  plantCount: hide.counts ? null : plants.length,
-  strains: [...new Set(plants.map(plant => plant.strain))],
-  coverMediaId: grow.coverMediaId,
-  stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
-});
+): GrowCard => {
+  // A card counts a split by the plants still standing, as the grow's head does: a group cut down is no stage of it.
+  const standing = new Set(plants.filter(plant => plant.status === 'active').map(plant => plant.id));
+  const counted = (plantIds: string[]): number => (standing.size === 0 ? plantIds.length : plantIds.filter(id => standing.has(id)).length);
+
+  return {
+    growId: grow.id,
+    name: grow.name,
+    type: grow.type,
+    dayNumber: summary.dayNumber,
+    phaseDay: summary.phaseDay,
+    stageWeek: summary.stageWeek,
+    stage: summary.stage,
+    stagesReached: stagesReachedOf(grow, summary.stage, now),
+    preset: summary.preset,
+    isAuto: summary.isAuto,
+    plantCount: hide.counts ? null : plants.length,
+    standingCount: hide.counts ? null : standing.size,
+    strains: [...new Set(plants.map(plant => plant.strain))],
+    coverMediaId: grow.coverMediaId,
+    stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : counted(group.plantIds) })),
+  };
+};
 
 /**
  * A public grow as it is named rather than opened: among the grows somebody

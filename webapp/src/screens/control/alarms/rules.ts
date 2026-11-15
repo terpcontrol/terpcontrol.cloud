@@ -120,11 +120,13 @@ const READINGS_OF: Record<string, Metric[]> = {
   light: ['temperature', 'humidity', 'vpd'],
 };
 
-export const readingsOf = (device: Device): Metric[] =>
-  (READINGS_OF[device.type] ?? []).filter(metric => {
-    const sensor = SENSOR_OF[metric];
-    return sensor === undefined || isFitted(device, sensor);
-  });
+/** Whether the device reports this reading: its kind of hardware measures it, and the sensor is fitted. */
+export const measures = (device: Device, metric: Metric): boolean => {
+  const sensor = SENSOR_OF[metric];
+  return (READINGS_OF[device.type] ?? []).includes(metric) && (sensor === undefined || isFitted(device, sensor));
+};
+
+export const readingsOf = (device: Device): Metric[] => (READINGS_OF[device.type] ?? []).filter(metric => measures(device, metric));
 
 /**
  * What an output's series actually carries, from `docs/device-protocol.md`

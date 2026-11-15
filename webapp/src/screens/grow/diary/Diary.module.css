@@ -180,6 +180,8 @@ a.dayClimate::after,
 .recentHead a {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-end;
+  min-width: var(--control-height);
   min-height: var(--control-height);
   color: var(--brand);
   font-size: var(--text-sm);

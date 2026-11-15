@@ -10,6 +10,8 @@ import styles from './Start.module.css';
 function PhaseWords({ grow }: { grow: GrowCard }) {
   const { t } = useTranslation();
   const { weeksLeft } = useProgress(grow);
+  // A grow reopened after its last plant came down has no stage to be in: that it is cut is what is true of it.
+  const cut = !!grow.plantCount && grow.standingCount === 0;
   const said = grow.stage ? t(`home.stage.${grow.stage}`) : t('home.card.noPhase');
   const split = splitWords(
     t,
@@ -17,13 +19,15 @@ function PhaseWords({ grow }: { grow: GrowCard }) {
     grow.stage,
     grow.stageGroups.map(group => ({ stage: group.stage, count: group.plantCount })),
   );
-  const phase = split ?? (grow.stage && grow.stageWeek !== null ? [said, t('start.week', { week: grow.stageWeek })].join(' · ') : said);
+  const phase = cut
+    ? t('start.allCut')
+    : (split ?? (grow.stage && grow.stageWeek !== null ? [said, t('start.week', { week: grow.stageWeek })].join(' · ') : said));
 
   return (
     <>
       <span className={styles.phaseWords}>
         <span>{phase}</span>
-        {weeksLeft ? <span>{t('start.harvestIn', { count: weeksLeft })}</span> : null}
+        {weeksLeft && !cut ? <span>{t('start.harvestIn', { count: weeksLeft })}</span> : null}
       </span>
       <GrowBar grow={grow} />
     </>

@@ -567,7 +567,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       ) : null}
       {/* The head names the plants a phase goes to; one that names none says it is the whole grow's, a split rejoined. */}
       {kind === 'phase' && grow && wholeGrow && standing.length > 1 ? (
-        <p className={ui.note}>{t(grow.summary.groups.length > 0 ? 'log.phaseRejoins' : 'log.phaseWholeGrow', { count: standing.length })}</p>
+        <p className={ui.note}>{t(wholeGrowNote(grow.summary.groups.length > 0, standing.length), { count: standing.length })}</p>
       ) : null}
       {kind === 'phase' && grow && stage ? (
         <div className={styles.climate}>
@@ -678,6 +678,10 @@ const schemeLine = (grow: GrowListItem | undefined): string => {
   const medium = grow?.scheme?.plantType;
   return [name, medium && !/^[a-z0-9_]+$/.test(medium) ? medium : null].filter(Boolean).join(' · ');
 };
+
+/** That a phase is the whole grow's, a split rejoining it: "beide Pflanzen" for two, "alle 3 Pflanzen" from three. */
+const wholeGrowNote = (split: boolean, count: number): string =>
+  count === 2 ? (split ? 'log.phaseRejoinsBoth' : 'log.phaseWholeGrowBoth') : split ? 'log.phaseRejoins' : 'log.phaseWholeGrow';
 
 /** What the button says it will do. */
 const saveLabel = (t: Translate, kind: TileKind, entry: Entry | null, target: LogTarget, planned: boolean): string => {

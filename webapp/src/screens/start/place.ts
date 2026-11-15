@@ -30,6 +30,7 @@ import { deviceName } from '@/ui/naming';
 import { alertLabel, asWritten, figureWithUnit, isSilence } from '@/ui/units';
 import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
+import { measures } from '@/screens/control/alarms/rules';
 import { plugModeOf, plugReadingOf } from '@/screens/control/devices/own-summary';
 import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '@/screens/control/targets/day-night';
 import { windowWords } from '@/screens/control/targets/schedule-words';
@@ -358,8 +359,11 @@ export const contradictedModeOf = (device: Device | null, stage: GrowthStage | n
   return (mode === 'drying' || mode === 'germination') && mode !== stage ? { mode, stage } : null;
 };
 
-/** A place's open alert as its card lists it, about a device where the account's own list of alerts names one. */
-export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device };
+/**
+ * A place's open alert as its card lists it, about a device where the account's own list of alerts names one:
+ * `device` for one gone silent, `sensor` for the device a reading is of where another here measures it too.
+ */
+export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device; sensor?: Device };
 
 /**
  * A place's open alerts for its status: each with the device the account's
@@ -372,10 +376,17 @@ export type PlaceAlert = OpenAlert & { deviceId?: string | null; device?: Device
 export const placeAlerts = (listed: OpenAlert[], open: readonly Alert[] | undefined, here: Device[], now: DateTime): PlaceAlert[] =>
   listed.flatMap((alert): PlaceAlert[] => {
     const deviceId = open?.find(one => one.id === alert.alertId)?.deviceId ?? null;
-    if (!isSilence(alert)) return [{ ...alert, deviceId }];
+    if (!isSilence(alert)) return [{ ...alert, deviceId, ...sensorOf(alert, deviceId, here) }];
     const device = here.find(one => one.id === deviceId);
     return device && deviceLiveness(device.state.lastSeenAt, now) === 'offline' ? [{ ...alert, deviceId, device }] : [];
   });
+
+/** The device a reading's alert is about, where another device of the place measures the same: "62 %" alone would be read as the lead's. */
+const sensorOf = (alert: OpenAlert, deviceId: string | null, here: Device[]): Pick<PlaceAlert, 'sensor'> => {
+  const sensor = here.find(one => one.id === deviceId);
+  const metric = alert.metric;
+  return sensor && metric && here.some(other => other.id !== sensor.id && measures(other, metric)) ? { sensor } : {};
+};
 
 interface StatusInput {
   values: CardValue[];
@@ -522,7 +533,9 @@ const statusWords = (t: Translate, status: Status, now: DateTime, zone: string |
       // The rule by the name every page calls it, which is not the English one the server stores.
       const alert = { ...status.alert, name: status.alert.name && ruleTitle(t, { name: status.alert.name }) };
       // A device of the place gone silent beside one that reports is named, as Meldungen names it.
-      const what = alert.device ? t('alerts.title.offline', { what: deviceName(alert.device, t) }) : alertLabel(t, alert, now, zone);
+      const what = alert.device
+        ? t('alerts.title.offline', { what: deviceName(alert.device, t) })
+        : [alertLabel(t, alert, now, zone), alert.sensor && deviceName(alert.sensor, t)].filter(Boolean).join(' · ');
       const since = t('start.status.since', { time: sinceLabel(alert.device ? silentSince(alert) : alert.startedAt, now, zone) });
       return `${what} · ${since}`;
     }

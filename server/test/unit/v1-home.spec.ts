@@ -454,6 +454,7 @@ describe('the grow half', () => {
       preset: 'flower',
       isAuto: true,
       plantCount: 3,
+      standingCount: 3,
       strains: ['Amnesia', 'Gelato'],
       stageGroups: [],
     });

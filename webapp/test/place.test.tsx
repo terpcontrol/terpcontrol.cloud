@@ -141,6 +141,7 @@ const overview: SpaceOverview = {
       preset: null,
       isAuto: true,
       plantCount: 3,
+      standingCount: 3,
       strains: ['Amnesia', 'Gelato'],
       coverMediaId: null,
       stageGroups: [],

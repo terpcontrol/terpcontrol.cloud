@@ -2401,7 +2401,7 @@ export interface GrowSummary {
    */
   dayNumber: number | null;
   /**
-   * The stage of the largest group of plants.
+   * The stage of the largest group of the plants still standing; of all of them where none stands.
    */
   stage: GrowthStage | null;
   preset: string | null;
@@ -3784,10 +3784,17 @@ export interface GrowCard {
    */
   plantCount: number | null;
   /**
+   * How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.
+   */
+  standingCount: number | null;
+  /**
    * Each strain once, in the order it was planted.
    */
   strains: string[];
   coverMediaId: string | null;
+  /**
+   * Each stage the plants still standing are in, with how many; every plant’s where none stands.
+   */
   stageGroups: GrowCardStageGroup[];
 }
 
@@ -4009,10 +4016,17 @@ export interface OverviewGrow {
    */
   plantCount: number | null;
   /**
+   * How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.
+   */
+  standingCount: number | null;
+  /**
    * Each strain once, in the order it was planted.
    */
   strains: string[];
   coverMediaId: string | null;
+  /**
+   * Each stage the plants still standing are in, with how many; every plant’s where none stands.
+   */
   stageGroups: GrowCardStageGroup[];
   /**
    * Counted like the day counter, so it lines up with the feeding scheme's grid.

@@ -938,9 +938,14 @@ exports.growCard = (0, common_js_1.named)('GrowCard', zod_1.z.object({
     preset: zod_1.z.string().nullable(),
     isAuto: zod_1.z.boolean().describe('The phase was set by a preset or the plan rather than by a person.'),
     plantCount: zod_1.z.number().int().nullable().describe('Null where the owner hides counts.'),
+    standingCount: zod_1.z
+        .number()
+        .int()
+        .nullable()
+        .describe('How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.'),
     strains: zod_1.z.array(zod_1.z.string()).describe('Each strain once, in the order it was planted.'),
     coverMediaId: (0, common_js_1.id)().nullable(),
-    stageGroups: zod_1.z.array(exports.growCardStageGroup),
+    stageGroups: zod_1.z.array(exports.growCardStageGroup).describe('Each stage the plants still standing are in, with how many; every plant’s where none stands.'),
 }));
 /**
  * Another device took over the climate of a place - a controller replaced by

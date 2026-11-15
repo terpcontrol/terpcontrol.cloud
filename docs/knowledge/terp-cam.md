@@ -253,7 +253,10 @@ way and what the code has to respect. Internal notes on the camera exist.
   all count by it; only the alarm adds a floor of 600 s.
 - `camera_stale` (`alarm-health.service.ts`): one warning when a camera is quiet for max(interval x 10, 600 s); not
   judged without a first still, with `staleWarning` off (opt-out), `nightOff`, in maintenance with `maintenanceOff`,
-  or while the device is offline; not raised under `workmode: off`. The alert's value is the quiet span in seconds.
+  or while the device is offline; not raised under `workmode: off`. A Terp Cam is asked through its controller, so
+  after an outage its silence counts from the controller's return - when its offline alert ended
+  (`AlertService.backOnlineAt`) - not from the last still before the outage: the first pass after every reconnect
+  had raised "Terp Cam ohne Bild" before a picture could arrive. The alert's value is the quiet span in seconds.
 - A failed scheduled read writes `message-rtsp-stream-error` to the diary only with `logErrors` on (default off).
   Firmware older than the relay logs `message-cam-capture:*` and `message-aux-command-failed:cam_capture`: the
   ingest drops `...:ok` always and the failures unless `logErrors` is on (`device-ingest.service.ts`).

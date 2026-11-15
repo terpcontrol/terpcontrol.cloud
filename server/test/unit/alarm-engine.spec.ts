@@ -765,6 +765,34 @@ describe('the health loop', () => {
 
     expect(await db.alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
   });
+
+  /** Every reconnect raised "Terp Cam ohne Bild", judged by a still from before the outage, in the pass that closed the offline alarm. */
+  it('counts a Terp Cam´s silence from its controller´s return, not from the last still before the outage', async () => {
+    const away = new Date(Date.now() - 2 * 3600_000);
+    await device({ state: { lastSeenAt: away } });
+    await db.cameras.create({
+      id: 'camera-1',
+      ownerId: OWNER,
+      kind: 'terpcam_controller',
+      name: 'Tent',
+      deviceId: DEVICE,
+      spaceId: SPACE,
+      stillIntervalSeconds: 30,
+      state: { lastStillAt: away },
+    });
+    await health.run(new Date(away.getTime() + GONE_MS + 60_000));
+    expect(await openAlert()).toMatchObject({ kind: 'offline' });
+
+    const back = new Date();
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': back } });
+    await health.run(back);
+    expect(await db.alerts.find({}).lean<StoredAlert[]>()).toEqual([expect.objectContaining({ kind: 'offline', resolvedAt: expect.any(Date) })]);
+
+    const later = new Date(back.getTime() + GONE_MS);
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': later } });
+    await health.run(later);
+    expect(await openAlert()).toMatchObject({ kind: 'camera_stale', cameraId: 'camera-1' });
+  });
 });
 
 /**

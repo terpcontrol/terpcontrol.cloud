@@ -100,6 +100,7 @@ const GROWING: HomeSpaceCard['grow'] = {
   preset: null,
   isAuto: false,
   plantCount: null,
+  standingCount: null,
   strains: [],
   coverMediaId: null,
   stageGroups: [],

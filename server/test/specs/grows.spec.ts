@@ -1,6 +1,7 @@
 import { anonymous, createAccount, Session, unique } from '../support/api';
 import { claimCodeOf, registerDevice } from '../support/device';
 import { shareLinkOnGrow } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * A grow over HTTP: the new-grow sheet, the phase it enters, and the move that
@@ -426,6 +427,60 @@ describe('splitting a grow', () => {
       ['vegetative', false],
     ]);
     expect(report.phases[0]).toMatchObject({ endedAt: null, dayTo: null, spaceIds: [tent] });
+  });
+
+  /** With the drying plant cut, the grow read "Trocknung" over the plant still flowering, and Eintrag offered Reifung next. */
+  it('names the grow by the stage of the plants still standing once a split´s plants are harvested', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+    const drying = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items
+      .slice(0, 2)
+      .map((plant: { id: string }) => plant.id);
+    await owner.client.post(`/v1/grows/${grow.id}/splits`).send({ plantIds: drying, stage: 'drying' }).expect(201);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ plantIds: drying, wetWeightG: 95 }).expect(201);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.endedAt).toBeNull();
+    expect(read.body.summary.stage).toBe('flowering');
+    // Start's card counts the split by the plant still standing, so no "1 von 3 Pflanzen" is said of the one left.
+    const card = (await owner.client.get(`/v1/spaces/${tent}/overview`).expect(200)).body.grows.find(
+      (one: { growId: string }) => one.growId === grow.id,
+    );
+    expect(card).toMatchObject({ stage: 'flowering', plantCount: 3, standingCount: 1 });
+    expect(card.stageGroups).toEqual(
+      expect.arrayContaining([
+        { stage: 'flowering', plantCount: 1 },
+        { stage: 'drying', plantCount: 0 },
+      ]),
+    );
+  });
+
+  /** A split chapter counted the other plants' waterings and took the other plant's photo as its cover. */
+  it('counts in a split´s chapter only the lines about its plants and the whole grow, and takes its cover from them', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+    const [drying, flowering] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map(
+      (plant: { id: string }) => plant.id,
+    );
+    const split = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [drying], stage: 'drying' })
+      .expect(201);
+    const write = (body: Record<string, unknown>) =>
+      owner.client
+        .post('/v1/entries')
+        .send({ growId: grow.id, ...body })
+        .expect(201);
+    await write({ kind: 'water', plantIds: [flowering], values: { kind: 'water', litres: 0.3 } });
+    await write({ kind: 'water', values: { kind: 'water', litres: 1 } });
+    const picture = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', A_PICTURE, 'other.png').expect(201)
+    ).body;
+    await write({ kind: 'photo', plantIds: [flowering], mediaIds: [picture.id], values: { kind: 'photo' } });
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const chapter = report.phases.find((one: { phaseId: string }) => one.phaseId === split.body.phase.id);
+    expect(chapter).toMatchObject({ waterCount: 1, coverMediaId: null });
   });
 
   it('refuses a split that gives the plants neither a phase nor a place', async () => {

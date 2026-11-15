@@ -52,3 +52,12 @@ describe('the admin pages´ targets', () => {
     expect(admin('Demo.tsx')).toContain('className={`${ui.chip} ${styles.action}`} to={placePath(device.spaceId)}');
   });
 });
+
+/** The grow page's "Alle ›" over its newest pictures was 31 px wide at 1920. */
+describe('the way to every picture of a grow', () => {
+  it('is a control´s size both ways', () => {
+    const rule = /\.recentHead a \{([^}]*)\}/.exec(readFileSync(join(SOURCE, 'screens/grow/diary/Diary.module.css'), 'utf8'))?.[1] ?? '';
+    expect(rule).toMatch(/min-width:\s*var\(--control-height\)/);
+    expect(rule).toMatch(/min-height:\s*var\(--control-height\)/);
+  });
+});

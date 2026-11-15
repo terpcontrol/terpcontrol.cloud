@@ -346,6 +346,16 @@ describe('Start of one place with a camera and a grow', () => {
     expect(await screen.findByText('Harvest in about 7 weeks')).toBeInTheDocument();
   });
 
+  /** A grow reopened after its last plant came down read "Noch keine Phase", as if it waited for one. */
+  it('says of a running grow whose plants are all harvested that they are, and no stage or harvest to come', async () => {
+    server.grow.set('grow-1', { id: 'grow-1', scheme: { grid: Array.from({ length: 12 }, (_, week) => ({ week: week + 1, amounts: [] })) } });
+    onePlace(overviewOf({ grows: [growOf({ stage: null, stageWeek: null, standingCount: 0 })] }), true);
+    draw();
+
+    expect((await screen.findByText('Every plant harvested')).closest('a')).toHaveAttribute('href', '/grow');
+    expect(screen.queryByText(/No phase yet|Harvest in about/)).not.toBeInTheDocument();
+  });
+
   it('lists what is due today: a watering opens the entry sheet on that kind, a chore is ticked off', async () => {
     onePlace(overviewOf({ grows: [growOf()] }), true);
     server.tasks = [
@@ -917,6 +927,19 @@ describe('Start of a place that only regulates', () => {
 
     const sentence = await screen.findByRole('link', { name: new RegExp(`^Mother controller offline.*since ${hhmm(ago(35))}.*\\+1$`) });
     expect(sentence).toHaveAttribute('href', '/alerts');
+  });
+
+  /** "Zu feucht · 62 %" stood under the bar's "59 % im Ziel", which is the controller's: the lamp module had measured it. */
+  it('names the device a reading´s alarm is of where another device of the place measures the same', async () => {
+    server.devices = [fridge(), fridge({ id: 'lamp-1', type: 'light', name: 'Lamp', state: { lastSeenAt: ago(0), hardware: {} } as never })];
+    const humid = { kind: 'threshold', severity: 'warning', startedAt: ago(20), value: 62, metric: 'humidity', name: 'Too humid' };
+    server.alerts = [{ id: 'alert-1', deviceId: 'lamp-1', spaceId: 'space-1', ...humid }];
+    onePlace(overviewOf({ deviceIds: ['device-1', 'lamp-1'], openAlerts: [{ alertId: 'alert-1', ...humid }] as never }));
+    draw();
+
+    expect(
+      await screen.findByRole('link', { name: new RegExp(`^Too humid.*62\u00a0% Humidity.*Lamp.*since ${hhmm(ago(20))}$`) }),
+    ).toBeInTheDocument();
   });
 
   it('says a work mode that is not the everyday one in two words, with the way to change it', async () => {

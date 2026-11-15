@@ -6903,7 +6903,7 @@
             "type": "null"
           }
         ],
-        "description": "The stage of the largest group of plants."
+        "description": "The stage of the largest group of the plants still standing; of all of them where none stands."
       },
       "preset": {
         "type": [
@@ -11754,6 +11754,19 @@
         ],
         "description": "Null where the owner hides counts."
       },
+      "standingCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts."
+      },
       "strains": {
         "type": "array",
         "items": {
@@ -11776,7 +11789,8 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowCardStageGroup"
-        }
+        },
+        "description": "Each stage the plants still standing are in, with how many; every plant’s where none stands."
       }
     },
     "required": [
@@ -11791,6 +11805,7 @@
       "preset",
       "isAuto",
       "plantCount",
+      "standingCount",
       "strains",
       "coverMediaId",
       "stageGroups"
@@ -12722,6 +12737,19 @@
         ],
         "description": "Null where the owner hides counts."
       },
+      "standingCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts."
+      },
       "strains": {
         "type": "array",
         "items": {
@@ -12744,7 +12772,8 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowCardStageGroup"
-        }
+        },
+        "description": "Each stage the plants still standing are in, with how many; every plant’s where none stands."
       },
       "weekNumber": {
         "anyOf": [
@@ -12790,6 +12819,7 @@
       "preset",
       "isAuto",
       "plantCount",
+      "standingCount",
       "strains",
       "coverMediaId",
       "stageGroups",

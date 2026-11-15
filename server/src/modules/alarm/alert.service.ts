@@ -51,6 +51,15 @@ export class AlertService {
     return this.alerts.findOne({ cameraId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
   }
 
+  /** When the device's latest offline episode ended: null where it never had one, or that one is still open. */
+  public async backOnlineAt(deviceId: string): Promise<Date | null> {
+    const last = await this.alerts
+      .findOne({ deviceId, kind: 'offline' }, { resolvedAt: 1 })
+      .sort({ startedAt: -1 })
+      .lean<Pick<StoredAlert, 'resolvedAt'>>();
+    return last?.resolvedAt ?? null;
+  }
+
   /**
    * Something is wrong, from now until it is not.
    *

@@ -257,14 +257,17 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
       // Judged by the stills it has missed, with a floor under that: a camera
       // asked every 30 seconds is not stale after two minutes, and one asked
       // every hour is not stale after a quarter of an hour.
-      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
+      const missedSeconds = Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
+      const stale = quietSeconds >= missedSeconds;
 
       if (!stale && open) await this.alerts.settle(subjectOf(camera), open, quietSeconds, at);
       // A picture always ends an alert; only raising one asks whether the tent
       // is switched off - a controller in `workmode: off` is not driving it, so
       // nothing asks its camera for a picture.
       const switchedOff = !!camera.deviceId && devices.get(camera.deviceId)?.configuration?.workmode === 'off';
-      if (stale && !open && !switchedOff) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      if (stale && !open && !switchedOff && (await this.quietSinceAsked(camera, camera.state.lastStillAt, at)) >= missedSeconds) {
+        await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      }
     }
   }
 
@@ -297,6 +300,17 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     // The same instant the device's own alert is dated by: one file deciding a
     // device is away by two different clocks is the drift this is fixing.
     return isOffline(this.spokeLast(device, heard));
+  }
+
+  /**
+   * How long the camera has been asked for a picture and given none. A Terp Cam is asked through its controller,
+   * so while that was away nobody asked: its silence counts from the controller's return, or the first pass after
+   * a reconnect judged it by a still from before the outage and called it dark before it could deliver one.
+   */
+  private async quietSinceAsked(camera: CameraDocument, lastStillAt: Date, at: Date): Promise<number> {
+    const back = camera.deviceId ? await this.alerts.backOnlineAt(camera.deviceId) : null;
+    const since = Math.max(lastStillAt.getTime(), back?.getTime() ?? 0);
+    return (at.getTime() - since) / 1000;
   }
 }
 

@@ -533,9 +533,15 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   own title, its box saying it runs on its last settings. A place kept by hand whose grow ended offers "Was wächst
   hier?" again, and its last lines name their plants. A grow split into stages is said by the stage at its head with
   how many plants stand in it, "Blüte · 1 von 2 Pflanzen", on its head and Start's phase line (`splitWords`,
-  `screens/grow/progress.ts`), and the Bericht gives the split a chapter of its own; a grow that never entered a
-  phase counts its days from its start like its diary. What was ticked off today stays under "Erledigt" when its
-  grow ends.
+  `screens/grow/progress.ts`), and the Bericht gives the split a chapter of its own, counting only the lines about
+  its plants and the whole grow's and taking its cover from them. A grow is in the stage of its plants still
+  standing (`summary.stage`; Start's card counts its split by them, `standingCount`): with the drying plant cut, the
+  one left in flower is what the head, "Alle Grows" and Eintrag's "jetzt" say. A running grow whose plants are all
+  harvested - one reopened - says "Alle Pflanzen geerntet" on Start rather than a phase it waits for. A grow that
+  never entered a phase counts its days from its start like its diary. What was ticked off today stays under
+  "Erledigt" when its grow ends. Where a place holds a second device measuring what an alarm watched, Start's
+  sentence names the device the reading is of, "Zu feucht · 62 % Luftfeuchte · Lampe", as Meldungen does
+  (`placeAlerts`, `screens/start/place.ts`).
 - **A place's card says what its Start says, shorter** (`screens/start/Places.tsx`): the name, a pill in the
   device pill's and Steuerung's words (`pillOf`; the redesign session of 2026-11-13, after "prüfen" said nothing) -
   "im Ziel", "nicht im Ziel", "Alarm", "offline", "veraltet", "Wartung" (quiet; none once only the alarms rest,
@@ -910,7 +916,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   grow's name again. The page is **one column beside the rail until two fit** (the redesign session of 2026-11-12;
   a critic found the day card squeezed to a letter's width between 900 and 1200 px): the facts stand on their own line under the
   name at every width, and the newest pictures stand beside the days only from 1200 px
-  (`screens/grow/diary/Diary.module.css`) - Start falls the same way at the 1100 px its own columns need. Ending a
+  (`screens/grow/diary/Diary.module.css`), their "Alle ›" a control's size both ways - Start falls the same way at
+  the 1100 px its own columns need. A day card is headed by the camera's picture of the day, else by the first
+  picture of its first line with any (`headPicture`, `screens/grow/diary/days.ts`), as a plant's page is headed by
+  its newest line's first picture, and that page counts the pictures of its lines, "3 Fotos", not the lines. Ending a
   grow - the last plants harvested, or "Grow beenden" - lands on its report with a toast that says so.
   **Every write of the grow pages answers** (the redesign session of 2026-11-13, after its critic's walk of the
   clearing-up round; `useAnswered`, `screens/grow/told.ts`): a measurement added, changed or deleted, a scheme
@@ -1164,7 +1173,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     … vorverlegen", which writes the grow's `startedAt`).
   - *A phase set from its tile* goes to the plants the line names, as a split of them (`plantIds`), and to the
     whole grow where it names none or every plant standing - which the view then says ("Die Phase gilt für den ganzen
-    Grow, alle 2 Pflanzen", a split rejoined named as such); the stage marked "jetzt" and the one picked first are
+    Grow, beide Pflanzen", from three "alle 3 Pflanzen", a split rejoined named as such); the stage marked "jetzt" and the one picked first are
     those plants' (`stageOfPlants`, `log/defaults.ts`). "Phase · Lemon Haze 1" once moved the whole grow (the sixth
     whole-app walk). It is answered by a toast that names what changed - "Blüte begonnen · Spring run ·
     Zielwerte gesetzt" - with Undo only where the place's targets were not written with it.

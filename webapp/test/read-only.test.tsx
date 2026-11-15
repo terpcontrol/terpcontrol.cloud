@@ -50,6 +50,7 @@ const card: HomeSpaceCard = {
     preset: null,
     isAuto: false,
     plantCount: 3,
+    standingCount: 3,
     strains: ['Amnesia'],
     coverMediaId: null,
     stageGroups: [],

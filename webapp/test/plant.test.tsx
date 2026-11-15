@@ -3,11 +3,12 @@ import { resolve } from 'node:path';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
+import type { AccessNeed, Entry, GrowDiaryDay, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { useGrowPlants } from '@/api/grows';
+import { headPicture } from '@/screens/grow/diary/days';
 import { Plants } from '@/screens/grow/Plants';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { drawAt, reading } from './harness';
@@ -261,6 +262,17 @@ describe('a plant of a grow', () => {
     expect(screen.getByText('1 own entry')).toBeInTheDocument();
     expect(screen.queryByText('Own entries')).not.toBeInTheDocument();
     expect(screen.queryByText('own entries')).not.toBeInTheDocument();
+  });
+
+  /** A line with three pictures read "1 Foto" here and "3 Fotos" in the Bericht; the day card's cover was its last picture, the hero its first. */
+  it('counts the pictures of its lines, and is headed by a line´s first picture as the day card is', async () => {
+    state.lines = [entry({ id: 'e-5', kind: 'photo', occurredAt: at(5), mediaIds: ['media-1', 'media-2', 'media-3'], values: { kind: 'photo' } })];
+    await drawLoaded();
+
+    expect(screen.getByText('3 photos')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Amnesia 1, day/ }).getAttribute('src')).toContain('media-1');
+    const day = { dayNumber: 4, date: '2026-11-10', still: null, entries: state.lines } as unknown as GrowDiaryDay;
+    expect(headPicture(day)?.mediaId).toBe('media-1');
   });
 
   it('says what is missing rather than drawing an empty frame', async () => {

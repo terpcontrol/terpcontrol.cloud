@@ -139,6 +139,7 @@ export const growOf = (over: Partial<SpaceOverview['grows'][number]> = {}): Spac
     preset: null,
     isAuto: false,
     plantCount: 3,
+    standingCount: 3,
     strains: ['Blue Dream'],
     coverMediaId: null,
     stageGroups: [],
