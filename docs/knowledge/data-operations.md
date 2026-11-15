@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-11-14
-source: step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-15
+source: step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -80,6 +80,17 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   ending or deleting a grow left them under Rhythmen until then, so any database that ran the rewrite can hold some.
   A deleting version named `032-reminders-of-ended-grows` ran on the session's own test stack and never shipped; a
   record holding that name is answered by no step, and the resting step runs on the next boot.
+  `033-one-climate-a-place` (Chris, 2026-11-14, after the fifth walk's fix round; unit tests only) splits the places
+  that hold two controllers or fridge modules - a place holds one climate, and the server refuses a second since. The
+  lead stays (of them the first that holds targets, else the first, by `createdAt` and id); each other one moves
+  into a new place named after it - else after the old place - and numbered where the owner has that name, of the
+  old place's kind, room, owner, preset question and retention, with the old place's memberships copied role and all
+  (invitations and share links stay with the old place), its placement ended and begun at the step's instant, and
+  its Terp Cam and the open alerts of both moved along; grows, entries, reminders and stream cameras stay. Counted
+  as `spaces.madeForASecondClimate`, `devices.movedToAPlaceOfTheirOwn`, `memberships.copiedToTheNewPlace`,
+  `cameras.movedWithTheirDevice` and `alerts.movedWithTheirDevice`. Ids are derived from the device and the
+  membership, so a killed run makes no second place; ended places and rooms are left. Production probably holds no
+  such place; the session's stack holds some from its critics' accounts, and they are split on its next boot.
   Its reads are empty over "the last 24 hours" for a
   reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
   there with `?at=` on that day, and a grow's diary on its older pages.

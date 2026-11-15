@@ -44,6 +44,7 @@ import { remindersOfEndedPlaces } from '@/migrations/steps/029-reminders-of-ende
 import { openAlertsWhereTheDeviceStands } from '@/migrations/steps/030-open-alerts-where-the-device-stands';
 import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from '@/migrations/steps/032-resting-reminders-of-ended-grows';
+import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -956,6 +957,123 @@ describe('what a place took with it', () => {
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
     await openAlertsWhereTheDeviceStands.run(again);
     expect(again.stats).toEqual({ 'alerts.movedToTheirDevice': 0, rejected: 0 });
+  });
+});
+
+/**
+ * A place holds one climate (Chris, 2026-11-14): a second controller or fridge module in it was written to by
+ * nothing and paused by no maintenance. The places that hold two from before are split.
+ */
+describe('one climate a place', () => {
+  const placed = (spaceId: string, since: number) => [{ spaceId, startedAt: new Date(since), endedAt: null }];
+  const controller = (id: string, spaceId: string, fields: Record<string, unknown> = {}) => ({
+    id,
+    type: 'controller',
+    name: null,
+    spaceId,
+    isDemo: false,
+    configuration: null,
+    state: { hardware: {} },
+    placements: placed(spaceId, AT - 10 * DAY),
+    createdAt: new Date(AT - 10 * DAY),
+    ...fields,
+  });
+
+  it('gives the second controller or fridge module a place of its own, with what follows it, and keeps the lead', async () => {
+    await collection('spaces').insertMany([
+      {
+        id: 'tent',
+        ownerId: 'owner',
+        kind: 'tent',
+        name: 'Zelt',
+        roomId: 'cellar',
+        presetPrompt: 'never',
+        retention: { climateDays: 90 },
+        isDemo: false,
+        archivedAt: null,
+      },
+      { id: 'cellar', ownerId: 'owner', kind: 'room', name: 'Keller', roomId: null, archivedAt: null },
+      { id: 'taken', ownerId: 'owner', kind: 'tent', name: 'Zelt 2', roomId: null, archivedAt: null },
+      { id: 'cabinet', ownerId: 'owner', kind: 'fridge', name: 'Schrank', roomId: null, archivedAt: null },
+      { id: 'ended', ownerId: 'owner', kind: 'tent', name: 'Alt', roomId: null, archivedAt: new Date(AT - DAY) },
+    ]);
+    await collection('devices').insertMany([
+      // Two controllers in one tent: the older leads, the newer one has no name of its own.
+      controller('first', 'tent'),
+      controller('second', 'tent', { createdAt: new Date(AT - 5 * DAY), placements: placed('tent', AT - 5 * DAY) }),
+      { ...controller('fan', 'tent'), type: 'fan' },
+      // A controller and a fridge module: the module holds targets, so it is the lead whatever came first.
+      controller('cabinet-controller', 'cabinet', { name: 'Schrankcontroller' }),
+      controller('module', 'cabinet', {
+        type: 'fridge',
+        createdAt: new Date(AT - 2 * DAY),
+        configuration: { day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 }, daynight: { day: 6 * 3600, night: 0 } },
+      }),
+      controller('old-a', 'ended'),
+      controller('old-b', 'ended'),
+    ]);
+    await collection('memberships').insertMany([
+      { id: 'guest-in-tent', spaceId: 'tent', userId: 'guest', role: 'can_log', invitedBy: 'owner', inviteId: 'invite' },
+    ]);
+    await collection('cameras').insertMany([
+      { id: 'terp-cam', deviceId: 'second', spaceId: 'tent', removedAt: null },
+      { id: 'stream', deviceId: null, spaceId: 'tent', removedAt: null },
+    ]);
+    await collection('alerts').insertMany([
+      { id: 'open-of-second', deviceId: 'second', cameraId: null, spaceId: 'tent', resolvedAt: null },
+      { id: 'open-of-its-cam', deviceId: null, cameraId: 'terp-cam', spaceId: 'tent', resolvedAt: null },
+      { id: 'over-of-second', deviceId: 'second', cameraId: null, spaceId: 'tent', resolvedAt: new Date(AT - DAY) },
+      { id: 'open-of-first', deviceId: 'first', cameraId: null, spaceId: 'tent', resolvedAt: null },
+    ]);
+    const where = async (name: string) => Object.fromEntries((await collection(name).find({}).toArray()).map(row => [row.id, row.spaceId]));
+    const before = await where('devices');
+
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await oneClimateAPlace.run(rehearsal);
+    expect(await where('devices')).toEqual(before);
+    expect(await collection('spaces').countDocuments()).toBe(5);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await oneClimateAPlace.run(context);
+    const devices = await where('devices');
+    expect(devices).toMatchObject({ first: 'tent', fan: 'tent', module: 'cabinet', 'old-a': 'ended', 'old-b': 'ended' });
+    const [second, moved] = await Promise.all(['second', 'cabinet-controller'].map(id => collection('spaces').findOne({ id: devices[id] })));
+    // Named after the device, else the old place - numbered past what the owner has - and as the old place otherwise.
+    expect(second).toMatchObject({
+      ownerId: 'owner',
+      kind: 'tent',
+      name: 'Zelt 3',
+      roomId: 'cellar',
+      presetPrompt: 'never',
+      retention: { climateDays: 90 },
+    });
+    expect(moved).toMatchObject({ kind: 'fridge', name: 'Schrankcontroller', roomId: null });
+    expect((await collection('devices').findOne({ id: 'second' }))!.placements).toEqual([
+      { spaceId: 'tent', startedAt: new Date(AT - 5 * DAY), endedAt: new Date(AT) },
+      { spaceId: devices.second, startedAt: new Date(AT), endedAt: null },
+    ]);
+    // Whoever saw the tent sees the new place, with the same role.
+    expect(await collection('memberships').findOne({ spaceId: devices.second })).toMatchObject({ userId: 'guest', role: 'can_log', inviteId: null });
+    expect(await where('cameras')).toEqual({ 'terp-cam': devices.second, stream: 'tent' });
+    expect(await where('alerts')).toEqual({
+      'open-of-second': devices.second,
+      'open-of-its-cam': devices.second,
+      'over-of-second': 'tent',
+      'open-of-first': 'tent',
+    });
+    expect(context.stats).toEqual({
+      'spaces.madeForASecondClimate': 2,
+      'devices.movedToAPlaceOfTheirOwn': 2,
+      'memberships.copiedToTheNewPlace': 1,
+      'cameras.movedWithTheirDevice': 1,
+      'alerts.movedWithTheirDevice': 2,
+      rejected: 0,
+    });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await oneClimateAPlace.run(again);
+    expect(again.stats).toEqual({ rejected: 0 });
+    expect(await collection('spaces').countDocuments()).toBe(7);
   });
 });
 

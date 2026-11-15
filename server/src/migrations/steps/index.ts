@@ -31,6 +31,7 @@ import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
 import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
 import { handSetPhases } from './031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
+import { oneClimateAPlace } from './033-one-climate-a-place';
 
 /**
  * In order, and the order matters in eight places:
@@ -96,4 +97,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   openAlertsWhereTheDeviceStands,
   handSetPhases,
   restingRemindersOfEndedGrows,
+  oneClimateAPlace,
 ];
