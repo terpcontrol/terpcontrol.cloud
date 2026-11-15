@@ -4296,7 +4296,6 @@
       "bringTitle": "{{name}}: Gerät hierher holen",
       "nowhere": "an keinem Ort",
       "climateHeld": "{{from}} · hier regelt schon {{device}}, ein Ort hat ein Klima",
-      "secondClimate": "Zweites Klima hier: an einen eigenen Ort umziehen",
       "claim": "Neues Gerät hinzufügen",
       "people": "Wer {{name}} sieht",
       "remove": "{{name}} entfernen",
@@ -5280,8 +5279,7 @@
     },
     "device": {
       "firmware": "Firmware vom {{day}}",
-      "all": "{{name}}: alles Weitere",
-      "secondClimate": "Ein Ort hat ein Klima, und das hält {{lead}}: Steuerung und Wartung erreichen dieses Gerät hier nicht. Zieh es an einen eigenen Ort."
+      "all": "{{name}}: alles Weitere"
     },
     "camera": {
       "none": "noch kein Bild"

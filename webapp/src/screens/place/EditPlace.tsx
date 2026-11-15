@@ -338,8 +338,8 @@ function Editing({ space, listed }: { space: Space; listed: readonly Space[] }) 
  * another of its kind within the list it stands in, not within the account.
  * The place's climate comes first, as on Steuerung. A place has one climate
  * (Chris, 2026-11-14): a controller or fridge module standing elsewhere is not
- * brought into a place that holds one, and says why; a second one standing
- * here from before says that it is to move.
+ * brought into a place that holds one, and says why; the places that held
+ * two from before were split by migration step 033.
  */
 function DevicesHere({ space }: { space: Space }) {
   const { t } = useTranslation();
@@ -365,18 +365,14 @@ function DevicesHere({ space }: { space: Space }) {
         {t('place.edit.devices')}
       </h2>
       <Rows>
-        {here.map(device => {
-          const second = lead !== null && device.id !== lead.id && climateHeldBy(here, space.id, device) !== null;
-          return (
-            <Row
-              key={device.id}
-              title={deviceTitle(device, t, here)}
-              line={second ? t('place.edit.secondClimate') : givenName(device) ? typeName(device.type, t) : undefined}
-              warn={second}
-              to={devicePath(device.id)}
-            />
-          );
-        })}
+        {here.map(device => (
+          <Row
+            key={device.id}
+            title={deviceTitle(device, t, here)}
+            line={givenName(device) ? typeName(device.type, t) : undefined}
+            to={devicePath(device.id)}
+          />
+        ))}
         {cameras.map((camera, at) => (
           <Row key={camera.id} title={called[at]} line={t('place.edit.camera')} to={cameraPath(camera.id)} />
         ))}

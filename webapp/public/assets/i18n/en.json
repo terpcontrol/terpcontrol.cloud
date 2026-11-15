@@ -4286,7 +4286,6 @@
       "bringTitle": "{{name}}: bring a device here",
       "nowhere": "in no place",
       "climateHeld": "{{from}} · {{device}} already holds the climate here, a place has one",
-      "secondClimate": "A second climate here: move it to a place of its own",
       "claim": "Add a new device",
       "people": "Who sees {{name}}",
       "remove": "Remove {{name}}",
@@ -5270,8 +5269,7 @@
     },
     "device": {
       "firmware": "Firmware from {{day}}",
-      "all": "Everything about {{name}}",
-      "secondClimate": "A place has one climate, and {{lead}} holds it: Control and maintenance do not reach this device here. Move it to a place of its own."
+      "all": "Everything about {{name}}"
     },
     "camera": {
       "none": "no picture yet"
