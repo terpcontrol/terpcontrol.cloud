@@ -269,6 +269,38 @@ describe('the form a grow is started with', () => {
     await waitFor(() => expect(sent('/grows/grow-new/phases')).toMatchObject({ stage: 'vegetative', climate: true }));
   });
 
+  /**
+   * Each lamp of a place is set on its own, and germination is dark for all of them (ADR 0007): the start said only
+   * "Starten · Klima: Blüte" where a lamp module went on burning 16 hours beside it.
+   */
+  it('says what the climate does to each lamp of the place, and that germination keeps every one off', async () => {
+    const lamp = { ...controller, id: 'lamp-1', type: 'light', name: null, configuration: { day: 6 * 3600, night: 22 * 3600, limit: 100 } };
+    stack.devices = [{ ...controller, name: null }, lamp as Device];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Veg'));
+    expect(await screen.findByText(/^It sets the controller’s light\. Light · Lamp module stays at \d\d:00 to \d\d:00\.$/)).toBeInTheDocument();
+    fireEvent.click(stage('Germination'));
+    expect(screen.getByText('Light · Controller and Light · Lamp module stay off until germination ends.')).toBeInTheDocument();
+  });
+
+  it('says a fan at a fixed speed keeps it, though the stage writes its targets', async () => {
+    stack.devices = [
+      {
+        ...controller,
+        type: 'fan',
+        name: 'Air fan',
+        configuration: { mode: 0, day: { temperature: 24, humidity: 60 }, night: { temperature: 20, humidity: 55 } },
+      },
+    ];
+    await drawLoaded('space-1');
+
+    fireEvent.click(stage('Veg'));
+    expect(
+      await screen.findByText('Air fan runs at a fixed speed and keeps it: the targets apply only once it follows temperature or humidity.'),
+    ).toBeInTheDocument();
+  });
+
   it('writes no climate for the stage the place is already on, though it was tapped', async () => {
     await drawLoaded('space-1');
 

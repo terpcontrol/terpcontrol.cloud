@@ -5,6 +5,7 @@ import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js
 import { useCamerasShape } from '@/api/cameras';
 import { climateHeldBy } from '@/screens/control/lead';
 import { inSentence } from '@/screens/space/members/people';
+import { germinates } from '@/ui/climate-hardware';
 import { deviceTitle } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
 import { FlowHead } from './FlowHead';
@@ -90,7 +91,10 @@ export function AirStep({
       const devices = there.map(other => deviceTitle(other, t, there)).join(', ');
       const shares = `claim.air.${there.some(other => OWN_CLIMATE_TYPES.includes(other.type)) ? 'hereNote' : 'hereNoClimate'}`;
       const seen = cameras.some(camera => camera.spaceId === one.id);
-      return answer(one, one.name, there.length > 0 ? t(seen ? shares : `${shares}NoCamera`, { devices }) : t('claim.air.hereEmpty'));
+      const said = there.length > 0 ? t(seen ? shares : `${shares}NoCamera`, { devices }) : t('claim.air.hereEmpty');
+      // Germination is dark for every lamp of a place (ADR 0007): a lamp put where it runs goes off until it ends.
+      const dark = device.type === 'light' && there.some(germinates);
+      return answer(one, one.name, dark ? `${said} ${t('claim.air.darkHere')}` : said);
     });
   const fresh = answer(
     null,

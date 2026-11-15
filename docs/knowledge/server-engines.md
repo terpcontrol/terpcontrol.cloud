@@ -59,6 +59,10 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   only while the device is in `breed`. The hourly plan re-send cannot undo that and nothing is put back afterwards;
   `GerminationAlarmsService` applies a saved choice at once rather than at the next reading. What rests and why:
   ADR 0007.
+- A stage writes its bands on every device of the place (`StageAlarmsService.applyStage`), but only those the device
+  can measure: a fan and a lamp module report temperature and humidity and no CO2 (device-protocol.md, 5.4), so they
+  get no "CO₂ too high", and one written before is taken away with the next stage (the seventh whole-app walk found it
+  on a lamp module claimed into a place in flower).
 - An alert is the record of an episode: it keeps its severity (changing a rule re-grades open alerts only) and a copy
   of the rule's name and watch (`watched`); deleting or disabling a rule, and removing a camera, closes its open alert
   quietly and keeps the rest - nothing would ever close it otherwise, since the engine skips disabled rules and the

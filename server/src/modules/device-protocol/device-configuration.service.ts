@@ -37,7 +37,7 @@ import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClock
 import { targetsOf } from '../v1/phase/phase-targets';
 import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
-import { ChoicesSaid, decideWorkmode, standardOf, WriteIntent } from './work-modes';
+import { ChoicesSaid, controlOf, decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it, and what germination is to do about the humidity before and after. */
 interface Written {
@@ -441,6 +441,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
     if (configuration.workmode === 'breed') await this.tellGermination(deviceId);
+    // Its place's lamp modules go dark with it, and come back when it leaves germination.
+    if (germinatesIn(device.type, before, device.baseWorkmode) !== germinatesIn(device.type, configuration, mode?.base ?? device.baseWorkmode)) {
+      const placed = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+      await this.lampsFollow(placed?.spaceId ?? null);
+    }
 
     const choicesChanged = !ended && (kept.warnTooHumid !== choices.warnTooHumid || kept.humidifierHolds !== choices.humidifierHolds);
     return {
@@ -483,6 +488,50 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   }
 
   /**
+   * The lamp modules of a place kept dark while its climate germinates (ADR 0007): germination is dark, and a lamp
+   * module beside the controller has a brightness of its own that no work mode reaches - it burnt on under "Keimung ·
+   * dunkel". Each is put to nothing whenever the place is put into germination or a lamp comes into such a place,
+   * its brightness from before kept (`beforeGermination.limit`), and given back once the place germinates no longer or
+   * the lamp has left it - unless somebody has set it since, which then stands. `deviceIds` names a lamp that has
+   * just left the place for none. No lamp's write may fail what asked for it.
+   */
+  public async lampsFollow(spaceId: string | null, deviceIds: readonly string[] = []): Promise<void> {
+    const here = spaceId
+      ? await this.devices
+          .find({ spaceId }, { id: 1, type: 1, configuration: 1, baseWorkmode: 1 })
+          .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration' | 'baseWorkmode'>[]>()
+      : [];
+    const dark = here.some(device => germinatesIn(device.type, device.configuration ?? null, device.baseWorkmode));
+    const lamps = await this.devices
+      .find(
+        { type: 'light', $or: [...(spaceId ? [{ spaceId }] : []), { id: { $in: [...deviceIds] } }] },
+        { id: 1, spaceId: 1, configuration: 1, beforeGermination: 1 },
+      )
+      .lean<Pick<StoredDevice, 'id' | 'spaceId' | 'configuration' | 'beforeGermination'>[]>();
+
+    for (const lamp of lamps) {
+      const limit = lamp.configuration?.limit;
+      const kept = lamp.beforeGermination?.limit;
+      if (typeof limit !== 'number') continue;
+      try {
+        if (dark && lamp.spaceId === spaceId) {
+          if (limit === 0) continue;
+          if (kept === undefined) await this.devices.updateOne({ id: lamp.id }, { $set: { beforeGermination: { limit } } });
+          const written = await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: 0 } : null));
+          if (written) await this.writeDown(lamp.id, written, null);
+        } else if (kept !== undefined) {
+          const written =
+            limit === 0 ? await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: kept } : null)) : null;
+          await this.devices.updateOne({ id: lamp.id }, { $set: { beforeGermination: null } });
+          if (written) await this.writeDown(lamp.id, written, null);
+        }
+      } catch (error) {
+        logger.error(`Could not keep lamp ${lamp.id} to the germination of its place: ${error}`);
+      }
+    }
+  }
+
+  /**
    * A fan slowed for a socket's CO2 knows nothing of the socket: it is handed
    * the socket's dosing windows and runs slower in them. So whenever the
    * socket's document is written the fan's section is written from it again - a
@@ -512,6 +561,10 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
 /** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
 const GERMINATION_HUMIDITY_PATH = 'night.humidity';
+
+/** Whether a climate device stands in germination: in the dark mode, or switched off or drying from it, which go back to it. */
+const germinatesIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean =>
+  controlOf(type, configuration, base)?.mode === 'germination';
 
 const standingNow = (configuration: DeviceConfiguration | null): string | null =>
   typeof configuration?.workmode === 'string' ? configuration.workmode : null;

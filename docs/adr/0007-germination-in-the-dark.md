@@ -72,6 +72,15 @@ stays well clear of the 90 % alarm, and the seedling climate after it holds 65 t
 is a small one. Before, the night humidity left from flowering - 50 % - told a humidifier to keep the seeds dry.
 The night's humidity from before comes back when germination ends.
 
+**Every lamp of the place** (the redesign session's fix round after the seventh whole-app walk, 2026-11-15): dark
+means the place, not one device. A lamp module beside the controller has a brightness of its own that no work
+mode reaches, and burnt on under "Keimung · dunkel". While a place's controller or fridge module germinates -
+however it came to - the server puts each lamp module of the place to nothing (`limit: 0`), keeps the brightness
+it had and gives it back when germination ends there or the lamp leaves the place, unless somebody set one since
+(`DeviceConfigurationService.lampsFollow`): applied again with every germination climate, when a device is put in a
+place and when a lamp module sends its first settings. Germination ended at the device's own menu does not reach
+the lamps; the screens then say a lamp that burns as burning, and why.
+
 ## Consequences
 
 - Migration 022 renamed to "seedling" what ran the light under the old meaning, so that no device went dark

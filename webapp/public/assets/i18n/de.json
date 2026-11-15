@@ -1293,6 +1293,7 @@
       "starting": "Grow wird gestartet …",
       "startAndSet": "Starten · Klima: {{climate}}",
       "startAndSetTargets": "Starten · Zielwerte für {{device}}: {{climate}}",
+      "fanFixed": "{{device}} läuft mit fester Drehzahl und bleibt dabei: Die Zielwerte gelten erst, wenn er nach Temperatur oder Luftfeuchte regelt.",
       "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
       "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
       "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
@@ -3387,6 +3388,7 @@
       "hereNoteNoCamera": "{{devices}}: ein Klima, eine Wartung.",
       "hereNoClimate": "{{devices}}: eine Kamera, kein Klima.",
       "hereNoClimateNoCamera": "{{devices}}: kein Klima.",
+      "darkHere": "Dort läuft die Keimung: Das Lampenmodul bleibt aus, bis sie endet.",
       "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen.",
       "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen."
     },
@@ -4981,6 +4983,7 @@
     "card": {
       "light": "{{lamp}} {{level}}",
       "good": "im Ziel",
+      "lightDespite": "{{lamp}} {{level}} trotz Keimung",
       "lightOff": "{{lamp}} aus",
       "due_one": "{{count}} Aufgabe fällig",
       "due_other": "{{count}} Aufgaben fällig",
@@ -5214,6 +5217,11 @@
       "raise": "Lichtgrenze erhöhen",
       "times": "Lichtzeiten",
       "toAuto": "Zurück auf Auto",
+      "inGermination": {
+        "lit": "trotz Keimung · {{why}}",
+        "own": "seine Helligkeit ist danach gesetzt worden",
+        "coming": "das Dunkel ist noch nicht angekommen"
+      },
       "planSets": "Plan: „{{name}}“ setzt {{what}} – jede Stunde neu.",
       "planWhat": {
         "times": "die Lichtzeiten",
@@ -5239,7 +5247,12 @@
         "germination": "Keimung beendet"
       },
       "returns": "Was danach wieder gilt",
-      "lampSet": "Es setzt das Licht von {{device}}.",
+      "lampSetNamed": "Es setzt das Licht von „{{device}}“.",
+      "lampSetOf": {
+        "controller": "Es setzt das Licht des Controllers.",
+        "fridge": "Es setzt das Licht des Kühlschrankmoduls."
+      },
+      "lampsDark": "{{lamps}} bleiben aus, bis die Keimung endet.",
       "lampLeft": "{{lamp}} bleibt bei {{window}}.",
       "lampLeftAsIs": "{{lamp}} bleibt, wie es ist."
     },

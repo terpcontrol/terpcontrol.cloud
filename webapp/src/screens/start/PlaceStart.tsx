@@ -61,7 +61,7 @@ import {
   type Status,
 } from './place';
 import { Menu, MenuLink } from '@/ui/Menu';
-import { curvePath, darkOf, extrasOf, readingsOf, type Extra, type Reading } from './readings';
+import { curvePath, darkOf, extrasOf, readingFacts, readingsOf, type Extra, type Reading } from './readings';
 import { ReadingTiles } from './ReadingTiles';
 import { usePlace, useHumidifierHold, useLamp, usePlaceAlerts } from './reads';
 import { growDay } from '@/screens/grow/progress';
@@ -201,7 +201,17 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
     !growPutOff(spaceId, now);
   const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} parks={parks} />;
-  const further = extras.length > 0 ? <Extras spaceId={spaceId} extras={extras} /> : null;
+  // Two lamps beside the climate's three figures do not fit the picture's bar on a phone: the lamps stand in the line under it.
+  const lampsUnder = camera !== null && readings.filter(reading => reading.key === 'light').length > 1;
+  const underPicture = [
+    ...(lampsUnder
+      ? readings.flatMap(reading =>
+          reading.key === 'light' ? [{ key: `light-${reading.deviceId}`, text: readingFacts(t, [reading])[0], focus: 'light' }] : [],
+        )
+      : []),
+    ...extras,
+  ];
+  const further = underPicture.length > 0 ? <Extras spaceId={spaceId} extras={underPicture} /> : null;
   // Somebody let in who may not manage the place has nothing behind the menu; who else is here is a tap on whose place it is.
   const menu = !demo && !visiting && mayManage;
 
@@ -280,7 +290,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               name={overview.name}
               label={grow ? grow.name : called(camera.name)}
               day={grow ? growDay(t, grow) : null}
-              readings={readings}
+              readings={lampsUnder ? readings.filter(reading => reading.key !== 'light') : readings}
               curveOf={reading => curvePath(spaceId, reading)}
               age={offline ? 'offline' : liveness === 'stale' ? 'stale' : 'live'}
               // A late device is said by the pill alone; a silent one's figures say as of when they are.
@@ -426,10 +436,10 @@ function CameraHead({
 }
 
 /**
- * What only some places measure, in one line: each reading the way to its own
- * curve, a finger high.
+ * What only some places measure, in one line - and under a picture the lamps of
+ * a place with two: each reading the way to its own curve, a finger high.
  */
-function Extras({ spaceId, extras }: { spaceId: string; extras: Extra[] }) {
+function Extras({ spaceId, extras }: { spaceId: string; extras: (Omit<Extra, 'key'> & { key: string })[] }) {
   return (
     <Facts
       className={styles.extras}

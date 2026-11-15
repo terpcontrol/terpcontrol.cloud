@@ -1210,6 +1210,25 @@ describe('adding a device', () => {
     expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: no climate\.$/);
   });
 
+  /** Germination is dark for every lamp of a place (ADR 0007): a lamp module claimed into one that germinates is told it goes off. */
+  it('says a lamp module goes off in a place that germinates in the dark, before it is put there', async () => {
+    const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };
+    state.spaces = [mother, drying];
+    joins(light, mother);
+    const germinating = { running: true, drying: false, mode: 'germination', energySaving: false } as Device['control'];
+    state.devices = [
+      { ...device, id: 'sim-controller-0001', spaceId: 'space-mother', control: germinating },
+      { ...fan, id: 'sim-fan-0003', spaceId: 'space-drying' },
+    ];
+    claim();
+
+    await screen.findByRole('heading', { level: 2, name: 'Where does the lamp module hang?' });
+    expect(screen.getByRole('button', { name: /^Mother tent/ })).toHaveTextContent(
+      /one maintenance window\. Germination runs there: the lamp module stays off until it ends\.$/,
+    );
+    expect(screen.getByRole('button', { name: /^Drying tent/ })).toHaveTextContent(/^Drying tentFan: no climate\.$/);
+  });
+
   /** "One camera" stood under a tent no camera looks into, "one maintenance window" under fans that have none: a place is said by what it has. */
   it('names the camera a device would share only under the place one looks into', async () => {
     const drying: Space = { ...mother, id: 'space-drying', name: 'Drying tent' };

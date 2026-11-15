@@ -778,14 +778,75 @@ describe('Start of a place that only regulates', () => {
     expect((await screen.findByRole('link', { name: 'Light · Fridge module' })).closest('div')).toHaveTextContent(
       'Light · Fridge module65 %on until 18:00',
     );
-    expect(screen.getByRole('link', { name: 'Lamp module' }).closest('div')).toHaveTextContent(/^Lamp module65 %on until \d\d:00$/);
+    expect(screen.getByRole('link', { name: 'Light · Lamp module' }).closest('div')).toHaveTextContent(/^Light · Lamp module65 %on until \d\d:00$/);
     expect(screen.queryByRole('link', { name: 'Light' })).not.toBeInTheDocument();
     // A place's card among several says them as facts of one line.
     const t = i18next.t.bind(i18next);
     const level = { percent: 65, measuredAt: ago(0.2), state: 'live' as const };
     const lit = [fridge(), lamp].map(device => ({ device, level, live: null, held: null }));
     const readings = readingsOf(t, { values: [], setpoints: [], device: fridge(), lit, hold: null, now: DateTime.now(), zone: null });
-    expect(readingFacts(t, readings)).toEqual(['Light · Fridge module 65 %', 'Lamp module 65 %']);
+    expect(readingFacts(t, readings)).toEqual(['Light · Fridge module 65 %', 'Light · Lamp module 65 %']);
+  });
+
+  /**
+   * Germination is dark for every lamp of the place (ADR 0007): "Keimung · dunkel · Alles im Ziel" stood above
+   * "Lampenmodul 100 % · an bis 23:00". A lamp off is off for germination; one that burns says so, and why.
+   */
+  it('says each lamp of a germinating place as dark, and one that burns as burning despite germination, with why', () => {
+    const t = i18next.t.bind(i18next);
+    const germinating = fridge({ control: { running: true, drying: false, mode: 'germination', energySaving: false } as never });
+    const lamp = fridge({
+      id: 'lamp-1',
+      type: 'light',
+      name: null,
+      configuration: { day: 6 * 3600, night: 21 * 3600, limit: 50 } as never,
+      control: null,
+    });
+    const level = (percent: number) => ({ percent, measuredAt: ago(0.2), state: 'live' as const });
+    const lit = [
+      { device: germinating, level: level(0), live: null, held: null },
+      { device: lamp, level: level(65), live: null, held: null },
+    ];
+    const readings = readingsOf(t, { values: [], setpoints: [], device: germinating, lit, hold: null, now: DateTime.now(), zone: null });
+
+    expect(readings.map(one => [one.label, one.figure, one.note])).toEqual([
+      ['Light · Fridge module', 'Off', 'off · germination'],
+      ['Light · Lamp module', '65 %', 'despite germination · its brightness was set since'],
+    ]);
+    expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite germination']);
+    // Not yet handed the dark, it says that instead.
+    const coming = readingsOf(t, {
+      values: [],
+      setpoints: [],
+      device: germinating,
+      lit: [lit[0], { ...lit[1], device: { ...lamp, configuration: { ...lamp.configuration, limit: 0 } } }],
+      hold: null,
+      now: DateTime.now(),
+      zone: null,
+    });
+    expect(coming[1].note).toBe('despite germination · the dark has not reached it yet');
+  });
+
+  /** Five figures in the bar ran "TemperatureHumidity" together at 390 and took two rows over the picture at 320. */
+  it('stands two lamps in the line under a camera´s picture, each the way to its curve', async () => {
+    const lamp = fridge({
+      id: 'lamp-1',
+      type: 'light',
+      name: null,
+      configuration: { day: 6 * 3600, night: 21 * 3600, limit: 100 } as never,
+      control: null,
+    });
+    server.devices = [fridge(), lamp];
+    onePlace(overviewOf({ deviceIds: ['device-1', 'lamp-1'], cameras: [camera()] }));
+    draw();
+
+    // Each fact of the line keeps to one line (`unbroken`), with no-break spaces.
+    const under = await screen.findByRole('link', { name: /^Light\s·\sLamp\smodule\s65\s%$/ });
+    expect(under).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
+    expect(screen.getByRole('link', { name: /^Light\s·\sFridge\smodule\s65\s%$/ })).toBeInTheDocument();
+    const picture = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!.parentElement!;
+    expect(within(picture).queryByRole('link', { name: /^Light/ })).not.toBeInTheDocument();
+    expect(within(picture).getByRole('link', { name: /^Temperature 25.1 °C/ })).toBeInTheDocument();
   });
 
   /**

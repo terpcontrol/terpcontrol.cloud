@@ -102,8 +102,10 @@ string exists in English and German, with no English left in the German catalogu
   type is "Lüfter" everywhere.
 - **The device type `light` is the "Lampenmodul" / "lamp module"; "Licht" is the light a lamp gives** - a light
   output, a light socket's role, a card (after the sixth walk). Both were "Licht", so a place with a lamp module
-  beside its controller read "Licht 100 % · Licht 100 %"; where a place has more than one lamp each is named,
-  "Licht · Controller" for a device's light output and a lamp module by its name (`lampName`, app-ux.md).
+  beside its controller read "Licht 100 % · Licht 100 %"; where a place has more than one lamp each is named alike,
+  "Licht · Controller", "Licht · Lampenmodul" (`lampName`, app-ux.md). Whose light a climate sets is said in the
+  genitive by the type ("Es setzt das Licht des Controllers", `control.preset.lampSetOf`) and by a name of its own
+  quoted ("das Licht von „Zelt-Ctrl“"): German has no genitive for a name it does not know the gender of.
 - "Smart socket" and "Steckdose" mean only the Tasmota plugs a controller or a fridge switches, the ones Terp Control
   sells included. The stand-alone device type `plug` is the "Plantalytix Socket" in both languages, masculine in
   German ("der Plantalytix Socket", "er"), and never a "Steckdose", because the two sat side by side under one word

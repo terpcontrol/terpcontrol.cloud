@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { serverNow } from '@/api/clock';
 import { useHome } from '@/api/home';
 import { useDiaryLayer } from '@/api/layers';
 import { Help } from '@/ui/Help';
@@ -11,8 +12,10 @@ import { Sheet } from '@/ui/Sheet';
 import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { targetFigure } from '@/ui/units';
+import { useZone } from '@/ui/zone';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf } from '../germination/germination-choices';
+import { lampsSaid } from '../held-light';
 import { hoursWritten } from '../targets/schedule-words';
 import { shapeOf, type Shape } from '../targets/day-night';
 import { prefilled, presetOf, type TargetsDraft } from '../targets/targets-draft';
@@ -40,7 +43,7 @@ export function PresetSheet({
   hasCo2,
   humidifier,
   chosen,
-  lamps = null,
+  lamps = [],
   pauses,
   runs,
   switchesOn = false,
@@ -57,8 +60,8 @@ export function PresetSheet({
   humidifier: boolean;
   /** The preset the stored figures are, which is the chip drawn chosen until another is picked. */
   chosen: ClimateChoice | null;
-  /** Where other lamps burn in the place: the device whose light this sets, and what each other lamp keeps (`lampsLeft`). */
-  lamps?: { set: string; left: string[] } | null;
+  /** The lamps of its place (`lampsAmong`), each set on its own: a climate says whose light it sets and what the others keep. */
+  lamps?: readonly Device[];
   pauses: (next: TargetsDraft, chip: ClimateChoice, choices?: ChoiceValues) => string | null;
   /** The running plan, by name: ending a spell pauses it. */
   runs: string | null;
@@ -72,7 +75,8 @@ export function PresetSheet({
   onEnd: (spell: 'drying' | 'germination') => Promise<boolean>;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const zone = useZone();
   const [picked, setPicked] = useState<ClimateChoice | null>(null);
   const [ending, setEnding] = useState(false);
   const [changes, setChanges] = useState<Partial<ChoiceValues> | null>(null);
@@ -117,6 +121,7 @@ export function PresetSheet({
   // Unpicked, the choices of a germination that runs are saved with the stage it is in.
   const chip = picked ?? CLIMATE_CHOICES.find(one => one.stage === 'germination') ?? null;
   const paused = ending ? runs : chip && sets ? pauses(next, chip, said) : null;
+  const lampsWords = lampsSaid(t, device, lamps, picked?.stage === 'germination', serverNow(), zone, i18n.language);
 
   const save = async () => {
     if (!chip) return;
@@ -204,9 +209,9 @@ export function PresetSheet({
             disabled={busy}
           />
         ) : null}
-        {/* Each lamp is set on its own: a preset that moves the light says whose, and what the others keep. */}
-        {lamps && (hours || moved.includes('lightLimit')) ? (
-          <p className={styles.note}>{[t('control.preset.lampSet', { device: lamps.set }), ...lamps.left].join(' ')}</p>
+        {/* Each lamp is set on its own: a preset that moves the light says whose and what the others keep, and germination darkens every one. */}
+        {lampsWords && (hours || moved.includes('lightLimit') || picked?.stage === 'germination') ? (
+          <p className={styles.note}>{lampsWords}</p>
         ) : null}
         {(sets || ending) && grow?.stage ? (
           <p className={styles.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p>

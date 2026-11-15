@@ -479,6 +479,42 @@ describe('every other way a document is written', () => {
     expect(after.beforeGermination).toBeNull();
   });
 
+  /**
+   * Germination is dark for every lamp of the place (ADR 0007): a lamp module beside the controller has a brightness
+   * of its own that no work mode reaches, and burnt on under "Keimung · dunkel".
+   */
+  it('puts the lamp modules of its place to nothing while it germinates, and gives them their light back after it', async () => {
+    const lampDocument = { day: 25200, night: 82800, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
+    await device({ configuration: fridgeDocument({ workmode: 'full' }), spaceId: 'tent' });
+    await db.devices.create({ id: 'lamp', type: 'light', ownerId: OWNER, spaceId: 'tent', configuration: lampDocument });
+    await db.devices.create({ id: 'elsewhere', type: 'light', ownerId: OWNER, spaceId: 'other', configuration: lampDocument });
+    const lamp = async (id = 'lamp') => (await db.devices.findOne({ id }).lean<StoredDevice>())!;
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0, day: 25200, night: 82800 });
+    expect((await lamp()).beforeGermination).toEqual({ limit: 70 });
+    expect(documentsOf(published).at(-1)).toMatchObject({ limit: 0 });
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 70 });
+
+    // Lit again by hand while it germinates, it is darkened again by the next germination climate.
+    await configuration.configure('lamp', { brightness: 50 }, OWNER);
+    await configuration.lampsFollow('tent');
+    expect((await lamp()).configuration).toMatchObject({ limit: 0 });
+
+    // A lamp that comes into the place goes dark; one that leaves it gets its light back.
+    await db.devices.updateOne({ id: 'elsewhere' }, { $set: { spaceId: 'tent' } });
+    await configuration.lampsFollow('tent');
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 0 });
+    await db.devices.updateOne({ id: 'elsewhere' }, { $set: { spaceId: null } });
+    await configuration.lampsFollow(null, ['elsewhere']);
+    expect((await lamp('elsewhere')).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp('elsewhere')).beforeGermination).toBeNull();
+
+    await configuration.applyConfiguration(DEVICE, presetConfiguration('seedling', null, (await stored()).configuration, true)!, 'seedling');
+    expect((await lamp()).configuration).toMatchObject({ limit: 70 });
+    expect((await lamp()).beforeGermination).toBeNull();
+  });
+
   it('brings the night from before germination back where the next stage comes without a climate, and keeps the light on re-sends', async () => {
     await device();
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');

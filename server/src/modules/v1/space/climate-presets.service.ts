@@ -80,18 +80,22 @@ export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink
 
       applied.push({ deviceId: device.id, targets: targetsOf({ ...device.configuration, ...settings }) });
     }
+    // Germination is dark for every lamp of the place, a lamp module's too, each time it is applied.
+    await this.configuration.lampsFollow(spaceId);
 
     return applied;
   }
 
   /**
    * A device's first settings have arrived: it is put on the climate its place was put on while it had none, if it
-   * still stands there - the climate is the place's, not the device's to take along.
+   * still stands there - the climate is the place's, not the device's to take along. A lamp module's are what keeps it
+   * dark where its place germinates.
    */
   public async settingsArrived(deviceId: string): Promise<void> {
     const device = await this.devices
       .findOneAndUpdate({ id: deviceId }, { $set: { awaitedClimate: null } })
       .lean<Pick<StoredDevice, 'id' | 'type' | 'spaceId' | 'configuration' | 'state' | 'awaitedClimate'>>();
+    if (device?.type === 'light') return this.configuration.lampsFollow(device.spaceId);
     const awaited = device?.awaitedClimate ?? null;
     if (!device || !awaited || awaited.spaceId !== device.spaceId) return;
 

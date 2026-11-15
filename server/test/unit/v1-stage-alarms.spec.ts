@@ -30,7 +30,7 @@ const byKey = async (deviceId = DEVICE) =>
 
 beforeEach(async () => {
   await db.reset();
-  service = new StageAlarmsService(db.alarmRules, new AlarmRuleService(db.alarmRules, db.alerts));
+  service = new StageAlarmsService(db.alarmRules, new AlarmRuleService(db.alarmRules, db.alerts), db.devices);
 });
 
 describe('the bands a stage implies', () => {
@@ -174,6 +174,29 @@ describe('the rules the stage writes on a device', () => {
 
     expect(await db.alarmRules.findOne({ id: own.id }).lean()).toMatchObject({ name: 'Mine', origin: 'human' });
     expect(Object.keys(await byKey(OTHER))).toHaveLength(4);
+  });
+
+  it('gives a lamp module and a fan only the bands they can measure, and takes a CO2 band one was given away', async () => {
+    await db.devices.insertMany([
+      { id: 'lamp', type: 'light', ownerId: 'owner', spaceId: TENT },
+      { id: 'fan', type: 'fan', ownerId: 'owner', spaceId: TENT },
+    ]);
+    await db.alarmRules.create({
+      id: 'old-co2',
+      deviceId: 'lamp',
+      origin: 'preset',
+      presetKey: 'co2_high',
+      name: 'CO₂ too high',
+      watch: { kind: 'reading', metric: 'co2', upper: 1500, lower: null },
+      forSeconds: 600,
+      severity: 'warning',
+    });
+
+    await service.applyStage('lamp', 'flowering', null);
+    await service.applyStage('fan', 'flowering', null);
+
+    expect(Object.keys(await byKey('lamp')).sort()).toEqual(['too_cold', 'too_hot', 'too_humid']);
+    expect(Object.keys(await byKey('fan')).sort()).toEqual(['too_cold', 'too_hot', 'too_humid']);
   });
 });
 

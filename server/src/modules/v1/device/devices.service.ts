@@ -36,6 +36,7 @@ import { demoDevice } from '@utils/demo';
 import { logger } from '@utils/logger';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
 import { controlOf } from '@modules/device-protocol/work-modes';
+import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from '../plan/device-configuration.port';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 import { accountOf } from '../caller';
 
@@ -73,6 +74,7 @@ export class DevicesService {
     private readonly access: AccessService,
     @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
     @Optional() @Inject(HardwareReportService) private readonly hardwareReport: HardwareReportService | null = null,
+    @Optional() @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter | null = null,
   ) {}
 
   public async require(id: string): Promise<StoredDevice> {
@@ -185,12 +187,18 @@ export class DevicesService {
    * sees that place sees the alert. One that is over keeps where it happened.
    */
   public async place(id: string, spaceId: string | null, at: Date = new Date()): Promise<StoredDevice> {
-    const device = await this.devices.findOne({ id }, { placements: 1 }).lean<Pick<StoredDevice, 'placements'> | null>();
+    const device = await this.devices.findOne({ id }, { placements: 1, spaceId: 1 }).lean<Pick<StoredDevice, 'placements' | 'spaceId'> | null>();
     const placed = await this.devices
       .findOneAndUpdate({ id }, { $set: { spaceId, placements: movedTo(device?.placements ?? [], spaceId, at) } }, { new: true })
       .lean<StoredDevice>();
     if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
     await this.alerts.updateMany({ deviceId: id, resolvedAt: null }, { $set: { spaceId } });
+    // A lamp module goes dark in a place that germinates, and gets its light back in one that does not; a climate
+    // device that leaves or comes takes its germination along.
+    if (device?.spaceId !== spaceId) {
+      if (device?.spaceId) await this.configuration?.lampsFollow(device.spaceId);
+      await this.configuration?.lampsFollow(spaceId, [id]);
+    }
 
     return placed;
   }

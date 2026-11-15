@@ -7,6 +7,7 @@ import { repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { StageAlarmBand, stageAlarmBands } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
 import { AlarmRuleService } from './alarm-rule.service';
 
@@ -34,6 +35,7 @@ export class StageAlarmsService implements StageAlarms {
   constructor(
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     private readonly ruleService: AlarmRuleService,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
   ) {}
 
   /**
@@ -43,7 +45,8 @@ export class StageAlarmsService implements StageAlarms {
    * watching a flowering band over a jar is noise.
    */
   public async applyStage(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
-    const bands = stageAlarmBands(stage, preset) ?? [];
+    const device = await this.devices.findOne({ id: deviceId }, { type: 1 }).lean<Pick<StoredDevice, 'type'> | null>();
+    const bands = (stageAlarmBands(stage, preset) ?? []).filter(band => measures(device?.type ?? null, band));
     const presetId = preset ? `${stage}:${preset}` : stage;
 
     for (const band of bands) {
@@ -87,6 +90,15 @@ export class StageAlarmsService implements StageAlarms {
     );
   }
 }
+
+/**
+ * Whether a device reads what a band watches: a fan and a lamp module measure temperature and humidity and no CO2
+ * (`docs/device-protocol.md`, 5.4), and a rule they could never trip is a promise nothing keeps. A device not found is
+ * given every band.
+ */
+const measures = (type: string | null, band: StageAlarmBand): boolean => !(type !== null && NO_CO2.includes(type) && band.watch.metric === 'co2');
+
+const NO_CO2: readonly string[] = ['fan', 'light'];
 
 /** What a stage's rule starts out with, and keeps through every later stage: whatever a person changes on it afterwards is theirs. */
 const insertedOf = (band: StageAlarmBand) => ({

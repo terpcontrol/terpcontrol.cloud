@@ -11,9 +11,12 @@ import { GROW, placesFor, useChosenPlace } from '@/app/places';
 import { useLog } from '@/log/log-context';
 import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
+import { lampsAmong, lampsSaid } from '@/screens/control/held-light';
+import { useLead } from '@/screens/control/lead';
 import { usePlaceStage } from '@/screens/start/stage';
 import { DAY_MS, dayOf, momentOn } from '@/ui/days';
 import { unbroken } from '@/ui/figures';
+import { fieldValue } from '@/ui/advanced/field-values';
 import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
 import { stageChoiceName } from '@/ui/presets';
@@ -83,7 +86,7 @@ export function WhatGrows({
   /** The sheet the form is asked on, where it is one. */
   sheet?: Omit<ComponentProps<typeof Sheet>, 'children' | 'actions'>;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const form = useId();
   const countRefusal = useId();
   const zone = useZone();
@@ -116,6 +119,7 @@ export function WhatGrows({
   const onPlace = usePlaceStage(spaceId);
   const on = given ?? onPlace;
   const { controller, awaiting } = usePlaceClimate(spaceId);
+  const here = useLead(spaceId).devices.items;
   const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : since === 'today' ? 'seedling' : null;
   const stage = picked ?? opened;
   // Nothing chosen where the place has answered: the button says what it waits for.
@@ -135,6 +139,17 @@ export function WhatGrows({
   useEffect(() => {
     if (germinates) choices.current?.scrollIntoView?.({ block: 'nearest' });
   }, [germinates, humidifier]);
+
+  // What the climate does to each lamp of the place and to a fan at a fixed speed is said above the button, as a preset says it.
+  const said =
+    climate && stage && controller
+      ? [
+          lampsSaid(t, controller, lampsAmong(here), stage === 'germination', serverNow(), zone, i18n.language),
+          ...here
+            .filter(device => device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed')
+            .map(fan => t('grow.new.fanFixed', { device: deviceName(fan, t) })),
+        ].filter(Boolean)
+      : [];
 
   const submit = async (second = false) => {
     // Not before the place has said which stage it is on: what is chosen is told apart from it.
@@ -182,6 +197,7 @@ export function WhatGrows({
           {t('grow.new.stageMissing')}
         </p>
       ) : null}
+      {said.length > 0 && !asking ? <p className={ui.note}>{said.join(' ')}</p> : null}
       {/* While the question stands, its yes is the one way on: one filled button, not two. */}
       {asking ? null : (
         <button

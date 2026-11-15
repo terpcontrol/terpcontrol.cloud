@@ -5,13 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { Facts } from '@/ui/Facts';
 import { factsOf } from '@/ui/fact-text';
-import { deviceTitle } from '@/ui/naming';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { lampsAmong, lampsLeft } from '../control/held-light';
+import { lampsAmong, lampsSaid } from '../control/held-light';
 import { useLead } from '../control/lead';
 import { draftOf, prefilled } from '../control/targets/targets-draft';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
@@ -58,7 +57,7 @@ export function ClimatePick({
   value: PhaseClimate;
   onChange: (value: PhaseClimate) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const zone = useZone();
   const controller = usePlaceController(spaceId);
   const humidifier = useHumidifier(controller);
@@ -75,6 +74,7 @@ export function ClimatePick({
   // it makes starts at the device's hour, and a figure it leaves out stays.
   const chosen = preset ? prefilled(now, preset) : null;
   const offset = offsetOf(serverNow(), zone);
+  const lampsWords = lampsSaid(t, controller, lamps, stage === 'germination', serverNow(), zone, i18n.language);
 
   // What the devices hold once the phase is written, in figures: the chosen climate, germination's being dark, or -
   // left as they are - what they hold now (`heldNow`).
@@ -100,13 +100,7 @@ export function ClimatePick({
       <p className={ui.note} role="status">
         <Facts facts={factsOf(t(chosen ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
-      {chosen && lamps.length > 1 && lamps.some(one => one.id === controller.id) ? (
-        <p className={ui.note}>
-          {[t('control.preset.lampSet', { device: deviceTitle(controller, t, lamps) }), ...lampsLeft(t, controller, lamps, serverNow(), zone)].join(
-            ' ',
-          )}
-        </p>
-      ) : null}
+      {chosen && lampsWords ? <p className={ui.note}>{lampsWords}</p> : null}
       {/* The climate that puts the device into germination asks what it does about the humidity. */}
       {stage === 'germination' && value.climate ? (
         <GerminationChoices

@@ -1283,6 +1283,7 @@
       "starting": "Starting the grow …",
       "startAndSet": "Start · climate: {{climate}}",
       "startAndSetTargets": "Start · targets for {{device}}: {{climate}}",
+      "fanFixed": "{{device}} runs at a fixed speed and keeps it: the targets apply only once it follows temperature or humidity.",
       "plantsRefused": "Plants: a whole number from 1.",
       "stageMissing": "Choose the phase the grow is in now.",
       "second": "{{grow}} is already growing in {{place}} – start a second grow there all the same?",
@@ -3377,6 +3378,7 @@
       "hereNoteNoCamera": "{{devices}}: one climate, one maintenance window.",
       "hereNoClimate": "{{devices}}: one camera, no climate.",
       "hereNoClimateNoCamera": "{{devices}}: no climate.",
+      "darkHere": "Germination runs there: the lamp module stays off until it ends.",
       "oneClimate_one": "{{places}} already has a controller or fridge module. A place has one climate, so this device gets a place of its own.",
       "oneClimate_other": "{{places}} already have a controller or fridge module. A place has one climate, so this device gets a place of its own."
     },
@@ -4971,6 +4973,7 @@
     "card": {
       "light": "{{lamp}} {{level}}",
       "good": "on target",
+      "lightDespite": "{{lamp}} {{level}} despite germination",
       "lightOff": "{{lamp}} off",
       "due_one": "{{count}} task due",
       "due_other": "{{count}} tasks due",
@@ -5204,6 +5207,11 @@
       "raise": "Raise the light limit",
       "times": "Light times",
       "toAuto": "Back to auto",
+      "inGermination": {
+        "lit": "despite germination · {{why}}",
+        "own": "its brightness was set since",
+        "coming": "the dark has not reached it yet"
+      },
       "planSets": "Plan: “{{name}}” sets {{what}} – again every hour.",
       "planWhat": {
         "times": "the light times",
@@ -5229,7 +5237,12 @@
         "germination": "Germination ended"
       },
       "returns": "What applies again afterwards",
-      "lampSet": "It sets the light of {{device}}.",
+      "lampSetNamed": "It sets the light of “{{device}}”.",
+      "lampSetOf": {
+        "controller": "It sets the controller’s light.",
+        "fridge": "It sets the fridge module’s light."
+      },
+      "lampsDark": "{{lamps}} stay off until germination ends.",
       "lampLeft": "{{lamp}} stays at {{window}}.",
       "lampLeftAsIs": "{{lamp}} stays as it is."
     },

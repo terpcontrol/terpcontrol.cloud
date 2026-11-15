@@ -145,8 +145,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     query); a device by `deviceName` / `deviceTitle` among `standingWith`, a camera by `cameraTitle`,
     `camerasCalled` and `useCameraCalled`, the tail that tells two apart by `camTag` (`ui/naming.ts`,
     `ui/camera-name.ts`); the outputs a kind of hardware drives by `outputsOf` (`ui/climate-hardware.ts`), which an
-    alarm rule may watch and a light output is believed by; the lamps of a place by `lampsAmong`, each by `lampName` where there are several and what
-    a climate leaves the others by `lampsLeft` (`screens/control/held-light.ts`), the lamps Start reads by `useLamp`
+    alarm rule may watch and a light output is believed by; the lamps of a place by `lampsAmong`, each by `lampName` where there are several, what a
+    climate does to each - whose light it sets, what the others keep, germination's dark for all - by `lampsSaid`
+    (with `lampsLeft`), and a lamp that burns where the place germinates by `litInTheDark`
+    (`screens/control/held-light.ts`), the lamps Start reads by `useLamp`
     (`screens/start/reads.ts`); a grow's day beside its name by `growDay` (`screens/grow/progress.ts`); a work mode by
     `modeWord` (`screens/control/rows.ts`); a reading by the catalogue group `home.metric`; an alarm rule by
     `ruleTitle` (`i18n/alarm-line.ts`);

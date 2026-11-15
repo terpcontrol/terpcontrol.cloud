@@ -805,7 +805,10 @@ app shows the fan as uncoupled. It stays so until the plug's settings are saved 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
-refuses a plan for it with 422 `device_states_no_climate`.
+refuses a plan for it with 422 `device_states_no_climate`. The one exception is germination's dark (ADR 0007):
+while the place's climate device germinates, the server writes `limit: 0`, keeps the brightness before
+(`beforeGermination.limit` on the device row) and writes it back when germination ends there or the light leaves the
+place - unless a brightness was set since.
 
 **cam**: `loadSettings` is empty (`cam.cpp:38-39`). A document is accepted and nothing is read from it, and the
 cam sends none ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).

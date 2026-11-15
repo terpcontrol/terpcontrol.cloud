@@ -31,7 +31,6 @@ import {
   type Regime,
   type Shape,
 } from '../targets/day-night';
-import { lampsLeft } from '../held-light';
 import { ControlOff } from '../Mode';
 import { offNotTaken } from '../rows';
 import { scheduleTitle } from '../targets/schedule-words';
@@ -426,7 +425,7 @@ export function Climate({
           hasCo2={hasCo2}
           humidifier={humidifier}
           chosen={preset}
-          lamps={lamp ? { set: lamp, left: lampsLeft(t, read, lamps, now, zone) } : null}
+          lamps={lamps}
           pauses={(next, chip, choices) => (pausesFor(next, chip, choices) ? planName : null)}
           runs={status === 'running' ? planName : null}
           switchesOn={switchedOff}

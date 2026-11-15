@@ -134,6 +134,7 @@ beforeEach(async () => {
       choicesFor.push(choices);
       return true;
     },
+    lampsFollow: async () => undefined,
   };
   const alarms: StageAlarms = {
     applyStage: async (deviceId, stage, preset) => {

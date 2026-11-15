@@ -1,5 +1,5 @@
 import { createAccount, Session } from '../support/api';
-import { DeviceCredentials, DeviceType, provisionDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceCredentials, DeviceType, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 
 /**
  * Germination over HTTP: the one meaning the stage has wherever it is chosen -
@@ -23,6 +23,9 @@ const document = (over: Record<string, unknown> = {}) => ({
   lights: { limit: 80, sunrise: 15, sunset: 15 },
   ...over,
 });
+
+/** A lamp module's document: flat, its window and its brightness at the top. */
+const LAMP = { day: 7 * HOUR, night: 23 * HOUR, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
 
 const configurationOf = async (device: DeviceCredentials) =>
   (await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200)).body.configuration;
@@ -89,6 +92,47 @@ describe('the germination preset', () => {
       expect(await controlOf(device)).toMatchObject({ mode: 'standard' });
     },
   );
+
+  /**
+   * Germination is dark for every lamp of the place (ADR 0007): a lamp module beside the controller has a brightness of
+   * its own that no work mode reaches, and burnt on under "Keimung · dunkel". It goes to nothing with the place, one
+   * that joins later too, and has its brightness back with the next climate or once it has left.
+   */
+  it('darkens every lamp module of the place with it, one that joins later too, and gives their light back after', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = async () => {
+      const one = await registerDevice('light');
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(one.deviceId), joinSpaceId: spaceId })
+        .expect(201);
+      return one;
+    };
+    const first = await lamp();
+    await owner.client.put(`/v1/devices/${first.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+    expect(await configurationOf(first)).toMatchObject({ limit: 0, day: 7 * HOUR, night: 23 * HOUR });
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'breed' });
+
+    // One claimed now has no settings yet: it is put dark as its first arrive, as the hardware sends them.
+    const later = await lamp();
+    const sim = await startSimulator(later);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'lamp', configuration: LAMP });
+      for (let tries = 0; tries < 50 && (await configurationOf(later))?.limit !== 0; tries++) await settle(100);
+    } finally {
+      await sim.close();
+    }
+    expect(await configurationOf(later)).toMatchObject({ limit: 0 });
+    // Taken out of the place, a lamp has its light back.
+    await owner.client.patch(`/v1/devices/${later.deviceId}`).send({ spaceId: null }).expect(200);
+    expect(await configurationOf(later)).toMatchObject({ limit: 70 });
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(await configurationOf(first)).toMatchObject({ limit: 70 });
+  });
 
   it('brings a fridge back onto its energy saving when germination ends', async () => {
     const { device, spaceId } = await placed('fridge');

@@ -10,12 +10,12 @@ import { rowsOf, type SocketRowModel } from '@/screens/devices/sockets';
 import { planLineOf } from '@/screens/start/plan-line';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { deviceLiveness, sinceLabel } from '@/ui/age';
-import { climateLanding } from '@/ui/climate-hardware';
+import { climateLanding, germinates } from '@/ui/climate-hardware';
 import { deviceName } from '@/ui/naming';
 import { ruleTitle } from './alarms/rules';
 import { MODE_PATHS, pendingField, pendingMode, savedWords } from './climate/figures';
 import { fanFactsOf } from './devices/own-summary';
-import { heldWords, lampName } from './held-light';
+import { heldWords, lampName, litInTheDark } from './held-light';
 import { activeStep, isWaiting, readingAt } from './plan-clock';
 import { pauseReasonOf } from './plan-labels';
 import { countsOf } from '@/api/alarm-rules';
@@ -168,7 +168,10 @@ export const outputsLine = (
 ): RowLine => {
   const sockets = all.flatMap(one => one.sockets);
   const lamps = all.filter(one => one.light).map(one => one.device);
+  // Germination is dark for every lamp of the place: one that burns says so, and why, in amber.
+  const dark = germinates(all[0]?.device ?? null);
   let waits = false;
+  let burns = false;
   const facts = all.flatMap((one, index) => {
     const hold = held.get(one.device.id);
     const lamp = lampName(t, one.device, lamps);
@@ -177,13 +180,18 @@ export const outputsLine = (
       waits ||= waiting !== undefined;
       return waiting ? notTaken(t, text, waiting.savedAt, now, zone) : text;
     };
+    const level = one.level?.percent ?? 0;
+    const burning = dark && one.light && (hold ? hold.state === 'on' : level > 0);
+    burns ||= burning;
     const reported = [
       // A light socket follows the lamp and is named "Licht" itself; the output is then said only while it is held.
-      ...(hold
-        ? [`${lamp} ${heldWords(t, hold, now, zone)}`]
-        : one.light && !one.sockets.some(row => isLightRole(row.role))
-          ? [one.level ? (one.level.percent > 0 ? `${lamp} ${percentLabel(one.level.percent)}` : t('start.card.lightOff', { lamp })) : lamp]
-          : []),
+      ...(burning
+        ? [`${lamp}${level > 0 ? ` ${percentLabel(level)}` : ''} ${litInTheDark(t, one.device, hold ?? null, now, zone)}`]
+        : hold
+          ? [`${lamp} ${heldWords(t, hold, now, zone)}`]
+          : one.light && !one.sockets.some(row => isLightRole(row.role))
+            ? [one.level ? (one.level.percent > 0 ? `${lamp} ${percentLabel(one.level.percent)}` : t('start.card.lightOff', { lamp })) : lamp]
+            : []),
       ...one.sockets.map(row => socketFact(t, row, now)),
     ];
     const stored = one.fans
@@ -203,7 +211,7 @@ export const outputsLine = (
   const byHand = all.some(one => held.has(one.device.id)) || sockets.some(row => forcedOf(row));
   const allAuto = !byHand && sockets.length > 0 && !all.some(one => one.light || one.fans || one.speed);
 
-  return { text: [...facts, allAuto ? t('control.rows.allAuto') : null].filter(Boolean).join(' · '), warn: byHand || waits };
+  return { text: [...facts, allAuto ? t('control.rows.allAuto') : null].filter(Boolean).join(' · '), warn: byHand || waits || burns };
 };
 
 /**

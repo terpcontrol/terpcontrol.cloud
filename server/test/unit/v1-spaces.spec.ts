@@ -112,6 +112,7 @@ const presetsOf = (): PresetApplicationsService => {
       configured.push({ deviceId, settings, stage });
       return true;
     },
+    lampsFollow: async () => undefined,
   };
   const grows = growsOn(db, access, { phases, writer: written });
   const plans = new PlanService(

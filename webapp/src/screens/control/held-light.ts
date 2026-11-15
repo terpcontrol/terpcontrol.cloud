@@ -5,10 +5,11 @@ import { useSocketTables } from '@/api/devices';
 import type { Translate } from '@/i18n/i18n';
 import type { Held } from '@/screens/devices/HandHold';
 import { isLightRole, useLightHold } from '@/screens/devices/lights';
+import { inSentence } from '@/screens/space/members/people';
 import { lightWindowOf } from '@/screens/start/place';
 import { sinceLabel } from '@/ui/age';
 import { outputsOf } from '@/ui/climate-hardware';
-import { deviceTitle } from '@/ui/naming';
+import { deviceName, deviceTitle, givenName } from '@/ui/naming';
 
 /**
  * A device's lamp held by hand, for every place that says what the light is
@@ -34,13 +35,61 @@ export const lampsAmong = (devices: readonly Device[]): Device[] => devices.filt
 
 /**
  * What one lamp is called where its light is shown or set. Each lamp of a place is controlled on its own, so where
- * `lamps` holds more than one each is named - "Licht · Controller" for a device's light output, a lamp module by its
- * own name -, and one alone is the place's "Licht".
+ * `lamps` holds more than one each is named alike - "Licht · Controller", "Licht · Lampenmodul" -, and one alone is
+ * the place's "Licht".
  */
-export const lampName = (t: Translate, device: Device, lamps: readonly Device[]): string => {
-  if (lamps.length < 2) return t('control.rows.light');
-  const title = deviceTitle(device, t, [...lamps]);
-  return device.type === 'light' ? title : t('control.light.of', { device: title });
+export const lampName = (t: Translate, device: Device, lamps: readonly Device[]): string =>
+  lamps.length < 2 ? t('control.rows.light') : t('control.light.of', { device: deviceTitle(device, t, [...lamps]) });
+
+/**
+ * "Es setzt das Licht des Controllers": whose light a climate sets, by the device's type where it has no name of its
+ * own - German says a type in the genitive - and by its name, quoted, where it has one.
+ */
+const lampSetWords = (t: Translate, device: Device): string => {
+  const name = givenName(device);
+  return name
+    ? t('control.preset.lampSetNamed', { device: name })
+    : t(`control.preset.lampSetOf.${device.type}`, { defaultValue: t('control.preset.lampSetNamed', { device: deviceName(device, t) }) });
+};
+
+/**
+ * What a climate written to `device` does to each lamp of its place, where there is more than one: whose light it
+ * sets and what each other lamp keeps, or - germination being dark for every lamp of the place (ADR 0007), a lamp
+ * module's too - that all of them stay off until it ends. Null where `device` is the place's one lamp, or none.
+ */
+export const lampsSaid = (
+  t: Translate,
+  device: Device,
+  lamps: readonly Device[],
+  germination: boolean,
+  now: DateTime,
+  zone: string | null,
+  language: string,
+): string | null => {
+  if (lamps.length < 2 || !lamps.some(one => one.id === device.id)) return null;
+  if (germination)
+    return t('control.preset.lampsDark', {
+      lamps: inSentence(
+        lamps.map(one => lampName(t, one, lamps)),
+        language,
+      ),
+    });
+  return [lampSetWords(t, device), ...lampsLeft(t, device, lamps, now, zone)].join(' ');
+};
+
+/**
+ * Why a lamp burns where its place germinates in the dark (ADR 0007) - held on by hand, set bright on its own since,
+ * or not yet handed the dark -, so that no screen shows a lit lamp under "dunkel" without saying it is lit and why:
+ * "trotz Keimung · von Hand an bis 13:05".
+ */
+export const litInTheDark = (t: Translate, lamp: Device, held: Held | null, now: DateTime, zone: string | null): string => {
+  const limit = lamp.type === 'light' ? lamp.configuration?.limit : undefined;
+  const why = held
+    ? heldWords(t, held, now, zone)
+    : typeof limit === 'number' && limit > 0
+      ? t('control.light.inGermination.own')
+      : t('control.light.inGermination.coming');
+  return t('control.light.inGermination.lit', { why });
 };
 
 /**

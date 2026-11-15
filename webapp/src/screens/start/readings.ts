@@ -3,9 +3,10 @@ import type { CardSetpoint, CardValue, Device, DeviceLive, ValueState } from '@f
 import { timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import type { OutputLevel } from '@/api/devices';
-import { heldWords, lampName } from '@/screens/control/held-light';
+import { heldWords, lampName, litInTheDark } from '@/screens/control/held-light';
 import type { Held } from '@/screens/devices/HandHold';
 import { valueAge } from '@/ui/age';
+import { germinates } from '@/ui/climate-hardware';
 import { decimalFigure } from '@/ui/figures';
 import { figure, figureWithUnit } from '@/ui/units';
 import {
@@ -43,6 +44,8 @@ export interface Reading {
   lit?: boolean;
   /** For the lamp: that it is held by hand, in words - "von Hand aus bis 13:05". */
   held?: string | null;
+  /** For the lamp: that it burns where the place germinates in the dark, which its note says why. */
+  despite?: boolean;
   /** For the lamp: the device whose light it is, which tells two lamps of a place apart. */
   deviceId?: string;
 }
@@ -106,25 +109,34 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
   }
 
   const lamps = lit.map(lamp => lamp.device);
+  // Germination is dark for every lamp of the place: one off is off for it, and one that burns says why.
+  const dark = germinates(device);
   for (const lamp of lit) {
     const { level, held } = lamp;
     const age = valueAge(level, now);
     const on = level.percent > 0;
     // Held by hand, the lamp switches when the hold ends and not by its schedule.
     const byHand = held && age === 'live' ? heldWords(t, held, now, zone) : null;
+    const despite = dark && on && age === 'live' ? litInTheDark(t, lamp.device, held, now, zone) : null;
     readings.push({
       key: 'light',
       label: lampName(t, lamp.device, lamps),
       figure: on ? `${decimalFigure(Math.round(level.percent), 0)} %` : t('start.light.off'),
       note:
+        despite ??
         byHand ??
-        (age === 'live' ? lightNote(t, lamp, on, now, zone) : verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)),
+        (age !== 'live'
+          ? verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)
+          : dark
+            ? t('start.light.dark.germination')
+            : lightNote(t, lamp, on, now, zone)),
       tone: 'quiet',
       judged: false,
       age,
       focus: 'light',
       lit: on,
       held: byHand,
+      despite: despite !== null,
       deviceId: lamp.device.id,
     });
   }
@@ -142,7 +154,7 @@ export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
         : reading.held
           ? `${reading.label} ${reading.held}`
           : reading.lit
-            ? t('start.card.light', { lamp: reading.label, level: reading.figure })
+            ? t(reading.despite ? 'start.card.lightDespite' : 'start.card.light', { lamp: reading.label, level: reading.figure })
             : t('start.card.lightOff', { lamp: reading.label }),
     );
 

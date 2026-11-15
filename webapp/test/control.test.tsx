@@ -506,7 +506,11 @@ describe('Steuerung of a place with several devices', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Climate preset' }));
     const sheet = await screen.findByRole('dialog', { name: 'Apply a climate preset' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
-    expect(sheet).toHaveTextContent(/It sets the light of Blue Dream tent\. Lamp module stays at \d\d:00 to \d\d:00\./);
+    expect(sheet).toHaveTextContent(/It sets the light of “Blue Dream tent”\. Light · Lamp module stays at \d\d:00 to \d\d:00\./);
+
+    // Germination is dark for every lamp of the place, the lamp module's too (ADR 0007): the preset names each.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Germination · dark' }));
+    expect(sheet).toHaveTextContent('Light · Blue Dream tent and Light · Lamp module stay off until germination ends.');
   });
 
   /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */
@@ -1077,11 +1081,27 @@ describe('what a row says about the page behind it', () => {
     const lamp = { ...device(), id: 'device-4', type: 'light', name: null, configuration: { day: 68400, night: 25200, limit: 65 } } as Device;
 
     expect(outputsLine(t, [outputsOf(device(), sockets(), level), outputsOf(lamp, sockets(), { ...level, percent: 0 })], NOW, null).text).toBe(
-      'Light · Blue Dream tent 100 % · Lamp module off',
+      'Light · Blue Dream tent 100 % · Light · Lamp module off',
     );
     expect(outputsLine(t, [outputsOf(device(), sockets(), level)], NOW, null).text).toBe('Light 100 %');
     // A lamp module alone is the place's light, and a fan beside it is led by what it is.
     expect(outputsLine(t, [outputsOf(lamp, sockets(), level), outputsOf(fan, sockets(), null)], NOW, null).text).toBe('Light 100 % · Fan fixed');
+  });
+
+  /** "Keimung · dunkel" stood over "Lampenmodul 100 %": a lamp that burns while the place germinates says so, and why, in amber. */
+  it('says a lamp that burns while its place germinates in the dark as burning despite germination, with why', () => {
+    const level = { percent: 100, measuredAt: NOW.toISO()!, state: 'live' as const };
+    const germinating = { ...device(), control: { running: true, drying: false, mode: 'germination', energySaving: false } } as Device;
+    const lamp = { ...device(), id: 'device-4', type: 'light', name: null, configuration: { day: 68400, night: 25200, limit: 65 } } as Device;
+
+    expect(outputsLine(t, [outputsOf(germinating, sockets(), { ...level, percent: 0 }), outputsOf(lamp, sockets(), level)], NOW, null)).toEqual({
+      text: 'Light · Blue Dream tent off · Light · Lamp module 100 % despite germination · its brightness was set since',
+      warn: true,
+    });
+    // Dark as germination keeps it, nothing is said beyond it.
+    expect(
+      outputsLine(t, [outputsOf(germinating, sockets(), { ...level, percent: 0 }), outputsOf(lamp, sockets(), { ...level, percent: 0 })], NOW, null),
+    ).toEqual({ text: 'Light · Blue Dream tent off · Light · Lamp module off', warn: false });
   });
 
   it('says the mode that runs and what else its page offers', () => {

@@ -546,8 +546,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   lamp's level last ("24,3 °C · 66 % · Licht 80 %", "Licht aus" for a dark lamp), what grows there, and the camera's
   newest picture beside them. The lamp is the climate device's own light output and every lamp module in the same
   place that reports a level (Chris, 2026-10-13); where there are several each is named, because each is controlled
-  on its own (ADR 0001, question 4; after the sixth walk): "Licht · Controller 100 %", "Lampenmodul aus", on the
-  card and as a tile or a figure of the picture each, with when it switches next (`useLamp`, `lampName`). Under the cards stand
+  on its own (ADR 0001, question 4; after the sixth walk): "Licht · Controller 100 %", "Licht · Lampenmodul aus", on the
+  card and as a tile or a figure of the picture each, with when it switches next (`useLamp`, `lampName`). Two lamps
+  and the climate's figures do not fit the picture's bar on a phone - at 390 the labels ran together, at 320 the bar
+  took two rows over the picture (the seventh walk) -, so with two lamps they stand in the line under the picture,
+  beside what only some places measure, each the way to its curve. Under the cards stand
   "Heute" across the places, each row saying where and since when it is due, and "+ Ort hinzufügen". **What is due is seen without
   scrolling**: a card says itself that something is due there ("1 Aufgabe fällig" - the diary's reminders and a
   plan step waiting, the same as "Heute" lists), because on a phone "Heute" stands under the cards. A place in no
@@ -716,7 +719,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *What the rows say.* Ausgänge says each output with what it does - "Licht 80 % · Abluft an · Pumpe aus", a
     fridge's fans by their figures, the mode of a further device's AIR fan bound to its name ("Lüfter: Fest ·
     Tagsüber 70 %"), the outputs of a further device led by its name, each lamp named where the place has more than
-    one ("Licht · Controller 100 % · Lampenmodul aus"; "Licht 100 % · Licht 100 %" named neither) -, and "alle Auto"
+    one ("Licht · Controller 100 % · Licht · Lampenmodul aus"; "Licht 100 % · Licht 100 %" named neither) -, and "alle Auto"
     only of a list made of sockets, since a lamp reports no hold. What is held by hand turns the line amber. Alarme counts the rules
     that are on, against those there are once one is off ("1 von 7 Regeln an"), and says in amber that the
     offline rule is among those off ("„Gerät offline“ aus"): nobody is told when that device falls silent.
@@ -785,10 +788,19 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   16 hours without a word). Where a place holds more than one lamp (`lampsAmong`, `screens/control/held-light.ts`:
   a controller's or a fridge module's light output, a lamp module), Steuerung's light card and its times' sheet
   name the device they set ("Licht · Controller", "Lichtzeiten · Controller"), Ausgänge's row and Start name each
-  lamp (`lampName`: "Licht · Controller", a lamp module by its own name), and a climate preset - on Steuerung and
-  beside a phase (`ClimatePick`) - says whose light it sets and what each other lamp keeps ("Es setzt das Licht
-  von Controller. Lampenmodul bleibt bei 07:00 bis 23:00."; `lampsLeft`). A place with one lamp keeps its short
-  "Licht". A light output is the hardware's: a stored brightness speaks for one only on a kind of device that
+  lamp alike (`lampName`: "Licht · Controller", "Licht · Lampenmodul"), and a climate - a preset on Steuerung, the
+  climate beside a phase (`ClimatePick`) and the grow's start (`WhatGrows`) - says whose light it sets and what each
+  other lamp keeps ("Es setzt das Licht des Controllers. Licht · Lampenmodul bleibt bei 07:00 bis 23:00.";
+  `lampsSaid`, `lampsLeft`; a device with a name of its own is quoted: "Es setzt das Licht von „Zelt-Ctrl“."). A
+  place with one lamp keeps its short "Licht". **Germination is dark for every lamp of the place** (ADR 0007; the
+  seventh walk found a lamp module burning under "Keimung · dunkel"): the server puts each lamp module to nothing,
+  "Keimung · dunkel" and the grow's start say "Licht · Controller und Licht · Lampenmodul bleiben aus, bis die
+  Keimung endet.", the claim says it of a place that germinates before a lamp module is put there ("Dort läuft die
+  Keimung: Das Lampenmodul bleibt aus, bis sie endet."), and a lamp that burns all the same is never shown as if it
+  kept the dark: Start's tile says "trotz Keimung" with why - held on by hand, its brightness set since, or the dark
+  not yet arrived (`litInTheDark`) - and a dark one "aus · Keimung", the card "Licht · Lampenmodul 100 % trotz
+  Keimung", Ausgänge the same in amber. A fan at a fixed speed is told at the grow's start that it keeps it: a
+  stage writes its targets, which it follows only once it regulates by temperature or humidity. A light output is the hardware's: a stored brightness speaks for one only on a kind of device that
   drives a light (`lightOutputOf`, `screens/devices/lights.ts`; the outputs by kind are `outputsOf`,
   `ui/climate-hardware.ts`), so an AIR fan that a climate once gave a lamp's limit draws no "Licht" row (the sixth
   whole-app walk).

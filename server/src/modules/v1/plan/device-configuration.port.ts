@@ -26,6 +26,12 @@ export interface DeviceConfigurationWriter {
     choices?: Partial<GerminationChoices>,
     applied?: AppliedClimate | null,
   ): Promise<boolean>;
+
+  /**
+   * Keeps the lamp modules of a place dark while its climate germinates and gives them their light back after it
+   * (ADR 0007); `deviceIds` names a lamp that has just left for no place.
+   */
+  lampsFollow(spaceId: string | null, deviceIds?: readonly string[]): Promise<void>;
 }
 
 export const DEVICE_CONFIGURATION_WRITER = Symbol('DeviceConfigurationWriter');
