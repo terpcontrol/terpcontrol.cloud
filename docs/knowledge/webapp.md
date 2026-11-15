@@ -154,6 +154,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
     `ruleTitle` (`i18n/alarm-line.ts`);
   - *a diary line*: `DayLine`s are `dayLines` (`screens/grow/diary/days.ts`), newest first whatever order they are
     handed, and `forwardsOf` turns them oldest first for Verlauf, an alarm still open standing at its newest firing;
+    one silence is one line however often it was raised (`silenceRuns`), filed under the day it began
+    (`filedBySilence`), and one row of Vorbei (`silenceLeads`, `screens/alerts/inbox.ts`);
     a grow split into stages is named by `splitWords`
     (`screens/grow/progress.ts`); a harvest's weights are corrected in `HarvestWeights` (`screens/grow/`, with the
     sheet's words in `harvest.ts` and the write `useWeighAgain`, `api/lifecycle.ts`), which `openWeights` of the log
@@ -520,7 +522,8 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   `rule-<rule>`, `silence-<rule>`. `useTabOrder` (`log/Toasts.tsx`) makes a toast's actions the next tab stops
 after the control it answers (`lastUsed`, or what held focus when it came) and hands focus back to that control
 after its way back, or when it times out holding the focus. `log/toast-room.ts` keeps the toasts to two and says where they stand while a
-  sheet is open (`besideSheet`: under its box, over it, or in its foot). `Toasts.tsx` draws them through a
+  sheet is open (`besideSheet`: under its box, over it, in its foot, or - a window too short for the foot as
+  well - over its head). `Toasts.tsx` draws them through a
   portal into an element of its own and puts that element there: on `<body>`, fixed, or into the place every
   sheet keeps for it between its body and its button row (`[data-toasts]`, `ui/Sheet.tsx`), where the sheet's
   flex column gives it the room. It measures the top sheet (`[data-scrim] [role=dialog]`) by `offsetTop` and

@@ -1553,6 +1553,7 @@
       "outside": "{{metric}} off target for {{span}}",
       "outsideOften": "{{metric}} off target {{count}}× · {{span}} in all",
       "alarmOver": "over",
+      "alarmUntil": "until {{until}}",
       "earlier": "Before the start",
       "lightOffAt": "Light off at {{at}}",
       "lightOnAt": "Light on at {{at}}",
@@ -3263,6 +3264,7 @@
       "rested": "rests in germination · not resolved"
     },
     "brief": "a moment",
+    "together": "{{span}} in all",
     "last": "last heard {{time}}"
   },
   "claim": {

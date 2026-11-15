@@ -1563,6 +1563,7 @@
       "outside": "{{metric}} {{span}} außerhalb",
       "outsideOften": "{{metric}} {{count}}× außerhalb · zusammen {{span}}",
       "alarmOver": "behoben",
+      "alarmUntil": "bis {{until}}",
       "earlier": "Vor dem Start",
       "lightOffAt": "Licht aus um {{at}}",
       "lightOnAt": "Licht an um {{at}}",
@@ -3273,6 +3274,7 @@
       "rested": "ruht in der Keimung · nicht behoben"
     },
     "brief": "kurz",
+    "together": "zusammen {{span}}",
     "last": "zuletzt {{time}}"
   },
   "claim": {

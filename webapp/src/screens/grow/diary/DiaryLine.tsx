@@ -16,7 +16,8 @@ import type { DayLine } from './days';
  * card and under "Zuletzt" on Start: what somebody did as they wrote it, and
  * what the devices did by themselves marked as that. An alarm is its rule -
  * with its device, where another device's rule of that name has a line beside
- * it -, how often it fired and the edge it crossed. A line that carries pictures
+ * it -, how often it fired and the edge it crossed; a silence that is over,
+ * until when it went on. A line that carries pictures
  * counts them as the way to them where the list has one (`onPictures`) - or
  * draws them, for a reader of a share link (`thumbnails`) - and only counts
  * them where it has none.
@@ -98,8 +99,10 @@ export function DiaryLine({
               ? forwards && !what.stands
                 ? t('home.entryRepeatsUntil', { count: what.count, until: moment(what.since) })
                 : t('home.entryRepeats', { count: what.count, since: moment(what.since) })
-              : null,
-            what.over ? t('grow.diary.alarmOver') : null,
+              : what.until
+                ? t('grow.diary.alarmUntil', { until: moment(what.until) })
+                : null,
+            what.over && !what.until ? t('grow.diary.alarmOver') : null,
           ]}
         />
         {what.limit ? <small>{what.limit}</small> : null}

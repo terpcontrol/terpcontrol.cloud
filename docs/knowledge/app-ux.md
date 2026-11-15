@@ -185,7 +185,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *"Vorbei" stands in the order of its label*: what ended last, first; a row says where (unless it is the
     reader's only place) and when - the hour today, the day before that -, and the same thing happening
     again and again in one place on one day is one row, folded by the function Start's "Zuletzt" folds with
-    ("8× seit 04:59", `foldSame`, `screens/grow/diary/days.ts`). **A row folds one rule's alerts** - the fold's
+    ("8× seit 04:59", `foldSame`, `screens/grow/diary/days.ts`). One silence is one row however often it was
+    raised, told by its newest episode and its whole length, and outages folded into a row say how long they came
+    to ("3× seit 17:51 · zusammen 2 Std"; `silenceLeads`, `screens/alerts/inbox.ts`; the seventh whole-app walk).
+    **A row folds one rule's alerts** - the fold's
     key carries the rule, so fifty rules that say the same sentence are fifty rows, each naming its rule where
     another's row reads alike - **and a fold is whole
     before it is counted or deleted**: a day the loaded pages end in is held back and read on until it is whole
@@ -335,7 +338,17 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     together ("Zu warm · behoben", "Gerät offline · 2× seit 01:21"), a silence counted - and its line dated - from
     when the device was last heard as Start's banner and Meldungen count it ("09:58 Gerät offline" stood under
     "offline seit 09:48" until the fix round after the sixth walk), a camera's as "Terp Cam ohne Bild" (`alarmLines`,
-    `screens/grow/diary/days.ts`), in the diary as on Start; a window of maintenance or of regulation off that
+    `screens/grow/diary/days.ts`), in the diary as on Start. **A silence is one line however often the cloud raised
+    it** (the seventh whole-app walk; `silenceRuns`): a restart of the server ends an offline alert and raises it
+    again a minute later, and Saturday read "8× seit 13. Nov 18:36" of one quiet evening. Its raises are one,
+    dated by the earliest start they give - to the second where the reader has its alert, as Verlauf has -, the
+    line that says it ended (by its alert, else the last silence of its rule begun before it) is its end, and it
+    stands where it began, until when it went on - "09:48 Gerät offline · bis 12:07", no longer "12:07 Gerät
+    offline · behoben". One still going stands alone: "4× seit 18:35" of a silence since 09:46 lumped in the one
+    before a restart. Silences of a rule that are over fold as an alarm's runs do, counted as silences. In the
+    grow's diary a silence stands on the day it began (`filedBySilence`), its end along, and Start takes a silence's
+    raise along with its end though it was raised on another day (`onTheirDay`); a card says a moment of its own
+    day by the clock, another day's with its date. A window of maintenance or of regulation off that
     ended within its first minute reads "Wartung beendet", never "Wartung · 0 s" (the third whole-app walk).
     **A rule is its device's** (the fourth whole-app walk): every device carries "Gerät offline" and a controller
     and a socket share the stage's rules, so lines are grouped by the rule's name on its device or camera, and
@@ -1493,7 +1506,10 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   sheet's title and stepper): while one is open the toasts stand outside its box - under it where the window has
   the room, as beside a desktop's centred sheet, else over it, as above a phone's short one - and where neither
   side has the room, in the sheet's foot above the button row, where they are part of the sheet: its body gives
-  them the room and scrolls, and their "Widerrufen" is tapped and tabbed to there (`besideSheet`). The sheet is
+  them the room and scrolls, and their "Widerrufen" is tapped and tabbed to there (`besideSheet`). A window too
+  short for that as well - a desktop at 200 %, where a refusal in the foot left the sheet it had opened again one
+  field of its body - lays them over the sheet's head, whose title is read again a moment later; the body keeps
+  its fields (the seventh whole-app walk). The sheet is
   measured as it stands without them and where it comes to rest. They are back at the page's foot when it
   closes. A toast is drawn as its write is answered; a figure stepped in place is written once it rests (§12),
   so its toast follows the last step by that rest.
@@ -1700,7 +1716,12 @@ page the same day ("after the walk" below) - none of those is Chris's.
   on every range, where the door open for 40 s shows (after the third walk).
 - **A place with several climates draws one**: its own, the device Steuerung leads with, and the head names it
   in a choice that leads to another; no curve is a mean of two devices, and the strips under it are its own
-  outputs and those of what is no climate itself (after the walk).
+  outputs and those of what is no climate itself (after the walk). **Each lamp is a strip of its own**, named as
+  Steuerung names it (`lampName`; "Licht · Controller", the lamp module by its name, a link's numbered "Licht
+  2"), its words ending at its own last value and the cursor card reading each off its own strip - the reading
+  is the drawn device's; one strip of a silent controller's lamp and a lamp module burning on read "07:09 bis
+  letzter Wert 09:46 · 09:44 bis letzter Wert 09:46" beside a bar running to now (the seventh whole-app walk;
+  `stripsOf`).
 - **An output is a strip under the curve it acts on**, on that curve's own time axis so a run stands under what it
   did: the heater under temperature, the dehumidifier (a fridge's compressor) under humidity, the CO₂ valve under
   CO₂; the lamp and what acts on no curve drawn - fans, a socket's relay - in a card of their own on a phone and
@@ -1778,13 +1799,18 @@ page the same day ("after the walk" below) - none of those is Chris's.
   decimals to a column, no row in which nothing is said, and a deficit's column named as worked out.
 - **The diary of the window is told as the diary tells it** (`DiaryLine`): oldest first, as the curves run, a run
   of the same device line folded - standing at its first, "3× bis 01:03", the other end said in the form the
-  list's stamps are in ("Do 00:39 … 3× bis Do 01:03"; `moment` of `DiaryLine` and `EntryWords`) -, an alarm by
+  list's stamps are in ("Do 00:39 … 3× bis Do 01:03"; `moment` of `DiaryLine` and `EntryWords`) - and an instant
+  outside the window always with its day, the weekday while that names one day, else the date: under "Gestern
+  12:38 bis jetzt" a run "seit 18:35" was two days back (`cursorStamp`; the seventh whole-app walk); a stamp
+  is one piece and never breaks after its day -, an alarm by
   its rule, open or "behoben" by its newest line ("08:05 Zu feucht · 3× bis 15:04 · behoben"; `dayLines` folds
   newest first whatever it is handed, `forwardsOf` turns the lines; the fifth whole-app walk found the list never
   saying an alarm was over). An alarm still open has no end to say: it stands at its newest firing, where
   Meldungen says it stands open since, and says since when it fired - "09:29 Zu feucht · 5× seit 14:36 ·
-  Luftfeuchte über 60 %"; "bis" its newest read as over. A line or a reading about some plants of the grow the
-  page is of names them, as the grow's diary does (the sixth whole-app walk). A maintenance or regulation off the window cuts is told whole, standing at its true
+  Luftfeuchte über 60 %"; "bis" its newest read as over. A silence is a line of its own, as in the diary (§2):
+  "Fr 18:35 Gerät offline · bis So 09:44" beside "So 09:46 Gerät offline". A line or a reading about some plants
+  of the grow the page is of names them, as the grow's diary does (the sixth whole-app walk), and where the
+  window's lines are of two grows each names its grow, as Start's do (the seventh whole-app walk). A maintenance or regulation off the window cuts is told whole, standing at its true
   start with its true length; its stamp sets the cursor where the window begins, and only one not ended by now
   "läuft". On a phone every panel's Tief and Hoch stand under its name, CO₂'s too. A line's
   stamp sets the cursor on its moment; its words

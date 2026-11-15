@@ -361,6 +361,15 @@ describe('where the toasts stand while a sheet is open', () => {
   it('is the sheet´s foot where neither side has the room, and never the room the window keeps free above a sheet', () => {
     expect(besideSheet({ top: 56, bottom: 744 }, 96, 800, 24)).toBe('foot');
     expect(besideSheet({ top: 100, bottom: 844 }, 44, 844, 59)).toBe('foot');
+    // A phone's sheet keeps most of its body beside them.
+    expect(besideSheet({ top: 100, bottom: 844 }, 64, 844, 59, { head: 96, body: 560 })).toBe('foot');
+  });
+
+  /** At 200 % a refusal in the foot left the sheet it had opened again one field of its body: "Zuletzt", EC and pH went. */
+  it('lays them over the sheet´s head in a window too short to give the foot their room', () => {
+    expect(besideSheet({ top: 48, bottom: 400 }, 64, 400, 48, { head: 100, body: 170 })).toEqual({ top: 56 });
+    // A head too low for them leaves them in the foot.
+    expect(besideSheet({ top: 48, bottom: 400 }, 128, 400, 48, { head: 100, body: 170 })).toBe('foot');
   });
 });
 

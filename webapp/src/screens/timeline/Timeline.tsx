@@ -15,6 +15,7 @@ import type {
   SpaceTimeline,
 } from '@fg2/shared-types/v1';
 import { useDevices } from '@/api/devices';
+import { lampName } from '@/screens/control/held-light';
 import { useGrow, useGrowPlants, useGrows, useMeasurementSeries } from '@/api/grows';
 import { useHome } from '@/api/home';
 import { ApiError } from '@/api/problem';
@@ -105,6 +106,8 @@ const LIVE_BEAT_MS = 30_000;
 interface Own {
   measured: { definition: MeasurementDefinition; points: GrowSeriesPoint[] }[];
   devices: { id: string; name: string }[];
+  /** What each lamp the window's lanes are of is called, where the place has more than one. */
+  lamps: ReadonlyMap<string, string>;
   comparable: Comparable[];
   /** Whether what can be laid over is read: only then is one the address names known to be gone. */
   known: boolean;
@@ -194,6 +197,12 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const here = targetsOf(home.data, useGrows().data?.items).filter(one => one.standsIn === spaceId || one.spaceId === spaceId);
   const target = here.find(one => one.growId === growId) ?? here[0] ?? null;
   const spaceRow = spaces.data?.items.find(space => space.id === spaceId) ?? null;
+  const lit = (data?.outputs ?? []).flatMap(lane => (lane.output === 'light' && lane.deviceId ? [lane.deviceId] : [])).join(' ');
+  const lamps = useMemo(() => {
+    const ids = lit.split(' ');
+    const among = (devices.data?.items ?? []).filter(device => ids.includes(device.id));
+    return new Map(among.map(device => [device.id, lampName(t, device, among)]));
+  }, [lit, devices.data, t]);
 
   const own: Own = {
     measured: charted.flatMap(definition => {
@@ -207,6 +216,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
             return { id, name: device ? deviceTitle(device, t, devices.data?.items ?? []) : id };
           })
         : [],
+    lamps,
     comparable: [
       // An earlier grow is laid over by its grow days, which only a grow standing here has to line up with.
       ...(data?.growId
@@ -452,11 +462,12 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   );
 
   const measured = own?.measured;
+  const lamps = own?.lamps;
   const model = useMemo(() => {
     if (!data) return null;
     const offered = offeredOf(data, measured ?? []);
     const shown = shownOf(view.show, offered, view.focus);
-    const strips = stripsOf(t, data, { zone, live, quietAt: reads?.silentSince ?? null });
+    const strips = stripsOf(t, data, { zone, live, quietAt: reads?.silentSince ?? null }, lamps);
     return {
       offered,
       shown,
@@ -471,7 +482,7 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         restUnderLast: wide,
       }),
     };
-  }, [data, measured, view.show, view.focus, view.one, view.vpdHalf, compared, reads, wide, t, zone, live]);
+  }, [data, measured, lamps, view.show, view.focus, view.one, view.vpdHalf, compared, reads, wide, t, zone, live]);
 
   // Once per focus, when what it names is drawn: scrolling again on every refresh would take the page from under a thumb.
   useEffect(() => {
@@ -676,8 +687,16 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   const resting = scrubbed === null && view.at === null;
   // Two figures in one unit - the air's and the leaf's degrees - are told apart by name.
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
-  const said = new Map((reading?.outputs ?? []).map(one => [one.output, { share: one.on ? 1 : 0, level: one.level }]));
   const ticked = strips.filter(strip => (strip.output === 'light' ? shown.light : shown.outputs));
+  // The reading is one device's - of a link's lamps the first -: another lamp of the place is read off its own strip.
+  const ofReading = (strip: Strip) =>
+    strip.deviceId !== null ? strip.deviceId === data.deviceId : strips.find(other => other.output === strip.output) === strip;
+  const said = new Map(
+    ticked.filter(ofReading).map(strip => {
+      const one = reading?.outputs.find(output => output.output === strip.output);
+      return [strip.key, one ? { share: one.on ? 1 : 0, level: one.level } : null] as const;
+    }),
+  );
   const timed = (time: number) => cursorStamp(time, window, 60, zone);
   // One point under a cursor, for the card and every head (`readAt`): a value from an older instant says when, and
   // on the reading each output is what the reading says - else what that point's samples came to.
@@ -689,7 +708,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       const figure = one.value === null ? '—' : `${one.curve.written(one.value)}\u00a0${one.curve.unit}`.trim();
       return { ...one, written: one.saidAt === null ? figure : `${figure} · ${timed(one.saidAt)}` };
     });
-    const figures = ticked.map(strip => (onReading ? (said.get(strip.output) ?? null) : quiet ? null : figureAt(strip, stood ?? time, stepMs)));
+    const figures = ticked.map(strip =>
+      onReading && said.has(strip.key) ? (said.get(strip.key) ?? null) : quiet ? null : figureAt(strip, stood ?? time, stepMs),
+    );
     return {
       quiet,
       stood,

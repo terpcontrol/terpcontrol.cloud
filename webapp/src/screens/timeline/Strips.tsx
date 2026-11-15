@@ -30,7 +30,7 @@ export function Strips({ strips, from, to, stepMs, cursor, focus = null }: Strip
     <ul className={styles.strips}>
       {strips.map(strip => (
         <li
-          key={strip.output}
+          key={strip.key}
           className={styles.strip}
           data-output={strip.output}
           data-levelled={strip.points.some(point => point[3] !== null) || undefined}

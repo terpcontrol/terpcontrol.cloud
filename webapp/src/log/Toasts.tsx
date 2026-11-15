@@ -87,6 +87,16 @@ const boxOf = (sheet: HTMLElement, foot: HTMLElement): { top: number; bottom: nu
   return { top, bottom: top + sheet.offsetHeight - grown };
 };
 
+/** How high the top sheet's head is, and its body as it stands without toasts in its foot - grown by what they took, as `boxOf` counts it. */
+const partsOf = (sheet: HTMLElement, foot: HTMLElement): { head: number; body: number } => {
+  const header = sheet.querySelector<HTMLElement>(':scope > header');
+  const body = foot.previousElementSibling;
+  return {
+    head: header ? header.getBoundingClientRect().bottom - sheet.getBoundingClientRect().top : 0,
+    body: body ? body.clientHeight + Math.min(foot.offsetHeight, body.scrollHeight - body.clientHeight) : 0,
+  };
+};
+
 /**
  * Puts the toasts where they stand now and answers the sheet they stand by:
  * at the page's foot, or beside an open sheet's box, or in its foot
@@ -99,7 +109,13 @@ const stand = (host: HTMLElement): HTMLElement | null => {
   const foot = sheet?.querySelector<HTMLElement>(':scope > [data-toasts]') ?? null;
   const where =
     sheet && foot
-      ? besideSheet(boxOf(sheet, foot), host.offsetHeight, window.innerHeight, parseFloat(getComputedStyle(sheet.parentElement!).paddingTop) || 0)
+      ? besideSheet(
+          boxOf(sheet, foot),
+          host.offsetHeight,
+          window.innerHeight,
+          parseFloat(getComputedStyle(sheet.parentElement!).paddingTop) || 0,
+          partsOf(sheet, foot),
+        )
       : null;
   const home = where === 'foot' ? foot! : document.body;
 

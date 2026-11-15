@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { GrowDiaryDay, Person } from '@fg2/shared-types/v1';
 import { THUMBNAIL_WIDTH } from '@/api/session';
+import { sinceLabel } from '@/ui/age';
 import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
 import { Lines } from '@/ui/Lines';
@@ -120,6 +121,8 @@ export function DayCard({
                   key={line.key}
                   line={line}
                   stamp={clock(line.at, zone)}
+                  // A moment of the card's own day is its clock, as the stamps are; another day's says which.
+                  moment={instant => (onTheDay(day, instant) ? clock(instant, zone) : sinceLabel(instant, now, zone))}
                   zone={zone}
                   now={now}
                   people={people}
@@ -166,3 +169,6 @@ function DayClimate({ to, children }: { to: string | null; children: string }) {
     <span className={styles.dayClimate}>{children}</span>
   );
 }
+
+const onTheDay = (day: Pick<GrowDiaryDay, 'startsAt' | 'endsAt'>, instant: string): boolean =>
+  Date.parse(day.startsAt) <= Date.parse(instant) && Date.parse(instant) < Date.parse(day.endsAt);

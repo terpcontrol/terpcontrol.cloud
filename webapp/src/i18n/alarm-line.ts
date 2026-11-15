@@ -90,6 +90,10 @@ interface AlarmLine {
   limit: string | null;
   /** For a silence raised: how long before the line's moment it was last heard, which is when Meldungen says it began. */
   silentFor?: number;
+  /** How much longer than `silentFor` the silence may have been: a span written without its seconds is rounded down by up to its smallest unit. */
+  roughBy?: number;
+  /** A device's or a camera's silence, raised or over, rather than a reading's or an output's alarm. */
+  silence?: true;
 }
 
 export const alarmLineParts = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null =>
@@ -162,16 +166,23 @@ const secondsOf = (span: string): number | null => {
 
 const SECONDS: Record<string, number> = { s: 1, min: 60, h: 3600, d: 86_400 };
 
+/** The smallest unit a span the server wrote names, in seconds: what it may have been rounded down by. */
+const unitOf = (span: string): number => Math.min(...[...span.matchAll(/\d+ (s|min|h|d)\b/g)].map(([, unit]) => SECONDS[unit]));
+
 const silenceLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
-  const line = (rule: string, said: string): AlarmLine => ({ rule: ruleName(i18n, rule), said: [said], limit: null });
+  const line = (rule: string, said: string): AlarmLine => ({ rule: ruleName(i18n, rule), said: [said], limit: null, silence: true });
 
   if (triggered) {
     const silent = SILENT.exec(param);
     // The span is rounded - "11 min" of 11 min 40 s dated the start a minute later than Meldungen did; a line from
     // before the seconds were written is read by its span.
     const quiet = !silent ? null : silent[3] !== undefined ? Number(silent[3]) : secondsOf(silent[2]);
+    const rough = !silent || silent[3] !== undefined ? 0 : unitOf(silent[2]);
     return silent
-      ? { ...line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })), ...(quiet === null ? {} : { silentFor: quiet }) }
+      ? {
+          ...line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })),
+          ...(quiet === null ? {} : { silentFor: quiet, roughBy: rough }),
+        }
       : null;
   }
 

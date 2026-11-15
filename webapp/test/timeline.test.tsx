@@ -169,6 +169,8 @@ const server = {
   wrote: [] as string[],
   /** Whether the account has a second place with a controller of its own standing in it. */
   elsewhere: false,
+  /** Whether a lamp module stands in the place beside its fridge module. */
+  lamp: false,
   /** The account's grows as the list of them answers, where a test reads it. */
   grows: null as unknown[] | null,
   /** The plants of the grow standing here, where a test reads them. */
@@ -208,7 +210,11 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
   }
   if (path === '/devices') {
     return json({
-      items: [fridge(), ...(second ? [fridge({ id: 'device-2', type: 'controller', name: 'Controller B', spaceId: 'space-2' })] : [])],
+      items: [
+        fridge(),
+        ...(second ? [fridge({ id: 'device-2', type: 'controller', name: 'Controller B', spaceId: 'space-2' })] : []),
+        ...(server.lamp ? [fridge({ id: 'lamp-1', type: 'light', name: 'Grow light', configuration: null })] : []),
+      ],
       nextCursor: null,
     });
   }
@@ -298,6 +304,7 @@ beforeEach(() => {
     views: [],
     wrote: [],
     elsewhere: false,
+    lamp: false,
     grows: null,
     plants: null,
     gone: false,
@@ -922,6 +929,31 @@ describe('what the place reads now', () => {
     expect(card).not.toHaveTextContent('now');
     expect(within(panel('Temperature')).getByText('24.1 °C')).toBeInTheDocument();
   });
+  /**
+   * A place with a fridge module and a lamp module drew one "Light" strip of both, its words running two lamps' days
+   * into one and the card saying "Light 100 %" of neither. Each lamp is its own strip, named as Steuerung names it,
+   * and the card reads each lamp off its own.
+   */
+  it('draws each lamp of the place apart, named, and reads each one on the card', async () => {
+    server.lamp = true;
+    server.reading = read(0.1, [value('temperature', 26.7, 0.1)], [{ output: 'light', on: true, level: 40 }]);
+    const lamp = {
+      output: 'light' as const,
+      deviceId: 'lamp-1',
+      spans: [{ startsAt: ago(24), endsAt: ago(0) }],
+      heardUntil: ago(0),
+      points: Array.from({ length: 24 }, (_, index) => ({ measuredAt: ago(23 - index), heard: 12, on: 12, level: 100 })),
+    };
+    server.over = { outputs: [...answerTo(new URLSearchParams({ range: '24h' }), {}).outputs, lamp] };
+    draw();
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent(/Light · [^·]+ 40 %/));
+    expect(card).toHaveTextContent(/(Light · )?Grow light 100 %/);
+    const strips = screen.getAllByRole('listitem').filter(item => item.hasAttribute('data-output') && item.getAttribute('data-output') === 'light');
+    expect(strips.map(strip => strip.textContent)).toEqual([expect.stringMatching(/^Light · /), expect.stringMatching(/Grow light/)]);
+  });
 });
 
 describe('the cursor', () => {
@@ -1321,7 +1353,8 @@ describe('the diary of the window', () => {
     await settled();
 
     const [line] = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
-    expect(line.textContent).toMatch(/^[A-Z][a-z]{2} \d\d:\d\d, Set the cursor on this moment.*3× until [A-Z][a-z]{2} \d\d:\d\d/);
+    // A stamp is one piece: its weekday and its clock are not broken apart.
+    expect(line.textContent).toMatch(/^[A-Z][a-z]{2}\u00a0\d\d:\d\d, Set the cursor on this moment.*3× until [A-Z][a-z]{2}\u00a0\d\d:\d\d/);
   });
 
   /**
@@ -1379,7 +1412,7 @@ describe('the diary of the window', () => {
         severity: 'warning',
         text: null,
         occurredAt: ago(hours),
-        message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 11 min ago'] },
+        message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=72, upper threshold=60, lower threshold=n/a'] },
         values: { kind: 'alarm' },
       });
     server.over = { events: [fired('first', 9), fired('newest', 7)] };
@@ -1388,14 +1421,120 @@ describe('the diary of the window', () => {
     await settled();
 
     const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getByText(/Too humid/)).toBeInTheDocument());
+    const [line] = list.getAllByRole('listitem').filter(one => /Too humid/.test(one.textContent ?? ''));
+    // The reader's zone is UTC here; a stamp may lead with its day.
+    const stamp = (hours: number) => `(\\w{3}\\s)?${ago(hours).slice(11, 16)}`;
+    expect(line.textContent).toMatch(new RegExp(`^${stamp(7)}, .*Too humid · 2× since ${stamp(9)}`));
+    expect(line.textContent).not.toMatch(/until/);
+  });
+
+  /**
+   * "09:46 Gerät offline · 4× seit 18:35": a silence since 09:46 folded with the one before the device restarted, two
+   * days back, and said that day's 18:35 as if it were the window's. Each silence is its own line, the one that is
+   * over from its start - with its day, outside the window's - until its end, the one still going from its own start.
+   */
+  it('tells each silence apart, the one before a restart from its start with its day until its end', async () => {
+    const offline = (id: string, hours: number, alertId: string, fired: boolean, silent = 0) =>
+      entry(id, {
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId: 'device-2',
+        alertId,
+        severity: fired ? 'critical' : 'info',
+        text: null,
+        occurredAt: ago(hours),
+        message: {
+          key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved',
+          params: [fired ? `Device offline, last heard ${Math.floor(silent / 3600)} h ago, silent=${silent}` : 'Device offline, back after 19 h'],
+        },
+        values: { kind: 'alarm' },
+      });
+    // Quiet since 40 hours ago, raised again three times inside the window, back four hours ago; quiet again since three.
+    server.over = {
+      events: [
+        offline('again-1', 20, 'alert-1', true, 20 * 3600),
+        offline('again-2', 19, 'alert-2', true, 21 * 3600),
+        offline('again-3', 18, 'alert-3', true, 22 * 3600),
+        offline('back', 4, 'alert-3', false),
+        offline('now', 3 - 10 / 60, 'alert-4', true, 600),
+      ],
+    };
+    server.elsewhere = true;
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getAllByText(/Device offline/)).toHaveLength(2));
+    const lines = list.getAllByRole('listitem').flatMap(one => (/Device offline/.test(one.textContent ?? '') ? [one.textContent ?? ''] : []));
+    const day = (hours: number) => zonedAt(NOW - hours * HOUR, 'UTC').toFormat('ccc');
+    expect(lines).toEqual([
+      expect.stringMatching(
+        new RegExp(`^${day(40)}\\u00a0${ago(40).slice(11, 16)}, .*Device offline · until ${day(4)}\\u00a0${ago(4).slice(11, 16)}`),
+      ),
+      expect.stringMatching(new RegExp(`^${day(3)}\\u00a0${ago(3).slice(11, 16)}, .*Device offline(?! ·)`)),
+    ]);
+  });
+
+  /**
+   * Meldungen said "seit 22:54" and Verlauf's line 22:55 of one silence: the line, written before its seconds were,
+   * rounded its span down. Where the window's alarms hold its alert, the line is dated by the alert to the second.
+   */
+  it('dates a silence by its alert, to the second, where the line rounded it', async () => {
+    const raised = NOW - 3 * HOUR;
+    server.over = {
+      alarms: [
+        {
+          alertId: 'alert-1',
+          kind: 'offline',
+          severity: 'critical',
+          metric: null,
+          startedAt: iso(raised),
+          endedAt: null,
+          value: 640,
+          extremeValue: 640,
+        },
+      ],
+      events: [
+        entry('quiet', {
+          kind: 'alarm',
+          source: 'alarm',
+          authorId: null,
+          deviceId: 'device-1',
+          alertId: 'alert-1',
+          severity: 'critical',
+          text: null,
+          occurredAt: iso(raised),
+          message: { key: 'message-alarm-triggered', params: ['Device offline, last heard 10 min ago'] },
+          values: { kind: 'alarm' },
+        }),
+      ],
+    };
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
     await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
     const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
-    // The reader's zone is UTC here; a stamp may lead with its day.
-    const stamp = (hours: number) => `(\\w{3} )?${ago(hours).slice(11, 16)}`;
-    // A silence counts from when the device was last heard, eleven minutes before its first firing.
-    // The line itself stands where its newest silence began, as Start's banner dates it.
-    expect(line.textContent).toMatch(new RegExp(`^${stamp(7 + 11 / 60)}, .*Device offline · 2× since ${stamp(9 + 11 / 60)}`));
-    expect(line.textContent).not.toMatch(/until/);
+    expect(line.textContent).toMatch(new RegExp(`^${iso(raised - 640_000).slice(11, 16)}, `));
+  });
+
+  /** Two grows in one tent: Start's lines say whose a line is since the sixth walk; Verlauf's list said nothing. */
+  it('names the grow of each line where the window´s lines are of two grows', async () => {
+    server.over = {
+      events: [entry('mine', { growId: 'grow-1', occurredAt: ago(4) }), entry('theirs', { growId: 'grow-2', occurredAt: ago(3) })],
+      grows: [
+        { growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null },
+        { growId: 'grow-2', name: 'Gelato', startedAt: ago(10 * 24), endedAt: null },
+      ],
+    };
+    draw();
+    await settled();
+
+    const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(2));
+    expect(list.getAllByRole('listitem').map(one => one.textContent)).toEqual([expect.stringMatching(/Amnesia/), expect.stringMatching(/Gelato/)]);
   });
 
   /** A round of readings across two plants read "pH 6,1 pH · pH 6,4 pH" here: no plant named, the unit its name. */
@@ -1454,9 +1593,9 @@ describe('the diary of the window', () => {
 
     const lines = within(screen.getByRole('region', { name: 'Diary in this window' })).getAllByRole('listitem');
     expect(lines.map(line => line.textContent)).toEqual([
-      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, Set the cursor on this momentMaintenance · 7 h/),
-      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, .*Device rebooted/),
-      expect.stringMatching(/^[A-Z][a-z]{2} \d\d:\d\d, .*You watered/),
+      expect.stringMatching(/^[A-Z][a-z]{2}\s\d\d:\d\d, Set the cursor on this momentMaintenance · 7 h/),
+      expect.stringMatching(/^[A-Z][a-z]{2}\s\d\d:\d\d, .*Device rebooted/),
+      expect.stringMatching(/^[A-Z][a-z]{2}\s\d\d:\d\d, .*You watered/),
     ]);
     fireEvent.click(within(lines[0]).getByRole('button', { name: /Set the cursor on this moment/ }));
 

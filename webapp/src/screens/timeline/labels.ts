@@ -61,13 +61,30 @@ export const windowLabel = (t: Translate, window: Span, live: boolean, now: Date
   return t('timeline.windowSpan', { from, to });
 };
 
-/** The instant of the cursor, to the second where the points are that fine. */
+/**
+ * The instant of the cursor, to the second where the points are that fine, and in one piece: "15. Nov 09:46" broke
+ * after its day. One outside the window - a run's "seit", a stretch begun before it - carries its day whatever the
+ * window's width, as the weekday while that names one day and else the date: "seit 18:35" under a day's window read
+ * as that day's evening, two days after it.
+ */
 export const cursorStamp = (time: number, window: Span, stepSeconds: number, zone: string | null): string => {
   const span = window.to - window.from;
+  const outside = time < window.from || (time > window.to && !zonedAt(time, zone).hasSame(zonedAt(window.to, zone), 'day'));
   const clock = stepSeconds > 0 && stepSeconds < 60 ? `${CLOCK}:ss` : CLOCK;
-  const format = span <= DAY_MS + HOUR_MS ? clock : span <= BY_WEEKDAY ? `ccc ${clock}` : span <= 400 * DAY_MS ? DATED_CLOCK : DATED_CLOCK_WITH_YEAR;
-  return zonedAt(time, zone).toFormat(format);
+  const weekday = outside ? window.to - time < WEEKDAY_NAMES_ONE : span <= BY_WEEKDAY;
+  const format =
+    span <= DAY_MS + HOUR_MS && !outside
+      ? clock
+      : weekday
+        ? `ccc ${clock}`
+        : Math.max(span, window.to - time) <= 400 * DAY_MS
+          ? DATED_CLOCK
+          : DATED_CLOCK_WITH_YEAR;
+  return zonedAt(time, zone).toFormat(format).replace(/ /g, '\u00a0');
 };
+
+/** How far back a weekday names one day: six days, the seventh is today's again. */
+const WEEKDAY_NAMES_ONE = 6 * DAY_MS;
 
 /**
  * "Mittel 03:09–03:12": a point that is the mean of a window says so, and over which stretch; one of a single sample

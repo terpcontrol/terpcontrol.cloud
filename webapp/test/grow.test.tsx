@@ -11,7 +11,7 @@ import { useUpdateGrow } from '@/api/grows';
 import { mediaUrl } from '@/api/session';
 import { useCorrecting } from '@/log/corrections';
 import { DayCard } from '@/screens/grow/diary/DayCard';
-import { dayLines, dayTitle, shownLines, type DiaryReader } from '@/screens/grow/diary/days';
+import { dayLines, dayTitle, filedBySilence, onTheirDay, shownLines, type DiaryReader } from '@/screens/grow/diary/days';
 import { Diary } from '@/screens/grow/diary/Diary';
 import { forgetKept } from '@/ui/kept';
 import { growStanding } from '@/ui/session-access';
@@ -929,14 +929,59 @@ describe('a day of the diary', () => {
     );
     const alarms = lines.flatMap(line => (line.what.kind === 'alarm' ? [line.what] : []));
 
-    expect(alarms.map(one => [one.rule, one.over])).toEqual([
-      ['Terp Cam without a picture', true],
-      ['Device offline', false],
+    // Each silence is a line of its own: the one since 05:49 is not "2× seit 02:49" of the one that ended at 05:00.
+    expect(alarms.map(one => [one.rule, one.over, one.count, one.until])).toEqual([
+      ['Terp Cam without a picture', true, 1, at(1, 9)],
+      ['Device offline', false, 1, undefined],
+      ['Device offline', true, 1, at(1, 5)],
     ]);
-    expect(alarms[1]).toMatchObject({ count: 2, since: DateTime.fromISO(at(1, 3)).minus({ minutes: 11 }).toUTC().toISO() });
-    // The line itself stands where the silence began, as Start's banner dates it - not when the alarm was raised.
+    // A line stands where its silence began, as Start's banner dates it - not when the alarm was raised.
     expect(lines.find(line => line.key === 'off-2')?.at).toBe(DateTime.fromISO(at(1, 6)).minus({ minutes: 11 }).toUTC().toISO());
+    expect(lines.find(line => line.key === 'off-1-back')?.at).toBe(DateTime.fromISO(at(1, 3)).minus({ minutes: 11 }).toUTC().toISO());
     expect(lines.find(line => line.key.startsWith('maintenance'))?.what).toMatchObject({ words: 'Maintenance ended' });
+  });
+
+  /**
+   * Saturday's card said "18:35 Gerät offline · 8× seit 13. Nov 18:36" of a device quiet since Friday evening: the
+   * cloud had raised the one silence again on Saturday. Its lines stand on the day it began, as one line from its start
+   * until its end - "09:48 Gerät offline · bis 12:07", not "12:07 Gerät offline · behoben".
+   */
+  it('files a silence under the day it began, as one line from its start until its end', () => {
+    const quiet = (id: string, occurredAt: string, alertId: string, param: string, fired = true) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        deviceId: 'device-1',
+        alertId,
+        severity: fired ? 'critical' : 'info',
+        occurredAt,
+        message: { key: fired ? 'message-alarm-triggered' : 'message-alarm-resolved', params: [param] },
+        values: { kind: 'alarm' },
+      });
+    // Quiet from Wednesday 18:00 on, raised at 18:10 and twice more on Thursday, back on Thursday at 11:00.
+    const raised = DateTime.fromISO(at(2, 18)).plus({ minutes: 10 }).toISO()!;
+    const wednesday = day(2, { entries: [quiet('raised', raised, 'alert-1', 'Device offline, last heard 10 min ago, silent=600')] });
+    const thursday = day(1, {
+      entries: [
+        quiet('back', at(1, 11), 'alert-3', 'Device offline, back after 3 h', false),
+        quiet('again-2', at(1, 8), 'alert-3', `Device offline, last heard 14 h ago, silent=${14 * 3600}`),
+        quiet('again-1', at(1, 2), 'alert-2', `Device offline, last heard 8 h ago, silent=${8 * 3600}`),
+      ],
+    });
+    const [week] = filedBySilence(i18next, [diaryWeek(5, [thursday, wednesday])]);
+    const [filedThursday, filedWednesday] = week.days;
+
+    expect(filedThursday.entries).toEqual([]);
+    const lines = dayLines(i18next.t.bind(i18next) as never, i18next, filedWednesday, null);
+    expect(lines.map(line => [line.at, line.what.kind === 'alarm' && [line.what.count, line.what.over, line.what.until]])).toEqual([
+      [DateTime.fromISO(at(2, 18)).toUTC().toISO(), [1, true, at(1, 11)]],
+    ]);
+
+    // Start's newest lines take a silence's raise along with its end, though it was raised on another day.
+    const ended = quiet('ended', at(1, 11), 'alert-1', 'Device offline, back after 17 h', false);
+    expect(onTheirDay(i18next, [ended, ...wednesday.entries], null).map(one => one.id)).toEqual(['ended', 'raised']);
   });
 
   /** A card with room for one more line keeps a critical alarm that is over before a warning's of the same minute. */
@@ -1051,9 +1096,9 @@ describe('a day of the diary', () => {
 
     await waitFor(() =>
       expect(linesOf()).toEqual([
-        '09:00Alarm: Device offline · Plantalytix Socket · overautomatic',
-        // A silence stands where it began, eleven minutes before it was raised.
-        '06:49Alarm: Device offline · Controllerautomatic',
+        // A silence stands where it began, eleven minutes before it was raised, and one that is over says until when.
+        expect.stringMatching(/^07:49Alarm: Device offline · Plantalytix Socket · until 09:00/),
+        expect.stringMatching(/^06:49Alarm: Device offline · Controller/),
       ]),
     );
   });
@@ -1171,7 +1216,8 @@ describe('a day of the diary', () => {
     // Alerts has it under "Resolved"; the one that fired once is one line too, its start and its end together; the
     // watering stays in sight.
     expect(lines).toHaveLength(3);
-    expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 17 Sep 02:00 · over/)]);
+    // A moment of the card's own day is its clock, as the card's stamps are.
+    expect(lines.filter(line => /Too humid/.test(line))).toEqual([expect.stringMatching(/Too humid · 3× since 02:00 · over/)]);
     expect(lines.filter(line => /Too dry/.test(line))).toEqual([expect.stringMatching(/Too dry · over(automatic)?$/)]);
     expect(lines[2]).toMatch(/You watered/);
   });

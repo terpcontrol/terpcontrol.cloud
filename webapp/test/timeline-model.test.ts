@@ -20,9 +20,10 @@ import {
   shownOf,
   stripsOf,
   type Shown,
+  type Strip,
 } from '@/screens/timeline/model';
 import { DateTime } from 'luxon';
-import { axisEnds, meanStamp, stepWords, windowLabel } from '@/screens/timeline/labels';
+import { axisEnds, cursorStamp, meanStamp, stepWords, windowLabel } from '@/screens/timeline/labels';
 import { translate } from './translations';
 
 /**
@@ -528,6 +529,35 @@ describe('the strips', () => {
     expect(stripsOf(t, answer({ outputs: [lane(12, 12, 60), lane(4, 0, 0)] }))[0].points).toEqual([[FROM + HOUR, 16, 12, 45, false]]);
   });
 
+  /**
+   * "07:09 bis letzter Wert 09:46 · 09:44 bis letzter Wert 09:46" of a controller gone silent and a lamp module
+   * burning on: the two lamps were one strip. Each is its own, named, its words ending at its own last value.
+   */
+  it('draws each lamp of a place apart, named, each told up to its own last value', () => {
+    const light = (deviceId: string | null, until: number, level: number) => ({
+      output: 'light' as const,
+      deviceId,
+      spans: [{ startsAt: at(7), endsAt: at(until) }],
+      heardUntil: at(until),
+      points: counted(until, hour => (hour > 7 ? [12, 12, level] : [12, 0, 0])),
+    });
+    const lamps = answer({ outputs: [light('device-1', 10, 80), light('lamp-1', 24, 100)] });
+    const named = new Map([
+      ['device-1', 'Light · Controller'],
+      ['lamp-1', 'Lamp module'],
+    ]);
+    const lit = (strips: Strip[]) => strips.filter(strip => strip.output === 'light').map(strip => [strip.name, strip.said?.[0]]);
+
+    // The reading is the controller's, silent since 00:30; the lamp module is heard to the window's end.
+    expect(lit(stripsOf(t, lamps, { zone: 'UTC', live: true, quietAt: FROM + 10 * HOUR }, named))).toEqual([
+      ['Light · Controller', '21:30 to last reading 00:30'],
+      ['Lamp module', 'on since 21:30'],
+    ]);
+    // A link is not told the hardware: its lamps are numbered.
+    const unnamed = answer({ outputs: [light(null, 10, 80), light(null, 24, 100)] });
+    expect(lit(stripsOf(t, unnamed, { zone: 'UTC', live: true, quietAt: null })).map(([name]) => name)).toEqual(['Light', 'Light 2']);
+  });
+
   it('reads an output over the point the cursor falls into: its mean level, the share it ran, nothing where nobody heard', () => {
     const [light, heater, dehumidifier] = stripsOf(t, answer());
 
@@ -908,6 +938,20 @@ describe('how the page says when', () => {
     expect(axisEnds(t, { from, to: from + 72 * HOUR }, false, 'UTC')).toEqual(['Tue 10', 'Fri 13']);
     expect(axisEnds(t, { from, to: from + 72 * HOUR }, true, 'UTC')).toEqual(['Tue 10', 'now']);
     expect(axisEnds(t, { from, to: from + 30 * 24 * HOUR }, false, 'UTC')).toEqual(['10 Nov', '10 Dec']);
+  });
+
+  /** "4× seit 18:35" under "Gestern 12:38 bis jetzt" was two days back, and "15. / Nov 09:46" broke on a phone. */
+  it('gives an instant outside the window its day, and keeps a stamp in one piece', () => {
+    const window = { from: Date.parse('2026-11-14T11:38:00Z'), to: Date.parse('2026-11-15T11:38:00Z') };
+    const stamp = (instant: string, over = window) => cursorStamp(Date.parse(instant), over, 60, 'UTC').replace(/\u00a0/g, ' ');
+    expect(stamp('2026-11-15T08:46:00Z')).toBe('08:46');
+    // Before the window, and on the window's first day before its start: the weekday, while that names one day.
+    expect(stamp('2026-11-13T17:35:00Z')).toBe('Fri 17:35');
+    expect(stamp('2026-11-14T09:00:00Z')).toBe('Sat 09:00');
+    expect(stamp('2026-11-07T17:35:00Z')).toBe('7 Nov 17:35');
+    // A week's window names weekdays already, and dates an instant further back than one.
+    expect(stamp('2026-11-05T17:35:00Z', { from: Date.parse('2026-11-08T11:38:00Z'), to: window.to })).toBe('5 Nov 17:35');
+    expect(cursorStamp(Date.parse('2026-11-13T17:35:00Z'), window, 60, 'UTC')).toBe('Fri\u00a017:35');
   });
 
   it('says of a mean that it is one, and over which stretch', () => {

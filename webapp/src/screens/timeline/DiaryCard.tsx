@@ -1,8 +1,9 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import type { Entry, Plant, SpaceTimeline } from '@fg2/shared-types/v1';
-import { dayLines, forwardsOf } from '@/screens/grow/diary/days';
+import { dayLines, forwardsOf, type SilentSince } from '@/screens/grow/diary/days';
 import { DiaryLine } from '@/screens/grow/diary/DiaryLine';
+import { silentSince } from '@/ui/age';
 import { readingNamesOf } from '@/ui/entries';
 import { useKept } from '@/ui/kept';
 import { Lines } from '@/ui/Lines';
@@ -44,7 +45,10 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   // A change of the device the curves are of, maintenance and regulation off are lines the devices' own tick shows,
   // each as the grow's diary says it - a maintenance one line for on and off together.
   const events = shown.machine ? [...data.deviceChanges, ...(data.stretches ?? [])] : [];
-  const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone));
+  const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone, silencesOf(data)));
+  // Where the lines are of two grows, each names its own, as Start's do.
+  const grows = new Set(entries.flatMap(entry => (entry.growId ? [entry.growId] : [])));
+  const growOf = (entry: Entry | null) => (grows.size > 1 ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null);
   const listed = all ? lines : lines.slice(-SHOWN);
   // A stretch the window cuts stands at its true start, before the window: the stamps are of the span they reach, in
   // one form, and its stamp sets the cursor where the window begins.
@@ -81,6 +85,7 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
                 onStamp={() => onCursor(Math.max(window.from, at(line.at)))}
                 forwards
                 plants={plants}
+                grow={growOf(entry)}
                 stampDoes={t('timeline.diary.toMoment')}
               />
             );
@@ -99,3 +104,13 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
     </section>
   );
 }
+
+/** When each silence the window's alarms tell of began, to the second: a line written before its seconds were has its span rounded. */
+const silencesOf = (data: SpaceTimeline): SilentSince => {
+  const began = new Map(
+    data.alarms.flatMap(alarm =>
+      (alarm.kind === 'offline' || alarm.kind === 'camera_stale') && alarm.value !== null ? [[alarm.alertId, silentSince(alarm)] as const] : [],
+    ),
+  );
+  return entry => (entry.alertId ? (began.get(entry.alertId) ?? null) : null);
+};

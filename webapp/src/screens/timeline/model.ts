@@ -108,9 +108,16 @@ export const shownOf = (keys: string[] | null, offered: Offered, focus: string |
 /** One drawn point of an output: its window's close, its samples, those it ran in, its mean level in per cent, and the server's word that a silence lay before it. */
 export type StripPoint = readonly [end: number, heard: number, on: number, level: number | null, resumed?: boolean];
 
-/** One output across the devices that drive it. Everything said about it is counted from `points`, the samples of each drawn window. */
+/**
+ * One output across the devices that drive it - a lamp of its own device each, where a place has several. Everything
+ * said about it is counted from `points`, the samples of each drawn window.
+ */
 export interface Strip {
+  /** Which strip it is among them: its output, and a lamp's device. */
+  key: string;
   output: OutputMetric;
+  /** The lamp's device, where a place has several lamps; null for every other strip, and on a read not told the hardware. */
+  deviceId: string | null;
   name: string;
   points: StripPoint[];
   /** The stretches it ran for, by the second where the read knew it. */
@@ -132,36 +139,71 @@ const ORDER: OutputMetric[] = ['light', 'heater', 'dehumidifier', 'co2', 'fan', 
 /** Where the lamp's words are read by: the account's zone, whether the window ends now, and the reading's instant once it is stale. */
 type Said = { zone: string | null; live: boolean; quietAt: number | null };
 
-export const stripsOf = (t: Translate, data: SpaceTimeline, said: Said = { zone: null, live: false, quietAt: null }): Strip[] =>
-  ORDER.filter(output => data.outputs.some(lane => lane.output === output)).map(output => {
+/**
+ * The strips of the window's outputs. Two devices that drive the same output are counted together - but two lamps
+ * are two strips: each is switched on its own (app-ux.md), and one strip of both said "07:09 bis letzter Wert 09:46"
+ * of a lamp module burning on beside a silent controller. Each is named by `lamps` (its device's id to its name),
+ * and its words end at its own last value: the reading's for the device the reading is of, else where its lane was
+ * last heard.
+ */
+export const stripsOf = (
+  t: Translate,
+  data: SpaceTimeline,
+  said: Said = { zone: null, live: false, quietAt: null },
+  lamps: ReadonlyMap<string, string> = new Map(),
+): Strip[] =>
+  ORDER.flatMap(output => {
     const lanes = data.outputs.filter(lane => lane.output === output);
-    // Two devices that drive the same output are counted together: the samples of both, and the mean of them all.
-    const points = new Map<number, [heard: number, on: number, level: number | null, resumed: boolean]>();
-    for (const { measuredAt, heard, on, level, resumed } of lanes.flatMap(lane => lane.points ?? [])) {
-      const [known, ran, mean, quiet] = points.get(at(measuredAt)) ?? [0, 0, level, true];
-      const mixed = mean === null || level === null ? null : (mean * known + level * heard) / (known + heard);
-      points.set(at(measuredAt), [known + heard, ran + on, mixed, quiet && resumed === true]);
-    }
-
-    const strip = {
-      output,
-      name: outputTitle(t, output, lanes),
-      points: [...points].sort(([one], [other]) => one - other).map(([end, said]) => [end, ...said] as const),
-      // The spans say only when, for the lamp's stretches by the clock and a silence's ends: no figure is taken from a run.
-      runs: lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))),
-    };
-    const blocks = blocksOf(strip, at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000);
-    const share = overTime(blocks, block => block.share);
-    if (share === null) return { ...strip, said: null };
-    // One sample is no share of any time: it is said as what it was.
-    const [once] = strip.points.length === 1 && strip.points[0][1] === 1 ? strip.points : [];
-    if (once) return { ...strip, said: [once[2] === 0 ? t('timeline.off') : once[3] === null ? t('timeline.on') : `${Math.round(once[3])}\u00a0%`] };
-    if (output === 'light') return { ...strip, said: lightWords(t, strip, data, share, said) };
-    // One driven at a level adds how hard it ran: its mean level over the time it was heard, off counting as none.
-    const level = strip.points.some(point => point[3] !== null) && share > 0 ? overTime(blocks, block => block.level ?? 0) : null;
-    const mean = level === null ? [] : [t('timeline.meanLevel', { level: Math.round(level) })];
-    return { ...strip, said: [t('timeline.lightShare', { share: Math.round(share * 100) }), ...mean] };
+    const apart = output === 'light' && lanes.length > 1;
+    return (apart ? lanes.map(lane => [lane]) : lanes.length > 0 ? [lanes] : []).map((group, index) => {
+      const own = apart ? group[0].deviceId : null;
+      const heardUntil = at(group[0].heardUntil);
+      const reading = own !== null ? own === data.deviceId : index === 0;
+      const quietAt = !apart || reading ? said.quietAt : said.live && heardUntil < at(data.endsAt) ? heardUntil : null;
+      const word = outputTitle(t, output, group);
+      const name = !apart ? word : ((own && lamps.get(own)) ?? (index === 0 ? word : `${word} ${index + 1}`));
+      return stripOf(t, data, output, group, own, name, { ...said, quietAt });
+    });
   });
+
+const stripOf = (
+  t: Translate,
+  data: SpaceTimeline,
+  output: OutputMetric,
+  lanes: readonly TimelineOutputLane[],
+  deviceId: string | null,
+  name: string,
+  said: Said,
+): Strip => {
+  // Two devices that drive the same output are counted together: the samples of both, and the mean of them all.
+  const points = new Map<number, [heard: number, on: number, level: number | null, resumed: boolean]>();
+  for (const { measuredAt, heard, on, level, resumed } of lanes.flatMap(lane => lane.points ?? [])) {
+    const [known, ran, mean, quiet] = points.get(at(measuredAt)) ?? [0, 0, level, true];
+    const mixed = mean === null || level === null ? null : (mean * known + level * heard) / (known + heard);
+    points.set(at(measuredAt), [known + heard, ran + on, mixed, quiet && resumed === true]);
+  }
+
+  const strip = {
+    key: deviceId === null ? output : `${output}:${deviceId}`,
+    output,
+    deviceId,
+    name,
+    points: [...points].sort(([one], [other]) => one - other).map(([end, said]) => [end, ...said] as const),
+    // The spans say only when, for the lamp's stretches by the clock and a silence's ends: no figure is taken from a run.
+    runs: lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))),
+  };
+  const blocks = blocksOf(strip, at(data.startsAt), at(data.endsAt), Math.max(data.stepSeconds, 1) * 1000);
+  const share = overTime(blocks, block => block.share);
+  if (share === null) return { ...strip, said: null };
+  // One sample is no share of any time: it is said as what it was.
+  const [once] = strip.points.length === 1 && strip.points[0][1] === 1 ? strip.points : [];
+  if (once) return { ...strip, said: [once[2] === 0 ? t('timeline.off') : once[3] === null ? t('timeline.on') : `${Math.round(once[3])}\u00a0%`] };
+  if (output === 'light') return { ...strip, said: lightWords(t, strip, data, share, said) };
+  // One driven at a level adds how hard it ran: its mean level over the time it was heard, off counting as none.
+  const level = strip.points.some(point => point[3] !== null) && share > 0 ? overTime(blocks, block => block.level ?? 0) : null;
+  const mean = level === null ? [] : [t('timeline.meanLevel', { level: Math.round(level) })];
+  return { ...strip, said: [t('timeline.lightShare', { share: Math.round(share * 100) }), ...mean] };
+};
 
 /**
  * Where the stretch each point of a strip stands for begins: the point before it - a device slower than it is drawn
@@ -678,9 +720,9 @@ export const csvFor = (
   panels: readonly PanelModel[],
   strips: readonly Strip[],
   stepMs: number,
-  /** Where the device's last reading closes the curves - the table's last row - and what it says of every output. */
+  /** Where the device's last reading closes the curves - the table's last row - and what it says of every output, by strip. */
   readingAt: number | null,
-  said: ReadonlyMap<OutputMetric, OutputFigure>,
+  said: ReadonlyMap<string, OutputFigure | null>,
   zone: string | null,
   decimalComma: boolean,
 ): string => {
@@ -719,7 +761,7 @@ export const csvFor = (
       label: t('timeline.csvLevel', { output: strip.name }),
       decimals: 0,
       points: rows.flatMap(time => {
-        const one = time === readingAt ? (said.get(strip.output) ?? null) : figureAt(strip, time, stepMs);
+        const one = time === readingAt && said.has(strip.key) ? (said.get(strip.key) ?? null) : figureAt(strip, time, stepMs);
         return one ? [[time, one.level ?? one.share * 100] as [number, number | null]] : [];
       }),
     })),

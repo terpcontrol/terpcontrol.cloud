@@ -80,7 +80,27 @@ export const openAgain = (over: Alert, open: Alert[]): boolean =>
   open.some(one => one.ruleId === over.ruleId && one.kind === over.kind && one.deviceId === over.deviceId && one.cameraId === over.cameraId);
 
 /** How many seconds an episode that is over stood. */
-const lastedSeconds = (alert: Alert): number => (millis(alert.resolvedAt ?? alert.startedAt) - millis(beganAt(alert))) / 1000;
+export const lastedSeconds = (alert: Alert): number => (millis(alert.resolvedAt ?? alert.startedAt) - millis(beganAt(alert))) / 1000;
+
+/** Two episodes whose silences began this close are one silence: a second can begin only after the first was raised, ten minutes in. */
+const ONE_SILENCE_MS = 60_000;
+
+/**
+ * Which episode stands for each of these, newest first as listed: a device's offline episodes of one silence by
+ * the newest of them - a restart of the server ends an alert and raises it again a minute later, and Vorbei said
+ * "9× seit 13. Nov 18:35" of one quiet evening -, every other episode by itself.
+ */
+export const silenceLeads = (alerts: readonly Alert[]): Map<string, Alert> => {
+  const offline = alerts.filter(alert => alert.kind === 'offline' && alert.value !== null);
+  return new Map(
+    alerts.map(alert => [
+      alert.id,
+      (alert.kind === 'offline' &&
+        offline.find(one => one.deviceId === alert.deviceId && Math.abs(millis(beganAt(one)) - millis(beganAt(alert))) <= ONE_SILENCE_MS)) ||
+        alert,
+    ]),
+  );
+};
 
 /**
  * What the rule is called, in the words the alarm rules page calls it by. A

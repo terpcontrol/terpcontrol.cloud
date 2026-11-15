@@ -1,6 +1,6 @@
 import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type { Entry, GrowDiaryDay, GrowDiaryWeek, GrowListItem, Person } from '@fg2/shared-types/v1';
@@ -22,7 +22,18 @@ import { useZone } from '@/ui/zone';
 import { PictureShow } from '../pictures/PictureShow';
 import { dayWindow } from '@/screens/timeline/view';
 import { DayCard } from './DayCard';
-import { OPEN_DAYS, hasFilm, hasSomething, picturesOfDay, placeAt, stageOfDays, writtenIn, type DiaryReader, type GrowPicture } from './days';
+import {
+  OPEN_DAYS,
+  filedBySilence,
+  hasFilm,
+  hasSomething,
+  picturesOfDay,
+  placeAt,
+  stageOfDays,
+  writtenIn,
+  type DiaryReader,
+  type GrowPicture,
+} from './days';
 import { FilmCard } from './Film';
 import { dayNamed, useReadBackTo } from './read-back';
 import styles from './Diary.module.css';
@@ -152,10 +163,11 @@ export function Diary({ grow, now, picturesTo }: { grow: GrowListItem; now: Date
  * anything yet sees where the day will be written. A day of the past with
  * nothing to show - no picture, no climate, no line - is left out rather than
  * drawn empty. What was written for a moment before the grow began has no day,
- * and stands after the last of them.
+ * and stands after the last of them; a device's silence stands on the day it
+ * began (`filedBySilence`).
  */
 export function Days({
-  weeks,
+  weeks: read,
   earlier = [],
   people = [],
   reader,
@@ -181,7 +193,8 @@ export function Days({
   more: { load: () => void; pending: boolean } | null;
   onPicture: (picture: GrowPicture) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const weeks = useMemo(() => filedBySilence(i18n, read), [i18n, read]);
   // Today is the date the grow's own calendar is on, which is its owner's and not always the reader's - read off the
   // clock where that calendar is known: a diary read before the grow was reopened ends on the day it ended, and its
   // newest day was "Heute" over yesterday's lines.

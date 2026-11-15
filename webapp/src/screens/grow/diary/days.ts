@@ -142,6 +142,8 @@ export interface DayLine {
         stands: boolean;
         /** Another device's rule of the same name has a line beside it: this one says its device. */
         twin: boolean;
+        /** When the one silence this line stands at the start of ended. */
+        until?: string;
         /** It fired as critical, which a card shows before a warning when it folds. */
         critical: boolean;
       }
@@ -162,12 +164,18 @@ export interface DayLine {
  * how often it fired - a reading hovering at its threshold fires and clears a
  * hundred times a night. So a climate that swung all night is a sentence and
  * not a column. A controller replaced by another is one line at the moment the
- * new one came.
+ * new one came, and a device gone silent one line from when it went quiet.
  */
-export const dayLines = (t: Translate, i18n: I18n, day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>, zone: string | null): DayLine[] => {
+export const dayLines = (
+  t: Translate,
+  i18n: I18n,
+  day: Pick<GrowDiaryDay, 'entries' | 'events' | 'endsAt'>,
+  zone: string | null,
+  silentSince?: SilentSince,
+): DayLine[] => {
   // The folds read the newest of a run first: Verlauf's entries came oldest first, and an alarm that was over read open.
   const entries = [...day.entries].sort((one, other) => other.occurredAt.localeCompare(one.occurredAt));
-  const alarms = alarmLines(i18n, entries);
+  const alarms = alarmLines(i18n, entries, silentSince);
   const written = foldRepeats(entries.filter(entry => !alarms.told.has(entry.id))).map(({ entry, count, since }) => writtenLine(entry, count, since));
   const said = (key: string, at: string, words: string, over: Partial<DayLine> = {}, metric: Metric | null = null, moment = false): DayLine => ({
     key,
@@ -326,51 +334,155 @@ const CLEARED = 'message-alarm-resolved';
  * rule is its device's (`ruleKey`): every device carries "Gerät offline", and a controller and a socket share the
  * stage's rules, so one device's open alarm read "behoben" because another's of the same name was over. Where two
  * devices' lines share a name, each says its device (`twin`). A camera's silence is named as Meldungen names it,
- * "Terp Cam ohne Bild", and a silence counts from when it was last heard, as Meldungen counts it. `told` is every
- * entry these lines stand for.
+ * "Terp Cam ohne Bild", and a silence counts from when it was last heard, as Meldungen counts it - to the second
+ * where `silentSince` knows its alert -, one silence a line of its own (`silenceRuns`). `told` is every entry these
+ * lines stand for.
  */
-const alarmLines = (i18n: I18n, entries: Entry[]): { lines: DayLine[]; told: Set<string> } => {
-  const read = entries.flatMap(entry => {
-    const key = entry.kind === 'alarm' ? entry.message?.key : null;
-    const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
-    if (!parts) return [];
+const alarmLines = (i18n: I18n, entries: Entry[], silentSince?: SilentSince): { lines: DayLine[]; told: Set<string> } => {
+  const read = entries.flatMap((entry): AlarmRead[] => {
+    const alarm = alarmOf(i18n, entry);
+    if (!alarm) return [];
+    const { parts, fired } = alarm;
     const rule = entry.cameraId ? i18n.t('alerts.title.camera', { what: parts.rule }) : parts.rule;
+    const exact = parts.silentFor === undefined ? null : (silentSince?.(entry) ?? null);
     const began =
-      parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!;
-    return [{ entry, parts: { ...parts, rule }, fired: key === FIRED, began, key: ruleKey(entry, rule) }];
+      exact ??
+      (parts.silentFor === undefined ? entry.occurredAt : DateTime.fromISO(entry.occurredAt).minus({ seconds: parts.silentFor }).toUTC().toISO()!);
+    return [{ entry, parts: { ...parts, rule }, fired, began, key: ruleKey(entry, rule), rough: exact ? 0 : (parts.roughBy ?? 0) }];
   });
   // Newest first: a rule whose newest line is its clearing is over, however often it fired before.
-  const folded = foldSame(
-    read,
-    one => one.key,
-    one => one.began,
-  );
-  const lines = folded.map(({ newest }): DayLine => {
-    const fired = read.filter(one => one.key === newest.key && one.fired);
-    const over = !newest.fired;
-    return {
-      key: newest.entry.id,
-      // A silence stands where it began, as Start's banner and Meldungen date it: raised ten minutes later, "09:58
-      // Gerät offline" stood under "offline seit 09:48".
-      at: newest.began,
-      own: false,
-      routine: false,
-      what: {
-        kind: 'alarm',
-        entry: newest.entry,
-        rule: newest.parts.rule,
-        count: Math.max(1, fired.length),
-        since: fired.at(-1)?.began ?? newest.began,
-        limit: over ? null : newest.parts.limit,
-        over,
-        stands: !over,
-        twin: folded.some(({ newest: other }) => other.key !== newest.key && other.parts.rule === newest.parts.rule),
-        critical: fired.some(one => one.entry.severity === 'critical'),
-      },
-    };
-  });
+  const others = read.filter(one => !one.parts.silence);
+  const runs: AlarmRun[] = [
+    ...foldSame(
+      others,
+      one => one.key,
+      one => one.began,
+    ).map(({ newest }) => {
+      const fired = others.filter(one => one.key === newest.key && one.fired);
+      return { newest, at: newest.began, count: Math.max(1, fired.length), since: fired.at(-1)?.began ?? newest.began, fired };
+    }),
+    ...silenceRuns(read),
+  ];
+  const lines = runs.map(({ newest, at, count, since, fired, until, over = !newest.fired }): DayLine => ({
+    key: newest.entry.id,
+    at,
+    own: false,
+    routine: false,
+    what: {
+      kind: 'alarm',
+      entry: newest.entry,
+      rule: newest.parts.rule,
+      count,
+      since,
+      ...(until ? { until } : {}),
+      limit: over ? null : newest.parts.limit,
+      over,
+      stands: !over,
+      twin: runs.some(({ newest: other }) => other.key !== newest.key && other.parts.rule === newest.parts.rule),
+      critical: fired.some(one => one.entry.severity === 'critical'),
+    },
+  }));
 
   return { lines, told: new Set(read.map(one => one.entry.id)) };
+};
+
+/**
+ * When a silence began, where the reader holds it to the second: the alert's own start and seconds, which a line
+ * written before the seconds were (`silent=`) has only rounded down - "10 min" of 10 min 40 s.
+ */
+export type SilentSince = (entry: Entry) => string | null;
+
+/** An alarm's line read into its parts: the rule it is of on its device, and when what it is about began - to within `rough` seconds. */
+interface AlarmRead {
+  entry: Entry;
+  parts: NonNullable<ReturnType<typeof alarmLineParts>>;
+  fired: boolean;
+  began: string;
+  key: string;
+  rough: number;
+}
+
+/** One line of a day's alarms: the newest of what it stands for, where it stands, how often and since when, and until when one silence went on. */
+interface AlarmRun {
+  newest: AlarmRead;
+  at: string;
+  count: number;
+  since: string;
+  fired: AlarmRead[];
+  until?: string;
+  /** Whether it is over, where its newest line does not say so: a silence another one of its rule followed. */
+  over?: boolean;
+}
+
+/** An alarm's line in its parts, and whether it says the alarm fired; null for every other line. */
+const alarmOf = (i18n: I18n, entry: Entry): { parts: AlarmRead['parts']; fired: boolean } | null => {
+  const key = entry.kind === 'alarm' ? entry.message?.key : null;
+  const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
+  return parts ? { parts, fired: key === FIRED } : null;
+};
+
+/** Raises whose starts lie this close are one silence: a second one can only begin after the first was raised, ten minutes in. */
+const ONE_SILENCE_MS = 60_000;
+
+/**
+ * A device's or a camera's silences as lines. A silence is one thing however often the cloud raised it - a restart
+ * of the server closes an alert and raises it again a minute later, and Saturday read "8× seit 18:36" of one quiet
+ * evening - so its raises are one, dated by the earliest start they give, and the line that says it ended (by its
+ * alert) is its end. One still going stands alone at its start: "4× seit 18:35" of a silence since 09:46 lumped in
+ * the one before a restart. One that is over stands at its start, "bis" its end; several of a rule over are one line
+ * as an alarm's are, counted as silences.
+ */
+const silenceRuns = (read: AlarmRead[]): AlarmRun[] => {
+  const silent = read.filter(one => one.parts.silence);
+  // Each silence's raises, earliest start first, and the newest line that says it ended.
+  const episodes: { firings: AlarmRead[]; end: AlarmRead | null }[] = [];
+  const ms = (instant: string) => Date.parse(instant);
+  for (const firing of silent.filter(one => one.fired).sort((one, other) => ms(one.began) - ms(other.began))) {
+    const last = episodes.findLast(one => one.firings[0].key === firing.key);
+    const close = Math.max(ONE_SILENCE_MS, firing.rough * 1000);
+    if (last && ms(firing.began) - ms(last.firings.at(-1)!.began) <= close) last.firings.push(firing);
+    else episodes.push({ firings: [firing], end: null });
+  }
+  const startOf = ({ firings, end }: (typeof episodes)[number]): string => firings[0]?.began ?? end!.began;
+  // An end is its alert's; one that names none ends the last silence of its rule begun before it.
+  for (const end of silent.filter(one => !one.fired).sort((one, other) => ms(one.entry.occurredAt) - ms(other.entry.occurredAt))) {
+    const of =
+      (end.entry.alertId ? episodes.find(({ firings }) => firings.some(one => one.entry.alertId === end.entry.alertId)) : undefined) ??
+      episodes.findLast(one => one.firings[0]?.key === end.key && one.end === null && ms(startOf(one)) < ms(end.entry.occurredAt));
+    if (!of) episodes.push({ firings: [], end });
+    else if (!of.end || ms(end.entry.occurredAt) > ms(of.end.entry.occurredAt)) of.end = end;
+  }
+
+  // A silence followed by another of its rule is over, whether or not its end is among the lines.
+  const lastOf = (one: (typeof episodes)[number]): AlarmRead =>
+    one.end ?? one.firings.reduce((newest, other) => (ms(other.entry.occurredAt) > ms(newest.entry.occurredAt) ? other : newest));
+  const going = episodes.filter(
+    one =>
+      one.end === null &&
+      !episodes.some(other => other !== one && other.firings[0]?.key === one.firings[0].key && ms(startOf(other)) > ms(startOf(one))),
+  );
+  const over = episodes
+    .filter(one => !going.includes(one))
+    .sort((one, other) => ms(lastOf(other).entry.occurredAt) - ms(lastOf(one).entry.occurredAt));
+  const ended = [...new Set(over.map(one => lastOf(one).key))].map((key): AlarmRun => {
+    const same = over.filter(one => lastOf(one).key === key);
+    const [last, first] = [same[0], same[same.length - 1]];
+    const fired = same.flatMap(one => one.firings);
+    // Alone it stands where it began and says when it ended; folded with others it is the rule's run of them.
+    return same.length === 1 && last.firings.length > 0
+      ? {
+          newest: lastOf(last),
+          at: startOf(last),
+          count: 1,
+          since: startOf(last),
+          fired,
+          over: true,
+          ...(last.end ? { until: last.end.entry.occurredAt } : {}),
+        }
+      : { newest: lastOf(last), at: lastOf(last).began, count: same.length, since: startOf(first), fired, over: true };
+  });
+
+  return [...going.map(one => ({ newest: lastOf(one), at: startOf(one), count: 1, since: startOf(one), fired: one.firings, over: false })), ...ended];
 };
 
 /** Which rule an alarm's line is of: its name on its device or its camera, never its name alone. */
@@ -382,15 +494,55 @@ const ruleKey = (entry: Pick<Entry, 'deviceId' | 'cameraId'>, rule: string): str
  */
 export const onTheirDay = (i18n: I18n, entries: Entry[], zone: string | null): Entry[] => {
   const days = new Map<string, string>();
-  return entries.filter(entry => {
-    const key = entry.kind === 'alarm' ? entry.message?.key : null;
-    const parts = key === FIRED || key === CLEARED ? alarmLineParts(i18n, entry.message!.params[0] ?? '', key === FIRED) : null;
+  const kept = entries.filter(entry => {
+    const parts = alarmOf(i18n, entry)?.parts;
     if (!parts) return true;
     const rule = ruleKey(entry, parts.rule);
     const day = DateTime.fromISO(entry.occurredAt, { zone: zone ?? 'UTC' }).toISODate()!;
     if (!days.has(rule)) days.set(rule, day);
     return days.get(rule) === day;
   });
+  // A silence that ended today began on another day: its raise comes along, or its end would stand without its start.
+  const alerts = new Set(kept.flatMap(entry => (entry.kind === 'alarm' && entry.alertId ? [entry.alertId] : [])));
+  return entries.filter(entry => kept.includes(entry) || (entry.alertId !== null && alerts.has(entry.alertId)));
+};
+
+/**
+ * The weeks with a silence's lines filed under the day it began, where that day is among them: a device quiet from
+ * Friday evening was raised again on Saturday, and Saturday's card said "18:35 Gerät offline" of nothing that
+ * happened that day. The line that says the silence ended goes with it, by its alert.
+ */
+export const filedBySilence = (i18n: I18n, weeks: GrowDiaryWeek[]): GrowDiaryWeek[] => {
+  const days = weeks.flatMap(week => week.days);
+  const dayAt = (instant: number) => days.find(day => Date.parse(day.startsAt) <= instant && instant < Date.parse(day.endsAt));
+  const goes = new Map<string, GrowDiaryDay>();
+  const byAlert = new Map<string, GrowDiaryDay>();
+  const silenceOf = (entry: Entry) => {
+    const parts = alarmOf(i18n, entry)?.parts;
+    return parts?.silence ? parts : null;
+  };
+  for (const day of days)
+    for (const entry of day.entries) {
+      const silentFor = silenceOf(entry)?.silentFor;
+      if (silentFor === undefined) continue;
+      const began = dayAt(Date.parse(entry.occurredAt) - silentFor * 1000) ?? day;
+      if (began !== day) goes.set(entry.id, began);
+      if (entry.alertId) byAlert.set(entry.alertId, began);
+    }
+  for (const day of days)
+    for (const entry of day.entries) {
+      const parts = silenceOf(entry);
+      const began = entry.alertId !== null && parts !== null && parts.silentFor === undefined ? byAlert.get(entry.alertId) : undefined;
+      if (began && began !== day) goes.set(entry.id, began);
+    }
+  if (goes.size === 0) return weeks;
+
+  const moved = days.flatMap(day => day.entries.filter(entry => goes.has(entry.id)));
+  const filed = (day: GrowDiaryDay): GrowDiaryDay => ({
+    ...day,
+    entries: [...day.entries.filter(entry => !goes.has(entry.id)), ...moved.filter(entry => goes.get(entry.id) === day)],
+  });
+  return weeks.map(week => ({ ...week, days: week.days.map(filed) }));
 };
 
 /**

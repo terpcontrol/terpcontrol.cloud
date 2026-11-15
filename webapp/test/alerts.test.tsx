@@ -426,6 +426,38 @@ describe('the inbox', () => {
     );
   });
 
+  /**
+   * A restart of the server closes an offline alert and raises it again a minute later: Vorbei read "9× seit 13. Nov
+   * 18:35" of one quiet evening, and folded outages said how often and not how long. One silence is one row, however
+   * often it was raised, and outages folded into one row say how long they came to.
+   */
+  it('tells one silence as one row however often it was raised, and how long the outages of a row came to', async () => {
+    const quiet = (id: string, began: number, raised: number, ended: number) =>
+      alert({
+        id,
+        kind: 'offline',
+        ruleId: null,
+        severity: 'warning',
+        startedAt: iso(NOW.minus({ minutes: raised })),
+        resolvedAt: iso(NOW.minus({ minutes: ended })),
+        value: (began - raised) * 60,
+      });
+    // Quiet from 300 minutes ago to 240 - raised twice -, and again from 180 to 120.
+    server.alerts = [quiet('second', 180, 170, 120), quiet('first-again', 300, 288, 240), quiet('first', 300, 290, 289)];
+    draw();
+
+    await waitFor(() =>
+      expect(overRows()).toEqual([
+        ['Blue Dream tent offline', `${stamp(NOW.minus({ minutes: 120 }))} · 2× since ${clock(NOW.minus({ minutes: 300 }))} · 2 h in all`],
+      ]),
+    );
+    // The row deletes every episode it stands for, and counts them as the row does.
+    const sheet = await openRow(/^Blue Dream tent offline/);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete 2 alerts' }));
+    await waitFor(() => expect(sentTo('DELETE', '/v1/alerts/').map(one => one.path)).toHaveLength(3));
+  });
+
   /** A rule's name is its owner's word for it and stands in the sheet; a row carries it only to be told from another. */
   it('names the rule on a row only where another rule´s row reads the same', async () => {
     const ended = (id: string, over: Partial<Alert>, minutes: number) =>

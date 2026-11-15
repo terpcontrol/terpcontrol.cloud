@@ -82,24 +82,27 @@ export function AlertCard({ heardAt = null, ...props }: AlertProps & { heardAt?:
  * Something that is over: a row that says what it was, where and when it
  * ended, and opens the whole of it - how far it went, which rule, and the two
  * things left to do with it: look at the curves of that hour, or delete it.
- * Episodes of one kind on one day are one row (`fold`, their ids, and
- * `since`), which opens the newest and deletes them all. The row names its
+ * Episodes of one kind on one day are one row (`fold`, their ids, `count` and
+ * `since`; outages with how long they `lasted` together), which opens the newest
+ * and deletes them all. The row names its
  * rule (`ruled`) where another rule's row reads the same, and says
  * where (`elsewhere`) unless that is the reader's only place; `again` is the
  * same thing standing open once more, of which nothing is said to be back in range.
  */
-export function ResolvedRow(props: AlertProps & { fold: string[]; since: string; ruled: boolean; elsewhere: boolean; again: boolean }) {
+export function ResolvedRow(
+  props: AlertProps & { fold: string[]; count: number; lasted: number | null; since: string; ruled: boolean; elsewhere: boolean; again: boolean },
+) {
   const { t } = useTranslation();
-  const { alert, rule, names, me, now, fold, since, ruled, elsewhere } = props;
+  const { alert, rule, names, me, now, count, lasted, since, ruled, elsewhere } = props;
   const [open, setOpen] = useKept(`whole-${alert.id}`, false);
   const zone = zoneOf(me);
   const title = titleOf(t, alert, rule, names, spanOf(t, alert));
-  const count = fold.length;
   const line = [
     ruled ? ruleName(t, alert, rule) : null,
     elsewhere ? alert.spaceName : null,
     dayStamp(alert.resolvedAt ?? alert.startedAt, now, zone),
     count > 1 ? t('home.entryRepeats', { count, since: sinceLabel(since, now, zone) }) : null,
+    lasted ? t('alerts.together', { span: spanLabel(lasted) }) : null,
   ];
 
   return (
@@ -329,7 +332,7 @@ const timelineOf = (spaceId: string, alert: Alert, rule: AlarmRule | null): stri
  * of a device gone quiet; for whoever manages the place the device stands in
  * an hour of silence for the rule - which holds for everybody - and the rule
  * itself. Once
- * it is over it can be deleted, a folded row whole (`fold`) - asked first,
+ * it is over it can be deleted, a folded row whole (`fold`, `count` of it as the row counts) - asked first,
  * because it goes for everyone the place is shared with.
  */
 function Actions({
@@ -341,15 +344,15 @@ function Actions({
   now,
   title,
   fold = [alert.id],
+  count = fold.length,
   onRemoved,
-}: AlertProps & { title: string; fold?: string[]; onRemoved?: () => void }) {
+}: AlertProps & { title: string; fold?: string[]; count?: number; onRemoved?: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
   // The silence is offered only where the alert names a device, so the empty id is never sent.
   const silence = useSilence(rule, alert.deviceId ?? '', now);
   const remove = useRemoveAlerts();
   const [asking, setAsking] = useState(false);
-  const count = fold.length;
   const open = alert.resolvedAt === null;
   const camera = alert.kind === 'camera_stale';
   const ruled = open && mayManage && !camera && rule !== null;

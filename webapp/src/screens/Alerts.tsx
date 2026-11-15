@@ -27,7 +27,7 @@ import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { clock, zoned, zoneOf } from '@/ui/zone';
 import { AlertCard, ResolvedRow } from './alerts/AlertCard';
-import { beganAt, heardOf, openAgain, silentDevices, titleOf, worstFirst } from './alerts/inbox';
+import { beganAt, heardOf, lastedSeconds, openAgain, silenceLeads, silentDevices, titleOf, worstFirst } from './alerts/inbox';
 import { useInboxNames } from './alerts/names';
 import { useWriteNotifications } from './notifications/write';
 import styles from './alerts/Alerts.module.css';
@@ -97,12 +97,25 @@ export function Alerts() {
   // A reading that came and went all morning is one row: one rule's sentence about the same device on the same day.
   const day = (alert: Alert) => zoned(alert.resolvedAt ?? alert.startedAt, zoneOf(me.data)).toISODate();
   const said = new Map(ended.map(alert => [alert.id, titleOf(t, alert, ruleOf(alert), names, null)]));
-  const kinds = new Map(ended.map(alert => [alert.id, [day(alert), alert.spaceId, alert.deviceId, alert.ruleId, said.get(alert.id)].join('|')]));
+  // One silence is one row, however often the cloud raised it: each episode is told by the newest of its silence.
+  const leads = silenceLeads(ended);
+  const lead = (alert: Alert) => leads.get(alert.id) ?? alert;
+  const rowOf = (one: Alert) => [day(one), one.spaceId, one.deviceId, one.ruleId, said.get(one.id)].join('|');
+  const kinds = new Map(ended.map(alert => [alert.id, rowOf(lead(alert))]));
   const kindOf = (alert: Alert) => kinds.get(alert.id)!;
   // What is over is paged by when it ended, so the oldest row read may stand in a day that goes on behind it. A
   // row of that day is not whole yet: it is held back, and read on, rather than counted or deleted by a part.
   const cutDay = resolved.hasNextPage && ended.length > 0 ? day(ended[ended.length - 1]) : null;
-  const folds = foldSame(ended, kindOf, beganAt);
+  const folds = foldSame(
+    ended.filter(alert => lead(alert) === alert),
+    kindOf,
+    beganAt,
+  );
+  // Outages folded into one row say how long they came to: "3× seit 17:51" left a reader guessing whether minutes or days.
+  const lasted = (newest: Alert) =>
+    newest.kind === 'offline'
+      ? ended.filter(alert => lead(alert) === alert && kindOf(alert) === kindOf(newest)).reduce((sum, alert) => sum + lastedSeconds(alert), 0)
+      : null;
   // Rows of two rules that read the same are told apart by the rules' names, which a row otherwise leaves to its sheet.
   const sharesWords = (row: Alert) => folds.some(({ newest }) => newest.ruleId !== row.ruleId && said.get(newest.id) === said.get(row.id));
   const over = folds.slice(0, shown).filter(row => day(row.newest) !== cutDay);
@@ -210,11 +223,13 @@ export function Alerts() {
             {t('alerts.over')}
           </h2>
           <Rows>
-            {over.map(({ newest, since }) => (
+            {over.map(({ newest, since, count }) => (
               <ResolvedRow
                 key={newest.id}
                 {...card(newest)}
                 fold={ended.filter(alert => kindOf(alert) === kindOf(newest)).map(alert => alert.id)}
+                count={count}
+                lasted={count > 1 ? lasted(newest) : null}
                 since={since}
                 ruled={sharesWords(newest)}
                 elsewhere={inUse?.length !== 1 || !placeOf(newest)}
