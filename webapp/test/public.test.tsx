@@ -152,6 +152,7 @@ const sharedTimeline = {
   events: [],
   stretches: [],
   deviceChanges: [],
+  devices: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],
@@ -647,6 +648,40 @@ describe('a tent behind a link', () => {
     const [from, to] = askedWindow().map(one => new Date(one!).getTime());
     expect(from).toBeGreaterThanOrEqual(new Date(range.startsAt).getTime());
     expect(to).toBeLessThanOrEqual(new Date(range.endsAt).getTime());
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * "Licht 80 % · Licht 2 80 %" on a link onto a place whose controller lit at 80 % and its lamp module at 100 %: a
+   * link is told neither lamp's device, and both strips, keyed alike, read the reading's level.
+   */
+  it('reads each lamp of the place at its own level on a link, numbered, the reading onto its own lamp', async () => {
+    const light = (level: number) => ({
+      output: 'light',
+      deviceId: null,
+      spans: [{ startsAt: sharedTimeline.startsAt, endsAt: sharedTimeline.endsAt }],
+      heardUntil: sharedTimeline.endsAt,
+      points: [12, 6, 0].map(hours => ({ measuredAt: NOW.minus({ hours }).toISO()!, heard: 12, on: 12, level })),
+    });
+    const measuredAt = NOW.minus({ seconds: 20 }).toISO()!;
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+      if (new URL(String(input), 'http://localhost').pathname.endsWith('/timeline'))
+        return json({
+          ...sharedTimeline,
+          outputs: [light(100), { ...light(80), reading: true }],
+          reading: {
+            measuredAt,
+            values: [{ metric: 'temperature', value: 24.5, measuredAt, state: 'live' }],
+            outputs: [{ output: 'light', on: true, level: 80 }],
+          },
+        });
+      return fetchStub(input);
+    });
+    drawAt(<SharedSpace space={sharedSpace(measuredAt)} token="a-token" picture={publicPicture('spring-run')} now={NOW} />);
+
+    const card = await screen.findByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(card).toHaveTextContent('Light 1 100 %'));
+    expect(card).toHaveTextContent('Light 2 80 %');
     vi.unstubAllGlobals();
   });
 

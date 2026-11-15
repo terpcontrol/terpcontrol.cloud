@@ -4920,6 +4920,7 @@ export declare const timelineOutputLane: z.ZodObject<{
     }, z.core.$strip>>;
     heardUntil: z.ZodISODateTime;
     fridge: z.ZodOptional<z.ZodLiteral<true>>;
+    reading: z.ZodOptional<z.ZodLiteral<true>>;
     points: z.ZodOptional<z.ZodArray<z.ZodObject<{
         measuredAt: z.ZodISODateTime;
         heard: z.ZodNumber;
@@ -5182,6 +5183,7 @@ export declare const spaceTimeline: z.ZodObject<{
         }, z.core.$strip>>;
         heardUntil: z.ZodISODateTime;
         fridge: z.ZodOptional<z.ZodLiteral<true>>;
+        reading: z.ZodOptional<z.ZodLiteral<true>>;
         points: z.ZodOptional<z.ZodArray<z.ZodObject<{
             measuredAt: z.ZodISODateTime;
             heard: z.ZodNumber;
@@ -5369,6 +5371,11 @@ export declare const spaceTimeline: z.ZodObject<{
         shown: z.ZodNumber;
         total: z.ZodNumber;
     }, z.core.$strip>;
+    devices: z.ZodArray<z.ZodObject<{
+        deviceId: z.ZodString;
+        name: z.ZodNullable<z.ZodString>;
+        type: z.ZodString;
+    }, z.core.$strip>>;
     grows: z.ZodArray<z.ZodObject<{
         growId: z.ZodString;
         name: z.ZodString;

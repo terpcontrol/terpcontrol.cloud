@@ -135,6 +135,7 @@ const answer = (over: Partial<SpaceTimeline> = {}): SpaceTimeline => ({
   stretches: [],
   deviceChanges: [],
   arrivals: [],
+  devices: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],
@@ -542,10 +543,8 @@ describe('the strips', () => {
       points: counted(until, hour => (hour > 7 ? [12, 12, level] : [12, 0, 0])),
     });
     const lamps = answer({ outputs: [light('device-1', 10, 80), light('lamp-1', 24, 100)] });
-    const named = new Map([
-      ['device-1', 'Light · Controller'],
-      ['lamp-1', 'Lamp module'],
-    ]);
+    const names: Record<string, string> = { 'device-1': 'Light · Controller', 'lamp-1': 'Lamp module' };
+    const named = (id: string, among: readonly string[]) => (among.length === 2 ? names[id] : null);
     const lit = (strips: Strip[]) => strips.filter(strip => strip.output === 'light').map(strip => [strip.name, strip.said?.[0]]);
 
     // The reading is the controller's, silent since 00:30; the lamp module is heard to the window's end.
@@ -553,9 +552,47 @@ describe('the strips', () => {
       ['Light · Controller', '21:30 to last reading 00:30'],
       ['Lamp module', 'on since 21:30'],
     ]);
-    // A link is not told the hardware: its lamps are numbered.
-    const unnamed = answer({ outputs: [light(null, 10, 80), light(null, 24, 100)] });
-    expect(lit(stripsOf(t, unnamed, { zone: 'UTC', live: true, quietAt: null })).map(([name]) => name)).toEqual(['Light', 'Light 2']);
+    // A link is not told the hardware: its lamps are numbered, and told apart by their place among the lanes - both
+    // keyed "light" read the first lamp's level twice -, the reading's lamp by the lane that says it is.
+    const unnamed = answer({ outputs: [light(null, 24, 100), { ...light(null, 10, 80), reading: true }] });
+    const numbered = stripsOf(t, unnamed, { zone: 'UTC', live: true, quietAt: null }).filter(strip => strip.output === 'light');
+    expect(numbered.map(strip => [strip.name, strip.reads])).toEqual([
+      ['Light 1', false],
+      ['Light 2', true],
+    ]);
+    expect(new Set(numbered.map(strip => strip.key)).size).toBe(2);
+  });
+
+  /** A controller swapped in a place drew "Light · Controller B" and "Light · Controller A", and the card a dash for A. */
+  it('draws a lamp that took over from another as the place`s one lamp, before and after', () => {
+    const light = (deviceId: string, from: number, to: number) => ({
+      output: 'light' as const,
+      deviceId,
+      spans: [{ startsAt: at(from), endsAt: at(to) }],
+      heardUntil: at(to),
+      points: counted(24, () => [12, 12, 70]).filter(
+        point => Date.parse(point.measuredAt) > FROM + from * HOUR && Date.parse(point.measuredAt) <= FROM + to * HOUR,
+      ),
+    });
+    const swapped = answer({ deviceId: 'controller-b', outputs: [light('controller-a', 0, 12), light('controller-b', 12, 24)] });
+    const [one, ...more] = stripsOf(t, swapped).filter(strip => strip.output === 'light');
+    expect(more).toEqual([]);
+    expect([one.name, one.reads, figureAt(one, FROM + 6.5 * HOUR, HOUR), figureAt(one, FROM + 18.5 * HOUR, HOUR)]).toEqual([
+      'Light',
+      true,
+      { share: 1, level: 70 },
+      { share: 1, level: 70 },
+    ]);
+    // Beside a lamp module that lit the place all along, the two controllers are still one lamp, and the module another.
+    const beside = answer({
+      deviceId: 'controller-b',
+      outputs: [light('controller-a', 0, 12), light('lamp-1', 0, 24), light('controller-b', 12, 24)],
+    });
+    expect(
+      stripsOf(t, beside)
+        .filter(strip => strip.output === 'light')
+        .map(strip => strip.deviceId),
+    ).toEqual(['controller-b', 'lamp-1']);
   });
 
   it('reads an output over the point the cursor falls into: its mean level, the share it ran, nothing where nobody heard', () => {

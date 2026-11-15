@@ -1281,6 +1281,18 @@ const deviceArrival = named(
   }),
 );
 
+const timelineDevice = named(
+  'TimelineDevice',
+  z.object({
+    deviceId: id(),
+    name: z
+      .string()
+      .nullable()
+      .describe('What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.'),
+    type: z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
+  }),
+);
+
 /**
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
@@ -1825,6 +1837,12 @@ export const timelineOutputLane = named(
       .describe(
         'Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.',
       ),
+    reading: z
+      .literal(true)
+      .optional()
+      .describe(
+        "Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device.",
+      ),
     points: z
       .array(timelineOutputPoint)
       .optional()
@@ -1977,6 +1995,11 @@ export const spaceTimeline = named(
         'The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.',
       ),
     machineEvents: timelineMachineEvents,
+    devices: z
+      .array(timelineDevice)
+      .describe(
+        'Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read.',
+      ),
     grows: z
       .array(timelineGrow)
       .describe(

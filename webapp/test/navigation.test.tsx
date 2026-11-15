@@ -144,6 +144,7 @@ const timeline = (spaceId: string, name: string): SpaceTimeline => ({
   stretches: [],
   deviceChanges: [],
   arrivals: [],
+  devices: [],
   machineEvents: { shown: 0, total: 0 },
   grows: [],
   readingNames: [],

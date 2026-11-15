@@ -970,6 +970,14 @@ const deviceArrival = (0, common_js_1.named)('DeviceArrival', zod_1.z.object({
         .nullable()
         .describe('The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place.'),
 }));
+const timelineDevice = (0, common_js_1.named)('TimelineDevice', zod_1.z.object({
+    deviceId: (0, common_js_1.id)(),
+    name: zod_1.z
+        .string()
+        .nullable()
+        .describe('What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.'),
+    type: zod_1.z.string().describe('Its type, as `Device.type`, which is what an unnamed device is called by.'),
+}));
 /**
  * Something that happened and is nobody's diary line: the lamp switching, a
  * stretch the climate spent outside what the devices were aiming at and a
@@ -1385,6 +1393,10 @@ exports.timelineOutputLane = (0, common_js_1.named)('TimelineOutputLane', zod_1.
         .literal(true)
         .optional()
         .describe('Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.'),
+    reading: zod_1.z
+        .literal(true)
+        .optional()
+        .describe("Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device."),
     points: zod_1.z
         .array(exports.timelineOutputPoint)
         .optional()
@@ -1497,6 +1509,9 @@ exports.spaceTimeline = (0, common_js_1.named)('SpaceTimeline', zod_1.z.object({
         .array(deviceArrival)
         .describe('The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.'),
     machineEvents: exports.timelineMachineEvents,
+    devices: zod_1.z
+        .array(timelineDevice)
+        .describe('Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read.'),
     grows: zod_1.z
         .array(exports.timelineGrow)
         .describe('Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.'),

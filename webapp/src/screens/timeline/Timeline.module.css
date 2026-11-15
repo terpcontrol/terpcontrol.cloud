@@ -634,6 +634,13 @@
   order: 2;
 }
 
+/* A link inside a sentence keeps its target without the line's room: a note of one line stays one line high. */
+.inSentence {
+  min-height: 0;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
+}
+
 .hint {
   display: none;
   margin: 0;

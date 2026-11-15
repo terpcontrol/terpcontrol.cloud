@@ -241,6 +241,7 @@ export class TimelineService {
         aimed,
         cameras,
         frames,
+        reading: drawn?.id ?? null,
       }),
       // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
       deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
@@ -258,6 +259,10 @@ export class TimelineService {
       deviceChanges: isOutsider(grant) ? [] : changesOf(present, steering?.id ?? null, before),
       arrivals: isOutsider(grant) ? [] : await this.arrivalsOf(caller, spaceId, devices, window, heard),
       machineEvents: recorded.machine,
+      // What each device is called, for one that has left since; a name given by somebody who holds it now is theirs.
+      devices: isOutsider(grant)
+        ? []
+        : devices.map(device => ({ deviceId: device.id, name: device.ownerId === space.ownerId ? (device.name ?? null) : null, type: device.type })),
       // A reader who is shown one grow's week is not shown what else has stood
       // in the room, so the chips they have not got are answered as none.
       grows: grant.redacted ? [] : stood.map(one => growOf(one)),

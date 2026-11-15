@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react';
 import { hashKey, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import type {
@@ -31,12 +31,12 @@ import { useLog } from '@/log/log-context';
 import { targetsOf } from '@/log/targets';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
-import { ageLabel, instantOf, valueAge } from '@/ui/age';
+import { ageLabel, instantOf, sinceLabel, valueAge } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
 import { saveFile } from '@/ui/download';
 import { DAY_MS, startOfDayOn } from '@/ui/days';
 import { decimalMark } from '@/ui/figures';
-import { deviceTitle } from '@/ui/naming';
+import { type Called, deviceTitle } from '@/ui/naming';
 import { RefreshFailed, Waiting } from '@/ui/PageState';
 import { standsIn, useMayLogIn, useMayManage, useVisiting } from '@/ui/session-access';
 import { Sheet } from '@/ui/Sheet';
@@ -45,7 +45,7 @@ import { readStoredJson, writeStored } from '@/ui/stored';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useWideWindow } from '@/ui/wide-window';
-import { DATED_CLOCK, useZone, zonedAt } from '@/ui/zone';
+import { nowThere, useZone, zonedAt } from '@/ui/zone';
 import { Adjust, type Comparable } from './Adjust';
 import { CursorCard } from './CursorCard';
 import { DiaryCard } from './DiaryCard';
@@ -106,8 +106,8 @@ const LIVE_BEAT_MS = 30_000;
 interface Own {
   measured: { definition: MeasurementDefinition; points: GrowSeriesPoint[] }[];
   devices: { id: string; name: string }[];
-  /** What each lamp the window's lanes are of is called, where the place has more than one. */
-  lamps: ReadonlyMap<string, string>;
+  /** What a lamp is called among the others, where the place has more than one: by its device, one that has left too. */
+  lamps: (deviceId: string, among: readonly string[]) => string | null;
   comparable: Comparable[];
   /** Whether what can be laid over is read: only then is one the address names known to be gone. */
   known: boolean;
@@ -155,6 +155,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const { user } = useSession();
   const devices = useDevices();
   const zone = useZone();
+  const now = useNow();
   // What the address names is looked up in what the account already holds before the place is asked: a device it
   // has not got or that stands elsewhere, a grow in no place or in another, are told from here, and the server is
   // not asked a question it can only refuse. A device's curves are drawn under the place it stands in, never one it left.
@@ -197,12 +198,28 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
   const here = targetsOf(home.data, useGrows().data?.items).filter(one => one.standsIn === spaceId || one.spaceId === spaceId);
   const target = here.find(one => one.growId === growId) ?? here[0] ?? null;
   const spaceRow = spaces.data?.items.find(space => space.id === spaceId) ?? null;
-  const lit = (data?.outputs ?? []).flatMap(lane => (lane.output === 'light' && lane.deviceId ? [lane.deviceId] : [])).join(' ');
-  const lamps = useMemo(() => {
-    const ids = lit.split(' ');
-    const among = (devices.data?.items ?? []).filter(device => ids.includes(device.id));
-    return new Map(among.map(device => [device.id, lampName(t, device, among)]));
-  }, [lit, devices.data, t]);
+  // A device the account holds is called as everywhere; one that has left it, by what the answer says it was called.
+  const called = useMemo(
+    () =>
+      new Map<string, Called>([
+        ...(data?.devices ?? []).map(one => [one.deviceId, { id: one.deviceId, name: one.name, type: one.type }] as const),
+        ...(devices.data?.items ?? []).map(one => [one.id, one] as const),
+      ]),
+    [data?.devices, devices.data],
+  );
+  const lamps = useCallback(
+    (id: string, among: readonly string[]) => {
+      const device = called.get(id);
+      return device
+        ? lampName(
+            t,
+            device,
+            among.flatMap(one => called.get(one) ?? []),
+          )
+        : null;
+    },
+    [called, t],
+  );
 
   const own: Own = {
     measured: charted.flatMap(definition => {
@@ -254,14 +271,16 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
       mayLog && target && !ended && time >= Date.parse(spaceRow?.createdAt ?? '') ? () => openDetails('note', target, null, new Date(time)) : null,
     arrived: (data?.arrivals ?? []).map(arrival => {
       const device = devices.data?.items.find(one => one.id === arrival.deviceId);
+      // Today's by its time alone, as every other line of today.
       const said = {
         device: device ? deviceTitle(device, t, devices.data?.items ?? []) : (arrival.name ?? t(`devices.type.${arrival.type}`)),
-        date: zonedAt(Date.parse(arrival.at), zone).toFormat(DATED_CLOCK),
+        date: sinceLabel(arrival.at, now, zone),
+        context: zonedAt(Date.parse(arrival.at), zone).hasSame(nowThere(now, zone), 'day') ? 'today' : undefined,
       };
       return arrival.from ? (
         <>
           {t('timeline.arrived', said)}{' '}
-          <Link to={timelinePath(arrival.from.spaceId, null, arrival.at)} className={styles.more}>
+          <Link to={timelinePath(arrival.from.spaceId, null, arrival.at)} className={`${styles.more} ${styles.inSentence}`}>
             {t('timeline.arrivedFrom', { place: arrival.from.name })}
             {'\u00a0›'}
           </Link>
@@ -688,14 +707,14 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   // Two figures in one unit - the air's and the leaf's degrees - are told apart by name.
   const shared = new Set(curves.map(curve => curve.unit).filter((unit, index, all) => unit !== '' && all.indexOf(unit) !== index));
   const ticked = strips.filter(strip => (strip.output === 'light' ? shown.light : shown.outputs));
-  // The reading is one device's - of a link's lamps the first -: another lamp of the place is read off its own strip.
-  const ofReading = (strip: Strip) =>
-    strip.deviceId !== null ? strip.deviceId === data.deviceId : strips.find(other => other.output === strip.output) === strip;
+  // The reading is one device's: another lamp of the place is read off its own strip.
   const said = new Map(
-    ticked.filter(ofReading).map(strip => {
-      const one = reading?.outputs.find(output => output.output === strip.output);
-      return [strip.key, one ? { share: one.on ? 1 : 0, level: one.level } : null] as const;
-    }),
+    ticked
+      .filter(strip => strip.reads)
+      .map(strip => {
+        const one = reading?.outputs.find(output => output.output === strip.output);
+        return [strip.key, one ? { share: one.on ? 1 : 0, level: one.level } : null] as const;
+      }),
   );
   const timed = (time: number) => cursorStamp(time, window, 60, zone);
   // One point under a cursor, for the card and every head (`readAt`): a value from an older instant says when, and
@@ -708,8 +727,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
       const figure = one.value === null ? '—' : `${one.curve.written(one.value)}\u00a0${one.curve.unit}`.trim();
       return { ...one, written: one.saidAt === null ? figure : `${figure} · ${timed(one.saidAt)}` };
     });
+    // The silence is the reading's device's: another lamp of the place, heard through it, is read off its own strip.
     const figures = ticked.map(strip =>
-      onReading && said.has(strip.key) ? (said.get(strip.key) ?? null) : quiet ? null : figureAt(strip, stood ?? time, stepMs),
+      onReading && said.has(strip.key) ? (said.get(strip.key) ?? null) : quiet && strip.reads ? null : figureAt(strip, stood ?? time, stepMs),
     );
     return {
       quiet,
@@ -722,7 +742,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
         ? read.map(one => `${one.curve.name} ${one.written}`)
         : read.map(one => one.written),
       outputs: ticked.map((strip, index) => outputWords(t, strip, figures[index])),
-      silent: !onReading && read.every(one => one.value === null) && figures.every(figure => figure === null),
+      // Silent where the reading's device is; a lamp of the place heard meanwhile is said beside the silence.
+      silent: !onReading && read.every(one => one.value === null) && ticked.every((strip, index) => !strip.reads || figures[index] === null),
+      heard: ticked.flatMap((strip, index) => (!strip.reads && figures[index] !== null ? [outputWords(t, strip, figures[index])] : [])),
     };
   };
   const under = cardAt(cursor);
@@ -734,7 +756,9 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   const [since, until] = (under.quiet ?? []).map(time => time && cursorStamp(time, window, data.stepSeconds, zone));
   const quiet = since || until ? [t(`timeline.silence.${since ? (until ? 'between' : 'since') : 'until'}`, { from: since, to: until })] : [];
   const two = calm.outputs.length > 0;
-  const rows = under.silent ? { readings: [t('timeline.silence.none'), ...(two ? [] : quiet)], outputs: two ? quiet : [] } : under;
+  const rows = under.silent
+    ? { readings: [t('timeline.silence.none'), ...(two ? [] : quiet)], outputs: two ? [...quiet, ...under.heard] : [] }
+    : under;
   // The reading is said as what it is, with its own time; so is whatever else a live window rests on. A point of a
   // wider step is the mean of its window, and says over which - without the word where it holds one sample.
   const stamp = onReading
@@ -975,7 +999,8 @@ function Nothing({
         {last !== null
           ? t('timeline.quietWindow', { age: ageLabel(last, now) })
           : (data.deviceIds ?? []).length > 0
-            ? t('timeline.waiting')
+            ? // A device that came from another place has reported there: it waits for its first value here.
+              t(data.arrivals.length > 0 ? 'timeline.waitingHere' : 'timeline.waiting')
             : // An ended place has no device left; whether one stood here at another time this window cannot say.
               t(ended ? 'timeline.noDeviceThen' : 'timeline.noDevice')}
       </p>

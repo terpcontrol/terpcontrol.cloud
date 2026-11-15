@@ -113,11 +113,13 @@ export type StripPoint = readonly [end: number, heard: number, on: number, level
  * said about it is counted from `points`, the samples of each drawn window.
  */
 export interface Strip {
-  /** Which strip it is among them: its output, and a lamp's device. */
+  /** Which strip it is among them: its output, and a lamp's place among the lamps - a link is not told their devices. */
   key: string;
   output: OutputMetric;
-  /** The lamp's device, where a place has several lamps; null for every other strip, and on a read not told the hardware. */
+  /** The lamp's device - the last to light it, where one took over from another -, where a place has several lamps; null for every other strip, and on a read not told the hardware. */
   deviceId: string | null;
+  /** Whether the device the reading is of drives it, so that what the reading says is read onto this strip. */
+  reads: boolean;
   name: string;
   points: StripPoint[];
   /** The stretches it ran for, by the second where the read knew it. */
@@ -141,40 +143,65 @@ type Said = { zone: string | null; live: boolean; quietAt: number | null };
 
 /**
  * The strips of the window's outputs. Two devices that drive the same output are counted together - but two lamps
- * are two strips: each is switched on its own (app-ux.md), and one strip of both said "07:09 bis letzter Wert 09:46"
- * of a lamp module burning on beside a silent controller. Each is named by `lamps` (its device's id to its name),
- * and its words end at its own last value: the reading's for the device the reading is of, else where its lane was
- * last heard.
+ * that lit the place at the same time are two strips: each is switched on its own (app-ux.md), and one strip of both
+ * said "07:09 bis letzter Wert 09:46" of a lamp module burning on beside a silent controller. A lamp that took over
+ * from another - a controller swapped - is the place's lamp before and after, on one strip (`lampsApart`). Each is
+ * named by `lamps` (what its device is called, among the devices named), or numbered where the read does not name the
+ * hardware - a link's -, and keyed by its place among them; its words end at its own last value: the reading's for the
+ * lamp the reading is of, else where its lane was last heard.
  */
 export const stripsOf = (
   t: Translate,
   data: SpaceTimeline,
   said: Said = { zone: null, live: false, quietAt: null },
-  lamps: ReadonlyMap<string, string> = new Map(),
+  lamps: (deviceId: string, among: readonly string[]) => string | null = () => null,
 ): Strip[] =>
   ORDER.flatMap(output => {
     const lanes = data.outputs.filter(lane => lane.output === output);
-    const apart = output === 'light' && lanes.length > 1;
-    return (apart ? lanes.map(lane => [lane]) : lanes.length > 0 ? [lanes] : []).map((group, index) => {
-      const own = apart ? group[0].deviceId : null;
-      const heardUntil = at(group[0].heardUntil);
-      const reading = own !== null ? own === data.deviceId : index === 0;
-      const quietAt = !apart || reading ? said.quietAt : said.live && heardUntil < at(data.endsAt) ? heardUntil : null;
+    const stepMs = Math.max(data.stepSeconds, 1) * 1000;
+    const groups = output === 'light' ? lampsApart(lanes, at(data.startsAt), stepMs) : lanes.length > 0 ? [lanes] : [];
+    const apart = groups.length > 1;
+    const owners = apart ? groups.map(group => group[group.length - 1].deviceId) : [];
+    const among = owners.flatMap(one => one ?? []);
+    return groups.map((group, index) => {
+      const own = apart ? owners[index] : null;
+      const reads = group.some(lane => lane.reading === true || (lane.deviceId !== null && lane.deviceId === data.deviceId));
+      const heardUntil = Math.max(...group.map(lane => at(lane.heardUntil)));
+      const quietAt = !apart || reads ? said.quietAt : said.live && heardUntil < at(data.endsAt) ? heardUntil : null;
       const word = outputTitle(t, output, group);
-      const name = !apart ? word : ((own && lamps.get(own)) ?? (index === 0 ? word : `${word} ${index + 1}`));
-      return stripOf(t, data, output, group, own, name, { ...said, quietAt });
+      const name = !apart ? word : ((own && lamps(own, among)) ?? `${word} ${index + 1}`);
+      return stripOf(t, data, group, { key: apart ? `${output}#${index}` : output, output, deviceId: own, reads, name }, { ...said, quietAt });
     });
   });
+
+/**
+ * The lamps of a place, each its own where two lit it at the same time; a lamp heard only once another had fallen
+ * silent goes with the one it followed. A lane runs from its first point's stretch to the last it was heard, and two
+ * that share no more than a drawn point did not light the place together.
+ */
+const lampsApart = (lanes: readonly TimelineOutputLane[], from: number, stepMs: number): TimelineOutputLane[][] => {
+  const spans = lanes.map(lane => {
+    const first = lane.points?.[0]?.measuredAt ?? lane.spans[0]?.startsAt;
+    return { lane, from: first ? at(first) - stepMs : from, to: at(lane.heardUntil) };
+  });
+  const chains: (typeof spans)[] = [];
+  for (const one of [...spans].sort((a, b) => a.from - b.from)) {
+    const after = chains.find(chain => chain[chain.length - 1].to <= one.from + stepMs);
+    if (after) after.push(one);
+    else chains.push([one]);
+  }
+  const first = (chain: typeof spans) => Math.min(...chain.map(one => lanes.indexOf(one.lane)));
+  return chains.sort((a, b) => first(a) - first(b)).map(chain => chain.map(one => one.lane));
+};
 
 const stripOf = (
   t: Translate,
   data: SpaceTimeline,
-  output: OutputMetric,
   lanes: readonly TimelineOutputLane[],
-  deviceId: string | null,
-  name: string,
+  which: Pick<Strip, 'key' | 'output' | 'deviceId' | 'reads' | 'name'>,
   said: Said,
 ): Strip => {
+  const { output } = which;
   // Two devices that drive the same output are counted together: the samples of both, and the mean of them all.
   const points = new Map<number, [heard: number, on: number, level: number | null, resumed: boolean]>();
   for (const { measuredAt, heard, on, level, resumed } of lanes.flatMap(lane => lane.points ?? [])) {
@@ -184,10 +211,7 @@ const stripOf = (
   }
 
   const strip = {
-    key: deviceId === null ? output : `${output}:${deviceId}`,
-    output,
-    deviceId,
-    name,
+    ...which,
     points: [...points].sort(([one], [other]) => one - other).map(([end, said]) => [end, ...said] as const),
     // The spans say only when, for the lamp's stretches by the clock and a silence's ends: no figure is taken from a run.
     runs: lanes.flatMap(lane => lane.spans.map(span => ({ from: at(span.startsAt), to: at(span.endsAt) }))),

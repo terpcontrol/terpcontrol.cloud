@@ -116,6 +116,7 @@ const answerTo = (query: URLSearchParams, over: Partial<SpaceTimeline> = {}): Sp
     stretches: [],
     deviceChanges: [],
     arrivals: [],
+    devices: [],
     machineEvents: { shown: 1, total: 1 },
     grows: [{ growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null }],
     readingNames: [],
@@ -954,6 +955,56 @@ describe('what the place reads now', () => {
     const strips = screen.getAllByRole('listitem').filter(item => item.hasAttribute('data-output') && item.getAttribute('data-output') === 'light');
     expect(strips.map(strip => strip.textContent)).toEqual([expect.stringMatching(/^Light · /), expect.stringMatching(/Grow light/)]);
   });
+
+  /** "no reading · since 09:46" under a cursor where the lamp module's strip right below was lit at 100 %. */
+  it('reads a lamp module heard through the controller`s silence on the card, beside the silence', async () => {
+    server.lamp = true;
+    server.reading = read(8 * 60, [value('temperature', 26.7, 8 * 60)], [{ output: 'light', on: true, level: 40 }]);
+    const whole = answerTo(new URLSearchParams({ range: '24h' }), {});
+    const heard = (point: { measuredAt: string }) => Date.parse(point.measuredAt) <= NOW - 8 * HOUR;
+    const lamp = {
+      output: 'light' as const,
+      deviceId: 'lamp-1',
+      spans: [{ startsAt: ago(24), endsAt: ago(0) }],
+      heardUntil: ago(0),
+      points: Array.from({ length: 24 }, (_, index) => ({ measuredAt: ago(23 - index), heard: 12, on: 12, level: 100 })),
+    };
+    server.over = {
+      panels: whole.panels.map(one => ({ ...one, points: one.points.filter(heard) })),
+      outputs: [...whole.outputs.map(one => ({ ...one, heardUntil: ago(8), points: one.points!.filter(heard) })), lamp],
+      silences: [{ startsAt: ago(8), endsAt: ago(0) }],
+    };
+    draw(`/timeline?at=${ago(3)}`);
+    await settled();
+
+    const card = screen.getByRole('region', { name: 'Cursor' });
+    await waitFor(() => expect(within(card).getByText('no reading')).toBeInTheDocument());
+    expect(card).toHaveTextContent(/(Light · )?Grow light 100 %/);
+    expect(card).not.toHaveTextContent(/Light · [^·]+ 40 %/);
+  });
+
+  /** A lamp module given up since was "Light 2" on its strip, the card and the CSV: the account holds it no longer. */
+  it('names a lamp that has left the account by what the answer says it was called', async () => {
+    const lamp = {
+      output: 'light' as const,
+      deviceId: 'lamp-gone',
+      spans: [{ startsAt: ago(24), endsAt: ago(6) }],
+      heardUntil: ago(6),
+      points: Array.from({ length: 18 }, (_, index) => ({ measuredAt: ago(23 - index), heard: 12, on: 12, level: 100 })),
+    };
+    server.over = {
+      outputs: [...answerTo(new URLSearchParams({ range: '24h' }), {}).outputs, lamp],
+      devices: [
+        { deviceId: 'device-1', name: null, type: 'fridge' },
+        { deviceId: 'lamp-gone', name: 'Old lamp', type: 'light' },
+      ],
+    };
+    draw();
+    await settled();
+
+    const strips = screen.getAllByRole('listitem').filter(item => item.getAttribute('data-output') === 'light');
+    expect(strips.map(strip => strip.textContent)).toEqual([expect.stringMatching(/^Light · /), expect.stringMatching(/Old lamp/)]);
+  });
 });
 
 describe('the cursor', () => {
@@ -1641,7 +1692,8 @@ describe('the diary of the window', () => {
 
 describe('Verlauf with nothing to draw', () => {
   it('says when a device came here and where its earlier readings are, and points to no last reading of there', async () => {
-    const came = NOW - 20 * HOUR;
+    // Never today: a day ago and more.
+    const came = NOW - 30 * HOUR;
     server.over = {
       panels: [],
       outputs: [],
@@ -1658,6 +1710,23 @@ describe('Verlauf with nothing to draw', () => {
     );
     expect(earlier.getAttribute('href')).toContain('space=space-old');
     expect(screen.queryByRole('button', { name: /Go to the last reading/ })).not.toBeInTheDocument();
+    // It has reported where it stood before: it waits for its first value here, not for its first value at all.
+    expect(screen.getByText(/^No reading has come here since the move/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Waiting for first values/)).not.toBeInTheDocument();
+    // The link is a target of its own and leaves the note one line high (jsdom lays nothing out: the rule is read).
+    expect(earlier.className).toMatch(/inSentence/);
+  });
+
+  /** "15. Nov 15:17" on the day itself, where every other line of today gives the time alone. */
+  it('says a device that came today by the time alone', async () => {
+    server.over = { arrivals: [{ deviceId: 'device-1', name: 'Box', type: 'fridge', at: iso(NOW), from: null }] };
+    draw();
+
+    expect(
+      await screen.findByText(
+        `Fridge module came here at ${zonedAt(NOW, 'UTC').toFormat('HH:mm')} · earlier readings are with the place it stood in before.`,
+      ),
+    ).toBeInTheDocument();
   });
 
   it('says where a device came from without a way there, for a reader who may not read that place', async () => {

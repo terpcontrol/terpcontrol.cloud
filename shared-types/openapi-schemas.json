@@ -11887,6 +11887,31 @@
       "from"
     ]
   },
+  "TimelineDevice": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "description": "What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": {
+        "type": "string",
+        "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+      }
+    },
+    "required": [
+      "deviceId",
+      "name",
+      "type"
+    ]
+  },
   "GrowDayEvent": {
     "oneOf": [
       {
@@ -13523,6 +13548,11 @@
         "type": "boolean",
         "const": true
       },
+      "reading": {
+        "description": "Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device.",
+        "type": "boolean",
+        "const": true
+      },
       "points": {
         "description": "The output point by drawn point, in order; absent where the read did not count its samples.",
         "type": "array",
@@ -13902,6 +13932,13 @@
       "machineEvents": {
         "$ref": "#/components/schemas/TimelineMachineEvents"
       },
+      "devices": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read."
+      },
       "grows": {
         "type": "array",
         "items": {
@@ -13955,6 +13992,7 @@
       "deviceChanges",
       "arrivals",
       "machineEvents",
+      "devices",
       "grows",
       "readingNames",
       "cameras",

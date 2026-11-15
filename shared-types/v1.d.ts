@@ -3832,6 +3832,18 @@ export interface DeviceArrival {
   } | null;
 }
 
+export interface TimelineDevice {
+  deviceId: string;
+  /**
+   * What the device is called, as `Device.name`; null where the place’s owner holds it no longer, whose name it is not theirs to read.
+   */
+  name: string | null;
+  /**
+   * Its type, as `Device.type`, which is what an unnamed device is called by.
+   */
+  type: string;
+}
+
 export interface HomeClimate {
   deviceId: string;
   values: CardValue[];
@@ -4301,6 +4313,10 @@ export interface TimelineOutputLane {
    */
   fridge?: true;
   /**
+   * Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device.
+   */
+  reading?: true;
+  /**
    * The output point by drawn point, in order; absent where the read did not count its samples.
    */
   points?: TimelineOutputPoint[];
@@ -4429,6 +4445,10 @@ export interface SpaceTimeline {
    */
   arrivals: DeviceArrival[];
   machineEvents: TimelineMachineEvents;
+  /**
+   * Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read.
+   */
+  devices: TimelineDevice[];
   /**
    * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.
    */

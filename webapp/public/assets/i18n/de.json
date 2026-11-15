@@ -2185,6 +2185,7 @@
     "lightSince": "an seit {{from}}",
     "lightSpan": "{{from}} bis {{to}}",
     "waiting": "Wartet auf erste Werte: Sobald das Gerät misst, stehen hier seine Kurven.",
+    "waitingHere": "Seit dem Umzug kam hier noch kein Wert: Sobald einer kommt, stehen hier die Kurven.",
     "noDevice": "Hier misst kein Gerät, also gibt es keine Kurven.",
     "toLast": "Zum letzten Wert",
     "mouseHint": "Ziehen wählt einen Ausschnitt, Strg + Mausrad zoomt.",
@@ -2284,8 +2285,10 @@
     "lightOn": "an",
     "ended": "Den Ort {{name}} gibt es nicht mehr. Seine Kurven bleiben hier lesbar, ändern lässt sich nichts mehr.",
     "arrived": "{{device}} kam am {{date}} hierher · frühere Werte unter",
+    "arrived_today": "{{device}} kam um {{date}} hierher · frühere Werte unter",
     "arrivedFrom": "Verlauf von {{place}}",
     "arrivedElsewhere": "{{device}} kam am {{date}} hierher · frühere Werte stehen bei dem Ort, an dem es vorher stand.",
+    "arrivedElsewhere_today": "{{device}} kam um {{date}} hierher · frühere Werte stehen bei dem Ort, an dem es vorher stand.",
     "endedBare": "Den Ort {{name}} gibt es nicht mehr. Ändern lässt sich hier nichts mehr.",
     "noDeviceThen": "In diesem Zeitraum stand hier kein Gerät."
   },

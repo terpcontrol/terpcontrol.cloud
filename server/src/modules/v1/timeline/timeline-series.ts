@@ -266,13 +266,17 @@ const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow)
  * drawn point (`pointsOfOutput`): what a card, a share of the time and a strip
  * say about an output is counted from those, and the spans say only when.
  * A lane of a fridge module says so, because its dehumidifier output is the
- * compressor and every screen calls it that - a link included.
+ * compressor and every screen calls it that - a link included. So does a lane
+ * of the device the reading is of (`reading`): a place's second lamp is read
+ * off its own strip, and a link that cannot tell the lamps apart by device
+ * would read the reading's level onto both.
  */
 export const lanesOf = (
   histories: readonly DeviceHistory[],
   window: SeriesWindow,
   redacted = false,
   fridges: ReadonlySet<string> = new Set(),
+  reading: string | null = null,
 ): TimelineOutputLane[] =>
   histories.flatMap(one =>
     one.outputs.flatMap(output =>
@@ -282,6 +286,7 @@ export const lanesOf = (
               output: output.output,
               deviceId: redacted ? null : one.series.deviceId,
               ...(fridges.has(one.series.deviceId) ? { fridge: true as const } : {}),
+              ...(one.series.deviceId === reading ? { reading: true as const } : {}),
               ...laneOf(output, one.series, window, heardAt(one)),
             },
           ]
@@ -303,13 +308,15 @@ export const chartPartsOf = (read: {
   aimed: readonly StoredTargetChange[];
   cameras: readonly Pick<CameraDocument, 'id' | 'name'>[];
   frames: ReadonlyMap<string, CameraStill[]>;
+  /** The device the reading is of, whose lanes say so. */
+  reading?: string | null;
 }): Pick<SpaceTimeline, 'stepSeconds' | 'deviceIds' | 'outputs' | 'nights' | 'transitions' | 'cameras'> => {
   const cycles = cyclesOf(read.aimed, read.window);
 
   return {
     stepSeconds: read.histories.length === 0 ? 0 : read.window.stepSeconds,
     deviceIds: read.redacted ? null : read.devices.map(device => device.id),
-    outputs: lanesOf(read.histories, read.window, read.redacted, fridgesOf(read.devices)),
+    outputs: lanesOf(read.histories, read.window, read.redacted, fridgesOf(read.devices), read.reading ?? null),
     nights: nightsOf(read.histories, read.window, cycles),
     transitions: transitionsOf(cycles),
     cameras: read.cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: read.frames.get(camera.id) ?? [] })),

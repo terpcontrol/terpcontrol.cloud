@@ -630,8 +630,9 @@ describe('applying a climate preset', () => {
     expect(at('heater', 60)).toMatchObject({ heard: 36 });
     expect(at('heater', 93)).toMatchObject({ heard: 24, on: 0, level: 0 });
     expect(at('light', 93)).toMatchObject({ heard: 24, on: 24, level: 70 });
-    // What a run was rounded out to and what the device was heard for are no figures of the answer any more.
-    expect(Object.keys(lane('heater')).sort()).toEqual(['deviceId', 'heardUntil', 'output', 'points', 'spans']);
+    // What a run was rounded out to and what the device was heard for are no figures of the answer any more; that
+    // the reading is this device's is.
+    expect(Object.keys(lane('heater')).sort()).toEqual(['deviceId', 'heardUntil', 'output', 'points', 'reading', 'spans']);
   });
 
   // The warmest sample of a window need not be its driest, nor the one with the warmest leaf. Read at three minutes

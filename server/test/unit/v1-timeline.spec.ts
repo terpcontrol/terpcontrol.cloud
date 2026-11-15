@@ -1023,6 +1023,8 @@ describe('the night, the lanes and the alarms', () => {
     expect(heater).toEqual({
       output: 'heater',
       deviceId: CONTROLLER,
+      // The reading is the controller's, and so are its lanes.
+      reading: true,
       spans: [{ startsAt: '2026-06-09T18:00:00.000Z', endsAt: '2026-06-10T06:00:00.000Z' }],
       // Still reporting, so everything up to the edge of the window is known.
       heardUntil: '2026-06-10T12:00:00.000Z',
@@ -2442,5 +2444,63 @@ describe('a silence by the interval the device was keeping', () => {
     expect(verdicts(30 * 86_400, 5400)).toBe('line line line line');
     // At three days a pause of ten minutes is about a step long: it may fall into two windows and leave none empty.
     expect(verdicts(3 * 86_400, 540)).toMatch(/^line line (line|silence) silence$/);
+  });
+});
+
+/**
+ * A place lit by its controller and a lamp module: a link is told neither lamp's device, and read the reading's level
+ * onto both, so the lanes of the device the reading is of say so. What each device is called comes with the owner's
+ * answer, for one that has left the place or the account since; a name somebody else gave it since is not the owner's.
+ */
+describe('two lamps in one place', () => {
+  const LAMP = 'device-lamp';
+  const lit = (lanes: { output: string; deviceId: string | null; reading?: true }[]) =>
+    lanes.filter(lane => lane.output === 'light').map(lane => [lane.deviceId, lane.reading === true]);
+
+  beforeEach(async () => {
+    await db.devices.create({
+      id: LAMP,
+      type: 'light',
+      name: 'Grow light',
+      ownerId: OWNER,
+      ...standingIn(TENT),
+      configuration: null,
+      createdAt: new Date('2026-01-03T00:00:00.000Z'),
+    });
+    reports = { ...reports, [LAMP]: () => ({ outputs: { light: 1 } }) };
+  });
+
+  it('marks the lanes of the reading´s device, on a link as well, and names each device to the owner alone', async () => {
+    const own = await readAs(session(OWNER));
+    expect(lit(own.outputs)).toEqual(
+      expect.arrayContaining([
+        [CONTROLLER, true],
+        [LAMP, false],
+      ]),
+    );
+    expect(own.devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: 'Grow light', type: 'light' }]));
+
+    await db.shareLinks.create({
+      id: 'link-lamps',
+      token: 'lamps-token',
+      kind: 'view',
+      subject: { type: 'space', id: TENT },
+      range: { startsAt: null, endsAt: null },
+      includeCameras: true,
+      createdBy: OWNER,
+      expiresAt: null,
+      revokedAt: null,
+    });
+    const theirs = await readAs(visitor('lamps-token'));
+    expect(lit(theirs.outputs).sort()).toEqual([
+      [null, false],
+      [null, true],
+    ]);
+    expect(theirs.devices).toEqual([]);
+  });
+
+  it('names a device the place´s owner holds no longer by its type alone', async () => {
+    await db.devices.updateOne({ id: LAMP }, { ownerId: STRANGER, name: 'Their lamp' });
+    expect((await readAs(session(OWNER))).devices).toEqual(expect.arrayContaining([{ deviceId: LAMP, name: null, type: 'light' }]));
   });
 });

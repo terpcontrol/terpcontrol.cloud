@@ -2175,6 +2175,7 @@
     "lightSince": "on since {{from}}",
     "lightSpan": "{{from}} to {{to}}",
     "waiting": "Waiting for first values: the curves appear here once the device measures.",
+    "waitingHere": "No reading has come here since the move: once one does, the curves stand here.",
     "noDevice": "No device measures here, so there are no curves.",
     "toLast": "Go to the last reading",
     "mouseHint": "Drag to choose a stretch, Ctrl + wheel zooms.",
@@ -2274,8 +2275,10 @@
     "lightOn": "on",
     "ended": "The place {{name}} no longer exists. Its curves can still be read here; nothing can be changed any more.",
     "arrived": "{{device}} came here on {{date}} · earlier readings under",
+    "arrived_today": "{{device}} came here at {{date}} · earlier readings under",
     "arrivedFrom": "Timeline of {{place}}",
     "arrivedElsewhere": "{{device}} came here on {{date}} · earlier readings are with the place it stood in before.",
+    "arrivedElsewhere_today": "{{device}} came here at {{date}} · earlier readings are with the place it stood in before.",
     "endedBare": "The place {{name}} no longer exists. Nothing can be changed here any more.",
     "noDeviceThen": "No device stood here in this window."
   },
