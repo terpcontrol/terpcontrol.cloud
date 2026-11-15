@@ -8,6 +8,7 @@ import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
 import { refusalCode } from '@/api/problem';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
 import { climateHeldBy } from '@/screens/control/lead';
+import { darkSpellAmong } from '@/ui/climate-hardware';
 import { useSession } from '@/api/session';
 import { placesOf } from '@/app/places';
 import { useLog } from '@/log/log-context';
@@ -87,6 +88,9 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
         ) ?? null);
   const taken = neighbour ? deviceName(neighbour, t) : refusalCode(write.error) === 'name_taken' && wanted !== null ? wanted : null;
   const held = moving ? climateHeldBy(devices.data?.items ?? [], target, device) : null;
+  // A lamp module put where the place germinates or dries goes dark with it (ADR 0007), as the claim says.
+  const darkThere =
+    device.type === 'light' && moving && target ? darkSpellAmong((devices.data?.items ?? []).filter(one => one.spaceId === target)) : null;
 
   // A Terp Cam nobody named needs what is printed on it only to be told from a second one going along.
   const cams = (cameras.data?.items ?? []).filter(camera => camera.deviceId === device.id && camera.removedAt === null);
@@ -110,16 +114,17 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
       const back: DeviceUpdate = { ...(renamed ? { name: device.name } : {}), ...(to ? { spaceId: device.spaceId } : {}) };
 
       // The place it stands in now is named by itself, with the device after it; none is said in a sentence of its own.
-      const said = (was: string, now: string, place: string | null) =>
+      const said = (was: string, now: string, place: string | null, dark: string | null = null) =>
         [
           renamed ? t('devices.settings.told.named', { was, name: now }) : null,
           !to ? null : place ? t('devices.settings.told.moved', { name: now, place }) : t('devices.settings.told.nowhere', { name: now }),
           to && along.length > 0 ? t('devices.settings.told.with', { what: along.join(', ') }) : null,
+          dark,
         ]
           .filter(Boolean)
           .join(' · ');
       tell({
-        label: said(title, name, to?.name ?? null),
+        label: said(title, name, to?.name ?? null, darkThere ? t(`control.light.darkened.${darkThere}`) : null),
         undo: fresh ? null : () => write.mutateAsync(back),
         undone: said(name, title, here?.name ?? null),
         from: `device-${device.id}`,
@@ -199,6 +204,7 @@ export function DeviceSettingsSheet({ device, to = null, onClose }: { device: De
                 {t('devices.settings.climateHeld', { place: listed.find(space => space.id === target)?.name ?? '', device: deviceName(held, t) })}
               </p>
             ) : null}
+            {darkThere ? <p className={ui.note}>{t(`claim.air.darkHere.${darkThere}`)}</p> : null}
             {moving && along.length > 0 && !held ? (
               <p className={styles.along}>
                 <Facts facts={[`${t('devices.settings.with')} ${along[0]}`, ...along.slice(1)]} />

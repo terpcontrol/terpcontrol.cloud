@@ -1,4 +1,3 @@
-import { CalendarRange } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +18,7 @@ import { Stepper } from '../targets/Stepper';
 import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
 import { FIGURES, figureText, pendingFigure, pendingWindow, type PendingItem } from './figures';
 import { LightSheet } from './LightSheet';
+import { PlanMark } from './PlanMark';
 import { PendingNote } from './Pending';
 import { rangeRefusal } from './range';
 import styles from './Climate.module.css';
@@ -50,6 +50,7 @@ export function LightCard({
   pending,
   owned = NOTHING,
   plan = null,
+  dark = null,
   longest,
   switchesOn = false,
   mayManage,
@@ -76,6 +77,8 @@ export function LightCard({
   owned?: ReadonlySet<Field>;
   /** The running plan, and the schedule its step puts back where that is not the one that runs. */
   plan?: { name: string; sets: LightSchedule | null } | null;
+  /** A lamp module its place keeps dark (`lampInTheDark`): "dunkel, solange der Ort keimt · danach wieder 100 %". */
+  dark?: string | null;
   longest?: number;
   /** The control is switched off, and saving switches it on. */
   switchesOn?: boolean;
@@ -154,7 +157,12 @@ export function LightCard({
               <>
                 <span className={styles.short}>
                   {unbroken(t('control.light.on', { time: words.on, hours: words.hours }))}
-                  {plannedTimes ? <PlanMark /> : null}
+                  {plannedTimes ? (
+                    <>
+                      {'\u00a0'}
+                      <PlanMark />
+                    </>
+                  ) : null}
                   <span className={styles.sub}>{t('control.light.off', { time: words.off })}</span>
                 </span>
                 {/* Beside the rail the three stand in one line, and break between two of them where they must. */}
@@ -162,7 +170,12 @@ export function LightCard({
                   <Facts
                     facts={[...factsOf(t('control.light.on', { time: words.on, hours: words.hours })), t('control.light.off', { time: words.off })]}
                   />
-                  {plannedTimes ? <PlanMark /> : null}
+                  {plannedTimes ? (
+                    <>
+                      {'\u00a0'}
+                      <PlanMark />
+                    </>
+                  ) : null}
                 </span>
               </>
             )}
@@ -228,7 +241,11 @@ export function LightCard({
           {limitRefused}
         </p>
       ) : null}
-      {hasDay(regime) && baseline.lightLimit <= 0 ? <p className={styles.warn}>{t('targets.table.zeroLimit')}</p> : null}
+      {dark ? (
+        <p className={baseline.lightLimit > 0 ? styles.warn : styles.note}>{dark}</p>
+      ) : hasDay(regime) && baseline.lightLimit <= 0 ? (
+        <p className={styles.warn}>{t('targets.table.zeroLimit')}</p>
+      ) : null}
       {plan && (plannedTimes || plannedLimit) ? (
         <p className={styles.note}>
           <PlanMark legend /> {t('targets.planTable.legend', { name: plan.name })}
@@ -263,16 +280,6 @@ export function LightCard({
 }
 
 const NOTHING: ReadonlySet<Field> = new Set();
-
-/** The mark on a figure a running plan writes back every hour; in the legend that explains it, a picture only. */
-export function PlanMark({ legend = false }: { legend?: boolean }) {
-  const { t } = useTranslation();
-  return legend ? (
-    <CalendarRange size={13} strokeWidth={2} className={styles.planMark} aria-hidden />
-  ) : (
-    <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
-  );
-}
 
 /** "An um 06:00 · 18 Std", or the words for a lamp that never goes off or never comes on. */
 const scheduleWords = (t: Translate, schedule: LightSchedule, offset: number): string => {

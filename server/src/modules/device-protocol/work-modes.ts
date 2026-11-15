@@ -116,6 +116,15 @@ export const controlOf = (
   };
 };
 
+/**
+ * Whether a climate device keeps its place dark: germinating - in the dark mode, or switched off from it, which goes
+ * back to it - or drying.
+ */
+export const darkIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean => {
+  const control = controlOf(type, configuration, base);
+  return control?.mode === 'germination' || control?.drying === true;
+};
+
 /** The standard mode a device comes back to from another: the one it last ran, energy saving included, which is a fridge's alone. */
 const standardFor = (type: string, standard: string | null | undefined): BaseWorkmode =>
   standard === 'full' && type === 'fridge' ? 'full' : 'small';

@@ -92,6 +92,7 @@ beforeEach(() => {
   server.activate = 204;
   server.devices = [];
   server.asked = [];
+  server.codes = ['1b2c-code'];
 });
 
 afterEach(async () => {
@@ -141,6 +142,7 @@ describe('a forgotten password', () => {
   });
 
   it('sets the new password with the token and sends the reader to sign in with it', async () => {
+    server.codes = ['tok-1'];
     draw('/recover/tok-1');
     fillIn('New password', 'a new secret');
     fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
@@ -149,14 +151,24 @@ describe('a forgotten password', () => {
     expect(server.wrote).toEqual([{ method: 'POST', path: '/password-resets/tok-1/redemptions', body: { password: 'a new secret' } }]);
   });
 
-  it('says a spent link is spent, with the way to a new one', async () => {
+  /** A spent link asked for a new password first, and only then said it was spent. */
+  it('says a spent link is spent as it opens, before a new password is asked, with the way to a new one', async () => {
+    draw('/recover/tok-old');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('has been used already or has run out');
+    expect(screen.getByRole('link', { name: 'Ask for a new mail' })).toHaveAttribute('href', '/recover');
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    expect(server.wrote).toEqual([]);
+  });
+
+  it('says a link spent while it stood open is spent when the password is set', async () => {
+    server.codes = ['tok-old'];
     server.redeem = 404;
     draw('/recover/tok-old');
     fillIn('New password', 'a new secret');
     fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('has been used already or has run out');
-    expect(screen.getByRole('link', { name: 'Ask for a new mail' })).toHaveAttribute('href', '/recover');
   });
 });
 

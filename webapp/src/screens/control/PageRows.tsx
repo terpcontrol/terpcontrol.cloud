@@ -10,6 +10,7 @@ import { controlPath, type ControlPage } from '@/app/places';
 import { useLightHolds } from '@/screens/devices/lights';
 import { Facts } from '@/ui/Facts';
 import { Row, Rows } from '@/ui/Rows';
+import { useMayManage } from '@/ui/session-access';
 import { useZone } from '@/ui/zone';
 import { watchable } from './alarms/rules';
 import { pendingByPath } from './climate/figures';
@@ -54,6 +55,8 @@ export function PageRows({
   const moded = devices.find(hasMode) ?? null;
   const stand = first ? standOf(t, heardAt(first.state.lastSeenAt, reads.measuredAt.get(first.id) ?? null), now, zone) : null;
   const planned = devices.filter(followsPlan);
+  // "Zielwerte stellst du von Hand" is said to whoever may set them, and to nobody else.
+  const steers = useMayManage(spaceId);
   const row = (page: ControlPage, has: boolean, line: RowLine | null) =>
     has ? (
       <Row
@@ -77,14 +80,7 @@ export function PageRows({
         {row(
           'plan',
           plans.plans.length > 0 || planned.length > 0,
-          plans.isPending
-            ? null
-            : planLine(
-                t,
-                plans.plans,
-                now,
-                planned.some(device => device.control?.running !== false),
-              ),
+          plans.isPending ? null : planLine(t, plans.plans, now, steers && planned.some(device => device.control?.running !== false)),
         )}
         {row('outputs', outputs.length > 0, outputsLine(t, outputs, now, zone, stand, held, pending))}
         {row('mode', moded !== null, moded ? modeLine(t, moded, now, zone, moded.id === first?.id ? pending : undefined) : null)}

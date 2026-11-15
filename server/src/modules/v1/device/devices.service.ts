@@ -500,6 +500,7 @@ export class DevicesService {
           device.awaitedClimate && device.awaitedClimate.spaceId === device.spaceId
             ? { stage: device.awaitedClimate.stage, preset: device.awaitedClimate.preset }
             : null,
+        limitBeforeDark: device.limitBeforeDark ?? null,
         firmwareId: device.state.firmwareId,
         updateStartedAt: device.state.updateStartedAt?.toISOString() ?? null,
         updateEndedAt: device.state.updateEndedAt?.toISOString() ?? null,

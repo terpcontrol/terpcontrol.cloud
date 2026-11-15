@@ -169,6 +169,8 @@ const FIELDS: Readonly<Record<string, Field>> = {
   vpdLeafOffsetDay: { kind: 'number', unit: '°C', words: ['sensorFactors.day'] },
   vpdLeafOffsetNight: { kind: 'number', unit: '°C', words: ['sensorFactors.night'] },
   ppfdLuxFactor: { kind: 'number', digits: 4, words: ['sensorFactors.lux'] },
+  // A lamp module its place keeps dark: the brightness it gets back when the spell ends (`DeviceState.limitBeforeDark`).
+  limitBeforeDark: { kind: 'number', unit: '%', words: ['admin.diagnosis.limitBeforeDark'] },
   // A plug, a fan or a lamp has no control to keep: it is said as none.
   control: { kind: 'switch', words: ['configChange.field.control.running'] },
   'control.running': { kind: 'switch' },

@@ -9,6 +9,7 @@ import { shapeOf, type Field, type NowHolding, type Shape } from '../targets/day
 import { LightPlan } from '../targets/LightPlan';
 import type { LightSchedule, TargetsDraft } from '../targets/targets-draft';
 import { planWords } from './figures';
+import { PlanMark } from './PlanMark';
 import styles from './Climate.module.css';
 
 /**
@@ -115,7 +116,12 @@ export function LightSheet({
             setTyping(still);
           }}
         />
-        {planSays ? <p className={styles.note}>{planSays}</p> : null}
+        {/* Marked as the cards mark what a running plan writes back. */}
+        {planSays ? (
+          <p className={styles.note}>
+            <PlanMark legend /> {planSays}
+          </p>
+        ) : null}
         {paused ? (
           <p className={styles.warn} role="status">
             {t('targets.planTable.pauses', { name: paused })}

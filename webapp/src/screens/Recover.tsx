@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { useCheckReset, useRedeemReset, useRequestReset } from '@/api/account';
+import { useCheckReset, useRedeemReset, useRequestReset, useResetValid } from '@/api/account';
 import { ApiError, refusalCode } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import ui from '@/ui/ui.module.css';
@@ -59,7 +59,7 @@ function AskForMail() {
       setProblem(refusalCode(error) === 'reset_unknown' ? t('recover.codeUnknown') : refusalText(error));
       return;
     }
-    await navigate(`/recover/${encodeURIComponent(typed)}`);
+    await navigate(`/recover/${encodeURIComponent(typed)}`, { state: { checked: true } });
   };
 
   return (
@@ -145,7 +145,12 @@ function NewPassword({ token }: { token: string }) {
   const redeem = useRedeemReset();
   const [password, setPassword] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
-  const [spent, setSpent] = useState(false);
+  const [refused, setSpent] = useState(false);
+  // A link opened from the mail is asked first, as a typed code is: a spent or unknown one is said before a new
+  // password has been thought of for it. A code checked a moment ago is not asked twice.
+  const checked = (useLocation().state as { checked?: boolean } | null)?.checked === true;
+  const valid = useResetValid(token, !checked);
+  const spent = refused || refusalCode(valid.error) === 'reset_unknown';
 
   const submit = async () => {
     setProblem(null);

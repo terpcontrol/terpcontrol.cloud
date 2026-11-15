@@ -3670,7 +3670,8 @@
       "noLines": "Das Gerät hat noch nichts gemeldet.",
       "clockTime": "{{utc}} UTC",
       "clockTimeThere": "{{utc}} UTC · {{there}} beim Kunden",
-      "open": "Ort öffnen"
+      "open": "Ort öffnen",
+      "limitBeforeDark": "Helligkeit nach der Keimung oder Trocknung"
     },
     "asOf": "Stand vor {{age}}",
     "backToFleet": "Zurück zur Flotte",
@@ -4362,7 +4363,7 @@
         "end": "Grow beenden"
       },
       "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
-      "curves": "Die Kurven dieses Orts siehst du danach nur noch bei den Grows, die hier standen.",
+      "curves": "Die Kurven dieses Orts bleiben danach lesbar, wo sie verlinkt sind – etwa aus einer Meldung von hier.",
       "remove": "{{name}} entfernen",
       "removing": "Wird entfernt …",
       "cancel": "Abbrechen",
@@ -4990,6 +4991,11 @@
         "off": "aus · Regelung aus",
         "drying": "aus · Trocknung",
         "germination": "aus · Keimung"
+      },
+      "darkWhy": {
+        "off": "Regelung aus",
+        "drying": "Trocknung",
+        "germination": "Keimung"
       }
     },
     "card": {
@@ -5240,12 +5246,17 @@
         "own": "seine Helligkeit ist danach gesetzt worden",
         "coming": "das Dunkel ist noch nicht angekommen"
       },
-      "planSets": "Plan: „{{name}}“ setzt {{what}} – jede Stunde neu.",
+      "planSets": "{{what}} setzt der laufende Plan „{{name}}“ – jede Stunde neu.",
       "planWhat": {
-        "times": "die Lichtzeiten",
-        "limit": "die Lichtgrenze",
-        "both": "die Lichtzeiten und die Lichtgrenze"
-      }
+        "times": "Die Lichtzeiten",
+        "limit": "Die Lichtgrenze",
+        "both": "Die Lichtzeiten und die Lichtgrenze"
+      },
+      "darkened": {
+        "germination": "dunkel, solange der Ort keimt",
+        "drying": "dunkel, solange der Ort trocknet"
+      },
+      "darkenedBack": "danach wieder {{level}}"
     },
     "preset": {
       "named": "Klima-Preset: {{name}}",
@@ -5275,7 +5286,16 @@
         "drying": "{{lamps}} bleiben während der Trocknung aus."
       },
       "lampLeft": "{{lamp}} bleibt bei {{window}}.",
-      "lampLeftAsIs": "{{lamp}} bleibt, wie es ist."
+      "lampLeftAsIs": "{{lamp}} bleibt unverändert.",
+      "lampNamed": "„{{device}}“",
+      "theLamp": {
+        "controller": "Der Controller",
+        "fridge": "Das Kühlschrankmodul",
+        "light": "Das Lampenmodul"
+      },
+      "lampsBoth": "Beide Lampen",
+      "lampsAll": "Alle {{count}} Lampen",
+      "lampBack": "{{lamp}} bekommt wieder {{level}}."
     },
     "figure": {
       "change": "{{name}} ändern, {{value}}",

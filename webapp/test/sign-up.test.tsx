@@ -234,6 +234,19 @@ describe('the stranger an invitation was sent to', () => {
     }
   });
 
+  it('leads a taken address to the sign-in with the address filled in', async () => {
+    server.refuseSignUp = refusal('email_taken', 'There is already an account with that address.');
+    draw('/sign-up');
+    fillIn('E-mail', 'mara@example.com');
+    fillIn('Username', 'mara');
+    fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
+
+    fireEvent.click(await within(await screen.findByRole('alert')).findByRole('link', { name: /^Sign in/ }));
+    expect(await screen.findByRole('textbox', { name: 'E-mail' })).toHaveValue('mara@example.com');
+  });
+
   it('can type a code that was read to them and reach the same invitation', async () => {
     draw('/join');
 

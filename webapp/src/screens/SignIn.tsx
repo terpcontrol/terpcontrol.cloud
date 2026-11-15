@@ -31,12 +31,20 @@ export function SignIn() {
   const [problem, setProblem] = useState<string | null>(null);
   const [openingDemo, setOpeningDemo] = useState(false);
 
-  const form = useForm<SessionCreate>({ defaultValues: { email: '', password: '', stayLoggedIn: true } });
-  const typedEmail = useWatch({ control: form.control, name: 'email' });
   // Where the guard said this person was going, and a whole address rather than
   // a path: the query is what a deep link is about, so it is replayed untouched
-  // and never rebuilt from its parts.
-  const arrival = location.state as { from?: string; ended?: boolean; recovered?: boolean; activated?: boolean; deleted?: boolean } | null;
+  // and never rebuilt from its parts. A sign-up refused for an address that has
+  // an account sends the address along.
+  const arrival = location.state as {
+    from?: string;
+    ended?: boolean;
+    recovered?: boolean;
+    activated?: boolean;
+    deleted?: boolean;
+    email?: string;
+  } | null;
+  const form = useForm<SessionCreate>({ defaultValues: { email: arrival?.email ?? '', password: '', stayLoggedIn: true } });
+  const typedEmail = useWatch({ control: form.control, name: 'email' });
   const destination = arrival?.from ?? '/';
   // Sent here because the server refused the session in use, not because
   // nobody had signed in: said, so the form is not read as the app failing.

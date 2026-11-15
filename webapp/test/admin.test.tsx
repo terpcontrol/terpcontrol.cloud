@@ -93,7 +93,14 @@ const device = (over: Partial<Device> & { id: string }): Device =>
 /** A fan and a lamp module, each in support's view: the cloud keeps leaf offsets and a lux factor beside every device. */
 const SUPPORTED: Device[] = [
   device({ id: 'af-31', type: 'fan', classId: 'class-fan', name: 'Exhaust', configuration: { day: { temperature: 26 } } }),
-  device({ id: 'lm-12', type: 'light', classId: 'class-light', name: 'Lamp', configuration: { lights: { limit: 80 } } }),
+  device({
+    id: 'lm-12',
+    type: 'light',
+    classId: 'class-light',
+    name: 'Lamp',
+    configuration: { lights: { limit: 80 } },
+    state: { ...deviceWith({}).state, limitBeforeDark: 100 },
+  }),
 ];
 
 const DEVICES: Device[] = [
@@ -677,6 +684,8 @@ describe('support for a customer', () => {
       expect(await screen.findByText(id === 'af-31' ? 'day.temperature = 26' : 'lights.limit = 80')).toBeInTheDocument();
       expect(screen.queryByText(/^vpdLeafOffset/)).not.toBeInTheDocument();
       expect(screen.queryByText(/^ppfdLuxFactor/)).not.toBeInTheDocument();
+      // A lamp its place keeps dark carries the brightness it gets back beside its limit.
+      if (id === 'lm-12') expect(screen.getByText('limitBeforeDark = 100')).toBeInTheDocument();
       cleanup();
     }
   });

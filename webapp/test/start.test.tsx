@@ -817,6 +817,7 @@ describe('Start of a place that only regulates', () => {
       name: null,
       configuration: { day: 6 * 3600, night: 21 * 3600, limit: 50 } as never,
       control: null,
+      state: { ...fridge().state, limitBeforeDark: 100 },
     });
     const level = (percent: number) => ({ percent, measuredAt: ago(0.2), state: 'live' as const });
     const lit = [
@@ -826,7 +827,7 @@ describe('Start of a place that only regulates', () => {
     const readings = readingsOf(t, { values: [], setpoints: [], device: germinating, lit, hold: null, now: DateTime.now(), zone: null });
 
     expect(readings.map(one => [one.label, one.figure, one.note])).toEqual([
-      ['Light · Fridge module', 'Off', 'off · germination'],
+      ['Light · Fridge module', 'Off', 'germination'],
       ['Light · Lamp module', '65 %', 'despite germination · its brightness was set since'],
     ]);
     expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite germination']);
@@ -841,6 +842,17 @@ describe('Start of a place that only regulates', () => {
       zone: null,
     });
     expect(coming[1].note).toBe('despite germination · the dark has not reached it yet');
+    // Lit where no spell darkened it - joined before lamps were kept dark -, nobody set its brightness since.
+    const never = readingsOf(t, {
+      values: [],
+      setpoints: [],
+      device: germinating,
+      lit: [lit[0], { ...lit[1], device: { ...lamp, state: { ...lamp.state, limitBeforeDark: null } } }],
+      hold: null,
+      now: DateTime.now(),
+      zone: null,
+    });
+    expect(never[1].note).toBe('despite germination · the dark has not reached it yet');
   });
 
   /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
@@ -853,6 +865,7 @@ describe('Start of a place that only regulates', () => {
       name: null,
       configuration: { day: 6 * 3600, night: 21 * 3600, limit: 50 } as never,
       control: null,
+      state: { ...fridge().state, limitBeforeDark: 100 },
     });
     const level = (percent: number) => ({ percent, measuredAt: ago(0.2), state: 'live' as const });
     const lit = [
@@ -862,7 +875,7 @@ describe('Start of a place that only regulates', () => {
     const readings = readingsOf(t, { values: [], setpoints: [], device: drying, lit, hold: null, now: DateTime.now(), zone: null });
 
     expect(readings.map(one => [one.label, one.note])).toEqual([
-      ['Light · Fridge module', 'off · drying'],
+      ['Light · Fridge module', 'drying'],
       ['Light · Lamp module', 'despite drying · its brightness was set since'],
     ]);
     expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite drying']);

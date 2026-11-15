@@ -46,6 +46,7 @@ import { handSetPhases } from '@/migrations/steps/031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from '@/migrations/steps/032-resting-reminders-of-ended-grows';
 import { oneClimateAPlace } from '@/migrations/steps/033-one-climate-a-place-with-its-past';
 import { fansWithoutALamp } from '@/migrations/steps/034-fans-without-a-lamp';
+import { lampsDarkWhereItIsDark } from '@/migrations/steps/035-lamps-dark-where-it-is-dark';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
 import { stopMongod } from './support/mongod';
 
@@ -591,6 +592,38 @@ describe('a fan given a lamp', () => {
     const again = new MigrationContext(db(), false, new Date(AT + DAY));
     await fansWithoutALamp.run(again);
     expect(again.stats).toEqual({ 'devices.fanLampSectionsRemoved': 0, rejected: 0 });
+  });
+});
+
+describe('a lamp module where the place germinates or dries', () => {
+  const lampOf = async (id: string) => one<{ configuration: { limit: number }; limitBeforeDark?: number | null }>('devices', { id });
+
+  it('puts each lamp of a dark place to nothing, its brightness kept, leaves the others, and finds nothing a second time', async () => {
+    await collection('devices').insertMany([
+      { id: 'germinating', type: 'controller', spaceId: 'tent', configuration: { workmode: 'breed' }, baseWorkmode: 'breed' },
+      { id: 'lamp-lit', type: 'light', spaceId: 'tent', configuration: { limit: 80 }, limitBeforeDark: null },
+      { id: 'lamp-set-since', type: 'light', spaceId: 'tent', configuration: { limit: 60 }, limitBeforeDark: 100 },
+      { id: 'drying', type: 'fridge', spaceId: 'box', configuration: { workmode: 'dry' }, baseWorkmode: 'small' },
+      { id: 'lamp-in-the-box', type: 'light', spaceId: 'box', configuration: { limit: 100 } },
+      { id: 'lit-place', type: 'controller', spaceId: 'veg', configuration: { workmode: 'small' }, baseWorkmode: 'small' },
+      { id: 'lamp-in-veg', type: 'light', spaceId: 'veg', configuration: { limit: 100 } },
+    ]);
+
+    const rehearsal = new MigrationContext(db(), true, new Date(AT));
+    await lampsDarkWhereItIsDark.run(rehearsal);
+    expect(rehearsal.stats).toEqual({ 'devices.lampsDarkened': 2, rejected: 0 });
+    expect((await lampOf('lamp-lit'))?.configuration.limit).toBe(80);
+
+    const context = new MigrationContext(db(), false, new Date(AT));
+    await lampsDarkWhereItIsDark.run(context);
+    expect(await lampOf('lamp-lit')).toMatchObject({ configuration: { limit: 0 }, limitBeforeDark: 80 });
+    expect(await lampOf('lamp-in-the-box')).toMatchObject({ configuration: { limit: 0 }, limitBeforeDark: 100 });
+    expect(await lampOf('lamp-set-since')).toMatchObject({ configuration: { limit: 60 }, limitBeforeDark: 100 });
+    expect(await lampOf('lamp-in-veg')).toMatchObject({ configuration: { limit: 100 } });
+
+    const again = new MigrationContext(db(), false, new Date(AT + DAY));
+    await lampsDarkWhereItIsDark.run(again);
+    expect(again.stats).toEqual({ 'devices.lampsDarkened': 0, rejected: 0 });
   });
 });
 

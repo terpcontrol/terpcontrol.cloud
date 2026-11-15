@@ -214,7 +214,7 @@ export function SignUp() {
         {taken ? (
           <>
             {' '}
-            <Link to="/sign-in" state={{ from: destination }}>
+            <Link to="/sign-in" state={{ from: destination, email: form.getValues('email') }} className={styles.textLink}>
               {t('login.signUp.takenSignIn')}
             </Link>
           </>

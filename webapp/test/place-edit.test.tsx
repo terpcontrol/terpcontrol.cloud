@@ -1040,7 +1040,9 @@ describe('removing a place', () => {
       '@guest and @mara then no longer see Tent.',
     ]);
     // No grow keeps the curves: said in one line.
-    expect(screen.getByText('After that you see this place’s curves only with the grows that grew here.')).toBeInTheDocument();
+    expect(
+      screen.getByText('This place’s curves stay readable afterwards wherever they are linked – from an alert raised here, say.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/let in/)).not.toBeInTheDocument();
 
     answer(sheet);

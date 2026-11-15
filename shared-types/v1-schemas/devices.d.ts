@@ -148,6 +148,7 @@ export declare const deviceState: z.ZodObject<{
         }>;
         preset: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
+    limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     firmwareId: z.ZodNullable<z.ZodString>;
     updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
     updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -249,6 +250,7 @@ export declare const device: z.ZodObject<{
             }>;
             preset: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         firmwareId: z.ZodNullable<z.ZodString>;
         updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
         updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -347,6 +349,7 @@ export declare const devicePage: z.ZodObject<{
                 }>;
                 preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -592,6 +595,7 @@ export declare const provisionedDevice: z.ZodObject<{
                 }>;
                 preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -896,6 +900,7 @@ export declare const deviceClaimResult: z.ZodObject<{
                 }>;
                 preset: z.ZodNullable<z.ZodString>;
             }, z.core.$strip>>>;
+            limitBeforeDark: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
             firmwareId: z.ZodNullable<z.ZodString>;
             updateStartedAt: z.ZodNullable<z.ZodISODateTime>;
             updateEndedAt: z.ZodNullable<z.ZodISODateTime>;
@@ -2150,6 +2155,10 @@ export declare const alarmRulePage: z.ZodObject<{
         enabled: z.ZodNumber;
         triggered: z.ZodNumber;
     }, z.core.$strip>;
+    germination: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        warnTooHumid: z.ZodBoolean;
+        humidifierHolds: z.ZodBoolean;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came

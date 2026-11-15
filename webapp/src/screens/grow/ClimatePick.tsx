@@ -58,7 +58,7 @@ export function ClimatePick({
   value: PhaseClimate;
   onChange: (value: PhaseClimate) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const zone = useZone();
   const controller = usePlaceController(spaceId);
   const humidifier = useHumidifier(controller);
@@ -75,7 +75,7 @@ export function ClimatePick({
   // it makes starts at the device's hour, and a figure it leaves out stays.
   const chosen = preset ? prefilled(now, preset) : null;
   const offset = offsetOf(serverNow(), zone);
-  const lampsWords = lampsSaid(t, controller, lamps, darkStage(stage), serverNow(), zone, i18n.language);
+  const lampsWords = lampsSaid(t, controller, lamps, darkStage(stage), serverNow(), zone);
 
   // What the devices hold once the phase is written, in figures: the chosen climate, germination's being dark, or -
   // left as they are - what they hold now (`heldNow`).

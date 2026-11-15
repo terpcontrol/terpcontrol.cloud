@@ -87,7 +87,7 @@ export function WhatGrows({
   /** The sheet the form is asked on, where it is one. */
   sheet?: Omit<ComponentProps<typeof Sheet>, 'children' | 'actions'>;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const form = useId();
   const countRefusal = useId();
   const zone = useZone();
@@ -145,7 +145,7 @@ export function WhatGrows({
   const said =
     climate && stage && controller
       ? [
-          lampsSaid(t, controller, lampsAmong(here), darkStage(stage), serverNow(), zone, i18n.language),
+          lampsSaid(t, controller, lampsAmong(here), darkStage(stage), serverNow(), zone),
           ...here
             .filter(device => device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed')
             .map(fan => t('grow.new.fanFixed', { device: deviceName(fan, t) })),

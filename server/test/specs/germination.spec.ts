@@ -134,6 +134,41 @@ describe('the germination preset', () => {
     expect(await configurationOf(first)).toMatchObject({ limit: 70 });
   });
 
+  /**
+   * A lamp lit in a germinating place - by hand since, or never handed the dark - is brought back in line by applying
+   * "Keimung · dunkel" again from Steuerung, which saves the targets with the preset; its kept brightness is served, and
+   * its rules page says the place germinates, which its "too humid" rests by.
+   */
+  it('brings a lamp that burns where the place germinates back in line when germination is applied again', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = await registerDevice('light');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(lamp.deviceId), joinSpaceId: spaceId })
+      .expect(201);
+    await owner.client.put(`/v1/devices/${lamp.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}`).expect(200)).body.state).toMatchObject({ limitBeforeDark: 70 });
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}/alarm-rules`).expect(200)).body.germination).toEqual({
+      warnTooHumid: false,
+      humidifierHolds: true,
+    });
+
+    await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/configuration`)
+      .send({ configuration: { ...LAMP, limit: 90 } })
+      .expect(200);
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: await configurationOf(device), germination: true, preset: { stage: 'germination', preset: null } })
+      .expect(200);
+
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 0 });
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 70 });
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}/alarm-rules`).expect(200)).body.germination).toBeNull();
+  });
+
   /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
   it('darkens every lamp module of the place while it dries too, and gives their light back when the drying ends', async () => {
     const { device, spaceId } = await placed('controller');

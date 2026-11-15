@@ -378,6 +378,15 @@ describe('what Steuerung opens on, and the rows under the climate', () => {
     expect(screen.queryByText('No plan yet.')).not.toBeInTheDocument();
   });
 
+  it('does not tell a reader who may not steer that they set the targets by hand', async () => {
+    noPlan();
+    may.youMay = 'log';
+    state.devices = [{ ...device(), ownerId: 'user-2' }];
+    drawTab();
+
+    expect(await screen.findByRole('link', { name: /^Grow plan/ })).toHaveTextContent(/^Grow planoff$/);
+  });
+
   it('names a paused plan in its row, in the colour of what needs a person, and leaves continuing it to the plan page', async () => {
     state.plan = plan({}, { status: 'paused' });
     drawTab();
@@ -508,14 +517,80 @@ describe('Steuerung of a place with several devices', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Climate preset' }));
     const sheet = await screen.findByRole('dialog', { name: 'Apply a climate preset' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
-    expect(sheet).toHaveTextContent(/It sets the light of “Blue Dream tent”\. Light · Lamp module stays at \d\d:00 to \d\d:00\./);
+    expect(sheet).toHaveTextContent(/It sets the light of “Blue Dream tent”\. The lamp module stays at \d\d:00 to \d\d:00\./);
 
     // Germination is dark for every lamp of the place, the lamp module's too (ADR 0007): the preset names each.
     fireEvent.click(within(sheet).getByRole('button', { name: 'Germination · dark' }));
-    expect(sheet).toHaveTextContent('Light · Blue Dream tent and Light · Lamp module stay off until germination ends.');
+    expect(sheet).toHaveTextContent('Both lamps stay off until germination ends.');
     // And so is drying (Chris, 2026-11-15).
     fireEvent.click(within(sheet).getByRole('button', { name: 'Drying' }));
-    expect(sheet).toHaveTextContent('Light · Blue Dream tent and Light · Lamp module stay off while drying.');
+    expect(sheet).toHaveTextContent('Both lamps stay off while drying.');
+  });
+
+  /** A lamp module that burns where the place germinates is put back in line by taking "Keimung · dunkel" again. */
+  it.each([
+    [100, true],
+    [0, false],
+  ])('lets germination be applied again where a lamp module of the place burns at %i %%: %s', async (limit, offered) => {
+    const germinating = {
+      ...device(),
+      configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+      control: {
+        running: true,
+        drying: false,
+        mode: 'germination',
+        energySaving: false,
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+        preset: { stage: 'germination', preset: null },
+      },
+    } as Device;
+    const lamp = { ...device(), id: 'device-4', type: 'light', name: null, control: null, configuration: { day: 25200, night: 82800, limit } };
+    state.devices = [germinating, lamp as Device];
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Climate preset/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Apply a climate preset' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Germination · dark' }));
+    expect(within(sheet).getByRole('button', { name: 'Apply' }).hasAttribute('disabled')).toBe(!offered);
+    expect(sheet).toHaveTextContent('Both lamps stay off until germination ends.');
+  });
+
+  /**
+   * A lamp module its place's germination darkened said only "Licht: 07:00–23:00" on its card, and nothing gave back
+   * its 100 % when germination ended: its card says it is dark and what it gets back, and so does the sheet that ends it.
+   */
+  it('says a darkened lamp module as dark on its card, and what it gets back where germination is ended', async () => {
+    const germinating = {
+      ...device(),
+      configuration: { ...CONFIGURATION, workmode: 'breed', night: { temperature: 24, humidity: 75 } },
+      control: {
+        running: true,
+        drying: false,
+        mode: 'germination',
+        energySaving: false,
+        germinationChoices: { warnTooHumid: false, humidifierHolds: true },
+        afterGermination: { nightTemperature: 20, nightHumidity: 55 },
+      },
+    } as unknown as Device;
+    const lamp = {
+      ...device(),
+      id: 'device-4',
+      type: 'light',
+      name: null,
+      control: null,
+      configuration: { day: 25200, night: 82800, limit: 0 },
+      state: { ...device().state, limitBeforeDark: 100 },
+    } as Device;
+    state.devices = [germinating, lamp];
+    drawTab();
+
+    expect(await screen.findByRole('region', { name: 'Lamp module' })).toHaveTextContent('Light: dark while the place germinates · then 100 % again');
+    fireEvent.click(screen.getByRole('button', { name: /^Climate preset/ }));
+    const sheet = await screen.findByRole('dialog', { name: 'Apply a climate preset' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'End germination' }));
+    expect(sheet).toHaveTextContent('The lamp module gets 100 % back.');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Seedling · with light' }));
+    expect(sheet).toHaveTextContent('The lamp module gets 100 % back.');
   });
 
   /** How a device is heard is said one way: the card's line has the words of the pill on its page, not some of its own. */
@@ -1118,7 +1193,14 @@ describe('what a row says about the page behind it', () => {
   it('says a lamp that burns while its place germinates in the dark as burning despite germination, with why', () => {
     const level = { percent: 100, measuredAt: NOW.toISO()!, state: 'live' as const };
     const germinating = { ...device(), control: { running: true, drying: false, mode: 'germination', energySaving: false } } as Device;
-    const lamp = { ...device(), id: 'device-4', type: 'light', name: null, configuration: { day: 68400, night: 25200, limit: 65 } } as Device;
+    const lamp = {
+      ...device(),
+      id: 'device-4',
+      type: 'light',
+      name: null,
+      configuration: { day: 68400, night: 25200, limit: 65 },
+      state: { ...device().state, limitBeforeDark: 100 },
+    } as Device;
 
     expect(outputsLine(t, [outputsOf(germinating, sockets(), { ...level, percent: 0 }), outputsOf(lamp, sockets(), level)], NOW, null)).toEqual({
       text: 'Light · Blue Dream tent off · Light · Lamp module 100 % despite germination · its brightness was set since',

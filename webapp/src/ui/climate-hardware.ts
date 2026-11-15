@@ -88,6 +88,9 @@ export const darkSpellOf = (device: Device | null): DarkSpell | null => {
   return reason === 'off' ? null : reason;
 };
 
+/** The spell its devices keep a place dark in, or null: a lamp module has no work mode, and goes by its place's. */
+export const darkSpellAmong = (devices: readonly Device[]): DarkSpell | null => devices.map(darkSpellOf).find(spell => spell !== null) ?? null;
+
 /** The spell a stage puts a place into, or null for a stage with light. */
 export const darkStage = (stage: string | null | undefined): DarkSpell | null => (stage === 'drying' || stage === 'germination' ? stage : null);
 

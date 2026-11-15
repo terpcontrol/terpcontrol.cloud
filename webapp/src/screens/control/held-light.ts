@@ -5,11 +5,11 @@ import { useSocketTables } from '@/api/devices';
 import type { Translate } from '@/i18n/i18n';
 import type { Held } from '@/screens/devices/HandHold';
 import { isLightRole, useLightHold } from '@/screens/devices/lights';
-import { inSentence } from '@/screens/space/members/people';
 import { lightWindowOf } from '@/screens/start/place';
 import { sinceLabel } from '@/ui/age';
 import { type DarkSpell, outputsOf } from '@/ui/climate-hardware';
-import { deviceName, deviceTitle, givenName } from '@/ui/naming';
+import { type Called, deviceName, deviceTitle, givenName } from '@/ui/naming';
+import { figureText } from './climate/figures';
 
 /**
  * A device's lamp held by hand, for every place that says what the light is
@@ -38,7 +38,7 @@ export const lampsAmong = (devices: readonly Device[]): Device[] => devices.filt
  * `lamps` holds more than one each is named alike - "Licht · Controller", "Licht · Lampenmodul" -, and one alone is
  * the place's "Licht".
  */
-export const lampName = (t: Translate, device: Device, lamps: readonly Device[]): string =>
+export const lampName = (t: Translate, device: Called, lamps: readonly Called[]): string =>
   lamps.length < 2 ? t('control.rows.light') : t('control.light.of', { device: deviceTitle(device, t, [...lamps]) });
 
 /**
@@ -64,42 +64,78 @@ export const lampsSaid = (
   dark: DarkSpell | null,
   now: DateTime,
   zone: string | null,
-  language: string,
 ): string | null => {
   if (lamps.length < 2 || !lamps.some(one => one.id === device.id)) return null;
   if (dark)
     return t(`control.preset.lampsDark.${dark}`, {
-      lamps: inSentence(
-        lamps.map(one => lampName(t, one, lamps)),
-        language,
-      ),
+      lamps: lamps.length === 2 ? t('control.preset.lampsBoth') : t('control.preset.lampsAll', { count: lamps.length }),
     });
   return [lampSetWords(t, device), ...lampsLeft(t, device, lamps, now, zone)].join(' ');
 };
 
 /**
- * Why a lamp burns where its place germinates or dries in the dark (ADR 0007) - held on by hand, set bright on its own
- * since, or not yet handed the dark -, so that no screen shows a lit lamp under "dunkel" without saying it is lit and
- * why: "trotz Keimung · von Hand an bis 13:05".
+ * Why a lamp burns where its place germinates or dries in the dark (ADR 0007) - held on by hand, set bright since the
+ * spell darkened it (it keeps the brightness from before, `limitBeforeDark`), or not yet handed the dark -, so that no
+ * screen shows a lit lamp under "dunkel" without saying it is lit and why: "trotz Keimung · von Hand an bis 13:05".
  */
 export const litInTheDark = (t: Translate, spell: DarkSpell, lamp: Device, held: Held | null, now: DateTime, zone: string | null): string => {
   const limit = lamp.type === 'light' ? lamp.configuration?.limit : undefined;
   const why = held
     ? heldWords(t, held, now, zone)
-    : typeof limit === 'number' && limit > 0
+    : typeof limit === 'number' && limit > 0 && typeof lamp.state.limitBeforeDark === 'number'
       ? t('control.light.inTheDark.own')
       : t('control.light.inTheDark.coming');
   return t(`control.light.inTheDark.lit.${spell}`, { why });
 };
 
 /**
- * "Lampenmodul bleibt bei 07:00 bis 23:00": the other lamps of a place, each with its window, which a climate written
- * to `device` leaves burning as they do. Empty where `device` is the place's one lamp.
+ * "Das Lampenmodul", "„Bluetooth-Lampe“": a lamp as the subject of a sentence - a tile's "Licht · Lampenmodul" is a
+ * label, not a noun -, by its name where it has one, else by its type, with the tag that tells two alike apart.
+ */
+const lampSubject = (t: Translate, device: Device, lamps: readonly Device[]): string => {
+  const name = givenName(device);
+  if (name) return t('control.preset.lampNamed', { device: name });
+  const tag = deviceTitle(device, t, [...lamps]).slice(deviceName(device, t).length);
+  return `${t(`control.preset.theLamp.${device.type}`, { defaultValue: deviceName(device, t) })}${tag}`;
+};
+
+/** The brightness a lamp module darkened by its place's spell gets back when the spell ends; null for one not darkened. */
+const keptBrightness = (lamp: Device): number | null => {
+  const kept = lamp.state.limitBeforeDark;
+  return lamp.type === 'light' && lamp.configuration?.limit === 0 && typeof kept === 'number' && kept > 0 ? kept : null;
+};
+
+/**
+ * A lamp module where its place germinates or dries (ADR 0007), said where the lamp itself is shown - its page, its
+ * card, a move into such a place: "dunkel, solange der Ort keimt · danach wieder 100 %", or lit and why.
+ */
+export const lampInTheDark = (t: Translate, spell: DarkSpell, lamp: Device, now: DateTime, zone: string | null, held: Held | null = null): string => {
+  const limit = lamp.configuration?.limit;
+  if (held || (typeof limit === 'number' && limit > 0)) return litInTheDark(t, spell, lamp, held, now, zone);
+  const kept = keptBrightness(lamp);
+  return [t(`control.light.darkened.${spell}`), kept === null ? null : t('control.light.darkenedBack', { level: figureText('lightLimit', kept) })]
+    .filter(Boolean)
+    .join(' · ');
+};
+
+/** "Das Lampenmodul bekommt wieder 100 %": each lamp module of `lamps` a spell darkened, and what it gets back when it ends. */
+export const lampsBack = (t: Translate, lamps: readonly Device[], among: readonly Device[] = lamps): string[] =>
+  lamps.flatMap(one => {
+    const kept = keptBrightness(one);
+    return kept === null ? [] : [t('control.preset.lampBack', { lamp: lampSubject(t, one, among), level: figureText('lightLimit', kept) })];
+  });
+
+/**
+ * "Das Lampenmodul bleibt bei 07:00 bis 23:00": the other lamps of a place, each with its window, which a climate
+ * written to `device` leaves burning as they do - and one its place's spell darkened, the brightness it gets back
+ * (`lampsBack`). Empty where `device` is the place's one lamp.
  */
 export const lampsLeft = (t: Translate, device: Device, lamps: readonly Device[], now: DateTime, zone: string | null): string[] =>
   lamps
     .filter(one => one.id !== device.id)
     .map(one => {
+      const [back] = lampsBack(t, [one], lamps);
+      if (back) return back;
       const light = lightWindowOf(one, now, zone);
       const window = !light
         ? null
@@ -108,5 +144,5 @@ export const lampsLeft = (t: Translate, device: Device, lamps: readonly Device[]
           : light.never
             ? t('start.light.never')
             : t('start.targets.window', { on: light.on, off: light.off });
-      return t(window ? 'control.preset.lampLeft' : 'control.preset.lampLeftAsIs', { lamp: lampName(t, one, lamps), window });
+      return t(window ? 'control.preset.lampLeft' : 'control.preset.lampLeftAsIs', { lamp: lampSubject(t, one, lamps), window });
     });

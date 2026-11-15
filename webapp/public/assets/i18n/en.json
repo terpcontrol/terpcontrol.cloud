@@ -3660,7 +3660,8 @@
       "noLines": "The device has reported nothing yet.",
       "clockTime": "{{utc}} UTC",
       "clockTimeThere": "{{utc}} UTC · {{there}} for the customer",
-      "open": "Open the place"
+      "open": "Open the place",
+      "limitBeforeDark": "Brightness after germination or drying"
     },
     "asOf": "as of {{age}} ago",
     "backToFleet": "Back to the fleet",
@@ -4352,7 +4353,7 @@
         "end": "End the grow"
       },
       "kept": "Curves and pictures up to today stay with the grow {{names}}.",
-      "curves": "After that you see this place’s curves only with the grows that grew here.",
+      "curves": "This place’s curves stay readable afterwards wherever they are linked – from an alert raised here, say.",
       "remove": "Remove {{name}}",
       "removing": "Removing …",
       "cancel": "Cancel",
@@ -4980,6 +4981,11 @@
         "off": "off · control off",
         "drying": "off · drying",
         "germination": "off · germination"
+      },
+      "darkWhy": {
+        "off": "control off",
+        "drying": "drying",
+        "germination": "germination"
       }
     },
     "card": {
@@ -5230,12 +5236,17 @@
         "own": "its brightness was set since",
         "coming": "the dark has not reached it yet"
       },
-      "planSets": "Plan: “{{name}}” sets {{what}} – again every hour.",
+      "planSets": "{{what}} set by the running plan “{{name}}” – again every hour.",
       "planWhat": {
-        "times": "the light times",
-        "limit": "the light limit",
-        "both": "the light times and the light limit"
-      }
+        "times": "The light times are",
+        "limit": "The light limit is",
+        "both": "The light times and the light limit are"
+      },
+      "darkened": {
+        "germination": "dark while the place germinates",
+        "drying": "dark while the place dries"
+      },
+      "darkenedBack": "then {{level}} again"
     },
     "preset": {
       "named": "Climate preset: {{name}}",
@@ -5265,7 +5276,16 @@
         "drying": "{{lamps}} stay off while drying."
       },
       "lampLeft": "{{lamp}} stays at {{window}}.",
-      "lampLeftAsIs": "{{lamp}} stays as it is."
+      "lampLeftAsIs": "{{lamp}} stays as it is.",
+      "lampNamed": "“{{device}}”",
+      "theLamp": {
+        "controller": "The controller",
+        "fridge": "The fridge module",
+        "light": "The lamp module"
+      },
+      "lampsBoth": "Both lamps",
+      "lampsAll": "All {{count}} lamps",
+      "lampBack": "{{lamp}} gets {{level}} back."
     },
     "figure": {
       "change": "Change {{name}}, {{value}}",

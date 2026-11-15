@@ -46,7 +46,8 @@ import {
   type FigureField,
   type PendingItem,
 } from './figures';
-import { LightCard, PlanMark } from './LightCard';
+import { LightCard } from './LightCard';
+import { PlanMark } from './PlanMark';
 import { PendingNote } from './Pending';
 import { PresetSheet } from './PresetSheet';
 import { useSaved } from './saved';

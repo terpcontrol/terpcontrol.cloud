@@ -940,6 +940,10 @@ export interface DeviceState {
    */
   awaitedClimate?: AppliedClimate | null;
   /**
+   * A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.
+   */
+  limitBeforeDark?: number | null;
+  /**
    * What the device reports it is running, which is the build uuid.
    */
   firmwareId: string | null;
@@ -1716,6 +1720,10 @@ export interface AlarmRulePage {
      */
     triggered: number;
   };
+  /**
+   * While the place the device stands in germinates: what was chosen there about the humidity, which the stage's "too humid" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server.
+   */
+  germination?: GerminationChoices | null;
 }
 
 export interface AlarmRuleCreate {

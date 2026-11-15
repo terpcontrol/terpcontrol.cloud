@@ -99,7 +99,19 @@ export function DeviceDiagnosis() {
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noSettings')}</p>
           )}
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.factors')}</h2>
-          <Settings rows={inWords(i18n, one, flatten({ ...factorsOf(one), control: one.control }), owner?.preferences.timezone ?? null)} />
+          <Settings
+            rows={inWords(
+              i18n,
+              one,
+              flatten({
+                ...factorsOf(one),
+                control: one.control,
+                // Beside a darkened lamp's `limit = 0`, the brightness it gets back.
+                ...(typeof one.state.limitBeforeDark === 'number' ? { limitBeforeDark: one.state.limitBeforeDark } : {}),
+              }),
+              owner?.preferences.timezone ?? null,
+            )}
+          />
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.hardware')}</h2>
           <Settings rows={asStored(flatten(one.state.hardware))} />
         </section>

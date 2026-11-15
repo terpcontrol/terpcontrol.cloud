@@ -223,4 +223,23 @@ export declare const restsInGermination: (rule: RuleShape, workmode: unknown, ke
  * watches what it says.
  */
 export declare const watchNow: <W extends WatchShape>(rule: RuleShape<W>, workmode: unknown) => W;
+/** As much of a device as says whether it germinates: its type, its work mode, what was chosen, the stage it was put on. */
+export interface GerminationShape {
+    type: string;
+    workmode: unknown;
+    choices: Partial<GerminationChoiceValues> | null | undefined;
+    stage?: string | null;
+}
+/**
+ * The germination a device's alarms go by - the work mode and the choices `restsInGermination` and `watchNow` are
+ * asked with. Germination is the place's, not one device's: the switch "Zu feucht ruht, bis die Keimung endet"
+ * promises it for every sensor of the place, and a lamp module's or a fan's "too humid" fired beside a germinating
+ * controller. So a device with a work mode goes by its own; any other by the controller or fridge module of its place
+ * that germinates, with what was chosen there; and in a place where nothing has a work mode - a fan alone - by the
+ * germination climate it was put on itself.
+ */
+export declare const germinationOf: (device: GerminationShape, place: readonly GerminationShape[]) => {
+    workmode: unknown;
+    choices: GerminationShape["choices"];
+};
 export {};

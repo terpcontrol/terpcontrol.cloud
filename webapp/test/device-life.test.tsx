@@ -196,6 +196,29 @@ describe('naming a device and moving it', () => {
     expect(told).toMatchObject([{ undone: 'Tent 1: Plantalytix Socket is here now' }]);
   });
 
+  /** Germination is dark for every lamp of the place (ADR 0007): a lamp module moved into one goes dark, and is told so. */
+  it('says a lamp module goes dark where it is moved to a place that germinates, in the sheet and in the toast', async () => {
+    const lamp = { ...THE_PLUG, type: 'light', configuration: { limit: 100 } } as Device;
+    const germinating = {
+      ...THE_PLUG,
+      id: 'device-2',
+      type: 'fridge',
+      spaceId: 'space-2',
+      configuration: { workmode: 'breed' },
+      control: { running: true, drying: false, mode: 'germination', energySaving: false },
+    } as unknown as Device;
+    answer([lamp, germinating], [spaceWhere('own'), ELSEWHERE]);
+    await drawPage('Lamp module');
+    const sheet = await openSheet();
+    expect(sheet.queryByText(/Germination runs there/)).not.toBeInTheDocument();
+    fireEvent.click(sheet.getByRole('button', { name: 'Fridge 1' }));
+    expect(sheet.getByText('Germination runs there: the lamp module stays off until it ends.')).toBeInTheDocument();
+
+    fireEvent.click(sheet.getByRole('button', { name: 'Move' }));
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('Fridge 1: Lamp module is here now · dark while the place germinates');
+  });
+
   /** The scrap of an id is for telling two apart in one list: the toast names the device as the place it then stands in lists it. */
   it('tells the device from another of its kind in the toast only where the two then stand in one place', async () => {
     answer([THE_PLUG, { ...THE_PLUG, id: 'device-2', spaceId: 'space-2' }], [spaceWhere('own'), ELSEWHERE]);

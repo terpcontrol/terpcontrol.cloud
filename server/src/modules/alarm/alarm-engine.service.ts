@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { Mutex, MutexInterface, withTimeout } from 'async-mutex';
 import { Metric, OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
 import { MAINTENANCE_SETTLE_SECONDS, VALUE_AGE, mailFloorSecondsOf } from '@fg2/shared-types/v1-schemas';
-import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { isStageTooHumid, restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -13,6 +13,7 @@ import { DataService } from '../data/data.service';
 import { AlertService, AlertSubject } from './alert.service';
 import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 import { bandOf, isOutOfBounds, watchedValue } from './alarm.watch';
+import { germinationHere } from './place-germination';
 
 /**
  * The state machine: what a device just said, the rules watching it, and the
@@ -84,20 +85,24 @@ export class AlarmEngineService implements MetricSampleSink {
       const rules = await this.rules
         .find({ deviceId: device.id, $or: [{ 'watch.metric': { $in: metrics } }, { 'watch.output': { $in: outputs } }] })
         .lean<StoredAlarmRule[]>();
+      // Germination is the place's: a lamp module's "too humid" rests beside a germinating controller as its own does.
+      const { workmode, choices } = rules.some(isStageTooHumid)
+        ? await germinationHere(this.devices, device.id)
+        : { workmode: device.configuration?.workmode, choices: device.germinationChoices };
       for (const stored of rules) {
         const value = watchedValue(stored.watch, sample);
         // Asked before the band is, because deciding that costs a query into the
         // stored series for a rule that is patient.
         if (value === undefined || this.saysNothingNew(stored, sample.measuredAt)) continue;
-        if (restsInGermination(stored, device.configuration?.workmode, device.germinationChoices)) {
+        if (restsInGermination(stored, workmode, choices)) {
           await this.rest(stored, sample.measuredAt);
           continue;
         }
 
         // The band the rule watches where the device is now - the stage's "too
-        // humid" watches germination's own line while it germinates - is the
-        // band it is judged, raised and remembered by.
-        const rule = { ...stored, watch: watchNow(stored, device.configuration?.workmode) };
+        // humid" watches germination's own line while its place germinates - is
+        // the band it is judged, raised and remembered by.
+        const rule = { ...stored, watch: watchNow(stored, workmode) };
         await this.evaluate(rule, device, value, sample.measuredAt, await this.isOutOfBand(rule, device.id, value, at));
       }
     } finally {
@@ -178,12 +183,10 @@ export class AlarmEngineService implements MetricSampleSink {
   public async restNow(deviceId: string): Promise<void> {
     const release = await this.lock(deviceId);
     try {
-      const device = await this.deviceOf(deviceId);
-      if (!device) return;
-
+      const { workmode, choices } = await germinationHere(this.devices, deviceId);
       const rules = await this.rules.find({ deviceId, enabled: true, 'watch.metric': 'humidity' }).lean<StoredAlarmRule[]>();
       for (const rule of rules) {
-        if (restsInGermination(rule, device.configuration?.workmode, device.germinationChoices)) await this.rest(rule, new Date());
+        if (restsInGermination(rule, workmode, choices)) await this.rest(rule, new Date());
       }
     } finally {
       release();

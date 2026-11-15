@@ -128,7 +128,8 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
         (age !== 'live'
           ? verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)
           : dark
-            ? t(`start.light.dark.${dark}`)
+            ? // The figure says "Aus": the note says why, once.
+              t(`start.light.darkWhy.${dark}`)
             : lightNote(t, lamp, on, now, zone)),
       tone: 'quiet',
       judged: false,

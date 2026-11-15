@@ -103,6 +103,11 @@ exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
         .nullable()
         .optional()
         .describe('The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.'),
+    limitBeforeDark: zod_1.z
+        .number()
+        .nullable()
+        .optional()
+        .describe('A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.'),
     firmwareId: (0, common_js_1.id)().nullable().describe('What the device reports it is running, which is the build uuid.'),
     updateStartedAt: (0, common_js_1.instant)().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: (0, common_js_1.instant)().nullable(),
@@ -772,6 +777,10 @@ exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.
         triggered: zod_1.z.number().int().describe('Enabled rules whose watch is out of bounds now.'),
     })
         .describe('Over every rule of the device, whichever page this is.'),
+    germination: common_js_1.germinationChoices
+        .nullable()
+        .optional()
+        .describe("While the place the device stands in germinates: what was chosen there about the humidity, which the stage's \"too humid\" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server."),
 }));
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came

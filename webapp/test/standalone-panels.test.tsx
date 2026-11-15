@@ -85,6 +85,8 @@ const silent = (id: string, type: string, configuration: DeviceConfiguration): D
 const calls: { method: string; path: string; body: { set?: Record<string, unknown> } }[] = [];
 /** What the cloud stored that a silent device has not been handed, as its live read says it. */
 let pending: PendingSettings['settings'] | null = null;
+/** The account's devices, where a case lists them. */
+let listed: Device[] | null = null;
 
 vi.stubGlobal(
   'fetch',
@@ -95,6 +97,7 @@ vi.stubGlobal(
     calls.push({ method, path, body });
 
     if (method === 'PATCH') return json(device(path.split('/')[2], 'plug', PLUG));
+    if (path === '/devices' && listed) return json({ items: listed, nextCursor: null });
     if (path.endsWith('/live') && pending)
       return json({ deviceId: path.split('/')[2], metrics: {}, outputs: {}, setpoints: null, pending: { since: HEARD, settings: pending } });
     return json({ status: 404, code: path.endsWith('/plan') ? 'plan_not_found' : 'not_found', title: '', detail: '', errors: [] }, 404);
@@ -142,6 +145,7 @@ beforeEach(() => {
   calls.length = 0;
   told.length = 0;
   pending = null;
+  listed = null;
 });
 
 afterEach(() => {
@@ -368,6 +372,25 @@ describe('a LIGHT', () => {
     await waitFor(() => expect(patches()).toHaveLength(1));
     expect(patches()[0]).toMatchObject({ path: '/devices/light-1/configuration', body: { set: { lightsOn: 21600, lightsOff: 75600 } } });
     await waitFor(() => expect(said()).toBe('Light on 06:00–21:00 · 15 h saved'));
+  });
+
+  /** "Lichtgrenze 0 %: Die Lampe bleibt dunkel, der Tag gilt aber weiter" was all a lamp module darkened by germination said. */
+  it('says it is dark while its place germinates, and the brightness it gets back, rather than a limit of 0', async () => {
+    const lamp = {
+      ...device('light-1', 'light', { ...LIGHT, limit: 0 }),
+      state: { ...device('light-1', 'light', LIGHT).state, limitBeforeDark: 100 },
+    } as Device;
+    listed = [
+      lamp,
+      {
+        ...device('ctrl-1', 'controller', { workmode: 'breed' }),
+        control: { running: true, drying: false, mode: 'germination', energySaving: false },
+      } as Device,
+    ];
+    draw(lamp);
+
+    expect(plain(await screen.findByText(/^dark while the place germinates/))).toBe('dark while the place germinates · then 100 % again');
+    expect(screen.queryByText(/^Light limit 0 %/)).not.toBeInTheDocument();
   });
 
   it('steps its limit where it stands and sends it once it rests', async () => {

@@ -1,10 +1,15 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Model } from 'mongoose';
 import { z } from 'zod';
 import { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence, Alert, AlertPage } from '@fg2/shared-types/v1';
 import { alarmRule, alarmRuleCreate, alarmRulePage, alarmRuleUpdate, alarmSilence, alert, alertPage } from '@fg2/shared-types/v1-schemas';
+import { germinationChoicesOf } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
@@ -17,6 +22,7 @@ import { V1Answer } from '../v1/answer-shape';
 import { AlarmRuleService } from './alarm-rule.service';
 import { AlertInboxService } from './alert-inbox.service';
 import { alarmRuleOf, alertOf } from './alarm.wire';
+import { germinationHere } from './place-germination';
 
 /**
  * The routes of the alarms: the rules of one device, a rule of its own, and the
@@ -43,6 +49,7 @@ export class DeviceAlarmRulesController {
   constructor(
     private readonly rules: AlarmRuleService,
     private readonly access: AccessService,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
   ) {}
 
   @Get()
@@ -50,10 +57,18 @@ export class DeviceAlarmRulesController {
   @ApiOperation({ summary: 'The alarm rules watching this device' })
   @V1Answer(alarmRulePage)
   public async list(@Param('id') deviceId: string, @V1Query(pageQuery) query: PageQuery, @Caller() caller: AccessContext): Promise<AlarmRulePage> {
-    const [page, counts] = await Promise.all([this.rules.list(deviceId, query), this.rules.counts(deviceId)]);
+    const [page, counts, germination] = await Promise.all([
+      this.rules.list(deviceId, query),
+      this.rules.counts(deviceId),
+      germinationHere(this.devices, deviceId),
+    ]);
     const mayManage = !!(await this.access.access(caller, { type: 'device', id: deviceId }, 'manage'));
 
-    return { ...mapPage(page, rule => alarmRuleOf(rule, mayManage)), counts };
+    return {
+      ...mapPage(page, rule => alarmRuleOf(rule, mayManage)),
+      counts,
+      germination: germination.workmode === 'breed' ? germinationChoicesOf(germination.choices) : null,
+    };
   }
 
   @Post()

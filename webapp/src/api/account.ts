@@ -53,7 +53,13 @@ export const useActivateAccount = () => useMutation({ mutationFn: (body: UserAct
 export const useRequestReset = () => useMutation({ mutationFn: (body: PasswordResetCreate) => api.post<void>('/password-resets', body) });
 
 /** Whether a code from a recovery mail can still set a password; it spends nothing (`reset_unknown` where it cannot). */
-export const useCheckReset = () => useMutation({ mutationFn: (token: string) => api.get<void>(`/password-resets/${encodeURIComponent(token)}`) });
+const checkReset = (token: string) => api.get<void>(`/password-resets/${encodeURIComponent(token)}`);
+
+export const useCheckReset = () => useMutation({ mutationFn: checkReset });
+
+/** The same asked of a link as it opens, so a spent one is said before a new password is chosen for it. */
+export const useResetValid = (token: string, enabled: boolean) =>
+  useRead({ queryKey: ['password-reset', token], queryFn: () => checkReset(token).then(() => true), enabled, retry: false });
 
 export const useRedeemReset = () =>
   useMutation({

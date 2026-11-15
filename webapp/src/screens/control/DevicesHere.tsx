@@ -16,6 +16,7 @@ import { useFirmware } from '@/screens/devices/firmware-builds';
 import { socketName, socketState } from '@/screens/devices/socket-words';
 import { rowsOf } from '@/screens/devices/sockets';
 import { deviceLiveness, livenessWords, sinceLabel } from '@/ui/age';
+import { darkSpellAmong } from '@/ui/climate-hardware';
 import { Facts } from '@/ui/Facts';
 import { camerasCalled } from '@/ui/camera-name';
 import { cameraTitle, deviceName, deviceTitle } from '@/ui/naming';
@@ -28,6 +29,7 @@ import { useWideWindow } from '@/ui/wide-window';
 import { useZone } from '@/ui/zone';
 import { isOutputPath, MODE_PATHS, SAID_ON_CARDS } from './climate/figures';
 import { ownFactOf } from './devices/own-summary';
+import { lampInTheDark } from './held-light';
 import { standOf } from './rows';
 import styles from './Control.module.css';
 
@@ -173,8 +175,14 @@ function DeviceCard({
   // The pill's words; a device that is heard says no age, which would only count the seconds on every card.
   const [word, age] = livenessWords(liveness, spokeAt, now);
   const says = waiting ? [t('liveness.waiting')] : silenceSaid && offline ? [] : [word, liveness === 'live' ? null : age];
-  // What a device that is not the place's climate is set to, which its own page changes.
-  const own = leads ? null : ownFactOf(t, device, offsetOf(now, zone));
+  // What a device that is not the place's climate is set to, which its own page changes - a lamp module its place keeps
+  // dark says that instead of a window it does not keep.
+  const spell = device.type === 'light' ? darkSpellAmong(among) : null;
+  const own = leads
+    ? null
+    : spell
+      ? { label: t('lightSettings.title'), value: lampInTheDark(t, spell, device, now, zone) }
+      : ownFactOf(t, device, offsetOf(now, zone));
   const elsewhere = unsaid(pending, leads);
 
   return (

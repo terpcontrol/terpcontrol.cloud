@@ -33,6 +33,7 @@ import { handSetPhases } from './031-hand-set-phases';
 import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
 import { oneClimateAPlace } from './033-one-climate-a-place-with-its-past';
 import { fansWithoutALamp } from './034-fans-without-a-lamp';
+import { lampsDarkWhereItIsDark } from './035-lamps-dark-where-it-is-dark';
 
 /**
  * In order, and the order matters in eight places:
@@ -100,4 +101,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   restingRemindersOfEndedGrows,
   oneClimateAPlace,
   fansWithoutALamp,
+  lampsDarkWhereItIsDark,
 ];

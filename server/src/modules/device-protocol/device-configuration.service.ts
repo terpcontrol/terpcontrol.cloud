@@ -37,7 +37,7 @@ import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClock
 import { targetsOf } from '../v1/phase/phase-targets';
 import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
-import { ChoicesSaid, controlOf, decideWorkmode, standardOf, WriteIntent } from './work-modes';
+import { ChoicesSaid, darkIn, decideWorkmode, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it, and what germination is to do about the humidity before and after. */
 interface Written {
@@ -441,8 +441,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
     if (configuration.workmode === 'breed') await this.tellGermination(deviceId);
-    // Its place's lamp modules go dark with it, and come back when it leaves germination or drying.
-    if (darkIn(device.type, before, device.baseWorkmode) !== darkIn(device.type, configuration, mode?.base ?? device.baseWorkmode)) {
+    // Its place's lamp modules go dark with it, and come back when it leaves germination or drying - and a dark climate
+    // applied again brings a lamp that burns there back in line.
+    const darkAfter = darkIn(device.type, configuration, mode?.base ?? device.baseWorkmode);
+    const appliedAgain = darkAfter && (intent.kind === 'targets' || intent.kind === 'climate') && !!intent.applied;
+    if (appliedAgain || darkIn(device.type, before, device.baseWorkmode) !== darkAfter) {
       const placed = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
       await this.lampsFollow(placed?.spaceId ?? null);
     }
@@ -561,15 +564,6 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
 /** Where germination's own humidity is written: the night's, the one half the dark mode holds. */
 const GERMINATION_HUMIDITY_PATH = 'night.humidity';
-
-/**
- * Whether a climate device keeps its place dark: germinating - in the dark mode, or switched off from it, which goes
- * back to it - or drying.
- */
-const darkIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean => {
-  const control = controlOf(type, configuration, base);
-  return control?.mode === 'germination' || control?.drying === true;
-};
 
 const standingNow = (configuration: DeviceConfiguration | null): string | null =>
   typeof configuration?.workmode === 'string' ? configuration.workmode : null;

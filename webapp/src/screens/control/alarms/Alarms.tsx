@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { AlarmRule, Device, Me, OverviewGrow } from '@fg2/shared-types/v1';
+import type { AlarmRule, Device, GerminationChoices, Me, OverviewGrow } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useSpaceOverview } from '@/api/spaces';
@@ -212,6 +212,7 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
                 busy={update.isPending}
                 now={now}
                 // Among all the device's rules, whatever group each stands in.
+                germination={rules.data.germination}
                 twin={rules.data.items.some(other => other.id !== rule.id && ruleTitle(t, other) === ruleTitle(t, rule))}
                 onOpen={() => setOpen(rule)}
                 onToggle={enabled => toggle(rule, enabled)}
@@ -325,6 +326,8 @@ function Templates({ device, rules, onMade }: { device: Device; rules: AlarmRule
 interface RuleCardProps {
   rule: AlarmRule;
   device: Device;
+  /** What was chosen where the device's place germinates (the server's `germination`); absent from an older server. */
+  germination?: GerminationChoices | null;
   me: Me | undefined;
   /** Whether the page already says, over the list, that no alarm reaches anybody. */
   toldAbove: boolean;
@@ -351,7 +354,7 @@ interface RuleCardProps {
  * the rule watches - a CO2 rule the stage wrote for a controller with no
  * sensor - and the reason stands under it.
  */
-function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, made, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
+function RuleCard({ rule, device, germination, me, toldAbove, mayManage, highlighted, made, busy, now, twin, onOpen, onToggle }: RuleCardProps) {
   const { t } = useTranslation();
   const card = useRef<HTMLLIElement>(null);
   const opens = useRef<HTMLButtonElement>(null);
@@ -368,10 +371,10 @@ function RuleCard({ rule, device, me, toldAbove, mayManage, highlighted, made, b
 
   const missing = missingSensor(rule.watch, device);
   const told = willTell(t, rule.severity, rule, me, now);
-  // The stage's "too humid" rests while the device germinates, unless the grower asked to be warned there too,
-  // and warns at germination's own line where they did - which is the line the card shows while it lasts.
-  const workmode = device.configuration?.workmode;
-  const resting = rule.enabled && restsInGermination(rule, workmode, device.control?.germinationChoices);
+  // The stage's "too humid" rests while the place germinates - a lamp module's too -, unless the grower asked to be
+  // warned there, and warns at germination's own line where they did - which is the line the card shows while it lasts.
+  const workmode = germination === undefined ? device.configuration?.workmode : germination ? 'breed' : null;
+  const resting = rule.enabled && restsInGermination(rule, workmode, germination ?? device.control?.germinationChoices);
   const watch = watchNow(rule, workmode);
   const ownLine = !resting && boundLabel(t, watch) !== boundLabel(t, rule.watch) ? boundLabel(t, rule.watch) : null;
   // An output watched for running at all crosses no line, so what it watches is

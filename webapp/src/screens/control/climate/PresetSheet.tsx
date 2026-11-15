@@ -16,7 +16,7 @@ import { targetFigure } from '@/ui/units';
 import { useZone } from '@/ui/zone';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf } from '../germination/germination-choices';
-import { lampsSaid } from '../held-light';
+import { lampsBack, lampsSaid } from '../held-light';
 import { hoursWritten } from '../targets/schedule-words';
 import { shapeOf, type Shape } from '../targets/day-night';
 import { prefilled, presetOf, type TargetsDraft } from '../targets/targets-draft';
@@ -76,7 +76,7 @@ export function PresetSheet({
   onEnd: (spell: 'drying' | 'germination') => Promise<boolean>;
   onClose: () => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const zone = useZone();
   const [picked, setPicked] = useState<ClimateChoice | null>(null);
   const [ending, setEnding] = useState(false);
@@ -116,13 +116,19 @@ export function PresetSheet({
       })
     : moved.map(field => ({ field, to: next[field] }));
   const said = germinates && changes !== null ? choices : undefined;
-  const sets = (picked !== null && (moved.length > 0 || hours || drying !== null || germination !== null)) || said !== undefined;
+  // A lamp module that burns where the place is dark - lit since, or never handed the dark - is put back in line by
+  // taking the spell again, so the spell that runs stays a choice that does something.
+  const outOfLine =
+    darkStage(picked?.stage) !== null &&
+    lamps.some(lamp => lamp.type === 'light' && typeof lamp.configuration?.limit === 'number' && lamp.configuration.limit > 0);
+  const sets = (picked !== null && (moved.length > 0 || hours || drying !== null || germination !== null || outOfLine)) || said !== undefined;
   // A preset whose figures already stand is still taken where the button does not name it: nothing moves, the name comes.
   const names = picked !== null && picked !== chosen && !sets;
   // Unpicked, the choices of a germination that runs are saved with the stage it is in.
   const chip = picked ?? CLIMATE_CHOICES.find(one => one.stage === 'germination') ?? null;
   const paused = ending ? runs : chip && sets ? pauses(next, chip, said) : null;
-  const lampsWords = lampsSaid(t, device, lamps, darkStage(picked?.stage), serverNow(), zone, i18n.language);
+  // Ending a spell gives each lamp module it darkened its brightness back, which is all the sheet says of the lamps then.
+  const lampsWords = ending ? lampsBack(t, lamps).join(' ') || null : lampsSaid(t, device, lamps, darkStage(picked?.stage), serverNow(), zone);
 
   const save = async () => {
     if (!chip) return;
@@ -211,7 +217,9 @@ export function PresetSheet({
           />
         ) : null}
         {/* Each lamp is set on its own: a preset that moves the light says whose and what the others keep, and germination and drying darken every one. */}
-        {lampsWords && (hours || moved.includes('lightLimit') || darkStage(picked?.stage)) ? <p className={styles.note}>{lampsWords}</p> : null}
+        {lampsWords && (ending || hours || moved.includes('lightLimit') || darkStage(picked?.stage) || (running && picked)) ? (
+          <p className={styles.note}>{lampsWords}</p>
+        ) : null}
         {(sets || ending) && grow?.stage ? (
           <p className={styles.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p>
         ) : null}

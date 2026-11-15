@@ -719,6 +719,23 @@ describe('the alarm rules page', () => {
     expect(within(warning).getByText('during germination · above 72 % again afterwards')).toBeInTheDocument();
     expect(within(await card('Box soaking')).getByText('above 95 %')).toBeInTheDocument();
   });
+
+  // Germination is the place's: a lamp module has no work mode, and its "too humid" rests by the controller's choice.
+  it('says a lamp module´s "too humid" rests while its place germinates, by what the server says was chosen there', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
+    const page = (germination: { warnTooHumid: boolean; humidifierHolds: boolean } | null) => ({ ...rulePage([humid]), germination });
+    let answered = page({ warnTooHumid: false, humidifierHolds: true });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? answered : answers(path)) as never,
+    );
+    const view = draw([device({ type: 'light', configuration: { limit: 0 }, control: null })]);
+    expect(within(await card('Too humid')).getByRole('link', { name: 'rests during germination · change under Control ›' })).toBeInTheDocument();
+    view.unmount();
+
+    answered = page({ warnTooHumid: true, humidifierHolds: true });
+    draw([device({ type: 'light', configuration: { limit: 0 }, control: null })]);
+    expect(within(await card('Too humid')).getByText('above 90 %')).toBeInTheDocument();
+  });
 });
 
 describe('the rule sheet', () => {

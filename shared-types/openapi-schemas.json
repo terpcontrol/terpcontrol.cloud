@@ -2065,6 +2065,13 @@
           }
         ]
       },
+      "limitBeforeDark": {
+        "description": "A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
       "firmwareId": {
         "anyOf": [
           {
@@ -4573,6 +4580,17 @@
           "triggered"
         ],
         "description": "Over every rule of the device, whichever page this is."
+      },
+      "germination": {
+        "description": "While the place the device stands in germinates: what was chosen there about the humidity, which the stage's \"too humid\" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GerminationChoices"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [

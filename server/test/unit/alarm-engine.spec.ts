@@ -454,6 +454,38 @@ describe('a "too humid" alarm while the device germinates', () => {
     expect(await openAlert()).toMatchObject({ rested: false });
   });
 
+  it("rests a lamp module's and a fan's too beside a germinating controller, and in a fan's place put on germination alone", async () => {
+    const LAMP = 'lamp-1';
+    await germinating();
+    await db.devices.create({ id: LAMP, type: 'light', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() } });
+    await db.alarmRules.create(tooHumid({ deviceId: LAMP }));
+    const lamp = (humidity: number, at: Date) => engine.onSample({ deviceId: LAMP, measuredAt: at, values: { humidity }, outputs: {} });
+
+    await lamp(95, new Date(Date.now() - 3_000));
+    expect(await db.alerts.countDocuments({})).toBe(0);
+
+    // Asked to warn, it watches at germination's line, as the controller's does.
+    await db.devices.updateOne({ id: DEVICE }, { $set: { germinationChoices: { warnTooHumid: true, humidifierHolds: true } } });
+    await lamp(85, new Date(Date.now() - 2_000));
+    expect(await db.alerts.countDocuments({})).toBe(0);
+    await lamp(95, new Date(Date.now() - 1_000));
+    expect((await openAlert())?.watched?.watch).toMatchObject({ upper: 90 });
+
+    // A fan alone in its place goes by the germination climate it was put on.
+    await db.reset();
+    await db.devices.create({
+      id: 'fan-1',
+      type: 'fan',
+      ownerId: OWNER,
+      spaceId: SPACE,
+      appliedClimate: { stage: 'germination', preset: null },
+      state: { lastSeenAt: new Date() },
+    });
+    await db.alarmRules.create(tooHumid({ deviceId: 'fan-1' }));
+    await engine.onSample({ deviceId: 'fan-1', measuredAt: new Date(), values: { humidity: 95 }, outputs: {} });
+    expect(await db.alerts.countDocuments({})).toBe(0);
+  });
+
   it('goes quiet the moment it is asked to, rather than at the next reading', async () => {
     await device({ configuration: { workmode: 'small' } });
     await db.alarmRules.create(tooHumid());

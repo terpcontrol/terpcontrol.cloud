@@ -40,7 +40,7 @@
  * stage watches for cannot drift from what it asks for.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_HUMIDITY = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
+exports.germinationOf = exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_HUMIDITY = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 exports.AMBIENT_CO2 = 400;
 /**
@@ -232,3 +232,23 @@ exports.restsInGermination = restsInGermination;
  */
 const watchNow = (rule, workmode) => workmode === 'breed' && (0, exports.isStageTooHumid)(rule) ? { ...rule.watch, upper: exports.GERMINATION_TOO_HUMID } : rule.watch;
 exports.watchNow = watchNow;
+/** The hardware whose firmware reads a work mode, and so germinates in the dark itself. */
+const GERMINATING_TYPES = ['controller', 'fridge'];
+/**
+ * The germination a device's alarms go by - the work mode and the choices `restsInGermination` and `watchNow` are
+ * asked with. Germination is the place's, not one device's: the switch "Zu feucht ruht, bis die Keimung endet"
+ * promises it for every sensor of the place, and a lamp module's or a fan's "too humid" fired beside a germinating
+ * controller. So a device with a work mode goes by its own; any other by the controller or fridge module of its place
+ * that germinates, with what was chosen there; and in a place where nothing has a work mode - a fan alone - by the
+ * germination climate it was put on itself.
+ */
+const germinationOf = (device, place) => {
+    if (GERMINATING_TYPES.includes(device.type))
+        return { workmode: device.workmode, choices: device.choices };
+    const lead = place.find(one => GERMINATING_TYPES.includes(one.type) && one.workmode === 'breed');
+    if (lead)
+        return { workmode: 'breed', choices: lead.choices };
+    const alone = !place.some(one => GERMINATING_TYPES.includes(one.type)) && device.stage === 'germination';
+    return { workmode: alone ? 'breed' : null, choices: device.choices };
+};
+exports.germinationOf = germinationOf;

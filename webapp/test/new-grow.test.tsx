@@ -279,9 +279,9 @@ describe('the form a grow is started with', () => {
     await drawLoaded('space-1');
 
     fireEvent.click(stage('Veg'));
-    expect(await screen.findByText(/^It sets the controller’s light\. Light · Lamp module stays at \d\d:00 to \d\d:00\.$/)).toBeInTheDocument();
+    expect(await screen.findByText(/^It sets the controller’s light\. The lamp module stays at \d\d:00 to \d\d:00\.$/)).toBeInTheDocument();
     fireEvent.click(stage('Germination'));
-    expect(screen.getByText('Light · Controller and Light · Lamp module stay off until germination ends.')).toBeInTheDocument();
+    expect(screen.getByText('Both lamps stay off until germination ends.')).toBeInTheDocument();
   });
 
   it('says a fan at a fixed speed keeps it, though the stage writes its targets', async () => {

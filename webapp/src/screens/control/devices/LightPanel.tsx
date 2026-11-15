@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration } from '@fg2/shared-types/v1';
 import { FIRMWARE_LIGHTS_OFF, FIRMWARE_LIGHTS_ON, lightsOffOf } from '@fg2/shared-types/v1-schemas/day-night.js';
-import { useHeardAt } from '@/api/devices';
+import { useDevices, useHeardAt } from '@/api/devices';
+import { darkSpellAmong } from '@/ui/climate-hardware';
+import { standingWith } from '@/ui/naming';
 import { fieldValue } from '@/ui/advanced/field-values';
 import { offlineLabel } from '@/ui/age';
 import { useNow } from '@/ui/useNow';
@@ -9,6 +11,7 @@ import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { figureText } from '../climate/figures';
 import { LightCard } from '../climate/LightCard';
+import { lampInTheDark } from '../held-light';
 import { useSettings } from '../climate/saved';
 import { nowHoldingOf, shapeOf } from '../targets/day-night';
 import { scheduleTitle } from '../targets/schedule-words';
@@ -32,6 +35,7 @@ export function LightPanel({ device, mayManage }: { device: Device; mayManage: b
   const now = useNow();
   const zone = useZone();
   const settings = useSettings(device);
+  const spell = darkSpellAmong(standingWith(device, useDevices().data?.items) ?? []);
   const heard = useHeardAt(device);
   const offset = offsetOf(now, zone);
   const figure = (name: string, fallback: number): number => {
@@ -69,6 +73,7 @@ export function LightPanel({ device, mayManage }: { device: Device; mayManage: b
       offline={settings.offline ? offlineLabel(heard, now, zone, true) : null}
       pending={new Map([...settings.pending].map(([path, held]) => [AS_LAMP[path] ?? path, held]))}
       longest={LONGEST_HOURS}
+      dark={spell ? lampInTheDark(t, spell, device, now, zone) : null}
       mayManage={mayManage}
       busy={settings.busy}
       error={settings.error}

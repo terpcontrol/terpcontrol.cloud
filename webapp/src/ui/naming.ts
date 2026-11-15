@@ -1,6 +1,9 @@
 import type { Camera, Device, Firmware, SpaceKind } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
 
+/** What a device is called by: a device the account holds, or one an answer names that it may hold no longer. */
+export type Called = Pick<Device, 'id' | 'name' | 'type'>;
+
 /**
  * What a device is called wherever one is written down.
  *
@@ -15,7 +18,7 @@ import type { Translate } from '@/i18n/i18n';
 export const givenName = (device: Pick<Device, 'name' | 'type'>): string | null => (device.name && device.name !== device.type ? device.name : null);
 
 /** The last four letters or figures of the id: a tail cut by position begins with a hyphen ("-FAN-1"). */
-const deviceTag = (device: Device): string =>
+const deviceTag = (device: Called): string =>
   device.id
     .replace(/[^a-z0-9]/gi, '')
     .slice(-4)
@@ -55,7 +58,7 @@ export const deviceName = (device: Pick<Device, 'name' | 'type'>, t: Translate):
  * `among` is the list the name is read in - the devices of one place on its
  * card, its own page and the sheets opened from either (`standingWith`).
  */
-export const deviceTitle = (device: Device, t: Translate, among?: Device[]): string => {
+export const deviceTitle = (device: Called, t: Translate, among?: readonly Called[]): string => {
   const name = givenName(device);
   if (name) return name;
 
