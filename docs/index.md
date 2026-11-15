@@ -11,7 +11,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [0004 Server on NestJS and Fastify](adr/0004-server-on-nestjs-and-fastify.md) - before touching the server's wiring, configuration or HTTP layer
 - [0005 Device times on the wall clock](adr/0005-device-times-on-the-wall-clock.md) - before touching a time of day in a device document or the summer-time shift
 - [0006 Day and night by the device clock](adr/0006-day-and-night-by-the-device-clock.md) - before deciding day/night anywhere outside the firmware, a plug's and a fan's VPD included
-- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed` or the humidifier rules
+- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed`, the humidifier rules or what a lamp does in the dark
 
 ## Contracts
 - [Device protocol](device-protocol.md) - before changing anything a device and the cloud say to each other; what is frozen and how to extend it

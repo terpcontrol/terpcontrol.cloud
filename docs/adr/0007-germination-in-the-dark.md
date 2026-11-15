@@ -1,7 +1,7 @@
 ---
 summary: The owner's decisions on germination (Keimung) - two stages, germination in the dark and the seedling stage with light, 24 °C and 75 % for the seeds, and the grower's two humidity choices - with their reasons and what they mean for work modes, alarms and stored plans - read before touching the germination stage, the breed work mode, a humidifier socket's behaviour in the dark or the "too humid" alarm
-updated: 2026-10-08
-source: Chris (owner's decisions of 2026-10-03 and 10-04), rewrite commits merged with PR #104; checked against shared-types/, server/ and firmware/ on 2026-10-08
+updated: 2026-11-15
+source: every lamp of a germinating place kept dark, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); Chris (owner's decisions of 2026-10-03 and 10-04), rewrite commits merged with PR #104; checked against shared-types/, server/ and firmware/ on 2026-10-08
 paths:
   - shared-types/src/v1/climate-presets.ts
   - shared-types/src/v1/configuration-fields.ts
