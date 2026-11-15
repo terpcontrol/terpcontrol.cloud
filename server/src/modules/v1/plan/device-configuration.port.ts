@@ -1,4 +1,5 @@
 import type { AppliedClimate, DeviceConfiguration, GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
+import type { AwaitedClimate } from '@database/schemas/v1/devices.schema';
 
 /**
  * Putting a device on the settings a plan step carries.
@@ -32,6 +33,12 @@ export interface DeviceConfigurationWriter {
    * after it (ADR 0007); `deviceIds` names a lamp that has just left for no place.
    */
   lampsFollow(spaceId: string | null, deviceIds?: readonly string[]): Promise<void>;
+
+  /**
+   * Puts devices that have not sent their settings yet on a climate preset as they arrive (`awaitedClimate`), and their
+   * place's thresholds on it now: a climate waiting for a device is a climate written there.
+   */
+  awaitClimate(deviceIds: readonly string[], awaited: AwaitedClimate): Promise<void>;
 }
 
 export const DEVICE_CONFIGURATION_WRITER = Symbol('DeviceConfigurationWriter');

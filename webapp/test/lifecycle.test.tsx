@@ -1131,6 +1131,53 @@ describe('the climate beside a phase', () => {
   });
 
   /**
+   * The climate of the stage the grow already stands in begins no phase: the server answers with the phase it stands
+   * in. "Blüte · jetzt" with Blüte said "Blüte begonnen", and the stage only recorded again offered to take back the
+   * phase the grow had stood in for weeks.
+   */
+  it('says the targets were set where the grow already stood in the stage, and offers no way back to a phase before', async () => {
+    const asked: { method: string; url: string }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        asked.push({ method: init?.method ?? 'GET', url: String(input) });
+        return json(phase('p2', 'flowering', 5));
+      }),
+    );
+    hardware.devices = [tent()];
+    const flowering: GrowListItem = {
+      ...grow,
+      phases: [phase('p1', 'vegetative', 20), phase('p2', 'flowering', 5)],
+      summary: { ...grow.summary, stage: 'flowering' },
+    };
+    const { unmount } = drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
+    expect(screen.getByText('The grow is already in this phase: only the targets are written.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Targets set · Flower · Spring run'))).toBeInTheDocument();
+    expect(screen.queryByText(/Entered Flower/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    unmount();
+
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={flowering} onClose={() => {}} />
+      </LogProvider>,
+    );
+    fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    expect(await screen.findByText(reading('Flower · Spring run · already in this phase'))).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect(asked.some(call => call.method === 'DELETE')).toBe(false);
+  });
+
+  /**
    * Taking a phase back writes no device. A tent left drying under a grow that then read "Flower" was told nothing
    * and showed "All on target": the question says what the device holds, and that it goes on drying, with the way to
    * where drying is ended.

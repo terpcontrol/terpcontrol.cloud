@@ -160,7 +160,12 @@ beforeEach(async () => {
     db.spaces,
   );
 
-  const alarms: StageAlarms = { applyStage: async () => undefined, stageOf: async () => null };
+  const alarms: StageAlarms = {
+    applyStage: async () => undefined,
+    followClimate: async () => undefined,
+    dropStage: async () => undefined,
+    stageOf: async () => null,
+  };
   const mail = { send: async () => undefined } as unknown as MailService;
   const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   plans = new PlanService(

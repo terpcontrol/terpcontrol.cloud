@@ -22,7 +22,7 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick, StageClimates } from './ClimatePick';
 import { RepairAnswer } from './RepairAnswer';
-import { climateRequest, defaultPick, useGrowsBeside, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
+import { climateRequest, defaultPick, phaseTold, useGrowsBeside, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
 import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
@@ -106,7 +106,15 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {ended ? null : <ClimatePick stage={stage} spaceId={standsIn(grow)} growId={grow.id} value={pick} onChange={setPick} />}
 
           {standsThere ? (
-            <p className={ui.note}>{t(ended ? 'grow.lifecycle.phase.alreadyThereEnded' : 'grow.lifecycle.phase.alreadyThere')}</p>
+            <p className={ui.note}>
+              {t(
+                ended
+                  ? 'grow.lifecycle.phase.alreadyThereEnded'
+                  : pick.climate
+                    ? 'grow.lifecycle.phase.alreadyThereClimate'
+                    : 'grow.lifecycle.phase.alreadyThere',
+              )}
+            </p>
           ) : null}
           <Refused error={add.error} />
 
@@ -118,16 +126,10 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
               add.mutate(
                 { growId: grow.id, body: { stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) } },
                 {
-                  // As the entry sheet answers a phase: what holds now, and the way back where taking the phase back
-                  // is all it did - a phase that also wrote the place's targets would leave them standing.
+                  // As the entry sheet answers a phase (`phaseTold`).
                   onSuccess: phase => {
                     onClose();
-                    tell({
-                      label: [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), grow.name, pick.climate ? t('log.targetsSet') : null]
-                        .filter(Boolean)
-                        .join(' · '),
-                      ...(pick.climate ? { undo: null } : { undo: () => withdraw.mutateAsync(phase.id), undone: t('log.phaseBefore') }),
-                    });
+                    tell(phaseTold(t, { phase, before: grow.phases, stage, pick, name: grow.name, withdraw: withdraw.mutateAsync }));
                   },
                 },
               )

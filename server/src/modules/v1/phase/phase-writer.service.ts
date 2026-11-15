@@ -43,11 +43,12 @@ interface PhaseRequest {
   targets: PhaseTargets | null;
   startedAt?: Date;
   /**
-   * False where the phase is only recorded and nothing wrote a climate with it:
-   * a place's alarm thresholds follow the climate written there, so such a
-   * phase leaves them as they are - unless the place already runs the stage's
+   * False where the phase is only recorded and nothing wrote a climate with it.
+   * A place's alarm thresholds follow the climate written there, and that write
+   * moves them itself (`DeviceConfigurationService.store`), so a phase moves
+   * none - but for one only recorded over a place that already runs the stage's
    * own mode, whose climate it then is (see `rereadThresholds`). Left out, the
-   * climate is written.
+   * climate was written.
    */
   climateWritten?: boolean;
 }
@@ -121,7 +122,7 @@ export class PhaseWriterService implements DevicePlacement {
       values: { kind: 'phase', phaseId: phase.id, stage: phase.stage, preset: phase.preset },
     });
 
-    if ((request.climateWritten ?? true) || (await this.runsItsMode(grow, phase))) await this.rereadThresholds(grow, phase);
+    if (request.climateWritten === false && (await this.runsItsMode(grow, phase))) await this.rereadThresholds(grow, phase);
     return phase;
   }
 
@@ -207,11 +208,11 @@ export class PhaseWriterService implements DevicePlacement {
    * The thresholds the stage binds, on every device standing where the phase's
    * plants do - a plug in the tent measures the same air as the controller -
    * and on the controller the phase names, which is the same set unless the
-   * plants have since been moved. Only for a phase written with its climate:
-   * a place's thresholds follow the climate written there, and a stage merely
-   * recorded - beside another grow, or seeds sprouting somewhere a lamp burns -
-   * would arm the place for a climate nobody set (a second grow started in Veg
-   * closed the flowering grow's open "too humid" while the air stayed at 62 %).
+   * plants have since been moved. Only for a stage recorded over a place that
+   * already runs its mode: any other stage merely recorded - beside another
+   * grow, or seeds sprouting somewhere a lamp burns - would arm the place for a
+   * climate nobody set (a second grow started in Veg closed the flowering grow's
+   * open "too humid" while the air stayed at 62 %).
    */
   private async rereadThresholds(grow: GrowDocument, phase: PhaseDocument): Promise<void> {
     if (!this.alarms) return;
@@ -243,9 +244,10 @@ export class PhaseWriterService implements DevicePlacement {
    * place is watched by: the stage the bands of the devices already there come
    * from, or where none has any, the phase of the plants standing there longest -
    * so that a controller claimed into a tent in flower is watched like the tent
-   * is, and not by a stage recorded beside it. Nothing is standing there: the
-   * device keeps whatever rules it has, which is what a device moved out to a
-   * shelf and back would want.
+   * is, and not by a stage recorded beside it. Where neither is, no climate was
+   * written there, and the device drops the bands it brought: a fan claimed into
+   * a new place had first been joined to a tent in flower, and watched an empty
+   * drying tent for 60 %.
    */
   public async restateThresholds(deviceId: string, spaceId: string): Promise<void> {
     const others = await this.devices.find({ spaceId, id: { $ne: deviceId } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
@@ -254,21 +256,13 @@ export class PhaseWriterService implements DevicePlacement {
 
     const grow = await this.standingGrow<GrowDocument>(spaceId, undefined, 1);
     const standing = grow ? phaseStandingIn(grow, spaceId) : null;
-    if (standing) await this.applyStageTo(deviceId, standing);
-  }
+    if (standing) return this.applyStageTo(deviceId, standing);
 
-  /**
-   * A climate written to a place whose grow already stood in its stage, or
-   * where no grow stands: the new-grow sheet records the first phase a moment
-   * before it puts the place on that stage's climate, and a preset is applied
-   * again. The alarms follow the climate, so the bands of the stage written are
-   * read again for every device in the place.
-   */
-  public async restateSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
-    if (!this.alarms) return;
-
-    const here = await this.devices.find({ spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
-    for (const device of here) await this.applyStageTo(device.id, { stage, preset });
+    try {
+      await this.alarms?.dropStage(deviceId);
+    } catch (error) {
+      logger.error(`Could not take the stage thresholds off device ${deviceId}: ${error}`);
+    }
   }
 
   /** The thresholds are the alarm engine's, and a device that could not be told must not undo the phase the grow is in. */

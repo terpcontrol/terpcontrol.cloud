@@ -1154,6 +1154,7 @@
         "stageLabel": "Phase",
         "presetLabel": "Climate preset",
         "alreadyThere": "The grow is already in this phase: nothing is written.",
+        "alreadyThereClimate": "The grow is already in this phase: only the targets are written.",
         "alreadyThereEnded": "The grow ended in this phase: nothing is written.",
         "submit": "Enter {{stage}}",
         "submitEnded": "Record {{stage}}",
@@ -2101,6 +2102,7 @@
     "asBefore": "{{what}} as before",
     "noMore": "{{what}} is gone",
     "phaseBefore": "back in the phase before",
+    "phaseKept": "already in this phase",
     "deleteFailed": "Could not delete that entry",
     "litresBelow": "More than 0 L.",
     "readingNoNumber": "{{name}}: that is not a number.",
@@ -2725,9 +2727,11 @@
     "quietLine": "Muting and maintenance",
     "add": "+ Custom alarm",
     "group": {
-      "phaseOf": "From the {{name}} phase",
-      "phaseNone": "Phase alarms",
+      "climateOf": "From the {{name}} climate",
+      "climateNone": "Climate alarms",
       "presetAside": "thresholds follow the climate",
+      "changedSince": "targets changed since",
+      "climateSince": "climate since: {{name}}",
       "always": "Built in",
       "device": "From the device",
       "human": "Written here"
@@ -3869,8 +3873,8 @@
       "text": "For working in the tent or cabinet: for a quarter of an hour the device stops the heater, the dehumidifier or compressor and the CO₂ valve, and dims the light; “Extend” adds another. Alarms stay off 10 minutes longer, until the climate is back. Then everything carries on by itself; you can also end maintenance sooner."
     },
     "presetRules": {
-      "title": "Rules from the phase",
-      "text": "Each phase brings four rules – too hot, too humid, too cold at night and too much CO₂ – with lines worked out from the targets. The next phase moves their lines and waits; what you switched off, regraded or silenced stays, and curing removes them."
+      "title": "Rules from the climate",
+      "text": "Each climate brings four rules – too hot, too humid, too cold at night and too much CO₂ – with lines worked out from its targets. The next climate moves their lines and waits, whether you take it under Control, with a phase, or a plan sets it; targets you change by hand move nothing. What you switched off, regraded or silenced stays, and curing removes them."
     },
     "offlineRule": {
       "title": "The offline rule",

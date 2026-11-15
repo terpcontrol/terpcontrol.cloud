@@ -1,4 +1,4 @@
-import type { Device, GerminationChoices, GrowListItem, GrowthStage, PhaseCreate } from '@fg2/shared-types/v1';
+import type { Device, GerminationChoices, GrowListItem, GrowthStage, Phase, PhaseCreate } from '@fg2/shared-types/v1';
 import type { ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +10,8 @@ import { alsoIn } from '@/screens/space/movable-grows';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
 import { draftOf } from '@/screens/control/targets/targets-draft';
 import { germinates, statesTargets } from '@/ui/climate-hardware';
-import { writesClimate } from '@/ui/presets';
+import type { Told } from '@/log/log-context';
+import { climateChoiceName, writesClimate } from '@/ui/presets';
 import { targetFigure } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
@@ -26,6 +27,43 @@ export interface PhaseClimate {
 }
 
 export const KEEP_CLIMATE: PhaseClimate = { climate: false, preset: null };
+
+/**
+ * What a phase written from a sheet says it did, `phase` being the server's answer and `before` the grow's phases as
+ * the sheet had them. A phase begun says so ("Blüte begonnen · Einzelgrow", with "Zielwerte gesetzt" where its climate
+ * was written) and is taken back from the toast where that is all it did: one that also wrote the place's targets would
+ * leave them standing. Where the grow already stood in that stage no phase began - the answer is the phase it stands
+ * in, and taking that back would undo a phase nobody asked about: the climate written is all there is to say
+ * ("Zielwerte gesetzt · Blüte").
+ */
+export const phaseTold = (
+  t: Translate,
+  {
+    phase,
+    before,
+    stage,
+    pick,
+    name,
+    withdraw,
+  }: {
+    phase: Phase;
+    before: readonly Phase[];
+    stage: GrowthStage;
+    pick: PhaseClimate;
+    name: string;
+    withdraw: (phaseId: string) => Promise<unknown>;
+  },
+): Told => {
+  if (before.some(one => one.id === phase.id)) {
+    const climate = climateChoiceName(t, { stage, preset: pick.preset });
+    const said = (pick.climate ? [t('log.targetsSet'), climate, name] : [climate, name, t('log.phaseKept')]).join(' · ');
+    return { label: said.charAt(0).toLocaleUpperCase() + said.slice(1), undo: null };
+  }
+  const label = [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), name, pick.climate ? t('log.targetsSet') : null]
+    .filter(Boolean)
+    .join(' · ');
+  return pick.climate ? { label, undo: null } : { label, undo: () => withdraw(phase.id), undone: t('log.phaseBefore') };
+};
 
 /**
  * What the request says about it: nothing at all where the climate is kept, so

@@ -5,7 +5,7 @@ import type { GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { ModelsModule } from '@database/models.module';
-import { AwaitedClimate, StoredDevice } from '@database/schemas/v1/devices.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
 import { DeviceSettingsSink } from '../../device-protocol/device-sinks';
 import { AppliedPreset, ClimatePresets } from '../grow/climate-presets.port';
@@ -59,10 +59,7 @@ export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink
     // waits for them, and is put on the climate as they arrive (`settingsArrived`) - a phase chosen at the claim
     // before the device first reported was never written, and Start called its own figures "Alles im Ziel".
     const awaiting = here.filter(device => device.configuration === null && OWN_CLIMATE_TYPES.includes(device.type)).map(device => device.id);
-    if (awaiting.length > 0) {
-      const awaited: AwaitedClimate = { spaceId, stage, preset, choices: germination ?? null };
-      await this.devices.updateMany({ id: { $in: awaiting }, configuration: null }, { $set: { awaitedClimate: awaited } });
-    }
+    if (awaiting.length > 0) await this.configuration.awaitClimate(awaiting, { spaceId, stage, preset, choices: germination ?? null });
 
     for (const device of here) {
       const settings =

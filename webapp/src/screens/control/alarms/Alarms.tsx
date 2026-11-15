@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { AlarmRule, Device, GerminationChoices, Me } from '@fg2/shared-types/v1';
+import type { AlarmRule, AppliedClimate, Device, GerminationChoices, Me } from '@fg2/shared-types/v1';
 import { restsInGermination, stageOfPresetId, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
@@ -18,7 +18,8 @@ import { durationLabel } from '@/ui/age';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
-import { stageLabel } from '@/ui/presets';
+import { climateChoiceName } from '@/ui/presets';
+import { statesTargets } from '@/ui/climate-hardware';
 import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -106,6 +107,9 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
               mayManage={mayManage}
               highlighted={params.get('rule')}
               restEnds={restEnds}
+              // The climate the place runs is the one its controller or fridge module holds; a lamp, a plug or a fan
+              // beside it is watched by that one's bands.
+              runs={climateHeld(device, devices)}
               now={now}
             />
           )}
@@ -135,8 +139,17 @@ interface DeviceRulesProps {
   /** The rule an alert linked to, which is scrolled to and marked. */
   highlighted: string | null;
   restEnds: RestEnds | null;
+  /** The climate preset the device holding the place's climate is named by; undefined where no device there holds one. */
+  runs: AppliedClimate | null | undefined;
   now: DateTime;
 }
+
+/** The named climate of the device that holds the place's targets - this one, else the first beside it that does. */
+const climateHeld = (device: Device, devices: readonly Device[]): AppliedClimate | null | undefined => {
+  const holds = (one: Device) => one.configuration !== null && statesTargets(one.configuration);
+  const holder = holds(device) ? device : devices.find(holds);
+  return holder ? (holder.control?.preset ?? null) : undefined;
+};
 
 /** Where a stage's rule resting in germination can end, and what the way there says. */
 interface RestEnds {
@@ -145,7 +158,7 @@ interface RestEnds {
 }
 
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, restEnds, now }: DeviceRulesProps) {
+function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, restEnds, runs, now }: DeviceRulesProps) {
   const { t } = useTranslation();
   const Heading = level === 2 ? 'h2' : 'h3';
   const { tell } = useLog();
@@ -183,11 +196,20 @@ function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, res
   if (rules.isPending) return <Waiting lines={3} />;
   if (!rules.data) return <LoadFailed read={rules} />;
 
-  // The stage's rules are headed by the phase their bands were written for ("Phase" is Chris's word, never
-  // "Klima-Preset"): the climate written here, never a stage only recorded since - beside a second grow, say.
+  // The stage's rules are headed by the climate their bands were written for, never a stage only recorded since -
+  // beside a second grow, say -, and say whether they still follow the climate the place runs: where its targets were
+  // changed since, or it was put on another one, the bands are that climate's no longer.
   const presetId = rules.data.items.find(rule => rule.origin === 'preset' && rule.presetId)?.presetId;
   const written = presetId ? stageOfPresetId(presetId) : null;
-  const phase = written ? stageLabel(t, written.stage, written.preset) : null;
+  const climate = written ? climateChoiceName(t, written) : null;
+  const aside =
+    !written || runs === undefined
+      ? null
+      : runs === null
+        ? t('alarms.group.changedSince')
+        : runs.stage === written.stage && runs.preset === written.preset
+          ? t('alarms.group.presetAside')
+          : t('alarms.group.climateSince', { name: climateChoiceName(t, runs) });
   const groups = groupRules(rules.data.items);
 
   return (
@@ -206,14 +228,14 @@ function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, res
             <span className={styles.groupName}>
               <Heading className={`label ${styles.groupTitle}`}>
                 {group.origin === 'preset'
-                  ? phase
-                    ? t('alarms.group.phaseOf', { name: phase })
-                    : t('alarms.group.phaseNone')
+                  ? climate
+                    ? t('alarms.group.climateOf', { name: climate })
+                    : t('alarms.group.climateNone')
                   : t(`alarms.group.${group.origin}`)}
               </Heading>
               {group.origin === 'preset' ? <Help topic="presetRules" /> : group.origin === 'always' ? <Help topic="offlineRule" /> : null}
             </span>
-            {group.origin === 'preset' ? <span className={styles.groupAside}>{t('alarms.group.presetAside')}</span> : null}
+            {group.origin === 'preset' && aside ? <span className={styles.groupAside}>{aside}</span> : null}
           </header>
           <ul className={ui.group}>
             {group.rules.map(rule => (

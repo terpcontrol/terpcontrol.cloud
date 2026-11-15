@@ -7,8 +7,13 @@ import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.serv
 import { AlertService } from '@modules/alarm/alert.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { DataService } from '@modules/data/data.service';
+import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
+import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
-import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
+import { STAGE_ALARMS, StageAlarms } from '@modules/v1/phase/stage-alarms.port';
+import { presetConfiguration } from '@modules/v1/space/climate-presets';
+import { ClimatePresetsService } from '@modules/v1/space/climate-presets.service';
+import { deviceStackOn } from './support/device-stack';
 import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
@@ -272,6 +277,7 @@ describe('a device that germinates and was asked to warn', () => {
 
 describe('a device stood in a space', () => {
   let applied: { deviceId: string; stage: string; preset: string | null }[];
+  let dropped: string[];
   let phases: PhaseWriterService;
 
   const aGrow = (phases: Record<string, unknown>[], placements: Record<string, unknown>[]) =>
@@ -292,8 +298,11 @@ describe('a device stood in a space', () => {
 
   beforeEach(() => {
     applied = [];
+    dropped = [];
     const alarms: StageAlarms = {
       applyStage: async (deviceId, stage, preset) => void applied.push({ deviceId, stage, preset }),
+      followClimate: async () => undefined,
+      dropStage: async deviceId => void dropped.push(deviceId),
       stageOf: deviceIds => service.stageOf(deviceIds),
     };
     phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
@@ -327,35 +336,17 @@ describe('a device stood in a space', () => {
     expect(applied).toEqual([{ deviceId: DEVICE, stage: 'flowering', preset: null }]);
   });
 
-  it('leaves a device alone where nothing stands, or where the grow has no phase yet', async () => {
+  /**
+   * No climate was written where nothing stands and nothing is watched: a fan claimed "An einem neuen Ort" had first
+   * been joined to a tent in flower, and watched its empty tent for 60 %.
+   */
+  it('drops the bands it brought where nothing stands, or where the grow has no phase yet', async () => {
     await phases.restateThresholds(DEVICE, TENT);
     await aGrow([], [{ id: 'pl1', spaceId: TENT, startedAt: at(1), endedAt: null, plantIds: null }]);
     await phases.restateThresholds(DEVICE, TENT);
 
     expect(applied).toEqual([]);
-  });
-
-  it('is told of every device standing where the phase is entered', async () => {
-    await aGrow([], [{ id: 'pl1', spaceId: TENT, startedAt: at(1), endedAt: null, plantIds: null }]);
-    await db.devices.create([
-      { id: DEVICE, type: 'controller', ownerId: 'user-owner', spaceId: TENT },
-      { id: OTHER, type: 'plug', ownerId: 'user-owner', spaceId: TENT },
-      { id: 'device-elsewhere', type: 'controller', ownerId: 'user-owner', spaceId: 'space-other' },
-    ]);
-
-    await phases.setPhase({
-      growId: GROW,
-      stage: 'vegetative',
-      preset: null,
-      source: 'human',
-      setBy: 'user-owner',
-      plantIds: null,
-      deviceId: DEVICE,
-      spaceId: TENT,
-      targets: null,
-    });
-
-    expect(applied.map(call => call.deviceId).sort()).toEqual([DEVICE, OTHER]);
+    expect(dropped).toEqual([DEVICE, DEVICE]);
   });
 
   it('takes the stage the bands of the devices already there come from, not a stage recorded beside it since', async () => {
@@ -396,8 +387,9 @@ describe('a device stood in a space', () => {
     await phases.setPhase({ ...recorded, stage: 'flowering', climateWritten: false });
     expect(applied).toEqual([]);
 
+    // Nor does one written with its climate: the write of the climate moves them (`DeviceConfigurationService.store`).
     await phases.setPhase({ ...recorded, stage: 'drying' });
-    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'drying', preset: null }]);
+    expect(applied).toEqual([]);
   });
 
   it('takes the bands of a stage recorded over a place that already runs its mode, whose climate it then is', async () => {
@@ -465,5 +457,138 @@ describe('a second grow started beside one in flower', () => {
     expect([bands.too_cold.watch.lower, bands.too_humid.watch.upper, bands.too_hot.watch.upper]).toEqual([16, 60, 30]);
     expect(bands.too_humid.presetId).toBe('flowering');
     expect(await db.alerts.findOne({ resolvedAt: null }).lean()).toMatchObject({ id: open!.id });
+  });
+});
+
+/**
+ * A place's thresholds follow every climate written there, by one way: the write of a device's settings
+ * (`DeviceConfigurationService.store`), which a preset under Steuerung, a phase with its climate, the claim, a plan
+ * step and a spell ended all go through. The phase sheet's "Blüte · jetzt" with Blüte over a grow recorded in Blüte, a
+ * Steuerung preset and "Keimung beenden" each wrote a climate and left another stage's bands.
+ */
+describe('every climate written moves the place´s bands', () => {
+  const OWNER = 'user-owner';
+  const HIDE = { authors: false, counts: false, weights: false };
+  const DOCUMENT = {
+    workmode: 'small',
+    day: { temperature: 25, humidity: 60 },
+    night: { temperature: 20, humidity: 55 },
+    daynight: { day: 21600, night: 64800, maxDehumidifySeconds: 2700, targetHumidityDiff: 5, useLongHumidityAvg: 0, linearChange: 1 },
+    co2: { target: 900, sunsetOff: 1 },
+    lights: { limit: 80 },
+  };
+  const VEG = [18, 72, 31];
+  const FLOWER = [16, 60, 30];
+  const SEEDLING = [17, 80, 29];
+  let configuration: DeviceConfigurationService;
+  let grows: GrowsService;
+
+  /** Too cold, too humid, too hot: the three figures the alarms page reads. */
+  const bands = async (deviceId = DEVICE) => {
+    const rules = await byKey(deviceId);
+    return [rules.too_cold?.watch.lower, rules.too_humid?.watch.upper, rules.too_hot?.watch.upper];
+  };
+  const document = async () => (await db.devices.findOne({ id: DEVICE }).lean())!.configuration as Record<string, unknown>;
+  /** "Übernehmen" on a chip of Steuerung's Klima-Preset: the whole document with the preset's figures, and its name. */
+  const steuerung = async (stage: 'vegetative' | 'flowering' | 'seedling' | 'germination' | 'drying') => {
+    const current = await document();
+    await configuration.replace(
+      DEVICE,
+      { ...current, ...presetConfiguration(stage, null, current, true) },
+      OWNER,
+      stage === 'drying',
+      stage === 'germination',
+      undefined,
+      { stage, preset: null },
+    );
+  };
+  const aGrowInVeg = () =>
+    db.grows.create({
+      id: GROW,
+      ownerId: OWNER,
+      name: 'Einzelgrow',
+      slug: 'einzelgrow',
+      type: 'photoperiod',
+      visibility: 'private',
+      startedAt: new Date(Date.now() - 20 * 24 * 3600_000),
+      endedAt: null,
+      phases: [],
+      placements: [{ id: 'pl1', spaceId: TENT, startedAt: new Date(Date.now() - 20 * 24 * 3600_000), endedAt: null, plantIds: null }],
+    });
+
+  beforeEach(async () => {
+    ({ configuration } = deviceStackOn(db, null, { [STAGE_ALARMS]: service }));
+    const writer = new EntryWriterService(db.entries);
+    const phases = new PhaseWriterService(db.grows, writer, db.entries, db.devices, service);
+    grows = growsOn(db, accessOn(db), { writer, phases, presets: new ClimatePresetsService(db.devices, configuration) });
+    await db.devices.create([
+      { id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: TENT, configuration: DOCUMENT },
+      { id: OTHER, type: 'plug', ownerId: OWNER, spaceId: TENT },
+      { id: 'device-elsewhere', type: 'controller', ownerId: OWNER, spaceId: 'space-other', configuration: DOCUMENT },
+    ]);
+  });
+
+  it('writes the climate of the stage a grow already stands in, and its bands with it', async () => {
+    await aGrowInVeg();
+    await grows.addPhase(GROW, { stage: 'vegetative', climate: true }, OWNER, HIDE);
+    expect(await bands()).toEqual(VEG);
+
+    // Blüte recorded with "Lassen": no climate, no band.
+    await grows.addPhase(GROW, { stage: 'flowering' }, OWNER, HIDE);
+    expect(await bands()).toEqual(VEG);
+
+    // "Blüte · jetzt" with Blüte: no phase begins, the climate is written, and every device of the place follows it.
+    await grows.addPhase(GROW, { stage: 'flowering', climate: true }, OWNER, HIDE);
+    expect(await bands()).toEqual(FLOWER);
+    expect(await bands(OTHER)).toEqual(FLOWER);
+    expect(await bands('device-elsewhere')).toEqual([undefined, undefined, undefined]);
+    expect((await db.grows.findOne({ id: GROW }).lean())!.phases.map(phase => phase.stage)).toEqual(['vegetative', 'flowering']);
+  });
+
+  it('follows a preset taken under Steuerung, where no grow stands and where one stays in its stage', async () => {
+    await steuerung('vegetative');
+    expect(await bands()).toEqual(VEG);
+    await steuerung('flowering');
+    expect(await bands()).toEqual(FLOWER);
+    expect(await bands(OTHER)).toEqual(FLOWER);
+
+    await aGrowInVeg();
+    await grows.addPhase(GROW, { stage: 'flowering' }, OWNER, HIDE);
+    await steuerung('vegetative');
+    expect(await bands()).toEqual(VEG);
+    expect((await db.grows.findOne({ id: GROW }).lean())!.phases.map(phase => phase.stage)).toEqual(['flowering']);
+  });
+
+  it('follows a plan step´s stage with no grow there, and moves no band for a figure changed by hand', async () => {
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } }, 'flowering', undefined, null);
+    expect(await bands()).toEqual(FLOWER);
+
+    await configuration.replace(DEVICE, { ...(await document()), day: { temperature: 27, humidity: 70 } }, OWNER);
+    expect(await bands()).toEqual(FLOWER);
+  });
+
+  it('ends a germination on the climate it came from, name and bands', async () => {
+    await steuerung('seedling');
+    await steuerung('germination');
+    expect((await bands())[1]).toBe(90);
+
+    // "Keimung beenden": its own button, no climate of its own.
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+
+    expect(await bands()).toEqual(SEEDLING);
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
+  });
+
+  it('ends a drying spell on the climate it came from, and keeps nothing aside once the figures are the grower´s', async () => {
+    await steuerung('vegetative');
+    await steuerung('drying');
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+    expect(await bands()).toEqual(VEG);
+
+    await steuerung('drying');
+    await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 15, humidity: 60 } }, OWNER);
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+    expect((await bands())[1]).toBe(68);
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
   });
 });

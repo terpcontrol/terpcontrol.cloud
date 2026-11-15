@@ -142,6 +142,12 @@ export interface StoredDevice extends Omit<Device, 'createdAt' | 'state' | 'cont
    */
   appliedClimate?: AppliedClimate | null;
   /**
+   * The climate preset the device was named by when a germination or a drying spell began, kept until the spell ends:
+   * ended by its own button the device comes back to it with its figures, and its place's thresholds follow it. Null
+   * where it had none; absent while no spell runs, and for one begun at the device's own menu.
+   */
+  climateBeforeSpell?: AppliedClimate | null;
+  /**
    * A climate preset put on the device's place before it had sent its settings,
    * which it is put on as they arrive (`ClimatePresetsService.settingsArrived`):
    * a phase chosen at the claim reached no device and was never written. Kept
@@ -290,6 +296,8 @@ export const devicesSchema = new Schema<StoredDevice>(
     limitBeforeDark: { type: Number, default: null },
     germinationChoices: { type: Schema.Types.Mixed, default: null },
     appliedClimate: { type: Schema.Types.Mixed, default: null },
+    // No default: absent is a spell nobody put a name aside for.
+    climateBeforeSpell: { type: Schema.Types.Mixed },
     awaitedClimate: { type: Schema.Types.Mixed, default: null },
     restedHumidityBand: { type: Number, default: null },
     // Never served, and not read unless asked for: the camera's password.

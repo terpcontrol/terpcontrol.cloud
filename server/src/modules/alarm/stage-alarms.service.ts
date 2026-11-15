@@ -57,6 +57,27 @@ export class StageAlarmsService implements StageAlarms {
       );
     }
 
+    await this.removeStale(deviceId, bands);
+  }
+
+  /**
+   * A place's thresholds follow the climate written there, whoever wrote it - a preset under Steuerung, a phase with its
+   * climate, a plan step, the claim, a spell ended: every device standing in the place is watched for the bands of the
+   * climate one of them was put on, a plug in the tent measuring the same air as the controller.
+   */
+  public async followClimate(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
+    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+    const here = device?.spaceId ? await this.devices.find({ spaceId: device.spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>() : [];
+    const ids = new Set([deviceId, ...here.map(one => one.id)]);
+
+    for (const id of ids) await this.applyStage(id, stage, preset);
+  }
+
+  public dropStage(deviceId: string): Promise<void> {
+    return this.removeStale(deviceId, []);
+  }
+
+  private async removeStale(deviceId: string, bands: readonly StageAlarmBand[]): Promise<void> {
     const stale = await this.rules.find({ deviceId, origin: 'preset', presetKey: { $nin: bands.map(band => band.key) } }).lean<StoredAlarmRule[]>();
     for (const rule of stale) await this.ruleService.remove(rule);
   }

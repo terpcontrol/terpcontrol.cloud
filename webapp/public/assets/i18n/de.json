@@ -1164,6 +1164,7 @@
         "stageLabel": "Phase",
         "presetLabel": "Klima-Preset",
         "alreadyThere": "Der Grow steht bereits in dieser Phase: Es wird nichts geschrieben.",
+        "alreadyThereClimate": "Der Grow steht bereits in dieser Phase: Es werden nur die Zielwerte geschrieben.",
         "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen: Es wird nichts geschrieben.",
         "submit": "{{stage}} setzen",
         "submitEnded": "{{stage}} nachtragen",
@@ -2111,6 +2112,7 @@
     "asBefore": "{{what}} wie zuvor",
     "noMore": "{{what}} gibt es nicht mehr",
     "phaseBefore": "wieder die Phase davor",
+    "phaseKept": "schon in dieser Phase",
     "deleteFailed": "Der Eintrag konnte nicht gelöscht werden",
     "litresBelow": "Mehr als 0 L.",
     "readingNoNumber": "{{name}}: Das ist keine Zahl.",
@@ -2735,9 +2737,11 @@
     "quietLine": "Stummschalten und Wartung",
     "add": "+ Eigener Alarm",
     "group": {
-      "phaseOf": "Aus der Phase {{name}}",
-      "phaseNone": "Alarme der Phase",
+      "climateOf": "Aus dem Klima {{name}}",
+      "climateNone": "Alarme des Klimas",
       "presetAside": "Schwellen folgen dem Klima",
+      "changedSince": "Zielwerte seither geändert",
+      "climateSince": "Klima seither: {{name}}",
       "always": "Eingebaut",
       "device": "Vom Gerät",
       "human": "Hier angelegt"
@@ -3879,8 +3883,8 @@
       "text": "Für die Arbeit im Zelt oder Schrank: Eine Viertelstunde lang stellt das Gerät Heizung, Entfeuchter oder Kompressor und CO₂-Ventil ab und dimmt das Licht; „Verlängern“ hängt eine weitere an. Alarme bleiben 10 Minuten länger aus, bis das Klima wieder stimmt. Danach regelt alles von selbst weiter; du kannst die Wartung auch vorher beenden."
     },
     "presetRules": {
-      "title": "Regeln aus der Phase",
-      "text": "Jede Phase bringt vier Regeln mit – zu warm, zu feucht, nachts zu kalt und zu viel CO₂ – mit Grenzen, die aus den Zielwerten berechnet werden. Die nächste Phase verschiebt Grenzen und Wartezeiten; was du ausgeschaltet, anders eingestuft oder stummgeschaltet hast, bleibt, und die Reifung entfernt sie."
+      "title": "Regeln aus dem Klima",
+      "text": "Jedes Klima bringt vier Regeln mit – zu warm, zu feucht, nachts zu kalt und zu viel CO₂ – mit Grenzen, die aus seinen Zielwerten berechnet werden. Das nächste Klima verschiebt Grenzen und Wartezeiten, ob du es unter Steuerung übernimmst, mit einer Phase oder ein Plan es setzt; Zielwerte, die du von Hand änderst, verschieben nichts. Was du ausgeschaltet, anders eingestuft oder stummgeschaltet hast, bleibt, und die Reifung entfernt sie."
     },
     "offlineRule": {
       "title": "Die Offline-Regel",

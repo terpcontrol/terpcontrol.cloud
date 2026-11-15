@@ -135,11 +135,14 @@ beforeEach(async () => {
       return true;
     },
     lampsFollow: async () => undefined,
+    awaitClimate: async () => undefined,
   };
   const alarms: StageAlarms = {
     applyStage: async (deviceId, stage, preset) => {
       stages.push({ deviceId, stage, preset });
     },
+    followClimate: async () => undefined,
+    dropStage: async () => undefined,
     stageOf: async () => null,
   };
   const mail = { send: async (message: (typeof mailed)[number]) => void mailed.push(message) } as unknown as MailService;
@@ -868,7 +871,7 @@ describe('removing a plan', () => {
 });
 
 describe('the phase a step puts the grow into', () => {
-  it('writes the phase, the entry and the thresholds once, with the targets the controller runs', async () => {
+  it('writes the phase and the entry once, with the targets the controller runs, and no threshold of its own', async () => {
     await aDevice();
     await aGrowIn(SPACE);
     await aPlan([
@@ -883,7 +886,9 @@ describe('the phase a step puts the grow into', () => {
     expect(phases).toHaveLength(1);
     expect(phases[0]).toMatchObject({ stage: 'flowering', preset: 'late_flowering', source: 'plan', setBy: null, deviceId: DEVICE });
     expect(phases[0].targets).toEqual({ day: { temperature: 26, humidity: 60 }, night: { temperature: 21, humidity: 55 }, co2: 900 });
-    expect(stages).toEqual([{ deviceId: DEVICE, stage: 'flowering', preset: 'late_flowering' }]);
+    // The thresholds follow the climate the step writes, with a grow there or without (`DeviceConfigurationService.store`):
+    // the phase moves none of its own.
+    expect(stages).toEqual([]);
 
     const phaseEntry = (await entries()).find(entry => entry.kind === 'phase');
     expect(phaseEntry).toMatchObject({ source: 'plan', growId: GROW, spaceId: SPACE, deviceId: DEVICE });

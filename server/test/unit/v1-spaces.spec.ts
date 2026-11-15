@@ -113,6 +113,7 @@ const presetsOf = (): PresetApplicationsService => {
       return true;
     },
     lampsFollow: async () => undefined,
+    awaitClimate: async () => undefined,
   };
   const grows = growsOn(db, access, { phases, writer: written });
   const plans = new PlanService(

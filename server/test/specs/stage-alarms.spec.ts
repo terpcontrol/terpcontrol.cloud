@@ -127,7 +127,8 @@ describe('a device that arrives in a tent already in a stage', () => {
     expect(rules['Too hot']).toMatchObject({ watch: { upper: 31 }, presetId: 'vegetative' });
   });
 
-  it('takes them when moved into the tent, and keeps them when moved out', async () => {
+  /** No climate was written on the shelf: a fan claimed into a new place carried a flowering tent's 60 % into it. */
+  it('takes them when moved into the tent, and drops them when moved to a place where no climate was written', async () => {
     const { deviceId, spaceId: shelf } = await claimAController(undefined, 'plug');
     expect(await presetRulesOf(deviceId)).toEqual([]);
 
@@ -135,7 +136,7 @@ describe('a device that arrives in a tent already in a stage', () => {
     expect(byName(await presetRulesOf(deviceId))['Too cold']).toMatchObject({ watch: { lower: 18 }, presetId: 'vegetative' });
 
     await owner.client.patch(`/v1/devices/${deviceId}`).send({ spaceId: shelf }).expect(200);
-    expect(await presetRulesOf(deviceId)).toHaveLength(4);
+    expect(await presetRulesOf(deviceId)).toEqual([]);
   });
 
   it('keeps them where a stage is only recorded, which writes no climate', async () => {

@@ -30,7 +30,15 @@ import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
 import { ClimatePick } from '@/screens/grow/ClimatePick';
 import { assetTitle } from '@/screens/grow/scheme';
-import { climateRequest, defaultPick, KEEP_CLIMATE, useGrowsBeside, usePlaceController, type PhaseClimate } from '@/screens/grow/phase-climate';
+import {
+  climateRequest,
+  defaultPick,
+  KEEP_CLIMATE,
+  phaseTold,
+  useGrowsBeside,
+  usePlaceController,
+  type PhaseClimate,
+} from '@/screens/grow/phase-climate';
 import { Facts } from '@/ui/Facts';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Asking } from '@/ui/Asking';
@@ -287,16 +295,9 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       diaryChanged(client);
       void client.invalidateQueries({ queryKey: ['devices'] });
       onClose();
-      // The sheet is gone and nothing on the page need have moved: the toast says what was set. A phase that
-      // also wrote the place's targets is not taken back from here - the targets would stay.
-      tell({
-        label: [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), target.label, climate.climate ? t('log.targetsSet') : null]
-          .filter(Boolean)
-          .join(' · '),
-        ...(climate.climate
-          ? { undo: null }
-          : { undo: () => api.delete(`/grows/${growId}/phases/${phase.id}`).then(() => diaryChanged(client)), undone: t('log.phaseBefore') }),
-      });
+      // The sheet is gone and nothing on the page need have moved: the toast says what was set (`phaseTold`).
+      const withdraw = (phaseId: string) => api.delete(`/grows/${growId}/phases/${phaseId}`).then(() => diaryChanged(client));
+      tell(phaseTold(t, { phase, before: grow?.phases ?? [], stage, pick: climate, name: target.label, withdraw }));
     } catch {
       setSaving(false);
       setFailed('save');

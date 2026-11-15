@@ -1848,7 +1848,8 @@ describe('Verlauf with nothing to draw', () => {
     server.over = { arrivals: [{ deviceId: 'device-1', name: 'Box', type: 'fridge', at: ago(20), from: null }] };
     draw();
 
-    expect(await screen.findByText(/came here on .* · earlier readings are with the place it stood in before\./)).toBeInTheDocument();
+    // Twenty hours ago is today by its time late in the day, and a date before that: either way, no link.
+    expect(await screen.findByText(/came here (on|at) .* · earlier readings are with the place it stood in before\./)).toBeInTheDocument();
   });
 
   it('says of an ended place without curves that it has ended, and promises none', async () => {

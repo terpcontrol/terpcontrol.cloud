@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { ruleTitle } from '@/i18n/alarm-line';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmRuleCreate, AppliedClimate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
@@ -51,6 +53,13 @@ const device = (over: Partial<Device> = {}, hardware: Record<string, string> = {
     state: { lastSeenAt: NOW.toISO(), hardware, socketStateChangedAt: {}, socketsReportedAt: null, maintenanceUntil: null },
     ...over,
   }) as Device;
+
+/** A controller holding the place's targets, named by the climate preset it was last put on. */
+const holding = (preset: AppliedClimate | null): Device =>
+  device({
+    configuration: { workmode: 'small', day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } },
+    control: { running: true, drying: false, mode: 'standard', energySaving: false, preset } as Device['control'],
+  });
 
 const rule = (over: Partial<AlarmRule>): AlarmRule => ({
   id: 'rule-x',
@@ -240,7 +249,7 @@ describe('the alarm rules page', () => {
   });
 
   /** A second grow recorded in Veg beside the flowering one writes no climate, and the bands are still flowering's. */
-  it('groups the rules by where they came from, the stage´s under the phase their bands were written for', async () => {
+  it('groups the rules by where they came from, the stage´s under the climate their bands were written for', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
         Promise.resolve(
@@ -249,17 +258,38 @@ describe('the alarm rules page', () => {
             : answers(path),
         ) as never,
     );
-    draw();
+    draw([holding({ stage: 'flowering', preset: null })]);
 
-    expect(await screen.findByText('From the Flower phase')).toBeInTheDocument();
+    expect(await screen.findByText('From the Flower climate')).toBeInTheDocument();
     expect(screen.getByText('thresholds follow the climate')).toBeInTheDocument();
 
     // The cloud's own rule can be switched off like any other, so its head does not call it always on.
-    const labels = screen.getAllByText(/^(From the Flower phase|Built in|From the device|Written here)$/).map(label => label.textContent);
-    expect(labels).toEqual(['From the Flower phase', 'Built in', 'From the device', 'Written here']);
+    const labels = screen.getAllByText(/^(From the Flower climate|Built in|From the device|Written here)$/).map(label => label.textContent);
+    expect(labels).toEqual(['From the Flower climate', 'Built in', 'From the device', 'Written here']);
     // Each group is a heading a screen reader can step to, under the page's own where one device is listed.
     expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(labels);
     expect(screen.queryByText(/always/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * "Schwellen folgen dem Klima" stood over a Veg band under a tent put on Blüte from Steuerung, and over germination's
+   * after "Keimung beenden": the aside says it only where it holds, and otherwise what holds instead.
+   */
+  it('says the bands follow the climate only where the place still runs it', async () => {
+    const { unmount } = draw([holding({ stage: 'vegetative', preset: null })]);
+    expect(await screen.findByText('From the Flower climate')).toBeInTheDocument();
+    expect(screen.getByText('climate since: Veg')).toBeInTheDocument();
+    expect(screen.queryByText('thresholds follow the climate')).not.toBeInTheDocument();
+    unmount();
+
+    const lamp = device({ id: 'lamp-1', type: 'light', name: null });
+    draw([holding(null), lamp]);
+    expect(await screen.findByText('targets changed since')).toBeInTheDocument();
+    expect(screen.queryByText('thresholds follow the climate')).not.toBeInTheDocument();
+
+    // At 320 the aside takes the next line from the left, under its heading, not pushed to the right edge.
+    const css = readFileSync(resolve(__dirname, '../src/screens/control/alarms/Alarms.module.css'), 'utf8');
+    expect(/\.groupAside \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/margin-left: auto/);
   });
 
   it('writes the bound and the meta line of a preset rule, an always rule and a rule with its own webhook', async () => {
@@ -613,7 +643,7 @@ describe('the alarm rules page', () => {
     expect(screen.queryByRole('group', { name: 'Maintenance' })).not.toBeInTheDocument();
   });
 
-  it('names no phase over stage rules that do not say which stage wrote them, and no climate preset', async () => {
+  it('names no climate over stage rules that do not say which stage wrote them, and no climate preset', async () => {
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
         Promise.resolve(
@@ -624,7 +654,7 @@ describe('the alarm rules page', () => {
     );
     draw();
 
-    expect(await screen.findByText('Phase alarms')).toBeInTheDocument();
+    expect(await screen.findByText('Climate alarms')).toBeInTheDocument();
     expect(screen.queryByText(/climate preset/i)).not.toBeInTheDocument();
   });
 
@@ -1285,8 +1315,8 @@ describe('the rule sheet', () => {
     expect(within(sheet).getByLabelText(/^above/)).toHaveValue(30);
     // That the next stage moves the rule's lines stands behind the help beside its name.
     expect(within(sheet).queryByText(/The next stage/)).not.toBeInTheDocument();
-    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the phase' }));
-    expect(screen.getAllByText(/The next phase moves their lines and waits/)).not.toHaveLength(0);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the climate' }));
+    expect(screen.getAllByText(/The next climate moves their lines and waits/)).not.toHaveLength(0);
     expect(within(sheet).getByRole('button', { name: 'Delete the alarm' })).toBeInTheDocument();
 
     fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
