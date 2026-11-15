@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Invite } from '@fg2/shared-types/v1';
 import { useAddMember } from '@/api/members';
+import { ApiError } from '@/api/problem';
 import { useInvites, useRevokeInvite } from '@/api/invites';
 import { SHARE_LINKS } from '@/app/places';
 import { useLog } from '@/log/log-context';
@@ -196,7 +197,14 @@ function AddByHandle({ spaceId }: { spaceId: string }) {
           {t('space.members.add')}
         </button>
       </form>
-      <Refused error={add.error} />
+      {/* Only somebody the reader already grows with can be added by name; anybody else is invited by a link. */}
+      {add.error instanceof ApiError && add.error.problem.code === 'handle_not_found' ? (
+        <p className={ui.problem} role="alert">
+          {t('space.members.handleUnknown', { handle: add.variables?.handle })}
+        </p>
+      ) : (
+        <Refused error={add.error} />
+      )}
     </>
   );
 }

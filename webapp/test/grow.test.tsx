@@ -613,10 +613,10 @@ describe('the head of a grow´s page', () => {
     const link = await screen.findByRole('link', { name: /^Gelato · Day 1\s›$/ });
     expect(link).toHaveAttribute('href', '/grows/grow-2');
     expect(link.closest('p')).toHaveTextContent(/^Also growing here: Gelato · Day 1\s›$/);
-    // A 36 px target, not the 16 px of its words.
+    // A finger's 44 px target, not the 16 px of its words, nor the 36 px of a quiet button.
     expect(link).toHaveClass(/grow/);
     expect(readFileSync(resolve(__dirname, '../src/screens/space/AlsoHere.module.css'), 'utf8')).toMatch(
-      /\.grow \{[^}]*min-height: var\(--action-height\);/,
+      /\.grow \{[^}]*min-height: var\(--control-height\);/,
     );
   });
 

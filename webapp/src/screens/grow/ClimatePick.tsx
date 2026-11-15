@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
 import { darkStage } from '@/ui/climate-hardware';
 import { Facts } from '@/ui/Facts';
-import { factsOf } from '@/ui/fact-text';
+import { factsOf, unbroken } from '@/ui/fact-text';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -110,7 +110,7 @@ export function ClimatePick({
       <p className={ui.note} role="status">
         <Facts facts={factsOf(t(chosen ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
-      {chosen && alsoFor ? <p className={ui.note}>{t('climatePick.alsoFor', { grows: alsoFor, figures: held })}</p> : null}
+      {chosen && alsoFor ? <p className={ui.note}>{unbroken(t('climatePick.alsoFor', { grows: alsoFor, figures: held }))}</p> : null}
       {chosen && lampsWords ? <p className={ui.note}>{lampsWords}</p> : null}
       {/* Left as they are, every other lamp keeps its own times too. */}
       {chosen

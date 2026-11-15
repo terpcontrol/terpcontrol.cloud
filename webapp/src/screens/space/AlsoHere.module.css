@@ -1,6 +1,6 @@
-/* Each grow named is a 36 px target, drawn as the words it is: as text alone it was 16 px high. */
+/* Each grow named is a finger's 44 px target, drawn as the words it is: as text alone it was 16 px high. */
 .grow {
   display: inline-flex;
   align-items: center;
-  min-height: var(--action-height);
+  min-height: var(--control-height);
 }

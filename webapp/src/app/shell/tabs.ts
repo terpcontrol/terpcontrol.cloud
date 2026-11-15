@@ -1,4 +1,5 @@
 import { ChartLine, House, Plus, SlidersHorizontal, Sprout, type LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 import { useMayLogIn } from '@/ui/session-access';
 import { useShape, type Shape } from './shape';
@@ -39,6 +40,16 @@ export const tabsOf = (shape: Pick<Shape, 'diary' | 'steering' | 'managed'>, may
 ];
 
 export const useTabs = (): Tab[] => tabsOf(useShape(), useMayLogIn());
+
+/**
+ * The items of the bar that show the chosen place, as words in a sentence ("Grow, Verlauf und Steuerung"): what the
+ * place chip is said to hold, and no Grow to an account without the diary, whose bar has none.
+ */
+export const usePlaceItems = (): string => {
+  const { t, i18n } = useTranslation();
+  const shown = useTabs().filter(tab => tab === GROW || tab === TIMELINE || tab === CONTROL);
+  return new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(shown.map(tab => t(tab.labelKey)));
+};
 
 const under = (pathname: string, path: string): boolean => pathname === path || pathname.startsWith(`${path}/`);
 

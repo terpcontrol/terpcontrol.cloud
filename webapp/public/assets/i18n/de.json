@@ -442,7 +442,7 @@
     "place": {
       "chip": "Ort: {{name}}",
       "title": "Ort",
-      "holds": "gilt für Grow, Verlauf und Steuerung",
+      "holds": "gilt für {{items}}",
       "chosen": "gewählt"
     },
     "loadFailed": "Konnte nicht laden.",
@@ -478,7 +478,7 @@
     "layout": {
       "label": "Was sich geändert hat",
       "diary": "Das Grow-Tagebuch ist an. In der Leiste stehen jetzt „Grow“ mit dem Tagebuch und „Eintrag“ für Gießen, Düngen, Fotos und Notizen; was fällig ist, steht auf Start und hinter der Glocke.",
-      "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte. Der Ort, dessen Name oben steht, gilt für Grow, Verlauf und Steuerung; ein Tipp auf den Namen wechselt ihn.",
+      "places": "Jetzt sind es {{count}} Orte: Start zeigt jeden als Karte. Der Ort, dessen Name oben steht, gilt für {{items}}; ein Tipp auf den Namen wechselt ihn.",
       "ok": "Verstanden",
       "diaryOff": "Ausschalten unter Ich › Grow-Tagebuch",
       "before": {
@@ -1880,7 +1880,8 @@
       "copyLink": "Einladungslink kopieren",
       "revoke": "Zurückziehen",
       "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
-      "handlePlaceholder": "oder @Name eines Kontos",
+      "handlePlaceholder": "oder @Name, mit dem du schon growst",
+      "handleUnknown": "Mit @{{handle}} growst du noch nicht – lade über einen Link ein.",
       "add": "Hinzufügen",
       "you": "Du",
       "theOwner": "Besitzer:in",

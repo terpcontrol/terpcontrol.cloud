@@ -20,6 +20,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Dot } from '@/ui/Spoken';
 import { useNow } from '@/ui/useNow';
 import { useShape } from './shape';
+import { usePlaceItems } from './tabs';
 import styles from './PlaceChoice.module.css';
 import ui from '@/ui/ui.module.css';
 
@@ -88,6 +89,7 @@ export function PlaceChoice({ everywhere = false }: { everywhere?: boolean }) {
 /** The places under their rooms, in Start's order - the one that needs a person first - each saying how it is and what grows there. */
 function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (spaceId: string) => void; onClose: () => void }) {
   const { t } = useTranslation();
+  const placeItems = usePlaceItems();
   const now = useNow();
   const home = useHome();
   const spaces = useSpaces();
@@ -109,7 +111,7 @@ function PlaceSheet({ chosen, onChoose, onClose }: { chosen: string; onChoose: (
   );
 
   return (
-    <Sheet title={t('shell.place.title')} note={t('shell.place.holds')} onClose={onClose}>
+    <Sheet title={t('shell.place.title')} note={t('shell.place.holds', { items: placeItems })} onClose={onClose}>
       {home.isPending ? <Waiting lines={3} /> : null}
       {home.isError && !home.data ? <LoadFailed read={home} /> : null}
       <div className={ui.stack2}>

@@ -442,7 +442,7 @@
     "place": {
       "chip": "Place: {{name}}",
       "title": "Place",
-      "holds": "applies to Grow, Timeline and Control",
+      "holds": "applies to {{items}}",
       "chosen": "chosen"
     },
     "loadFailed": "Could not load.",
@@ -478,7 +478,7 @@
     "layout": {
       "label": "What changed",
       "diary": "The grow diary is on. The bar now has “Grow” with the diary and “Log” for watering, feeding, photos and notes; what is due is on Home and behind the bell.",
-      "places": "There are {{count}} places now: Home shows each as a card. The place named at the top applies to Grow, Timeline and Control; tap its name to switch.",
+      "places": "There are {{count}} places now: Home shows each as a card. The place named at the top applies to {{items}}; tap its name to switch.",
       "ok": "Got it",
       "diaryOff": "Turn it off under Me › Grow diary",
       "before": {
@@ -1870,7 +1870,8 @@
       "copyLink": "Copy the invite link",
       "revoke": "Revoke",
       "handleLabel": "A username you already grow with",
-      "handlePlaceholder": "or the @name of an account",
+      "handlePlaceholder": "or the @name you already grow with",
+      "handleUnknown": "You don’t grow with @{{handle}} yet – invite them with a link.",
       "add": "Add",
       "you": "You",
       "theOwner": "The owner",

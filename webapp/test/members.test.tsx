@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
@@ -562,14 +564,27 @@ describe('who sees a place, as its owner', () => {
     await waitFor(() => expect(field).toHaveValue(''));
   });
 
-  it('says what the server said when a handle is nobody it grows with', async () => {
+  /**
+   * A German reader was told "Das gibt es nicht mehr. Lade die Seite neu", under a placeholder that promised any
+   * account: only somebody the reader already grows with is added by name, and anybody else by a link.
+   */
+  it('says that a handle is nobody it grows with yet, and how to invite them instead', async () => {
     server.refuse = refusal('handle_not_found', 'Nobody you grow with goes by that name.', 404);
     await inviting();
 
-    fireEvent.change(await screen.findByLabelText('A username you already grow with'), { target: { value: 'stranger' } });
+    const field = await screen.findByLabelText('A username you already grow with');
+    expect(field).toHaveAttribute('placeholder', 'or the @name you already grow with');
+    fireEvent.change(field, { target: { value: '@stranger' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
-    expect(await screen.findByText('Nobody you grow with goes by that name.')).toBeInTheDocument();
+    expect(await screen.findByText('You don’t grow with @stranger yet – invite them with a link.')).toBeInTheDocument();
+  });
+
+  /** "Hinzufügen" stood in the placeholder's grey inside the field and read as a hint, not as a button. */
+  it('draws the button inside the field in a button´s colour, grey only while there is nothing to add', () => {
+    const css = readFileSync(resolve(__dirname, '../src/ui/ui.module.css'), 'utf8');
+    expect(/\.fieldAction \{([^}]*)\}/.exec(css)?.[1]).toMatch(/color: var\(--brand\);/);
+    expect(/\.fieldAction:disabled \{([^}]*)\}/.exec(css)?.[1]).toMatch(/color: var\(--muted\);/);
   });
 });
 

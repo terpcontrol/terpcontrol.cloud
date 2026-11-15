@@ -1433,7 +1433,8 @@ describe('the climate beside a phase', () => {
       fireEvent.click(within(choices).getByRole('button', { name: 'Seedling · with light' }));
       const said =
         'This applies to Blue Dream in the Flower phase too – until now: Light on 06:00–00:00 · 18 h · day 26 °C · 62 % · night 22 °C · 58 %';
-      expect(await screen.findByText(said)).toBeInTheDocument();
+      // Each figure bound to its unit: "night 22 / °C" broke at 390.
+      expect((await screen.findByText(said)).textContent).toContain('night 22\u00a0°C · 58\u00a0%');
     });
 
     it('starts on leaving the targets though the device germinates', async () => {

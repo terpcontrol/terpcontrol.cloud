@@ -872,6 +872,8 @@
   padding-right: 96px;
 }
 
+/* A button inside the field, in a button's colour and weight, so it does not read as the placeholder's grey beside
+   it; grey only while there is nothing to send. As high as the field, which is a finger's target. */
 .fieldAction {
   position: absolute;
   inset: 0 var(--space-3) 0 auto;
@@ -881,8 +883,13 @@
   background: none;
   border: 0;
   padding: 0;
-  color: var(--muted);
+  color: var(--brand);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.fieldAction:disabled {
+  color: var(--muted);
 }
 
 /* What went wrong, under the control it belongs to. */

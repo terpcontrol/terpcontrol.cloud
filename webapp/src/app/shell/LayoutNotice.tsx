@@ -4,13 +4,14 @@ import { Link } from 'react-router';
 import ui from '@/ui/ui.module.css';
 import { useWideWindow } from '@/ui/wide-window';
 import type { LayoutNews } from './layout-news';
-import { useTabs } from './tabs';
+import { usePlaceItems, useTabs } from './tabs';
 import styles from './LayoutNotice.module.css';
 
 /** What moved, said once (`layout-news.ts`): a sentence per change, "Verstanden", and where the diary is switched off again. */
 export function LayoutNotice({ news, onClose }: { news: LayoutNews; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   const wide = useWideWindow();
+  const placeItems = usePlaceItems();
   const items = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
     useTabs()
       .filter(tab => !tab.log)
@@ -23,7 +24,7 @@ export function LayoutNotice({ news, onClose }: { news: LayoutNews; onClose: () 
       <div className={`${ui.stack2} ${styles.text}`}>
         {news.before ? <p>{t(wide ? 'shell.layout.before.wide' : 'shell.layout.before.phone', { items })}</p> : null}
         {news.diary ? <p>{t('shell.layout.diary')}</p> : null}
-        {news.places ? <p>{t('shell.layout.places', { count: news.count })}</p> : null}
+        {news.places ? <p>{t('shell.layout.places', { count: news.count, items: placeItems })}</p> : null}
         <p className={styles.actions}>
           <button type="button" className={ui.button} onClick={onClose}>
             {t('shell.layout.ok')}

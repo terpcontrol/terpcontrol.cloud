@@ -651,7 +651,7 @@ describe('the choice of place', () => {
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'Place: Fridge 1' }))[0]);
     const sheet = await screen.findByRole('dialog', { name: 'Place' });
-    expect(within(sheet).getByText('applies to Grow, Timeline and Control')).toBeInTheDocument();
+    expect(within(sheet).getByText('applies to Grow, Timeline, and Control')).toBeInTheDocument();
 
     const room = await within(sheet).findByRole('region', { name: 'Cellar' });
     const [fridge, tent] = within(room).getAllByRole('button');
@@ -1004,7 +1004,8 @@ describe('a change to the shape of the app', () => {
 
     const notice = await screen.findByRole('status', { name: 'What changed' });
     expect(notice).toHaveTextContent('There are 2 places now');
-    expect(notice).toHaveTextContent('The place named at the top applies to Grow, Timeline and Control');
+    // An account without the diary has no Grow in its bar, and is not told of one.
+    expect(notice).toHaveTextContent('The place named at the top applies to Timeline and Control;');
     expect(patches()[0].body).toMatchObject({ preferences: { layoutSeen: { diary: false, places: true } } });
 
     fireEvent.click(within(notice).getByRole('button', { name: 'Got it' }));
