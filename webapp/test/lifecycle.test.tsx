@@ -288,6 +288,23 @@ describe('reopening a grow', () => {
     menu();
     expect(screen.queryByRole('button', { name: 'Reopen the grow' })).not.toBeInTheDocument();
   });
+
+  it('promises no harvest to a grow whose plants have all come down, and says where it is ended again', () => {
+    wire();
+    const cut = plants.map(one => ({ ...one, status: 'harvested' as const, harvest: { harvestedAt: at(2), wetWeightG: null, dryWeightG: null } }));
+    drawAt(
+      <LogProvider>
+        <GrowMenu grow={ended} plants={cut} spaces={[spaceWhere('own', { id: 'space-1', name: 'Tent' })]} mayManage mayOwn />
+      </LogProvider>,
+    );
+    menu();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen the grow' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Reopen the grow' });
+    expect(sheet).toHaveTextContent('entries and phases can be written again');
+    expect(sheet).not.toHaveTextContent(/harvests can be written/);
+    expect(sheet).toHaveTextContent('Its plants are all harvested – it is ended again under “Harvest”.');
+  });
 });
 
 /**
@@ -584,6 +601,45 @@ describe('the harvest sheet over a grow whose record carries no plants', () => {
 
   it('says when a grow that is already over ended, rather than offering to end it a second time', () => {
     drawHarvest(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={[]} onClose={() => {}} />);
+
+    expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A running grow whose plants have all come down: one reopened after its last harvest. The harvest ended it once; now
+ * nothing is left to cut, so without an end of its own the reopening could never be undone after the toast was gone.
+ */
+describe('the harvest sheet over a running grow whose plants have all come down', () => {
+  const cut = plants.map(one => plant(one.id, one.label, { status: 'harvested', harvest: { harvestedAt: at(3), wetWeightG: 40, dryWeightG: null } }));
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('says every plant is down and offers the end of the grow, written on the grow', async () => {
+    const wrote: { method: string; path: string; body: unknown }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET') wrote.push({ method, path: new URL(String(input), 'http://localhost').pathname, body: JSON.parse(String(init?.body)) });
+        return method === 'GET' ? json({ items: [], nextCursor: null }) : json({ ...grow, endedAt: NOW.toISO() });
+      }),
+    );
+    drawHarvest(<HarvestSheet grow={grow} plants={cut} onClose={() => {}} />);
+
+    expect(screen.getByText('Every plant of this grow has already come down.')).toBeInTheDocument();
+    expect(screen.getByText('The day it ends')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'End the grow' }));
+
+    await waitFor(() => expect(wrote).toHaveLength(1));
+    expect(wrote[0]).toMatchObject({ method: 'PATCH', path: '/v1/grows/grow-1' });
+    expect(Object.keys(wrote[0].body as object)).toEqual(['endedAt']);
+    expect(await screen.findByText(reading('Spring run has ended · this is its report'))).toBeInTheDocument();
+  });
+
+  it('offers no end a second time once it is over', () => {
+    drawHarvest(<HarvestSheet grow={{ ...grow, endedAt: at(2) }} plants={cut} onClose={() => {}} />);
 
     expect(screen.getByText('It ended on 16 Sep 2026.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'End the grow' })).not.toBeInTheDocument();

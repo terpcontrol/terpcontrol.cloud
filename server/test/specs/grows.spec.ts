@@ -588,6 +588,19 @@ describe('ending a grow', () => {
     await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'drying' }).expect(201);
   });
 
+  // Ended by its last harvest and reopened, a grow has nothing left to cut: it is ended by hand, as the harvest sheet offers.
+  it('ends again by hand once reopened after its last harvest', async () => {
+    const grow = await startAGrow({ startedAt: new Date(Date.now() - 10 * 86_400_000).toISOString() });
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 100 }).expect(201);
+    expect((await owner.client.get(`/v1/grows/${grow.id}`).expect(200)).body.endedAt).not.toBeNull();
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
+    const endedAt = new Date().toISOString();
+    const ended = (await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt }).expect(200)).body;
+    expect(ended.endedAt).toBe(endedAt);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({}).expect(409);
+  });
+
   it('takes its plants with it when it is deleted', async () => {
     const grow = await startAGrow();
     await owner.client.delete(`/v1/grows/${grow.id}`).expect(204);

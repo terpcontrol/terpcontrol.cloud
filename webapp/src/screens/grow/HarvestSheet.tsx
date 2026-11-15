@@ -43,6 +43,10 @@ import styles from './Lifecycle.module.css';
  * grows with no way to be finished anywhere in the app. Such a grow therefore
  * says what its Plants tab says, and is offered the end itself: a date and the
  * grow's `endedAt`, which is what a harvest would have written anyway.
+ *
+ * A running grow whose plants have all come down is offered the same end: one
+ * reopened after its last harvest has nothing left to cut, and without it the
+ * reopening was a door that only opened one way.
  */
 /** Which plants the sheet opens on, for a caller that is already about one of them; the grow page names none and the scope is the grow's. */
 export function HarvestSheet({
@@ -99,10 +103,12 @@ export function HarvestSheet({
   return (
     <Sheet title={t('grow.lifecycle.harvest.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        {plants.length === 0 ? (
-          <NothingPlanted grow={grow} onClose={onClose} />
-        ) : standing.length === 0 ? (
-          <p className={ui.note}>{t('grow.lifecycle.harvest.nothingStanding')}</p>
+        {standing.length === 0 ? (
+          <EndByHand
+            grow={grow}
+            note={t(plants.length === 0 ? 'grow.lifecycle.harvest.noPlantsRecorded' : 'grow.lifecycle.harvest.nothingStanding')}
+            onClose={onClose}
+          />
         ) : (
           <Block label={t('grow.lifecycle.harvest.whatComesDown')} aside={t('grow.lifecycle.harvest.standing', { count: standing.length })}>
             <PlantPicker
@@ -196,21 +202,22 @@ export function HarvestSheet({
 }
 
 /**
- * The sheet over a grow whose record holds no plants: everything brought over
- * from the old app, which kept no plant list, and anything started without one.
+ * The sheet over a grow with nothing standing: one whose record holds no plants
+ * - everything brought over from the old app, which kept no plant list, and
+ * anything started without one -, and one whose plants have all come down.
  *
  * There is nothing to cut down and nothing to weigh, so the sheet offers the
- * only thing that is left of a harvest for such a grow - the day it came down.
+ * only thing that is left of a harvest for such a grow - the day it ends.
  * That goes through the grow itself rather than through a harvest, because the
  * server refuses a harvest of nothing and would only answer 409; `endedAt` is
  * the same field the last plant's harvest would have set, and the day counter
  * stops on it either way.
  *
  * A grow that has already been ended is told when, rather than offered the
- * button a second time. Nothing here can take an end back, which is why the
- * date is asked for before it is written rather than corrected afterwards.
+ * button a second time; it is opened again from its ⋯, which is also the way
+ * back from an end set here.
  */
-function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => void }) {
+function EndByHand({ grow, note, onClose }: { grow: GrowListItem; note: string; onClose: () => void }) {
   const { t } = useTranslation();
   const ended = useGrowEnded(grow, onClose);
   const zone = useZone();
@@ -219,7 +226,7 @@ function NothingPlanted({ grow, onClose }: { grow: GrowListItem; onClose: () => 
 
   return (
     <>
-      <p className={ui.note}>{t('grow.lifecycle.harvest.noPlantsRecorded')}</p>
+      <p className={ui.note}>{note}</p>
 
       {grow.endedAt !== null ? (
         <p className={ui.note}>{t('grow.lifecycle.harvest.alreadyEnded', { date: calendarDay(grow.endedAt, zone) })}</p>

@@ -101,7 +101,7 @@ export function GrowMenu({
       {open === 'harvest' ? <HarvestSheet grow={grow} plants={plants} onClose={close} /> : null}
       {open === 'rename' ? <RenameSheet grow={grow} onClose={close} /> : null}
       {open === 'delete' ? <DeleteSheet grow={grow} onClose={close} /> : null}
-      {open === 'reopen' ? <ReopenSheet grow={grow} spaces={spaces} onClose={close} /> : null}
+      {open === 'reopen' ? <ReopenSheet grow={grow} plants={plants} spaces={spaces} onClose={close} /> : null}
       {open === 'tips' && tips ? (
         <Sheet title={t('assistant.tipsTitle')} onClose={close}>
           <ul className={`${ui.sheetBody} ${styles.tips}`}>
@@ -175,14 +175,23 @@ function DeleteSheet({ grow, onClose }: { grow: GrowListItem; onClose: () => voi
  * An ended grow opened again, asked first: it runs on where it stood, takes entries, phases and harvests again, and
  * its resting reminders come back, each rhythm counted on from today. Where its place was removed with it, it runs on
  * at no fixed place - the server closes the placement in the place that is gone -, and the question and the toast
- * say so. Ending it again is the way back.
+ * say so. Ending it again is the way back - for one whose plants have all come down, under "Ernten", which the
+ * question names rather than promising harvests there is nothing left for.
  */
-function ReopenSheet({ grow, spaces, onClose }: { grow: GrowListItem; spaces: Space[]; onClose: () => void }) {
+function ReopenSheet({ grow, plants, spaces, onClose }: { grow: GrowListItem; plants: Plant[]; spaces: Space[]; onClose: () => void }) {
   const { t } = useTranslation();
   const { tell } = useLog();
   const update = useUpdateGrow(grow.id);
   const stood = grow.placements.filter(placement => placement.endedAt === null && placement.spaceId !== null);
   const nowhere = stood.length > 0 && stood.every(placement => !spaces.some(space => space.id === placement.spaceId));
+  const allCut = plants.length > 0 && !plants.some(plant => plant.status === 'active' && plant.harvest === null);
+  const ask = allCut
+    ? nowhere
+      ? 'grow.lifecycle.reopen.askAllCutNowhere'
+      : 'grow.lifecycle.reopen.askAllCut'
+    : nowhere
+      ? 'grow.lifecycle.reopen.askNowhere'
+      : 'grow.lifecycle.reopen.ask';
   const endedAt = grow.endedAt;
 
   const yes = () =>
@@ -203,13 +212,7 @@ function ReopenSheet({ grow, spaces, onClose }: { grow: GrowListItem; spaces: Sp
   return (
     <Sheet title={t('grow.lifecycle.actions.reopen')} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <Asking
-          note={t(nowhere ? 'grow.lifecycle.reopen.askNowhere' : 'grow.lifecycle.reopen.ask', { name: grow.name })}
-          yes={t('grow.lifecycle.reopen.yes')}
-          busy={update.isPending}
-          onYes={yes}
-          onCancel={onClose}
-        >
+        <Asking note={t(ask, { name: grow.name })} yes={t('grow.lifecycle.reopen.yes')} busy={update.isPending} onYes={yes} onCancel={onClose}>
           <Refused error={update.error} />
         </Asking>
       </div>

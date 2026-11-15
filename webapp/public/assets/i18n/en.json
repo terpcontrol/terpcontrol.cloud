@@ -1130,6 +1130,8 @@
       "reopen": {
         "ask": "Reopen {{name}}? It runs on where it stood: entries, phases and harvests can be written again, and its reminders come back.",
         "askNowhere": "Reopen {{name}}? Its place has been removed, so it runs on at no fixed place. Entries, phases and harvests can be written again, and its reminders come back.",
+        "askAllCut": "Reopen {{name}}? It runs on where it stood: entries and phases can be written again, and its reminders come back. Its plants are all harvested – it is ended again under “Harvest”.",
+        "askAllCutNowhere": "Reopen {{name}}? Its place has been removed, so it runs on at no fixed place. Entries and phases can be written again, and its reminders come back. Its plants are all harvested – it is ended again under “Harvest”.",
         "yes": "Reopen"
       },
       "when": "On",
@@ -1212,7 +1214,7 @@
         "nothingStanding": "Every plant of this grow has already come down.",
         "noPlantsRecorded": "No plants are recorded in this grow.",
         "alreadyEnded": "It ended on {{date}}.",
-        "endInstead": "The day it came down",
+        "endInstead": "The day it ends",
         "endTheGrow": "End the grow",
         "whatComesDown": "What comes down",
         "standing_one": "{{count}} still standing",
@@ -3793,7 +3795,7 @@
     },
     "growEnds": {
       "title": "Ending the grow",
-      "text": "Once the last plants are harvested the grow ends on this day: nothing can be dated after it, and it cannot be reopened in the app. Enter drying and curing first if they belong in the diary."
+      "text": "Once the last plants are harvested the grow ends on this day: nothing can be dated after it until you reopen it from “More” (⋯) beside its name. Enter drying and curing first if they belong in the diary."
     },
     "dayNightAverages": {
       "title": "Day / night",

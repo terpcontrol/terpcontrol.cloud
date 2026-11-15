@@ -1140,6 +1140,8 @@
       "reopen": {
         "ask": "{{name}} wieder öffnen? Er läuft dann weiter, wo er stand: Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
         "askNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
+        "askAllCut": "{{name}} wieder öffnen? Er läuft dann weiter, wo er stand: Einträge und Phasen gehen wieder, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden lässt er sich wieder unter „Ernten“.",
+        "askAllCutNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Einträge und Phasen gehen wieder, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden lässt er sich wieder unter „Ernten“.",
         "yes": "Wieder öffnen"
       },
       "when": "Am",
@@ -1222,7 +1224,7 @@
         "nothingStanding": "Alle Pflanzen dieses Grows sind bereits geerntet.",
         "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst.",
         "alreadyEnded": "Er ist am {{date}} beendet worden.",
-        "endInstead": "Der Tag, an dem er herunterkam",
+        "endInstead": "Der Tag, an dem er endet",
         "endTheGrow": "Grow beenden",
         "whatComesDown": "Was geerntet wird",
         "standing_one": "{{count}} steht noch",
@@ -3803,7 +3805,7 @@
     },
     "growEnds": {
       "title": "Den Grow beenden",
-      "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, und in der App kann er nicht wieder geöffnet werden. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
+      "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, bis du ihn über „Mehr“ (⋯) neben seinem Namen wieder öffnest. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",
