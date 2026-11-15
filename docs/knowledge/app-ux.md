@@ -1104,7 +1104,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   - *No moment before the grow began*: for a line about a grow the moment's pop-up says when the grow began and
     does not take an earlier one; whoever may manage the grow is offered to move its start there ("Start auf den
     … vorverlegen", which writes the grow's `startedAt`).
-  - *A phase set from its tile* is answered by a toast that names what changed - "Blüte begonnen · Spring run ·
+  - *A phase set from its tile* goes to the plants the line names, as a split of them (`plantIds`), and to the
+    whole grow where it names none or every plant standing - which the view then says ("Die Phase gilt für den ganzen
+    Grow, alle 2 Pflanzen", a split rejoined named as such); the stage marked "jetzt" and the one picked first are
+    those plants' (`stageOfPlants`, `log/defaults.ts`). "Phase · Lemon Haze 1" once moved the whole grow (the sixth
+    whole-app walk). It is answered by a toast that names what changed - "Blüte begonnen · Spring run ·
     Zielwerte gesetzt" - with Undo only where the place's targets were not written with it.
   - *Written without a connection*, a line keeps the moment it was written at, its toast says that there is no
     connection, and it is sent by itself when the connection returns while the app is open (`log/LogProvider.tsx`).

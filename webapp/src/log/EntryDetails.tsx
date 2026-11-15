@@ -51,6 +51,7 @@ import {
   nextStage,
   readingsOf,
   schemeStep,
+  stageOfPlants,
   startsAfter,
   stoppedAfter,
   useGrowBegins,
@@ -168,7 +169,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
     setShown(firstFields(definitions, readingsOf(entry), target));
   }
   const [text, setText] = useState(draft?.text ?? entry?.text ?? '');
-  const [stage, setStage] = useState<GrowthStage | null>(draft?.stage ?? nextStage(grow));
+  const [stage, setStage] = useState<GrowthStage | null>(draft?.stage ?? nextStage(grow, target.plantIds));
   /**
    * Whether the phase moves the tent's climate too: asked beside the stage, and
    * kept until the stage changes. Null until somebody picks, because what it
@@ -263,7 +264,13 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
     }
   };
 
-  /** A phase is not an entry: it is written as the grow's phase, and the diary line follows from it. */
+  /**
+   * A phase is not an entry: it is written as the grow's phase, and the diary line follows from it. It goes to the
+   * plants the line names, as a split of them, and to the whole grow where it names none - or every plant still
+   * standing, which is the whole grow too.
+   */
+  const standing = (plants?.items ?? []).filter(plant => plant.status === 'active' && plant.harvest === null);
+  const wholeGrow = plantIds.length === 0 || (plants !== undefined && standing.every(plant => plantIds.includes(plant.id)));
   const savePhase = async () => {
     if (!target.growId || !stage) return;
     setSaving(true);
@@ -274,6 +281,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
         stage,
         ...climateRequest(climate, stage),
         ...(dated ? { startedAt: occurredAt(dated).occurredAt } : {}),
+        ...(wholeGrow ? {} : { plantIds }),
       });
       diaryChanged(client);
       void client.invalidateQueries({ queryKey: ['devices'] });
@@ -546,6 +554,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       {kind === 'phase' ? (
         <Stages
           grow={grow}
+          current={stageOfPlants(grow, wholeGrow ? [] : plantIds)}
           stage={stage}
           onPick={next => {
             setStage(next);
@@ -554,6 +563,10 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
           spaceId={target.spaceId ?? target.standsIn}
           onStartGrow={() => setStartingGrow(true)}
         />
+      ) : null}
+      {/* The head names the plants a phase goes to; one that names none says it is the whole grow's, a split rejoined. */}
+      {kind === 'phase' && grow && wholeGrow && standing.length > 1 ? (
+        <p className={ui.note}>{t(grow.summary.groups.length > 0 ? 'log.phaseRejoins' : 'log.phaseWholeGrow', { count: standing.length })}</p>
       ) : null}
       {kind === 'phase' && grow && stage ? (
         <div className={styles.climate}>
@@ -595,8 +608,8 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
 }
 
 /**
- * The six stages, with the one the grow is in named and the next one already
- * picked - and, where there is no grow to give a phase to, the way to the one
+ * The six stages, with the one the plants the phase is for are in named and the
+ * next one already picked - and, where there is no grow to give a phase to, the way to the one
  * thing that would make the question answerable.
  *
  * The screens that invite somebody here are the reason for that second half. A
@@ -610,12 +623,15 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
  */
 function Stages({
   grow,
+  current,
   stage,
   onPick,
   spaceId,
   onStartGrow,
 }: {
   grow: GrowListItem | undefined;
+  /** The stage the plants the phase is for are in now. */
+  current: GrowthStage | null;
   stage: GrowthStage | null;
   onPick: (stage: GrowthStage) => void;
   spaceId: string | null;
@@ -624,7 +640,6 @@ function Stages({
   const { t } = useTranslation();
   const home = useHome();
   const mayManage = useMayManage(spaceId);
-  const current = grow?.summary.stage ?? null;
   const card = (home.data?.spaces ?? []).find(one => one.spaceId === spaceId) ?? null;
   const nothingGrowsThere = card !== null && card.grow === null;
 

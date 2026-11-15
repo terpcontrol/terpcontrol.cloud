@@ -530,6 +530,40 @@ describe('the log sheet', () => {
     expect((body as { startedAt: string }).startedAt).toMatch(/^2026-09-(09|10|11)T/);
   });
 
+  it('puts only the plant chosen into a phase, and says a phase for no plant is the whole grow´s', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+    await openSheet();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Log' })).getByRole('button', { name: 'Amnesia 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
+
+    const phase = await screen.findByRole('dialog', { name: 'Phase' });
+    expect(within(phase).getByText(/Amnesia 1/)).toBeInTheDocument();
+    expect(within(phase).queryByText(/whole grow/)).not.toBeInTheDocument();
+    fireEvent.click(within(phase).getByRole('button', { name: /^Save/ }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.objectContaining({ stage: 'drying', plantIds: ['plant-1'] })),
+    );
+  });
+
+  it('writes a phase for no plant as the whole grow´s, and says so before', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+    await openSheet();
+    fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
+
+    const phase = await screen.findByRole('dialog', { name: 'Phase' });
+    expect(await within(phase).findByText('The phase is for the whole grow, all 2 plants.')).toBeInTheDocument();
+    fireEvent.click(within(phase).getByRole('button', { name: /^Save/ }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.anything()));
+    const [, body] = vi.mocked(api.post).mock.calls.find(([path]) => path === '/grows/grow-1/phases')!;
+    expect(body).not.toHaveProperty('plantIds');
+  });
+
   it('keeps offering the last can it knows, past a watering that recorded none', async () => {
     const noCan: Entry = { ...lastWater, id: 'entry-ticked', occurredAt: daysAgo(1), values: { kind: 'water', litres: null, readings: [] } };
     vi.mocked(api.get).mockImplementation((path: string) =>

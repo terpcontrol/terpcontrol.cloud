@@ -119,9 +119,17 @@ export const useGrowBegins = (grow: GrowListItem | undefined, target: LogTarget 
   return { at: growBegan(grow), move: mayManage ? moveTo : null };
 };
 
-/** The phase after the one the grow is in. Nothing follows curing, and a grow with no phase yet is started elsewhere. */
-export const nextStage = (grow: GrowListItem | undefined): GrowthStage | null => {
-  const at = grow?.summary.stage ? STAGES.indexOf(grow.summary.stage) : -1;
+/** The stage these plants are in - none named is the grow's own -, or null where they stand in different ones. */
+export const stageOfPlants = (grow: GrowListItem | undefined, plantIds: readonly string[] = []): GrowthStage | null => {
+  if (!grow || plantIds.length === 0) return grow?.summary.stage ?? null;
+  const stages = new Set(plantIds.map(id => grow.summary.groups.find(group => group.plantIds.includes(id))?.stage ?? grow.summary.stage));
+  return stages.size === 1 ? [...stages][0] : null;
+};
+
+/** The phase after the one the grow - or these plants of it - is in. Nothing follows curing, and a grow with no phase yet is started elsewhere. */
+export const nextStage = (grow: GrowListItem | undefined, plantIds: readonly string[] = []): GrowthStage | null => {
+  const stage = stageOfPlants(grow, plantIds);
+  const at = stage ? STAGES.indexOf(stage) : -1;
   return at < 0 || at === STAGES.length - 1 ? null : STAGES[at + 1];
 };
 
