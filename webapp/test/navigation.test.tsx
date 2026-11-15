@@ -807,6 +807,19 @@ describe('the choice of place', () => {
     expect(openingOf('/control/alarms', '?space=space-2', { current: 'space-1' })).toEqual({ spaceId: 'space-2', underneath: true });
     expect(openingOf('/timeline', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
     expect(openingOf('/grow/plants', '', { current: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });
+    // A page about one grow aims at it: the grow Grow shows, and the one Verlauf is narrowed to.
+    expect(openingOf('/grow/plants', '', { current: 'space-1', shown: 'grow-1' })).toEqual({
+      growId: 'grow-1',
+      spaceId: 'space-1',
+      underneath: true,
+    });
+    expect(openingOf('/timeline', '?space=space-1&grow=grow-2', { current: 'space-1' })).toEqual({
+      growId: 'grow-2',
+      spaceId: 'space-1',
+      underneath: true,
+    });
+    // Grow of a customer's place, read by support, does not show the grow of the reader's own chosen place.
+    expect(openingOf('/grow', '?space=space-9', { current: 'space-1', shown: 'grow-1' })).toEqual({ spaceId: 'space-9', underneath: true });
     expect(openingOf('/grows', '', { current: 'space-1' })).toEqual({});
     expect(openingOf('/charts', '?grow=grow-9', { current: 'space-1' })).toEqual({});
     expect(openingOf('/', '', { only: 'space-1' })).toEqual({ spaceId: 'space-1', underneath: true });

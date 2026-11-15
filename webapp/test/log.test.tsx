@@ -10,6 +10,7 @@ import { keepDraft } from '@/log/draft';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog, type LogOpening } from '@/log/log-context';
 import { openingTarget } from '@/log/targets';
+import { useOpeningUnderneath } from '@/log/underneath';
 import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -1280,6 +1281,66 @@ describe('the log sheet in a place where two grows stand', () => {
     expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-2' }));
   });
 
+  /** The bar's Eintrag as the tab bar and the rail open it, aimed by the address underneath, once it knows the place. */
+  function Bar() {
+    const { openSheet } = useLog();
+    const underneath = useOpeningUnderneath();
+    return (
+      <button type="button" onClick={() => openSheet(underneath)}>
+        Log over {underneath.spaceId ?? 'nothing'}
+      </button>
+    );
+  }
+
+  const openOver = async (at: string) => {
+    drawAt(
+      <LogProvider>
+        <Bar />
+      </LogProvider>,
+      { at },
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Log over space-1' }));
+    return screen.findByRole('dialog', { name: 'Log' });
+  };
+
+  /**
+   * Grow showed Spring run, the newer, and its Eintrag preselected Amnesia, the one standing there longest: a note
+   * written from the Grow tab landed in the other grow's diary. A page about one grow aims at that grow.
+   */
+  it('writes from Grow and its tabs to the grow Grow shows, not the one standing there longest', async () => {
+    const sheet = await openOver('/grow/plants');
+
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
+    await waterSaved();
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-1' }));
+  });
+
+  it('writes from Verlauf narrowed to a grow to that grow', async () => {
+    const sheet = await openOver('/timeline?space=space-1&grow=grow-1&range=grow');
+
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
+    await waterSaved();
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-1' }));
+  });
+
+  it('records a phase from Grow on the grow Grow shows', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ schemes: [] }) })),
+    );
+    vi.mocked(api.post).mockResolvedValue({ id: 'phase-new' } as never);
+    const sheet = await openOver('/grow');
+
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(await within(sheet).findByRole('button', { name: /^Phase/ }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Phase' })).getByRole('button', { name: /^Save/ }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.anything()));
+    expect(api.post).not.toHaveBeenCalledWith('/grows/grow-2/phases', expect.anything());
+  });
+
   it('wraps the chips into rows rather than scrolling them sideways', async () => {
     await openWith({ spaceId: 'space-1', underneath: true });
     const chips = await screen.findByRole('group', { name: 'What the entry is about' });
@@ -1305,6 +1366,19 @@ describe('where the sheet opens', () => {
     // What was chosen last time still wins, and a sheet with nothing growing anywhere opens on the first place.
     expect(openingTarget([empty, growing], {}, 'space:space-2').target).toBe(empty);
     expect(openingTarget([empty], {}, null).target).toBe(empty);
+  });
+
+  /** Start in an account with several places opened on the newer of two grows; with one place, on the longer standing. */
+  it('opens on the grow standing longest in the place it falls back on, as over that place´s own page', () => {
+    const newer = { key: 'grow:grow-1', label: 'Spring run', growId: 'grow-1', spaceId: null, plantIds: [], dayNumber: 34, standsIn: 'space-1' };
+    const older = { ...newer, key: 'grow:grow-2', label: 'Amnesia', growId: 'grow-2', dayNumber: 40 };
+    const empty = { key: 'space:space-2', label: 'Place 2', growId: null, spaceId: 'space-2', plantIds: [], dayNumber: null, standsIn: 'space-2' };
+    const since = (id: string, startedAt: string) =>
+      ({ ...grow, id, placements: [{ id: `pl-${id}`, spaceId: 'space-1', startedAt, endedAt: null, plantIds: null }] }) as GrowListItem;
+    const grows = [since('grow-1', daysAgo(34)), since('grow-2', daysAgo(40))];
+
+    expect(openingTarget([newer, older, empty], {}, null, grows).target).toBe(older);
+    expect(openingTarget([newer, older, empty], {}, 'grow:grow-1', grows).target).toBe(newer);
   });
 });
 

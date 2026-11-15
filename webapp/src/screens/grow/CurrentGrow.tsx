@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams } from 'react-router';
 import { useGrowsEverIn } from '@/api/grows';
 import { useSpaceOverview } from '@/api/spaces';
-import { GROW, ALL_GROWS, isPlace, useCurrentPlace } from '@/app/places';
+import { GROW, ALL_GROWS, growShown, useCurrentPlace } from '@/app/places';
 import { PlaceEnded, Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
 import { LoadFailed, NoLongerHere, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -56,7 +56,7 @@ export function CurrentGrow() {
     );
   }
 
-  const growId = here?.grow?.growId ?? home.data.spaces.find(card => !isPlace(card) && card.grow)?.grow?.growId ?? null;
+  const growId = growShown(home.data.spaces, here);
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
 
   return (

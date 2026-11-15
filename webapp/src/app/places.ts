@@ -22,6 +22,13 @@ export type PlaceCard = HomeSpaceCard & { spaceId: string };
 export const isPlace = (card: HomeSpaceCard): card is PlaceCard => card.spaceId !== null;
 
 /**
+ * The grow Grow, the bar's item, shows: the one the chosen place leads with - the newer, where two stand there - else
+ * a grow standing in no place. Eintrag over that page aims at it (`log/underneath.ts`).
+ */
+export const growShown = (cards: readonly HomeSpaceCard[], here: HomeSpaceCard | null): string | null =>
+  here?.grow?.growId ?? cards.find(card => !isPlace(card) && card.grow)?.grow?.growId ?? null;
+
+/**
  * The places something can be put in - a device, a camera, a grow: putting it
  * there is managing that place, so one this account only writes lines in is
  * left out rather than refused on save. A room groups places and holds

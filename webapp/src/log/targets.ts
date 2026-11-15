@@ -103,11 +103,11 @@ const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): st
  * Which chip starts chosen: the grow or tent the screen underneath is about,
  * then whatever was chosen last time, then the first place where something
  * grows - an empty tent listed first is not where a line is most likely about -,
- * then the first place there is. A sheet opened on the grow page is already
- * pointed at that grow. Opened over a place where two grows stand, it is the
- * one the last line was written for, else the one standing there longest: the
- * home leads with the newer, and seeds sown beside flowering plants are not
- * where most lines go.
+ * then the first place there is. A sheet opened over a page about one grow - its
+ * own, Grow, Verlauf narrowed to it - is pointed at that grow. Opened over a
+ * place where two grows stand - its page, Start - it is the one the last line
+ * was written for, else the one standing there longest: the home leads with the
+ * newer, and seeds sown beside flowering plants are not where most lines go.
  *
  * The fallback is for an opening that named nothing, and for that only. A link
  * that did name a subject and missed is a different answer and not a smaller
@@ -120,16 +120,19 @@ const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): st
  * is carried out of here as a miss, and the sheet says it and waits.
  */
 export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null, grows?: GrowListItem[]): Aim => {
-  const here = targets
-    .filter(target => opening.spaceId && target.standsIn === opening.spaceId)
-    .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
-  const asked =
-    targets.find(target => opening.growId && target.growId === opening.growId) ?? here.find(target => target.key === last) ?? here[0] ?? null;
+  const inPlace = (spaceId: string | null | undefined): LogTarget | null => {
+    const here = targets
+      .filter(target => spaceId && target.standsIn === spaceId)
+      .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
+    return here.find(target => target.key === last) ?? here[0] ?? null;
+  };
+  const asked = targets.find(target => opening.growId && target.growId === opening.growId) ?? inPlace(opening.spaceId);
 
   if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };
 
+  const growing = targets.find(target => target.growId !== null);
   return {
-    target: targets.find(target => target.key === last) ?? targets.find(target => target.growId !== null) ?? targets[0] ?? null,
+    target: targets.find(target => target.key === last) ?? (growing && inPlace(growing.standsIn)) ?? growing ?? targets[0] ?? null,
     missed: false,
   };
 };
