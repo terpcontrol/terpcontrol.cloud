@@ -28,13 +28,14 @@ import {
   DeviceTunnelSink,
   MetricSampleSink,
 } from './device-sinks';
+import { DeviceConfigurationService } from './device-configuration.service';
 import { DevicePublisherService } from './device-publisher.service';
 import { HardwareReportService } from './hardware-report.service';
 import { heldTo, offTheWire, onTheWire } from './class-rules';
 import { withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leftAtDevice } from './germination-memory';
 import { sameClockTimes } from './schedule-clock';
-import { baseFromUpload, standardOf } from './work-modes';
+import { baseFromUpload, darkIn, standardOf } from './work-modes';
 import { DEVICE_TOPIC_FILTER, DeviceTopic, parseDeviceTopic } from './topics';
 
 /**
@@ -95,6 +96,7 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     @Optional() @Inject(DEVICE_TUNNEL_SINK) private readonly tunnel: DeviceTunnelSink | null = null,
     @Optional() @Inject(DEVICE_PRESENCE_SINK) private readonly presence: DevicePresenceSink | null = null,
     @Optional() @Inject(DEVICE_SETTINGS_SINK) private readonly settings: DeviceSettingsSink | null = null,
+    @Optional() @Inject(DeviceConfigurationService) private readonly lamps: Pick<DeviceConfigurationService, 'lampsFollow'> | null = null,
   ) {}
 
   /**
@@ -403,6 +405,11 @@ export class DeviceIngestService implements OnModuleInit, OnApplicationShutdown 
     await recordTargets(this.targetRecord, device, device.configuration, configuration, new Date());
 
     if (JSON.stringify(onTheWire(configuration)) !== JSON.stringify(reported)) this.publisher.configuration(device.id, configuration);
+    // Germination or drying begun or ended at the device's own menu darkens the lamp modules of its place, or gives them
+    // their light back, as the cloud's own writes do (ADR 0007: "however it came to").
+    if (darkIn(device.type, device.configuration ?? null, device.baseWorkmode) !== darkIn(device.type, configuration, base ?? device.baseWorkmode)) {
+      await this.lamps?.lampsFollow(device.spaceId ?? null);
+    }
     // The first settings it sends are what a climate chosen for its place before then can be written into - and what a
     // lamp module is kept dark by where its place germinates or dries.
     if (device.configuration === null && (device.awaitedClimate || device.type === 'light')) await this.settings?.settingsArrived(device.id);

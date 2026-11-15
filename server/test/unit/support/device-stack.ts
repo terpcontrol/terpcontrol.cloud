@@ -44,6 +44,12 @@ export const deviceStackOn = (db: V1TestDatabase, followers: ScheduleFollower | 
     publisher,
     new HardwareReportService(db.devices, db.cameras),
     entries,
+    null,
+    null,
+    null,
+    null,
+    null,
+    configuration,
   );
 
   return { published, configuration, ingest };
