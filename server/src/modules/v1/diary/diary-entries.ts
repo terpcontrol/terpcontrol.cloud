@@ -100,6 +100,22 @@ export const diaryMovedAt = async (entries: Model<EntryDocument>, growIds: strin
 };
 
 /**
+ * The lines of a grow: those that name it, and the alarms of every place it stood in while it stood there. An alarm
+ * happens in a place and belongs to every grow standing in it, so it names none (`AlertService`); a line written
+ * before named the grow begun last there, and is the others' all the same.
+ */
+export const linesOfGrow = (grow: Pick<GrowDocument, 'id' | 'placements'>): FilterQuery<EntryDocument> => ({
+  $or: [
+    { growId: grow.id },
+    ...grow.placements.flatMap(stay =>
+      stay.spaceId === null
+        ? []
+        : [{ kind: 'alarm', spaceId: stay.spaceId, occurredAt: { $gte: stay.startedAt, ...(stay.endedAt ? { $lt: stay.endedAt } : {}) } }],
+    ),
+  ],
+});
+
+/**
  * What of a diary a reader from outside is answered - on a public page, through
  * a link onto a grow or onto a place: what people wrote, and nothing a device,
  * the plan or an alarm did. Not as a line, not as an id, not in a count: an

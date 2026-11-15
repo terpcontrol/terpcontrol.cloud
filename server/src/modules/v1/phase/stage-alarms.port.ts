@@ -14,6 +14,8 @@ import type { GrowthStage } from '@fg2/shared-types/v1';
 export interface StageAlarms {
   /** Writes, updates or removes the rules this stage and preset imply for the device. */
   applyStage(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void>;
+  /** The stage and preset the stage rules of these devices were written for, the one most of them carry; null where none has any. */
+  stageOf(deviceIds: readonly string[]): Promise<{ stage: GrowthStage; preset: string | null } | null>;
 }
 
 export const STAGE_ALARMS = Symbol('StageAlarms');

@@ -2734,7 +2734,7 @@
     "group": {
       "phaseOf": "Aus der Phase {{name}}",
       "phaseNone": "Alarme der Phase",
-      "presetAside": "Schwellen wandern mit der Phase",
+      "presetAside": "Schwellen folgen dem Klima",
       "always": "Eingebaut",
       "device": "Vom Gerät",
       "human": "Hier angelegt"
@@ -3790,7 +3790,7 @@
     },
     "stage": {
       "title": "Phase",
-      "text": "Die Phase sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist die erste Phase mit Licht. Wer eine beginnt, schreibt sie in den Grow: ihr Startdatum, eine Tagebuchzeile und ihre Alarmregeln für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Nur eine Keimung, die ohne ihr Klima neben einem Gerät mit Licht eingetragen wird, lässt dessen Alarme, wie sie sind. Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Kurven. An einem beendeten Grow repariert eine nachgetragene Phase, was er durchlaufen hat, und bewegt nichts weiter."
+      "text": "Die Phase sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist die erste Phase mit Licht. Wer eine beginnt, schreibt sie in den Grow: ihr Startdatum und eine Tagebuchzeile – und mit ihrem Klima auch ihre Alarmregeln für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Nur eingetragen, lässt sie Klima und Alarme, wie sie sind: Die Alarme eines Orts richten sich nach dem Klima, das dort eingestellt ist – auch wenn dort ein zweiter Grow steht. Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Kurven. An einem beendeten Grow repariert eine nachgetragene Phase, was er durchlaufen hat, und bewegt nichts weiter."
     },
     "stepPreset": {
       "title": "Ein Preset im Schritt",
@@ -3834,7 +3834,7 @@
     },
     "phasePreset": {
       "title": "Zielwerte mit der Phase",
-      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Das gilt für jede Phase, auch für Keimung und Trocknung: Nur eingetragen, lässt sie das Gerät, wie es ist, und neben einem Gerät mit Licht auch die Alarme. Aus der Keimung oder Trocknung heraus bringt erst das Klima einer anderen Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach der Phase; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Das gilt für jede Phase, auch für Keimung und Trocknung: Nur eingetragen, lässt sie das Gerät und seine Alarme, wie sie sind. Aus der Keimung oder Trocknung heraus bringt erst das Klima einer anderen Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach dem Klima der Phase, das eingestellt ist; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",

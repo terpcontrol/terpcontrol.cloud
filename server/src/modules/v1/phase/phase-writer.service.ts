@@ -9,7 +9,6 @@ import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument, PhaseDocument } from '@database/schemas/v1/grows.schema';
-import type { GrowInSpace } from '@modules/alarm/alarm.types';
 import { hasWorkModes } from '@modules/device-protocol/work-modes';
 import { logger } from '@utils/logger';
 import { DevicePlacement } from '../device/placement.port';
@@ -44,10 +43,11 @@ interface PhaseRequest {
   targets: PhaseTargets | null;
   startedAt?: Date;
   /**
-   * False where the phase is only recorded and nothing wrote a climate with it.
-   * A germination phase recorded so is about seeds, wherever they sprout, and
-   * leaves the alarms of a place whose device holds a climate with light as
-   * they are (see `rereadThresholds`). Left out, the climate is written.
+   * False where the phase is only recorded and nothing wrote a climate with it:
+   * a place's alarm thresholds follow the climate written there, so such a
+   * phase leaves them as they are - unless the place already runs the stage's
+   * own mode, whose climate it then is (see `rereadThresholds`). Left out, the
+   * climate is written.
    */
   climateWritten?: boolean;
 }
@@ -65,7 +65,7 @@ interface PhaseCorrection {
 }
 
 @Injectable()
-export class PhaseWriterService implements DevicePlacement, GrowInSpace {
+export class PhaseWriterService implements DevicePlacement {
   constructor(
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     private readonly entries: EntryWriterService,
@@ -121,7 +121,7 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
       values: { kind: 'phase', phaseId: phase.id, stage: phase.stage, preset: phase.preset },
     });
 
-    await this.rereadThresholds(grow, phase, request.climateWritten ?? true);
+    if ((request.climateWritten ?? true) || (await this.runsItsMode(grow, phase))) await this.rereadThresholds(grow, phase);
     return phase;
   }
 
@@ -173,14 +173,8 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
       )
       .exec();
 
-    // Only where the correction changed the phase the grow stands in now: the
-    // thresholds are what the alarm engine watches today, and re-reading them
-    // from a stage that ended in spring would arm the tent for spring.
-    if (phases[phases.length - 1]?.id === phaseId && (corrected.stage !== standing.stage || corrected.preset !== standing.preset)) {
-      // A correction writes no climate: it repairs the record.
-      await this.rereadThresholds(grow, corrected, false);
-    }
-
+    // A correction writes no climate - it repairs the record - and so moves no
+    // threshold: they are the climate's that was written.
     return corrected;
   }
 
@@ -194,9 +188,8 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
    * gets its days back.
    *
    * Withdrawing the phase the grow stands in puts it back in the one before,
-   * and the alarms follow: the thresholds of that phase are read again, as a
-   * correction reads them. A germination taken back left "Zu kalt" at 20 °C
-   * and "Zu feucht" at 90 % over a tent that stood in Veg again.
+   * and writes no device: the place's climate, and the thresholds that follow
+   * it, stay as they are.
    */
   public async removePhase(growId: string, phaseId: string): Promise<void> {
     // Asked of the document rather than of the write: a grow carries timestamps,
@@ -208,78 +201,80 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
     const startedAt = startCarriedBy(grow, left);
     await this.grows.updateOne({ id: growId }, { $pull: { phases: { id: phaseId } }, ...(startedAt ? { $set: { startedAt } } : {}) }).exec();
     await this.entryRows.deleteMany({ growId, kind: 'phase', 'values.phaseId': phaseId }).exec();
-
-    // Only where its plants stood in it, and only where a phase is left for
-    // them to stand in: a grow with none keeps the alarms it has. Nothing
-    // writes a climate.
-    const removed = grow.phases.find(phase => phase.id === phaseId)!;
-    const standingOf = (phases: PhaseDocument[]) => latestPhase(phases.filter(phase => overlap(phase.plantIds, removed.plantIds)));
-    const standing = standingOf(left);
-    if (standingOf(grow.phases)?.id === phaseId && standing) await this.rereadThresholds({ ...grow, phases: left }, standing, false);
   }
 
   /**
    * The thresholds the stage binds, on every device standing where the phase's
    * plants do - a plug in the tent measures the same air as the controller -
    * and on the controller the phase names, which is the same set unless the
-   * plants have since been moved.
-   *
-   * Germination's bands are for air held round the clock at one temperature
-   * in the dark, with no humidity watched, and drying's for a dark room at one
-   * climate. A phase of either that wrote no climate leaves a place whose
-   * fridge or controller runs another mode - a climate with light, or the
-   * other of the two - with the alarms that climate is watched by: "too cold"
-   * under 20 °C would trip every night of a flowering tent. Where the device
-   * there already runs the stage's mode, the bands are its own.
+   * plants have since been moved. Only for a phase written with its climate:
+   * a place's thresholds follow the climate written there, and a stage merely
+   * recorded - beside another grow, or seeds sprouting somewhere a lamp burns -
+   * would arm the place for a climate nobody set (a second grow started in Veg
+   * closed the flowering grow's open "too humid" while the air stayed at 62 %).
    */
-  private async rereadThresholds(grow: GrowDocument, phase: PhaseDocument, climateWritten: boolean): Promise<void> {
+  private async rereadThresholds(grow: GrowDocument, phase: PhaseDocument): Promise<void> {
     if (!this.alarms) return;
 
-    const spaceIds = spacesOf(grow, phase.plantIds);
-    const here = await this.devices
-      .find({ spaceId: { $in: spaceIds } }, { id: 1, type: 1, 'configuration.workmode': 1 })
-      .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration'>[]>();
-    const mode = MODE_OF_STAGE[phase.stage];
-    if (mode && !climateWritten && here.some(device => holdsAnotherMode(device, mode))) return;
-
+    const here = await this.devices.find({ spaceId: { $in: spacesOf(grow, phase.plantIds) } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
     const deviceIds = new Set([...here.map(device => device.id), ...(phase.deviceId ? [phase.deviceId] : [])]);
 
     for (const deviceId of deviceIds) await this.applyStageTo(deviceId, phase);
   }
 
   /**
-   * A device that has just been stood in a space takes the thresholds of the
-   * stage already standing there, so that a controller claimed into a tent in
-   * flower is watched like the tent is. Nothing is standing there: the device
-   * keeps whatever rules it has, which is what a device moved out to a shelf
-   * and back would want.
+   * Whether the place already runs the stage's own mode - germinates or dries, set so under Steuerung or at the device -
+   * on every device there that has work modes: the climate in force is then the stage's, and a phase recorded over it
+   * takes its bands.
+   */
+  private async runsItsMode(grow: GrowDocument, phase: PhaseDocument): Promise<boolean> {
+    const mode = MODE_OF_STAGE[phase.stage];
+    if (!mode) return false;
+
+    const here = await this.devices
+      .find({ spaceId: { $in: spacesOf(grow, phase.plantIds) } }, { type: 1, 'configuration.workmode': 1 })
+      .lean<Pick<StoredDevice, 'type' | 'configuration'>[]>();
+    const steering = here.filter(device => hasWorkModes(device.type));
+    return steering.length > 0 && steering.every(device => device.configuration?.workmode === mode);
+  }
+
+  /**
+   * A device that has just been stood in a space takes the thresholds the
+   * place is watched by: the stage the bands of the devices already there come
+   * from, or where none has any, the phase of the plants standing there longest -
+   * so that a controller claimed into a tent in flower is watched like the tent
+   * is, and not by a stage recorded beside it. Nothing is standing there: the
+   * device keeps whatever rules it has, which is what a device moved out to a
+   * shelf and back would want.
    */
   public async restateThresholds(deviceId: string, spaceId: string): Promise<void> {
-    const grow = await this.standingGrow<GrowDocument>(spaceId);
-    if (!grow) return;
+    const others = await this.devices.find({ spaceId, id: { $ne: deviceId } }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
+    const watched = others.length > 0 ? await this.alarms?.stageOf(others.map(device => device.id)) : null;
+    if (watched) return this.applyStageTo(deviceId, watched);
 
-    const standing = phaseStandingIn(grow, spaceId);
+    const grow = await this.standingGrow<GrowDocument>(spaceId, undefined, 1);
+    const standing = grow ? phaseStandingIn(grow, spaceId) : null;
     if (standing) await this.applyStageTo(deviceId, standing);
   }
 
   /**
-   * A climate written to a place whose grow already stood in its stage: the
-   * new-grow sheet records the first phase a moment before it puts the place
-   * on that stage's climate, and a preset is applied again. The alarms follow
-   * the climate, so the bands of the stage standing there are read again for
-   * every device in the place.
+   * A climate written to a place whose grow already stood in its stage, or
+   * where no grow stands: the new-grow sheet records the first phase a moment
+   * before it puts the place on that stage's climate, and a preset is applied
+   * again. The alarms follow the climate, so the bands of the stage written are
+   * read again for every device in the place.
    */
-  public async restateSpace(spaceId: string): Promise<void> {
+  public async restateSpace(spaceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
     if (!this.alarms) return;
 
     const here = await this.devices.find({ spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>();
-    for (const device of here) await this.restateThresholds(device.id, spaceId);
+    for (const device of here) await this.applyStageTo(device.id, { stage, preset });
   }
 
   /** The thresholds are the alarm engine's, and a device that could not be told must not undo the phase the grow is in. */
-  private async applyStageTo(deviceId: string, phase: PhaseDocument): Promise<void> {
+  private async applyStageTo(deviceId: string, { stage, preset }: Pick<PhaseDocument, 'stage' | 'preset'>): Promise<void> {
     try {
-      await this.alarms?.applyStage(deviceId, phase.stage, phase.preset);
+      await this.alarms?.applyStage(deviceId, stage, preset);
     } catch (error) {
       logger.error(`Could not re-read the stage thresholds of device ${deviceId}: ${error}`);
     }
@@ -287,12 +282,8 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
 
   /**
    * What is growing in a place right now, as an id and nothing more: the grow
-   * whose placement there is still open. Null when there is none - a controller
-   * merely being on invents no grow.
-   *
-   * It is also what the alarms ask through `GROW_IN_SPACE`: an alarm happens in
-   * a tent, and a tent with a grow standing in it has a diary the line belongs
-   * in.
+   * whose placement there is still open, the one begun last where two stand.
+   * Null when there is none - a controller merely being on invents no grow.
    */
   public async growIdIn(spaceId: string | null): Promise<string | null> {
     if (!spaceId) return null;
@@ -303,10 +294,11 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
 
   /**
    * The grow standing in a space: the one begun last, the id breaking a tie,
-   * because two grows can share a tent while one is on its way out.
+   * because two grows can share a tent while one is on its way out - or with
+   * `order` 1 the one begun first.
    */
-  private standingGrow<T>(spaceId: string, projection?: ProjectionType<GrowDocument>): Promise<T | null> {
-    return this.grows.findOne(standingIn(spaceId), projection).sort({ startedAt: -1, id: -1 }).lean<T>().exec();
+  private standingGrow<T>(spaceId: string, projection?: ProjectionType<GrowDocument>, order: 1 | -1 = -1): Promise<T | null> {
+    return this.grows.findOne(standingIn(spaceId), projection).sort({ startedAt: order, id: order }).lean<T>().exec();
   }
 
   /** The phase a grow already stands in with this stage and preset, for a request that appended none. */
@@ -318,12 +310,6 @@ export class PhaseWriterService implements DevicePlacement, GrowInSpace {
 
 /** The work mode a stage puts a device into with its climate, for the two stages that have one of their own. */
 const MODE_OF_STAGE: Partial<Record<GrowthStage, string>> = { germination: 'breed', drying: 'dry' };
-
-/** A device with work modes running another mode than the stage's own: its work mode is a word, and not that one. */
-const holdsAnotherMode = (device: Pick<StoredDevice, 'type' | 'configuration'>, mode: string): boolean => {
-  const workmode = device.configuration?.workmode;
-  return hasWorkModes(device.type) && typeof workmode === 'string' && workmode !== mode;
-};
 
 const byDate = (one: PhaseDocument, other: PhaseDocument): number => one.startedAt.getTime() - other.startedAt.getTime();
 

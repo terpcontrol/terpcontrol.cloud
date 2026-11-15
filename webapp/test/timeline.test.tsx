@@ -1618,10 +1618,24 @@ describe('the diary of the window', () => {
     expect(line).not.toHaveAttribute('data-severity');
   });
 
-  /** Two grows in one tent: Start's lines say whose a line is since the sixth walk; Verlauf's list said nothing. */
-  it('names the grow of each line where the window´s lines are of two grows', async () => {
+  /**
+   * Two grows in one tent: Start's lines say whose a line is since the sixth walk; Verlauf's list said nothing. An
+   * alarm is the place's, both grows': a line written before named the grow begun last, and is not called its own.
+   */
+  it('names the grow of each line where the window´s lines are of two grows, and no grow of an alarm', async () => {
+    const humid = entry('humid', {
+      kind: 'alarm',
+      source: 'alarm',
+      authorId: null,
+      growId: 'grow-2',
+      severity: 'warning',
+      text: null,
+      occurredAt: ago(2),
+      message: { key: 'message-alarm-triggered', params: ['Too humid (humidity), value=62, upper threshold=60, lower threshold=n/a'] },
+      values: { kind: 'alarm' },
+    });
     server.over = {
-      events: [entry('mine', { growId: 'grow-1', occurredAt: ago(4) }), entry('theirs', { growId: 'grow-2', occurredAt: ago(3) })],
+      events: [entry('mine', { growId: 'grow-1', occurredAt: ago(4) }), entry('theirs', { growId: 'grow-2', occurredAt: ago(3) }), humid],
       grows: [
         { growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null },
         { growId: 'grow-2', name: 'Gelato', startedAt: ago(10 * 24), endedAt: null },
@@ -1631,8 +1645,12 @@ describe('the diary of the window', () => {
     await settled();
 
     const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
-    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(2));
-    expect(list.getAllByRole('listitem').map(one => one.textContent)).toEqual([expect.stringMatching(/Amnesia/), expect.stringMatching(/Gelato/)]);
+    await waitFor(() => expect(list.getAllByRole('listitem')).toHaveLength(3));
+    expect(list.getAllByRole('listitem').map(one => one.textContent)).toEqual([
+      expect.stringMatching(/Amnesia/),
+      expect.stringMatching(/Gelato/),
+      expect.not.stringMatching(/Gelato|Amnesia/),
+    ]);
   });
 
   /** A round of readings across two plants read "pH 6,1 pH · pH 6,4 pH" here: no plant named, the unit its name. */

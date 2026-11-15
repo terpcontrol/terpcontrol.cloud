@@ -197,6 +197,18 @@ export const stageAlarmBands = (stage: GrowthStage, preset: string | null): Stag
   return bands.filter((band): band is StageAlarmBand => band !== null);
 };
 
+/**
+ * The `presetId` a stage's rules are written under - the stage, and the preset on it after a colon - and back: the
+ * stage a device's bands come from, which is what the alarms page names them by, never the stage a grow was recorded
+ * in since.
+ */
+export const presetIdOf = (stage: GrowthStage, preset: string | null): string => (preset ? `${stage}:${preset}` : stage);
+
+export const stageOfPresetId = (presetId: string): { stage: GrowthStage; preset: string | null } => {
+  const [stage, preset] = presetId.split(':');
+  return { stage: stage as GrowthStage, preset: preset ?? null };
+};
+
 const reading = (metric: StageAlarmBand['watch']['metric'], upper: number | null, lower: number | null): StageAlarmBand['watch'] => ({
   kind: 'reading',
   metric,

@@ -105,7 +105,8 @@ export function Latest({
               byline={byline}
               onOpen={entry ? correcting(entry, on) : null}
               plants={named}
-              grow={grows.length > 1 ? (grows.find(one => one.growId === entry?.growId)?.name ?? null) : null}
+              // An alarm is the place's, every grow's standing there, whichever a line written before names.
+              grow={grows.length > 1 && entry?.kind !== 'alarm' ? (grows.find(one => one.growId === entry?.growId)?.name ?? null) : null}
               onPictures={from =>
                 setViewing({ pictures: (entry?.mediaIds ?? []).flatMap(mediaId => mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) ?? []), from })
               }

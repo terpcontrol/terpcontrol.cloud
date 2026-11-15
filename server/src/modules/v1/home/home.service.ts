@@ -23,7 +23,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { demoEntry } from '@utils/demo';
 import { layersOf } from '../account/diary-layer';
-import { diaryTail } from '../diary/diary-entries';
+import { diaryTail, linesOfGrow } from '../diary/diary-entries';
 import { coveredBy, growsMoved } from '../grow/grow-moved';
 import { spacesNow } from '../grow/grow-places';
 import { growCardOf, redactionOf, serialisePublicCard } from '../grow/grow-serialiser';
@@ -179,7 +179,7 @@ export class HomeService {
         const eyes = space ? cameras.filter(camera => camera.spaceId === space.id).map(camera => camera.id) : [];
         const [tail, still] = await Promise.all([
           // The grow's diary where there is a grow; the place's own lines - an alarm's, the plan's - where there is none.
-          diaryTail(this.entries, grow ? { growId: grow.id } : { spaceId: space!.id }, KEEPER, clampRange(undefined), ENTRIES_PER_CARD, now),
+          diaryTail(this.entries, grow ? linesOfGrow(grow) : { spaceId: space!.id }, KEEPER, clampRange(undefined), ENTRIES_PER_CARD, now),
           this.latestStill(eyes),
         ]);
         const inSpace = readings.filter(reading => here.includes(reading.deviceId));

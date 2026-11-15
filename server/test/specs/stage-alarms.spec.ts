@@ -49,7 +49,9 @@ const presetRulesOf = async (deviceId: string): Promise<Record<string, unknown>[
 const byName = (rules: Record<string, unknown>[]): Record<string, Record<string, unknown>> =>
   Object.fromEntries(rules.map(rule => [rule.name as string, rule]));
 
-const enterPhase = (stage: string, preset: string | null = null) => owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, preset }).expect(201);
+/** A phase entered with its climate, which is what moves the place's thresholds. */
+const enterPhase = (stage: string, preset: string | null = null) =>
+  owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, preset, climate: true }).expect(201);
 
 beforeAll(async () => {
   owner = await createAccount('stage-alarms-owner');
@@ -134,5 +136,11 @@ describe('a device that arrives in a tent already in a stage', () => {
 
     await owner.client.patch(`/v1/devices/${deviceId}`).send({ spaceId: shelf }).expect(200);
     expect(await presetRulesOf(deviceId)).toHaveLength(4);
+  });
+
+  it('keeps them where a stage is only recorded, which writes no climate', async () => {
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'flowering' }).expect(201);
+
+    expect(byName(await presetRulesOf(controller))['Too hot']).toMatchObject({ watch: { upper: 31 }, presetId: 'vegetative' });
   });
 });

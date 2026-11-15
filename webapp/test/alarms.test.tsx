@@ -72,7 +72,7 @@ const rule = (over: Partial<AlarmRule>): AlarmRule => ({
 });
 
 const RULES: AlarmRule[] = [
-  rule({ id: 'rule-hot', name: 'Too hot', origin: 'preset', presetId: 'preset-flower' }),
+  rule({ id: 'rule-hot', name: 'Too hot', origin: 'preset', presetId: 'flowering' }),
   rule({
     id: 'rule-co2',
     name: 'CO2',
@@ -239,11 +239,20 @@ describe('the alarm rules page', () => {
     expect(within(hot).queryByText(/running/)).not.toBeInTheDocument();
   });
 
-  it('groups the rules by where they came from, the stage´s under the phase the grow is in', async () => {
+  /** A second grow recorded in Veg beside the flowering one writes no climate, and the bands are still flowering's. */
+  it('groups the rules by where they came from, the stage´s under the phase their bands were written for', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/spaces/space-1/overview'
+            ? { ...overview, grows: [{ growId: 'grow-2', stage: 'vegetative', preset: null }, ...overview.grows] }
+            : answers(path),
+        ) as never,
+    );
     draw();
 
     expect(await screen.findByText('From the Flower phase')).toBeInTheDocument();
-    expect(screen.getByText('thresholds move with the phase')).toBeInTheDocument();
+    expect(screen.getByText('thresholds follow the climate')).toBeInTheDocument();
 
     // The cloud's own rule can be switched off like any other, so its head does not call it always on.
     const labels = screen.getAllByText(/^(From the Flower phase|Built in|From the device|Written here)$/).map(label => label.textContent);
@@ -604,9 +613,14 @@ describe('the alarm rules page', () => {
     expect(screen.queryByRole('group', { name: 'Maintenance' })).not.toBeInTheDocument();
   });
 
-  it('names no phase over the stage´s rules where nothing grows here yet, and no climate preset', async () => {
+  it('names no phase over stage rules that do not say which stage wrote them, and no climate preset', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/spaces/space-1/overview' ? { ...overview, grows: [] } : answers(path)) as never,
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules'
+            ? rulePage(RULES.map(one => (one.origin === 'preset' ? { ...one, presetId: null } : one)))
+            : answers(path),
+        ) as never,
     );
     draw();
 

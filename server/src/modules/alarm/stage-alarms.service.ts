@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { GrowthStage } from '@fg2/shared-types/v1';
 import { repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
-import { StageAlarmBand, stageAlarmBands } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { StageAlarmBand, presetIdOf, stageAlarmBands, stageOfPresetId } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -47,7 +47,7 @@ export class StageAlarmsService implements StageAlarms {
   public async applyStage(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
     const device = await this.devices.findOne({ id: deviceId }, { type: 1 }).lean<Pick<StoredDevice, 'type'> | null>();
     const bands = (stageAlarmBands(stage, preset) ?? []).filter(band => measures(device?.type ?? null, band));
-    const presetId = preset ? `${stage}:${preset}` : stage;
+    const presetId = presetIdOf(stage, preset);
 
     for (const band of bands) {
       await this.rules.updateOne(
@@ -59,6 +59,16 @@ export class StageAlarmsService implements StageAlarms {
 
     const stale = await this.rules.find({ deviceId, origin: 'preset', presetKey: { $nin: bands.map(band => band.key) } }).lean<StoredAlarmRule[]>();
     for (const rule of stale) await this.ruleService.remove(rule);
+  }
+
+  public async stageOf(deviceIds: readonly string[]): Promise<{ stage: GrowthStage; preset: string | null } | null> {
+    const rules = await this.rules
+      .find({ deviceId: { $in: [...deviceIds] }, origin: 'preset', presetId: { $ne: null } }, { presetId: 1 })
+      .lean<Pick<StoredAlarmRule, 'presetId'>[]>();
+    const counts = new Map<string, number>();
+    for (const { presetId } of rules) if (presetId) counts.set(presetId, (counts.get(presetId) ?? 0) + 1);
+    const most = [...counts].sort((one, other) => other[1] - one[1])[0]?.[0];
+    return most ? stageOfPresetId(most) : null;
   }
 
   /**

@@ -40,7 +40,7 @@
  * stage watches for cannot drift from what it asks for.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.germinationOf = exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_HUMIDITY = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
+exports.germinationOf = exports.watchNow = exports.restsInGermination = exports.isStageTooHumid = exports.watchesTooHumid = exports.germinationChoicesOf = exports.GERMINATION_CHOICES = exports.GERMINATION_TOO_HUMID = exports.stageOfPresetId = exports.presetIdOf = exports.stageAlarmBands = exports.CO2_ALARM_PPM = exports.climatePreset = exports.STAGES_WITH_CLIMATE = exports.PRESETS_OF_STAGE = exports.GERMINATION_HUMIDITY = exports.GERMINATION_TEMPERATURE = exports.AMBIENT_CO2 = void 0;
 /** What outdoor air holds: the target a stage that does not enrich is written with. */
 exports.AMBIENT_CO2 = 400;
 /**
@@ -151,6 +151,18 @@ const stageAlarmBands = (stage, preset) => {
     return bands.filter((band) => band !== null);
 };
 exports.stageAlarmBands = stageAlarmBands;
+/**
+ * The `presetId` a stage's rules are written under - the stage, and the preset on it after a colon - and back: the
+ * stage a device's bands come from, which is what the alarms page names them by, never the stage a grow was recorded
+ * in since.
+ */
+const presetIdOf = (stage, preset) => (preset ? `${stage}:${preset}` : stage);
+exports.presetIdOf = presetIdOf;
+const stageOfPresetId = (presetId) => {
+    const [stage, preset] = presetId.split(':');
+    return { stage: stage, preset: preset ?? null };
+};
+exports.stageOfPresetId = stageOfPresetId;
 const reading = (metric, upper, lower) => ({
     kind: 'reading',
     metric,

@@ -147,7 +147,7 @@ describe('the grow´s menu', () => {
  */
 describe('deleting a grow', () => {
   const diaryOf = (kinds: string[]) => ({
-    items: [{ days: [{ entries: kinds.map((kind, index) => ({ id: `e${index}`, kind })) }] }],
+    items: [{ days: [{ entries: kinds.map((kind, index) => ({ id: `e${index}`, kind, source: kind === 'alarm' ? 'alarm' : 'human' })) }] }],
     nextCursor: null,
     people: [],
     earlier: [],
@@ -199,6 +199,15 @@ describe('deleting a grow', () => {
       '/grows/grow-1',
     ]);
     expect(await screen.findByText('Spring run deleted')).toBeInTheDocument();
+  });
+
+  /** A place's alarm is every grow's standing there: a second grow started by mistake in a tent with an alert open is still one. */
+  it('is offered where the only other lines are the place´s own', async () => {
+    wire(['phase', 'alarm', 'alarm']);
+    drawMenu();
+    menu();
+
+    expect(await screen.findByRole('button', { name: 'Delete grow' })).toBeInTheDocument();
   });
 
   it('is not offered where somebody wrote in the diary', async () => {

@@ -753,6 +753,35 @@ describe('what the devices did', () => {
 
     expect(machines).toEqual(['plan-step']);
   });
+
+  /**
+   * An alarm happens in a place and is every grow's standing there: a second grow started beside this one took the
+   * place's "too humid" and its end out of this diary.
+   */
+  it('is the alarms of the place while the grow stood there, whichever grow a line names or none', async () => {
+    const alarm = (id: string, occurredAt: Date, over: Partial<EntryDocument> = {}) =>
+      entry({
+        id,
+        kind: 'alarm',
+        source: 'alarm',
+        authorId: null,
+        spaceId: TENT,
+        deviceId: CONTROLLER,
+        occurredAt,
+        values: { kind: 'alarm' },
+        ...over,
+      });
+    await db.entries.create([
+      alarm('humid-raised', berlin(11, '12:28'), { growId: 'grow-second', message: { key: 'message-alarm-triggered', params: ['Too humid'] } }),
+      alarm('humid-over', berlin(11, '17:07'), { growId: null, message: { key: 'message-alarm-resolved', params: ['Too humid'] } }),
+      alarm('humid-elsewhere', berlin(11, '15:00'), { spaceId: SPARE_TENT, deviceId: SPARE_CONTROLLER }),
+      alarm('humid-before', berlin(1, '15:00')),
+    ]);
+
+    const lines = dayOf(await read(), 10).entries.filter(line => line.kind === 'alarm');
+
+    expect(lines.map(line => line.id)).toEqual(['humid-over', 'humid-raised']);
+  });
 });
 
 describe('maintenance', () => {

@@ -638,7 +638,9 @@ export class GrowsService {
       spaceId,
       targets: controller?.targets ?? null,
       startedAt: request.startedAt,
-      climateWritten: applied.length > 0,
+      // Asked for a place, a climate is written - now, or to a device as its first settings arrive - and the place's
+      // alarms follow it; a stage merely recorded leaves them as they are.
+      climateWritten: writesClimate && spaceId !== null,
     });
 
     // Putting a grow into the phase it already stands in changes nothing and is

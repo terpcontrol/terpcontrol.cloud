@@ -2724,7 +2724,7 @@
     "group": {
       "phaseOf": "From the {{name}} phase",
       "phaseNone": "Phase alarms",
-      "presetAside": "thresholds move with the phase",
+      "presetAside": "thresholds follow the climate",
       "always": "Built in",
       "device": "From the device",
       "human": "Written here"
@@ -3780,7 +3780,7 @@
     },
     "stage": {
       "title": "Phase",
-      "text": "The phase is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first phase with light. Entering one writes it on the grow: the date it began, a diary line, and its alarm rules on the devices the plants are with (curing has none). Only a germination recorded without its climate beside a device with its light on leaves that device’s alarms as they are. The phase counts the grow’s days and weeks – the feeding plan and the curves go by it. On a grow that is over, a phase added afterwards repairs what it went through and moves nothing else."
+      "text": "The phase is where the plants are, from germination to curing. Germination means the same everywhere: seeds sprouting in the dark, and with its climate the device goes dark; seedling is the first phase with light. Entering one writes it on the grow: the date it began and a diary line – and with its climate its alarm rules on the devices the plants are with too (curing has none). Only recorded, it leaves the climate and the alarms as they are: a place’s alarms follow the climate set there, also where a second grow stands. The phase counts the grow’s days and weeks – the feeding plan and the curves go by it. On a grow that is over, a phase added afterwards repairs what it went through and moves nothing else."
     },
     "stepPreset": {
       "title": "A preset in a step",
@@ -3824,7 +3824,7 @@
     },
     "phasePreset": {
       "title": "Targets with the phase",
-      "text": "“Leave as they are” records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. That holds for every phase, germination and drying included: only recorded, it leaves the device as it is, and beside a device with its light on the alarms too. Out of germination or drying, only the climate of another phase brings the light back. Auto is for autoflowers, which keep long days. A new climate replaces the targets under Control; when the light comes on stays as it is. Drying holds the night figures round the clock, with no light and no CO₂. The alarms Too hot, Too cold and Too humid follow the phase; in germination Too humid rests unless you switch it on."
+      "text": "“Leave as they are” records only the phase: light, temperature and humidity stay as they are under Control. Choosing a climate switches the targets of the devices there right away – for Flower, for instance, the light goes to 12 hours, for “Germination · dark” the light goes off. That holds for every phase, germination and drying included: only recorded, it leaves the device and its alarms as they are. Out of germination or drying, only the climate of another phase brings the light back. Auto is for autoflowers, which keep long days. A new climate replaces the targets under Control; when the light comes on stays as it is. Drying holds the night figures round the clock, with no light and no CO₂. The alarms Too hot, Too cold and Too humid follow the climate of the phase that is set; in germination Too humid rests unless you switch it on."
     },
     "phaseCorrection": {
       "title": "Correct or withdraw",

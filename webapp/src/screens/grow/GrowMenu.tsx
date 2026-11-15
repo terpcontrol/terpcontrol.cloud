@@ -117,8 +117,9 @@ export function GrowMenu({
 
 /**
  * Whether the grow holds nothing but the line its phase announced itself with: a grow started by mistake, from an
- * empty form, which is what may be deleted. Asked of its owner only, from the diary's own read - every page of it
- * there is, so a diary with weeks still to load is not judged.
+ * empty form, which is what may be deleted. The lines of its place - an alarm, the plan's step - are no line of its own:
+ * they are every grow's standing there, and stay with the place. Asked of its owner only, from the diary's own read -
+ * every page of it there is, so a diary with weeks still to load is not judged.
  */
 const useStartedByMistake = (growId: string, mayOwn: boolean): boolean => {
   const diary = useGrowDiary(mayOwn ? growId : null);
@@ -126,7 +127,7 @@ const useStartedByMistake = (growId: string, mayOwn: boolean): boolean => {
   if (!mayOwn || pages.length === 0 || diary.hasNextPage) return false;
 
   const lines = [...pages.flatMap(page => page.items.flatMap(week => week.days.flatMap(day => day.entries))), ...(pages.at(-1)?.earlier ?? [])];
-  return lines.every(line => line.kind === 'phase');
+  return lines.every(line => line.kind === 'phase' || line.source !== 'human');
 };
 
 /**

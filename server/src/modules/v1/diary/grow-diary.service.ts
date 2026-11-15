@@ -19,7 +19,7 @@ import { spacesDuring } from '../grow/grow-places';
 import { Redaction } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { dayClimateOf } from './day-climate';
-import { DIARY_KINDS, TOLD_OF_MACHINES, serialiseDiaryEntry, stretchEvent, toldOf, writtenFor } from './diary-entries';
+import { DIARY_KINDS, TOLD_OF_MACHINES, linesOfGrow, serialiseDiaryEntry, stretchEvent, toldOf, writtenFor } from './diary-entries';
 import { DayStill, WeekFilm, stillsOfDays, weekFilmsOf } from './diary-pictures';
 import { DiaryDay, DiaryWeek, dateStartOf, diaryWeeksOf, headlinePhaseAt, horizonOf, linesOf, middayOf, weeksAfter } from './grow-calendar';
 import { GrowClimateService, RecordedController } from './grow-climate.service';
@@ -245,8 +245,8 @@ export class GrowDiaryService {
 
   /**
    * The lines of the page, newest first: the grow's own diary - what people
-   * wrote and the alarms raised where it stood, which name the grow - and the
-   * plan's steps there. A plan's line names its place and not always a grow,
+   * wrote, and the alarms raised where it stood while it stood there, which are
+   * every grow's standing there (`linesOfGrow`) - and the plan's steps there. A plan's line names its place and not always a grow,
    * so it is found by the place and kept by the placement; one about another
    * grow sharing the tent is that grow's. Beside them the lines that say
    * maintenance went on and off and regulation off and on, which are told as
@@ -257,7 +257,7 @@ export class GrowDiaryService {
     const during = { occurredAt: { $gte: lived.startsAt, $lt: lived.endsAt } };
     const [diary, machines] = await Promise.all([
       this.entries
-        .find({ growId: grow.id, kind: { $in: DIARY_KINDS }, ...during, ...writtenFor(grant) })
+        .find({ $and: [linesOfGrow(grow), { kind: { $in: DIARY_KINDS }, ...during, ...writtenFor(grant) }] })
         .sort({ occurredAt: -1, id: -1 })
         .limit(MAX_ENTRIES_PER_PAGE)
         .lean<EntryDocument[]>(),

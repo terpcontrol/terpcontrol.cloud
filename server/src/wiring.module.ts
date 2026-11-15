@@ -28,7 +28,7 @@ import { TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service'
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
-import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { ALARM_ROUTING } from '@modules/alarm/alarm.types';
 import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
@@ -97,9 +97,6 @@ const PORTS: ExistingProvider[] = [
   // plan knows it is standing still, and who keeps the tent and what each of
   // them asked to be told on is the notifications part's to answer.
   { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
-  // And an alarm belongs in the diary of whatever is growing where it
-  // happened, which the phase writer answers from the grows' placements.
-  { provide: GROW_IN_SPACE, useExisting: PhaseWriterService },
 ];
 
 /**

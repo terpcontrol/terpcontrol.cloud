@@ -141,6 +141,16 @@ export declare const CO2_ALARM_PPM = 1500;
  */
 export declare const stageAlarmBands: (stage: GrowthStage, preset: string | null) => StageAlarmBand[] | null;
 /**
+ * The `presetId` a stage's rules are written under - the stage, and the preset on it after a colon - and back: the
+ * stage a device's bands come from, which is what the alarms page names them by, never the stage a grow was recorded
+ * in since.
+ */
+export declare const presetIdOf: (stage: GrowthStage, preset: string | null) => string;
+export declare const stageOfPresetId: (presetId: string) => {
+    stage: GrowthStage;
+    preset: string | null;
+};
+/**
  * Germination's "too humid": air wetter than this for twenty minutes in the
  * dark. Seeds sprout well anywhere from about 70 to 90 % - a germination box is
  * meant to be humid - and above it water stands on the medium and on the tray,

@@ -1,11 +1,15 @@
 import { stageAlarmBands } from '@fg2/shared-types/v1-schemas';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmRuleService } from '@modules/alarm/alarm-rule.service';
 import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
+import { AlertService } from '@modules/alarm/alert.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
+import { DataService } from '@modules/data/data.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { StageAlarms } from '@modules/v1/phase/stage-alarms.port';
+import { accessOn, growsOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -288,7 +292,10 @@ describe('a device stood in a space', () => {
 
   beforeEach(() => {
     applied = [];
-    const alarms: StageAlarms = { applyStage: async (deviceId, stage, preset) => void applied.push({ deviceId, stage, preset }) };
+    const alarms: StageAlarms = {
+      applyStage: async (deviceId, stage, preset) => void applied.push({ deviceId, stage, preset }),
+      stageOf: deviceIds => service.stageOf(deviceIds),
+    };
     phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   });
 
@@ -351,31 +358,112 @@ describe('a device stood in a space', () => {
     expect(applied.map(call => call.deviceId).sort()).toEqual([DEVICE, OTHER]);
   });
 
-  /**
-   * A germination taken back left the alarms at germination's bands - "Zu
-   * kalt" under 20 °C, "Zu feucht" over 90 % - over a grow that stood in Veg
-   * again. The stage left standing binds them, as a correction makes it.
-   */
-  it('gives the alarms back to the phase left standing when the one the grow stood in is taken back', async () => {
+  it('takes the stage the bands of the devices already there come from, not a stage recorded beside it since', async () => {
+    await aGrow(
+      [{ id: 'p1', stage: 'vegetative', preset: null, startedAt: at(4), source: 'human', plantIds: null }],
+      [{ id: 'pl1', spaceId: TENT, startedAt: at(3), endedAt: null, plantIds: null }],
+    );
+    await db.devices.create({ id: OTHER, type: 'controller', ownerId: 'user-owner', spaceId: TENT });
+    await service.applyStage(OTHER, 'flowering', 'late_flowering');
+
+    await phases.restateThresholds(DEVICE, TENT);
+
+    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'flowering', preset: 'late_flowering' }]);
+  });
+
+  it('moves no threshold for a stage only recorded, corrected or taken back: they are the climate´s that was written', async () => {
     await aGrow(
       [
         { id: 'p1', stage: 'vegetative', preset: null, startedAt: at(2), source: 'human', plantIds: null },
         { id: 'p2', stage: 'germination', preset: null, startedAt: at(4), source: 'human', plantIds: null },
-        { id: 'p3', stage: 'germination', preset: null, startedAt: at(3), source: 'human', plantIds: null },
       ],
       [{ id: 'pl1', spaceId: TENT, startedAt: at(1), endedAt: null, plantIds: null }],
     );
     await db.devices.create({ id: DEVICE, type: 'controller', ownerId: 'user-owner', spaceId: TENT, configuration: { workmode: 'small' } });
+    const recorded = {
+      growId: GROW,
+      preset: null,
+      source: 'human' as const,
+      setBy: 'user-owner',
+      plantIds: null,
+      deviceId: DEVICE,
+      spaceId: TENT,
+      targets: null,
+    };
 
-    // An earlier phase taken back leaves the one standing, and its alarms, alone.
-    await phases.removePhase(GROW, 'p3');
+    await phases.correctPhase(GROW, 'p2', { stage: 'seedling' });
+    await phases.removePhase(GROW, 'p2');
+    await phases.setPhase({ ...recorded, stage: 'flowering', climateWritten: false });
     expect(applied).toEqual([]);
 
-    await phases.removePhase(GROW, 'p2');
-    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'vegetative', preset: null }]);
+    await phases.setPhase({ ...recorded, stage: 'drying' });
+    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'drying', preset: null }]);
+  });
 
-    // The last one taken back leaves the grow no phase, and the alarms as they are.
-    await phases.removePhase(GROW, 'p1');
-    expect(applied).toHaveLength(1);
+  it('takes the bands of a stage recorded over a place that already runs its mode, whose climate it then is', async () => {
+    await aGrow([], [{ id: 'pl1', spaceId: TENT, startedAt: at(1), endedAt: null, plantIds: null }]);
+    await db.devices.create({ id: DEVICE, type: 'controller', ownerId: 'user-owner', spaceId: TENT, configuration: { workmode: 'breed' } });
+    const recorded = { growId: GROW, preset: null, source: 'human' as const, setBy: 'user-owner', plantIds: null, deviceId: DEVICE, spaceId: TENT };
+
+    await phases.setPhase({ ...recorded, targets: null, stage: 'drying', climateWritten: false });
+    expect(applied).toEqual([]);
+    await phases.setPhase({ ...recorded, targets: null, stage: 'germination', climateWritten: false });
+    expect(applied).toEqual([{ deviceId: DEVICE, stage: 'germination', preset: null }]);
+  });
+});
+
+/**
+ * A place's thresholds follow the climate written there. A second grow started in Veg beside one in flower records its
+ * stage and writes no climate - and rewrote the flowering tent's bands all the same, which closed its open "too humid"
+ * while the air stayed at 62 %.
+ */
+describe('a second grow started beside one in flower', () => {
+  it('leaves the bands 16 / 60 / 30 and the open "too humid" open', async () => {
+    const writer = new EntryWriterService(db.entries);
+    const alerts = new AlertService(db.alerts, writer, { deliver: async () => undefined } as unknown as AlarmDeliveryService);
+    const engine = new AlarmEngineService(db.alarmRules, db.devices, { points: async () => [] } as unknown as DataService, alerts);
+    const phases = new PhaseWriterService(db.grows, writer, db.entries, db.devices, service);
+    const grows = growsOn(db, accessOn(db), { writer, phases });
+    const humid = (at: Date) => engine.onSample({ deviceId: DEVICE, measuredAt: at, values: { humidity: 62 }, outputs: {} });
+    const since = new Date(Date.now() - 30 * 24 * 3600_000);
+
+    await db.devices.create({ id: DEVICE, type: 'controller', ownerId: 'user-owner', spaceId: TENT, configuration: { workmode: 'small' } });
+    await db.grows.create({
+      id: 'grow-blue-dream',
+      ownerId: 'user-owner',
+      name: 'Blue Dream',
+      slug: 'blue-dream',
+      type: 'photoperiod',
+      visibility: 'private',
+      startedAt: since,
+      endedAt: null,
+      phases: [{ id: 'p-flower', stage: 'flowering', preset: null, startedAt: since, source: 'human', plantIds: null }],
+      placements: [{ id: 'pl-blue', spaceId: TENT, startedAt: since, endedAt: null, plantIds: null }],
+    });
+    await service.applyStage(DEVICE, 'flowering', null);
+    await db.alarmRules.updateOne({ deviceId: DEVICE, presetKey: 'too_humid' }, { $set: { forSeconds: 0 } });
+    await humid(new Date(Date.now() - 60_000));
+    const open = await db.alerts.findOne({ resolvedAt: null }).lean();
+    expect(open).toMatchObject({ deviceId: DEVICE, spaceId: TENT });
+
+    await db.grows.create({
+      id: GROW,
+      ownerId: 'user-owner',
+      name: 'Zweitgrow',
+      slug: 'zweitgrow',
+      type: 'photoperiod',
+      visibility: 'private',
+      startedAt: new Date(),
+      endedAt: null,
+      phases: [],
+      placements: [{ id: 'pl-second', spaceId: TENT, startedAt: new Date(), endedAt: null, plantIds: null }],
+    });
+    await grows.addPhase(GROW, { stage: 'vegetative' }, 'user-owner', { authors: false, counts: false, weights: false });
+    await humid(new Date());
+
+    const bands = await byKey();
+    expect([bands.too_cold.watch.lower, bands.too_humid.watch.upper, bands.too_hot.watch.upper]).toEqual([16, 60, 30]);
+    expect(bands.too_humid.presetId).toBe('flowering');
+    expect(await db.alerts.findOne({ resolvedAt: null }).lean()).toMatchObject({ id: open!.id });
   });
 });

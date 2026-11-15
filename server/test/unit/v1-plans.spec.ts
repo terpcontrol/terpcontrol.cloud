@@ -140,6 +140,7 @@ beforeEach(async () => {
     applyStage: async (deviceId, stage, preset) => {
       stages.push({ deviceId, stage, preset });
     },
+    stageOf: async () => null,
   };
   const mail = { send: async (message: (typeof mailed)[number]) => void mailed.push(message) } as unknown as MailService;
 

@@ -5,10 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
-import type { AlarmRule, Device, GerminationChoices, Me, OverviewGrow } from '@fg2/shared-types/v1';
-import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { AlarmRule, Device, GerminationChoices, Me } from '@fg2/shared-types/v1';
+import { restsInGermination, stageOfPresetId, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
-import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
 import { targetWithUnit } from '@/ui/units';
@@ -17,6 +16,7 @@ import { durationLabel } from '@/ui/age';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { Help } from '@/ui/Help';
+import { stageLabel } from '@/ui/presets';
 import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -46,10 +46,9 @@ import styles from './Alarms.module.css';
  * are the server's answers. What the page adds is what the account's routing
  * would do with the rule, once the account has answered; the demo has none.
  */
-export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
+export function Alarms({ devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
   const { t } = useTranslation();
   const now = useNow();
-  const overview = useSpaceOverview(spaceId);
   const me = useAccountMe();
   const [params] = useSearchParams();
 
@@ -58,7 +57,6 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
   const held = useAlarmRulesOf(devices.map(device => device.id));
   const holding = new Set([...held.rules.values()].map(rule => rule.deviceId));
   const watched = devices.filter(device => watchable(device) || holding.has(device.id));
-  const grow = overview.data?.grows[0] ?? null;
   // An account no alarm reaches at all is told so once, over the list, with
   // the one-tap fix - rather than "erreicht dich nicht" under every card.
   const reachesNoOne = me.data !== undefined && !(['critical', 'warning'] as const).some(severity => severityReaches(me.data!, severity));
@@ -92,7 +90,6 @@ export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devic
               device={device}
               // Under a device's own heading where several are listed, under the page's where one is.
               level={watched.length > 1 ? 3 : 2}
-              grow={grow}
               me={me.data}
               toldAbove={reachesNoOne}
               mayManage={mayManage}
@@ -118,7 +115,6 @@ interface DeviceRulesProps {
   device: Device;
   /** The rank of a group's heading. */
   level: 2 | 3;
-  grow: OverviewGrow | null;
   /** The account, once it has answered; until then nothing is said about where a routed rule goes. */
   me: Me | undefined;
   /** Whether the page already says, over the list, that no alarm reaches anybody. */
@@ -130,7 +126,7 @@ interface DeviceRulesProps {
 }
 
 /** One device's rules, in their groups, with the row that writes a new one under them. */
-function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
+function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, now }: DeviceRulesProps) {
   const { t } = useTranslation();
   const Heading = level === 2 ? 'h2' : 'h3';
   const { tell } = useLog();
@@ -168,9 +164,11 @@ function DeviceRules({ device, level, grow, me, toldAbove, mayManage, highlighte
   if (rules.isPending) return <Waiting lines={3} />;
   if (!rules.data) return <LoadFailed read={rules} />;
 
-  // The stage's rules are headed by the phase the grow here is in ("Phase" is Chris's word, never "Klima-Preset"),
-  // and by no phase where nothing grows here yet: the rules are still the stage's.
-  const phase = grow?.stage ? t(`home.stage.${grow.stage}`) : null;
+  // The stage's rules are headed by the phase their bands were written for ("Phase" is Chris's word, never
+  // "Klima-Preset"): the climate written here, never a stage only recorded since - beside a second grow, say.
+  const presetId = rules.data.items.find(rule => rule.origin === 'preset' && rule.presetId)?.presetId;
+  const written = presetId ? stageOfPresetId(presetId) : null;
+  const phase = written ? stageLabel(t, written.stage, written.preset) : null;
   const groups = groupRules(rules.data.items);
 
   return (

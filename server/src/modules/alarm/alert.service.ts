@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,7 +8,7 @@ import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from './alarm-delivery.service';
-import { AlarmEvent, GROW_IN_SPACE, GrowInSpace } from './alarm.types';
+import { AlarmEvent } from './alarm.types';
 import { statedBand, watchedOf } from './alarm.watch';
 
 /**
@@ -40,7 +40,6 @@ export class AlertService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     private readonly entries: EntryWriterService,
     private readonly delivery: AlarmDeliveryService,
-    @Optional() @Inject(GROW_IN_SPACE) private readonly grows: GrowInSpace | null = null,
   ) {}
 
   public openOfRule(ruleId: string): Promise<StoredAlert | null> {
@@ -141,7 +140,8 @@ export class AlertService {
       authorId: null,
       values: { kind: 'alarm' },
       occurredAt: event === 'triggered' ? alert.startedAt : (alert.resolvedAt ?? undefined),
-      growId: await this.growOf(subject.spaceId),
+      // The place's, as a device's own lines are: every grow standing there reads it in its diary (`linesOfGrow`).
+      growId: null,
       spaceId: subject.spaceId,
       deviceId: subject.deviceId,
       cameraId: subject.cameraId,
@@ -150,10 +150,6 @@ export class AlertService {
       severity: event === 'triggered' ? subject.severity : 'info',
       message: { key, params: [summary(subject, alert, value, event)] },
     });
-  }
-
-  private growOf(spaceId: string | null): Promise<string | null> {
-    return spaceId && this.grows ? this.grows.growIdIn(spaceId) : Promise.resolve(null);
   }
 }
 

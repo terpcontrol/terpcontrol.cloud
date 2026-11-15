@@ -32,7 +32,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { logger } from '@utils/logger';
-import { READING_KINDS } from '../diary/diary-entries';
+import { READING_KINDS, linesOfGrow } from '../diary/diary-entries';
 import { spacesDuring } from './grow-places';
 import {
   DIARY_COLUMNS,
@@ -311,7 +311,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
 
     await zip.add(`${prefix}grow.csv`, grow.startedAt, growCsv(grow, spaces, zone), true);
     await zip.add(`${prefix}plants.csv`, grow.startedAt, plantsCsv(plants), true);
-    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf({ growId }, grow, people, labels, zone)), true);
+    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf(linesOfGrow(grow), grow, people, labels, zone)), true);
     await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels, zone), true);
     await zip.add(`${prefix}climate.csv`, grow.startedAt, Readable.from(this.climateOf(grow)), true);
     await this.writePictures(zip, prefix, grow, directory);

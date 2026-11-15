@@ -84,9 +84,10 @@ export class PresetApplicationsService {
             startedAt: appliedAt,
           });
 
-    // The grow already stood in the stage, and the climate was written all the
-    // same: its alarms follow the climate, as they would with a phase appended.
-    if (growId !== null && phase === null && applied.length > 0) await this.phases.restateSpace(spaceId);
+    // No grow here, or the grow already stood in the stage: the climate was
+    // written all the same, and the place's alarms follow it, as they would with
+    // a phase appended.
+    if (phase === null) await this.phases.restateSpace(spaceId, body.stage, preset);
 
     // No grow here, nothing said about it, and a space that has not been told to
     // stop asking. The climate has been written either way, so somebody who

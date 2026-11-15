@@ -115,7 +115,7 @@ beforeEach(async () => {
     };
   };
   const data = { points: jest.fn(answer), outputPoints: jest.fn(answer), newestSamplesOf: jest.fn(newestSamplesOf) } as unknown as DataService;
-  const alertService = new AlertService(db.alerts, entries, delivery, null);
+  const alertService = new AlertService(db.alerts, entries, delivery);
   episodes = alertService;
 
   engine = new AlarmEngineService(db.alarmRules, db.devices, data, alertService);

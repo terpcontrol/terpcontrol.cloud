@@ -47,9 +47,10 @@ export function DiaryCard({ data, shown, now, onCursor, correct, byline, note, p
   // each as the grow's diary says it - a maintenance one line for on and off together.
   const events = shown.machine ? [...data.deviceChanges, ...(data.stretches ?? [])] : [];
   const lines = forwardsOf(dayLines(t, i18n, { entries, events, endsAt: data.endsAt }, zone, silencesOf(data)));
-  // Where the lines are of two grows, each names its own, as Start's do.
-  const grows = new Set(entries.flatMap(entry => (entry.growId ? [entry.growId] : [])));
-  const growOf = (entry: Entry | null) => (grows.size > 1 ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null);
+  // Where the lines are of two grows, each names its own, as Start's do; an alarm is the place's, every grow's there.
+  const grows = new Set(entries.flatMap(entry => (entry.growId && entry.kind !== 'alarm' ? [entry.growId] : [])));
+  const growOf = (entry: Entry | null) =>
+    grows.size > 1 && entry?.kind !== 'alarm' ? (data.grows.find(one => one.growId === entry?.growId)?.name ?? null) : null;
   const listed = all ? lines : lines.slice(-SHOWN);
   // A device the account no longer holds is named by what the answer says it was called.
   const named = (deviceId: string) => {
