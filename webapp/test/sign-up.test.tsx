@@ -227,7 +227,7 @@ describe('the stranger an invitation was sent to', () => {
 
       server.refuseSignUp = refusal('handle_taken', 'That handle is taken.');
       fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
-      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Diesen Benutzernamen trägt schon ein anderes Konto.'));
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Diesen Benutzernamen hat schon ein anderes Konto.'));
       expect(screen.queryByRole('link', { name: 'Anmelden ›' })).not.toBeInTheDocument();
     } finally {
       await act(() => i18next.changeLanguage('en'));

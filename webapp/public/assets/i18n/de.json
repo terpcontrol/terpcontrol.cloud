@@ -10,7 +10,7 @@
     "opening": "Demo wird geöffnet …"
   },
   "login": {
-    "sessionEnded": "Deine Sitzung ist abgelaufen, deshalb wurdest du abgemeldet. Melde dich erneut an, um zur vorherigen Seite zurückzukehren.",
+    "sessionEnded": "Deine Sitzung ist abgelaufen. Melde dich wieder an, dann geht es auf der Seite weiter, auf der du warst.",
     "email": "E-Mail",
     "password": "Passwort",
     "newPassword": "Neues Passwort",
@@ -24,19 +24,19 @@
     "demoFailed": "Die Demo konnte nicht geöffnet werden.",
     "noAccount": "Noch kein Konto?",
     "signUp": {
-      "intro": "Eine E-Mail-Adresse, ein Benutzername, ein Passwort und dein Einverständnis zum Datenschutz.",
+      "intro": "Du brauchst nur eine E-Mail-Adresse, einen Benutzernamen und ein Passwort – und stimmst dem Datenschutz zu.",
       "forInvitation": "Eine Einladung wartet: {{name}}. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "forInvitationUnnamed": "Eine Einladung wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "handle": "Benutzername",
-      "handleNote": "Der einzige Name, den hier je jemand sieht.",
+      "handleNote": "Andere sehen hier nur diesen Namen.",
       "create": "Konto anlegen",
-      "creating": "Legt an …",
+      "creating": "Wird angelegt …",
       "haveOne": "Schon ein Konto?",
       "takenSignIn": "Anmelden ›",
-      "signInFailed": "Das Konto gibt es, aber die Anmeldung damit schlug fehl. Melde dich von Hand an.",
+      "signInFailed": "Das Konto ist angelegt, nur die Anmeldung hat nicht geklappt. Melde dich bitte selbst an.",
       "activation": {
         "title": "Noch ein Schritt: Aktivierung",
-        "body": "Das Konto für {{email}} gibt es jetzt, aber diese Installation aktiviert ein Konto, bevor es sich anmelden darf. Der Code dafür geht an {{email}}; gib ihn hier ein, sobald er da ist.",
+        "body": "Das Konto für {{email}} ist angelegt. Auf diesem Server muss ein Konto erst aktiviert werden, bevor du dich damit anmelden kannst. Der Code dafür geht an {{email}} – gib ihn hier ein, sobald er da ist.",
         "code": "Aktivierungscode",
         "submit": "Aktivieren und weiter",
         "later": "Du kannst auch später wiederkommen: Melde dich an, sobald das Konto aktiv ist.",
@@ -69,7 +69,7 @@
       }
     },
     "confirmations": {
-      "startFlowering": "Bereit für die Blüte? Ab jetzt läuft das Licht 12/12 – bestätige, um umzustellen.",
+      "startFlowering": "Bereit für die Blüte? Wenn du bestätigst, läuft das Licht ab jetzt 12/12.",
       "harvest": "Prüfe die Trichome: milchig mit ersten Bernsteintönen? Dann ernten und bestätigen – danach startet die Trocknung.",
       "dryingDone": "Knacken die Zweige statt zu biegen? Dann ist die Trocknung fertig – ab in die Curing-Gläser."
     }
@@ -98,7 +98,7 @@
       "flowering": {
         "1": "Halte die Luftfeuchte bei maximal 50 % – dichte Buds plus hohe Feuchte ist der Anfang von Schimmel.",
         "2": "Ändere den Lichtzyklus jetzt nicht mehr; Unterbrechungen der Dunkelphase stressen photoperiodische Pflanzen.",
-        "3": "Dünge Blütedünger und beobachte die Blattfarbe – ein Ausbleichen gegen Ende ist normal.",
+        "3": "Gib jetzt Blütedünger und achte auf die Blattfarbe – dass die Blätter gegen Ende ausbleichen, ist normal.",
         "4": "Prüfe in den letzten Wochen die Trichome: milchig mit ersten Bernsteintönen heißt meist Erntezeit."
       },
       "drying": {
@@ -111,7 +111,7 @@
   },
   "notFound": {
     "title": "Unter dieser Adresse liegt nichts",
-    "text": "Die App hat hier keine Seite."
+    "text": "Diese Seite gibt es in der App nicht."
   },
   "devices": {
     "lightOutput": {
@@ -124,7 +124,7 @@
         "on": "von Hand an bis {{until}}",
         "off": "von Hand aus bis {{until}}"
       },
-      "holdWaits": "Offline: Licht von Hand halten geht erst wieder, wenn das Gerät online ist."
+      "holdWaits": "Offline: Das Licht lässt sich erst wieder von Hand halten, wenn das Gerät online ist."
     },
     "via": "über {{name}}",
     "noStill": "noch kein Bild",
@@ -151,7 +151,7 @@
       "override": "Handbetrieb",
       "timer": "Steckdosen-Timer",
       "light": "Licht-Handbetrieb",
-      "nothing": "nichts über die Rollen hinaus, mit denen es gebaut wurde",
+      "nothing": "nur die Rollen, mit denen es gebaut wurde",
       "notReported": "noch nicht gemeldet"
     },
     "panel": {
@@ -159,7 +159,7 @@
       "firmwareFrom": "vom {{day}}",
       "firmwareUnknown": "Version nicht bekannt",
       "updateOwed": "Neue Firmware wird installiert; das Gerät startet dabei einmal neu.",
-      "updateFailed": "Neue Firmware ließ sich nicht installieren ({{ago}}). Das Gerät läuft mit der bisherigen weiter, und es wird erneut versucht, solange es online ist.",
+      "updateFailed": "Die neue Firmware ließ sich nicht installieren ({{ago}}). Das Gerät läuft mit der bisherigen weiter; solange es online ist, wird es weiter versucht.",
       "channel": {
         "stable": "automatisch – stabile Versionen",
         "beta": "automatisch – auch Testversionen (Beta)",
@@ -205,16 +205,16 @@
       "manual": "Manuell"
     },
     "socket": {
-      "needsFirmware": "Diese Firmware hält keine Steckdose von Hand. Das kommt mit einem Firmware-Update; bis dahin schalten die Steckdosen wie eingestellt.",
-      "offline": "Offline · niemand hört zu, also wird nichts gesendet.",
+      "needsFirmware": "Mit dieser Firmware lässt sich keine Steckdose von Hand halten. Das bringt erst ein Firmware-Update; bis dahin schalten die Steckdosen wie eingestellt.",
+      "offline": "Offline · das Gerät ist nicht erreichbar, darum wird nichts gesendet.",
       "slot": "Platz",
       "byRole": "über seine Rolle angesprochen",
       "address": "Adresse",
       "hardwareId": "Hardware-ID",
       "changed": "Zuletzt geändert",
       "findIt": "Finden",
-      "notListening": "Niemand hat zugehört: Das Gerät war nicht erreichbar. Es wurde nichts geändert.",
-      "askFailed": "Das hat das Gerät nicht erreicht.",
+      "notListening": "Das Gerät war nicht erreichbar. Es wurde nichts geändert.",
+      "askFailed": "Das kam beim Gerät nicht an.",
       "timer": "{{on}} an, alle {{every}}",
       "forced": "{{state}} gehalten · {{left}}",
       "unknownState": "nicht gemeldet",
@@ -229,7 +229,7 @@
       "numbered": "{{name}} {{number}}",
       "byItself": "Auto",
       "findLine": "schaltet sie 2 Sekunden an und wieder aus",
-      "found": "{{name}} geht 2 Sekunden an und wieder aus · binnen einer Minute schaltet das Gerät die Steckdose wieder richtig"
+      "found": "{{name}} geht 2 Sekunden an und wieder aus · spätestens nach einer Minute schaltet das Gerät sie wieder wie eingestellt"
     },
     "settings": {
       "open": "Umbenennen oder umziehen",
@@ -253,14 +253,14 @@
       },
       "rename": "Umbenennen",
       "taken": "Ein anderes Gerät an diesem Ort heißt schon „{{name}}“.",
-      "climateHeld": "In {{place}} regelt schon {{device}}: Ein Ort hat ein Klima. Dieses Gerät braucht einen eigenen Ort."
+      "climateHeld": "{{place}}: Hier regelt schon {{device}}, und ein Ort hat nur ein Klima. Dieses Gerät braucht einen eigenen Ort."
     },
     "unnamed": "{{type}} · {{tag}}",
     "hold": {
       "label": "{{name}} von Hand halten",
       "for": {
-        "on": "An halten für",
-        "off": "Aus halten für"
+        "on": "Einschalten für",
+        "off": "Ausschalten für"
       },
       "send": {
         "on": "{{name}} für {{duration}} einschalten",
@@ -281,31 +281,31 @@
     }
   },
   "message-lost-connection-title": "Verbindungsproblem",
-  "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server ist abgebrochen und wurde wiederhergestellt. Wenn dieser Fehler oft auftritt überprüfe bitte dein WLAN und deine Internetverbindung.",
+  "message-lost-connection-text": "Die Verbindung zwischen deinem Gerät und unserem Server war kurz unterbrochen und steht wieder. Wenn das oft passiert, prüfe bitte dein WLAN und deine Internetverbindung.",
   "message-device-booted-title": "Gerät hat neu gestartet",
   "message-device-booted-text": "Dein Gerät hat neu gestartet. Wenn diese Meldung oft auftritt, überprüfe bitte die Stromversorgung.",
-  "message-device-booted:POWERON-text": "Dein Gerät hat neu gestartet. Der Grund war ein Stromzyklus (POWERON) – das ist nach einem Ein-/Ausstecken oder einem Stromausfall normal. Wenn die Meldung unerwartet auftritt, überprüfe bitte deine Stromversorgung.",
-  "message-device-booted:BROWNOUT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Brownout: Die Versorgungsspannung ist unter den sicheren Grenzwert gefallen. In der Regel kann das Netzteil oder das USB-Kabel nicht genug Strom liefern.",
-  "message-device-booted:TASK_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Task-Watchdog-Timeout: Die Haupt-Firmwareschleife hat nicht rechtzeitig reagiert und wurde zwangsweise neu gestartet. Das passiert meistens, wenn Netzwerkoperationen wegen einer schlechten Internetverbindung hängen bleiben. Wenn diese Meldung oft auftritt, überprüfe bitte deine Internetverbindung.",
-  "message-device-booted:INT_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Interrupt-Watchdog-Timeout: Eine Interrupt-Routine in der Firmware hat zu lange gebraucht. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
-  "message-device-booted:WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein interner Watchdog-Timeout. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
-  "message-device-booted:PANIC-text": "Dein Gerät hat neu gestartet. Der Grund war ein Firmware-Absturz (Panic) – das Gerät hat sich automatisch neu gestartet. Bitte melde dich beim Support, wenn das wiederholt auftritt.",
-  "message-device-booted:SW-text": "Dein Gerät hat neu gestartet. Die Firmware hat es absichtlich neu gestartet: nach einem Update, nach geänderten Netzwerkeinstellungen, über das Gerätemenü, um eine verlorene Verbindung oder knappen Speicher zu beheben, oder – bei älteren Builds – weil aus der Ferne ein Neustart angefordert wurde.",
+  "message-device-booted:POWERON-text": "Dein Gerät hat neu gestartet, weil es kurz ohne Strom war (POWERON) – nach dem Aus- und Einstecken oder einem Stromausfall ist das normal. Kommt die Meldung unerwartet, prüfe bitte deine Stromversorgung.",
+  "message-device-booted:BROWNOUT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Brownout: Die Versorgungsspannung ist unter die sichere Grenze gefallen. Meist liefert das Netzteil oder das USB-Kabel nicht genug Strom.",
+  "message-device-booted:TASK_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Task-Watchdog-Timeout: Die Hauptschleife der Firmware hat nicht rechtzeitig reagiert, darum wurde sie neu gestartet. Meist hängt dann etwas im Netzwerk, weil die Internetverbindung schlecht ist. Wenn diese Meldung oft kommt, prüfe bitte deine Internetverbindung.",
+  "message-device-booted:INT_WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Interrupt-Watchdog-Timeout: Eine Interrupt-Routine der Firmware hat zu lange gebraucht. Wenn das öfter vorkommt, melde dich bitte beim Support.",
+  "message-device-booted:WDT-text": "Dein Gerät hat neu gestartet. Der Grund war ein interner Watchdog-Timeout. Wenn das öfter vorkommt, melde dich bitte beim Support.",
+  "message-device-booted:PANIC-text": "Dein Gerät hat neu gestartet: Die Firmware ist abgestürzt (Panic), und das Gerät hat sich selbst neu gestartet. Wenn das öfter vorkommt, melde dich bitte beim Support.",
+  "message-device-booted:SW-text": "Dein Gerät hat neu gestartet. Die Firmware hat das selbst ausgelöst: nach einem Update, nach geänderten Netzwerkeinstellungen, aus dem Gerätemenü, bei einer verlorenen Verbindung oder knappem Speicher, oder – bei älteren Builds – weil aus der Ferne ein Neustart angefordert wurde.",
   "message-device-booted:EXT-text": "Dein Gerät hat neu gestartet. Der Grund war ein Hardware-Reset über den Reset-Pin.",
-  "message-device-booted:DEEPSLEEP-text": "Dein Gerät hat neu gestartet. Der Grund war ein Aufwachen aus dem Deep-Sleep-Modus.",
+  "message-device-booted:DEEPSLEEP-text": "Dein Gerät hat neu gestartet: Es ist aus dem Deep-Sleep aufgewacht.",
   "message-device-booted:SDIO-text": "Dein Gerät hat neu gestartet. Der Grund war ein Neustart über die SDIO-Schnittstelle.",
-  "message-device-booted:UNKNOWN-text": "Dein Gerät hat neu gestartet. Der Grund wurde vom Gerät nicht gemeldet. Wenn diese Meldung oft auftritt, überprüfe bitte die Stromversorgung und die Internetverbindung.",
-  "message-device-booted:REMOTE-text": "Dein Gerät hat neu gestartet. Der Grund war ein absichtlicher Neustart, der in der App ausgelöst wurde.",
+  "message-device-booted:UNKNOWN-text": "Dein Gerät hat neu gestartet. Den Grund hat es nicht gemeldet. Wenn diese Meldung oft auftritt, prüfe bitte die Stromversorgung und die Internetverbindung.",
+  "message-device-booted:REMOTE-text": "Dein Gerät hat neu gestartet, weil jemand den Neustart in der App ausgelöst hat.",
   "message-buffer-overflow-title": "Verbindungsproblem",
-  "message-buffer-overflow-text": "Daten konnten nicht zum Server übertragen werden. Bitte Internetverbindung und WLAN überprüfen.",
+  "message-buffer-overflow-text": "Das Gerät konnte Daten nicht an den Server schicken. Prüfe bitte WLAN und Internetverbindung.",
   "message-co2-low-title": "CO₂-Wert niedrig",
   "message-co2-low-text": "CO₂-Flasche prüfen!",
   "message-device-firmware-update-title": "Update angefordert",
-  "message-device-firmware-update-text": "Dein Gerät wurde aufgefordert, neue Software zu installieren. Ob es das getan hat, steht in einer eigenen Zeile.",
-  "message-ext-sensor-deviate-title": "Abweichung externer und interner Sensor",
-  "message-ext-sensor-deviate-text": "Externer und interner Sensor weichen ab! Sensorplazierung überprüfen!",
-  "message-ext-sensor-fail-title": "Externer Sensor ist ausgefallen!",
-  "message-ext-sensor-fail-text": "Externer Sensor ist ausgefallen!",
+  "message-device-firmware-update-text": "Dein Gerät soll neue Firmware installieren. Ob das geklappt hat, steht in einer eigenen Zeile.",
+  "message-ext-sensor-deviate-title": "Externer und interner Sensor weichen ab",
+  "message-ext-sensor-deviate-text": "Externer und interner Sensor messen deutlich verschieden. Prüfe, wo die Sensoren sitzen.",
+  "message-ext-sensor-fail-title": "Externer Sensor ausgefallen!",
+  "message-ext-sensor-fail-text": "Der externe Sensor ist ausgefallen.",
   "message-maintenance-mode-activated:0-title": "Wartung beendet",
   "message-maintenance-mode-activated:0-text": "Die Wartung deines Geräts wurde von Hand beendet. Alarme sind in 10 Minuten wieder an.",
   "message-maintenance-mode-activated-title": "Wartung gestartet",
@@ -315,69 +315,69 @@
   "message-maintenance-mode-activated-remote-title": "Wartung in der App gestartet",
   "message-maintenance-mode-activated-remote-text": "Dein Gerät wurde in der App für {{value}} Minuten in Wartung versetzt. Alarme sind in dieser Zeit aus.",
   "message-firmware-update-complete-title": "Firmware-Update abgeschlossen",
-  "message-firmware-update-complete-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert.",
+  "message-firmware-update-complete-text": "Dein Gerät hat die neue Firmware installiert.",
   "message-firmware-update-complete-with-ids-title": "Firmware-Update abgeschlossen",
-  "message-firmware-update-complete-with-ids-text": "Die Firmware deines Geräts wurde erfolgreich aktualisiert: {{value}}",
+  "message-firmware-update-complete-with-ids-text": "Dein Gerät hat die neue Firmware installiert: {{value}}",
   "message-firmware-update-failed-with-ids-title": "Update kam nicht an",
-  "message-firmware-update-failed-with-ids-text": "Dein Gerät wurde aufgefordert, neue Software zu installieren, und meldet sie nicht: {{value}}. Es läuft weiter mit dem zuerst genannten Build und wird erneut aufgefordert.",
+  "message-firmware-update-failed-with-ids-text": "Dein Gerät sollte neue Firmware installieren, meldet sie aber nicht: {{value}}. Es läuft mit dem zuerst genannten Build weiter und bekommt die Aufforderung noch einmal.",
   "message-recipe-step-awaiting-confirmation-title": "Planschritt wartet auf Bestätigung",
   "message-recipe-step-awaiting-confirmation-text": "Planschritt {{value}} wartet auf Bestätigung.",
   "message-recipe-advanced-title": "Plan weitergeschaltet",
   "message-recipe-advanced-text": "Der Plan ist zu Schritt {{value}} gewechselt.",
   "message-recipe-looped-title": "Plan beginnt von vorn",
-  "message-recipe-looped-text": "Der Plan ist zu Schritt 1 ({{value}}) zurückgekehrt.",
+  "message-recipe-looped-text": "Der Plan beginnt wieder bei Schritt 1 ({{value}}).",
   "message-recipe-completed-title": "Plan abgeschlossen",
-  "message-recipe-completed-text": "Der Plan hat alle Schritte abgeschlossen.",
+  "message-recipe-completed-text": "Der Plan hat alle Schritte durchlaufen.",
   "message-device-configuration-updated-title": "Einstellungen geändert",
   "message-device-configuration-updated-text": "Die Einstellungen des Geräts wurden geändert:\n{{value}}",
   "message-recipe-step-manually-activated-title": "Plan gestartet",
   "message-recipe-step-manually-activated-text": "Der Plan wurde bei Schritt {{value}} gestartet.",
-  "message-alarm-webhook-error-title": "Alarm-Webhook-Fehler",
-  "message-alarm-webhook-error-text": "Alarm-Webhook konnte nicht gesendet werden ({{value}}).",
+  "message-alarm-webhook-error-title": "Alarm-Webhook fehlgeschlagen",
+  "message-alarm-webhook-error-text": "Der Webhook des Alarms ließ sich nicht senden ({{value}}).",
   "message-alarm-triggered-title": "Alarm ausgelöst",
   "message-alarm-triggered-text": "{{value}}",
-  "message-alarm-resolved-title": "Alarm behoben",
+  "message-alarm-resolved-title": "Alarm vorbei",
   "message-alarm-resolved-text": "{{value}}",
   "message-rtsp-stream-error-title": "RTSP-Stream-Fehler",
-  "message-rtsp-stream-error-text": "Bild konnte nicht vom RTSP-Stream geladen werden: {{value}}",
-  "message-diary-co2-refill-title": "CO₂-Flasche wurde nachgefüllt",
+  "message-rtsp-stream-error-text": "Vom RTSP-Stream kam kein Bild: {{value}}",
+  "message-diary-co2-refill-title": "CO₂-Flasche nachgefüllt",
   "message-diary-co2-refill-text": "Die CO₂-Flasche wurde nachgefüllt.",
   "message-diary-plant-log-title": "Eintrag zur Pflanze",
   "message-diary-plant-log-text": "Eine Zeile, die ins Tagebuch der Pflanzen geschrieben wurde.",
   "message-diary-fridge-log-title": "Eintrag zum Kühlschrank",
   "message-diary-fridge-log-text": "Eine Zeile, die ins Tagebuch des Kühlschranks geschrieben wurde.",
-  "message-diary-measurement-title": "Benutzermessung",
-  "message-diary-measurement-text": "Ein Messwert, den jemand genommen und notiert hat.",
-  "message-diary-plant-lifecycle-title": "Pflanzen-Phasenwechsel",
-  "message-diary-plant-lifecycle-text": "Die Pflanzen wurden in eine andere Phase gebracht.",
+  "message-diary-measurement-title": "Eigene Messung",
+  "message-diary-measurement-text": "Ein Wert, den jemand selbst gemessen und eingetragen hat.",
+  "message-diary-plant-lifecycle-title": "Phasenwechsel",
+  "message-diary-plant-lifecycle-text": "Die Pflanzen sind in eine neue Phase gekommen.",
   "message-smart-socket-cmd-failed-title": "Befehl an smarte Steckdose fehlgeschlagen",
-  "message-smart-socket-cmd-failed-text": "Der Schaltbefehl an die smarte Steckdose für die Rolle „{{value}}“ konnte nicht gesendet werden.",
+  "message-smart-socket-cmd-failed-text": "Die smarte Steckdose mit der Rolle „{{value}}“ hat den Schaltbefehl nicht bekommen.",
   "message-smart-socket-readdressed-title": "Smarte Steckdose wiedergefunden",
-  "message-smart-socket-readdressed-text": "Die smarte Steckdose für die Rolle „{{value}}“ antwortet unter einer neuen Adresse und wird wieder verwendet.",
+  "message-smart-socket-readdressed-text": "Die smarte Steckdose mit der Rolle „{{value}}“ antwortet unter einer neuen Adresse und schaltet wieder.",
   "message-terp-cam-found-title": "Kamera wiedergefunden",
   "message-terp-cam-not-found-title": "Kamera nicht gefunden",
-  "message-terp-cam-found-text": "Die verbundene Kamera hat auf eine Netzwerksuche geantwortet und ist wieder erreichbar.",
-  "message-terp-cam-not-found-text": "Die verbundene Kamera hat auf eine Netzwerksuche nicht geantwortet. Prüfe, ob sie Strom hat und im WLAN ist.",
-  "message-terp-cam-connected-title": "Kamera verbunden",
+  "message-terp-cam-found-text": "Die Kamera hat sich bei der Suche im Netzwerk gemeldet und ist wieder erreichbar.",
+  "message-terp-cam-not-found-text": "Die Kamera hat sich bei der Suche im Netzwerk nicht gemeldet. Prüfe, ob sie Strom hat und im WLAN ist.",
+  "message-terp-cam-connected-title": "Kamera gekoppelt",
   "message-terp-cam-connected-text": "Eine Terp Cam wurde mit diesem Gerät gekoppelt und liefert Bilder.",
   "message-cam-reset:ok-title": "Kamera neu gestartet",
-  "message-cam-reset:ok-text": "Die Kamera hat den gesendeten Neustart angenommen und fährt wieder hoch.",
-  "message-cam-reset:no-response-title": "Kamera hat den Neustart nicht beantwortet",
-  "message-cam-reset:no-response-text": "Die Kamera hat auf den gesendeten Neustart nicht geantwortet. Prüfe, ob sie Strom hat und in deinem WLAN ist.",
+  "message-cam-reset:ok-text": "Die Kamera hat den Neustart angenommen und fährt wieder hoch.",
+  "message-cam-reset:no-response-title": "Kamera reagiert nicht auf den Neustart",
+  "message-cam-reset:no-response-text": "Die Kamera hat auf den Neustart nicht reagiert. Prüfe, ob sie Strom hat und in deinem WLAN ist.",
   "message-cam-reset-title": "Kamera-Neustart",
   "message-cam-reset-text": "Das Gerät hat der Kamera einen Neustart geschickt: {{value}}",
   "message-cam-capture-title": "Kamerabild unvollständig",
-  "message-cam-capture-text": "Die Kamera hat kein vollständiges Bild geliefert. Was das Gerät gemeldet hat: {{value}}",
+  "message-cam-capture-text": "Die Kamera hat kein vollständiges Bild geliefert. Das Gerät meldet: {{value}}",
   "message-smart-socket-connected-title": "Smarte Steckdose verbunden",
-  "message-smart-socket-connected-text": "Eine smarte Steckdose wurde für die Rolle „{{value}}“ verbunden.",
+  "message-smart-socket-connected-text": "Für die Rolle „{{value}}“ ist jetzt eine smarte Steckdose verbunden.",
   "message-smart-socket-disconnected-title": "Smarte Steckdose getrennt",
-  "message-smart-socket-disconnected-text": "Die Zuordnung der smarten Steckdose für die Rolle „{{value}}“ wurde entfernt.",
-  "message-smart-socket-address-lost-title": "Adresse der smarten Steckdose verloren",
-  "message-smart-socket-address-lost-text": "Die smarte Steckdose für die Rolle „{{value}}“ ist nicht mehr unter ihrer gespeicherten Adresse erreichbar – dort antwortet eine andere Steckdose. Sie wird im Netzwerk gesucht; trage die Adresse neu ein, falls sie nicht wieder auftaucht.",
+  "message-smart-socket-disconnected-text": "Die smarte Steckdose mit der Rolle „{{value}}“ ist nicht mehr zugeordnet.",
+  "message-smart-socket-address-lost-title": "Smarte Steckdose nicht mehr unter ihrer Adresse",
+  "message-smart-socket-address-lost-text": "Die smarte Steckdose mit der Rolle „{{value}}“ ist unter ihrer gespeicherten Adresse nicht mehr erreichbar – dort antwortet eine andere Steckdose. Sie wird im Netzwerk gesucht; trag die Adresse neu ein, falls sie nicht wieder auftaucht.",
   "message-smart-socket-tested-title": "Smarte Steckdose getestet",
-  "message-smart-socket-tested-text": "Die smarte Steckdose für die Rolle „{{value}}“ wurde kurz geschaltet, um zu prüfen, ob sie antwortet.",
+  "message-smart-socket-tested-text": "Die smarte Steckdose mit der Rolle „{{value}}“ wurde kurz geschaltet, um zu prüfen, ob sie antwortet.",
   "message-aux-command-failed-title": "Befehl nicht ausgeführt",
-  "message-aux-command-failed-text": "Das Gerät konnte einen Befehl, der von hier aus geschickt wurde, nicht ausführen ({{value}}).",
+  "message-aux-command-failed-text": "Das Gerät konnte einen Befehl aus der App nicht ausführen ({{value}}).",
   "message-aux-command-failed:cam_capture-title": "Bild nicht aufgenommen",
   "message-aux-command-failed:cam_capture-text": "Das Gerät sollte ein Bild von seiner Kamera holen und hat keines bekommen. Prüfe, ob die Kamera Strom hat und im selben WLAN wie das Gerät ist.",
   "webhookTargets": {
@@ -405,7 +405,7 @@
       "name": "Home Assistant",
       "baseUrl": "Home-Assistant-URL",
       "webhookId": "Webhook-ID",
-      "hint": "Lege in einer Automatisierung einen Webhook-Trigger an; lokale Instanzen werden automatisch über den Tunnel deines Geräts erreicht."
+      "hint": "Lege in einer Automatisierung einen Webhook-Trigger an; eine Instanz in deinem Heimnetz erreicht Terp Control von allein über den Tunnel deines Geräts."
     }
   },
   "install": {
@@ -445,11 +445,11 @@
       "holds": "gilt für {{items}}",
       "chosen": "gewählt"
     },
-    "loadFailed": "Konnte nicht laden.",
+    "loadFailed": "Laden fehlgeschlagen.",
     "unreachable": "Server nicht erreichbar. Bitte erneut versuchen.",
     "cannotReach": {
       "title": "Server nicht erreichbar",
-      "why": "Du bist weiterhin angemeldet. Die App lässt sich das bei jedem Start vom Server bestätigen, und diesmal kam keine Antwort – ein Neustart auf der anderen Seite oder eine abgerissene Verbindung. Es ist nichts verloren und nichts muss neu eingetippt werden; meist genügt es, es gleich noch einmal zu versuchen.",
+      "why": "Du bist noch angemeldet. Bei jedem Start fragt die App beim Server nach, und diesmal kam keine Antwort – vielleicht startet der Server gerade neu, oder die Verbindung ist abgerissen. Es ist nichts verloren, und du musst nichts neu eintippen; meist reicht es, es gleich noch einmal zu versuchen.",
       "signIn": "Stattdessen anmelden"
     },
     "gone": {
@@ -457,7 +457,7 @@
       "grow": "Dieser Grow lässt sich nicht öffnen.",
       "camera": "Diese Kamera lässt sich nicht öffnen.",
       "device": "Dieses Gerät lässt sich nicht öffnen.",
-      "why": "Entweder gibt es unter dieser Adresse nichts, oder wer es mit dir geteilt hat, hat dich herausgenommen. Ein erneuter Versuch ändert daran nichts.",
+      "why": "Entweder gibt es unter dieser Adresse nichts, oder wer es mit dir geteilt hat, hat die Freigabe zurückgenommen. Ein neuer Versuch ändert daran nichts.",
       "home": "Start",
       "title": {
         "space": "Ort",
@@ -468,11 +468,11 @@
       }
     },
     "crashed": {
-      "title": "Dieser Bildschirm konnte nicht gezeichnet werden",
-      "why": "Mitten im Zeichnen ist etwas schiefgegangen. An Messwerten und Einträgen ändert das nichts, und der Rest der App läuft weiter.",
+      "title": "Diese Seite ließ sich nicht anzeigen",
+      "why": "Beim Anzeigen ist etwas schiefgegangen. Messwerte und Einträge sind davon nicht betroffen, und der Rest der App läuft weiter.",
       "home": "Start"
     },
-    "zoneAdopted": "Uhrzeiten richten sich jetzt nach {{zone}}, der Zeitzone dieses Geräts. Dein Konto stand noch auf {{from}}, womit jedes Konto beginnt – auch die Ruhezeiten gelten jetzt in der neuen Zone.",
+    "zoneAdopted": "Uhrzeiten richten sich jetzt nach {{zone}}, der Zeitzone dieses Geräts. Dein Konto stand noch auf {{from}}, der Voreinstellung jedes neuen Kontos – auch die Ruhezeiten gelten jetzt in der neuen Zeitzone.",
     "zoneAdoptedChange": "Ändern",
     "zoneAdoptedDismiss": "Verstanden",
     "layout": {
@@ -506,7 +506,7 @@
     "entryRepeats": "{{count}}× seit {{since}}",
     "demoEmpty": {
       "title": "Die Demo ist leer.",
-      "text": "Eine Demo ist ein Grow, den jemand hier zum Anschauen hinterlegt hat, und in dieser liegt nichts. Deinem eigenen Konto fehlt nichts: Die Demo ist eine eigene Sitzung und enthält nur das, was diese Installation hineingelegt hat.",
+      "text": "Eine Demo ist ein Grow, den jemand hier zum Anschauen bereitgestellt hat – in dieser ist nichts. Deinem eigenen Konto fehlt nichts: Die Demo ist eine eigene Sitzung und zeigt nur, was auf diesem Server für sie hinterlegt ist.",
       "signIn": "Mit meinem eigenen Konto anmelden"
     },
     "addDevice": {
@@ -519,14 +519,14 @@
       "cancel": "Abbrechen"
     },
     "demo": {
-      "confirm": "Demo öffnen · aus meinem abmelden",
+      "confirm": "Abmelden und Demo öffnen",
       "stay": "In meinem Konto bleiben",
       "opening": "Demo wird geöffnet …",
       "failed": "Die Demo konnte nicht geöffnet werden."
     },
     "waiting": "lädt",
     "retry": "Noch einmal versuchen",
-    "refreshFailed": "Konnte nicht aktualisieren · Stand von vor {{age}}",
+    "refreshFailed": "Aktualisieren fehlgeschlagen · Stand vor {{age}}",
     "reading": {
       "live": "online",
       "stale": "veraltet",
@@ -624,7 +624,7 @@
     "alert": {
       "threshold": "Alarm",
       "offline": "Offline",
-      "camera_stale": "Kamera liefert nicht"
+      "camera_stale": "Kamera ohne Bild"
     },
     "invite": {
       "noGrow": "Hier wächst noch nichts",
@@ -646,7 +646,7 @@
     },
     "entrySchemeWeek": "Schema-Woche {{week}}",
     "entryRepeatsUntil": "{{count}}× bis {{until}}",
-    "retrying": "Versucht es …"
+    "retrying": "Neuer Versuch …"
   },
   "me": {
     "title": "Ich",
@@ -654,7 +654,7 @@
       "title": "Darstellung",
       "themeLine": "nur in diesem Browser",
       "language": "Sprache",
-      "languageLine": "hier und in jedem Browser ohne eigene Wahl",
+      "languageLine": "gilt hier und in jedem Browser, in dem du keine andere gewählt hast",
       "languageNames": {
         "en": "English",
         "de": "Deutsch"
@@ -749,11 +749,11 @@
         "title": "Klimaverlauf aufbewahren",
         "line": "Rohwerte · danach Tageswerte",
         "ask": {
-          "what": "Klimawerte, die älter sind als {{keep}}, werden zu einem Wert pro Tag: alles vor dem {{date}}, und von jetzt an jeder Tag, der aus dem Fenster fällt. Der Tageswert bleibt im Verlauf und im Export; die Messwerte selbst werden gelöscht und kommen nicht zurück.",
+          "what": "Klimawerte, die älter als {{keep}} sind, werden zu einem Wert pro Tag zusammengefasst: alles vor dem {{date}} und ab jetzt jeder Tag, der älter wird. Der Tageswert bleibt im Verlauf und im Export; die einzelnen Messwerte werden gelöscht und lassen sich nicht zurückholen.",
           "yes": "{{keep}} behalten"
         },
-        "installKeeps_one": "diese Installation behält höchstens {{count}} Tag Rohdaten · danach Tageswerte",
-        "installKeeps_other": "diese Installation behält höchstens {{count}} Tage Rohdaten · danach Tageswerte"
+        "installKeeps_one": "dieser Server behält höchstens {{count}} Tag Rohwerte · danach Tageswerte",
+        "installKeeps_other": "dieser Server behält höchstens {{count}} Tage Rohwerte · danach Tageswerte"
       },
       "keep": {
         "d90": "90 Tage",
@@ -764,7 +764,7 @@
       },
       "stills": {
         "title": "Kamerabilder aufbewahren",
-        "kept": "Premium: der ganze Grow · gratis: auf dieser Installation genauso lange",
+        "kept": "Premium: der ganze Grow · gratis: auf diesem Server genauso lange",
         "keptDays_one": "Premium: der ganze Grow · gratis: {{count}} Tag",
         "keptDays_other": "Premium: der ganze Grow · gratis: {{count}} Tage"
       },
@@ -781,11 +781,11 @@
     },
     "following": {
       "title": "Abonniert",
-      "demo": "Die Demo folgt niemandem; Folgen braucht ein eigenes Konto.",
+      "demo": "Die Demo folgt niemandem; zum Folgen brauchst du ein eigenes Konto.",
       "count_one": "{{count}} Grow",
       "count_other": "{{count}} Grows",
-      "none": "Du folgst noch niemandem. Folgen steht oben auf jedem öffentlichen Tagebuch.",
-      "note": "Ein abonnierter Grow ist die öffentliche Seite von jemand anderem: Du siehst, was jeder Fremde sieht, und er bleibt hier, bis du nicht mehr folgst."
+      "none": "Du folgst noch niemandem. „Folgen“ findest du oben auf jedem öffentlichen Tagebuch.",
+      "note": "Ein abonnierter Grow ist die öffentliche Seite von jemand anderem: Du siehst dasselbe wie jeder andere Besucher, und er steht hier, bis du ihm nicht mehr folgst."
     },
     "shareLinks": {
       "title": "Freigabelinks",
@@ -815,12 +815,12 @@
       "opens_other": "{{count}} Aufrufe",
       "notOpened": "noch nie geöffnet",
       "gone": "nicht mehr da",
-      "closing": "Zwei Arten: die öffentliche Seite eines Grows (dauerhaft, bis du den Grow privat stellst) und eine Nur-Lesen-Ansicht eines Orts oder eines Zeitraums mit Ablaufdatum. Beide können die Kamerabilder enthalten oder nicht. Wer folgt, sieht die öffentliche Seite; ein Link erlaubt nie das Schreiben.",
+      "closing": "Es gibt zwei Arten: die öffentliche Seite eines Grows (dauerhaft, bis du den Grow privat stellst) und eine Nur-Lesen-Ansicht eines Orts oder eines Zeitraums mit Ablaufdatum. Beide gibt es mit oder ohne Kamerabilder. Wer folgt, sieht die öffentliche Seite; mit einem Link kann niemand etwas schreiben.",
       "new": "+ Neuer Link · Grow oder Ort · Kamerabilder · Ablauf",
       "noSubjects": "Noch nichts Eigenes zum Teilen",
       "address": "Adresse",
-      "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann genau das, was ein nie vergebener Link zeigt: nichts. Er bleibt hier mit dem Datum stehen und lässt sich nicht wieder aktivieren – wer noch einmal teilen will, braucht einen neuen Link.",
-      "forgetNote": "Löschen nimmt den Link aus dieser Liste. Er hat schon aufgehört zu funktionieren.",
+      "revokeNote": "Zurückziehen beendet den Link sofort. Wer ihn hat, sieht ab dann nichts mehr. Er bleibt hier mit Datum stehen und lässt sich nicht wieder aktivieren – willst du noch einmal teilen, brauchst du einen neuen Link.",
+      "forgetNote": "Löschen nimmt den Link aus dieser Liste. Er funktioniert ohnehin nicht mehr.",
       "sheet": {
         "title": "Neuer Link",
         "subject": "Grow oder Ort",
@@ -833,12 +833,12 @@
         "view": "Nur-Lesen-Ansicht",
         "untilPrivate": "Dauerhaft, bis du den Grow privat stellst.",
         "needsPublic": "{{name}} ist privat. Eine öffentliche Seite gibt es erst, wenn der Grow öffentlich ist:",
-        "viewNote": "Nur lesen: Wer ihn hat, kann schauen und nie schreiben.",
+        "viewNote": "Nur lesen: Wer ihn hat, kann alles ansehen, aber nichts schreiben.",
         "cams": "Kamera",
         "expiry": "Ablauf",
         "never": "nie",
         "create": "Link erstellen",
-        "wholeGrowNote": "Der Link zeigt das Tagebuch des Grows, wie es weitergeht."
+        "wholeGrowNote": "Der Link zeigt das Tagebuch des Grows, auch alles, was noch dazukommt."
       },
       "made": "Link erstellt · {{name}}",
       "revokeAsk": "Den Link jetzt zurückziehen?",
@@ -848,7 +848,7 @@
     "premium": {
       "title": "Premium",
       "demo": "Die Demo hat kein eigenes Konto, hier gibt es also kein Premium anzusehen.",
-      "ungated": "Diese Installation schaltet nichts ab: Jede Kamera hier hat alles, was Premium umfasst.",
+      "ungated": "Auf diesem Server ist nichts gesperrt: Jede Kamera hier bekommt alles, was Premium umfasst.",
       "noCameras": "Noch keine eigene Kamera.",
       "kind": {
         "terpcam_controller": "Terp Cam",
@@ -860,16 +860,16 @@
         "free": "braucht Premium"
       },
       "until": "bis {{date}}",
-      "everything": "auf dieser Installation alles enthalten",
+      "everything": "auf diesem Server alles enthalten",
       "grant": {
-        "included": "mit der Terp Cam enthalten · 12 Monate · verlängert sich nur, wenn du es sagst",
-        "migration": "bei der Migration übernommen · 12 Monate ab diesem Tag · verlängert sich nur, wenn du es sagst",
-        "purchase": "für diese Kamera gekauft · verlängert sich nur, wenn du es sagst",
-        "granted": "Premium auf dieser Kamera · verlängert sich nur, wenn du es sagst"
+        "included": "mit der Terp Cam enthalten · 12 Monate · verlängert sich nicht von selbst",
+        "migration": "bei der Migration übernommen · 12 Monate ab diesem Tag · verlängert sich nicht von selbst",
+        "purchase": "für diese Kamera gekauft · verlängert sich nicht von selbst",
+        "granted": "Premium auf dieser Kamera · verlängert sich nicht von selbst"
       },
       "ranOut": "Ihr Premium ist am {{date}} abgelaufen: {{missing}}, bis es verlängert wird.",
-      "rtspFree": "Eine RTSP-Kamera bringt kein eigenes Premium mit: diese zeigt alle {{seconds}} s ein Bild; {{missing}}, bis Premium sie abdeckt.",
-      "free": "Kein Premium auf dieser Kamera: {{missing}}, bis Premium sie abdeckt.",
+      "rtspFree": "Eine RTSP-Kamera bringt kein eigenes Premium mit: Diese zeigt alle {{seconds}} s ein Bild; {{missing}}, bis sie Premium bekommt.",
+      "free": "Kein Premium auf dieser Kamera: {{missing}}, bis sie Premium bekommt.",
       "endsToday": "endet heute",
       "endsIn_one": "endet in {{count}} Tag",
       "endsIn_other": "endet in {{count}} Tagen",
@@ -882,7 +882,7 @@
         "no": "nicht enthalten",
         "live": "Aktuelles Bild und der Zeitraffer von heute",
         "resolution": "Bilder in voller Auflösung",
-        "kept": "Bilder aufbewahrt",
+        "kept": "Aufbewahrung der Bilder",
         "wholeGrow": "ganzer Grow",
         "wholeGrowHd": "Zeitraffer über den ganzen Grow, HD",
         "reel": "Reel-Export mit Overlays",
@@ -892,16 +892,16 @@
         "keptDays_other": "{{count}} Tage",
         "widthPx": "{{width}} px",
         "whole": "ganz",
-        "perInstall": "je Installation"
+        "perInstall": "je Server"
       },
       "extend": "Premium verlängern",
       "missing": {
-        "widthAndDays_one": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
-        "widthAndDays_other": "ihre Bilder werden {{width}} px breit ausgeliefert und {{count}} Tage aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
-        "width": "ihre Bilder werden {{width}} px breit ausgeliefert und ihre Filme bleiben SD mit Wasserzeichen",
-        "days_one": "ihre Bilder werden {{count}} Tag aufbewahrt und ihre Filme bleiben SD mit Wasserzeichen",
-        "days_other": "ihre Bilder werden {{count}} Tage aufbewahrt und ihre Filme bleiben SD mit Wasserzeichen",
-        "films": "ihre Bilder kommen ganz und bleiben genauso lange, doch ihre Filme bleiben SD mit Wasserzeichen"
+        "widthAndDays_one": "ihre Bilder sind nur {{width}} px breit und werden {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "widthAndDays_other": "ihre Bilder sind nur {{width}} px breit und werden {{count}} Tage aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "width": "ihre Bilder sind nur {{width}} px breit, und ihre Filme bleiben SD mit Wasserzeichen",
+        "days_one": "ihre Bilder werden nur {{count}} Tag aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "days_other": "ihre Bilder werden nur {{count}} Tage aufbewahrt, und ihre Filme bleiben SD mit Wasserzeichen",
+        "films": "ihre Bilder sind in voller Auflösung und bleiben genauso lange, nur ihre Filme bleiben SD mit Wasserzeichen"
       },
       "get": "Premium holen"
     },
@@ -912,13 +912,13 @@
       "weeks_one": "{{count}} Woche",
       "weeks_other": "{{count}} Wochen",
       "flip": "Umstellung in Woche {{week}}",
-      "noneShipped": "Dieser Build liefert keine Schemata mit.",
+      "noneShipped": "Diese Version bringt keine Schemata mit.",
       "howToKeep": "Ein eigenes Schema legst du im Reiter Düngung eines Grows an: „Als eigenes speichern“.",
       "fromAsset": "aus {{name}}",
       "byHand": "von Hand geschrieben",
       "readFrom": "gelesen aus",
       "readAt": "Stand {{date}}",
-      "copyNote": "Ein Schema in diesem Regal ist eine Kopie. Wird es bearbeitet, ändert das, womit der nächste Grow startet, und nichts, was schon wächst.",
+      "copyNote": "Jedes Schema in diesem Regal ist eine Kopie. Bearbeitest du es, ändert das nur, womit der nächste Grow startet – nicht, was schon wächst.",
       "name": "Name",
       "save": "Speichern",
       "saving": "Speichert …",
@@ -936,7 +936,7 @@
       "title": "Konto",
       "email": {
         "title": "E-Mail",
-        "line": "damit meldest du dich an · dieser Server bietet keinen Weg, sie zu ändern"
+        "line": "damit meldest du dich an · auf diesem Server lässt sie sich nicht ändern"
       },
       "password": {
         "title": "Passwort",
@@ -963,10 +963,10 @@
         "signOutOthers": "Alle anderen Browser abmelden",
         "sweep": {
           "title": "Alle anderen Browser abmelden?",
-          "what": "Jeder andere Browser und jedes Skript, das als du angemeldet ist, wird sofort abgemeldet – die hier aufgeführten und die übrigen, wo immer sie stehen. Wer eine dieser Sitzungen hat, muss sich mit deiner E-Mail und deinem Passwort neu anmelden.",
+          "what": "Jeder andere Browser und jedes Skript, die mit deinem Konto angemeldet sind, werden sofort abgemeldet – die hier aufgeführten und alle übrigen. Wer eine dieser Sitzungen hatte, muss sich mit deiner E-Mail und deinem Passwort neu anmelden.",
           "thisOne": "Dieser Browser bleibt angemeldet, und sonst ändert sich nichts am Konto. Eine so beendete Sitzung lässt sich nicht zurückholen; wer sich neu anmeldet, bekommt eine neue.",
           "yes": "Die anderen abmelden",
-          "signingOut": "Meldet ab …",
+          "signingOut": "Wird abgemeldet …",
           "done": "Alle anderen Browser abgemeldet"
         },
         "signedOut": "{{device}} abgemeldet"
@@ -986,14 +986,14 @@
         "line": "wirklich gelöscht, nicht versteckt · Geräte lassen sich neu hinzufügen",
         "open": "Mein Konto löschen …",
         "what": "Alles, was diesem Konto gehört, ist weg: die Orte, die Grows, die Einträge, die Fotos, die Pläne und die Alarme. Es wird gelöscht und nicht versteckt, und es gibt keinen Weg zurück.",
-        "grows": "Wer deine Orte sieht, verliert sie, und wer deinen Grows folgt, verliert sie auch. Geräte, die du hinzugefügt hast, kann danach wieder hinzufügen, wer sie in der Hand hat.",
-        "typeHandle": "Tippe {{handle}} zur Bestätigung",
-        "notHandle": "Das ist nicht dein Handle.",
+        "grows": "Wer deine Orte sehen darf oder deinen Grows folgt, sieht sie danach nicht mehr. Deine Geräte kann danach jeder wieder hinzufügen, der sie in der Hand hat.",
+        "typeHandle": "Tippe zur Bestätigung {{handle}} ein",
+        "notHandle": "Das ist nicht dein Benutzername.",
         "yes": "Mein Konto löschen"
       },
       "timezone": "Zeitzone",
       "timezoneLine": "Uhrzeiten und Ruhezeiten richten sich danach",
-      "timezoneHere": "Dieses Gerät steht in {{zone}}."
+      "timezoneHere": "Dieses Gerät ist auf {{zone}} eingestellt."
     },
     "about": {
       "title": "Über",
@@ -1108,14 +1108,14 @@
       "feedCount_other": "{{count}}× gedüngt",
       "export": {
         "title": "Export",
-        "note": "Alles über diesen Grow in einem Zip: das Tagebuch, die Messwerte und das Klima – eine Zeile pro Minute, gemittelt – als CSV, und jedes Foto davon.",
+        "note": "Alles zu diesem Grow in einem Zip: Tagebuch, Messwerte und Klima (gemittelt, eine Zeile pro Minute) als CSV, dazu alle Fotos.",
         "ask": "Diesen Grow exportieren",
         "again": "Noch einmal versuchen",
         "queued": "in der Warteschlange",
         "rendering": "Datei wird erstellt …",
         "download": "Herunterladen · {{size}}",
         "failedPlain": "Die Datei konnte nicht erstellt werden.",
-        "noteNoClimate": "Alles über diesen Grow in einem Zip: das Tagebuch und die Messwerte als CSV, und jedes Foto davon."
+        "noteNoClimate": "Alles zu diesem Grow in einem Zip: Tagebuch und Messwerte als CSV, dazu alle Fotos."
       },
       "noPhase": "Noch keine Phase · der Bericht beginnt mit der ersten Phase",
       "noPhaseEnded_one": "{{count}} Tag ohne Phase · der Bericht hat darum keine Kapitel",
@@ -1137,14 +1137,14 @@
         "reopen": "Grow wieder öffnen"
       },
       "delete": {
-        "ask": "{{name}} löschen? Der Grow verschwindet mit seinen Pflanzen und der Zeile seiner Phase. Das lässt sich nicht zurücknehmen.",
+        "ask": "{{name}} löschen? Der Grow wird mit seinen Pflanzen und Phasen gelöscht. Das lässt sich nicht zurücknehmen.",
         "yes": "Löschen"
       },
       "reopen": {
-        "ask": "{{name}} wieder öffnen? Er läuft dann weiter, wo er stand: Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
-        "askNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Einträge, Phasen und Ernten gehen wieder, und seine Erinnerungen kommen zurück.",
-        "askAllCut": "{{name}} wieder öffnen? Er läuft dann weiter, wo er stand: Einträge und Phasen gehen wieder, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden lässt er sich wieder unter „Ernten“.",
-        "askAllCutNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Einträge und Phasen gehen wieder, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden lässt er sich wieder unter „Ernten“.",
+        "ask": "{{name}} wieder öffnen? Er läuft dann dort weiter, wo er aufgehört hat: Du kannst wieder eintragen, Phasen setzen und ernten, und seine Erinnerungen kommen zurück.",
+        "askNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Du kannst wieder eintragen, Phasen setzen und ernten, und seine Erinnerungen kommen zurück.",
+        "askAllCut": "{{name}} wieder öffnen? Er läuft dann dort weiter, wo er aufgehört hat: Du kannst wieder eintragen und Phasen setzen, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden kannst du ihn wieder unter „Ernten“.",
+        "askAllCutNowhere": "{{name}} wieder öffnen? Sein Ort ist entfernt, darum läuft er an keinem festen Ort weiter. Du kannst wieder eintragen und Phasen setzen, und seine Erinnerungen kommen zurück. Seine Pflanzen sind alle geerntet – beenden kannst du ihn wieder unter „Ernten“.",
         "yes": "Wieder öffnen"
       },
       "when": "Am",
@@ -1163,9 +1163,9 @@
         "record": "Phase nachtragen",
         "stageLabel": "Phase",
         "presetLabel": "Klima-Preset",
-        "alreadyThere": "Der Grow steht bereits in dieser Phase: Es wird nichts geschrieben.",
-        "alreadyThereClimate": "Der Grow steht bereits in dieser Phase: Es werden nur die Zielwerte geschrieben.",
-        "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen: Es wird nichts geschrieben.",
+        "alreadyThere": "Der Grow ist schon in dieser Phase, es ändert sich nichts.",
+        "alreadyThereClimate": "Der Grow ist schon in dieser Phase, es werden nur die Zielwerte gesetzt.",
+        "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen, es ändert sich nichts.",
         "submit": "{{stage}} setzen",
         "submitTargets": "Zielwerte setzen",
         "submitEnded": "{{stage}} nachtragen",
@@ -1186,9 +1186,9 @@
           "phaseDay": "Diese Phase zeigt dann Tag {{to}} statt Tag {{from}}.",
           "stage": "Der Grow zeigt dann {{to}} statt {{from}}.",
           "noPhaseLeft": "Der Grow bleibt ohne Phase, bis wieder eine gesetzt wird.",
-          "timelineOnly": "Auf der Grow-Seite ändert sich nichts: Diese Phase liegt vor der, in der der Grow steht.",
-          "entry": "Die Tagebuchzeile, die sie angekündigt hat, zieht mit.",
-          "entryGone": "Die Tagebuchzeile, die sie angekündigt hat, verschwindet mit ihr.",
+          "timelineOnly": "Auf der Grow-Seite ändert sich nichts: Diese Phase liegt vor der, in der der Grow gerade ist.",
+          "entry": "Die Zeile im Tagebuch, die sie vermerkt, wandert mit.",
+          "entryGone": "Die Zeile im Tagebuch, die sie vermerkt, verschwindet mit ihr.",
           "device": "Am Gerät ändert das nichts – es hält weiter: {{figures}}.",
           "stays": {
             "drying": "Es trocknet also weiter, bis du die Trocknung unter Steuerung beendest.",
@@ -1217,11 +1217,11 @@
         "until": "Weg",
         "correct": "Korrigieren",
         "withdraw": "Zurücknehmen",
-        "correctionNote": "Das repariert die vorhandene Zeile, und die Tagebuchzeile zum Umzug zieht mit. Die Pflanzen erneut umzuziehen macht der Knopf oben.",
+        "correctionNote": "Das berichtigt die vorhandene Zeile, und die Zeile zum Umzug im Tagebuch ändert sich mit. Um die Pflanzen noch einmal umzuziehen, nimm den Knopf oben.",
         "withdrawEffect": "Die Zeile verschwindet, als wäre der Umzug nie aufgeschrieben worden.",
         "confirmWithdraw": "Diesen Umzug zurücknehmen",
         "nowhereThenWithdraw": "Grow erst auf „kein fester Ort“ setzen, dann zurücknehmen",
-        "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine Zeile unten, die falsch erfasst wurde, lässt sich weiterhin korrigieren.",
+        "endedNote": "Dieser Grow ist beendet und zieht nicht mehr um. Eine falsch erfasste Zeile unten kannst du aber noch korrigieren.",
         "hereNote": "Ab diesem Tag steht der Grow hier; seine Zeit am bisherigen Ort endet, und was dort aufgezeichnet wurde, bleibt bei ihm.",
         "backTo": {
           "grow": "Danach steht der Grow wieder dort, wo er davor stand: {{place}}.",
@@ -1232,7 +1232,7 @@
         "title": "Ernte",
         "nothingStanding": "Alle Pflanzen dieses Grows sind bereits geerntet.",
         "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst.",
-        "alreadyEnded": "Er ist am {{date}} beendet worden.",
+        "alreadyEnded": "Er wurde am {{date}} beendet.",
         "endInstead": "Der Tag, an dem er endet",
         "endTheGrow": "Grow beenden",
         "whatComesDown": "Was geerntet wird",
@@ -1240,13 +1240,13 @@
         "standing_other": "{{count}} stehen noch",
         "everythingStanding": "Alles, was noch steht",
         "weights": "Gewicht",
-        "grams": "Gramm, als Gesamtmenge",
+        "grams": "Gramm, alles zusammen",
         "wet": "Nass",
         "dry": "Trocken",
         "pickSomething": "Mindestens eine Pflanze auswählen.",
-        "eachWet_one": "{{total}} g nass, auf der einen Pflanze.",
+        "eachWet_one": "{{total}} g nass von der einen Pflanze.",
         "eachWet_other": "{{total}} g nass auf {{count}} Pflanzen verteilt · etwa {{each}} g je Pflanze.",
-        "eachDry_one": "{{total}} g trocken, auf der einen Pflanze.",
+        "eachDry_one": "{{total}} g trocken von der einen Pflanze.",
         "eachDry_other": "{{total}} g trocken auf {{count}} Pflanzen verteilt · etwa {{each}} g je Pflanze.",
         "endsTheGrow": "Der Grow endet am {{date}}.",
         "submit_one": "{{count}} Pflanze ernten",
@@ -1271,7 +1271,7 @@
       "split": {
         "title": "Aufteilen",
         "what": "Einige Pflanzen gehen ihren eigenen Weg, während der Rest des Grows weiterläuft.",
-        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, hier lässt sich also nichts abtrennen. Ein aus der alten App übernommener Grow wurde nie Pflanze für Pflanze aufgeschrieben.",
+        "noPlantsRecorded": "In diesem Grow sind keine Pflanzen erfasst, darum lässt sich nichts abtrennen. Grows aus der alten App wurden nie Pflanze für Pflanze erfasst.",
         "whichGoTheirOwnWay": "Welche Pflanzen ihren eigenen Weg gehen",
         "staying_one": "{{count}} bleibt zurück",
         "staying_other": "{{count}} bleiben zurück",
@@ -1279,8 +1279,8 @@
         "keepPhase": "Phase behalten",
         "theirPlace": "Ihr Ort",
         "keepPlace": "Ort behalten",
-        "note": "Sie bekommen eine eigene Zeile im Grow. Die zurückbleibenden Pflanzen behalten Phase und Ort, die sie haben.",
-        "needsOne": "Pflanzen auswählen und dazu eine Phase oder einen Ort: Eine Aufteilung, die ihnen keines von beidem gibt, teilt nichts auf.",
+        "note": "Sie bekommen eine eigene Zeile im Grow. Die übrigen Pflanzen behalten ihre Phase und ihren Ort.",
+        "needsOne": "Wähle Pflanzen und dazu eine neue Phase oder einen neuen Ort – sonst gibt es nichts aufzuteilen.",
         "submit_one": "{{count}} Pflanze abtrennen",
         "submit_other": "{{count}} Pflanzen abtrennen"
       },
@@ -1295,14 +1295,14 @@
       "autoflower": "Autoflower",
       "where": "Wo",
       "startedOn": "Gestartet am",
-      "schemeUnreadable": "Dieses Schema war nicht lesbar, der Grow kann damit nicht gestartet werden.",
+      "schemeUnreadable": "Dieses Schema ließ sich nicht lesen, damit kann der Grow nicht starten.",
       "starting": "Grow wird gestartet …",
       "startAndSet": "Starten · Klima: {{climate}}",
       "startAndSetTargets": "Starten · Zielwerte für {{device}}: {{climate}}",
       "fanFixed": "{{device}} läuft mit fester Drehzahl und bleibt dabei: Die Zielwerte gelten erst, wenn er nach Temperatur oder Luftfeuchte regelt.",
       "plantsRefused": "Pflanzen: eine ganze Zahl ab 1.",
       "stageMissing": "Wähl die Phase, in der der Grow gerade ist.",
-      "second": "In {{place}} wächst schon {{grow}} – trotzdem einen zweiten Grow dort starten?",
+      "second": "{{place}}: Hier wächst schon {{grow}} – trotzdem einen zweiten Grow starten?",
       "secondYes": "Zweiten Grow starten",
       "climateAwaited": "Klima wartet auf {{device}}",
       "keepsClimate": "Hier wächst schon {{grow}}, deshalb setzt der Start kein Klima: Was eingestellt ist, bleibt für beide. Ein anderes stellst du unter Steuerung ein."
@@ -1311,8 +1311,8 @@
       "title": "Messwerte",
       "back": "Zurück zum Grow",
       "yours": "Deine",
-      "chartHint": "eingeschaltet heißt: als Kurve",
-      "none": "Hier wird noch nichts gemessen · eine Vorlage unten ist ein Tipp",
+      "chartHint": "an: wird als Kurve gezeigt",
+      "none": "Hier wird noch nichts gemessen · eine Vorlage unten fügst du mit einem Tipp hinzu",
       "perPlant": "pro Pflanze",
       "perGrow": "pro Grow",
       "target": "Ziel {{band}}",
@@ -1323,11 +1323,11 @@
       "onTheChart": "{{name}} als Kurve",
       "edit": "{{name}} bearbeiten",
       "templates": "Vorlagen",
-      "tapToAdd": "tippen zum Hinzufügen",
+      "tapToAdd": "zum Hinzufügen tippen",
       "ownChip": "eigen · Name · Einheit",
       "alreadyHere": "wird hier schon gemessen",
-      "note": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und im Verlauf und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
-      "readingsUnread": "Was gemessen wurde, konnte gerade nicht gelesen werden, deshalb sagt diese Liste nichts darüber.",
+      "note": "Jeder Messwert erscheint als Kachel beim Messen im Eintrag, als Zeile im Tagebuch, als Kurve hier und im Verlauf und als Spalte im Export. Ob pro Pflanze oder pro Grow, legst du einmal fest.",
+      "readingsUnread": "Die Messwerte ließen sich gerade nicht laden, deshalb fehlen sie in dieser Liste.",
       "template": {
         "water_temp": "Wassertemperatur",
         "ppfd": "PPFD",
@@ -1350,20 +1350,20 @@
         "unit": "Einheit",
         "unitPlaceholder": "cm · mS/cm · pH hat keine",
         "scope": "Pro Pflanze oder pro Grow",
-        "scopeSettled": "Einmal entschieden, und hier gibt es schon Messwerte.",
+        "scopeSettled": "Steht fest, weil es schon Messwerte gibt.",
         "targetLabel": "Ziel",
         "from": "von",
         "to": "bis",
-        "targetNote": "Beide Enden leer heißt: kein Ziel; ein Ende allein ist eine Grenze.",
+        "targetNote": "Bleiben beide Felder leer, gibt es kein Ziel; ist nur eines gefüllt, ist es eine Grenze.",
         "save": "Speichern",
         "saving": "Speichert …",
         "delete": "Löschen",
         "deleteAsk": "Diesen Messwert löschen? Es wurde noch nichts darunter eingetragen.",
         "deleteYes": "Ja, löschen",
-        "keptForReadings_one": "{{count}} Messwert steht darunter, also bleibt er. Schalte stattdessen seine Kurve aus.",
-        "keptForReadings_other": "{{count}} Messwerte stehen darunter, also bleibt er. Schalte stattdessen seine Kurve aus.",
-        "keptForReadingsOffChart_one": "{{count}} Messwert steht darunter, also bleibt er.",
-        "keptForReadingsOffChart_other": "{{count}} Messwerte stehen darunter, also bleibt er."
+        "keptForReadings_one": "Es gibt schon {{count}} Messwert dazu, darum bleibt er. Schalte stattdessen seine Kurve aus.",
+        "keptForReadings_other": "Es gibt schon {{count}} Messwerte dazu, darum bleibt er. Schalte stattdessen seine Kurve aus.",
+        "keptForReadingsOffChart_one": "Es gibt schon {{count}} Messwert dazu, darum bleibt er.",
+        "keptForReadingsOffChart_other": "Es gibt schon {{count}} Messwerte dazu, darum bleibt er."
       },
       "measure": {
         "title": "Messen",
@@ -1391,7 +1391,7 @@
         "one": "Erst ein Messwert: {{last}}",
         "alt_one": "{{name}} über den Grow: ein Messwert, {{low}} {{unit}}"
       },
-      "noteNoPlace": "Ein Messwert ist eine Messen-Kachel im Eintrag, eine Zeile im Tagebuch, eine Kurve hier und eine Spalte im Export. Pro Pflanze oder pro Grow wird einmal entschieden.",
+      "noteNoPlace": "Jeder Messwert erscheint als Kachel beim Messen im Eintrag, als Zeile im Tagebuch, als Kurve hier und als Spalte im Export. Ob pro Pflanze oder pro Grow, legst du einmal fest.",
       "told": {
         "added": "{{name}} wird jetzt gemessen",
         "removed": "{{name}} wird nicht mehr gemessen",
@@ -1410,14 +1410,14 @@
       "ownEntries": "Eigene Einträge",
       "ownEntriesCount_one": "{{count}} eigener Eintrag",
       "ownEntriesCount_other": "{{count}} eigene Einträge",
-      "growEntriesToo": "Grow-Einträge gelten auch",
+      "growEntriesToo": "Einträge zum ganzen Grow gelten auch",
       "noEntries": "Zu dieser Pflanze allein wurde noch nichts eingetragen",
       "withTheGrow": "beim Grow",
       "day": "Tag {{day}}",
       "lastTraining": "letztes Training",
       "chartAlt": "{{name}} von {{label}} über den Grow",
       "nothingMeasured": "Für diese Pflanze wurde noch nichts gemessen",
-      "readingsUnread": "Die Messwerte konnten gerade nicht gelesen werden, deshalb steht hier nichts über das Gemessene.",
+      "readingsUnread": "Die Messwerte ließen sich gerade nicht laden, deshalb fehlen sie hier.",
       "rename": "Umbenennen",
       "actionsLabel": "Was mit dieser Pflanze geschieht",
       "move": "Diese Pflanze umziehen",
@@ -1439,11 +1439,11 @@
       "nameTaken": "Eine andere Pflanze dieses Grows heißt schon „{{name}}“.",
       "add": "Pflanze hinzufügen",
       "addIt": "Hinzufügen",
-      "labelOptional": "Name – frei gelassen, wird sie nummeriert",
+      "labelOptional": "Name – leer lassen, dann wird sie nummeriert",
       "remove": "Pflanze löschen",
       "removeAsk": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Was im Tagebuch über sie steht, bleibt.",
       "removeAskHarvested": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten, und ihre Ernte mit ihrem Gewicht aus dem Tagebuch. Was sonst im Tagebuch über sie steht, bleibt.",
-      "removeAskShared": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Ihre Ernte mit {{others}} bleibt im Tagebuch, wie gewogen, und nennt nur noch {{others}}; was sonst dort über sie steht, auch.",
+      "removeAskShared": "{{name}} löschen? Die Pflanze verschwindet aus dem Grow und aus seinen Phasen und Orten. Die gemeinsame Ernte mit {{others}} bleibt mit ihrem Gewicht im Tagebuch und nennt nur noch {{others}}; was sonst dort über sie steht, bleibt auch.",
       "removeYes": "Löschen"
     },
     "scheme": {
@@ -1451,7 +1451,7 @@
       "choose": "Schema wählen",
       "strength": "Stärke",
       "strengthStep": {
-        "1": "wie gedruckt",
+        "1": "wie angegeben",
         "0_5": "leicht · 50 %",
         "0_75": "reduziert · 75 %",
         "1_25": "kräftig · 125 %"
@@ -1473,7 +1473,7 @@
       },
       "cellLabel": "{{product}}, Woche {{week}}",
       "thisWeekLine": "Woche {{week}} ist diese Woche.",
-      "howLine": "Auf eine Zelle tippen, um sie zu ändern; eine Zeile ist ein Produkt, „+ Produkt“ fügt ein eigenes hinzu.",
+      "howLine": "Tipp auf eine Zelle, um sie zu ändern. Jede Zeile ist ein Produkt; mit „+ Produkt“ fügst du ein eigenes hinzu.",
       "addProduct": "+ Produkt",
       "productName": "Produkt",
       "productPlaceholder": "Cal·Mag",
@@ -1496,11 +1496,11 @@
         "mine": "eigenes",
         "none": "Kein Schema",
         "noneSavedYet": "Du hast noch kein eigenes Schema im Regal.",
-        "editedWarning": "Dieses Raster wurde bearbeitet. Ein anderes Schema ersetzt es samt Änderungen.",
+        "editedWarning": "Dieses Raster wurde bearbeitet. Wählst du ein anderes Schema, sind die Änderungen weg.",
         "use": "Auf dieses Schema wechseln",
         "useNone": "Diesen Grow ohne Schema düngen",
         "saveOwn": "Als eigenes speichern",
-        "saveOwnNote": "Legt dieses Raster in dein eigenes Regal, damit ein späterer Grow davon starten kann. Es ist eine Kopie: Wird sie später bearbeitet, ändert das nichts an dem, was schon wächst.",
+        "saveOwnNote": "Legt dieses Raster in dein eigenes Regal, damit ein späterer Grow damit starten kann. Es ist eine Kopie: Bearbeitest du sie später, ändert das nichts an dem, was schon wächst.",
         "name": "Name",
         "namePlaceholder": "Biobizz, meine Fassung",
         "save": "Speichern",
@@ -1511,7 +1511,7 @@
       "ecUnit": "mS/cm",
       "movedUnder": "anderswo geändert",
       "keepMine": "Meines behalten",
-      "takeTheirs": "Deren übernehmen",
+      "takeTheirs": "Die andere Fassung übernehmen",
       "told": {
         "saved": "Düngeschema gespeichert",
         "back": "Düngeschema wie vor der Änderung",
@@ -1535,7 +1535,7 @@
       "sharedBy": "von @{{handle}}",
       "harvested": "geerntet im {{month}}",
       "ended": "beendet im {{month}}",
-      "partial": "Es sind mehr, als auf einmal gelesen werden konnten; öffne die Seite erneut, um weiterzulesen.",
+      "partial": "Es sind mehr, als auf einmal geladen werden konnten; öffne die Seite noch einmal, um den Rest zu sehen.",
       "back": "Zurück zu allen Grows"
     },
     "diary": {
@@ -1569,7 +1569,7 @@
       "light": "Licht {{from}}–{{to}}",
       "outside": "{{metric}} {{span}} außerhalb",
       "outsideOften": "{{metric}} {{count}}× außerhalb · zusammen {{span}}",
-      "alarmOver": "behoben",
+      "alarmOver": "vorbei",
       "alarmUntil": "bis {{until}}",
       "earlier": "Vor dem Start",
       "lightOffAt": "Licht aus um {{at}}",
@@ -1627,11 +1627,11 @@
       "movesGrow": "Der Plan setzt {{name}} in die Phasen seiner Schritte.",
       "noControllerAdd": "Gerät hinzufügen",
       "none": "Noch kein Plan.",
-      "noClimateHasPlan": "Dieses Gerät nennt kein Klima; was diese Schritte schreiben, hat dort keinen Platz.",
+      "noClimateHasPlan": "Dieses Gerät regelt kein Klima, deshalb kann es mit diesen Schritten nichts anfangen.",
       "waitingHasPlan": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; bis dahin hält der Plan seine Schritte zurück.",
       "write": "Plan schreiben",
       "edit": "Plan bearbeiten",
-      "noSteps": "Dieser Plan hat keine Schritte, also gibt es nichts zu laufen.",
+      "noSteps": "Dieser Plan hat keine Schritte, er kann also nicht laufen.",
       "noStage": "Keine Phase",
       "waits": "wartet auf dich",
       "stepOf": "Schritt {{number}} von {{count}}",
@@ -1640,13 +1640,13 @@
       "extendedPausedClock": "verlängert: nach dem Fortsetzen beginnt die Uhr dieses Schritts nach {{age}}",
       "left": "noch {{age}}",
       "over": "die Zeit ist um",
-      "openEnded": "läuft, bis er von Hand weitergesetzt wird",
+      "openEnded": "läuft, bis ihn jemand weiterschaltet",
       "pausedFor": "Pausiert: {{reason}}",
       "startsStage": "Starten setzt einen Grow hier auf {{stage}}.",
       "status": {
         "running": "Läuft",
         "paused": "Pausiert",
-        "stopped": "In Ruhe",
+        "stopped": "Gestoppt",
         "completed": "Abgeschlossen"
       },
       "waiting": {
@@ -1659,15 +1659,15 @@
         "step": "Als Nächstes · Schritt {{number}}{{name}}",
         "loops": "Als Nächstes · zurück zu Schritt 1{{name}} – dieser Plan wiederholt sich.",
         "ends": "Das ist der letzte Schritt: Danach ist der Plan abgeschlossen.",
-        "atRest": "In Ruhe schreibt er nichts; gestartet beginnt er bei Schritt 1.",
-        "completed": "Alle Schritte sind gelaufen; erneut gestartet beginnt er bei Schritt 1."
+        "atRest": "Solange er gestoppt ist, ändert er nichts; startest du ihn, beginnt er bei Schritt 1.",
+        "completed": "Alle Schritte sind durchlaufen; startest du ihn erneut, beginnt er bei Schritt 1."
       },
       "applied": {
         "at": "Schritt vor {{age}} an das Gerät geschickt",
         "justNow": "Schritt gerade eben an das Gerät geschickt",
         "never": "Die Einstellungen dieses Schritts gehen innerhalb der nächsten Minute an das Gerät",
         "waits": "Die Einstellungen dieses Schritts gehen an das Gerät, sobald es sich wieder meldet",
-        "quiet": "{{offline}} · was das Gerät gerade wirklich fährt, kann ein älterer Stand sein"
+        "quiet": "{{offline}} · das Gerät läuft womöglich noch mit einem älteren Stand"
       },
       "move": {
         "confirm": "Schritt bestätigen",
@@ -1680,15 +1680,15 @@
         "remove": "Plan entfernen"
       },
       "ask": {
-        "extend": "Mehr Zeit für den Schritt, in dem der Ort steht. Der Schritt behält die Länge, mit der er geschrieben wurde, nur seine Uhr wird zurückgestellt – ein Schritt, der schon um Bestätigung gebeten hat, fragt erneut, wenn die längere Zeit um ist.",
-        "extendYes": "{{length}} draufgeben",
-        "skip": "Der Plan geht weiter zu Schritt {{number}}{{name}} und startet dessen Uhr. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
-        "skipPaused": "Der Plan geht weiter zu Schritt {{number}}{{name}} und bleibt pausiert: Dessen Uhr startet, wenn der Plan fortgesetzt wird. Was dieser Schritt noch vor sich hatte, bleibt nicht erhalten.",
-        "skipEnds": "Das ist der letzte Schritt, ihn zu überspringen schließt den Plan also ab. Das Gerät behält die Einstellungen, die dieser Schritt ihm gegeben hat.",
+        "extend": "Mehr Zeit für den laufenden Schritt. Seine eingestellte Länge bleibt, nur seine Uhr wird zurückgestellt – hat der Schritt schon um Bestätigung gebeten, fragt er erneut, wenn die zusätzliche Zeit um ist.",
+        "extendYes": "Um {{length}} verlängern",
+        "skip": "Der Plan springt zu Schritt {{number}}{{name}}, und dessen Zeit beginnt. Die restliche Zeit dieses Schritts verfällt.",
+        "skipPaused": "Der Plan springt zu Schritt {{number}}{{name}} und bleibt pausiert: Dessen Zeit beginnt, wenn du den Plan fortsetzt. Die restliche Zeit dieses Schritts verfällt.",
+        "skipEnds": "Das ist der letzte Schritt: Überspringst du ihn, ist der Plan abgeschlossen. Das Gerät behält die Einstellungen dieses Schritts.",
         "skipYes": "Schritt überspringen",
-        "stop": "Der Plan behält seine Schritte und steht wieder beim ersten, bereit zum Start. Das Gerät behält die Einstellungen des letzten Schritts: Stoppen sagt nichts darüber, was der Ort stattdessen tun soll.",
+        "stop": "Der Plan behält seine Schritte und steht wieder am Anfang, bereit zum Start. Das Gerät behält die Einstellungen des letzten Schritts: Stoppen stellt nichts anderes ein.",
         "stopYes": "Plan stoppen",
-        "remove": "Der Plan und seine Schritte werden von diesem Gerät genommen. Das Gerät behält, worauf es zuletzt eingestellt war, und was der Plan geschrieben hat, bleibt im Tagebuch. Sichere ihn vorher als Vorlage, um wieder mit ihm zu beginnen.",
+        "remove": "Der Plan wird mit seinen Schritten von diesem Gerät entfernt. Das Gerät behält seine letzten Einstellungen, und was der Plan ins Tagebuch geschrieben hat, bleibt dort. Willst du ihn später wieder nutzen, speichere ihn vorher als Vorlage.",
         "removeYes": "Plan entfernen",
         "resumeOn": "Die Regelung ist aus: Fortsetzen schickt den Schritt ans Gerät und schaltet sie damit wieder ein.",
         "startOn": "Die Regelung ist aus: Starten schickt den Schritt ans Gerät und schaltet sie damit wieder ein.",
@@ -1721,7 +1721,7 @@
         "steps": "Die Schritte",
         "stepCount_one": "{{count}} Schritt",
         "stepCount_other": "{{count}} Schritte",
-        "noSteps": "Noch keine Schritte. Ein Plan ohne sie hat nichts zu laufen.",
+        "noSteps": "Noch keine Schritte. Ohne Schritte kann ein Plan nicht laufen.",
         "save": "Plan speichern",
         "leave": "Was du an diesem Plan geändert hast, verwerfen?",
         "refusedIn": "{{step}} – {{refusal}}"
@@ -1735,17 +1735,17 @@
         "duration": "Wie lange",
         "durationValue": "Wie lange, als Zahl",
         "durationUnit": "Wie lange, die Einheit",
-        "openEndedNote": "Ein Schritt ohne Länge läuft, bis ihn jemand von Hand weitersetzt.",
+        "openEndedNote": "Ein Schritt ohne Länge läuft, bis ihn jemand von Hand weiterschaltet.",
         "settings": "Was das Gerät halten soll",
-        "writesNothing": "Dieser Schritt schreibt nichts: Das Gerät behält, was es hat.",
+        "writesNothing": "Dieser Schritt ändert nichts: Das Gerät behält seine Einstellungen.",
         "endsGermination": "Dieser Schritt beendet nur die Keimung davor: Das Gerät hält wieder Tag und Nacht mit Licht.",
-        "writesNothingShort": "schreibt nichts",
+        "writesNothingShort": "ändert nichts",
         "endsGerminationShort": "beendet die Keimung",
         "warnsTooHumid": "„Zu feucht“ warnt",
         "humidifierRests": "Befeuchter ruht",
         "writesSections": "Was du leer lässt, behält das Gerät.",
         "writesNowhere": "Dieses Gerät hat seine Einstellungen noch nicht geschickt, also wird der Schritt nicht gesendet.",
-        "alsoWrites": "Dieser Schritt trägt außerdem Einstellungen, die dieses Blatt nicht bearbeitet ({{sections}}); sie bleiben, wie sie sind.",
+        "alsoWrites": "Dieser Schritt enthält außerdem Einstellungen, die du hier nicht bearbeiten kannst ({{sections}}); sie bleiben, wie sie sind.",
         "takeFromController": "Übernehmen, was das Gerät jetzt hält",
         "waits": "Auf Bestätigung warten",
         "waitsNote": "Ist die Zeit um, bleibt der Plan stehen und fragt, statt von selbst weiterzugehen.",
@@ -1758,7 +1758,7 @@
         "remove": "Entfernen",
         "add": "Schritt hinzufügen",
         "dryingNote": "In der Trocknung bleibt das Licht aus, und das Gerät hält diese beiden Werte rund um die Uhr.",
-        "germinationNote": "In der Keimung ist es dunkel, und das Gerät hält diese Temperatur rund um die Uhr; die Luftfeuchte hält ein Befeuchter, wo einer darf.",
+        "germinationNote": "In der Keimung ist es dunkel, und das Gerät hält diese Temperatur rund um die Uhr; die Luftfeuchte hält ein Befeuchter, sofern einer eingesetzt werden darf.",
         "moved": "{{name}} ist jetzt Schritt {{number}} von {{count}}",
         "removed": "{{name}} entfernt",
         "openNamed": "{{name}} bearbeiten",
@@ -1797,49 +1797,49 @@
           "on_step": "Bei jedem Schritt",
           "on_confirmation": "Nur wenn er fragt"
         },
-        "email": "Wohin geschrieben wird",
+        "email": "E-Mail an",
         "ownAddress": "deine eigene Adresse",
-        "emailNote": "Leer gelassen schreibt der Plan an die Adresse, mit der sich dieses Konto anmeldet.",
+        "emailNote": "Bleibt das Feld leer, schreibt der Plan an die E-Mail-Adresse deines Kontos.",
         "writeEntries": "Ins Tagebuch schreiben",
-        "writeEntriesNote": "Ein Schrittwechsel hinterlässt eine Zeile im Verlauf des Orts, ob eine Mail rausgeht oder nicht."
+        "writeEntriesNote": "Jeder Schrittwechsel steht als Zeile im Verlauf des Orts, ob eine Mail rausgeht oder nicht."
       },
       "effect": {
-        "newPlan": "Gespeichert ruht der Plan, bis du ihn startest.",
-        "atRest": "Dieser Plan läuft nicht, Speichern verschiebt also nichts: Gestartet beginnt er bei Schritt 1.",
-        "empties": "Ein Plan ohne Schritte hat nichts zu laufen, also stoppt er, und das Gerät behält, was der letzte Schritt ihm gegeben hat.",
-        "stays": "Der Ort läuft weiter mit {{name}} als Schritt {{number}}, mit der bereits gelaufenen Zeit.",
-        "moves": "{{name}} ist der Schritt, in dem der Ort steht: Er rückt von {{from}} auf {{to}} und behält die bereits gelaufene Zeit.",
+        "newPlan": "Nach dem Speichern wartet der Plan, bis du ihn startest.",
+        "atRest": "Dieser Plan läuft nicht, Speichern ändert also nichts am Ablauf: Startest du ihn, beginnt er bei Schritt 1.",
+        "empties": "Ohne Schritte kann der Plan nicht laufen; er stoppt also, und das Gerät behält die Einstellungen des letzten Schritts.",
+        "stays": "Hier läuft {{name}} weiter, jetzt als Schritt {{number}}, mit der bisher gelaufenen Zeit.",
+        "moves": "{{name}} ist der laufende Schritt: Er rückt von {{from}} auf {{to}} und behält die bisher gelaufene Zeit.",
         "relength": "Die neue Länge wird an dieser Zeit gemessen – ein Schritt, der schon länger gelaufen ist, als er jetzt dauert, ist damit sofort vorbei.",
-        "restarts": "{{gone}} ist der Schritt, in dem der Ort steht, und er fehlt in der Liste: {{starts}} nimmt als Schritt {{number}} seinen Platz ein und beginnt bei null. Eine Bestätigung, auf die gewartet wurde, ist damit vergessen.",
+        "restarts": "{{gone}} ist der laufende Schritt und fehlt jetzt in der Liste: An seine Stelle tritt {{starts}} als Schritt {{number}} und beginnt von vorn. Eine offene Bestätigung entfällt damit.",
         "resends": "Die Einstellungen des Schritts gehen innerhalb der nächsten Minute erneut an das Gerät statt erst zur nächsten vollen Stunde."
       },
       "refused": {
         "nothing_to_confirm": "Dieser Schritt wartet nicht auf eine Bestätigung: Sie ist schon erfolgt, oder seine Zeit ist noch nicht um.",
-        "plan_not_running": "Dieser Plan läuft nicht mehr, es gibt also keinen Schritt zu bewegen.",
+        "plan_not_running": "Dieser Plan läuft nicht mehr, da gibt es keinen Schritt weiterzuschalten.",
         "plan_already_running": "Dieser Plan läuft bereits.",
         "plan_not_found": "Dieses Gerät wird von keinem Plan mehr gesteuert.",
-        "plan_has_no_steps": "Ein Plan ohne Schritte hat nichts zu laufen. Schreib zuerst einen Schritt.",
-        "invalid_duration": "Ein Schritt wird um eine Länge größer als null verlängert.",
-        "duplicate_step_id": "Zwei Schritte dieses Plans tragen dieselbe Id, es wurde also nichts gespeichert. Schließ das Blatt und öffne es erneut.",
+        "plan_has_no_steps": "Ohne Schritte kann ein Plan nicht laufen. Leg zuerst einen Schritt an.",
+        "invalid_duration": "Verlängern geht nur um mehr als null.",
+        "duplicate_step_id": "Zwei Schritte dieses Plans haben dieselbe ID, darum wurde nichts gespeichert. Schließ das Fenster und öffne es neu.",
         "plan_template_name_taken": "Du hast schon eine Vorlage mit diesem Namen. Gib dieser einen anderen.",
-        "refresh": "Neu einlesen",
+        "refresh": "Neu laden",
         "plan_step_gone": "Diesen Schritt hat der Plan nicht mehr – er wurde inzwischen geändert."
       },
       "template": {
         "keepTitle": "Als Vorlage speichern",
         "startTitle": "Mit einer Vorlage beginnen",
         "name": "Name",
-        "keepNote_one": "Der {{count}} Schritt dieses Plans wird kopiert, wie er ist. Plan und Vorlage wissen danach nichts voneinander.",
-        "keepNote_other": "Alle {{count}} Schritte dieses Plans werden kopiert, wie sie sind. Plan und Vorlage wissen danach nichts voneinander.",
-        "publish": "Alle damit beginnen lassen",
-        "publishNote": "Eine veröffentlichte Vorlage kann jedes Konto lesen und kopieren; ändern und wegwerfen kannst nur du sie.",
-        "keep": "Vorlage sichern",
-        "startNote": "Eine auszuwählen öffnet den Plan mit ihren Schritten. Geschrieben wird erst beim Speichern, und was ein Speichern an einem Ort macht, an dem schon ein Plan läuft, steht dort.",
-        "none": "Noch keine Vorlagen. Den Plan eines Orts als eine zu sichern ist der Weg zur ersten.",
+        "keepNote_one": "Der Schritt dieses Plans wird so kopiert, wie er ist. Danach sind Plan und Vorlage unabhängig voneinander.",
+        "keepNote_other": "Alle {{count}} Schritte dieses Plans werden so kopiert, wie sie sind. Danach sind Plan und Vorlage unabhängig voneinander.",
+        "publish": "Für alle freigeben",
+        "publishNote": "Eine freigegebene Vorlage kann jedes Konto lesen und kopieren; ändern und löschen kannst nur du sie.",
+        "keep": "Vorlage speichern",
+        "startNote": "Wählst du eine, öffnet sich der Plan mit ihren Schritten. Übernommen wird erst beim Speichern – und was das Speichern bei einem schon laufenden Plan bewirkt, steht dann dort.",
+        "none": "Noch keine Vorlagen. Die erste entsteht, wenn du den Plan eines Orts als Vorlage speicherst.",
         "steps_one": "{{count}} Schritt",
         "steps_other": "{{count}} Schritte",
         "yours": "deine",
-        "published": "von jemand anderem veröffentlicht"
+        "published": "von jemand anderem freigegeben"
       },
       "youMayLog": "Du darfst an diesem Ort eintragen, ihn aber nicht steuern. Plan, Zielwerte und Alarmregeln stehen hier so, wie sie eingestellt sind; ändern kann sie nur, wer den Ort steuern darf.",
       "told": {
@@ -1876,12 +1876,12 @@
       "startGrowHere": "Hier einen Grow starten"
     },
     "members": {
-      "demo": "Die Demo schaut auf einen fremden Ort und besitzt nichts – es gibt also niemanden hereinzulassen und niemanden hinauszuschicken.",
+      "demo": "Die Demo zeigt einen fremden Ort und besitzt nichts – hier kannst du also niemanden einladen oder entfernen.",
       "invite": "Einladen",
       "makeLink": "Link erzeugen",
       "copyLink": "Einladungslink kopieren",
       "revoke": "Zurückziehen",
-      "handleLabel": "Ein Name, mit dem du schon gemeinsam growst",
+      "handleLabel": "Jemand, mit dem du schon zusammen growst",
       "handlePlaceholder": "oder @Name, mit dem du schon growst",
       "handleUnknown": "Mit @{{handle}} growst du noch nicht – lade über einen Link ein.",
       "add": "Hinzufügen",
@@ -1900,18 +1900,18 @@
       },
       "remove": {
         "title": "{{place}}: @{{name}} entfernen?",
-        "body": "Dieser Ort ist damit für sie weg; was sie hier geschrieben haben, bleibt.",
+        "body": "Sie sehen diesen Ort dann nicht mehr; was sie hier eingetragen haben, bleibt.",
         "bodyKeepsRoom": "Über den Raum {{room}} sehen sie diesen Ort weiter; sie verlieren nur ihre Rolle hier.",
         "yes": "Entfernen",
-        "alsoTheLink": "Der Link {{code}}, über den sie kamen, hört damit auf.",
-        "bodyRoom": "Jeder Ort dieses Raums ist damit für sie weg; was sie dort geschrieben haben, bleibt."
+        "alsoTheLink": "Der Link {{code}}, über den sie dazugekommen sind, gilt dann nicht mehr.",
+        "bodyRoom": "Sie sehen dann keinen Ort dieses Raums mehr; was sie dort eingetragen haben, bleibt."
       },
       "leave": {
         "title": "{{place}} verlassen?",
-        "body": "{{place}} verschwindet von Start, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
-        "bodyKeepsRoom": "Dieser Ort bleibt dir über den Raum {{room}} erhalten; du gibst nur die Rolle auf, die du hier hattest. Was du hier geschrieben hast, bleibt hier und trägt weiter deinen Namen.",
+        "body": "{{place}} verschwindet von Start, und zurück kommst du nur mit einer neuen Einladung. Was du hier eingetragen hast, bleibt und trägt weiter deinen Namen.",
+        "bodyKeepsRoom": "Über den Raum {{room}} siehst du diesen Ort weiter; du gibst nur deine Rolle hier auf. Was du hier eingetragen hast, bleibt und trägt weiter deinen Namen.",
         "yes": "Verlassen",
-        "bodyRoom": "Jeder Ort dieses Raums verschwindet von Start, und zurück kommst du nur, wenn du wieder hereingelassen wirst. Was du dort geschrieben hast, bleibt und trägt weiter deinen Namen."
+        "bodyRoom": "Jeder Ort dieses Raums verschwindet von Start, und zurück kommst du nur mit einer neuen Einladung. Was du dort eingetragen hast, bleibt und trägt weiter deinen Namen."
       },
       "join": {
         "label": "Einladung",
@@ -1919,8 +1919,8 @@
         "by": "von @{{handle}}",
         "bySomebody": "von jemandem, der hier growt",
         "asRole": {
-          "can_log": "Du könntest hier Einträge, Fotos und Aufgaben eintragen.",
-          "can_manage": "Du könntest hier eintragen und außerdem Zielwerte, Plan, Alarme und Steckdosen ändern."
+          "can_log": "Du dürftest hier eintragen, Fotos hinzufügen und Aufgaben abhaken.",
+          "can_manage": "Du dürftest hier eintragen und außerdem Zielwerte, Plan, Alarme und Steckdosen ändern."
         },
         "sees": "Du siehst: {{name}}, jeden Grow, der je dort stand – auch private und beendete –, und die Kameras.",
         "seesNoCamera": "Du siehst: {{name}} und jeden Grow, der je dort stand – auch private und beendete.",
@@ -1932,10 +1932,10 @@
         "demo": "Die Demo hat kein eigenes Konto und kann eine Einladung deshalb nicht annehmen. Melde dich ab und mit deinem eigenen Konto wieder an.",
         "dead": {
           "title": "Diese Einladung führt nirgendwohin",
-          "body": "Ein Link kann jederzeit gestoppt werden, und manche laufen von selbst ab. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
+          "body": "Ein Link kann jederzeit zurückgezogen werden, und manche laufen von selbst ab. Wer ihn dir geschickt hat, kann dir einen neuen schicken."
         },
         "createAccount": "Konto anlegen und beitreten",
-        "takingUp": "Nimmt die Einladung an …",
+        "takingUp": "Einladung wird angenommen …",
         "code": {
           "title": "Hast du einen Einladungscode?",
           "body": "Acht Zeichen, vorgelesen oder aufgeschrieben. Tipp sie hier ein, um die Einladung zu sehen.",
@@ -1944,7 +1944,7 @@
         }
       },
       "links": {
-        "role": "kommt als „{{role}}“ herein",
+        "role": "Rolle: „{{role}}“",
         "until": "bis {{date}}",
         "never": "läuft nie ab",
         "used_one": "{{count}}× benutzt",
@@ -1975,7 +1975,7 @@
           "never": "bis zum Zurückziehen"
         },
         "make": "Link erzeugen",
-        "making": "Erzeugt den Link …",
+        "making": "Link wird erzeugt …",
         "waysLabel": "Wie du ihn weitergibst",
         "ways": {
           "link": "Link",
@@ -2013,7 +2013,7 @@
     "close": "Schließen",
     "targetLabel": "Worum es in dem Eintrag geht",
     "nowhere": "Noch nichts da, wofür sich ein Eintrag lohnt · zuerst einen Grow starten oder ein Gerät hinzufügen",
-    "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf Start · vielleicht ist er zu Ende, vielleicht darfst du dort nicht schreiben · wähle, wohin der Eintrag gehört",
+    "notHere": "Der Grow oder Ort aus diesem Link steht nicht auf Start · vielleicht ist er zu Ende, vielleicht darfst du dort nicht eintragen · wähle, wohin der Eintrag gehört",
     "growEnded": "{{grow}} ist beendet und nimmt keine neuen Einträge an: Dieser geht an {{target}}.",
     "litres": "{{litres}} L",
     "tile": {
@@ -2036,9 +2036,9 @@
     "phaseWholeGrow_one": "Die Phase gilt für den ganzen Grow.",
     "phaseWholeGrow_other": "Die Phase gilt für den ganzen Grow, alle {{count}} Pflanzen.",
     "phaseRejoins_one": "Die Phase gilt für den ganzen Grow.",
-    "phaseRejoins_other": "Die Phase gilt für den ganzen Grow: Alle {{count}} Pflanzen gehen in sie über, auch die aufgeteilten.",
+    "phaseRejoins_other": "Die Phase gilt für den ganzen Grow: Alle {{count}} Pflanzen kommen in diese Phase, auch die abgetrennten.",
     "phaseWholeGrowBoth": "Die Phase gilt für den ganzen Grow, beide Pflanzen.",
-    "phaseRejoinsBoth": "Die Phase gilt für den ganzen Grow: Beide Pflanzen gehen in sie über, auch die aufgeteilte.",
+    "phaseRejoinsBoth": "Die Phase gilt für den ganzen Grow: Beide Pflanzen kommen in diese Phase, auch die abgetrennte.",
     "startGrowHere": "{{name}}: Grow starten",
     "now": "jetzt",
     "save": "Speichern",
@@ -2098,9 +2098,9 @@
     "lastTime": "Zuletzt {{ago}} · {{litres}} L",
     "plantLabel": "Welche Pflanze",
     "plantGone": "gelöschte Pflanze",
-    "plantRefused": "Diese Pflanze gibt es nicht mehr. Der Eintrag ist nicht gespeichert und steht ohne sie wieder offen.",
-    "plantsGone_one": "Dazu eine gelöschte Pflanze: Die Zeile nennt sie weiter, wie geschrieben.",
-    "plantsGone_other": "Dazu {{count}} gelöschte Pflanzen: Die Zeile nennt sie weiter, wie geschrieben.",
+    "plantRefused": "Diese Pflanze gibt es nicht mehr. Der Eintrag wurde nicht gespeichert und ist jetzt ohne sie wieder offen.",
+    "plantsGone_one": "Dazu eine gelöschte Pflanze: Die Zeile nennt sie weiter so, wie sie eingetragen wurde.",
+    "plantsGone_other": "Dazu {{count}} gelöschte Pflanzen: Die Zeile nennt sie weiter so, wie sie eingetragen wurden.",
     "linePlants": "Welche Pflanzen",
     "alongGone_one": "der Eintrag davor nicht mehr im Tagebuch",
     "alongGone_other": "die {{count}} Einträge davor nicht mehr im Tagebuch",
@@ -2163,8 +2163,8 @@
     "quietClimateAt": "In diesem Zeitraum kamen keine Klimawerte · letzter Wert {{time}}",
     "quietWindowSpan": "In diesem Zeitraum wurde nichts gemessen · {{span}}",
     "quietClimateSpan": "In diesem Zeitraum kamen keine Klimawerte · {{span}}",
-    "noSpaces": "Noch nichts zu zeichnen. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
-    "demoNoSpaces": "Die Demo hat nichts zu zeichnen; in dieser wurde nichts zum Anschauen hinterlegt.",
+    "noSpaces": "Noch keine Kurven. Füge ein Gerät hinzu oder starte einen Grow – beides auf der Seite",
+    "demoNoSpaces": "Die Demo hat keine Kurven; in ihr wurde nichts zum Anschauen hinterlegt.",
     "visiting": "Support-Ansicht eines Kundenorts",
     "navLabel": "Zeitraum verschieben und zoomen",
     "earlier": "{{span}} früher",
@@ -2192,7 +2192,7 @@
     "comparedEnd": "Vergleich beenden",
     "plotAlt": "Kurven über den Zeitraum: {{names}}",
     "plotRange": "{{name}} zwischen {{low}} und {{high}} {{unit}}",
-    "stripUnheard": "in diesem Zeitraum nichts gehört",
+    "stripUnheard": "in diesem Zeitraum nichts gemeldet",
     "on": "an",
     "off": "aus",
     "lightAndOutputs": "Licht und Ausgänge",
@@ -2239,7 +2239,7 @@
         "night": "Nacht"
       },
       "share": "Teilen",
-      "csv": "Als CSV laden",
+      "csv": "Als CSV herunterladen",
       "viewDelete": "Löschen",
       "viewDeleteAsk": "Die Ansicht „{{name}}“ löschen? Messwerte gehen dabei nicht verloren.",
       "viewKeep": "Diese Ansicht speichern",
@@ -2260,15 +2260,15 @@
     "toNow": "Jetzt",
     "zoomLabel": "Zoomen",
     "windowFailed": "Dieser Zeitraum ließ sich nicht laden; zu sehen ist der davor.",
-    "retrying": "Versucht es …",
+    "retrying": "Neuer Versuch …",
     "missing": {
-      "device": "Das Gerät aus der Adresse steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
-      "grow": "Der Grow aus der Adresse stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
-      "growGone": "Den Grow aus der Adresse gibt es nicht mehr. Gezeigt wird der Ort ohne ihn.",
-      "growUnread": "Der Grow aus der Adresse ließ sich gerade nicht laden.",
+      "device": "Das Gerät aus dem Link steht nicht an diesem Ort. Gezeigt wird der Ort mit seinem eigenen Gerät.",
+      "grow": "Der Grow aus dem Link stand nie an diesem Ort. Gezeigt wird der Ort ohne ihn.",
+      "growGone": "Den Grow aus dem Link gibt es nicht mehr. Gezeigt wird der Ort ohne ihn.",
+      "growUnread": "Der Grow aus dem Link ließ sich gerade nicht laden.",
       "growNoPlace": "„{{name}}“ hat keinen Ort und damit keine Klimakurven. Was du von Hand gemessen hast, steht als Kurve unter",
       "toPlace": "Verlauf von {{place}}",
-      "compare": "Der Vergleich aus der Adresse ist nicht mehr da. Gezeigt wird der Ort allein."
+      "compare": "Den Vergleich aus dem Link gibt es nicht mehr. Gezeigt wird der Ort allein."
     },
     "meanOver": "Mittel {{from}}–{{to}}",
     "every": {
@@ -2320,11 +2320,11 @@
       "refusedLogin": "die Kamera hat die hinterlegte Anmeldung abgelehnt",
       "noAnswer": "die Kamera hat nicht geantwortet",
       "noAddress": "es gibt keine Adresse, unter der diese Kamera erreichbar wäre",
-      "noStream": "was geantwortet hat, war kein Videostream",
+      "noStream": "die Antwort war kein Videostream",
       "otherCamera": "es hat eine andere Kamera geantwortet als die am Gerät gekoppelte",
       "refusedRecently": "die Kamera hat diesen Server abgewiesen und wird bis zu einer halben Stunde nicht mehr gefragt",
       "relayNotOpened": "das Gerät hat den Weg zur Kamera nicht rechtzeitig geöffnet",
-      "unknown": "die Kamera konnte nicht gelesen werden",
+      "unknown": "von der Kamera kam nichts Lesbares",
       "noDevice": "das Gerät, über das diese Kamera antwortet, war nicht erreichbar"
     },
     "frameAlt": "{{name}} um {{time}}",
@@ -2342,11 +2342,11 @@
     "needsPremium": "HD und der Film eines ganzen Grows gehören zu Premium.",
     "seePremium": "Was Premium umfasst",
     "makeOne": "Eigenen Zeitraffer zusammenstellen",
-    "askFailed": "Dieser Film wurde nicht angefordert.",
+    "askFailed": "Der Film ließ sich nicht anfordern.",
     "testImage": "Jetzt ein Bild",
     "testing": "Bild wird aufgenommen …",
     "testNoPicture": "Kein Bild: {{reason}}",
-    "testFailed": "Das hat die Kamera nicht erreicht.",
+    "testFailed": "Das kam bei der Kamera nicht an.",
     "testNoAnswer": "Auch nach über {{minutes}} Minuten keine Antwort. Bitte erneut versuchen.",
     "carrierOffline": "Diese Kamera läuft über das Gerät ({{device}}). Bis es wieder online ist, kommen keine Bilder.",
     "connectedVia": "Verbunden über",
@@ -2364,11 +2364,11 @@
     "saysNothing": "nichts",
     "save": "Speichern",
     "saving": "Wird gespeichert …",
-    "saveFailed": "Das wurde nicht gespeichert.",
+    "saveFailed": "Speichern fehlgeschlagen.",
     "unpair": "Entkoppeln",
     "unpairSure": "Die Bilder dieser Kamera bleiben, wo sie sind.",
     "unpairYes": "Entkoppeln",
-    "unpairNote": "Nach dem Entkoppeln wird diese Kamera nicht mehr gelesen. Jedes Bild und jeder Film, den sie geliefert hat, behält seine Verbindung zu ihr.",
+    "unpairNote": "Nach dem Entkoppeln holt Terp Control keine Bilder mehr von dieser Kamera. Ihre bisherigen Bilder und Filme bleiben ihr zugeordnet.",
     "entitlement": {
       "none": "nicht freigeschaltet",
       "ungated": "alles enthalten",
@@ -2384,13 +2384,13 @@
       "ready": "fertig",
       "failed": "nicht erstellt",
       "failedPlain": "Der Film ließ sich nicht erstellen.",
-      "lost": "Dieser Film ließ sich nicht lesen.",
+      "lost": "Dieser Film ließ sich nicht laden.",
       "queuedNote": "Wartet, bis er an der Reihe ist. Du kannst die Seite verlassen – der Film erscheint dann hier.",
       "whatItSaid": "Technische Meldung",
       "failure": {
         "allDark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
         "tooFew": "Als er erstellt werden sollte, gab es in diesem Zeitraum noch nicht genug Bilder für einen Film.",
-        "cameraGone": "Die Kamera, von der dieser Film angefordert wurde, gibt es nicht mehr.",
+        "cameraGone": "Die Kamera dieses Films gibt es nicht mehr.",
         "encodeFailed": "Aus den Bildern dieses Zeitraums ließ sich kein Film erstellen.",
         "unknown": "Der Film ließ sich nicht erstellen."
       },
@@ -2457,7 +2457,7 @@
     "noPicture": "Diese Kamera hat noch kein Bild geliefert.",
     "days": {
       "at": "Tag {{day}} von {{days}}",
-      "note": "ein Bild je Tag, vom Mittag",
+      "note": "ein Bild pro Tag, jeweils mittags",
       "label": "Tag des Grows"
     },
     "span": {
@@ -2505,7 +2505,7 @@
         },
         "two": {
           "title": "{{at}}: Knopf drücken, dann Terp Cam › connect cam",
-          "text": "Keine App, kein WLAN-Passwort: das Gerät gibt der Kamera sein WLAN. Eine Kamera pro Gerät."
+          "text": "Keine App, kein WLAN-Passwort: Das Gerät gibt der Kamera sein WLAN. Eine Kamera pro Gerät."
         },
         "three": {
           "title": "Sie taucht hier auf",
@@ -2539,11 +2539,11 @@
         "label": "RTSP-Kamera",
         "premium": "Premium kaufst du für eine RTSP-Kamera dazu, sie läuft aber auch ohne.",
         "premiumPriced": "Premium für eine RTSP-Kamera kostet {{price}}, sie läuft aber auch ohne.",
-        "gatesNothing": "Auf dieser Installation kostet eine RTSP-Kamera nichts.",
+        "gatesNothing": "Auf diesem Server kostet eine RTSP-Kamera nichts.",
         "address": "Stream-Adresse",
         "placeholder": "rtsp://192.168.1.40:554/stream1",
         "where": "Wo schaut sie hin?",
-        "nowhere": "Es gibt noch keinen Ort, an den eine Kamera passt. Benenne den, auf den sie schaut, und er wird hier angelegt.",
+        "nowhere": "Es gibt noch keinen Ort für eine Kamera. Gib dem Ort, auf den sie schaut, einen Namen, dann wird er hier angelegt.",
         "name": "Name",
         "nameHint": "Zeltkamera, Seitenkamera …",
         "test": "Test",
@@ -2555,7 +2555,7 @@
         "shotAlt": "Das Bild aus dem Test",
         "carrier": {
           "stale": "{{device}} hat zuletzt vor {{age}} etwas gemeldet",
-          "offline": "{{device}} ist offline · zuletzt gemeldet vor {{age}}, der Stream antwortet also erst wieder, sobald das Gerät zurück ist"
+          "offline": "{{device}} ist offline · zuletzt gemeldet vor {{age}} · der Stream antwortet erst wieder, wenn das Gerät online ist"
         },
         "placeName": "Name des Orts",
         "placeKind": "Art des Orts",
@@ -2567,12 +2567,12 @@
         "username": "Benutzer",
         "password": "Passwort",
         "loginInAddress": "Die Anmeldung steht schon in der Adresse und wird so verwendet.",
-        "noCarrier": "{{place}}: Hier steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse aus dem Heimnetz antwortet der Cloud nicht",
+        "noCarrier": "{{place}}: Hier steht kein Gerät, das den Stream aus deinem Netz holt · eine Adresse im Heimnetz ist für die Cloud nicht erreichbar",
         "badAddress": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
         "testOnly": "Der Test holt ein Bild und fügt nichts hinzu.",
         "notYetAddress": "Das ist noch keine Stream-Adresse: Es fehlt die Kamera, etwa rtsp://192.168.1.40:554/stream1."
       },
-      "noOwnPlace": "Eine Kamera kommt an einen eigenen Ort, und du siehst bisher nur Orte anderer: Leg zuerst einen an."
+      "noOwnPlace": "Eine Kamera braucht einen eigenen Ort, und du siehst bisher nur die Orte anderer: Leg zuerst einen an."
     }
   },
   "composer": {
@@ -2584,7 +2584,7 @@
     "to": "Bis",
     "cam": "Kamera",
     "split": "Beide · {{name}}",
-    "overlays": "Overlays",
+    "overlays": "Einblendungen",
     "dayCounter": "Tageszähler",
     "climate": "Temperatur- und Feuchtekurve",
     "entries": "Einträge als Bildunterschriften",
@@ -2595,9 +2595,9 @@
       "9_16": "9 : 16 Reel",
       "1_1": "1 : 1"
     },
-    "renderHd": "Rendern · HD",
-    "renderSd": "Rendern · SD",
-    "backwards": "Ein Film endet nach seinem Anfang; das zweite Datum muss das spätere sein."
+    "renderHd": "Erstellen · HD",
+    "renderSd": "Erstellen · SD",
+    "backwards": "Das zweite Datum muss nach dem ersten liegen."
   },
   "publicPage": {
     "footer": "Terp Control: Ein Controller oder ein Kühlschrankmodul schreibt das Klima mit, eine Kamera macht die Bilder, den Rest schreibt der Grower.",
@@ -2612,7 +2612,7 @@
     "asOf": "Stand vor {{age}}",
     "type": {
       "photoperiod": "photoperiodisch",
-      "autoflower": "Automatik"
+      "autoflower": "Autoflower"
     },
     "ran": "{{from}} – {{to}}",
     "since": "seit {{from}}",
@@ -2627,9 +2627,9 @@
       "until": "Du liest bis {{to}}",
       "since": "Du liest ab {{from}}",
       "sinceToEnd": "Du liest ab {{from}} bis zu seinem Ende",
-      "between": "Du liest {{from}} bis {{to}}"
+      "between": "Du liest von {{from}} bis {{to}}"
     },
-    "expires": "Diese Adresse hört am {{date}} auf zu funktionieren",
+    "expires": "Diese Adresse läuft am {{date}} ab",
     "spaceKind": {
       "tent": "Zelt",
       "fridge": "Kühlschrank",
@@ -2641,7 +2641,7 @@
     },
     "noDiary": {
       "title": "Hier gibt es nichts zu lesen",
-      "body": "Unter dieser Adresse liegt kein öffentliches Tagebuch. Ob ein Tagebuch eine hat, entscheidet der Grower, und er kann sie jederzeit wieder zurücknehmen."
+      "body": "Unter dieser Adresse gibt es kein öffentliches Tagebuch. Ob ein Tagebuch öffentlich ist, entscheidet der Grower, und er kann es jederzeit wieder privat stellen."
     },
     "noProfile": {
       "title": "Hier ist niemand",
@@ -2649,7 +2649,7 @@
     },
     "deadLink": {
       "title": "Diese Adresse führt ins Leere",
-      "body": "Eine geteilte Adresse kann ein Ende bekommen, und eine abgelaufene sieht genauso aus wie eine, die es nie gegeben hat. Wenn dir jemand diese geschickt hat, bitte ihn um eine neue."
+      "body": "Geteilte Adressen können ablaufen, und eine abgelaufene sieht genauso aus wie eine, die es nie gab. Hat dir jemand diese geschickt, bitte ihn um eine neue."
     },
     "windowClimate": {
       "title": "Letzter Tag dieses Zeitraums · {{from}} – {{to}}",
@@ -2676,7 +2676,7 @@
     "copyAddress": "Öffentliche Adresse kopieren",
     "copyLink": "Link kopieren",
     "links": "Links",
-    "linksNote": "Ein Schlüssel für eine Person: ein Zeitraum, mit oder ohne die Bilder der Kamera.",
+    "linksNote": "Für eine Person: ein Zeitraum, mit oder ohne Kamerabilder.",
     "newLink": "Neuer Link",
     "createLink": "Link erstellen",
     "noLinks": "Keine Links vergeben",
@@ -2685,7 +2685,7 @@
     "revokeAsk": "Den Link jetzt zurückziehen? Wer ihn hat, sieht ab dann nichts mehr, und er lässt sich nicht wieder aktivieren.",
     "forget": "Löschen",
     "save": "Speichern",
-    "saving": "Speichert",
+    "saving": "Wird gespeichert …",
     "cancel": "Abbrechen",
     "from": "Ab",
     "to": "Bis",
@@ -2694,7 +2694,7 @@
     "toOpen": "offenes Ende",
     "never": "nie",
     "cameras": "Kamerabilder",
-    "camerasNote": "Ohne das trägt der Link das Tagebuch und seine Fotos, aber kein Bild vom Ort.",
+    "camerasNote": "Ohne Kamerabilder zeigt der Link das Tagebuch mit seinen Fotos, aber kein Bild vom Ort.",
     "withPictures": "mit Bildern",
     "withoutPictures": "ohne Bilder",
     "opened_one": "{{count}}× geöffnet",
@@ -2710,14 +2710,14 @@
       "between": "{{from}} – {{to}}"
     },
     "publicPageNoteCameras": "Das Tagebuch bekommt eine eigene Adresse, die jeder öffnen kann – mit den Fotos und den Bildern der Kamera. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen.",
-    "linksNoteNoCamera": "Ein Schlüssel für eine Person, für einen Zeitraum.",
+    "linksNoteNoCamera": "Für eine Person, für einen Zeitraum.",
     "publicCameras": "Kamerabilder auf der öffentlichen Seite",
-    "publicCamerasNote": "Die Bilder der Kamera im Tagebuch und im Bericht. Ausgeschaltet zeigt die Seite nur die Fotos aus dem Tagebuch.",
-    "camerasNotePlace": "Ohne das trägt der Link die Kurven des Orts, aber kein Bild von ihm."
+    "publicCamerasNote": "Die Kamerabilder im Tagebuch und im Bericht. Ist das aus, zeigt die Seite nur die Fotos aus dem Tagebuch.",
+    "camerasNotePlace": "Ohne Kamerabilder zeigt der Link die Kurven des Orts, aber kein Bild von ihm."
   },
   "maintenance": {
     "parked": "bis {{alarms}} kein Alarm auf diesem Gerät",
-    "settling": "bis {{alarms}} noch kein Alarm auf diesem Gerät, solange das Klima zurückkommt",
+    "settling": "bis {{alarms}} noch kein Alarm auf diesem Gerät, damit sich das Klima erholen kann",
     "ending": "Wird beendet …",
     "running": "Wartung bis {{until}}",
     "runningNote": "Regelung und Alarme pausiert",
@@ -2738,7 +2738,7 @@
     "settled": "Wartung seit {{until}} beendet"
   },
   "alarms": {
-    "noController": "Hier steht nichts, das Alarmregeln hat. Erst muss ein Gerät an diesen Ort geholt werden.",
+    "noController": "Hier steht kein Gerät, für das es Alarme gibt. Stell zuerst ein Gerät an diesen Ort.",
     "quietLine": "Stummschalten und Wartung",
     "add": "+ Eigener Alarm",
     "group": {
@@ -2822,7 +2822,7 @@
         "webhook": "Webhook"
       },
       "routingNote": "Geht raus per {{channels}}.",
-      "routingNone": "Nicht gemeldet: Für {{severity}} ist noch kein Weg zu dir eingerichtet.",
+      "routingNone": "Wird nicht gemeldet: Für {{severity}} hast du noch keinen Kanal eingerichtet.",
       "setUp": "Benachrichtigung einrichten",
       "infoNote": "Ein Info-Alarm wird ins Tagebuch geschrieben und nie gemeldet.",
       "address": "Adresse",
@@ -2832,7 +2832,7 @@
       "headersHint": "Name: Wert, einer pro Zeile",
       "triggeredPayload": "Body beim Auslösen",
       "resolvedPayload": "Body, wenn es vorbei ist",
-      "payloadHint": "leer schickt die Standardnachricht",
+      "payloadHint": "leer lassen für die Standardnachricht",
       "reportErrors": "Fehler ins Tagebuch schreiben",
       "tunnel": "Durch den Tunnel des Geräts",
       "tunnelNote": "Für ein Ziel im lokalen Netz, das das Gerät erreicht und die Cloud nicht.",
@@ -2840,9 +2840,9 @@
       "repeatEvery": "alle",
       "save": "Alarm speichern",
       "delete": "Alarm löschen",
-      "deleteAsk": "Der Alarm ist endgültig weg. Eine Meldung, die er schon ausgelöst hat, bleibt unter Meldungen.",
+      "deleteAsk": "Der Alarm wird endgültig gelöscht. Meldungen, die er schon ausgelöst hat, bleiben unter Meldungen.",
       "deleteYes": "Löschen",
-      "offlineWatch": "Diese Regel beobachtet, ob das Gerät überhaupt meldet; darauf lässt sich nichts anderes richten.",
+      "offlineWatch": "Diese Regel prüft nur, ob sich das Gerät meldet; etwas anderes lässt sich hier nicht einstellen.",
       "template": "Dienst für den Webhook",
       "templateFill": "Felder ausfüllen",
       "templateFilled": "URL, Methode und Nachrichten oben sind ausgefüllt. Prüf sie und speichere den Alarm.",
@@ -2964,13 +2964,13 @@
       "save": "Speichern",
       "saving": "Wird gespeichert …",
       "delete": "Diese Erinnerung löschen",
-      "deleteAsk": "Der Rhythmus endet, und seine offenen Aufgaben verschwinden mit ihm. Bereits geschriebene Tagebuchzeilen bleiben.",
+      "deleteAsk": "Der Rhythmus endet, und seine offenen Aufgaben verschwinden mit ihm. Was schon im Tagebuch steht, bleibt.",
       "deleteYes": "Ja, löschen",
       "grows": "Grows",
       "places": "Orte",
       "reaches": "Wenn sie fällig wird, meldet sie sich per {{channels}}.",
       "reachesNobody": "Fällige Aufgaben erreichen dich noch nicht",
-      "deleteAskOnce": "Die Erinnerung und ihre offene Aufgabe verschwinden. Bereits geschriebene Tagebuchzeilen bleiben."
+      "deleteAskOnce": "Die Erinnerung und ihre offene Aufgabe verschwinden. Was schon im Tagebuch steht, bleibt."
     },
     "confirm": {
       "ask": "Das bestätigt den Schritt und startet {{name}}; es lässt sich nicht zurücknehmen.",
@@ -2978,7 +2978,7 @@
       "askUnnamed": "Das bestätigt den Schritt und startet den nächsten; es lässt sich nicht zurücknehmen.",
       "yes": "Schritt bestätigen"
     },
-    "stepIsManaged": "Einen Schritt zu bestätigen, rückt den Plan weiter und schickt die Zielwerte des nächsten Schritts an das Gerät. Das kann nur, wer den Ort steuern darf.",
+    "stepIsManaged": "Wer einen Schritt bestätigt, schaltet den Plan weiter und schickt die Zielwerte des nächsten Schritts an das Gerät. Das darf nur, wer den Ort steuern darf.",
     "every_one": "jeden Tag",
     "every_other": "alle {{count}} Tage",
     "tickedOff": "Erledigt · {{label}}",
@@ -2990,7 +2990,7 @@
   },
   "targets": {
     "title": "Zielwerte",
-    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt; es gibt also nichts, worin ein Klima stehen könnte. Bis sie da sind, lässt sich hier nichts setzen.",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt. Bis sie da sind, lässt sich hier kein Klima setzen.",
     "unheard": "{{device}} hat sich noch nicht gemeldet. Sobald es online ist, schickt es seine Einstellungen, und hier lässt sich ein Klima setzen.",
     "waitingAwaited": "{{device}} hat seine Einstellungen noch nicht geschickt. {{climate}} wird gesetzt, sobald sie da sind.",
     "unheardAwaited": "{{device}} hat sich noch nicht gemeldet. {{climate}} wird gesetzt, sobald es seine Einstellungen schickt.",
@@ -3019,7 +3019,7 @@
     "save": "Speichern",
     "saving": "Wird gespeichert …",
     "discard": "Verwerfen",
-    "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
+    "readOnly": "Hier kannst du nur schauen, aber nichts einstellen.",
     "endsOn": "Danach gilt das Klima {{name}} mit seinen Zielwerten, und die Alarme richten sich nach ihm.",
     "endsOnNothing": "Danach gelten wieder die Zielwerte von vorher. Die Alarme des Klimas fallen weg, bis wieder ein Klima eingestellt ist.",
     "growsStay": "Das ändert nur die Zielwerte: {{grows}} bleiben in ihren Phasen. Phase und Klima zusammen stellst du im Grow unter Phase um.",
@@ -3030,7 +3030,7 @@
       "ends": "Übernehmen beendet die Trocknung: Das Gerät hält wieder Tag und Nacht, Licht und CO₂."
     },
     "germination": {
-      "starts": "Übernehmen schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine Temperatur und {{humidity}} % Luftfeuchte für einen Befeuchter. Die übrigen Zielwerte bleiben für danach.",
+      "starts": "Übernehmen schaltet auf Keimung · dunkel: Licht aus, kein CO₂, rund um die Uhr eine feste Temperatur und {{humidity}} % Luftfeuchte, falls ein Befeuchter da ist. Die übrigen Zielwerte bleiben für die Zeit danach gespeichert.",
       "ends": "Übernehmen beendet die Keimung: Das Gerät hält wieder Tag und Nacht, mit Licht und CO₂."
     },
     "table": {
@@ -3060,7 +3060,7 @@
     "stepMore": "{{name}}: mehr",
     "planTable": {
       "legend": "setzt der laufende Plan „{{name}}“ – jede Stunde neu.",
-      "pauses": "Das pausiert den Plan „{{name}}“ – er setzt einen der geänderten Werte."
+      "pauses": "Das pausiert den Plan „{{name}}“, weil er einen der geänderten Werte setzt."
     },
     "plan": {
       "label": "Lichtplan",
@@ -3081,8 +3081,8 @@
         "always": "Jetzt ist Tag · das Licht bleibt an",
         "never": "Jetzt ist Nacht · das Licht bleibt aus",
         "glide": {
-          "day": "Sonnenaufgang · die Zielwerte gleiten bis {{time}} zum Tag",
-          "night": "Sonnenuntergang · Licht aus um {{time}}, bis dahin gleiten die Zielwerte zur Nacht"
+          "day": "Sonnenaufgang · bis {{time}} wechseln die Zielwerte langsam auf Tag",
+          "night": "Sonnenuntergang · Licht aus um {{time}}, bis dahin wechseln die Zielwerte langsam auf Nacht"
         },
         "offline": "{{offline}} · laut Zeitplan wäre jetzt {{half}}",
         "dayDark": "Jetzt ist Tag · Nacht ab {{time}}",
@@ -3146,7 +3146,7 @@
       "notSubscribed": "dieser Browser ist nicht angemeldet",
       "noKey": "auf diesem Server nicht verfügbar",
       "unsupported": "dieser Browser kann keine Push-Nachrichten empfangen",
-      "denied": "Die Erlaubnis wurde nicht erteilt, also bekommt dieser Browser keine Push-Nachrichten.",
+      "denied": "Du hast es im Browser nicht erlaubt, darum bekommt er keine Push-Nachrichten.",
       "asking": "Der Browser wird gefragt …",
       "otherDevice": "auf einem anderen Gerät angemeldet",
       "iosInstall": "auf dem iPhone nur in der App vom Home-Bildschirm.",
@@ -3160,7 +3160,7 @@
       "waiting": "den Link in Telegram öffnen, um die Verknüpfung abzuschließen",
       "open": "Telegram öffnen",
       "validUntil": "gültig bis {{time}}",
-      "expired": "Der Link ist abgelaufen. Noch einmal einschalten für einen neuen.",
+      "expired": "Der Link ist abgelaufen. Schalte Telegram noch einmal ein, um einen neuen zu bekommen.",
       "ask": "Diesen Chat trennen? Bis wieder einer verknüpft ist, geht nichts an Telegram.",
       "unlink": "Trennen"
     },
@@ -3181,7 +3181,7 @@
     "quiet": {
       "window": "{{from}} – {{to}}",
       "critical": "Kritisches kommt trotzdem durch",
-      "offLine": "alles kommt, sobald es passiert",
+      "offLine": "alles kommt sofort",
       "from": "Von",
       "to": "Bis",
       "zone": "in deiner Zeitzone ({{zone}})",
@@ -3206,7 +3206,7 @@
     "emailShort": "Per E-Mail",
     "sending": "Wird eingeschaltet …",
     "to": "an {{email}}",
-    "other": "Andere Wege",
+    "other": "Andere Kanäle",
     "later": "Später",
     "reaches": "Kritische Alarme erreichen dich per {{channels}}.",
     "change": "Ändern",
@@ -3222,8 +3222,8 @@
     },
     "meta": {
       "inMaintenance": "Gerät in Wartung, bis {{time}} wird nichts ausgelöst",
-      "settling": "Wartung beendet, bis {{time}} wird nichts ausgelöst, solange das Klima zurückkommt",
-      "ruleNow": "die Regel sagt inzwischen {{severity}}",
+      "settling": "Wartung beendet · bis {{time}} wird nichts ausgelöst, damit sich das Klima erholen kann",
+      "ruleNow": "die Regel steht inzwischen auf {{severity}}",
       "until": "bis {{time}}"
     },
     "action": {
@@ -3268,7 +3268,7 @@
       "warning": "Warnung",
       "info": "Info"
     },
-    "namesFailed": "Namen nicht lesbar · Geräte und Kameras stehen ohne Namen",
+    "namesFailed": "Namen ließen sich nicht laden · Geräte und Kameras erscheinen ohne Namen",
     "bellTasks_one": "Meldungen · {{count}} Aufgabe fällig",
     "bellTasks_other": "Meldungen · {{count}} Aufgaben fällig",
     "back": "Zurück zu Meldungen",
@@ -3345,14 +3345,14 @@
       "title": "Was macht es gerade?",
       "pick": "Was dort gerade läuft",
       "measure": "nur messen",
-      "measureNote": "Es wird nichts an das Gerät geschrieben. Es meldet weiter, der Verlauf füllt sich. Es sind keine Grenzwerte gesetzt – eine Phase hätte welche geschrieben; eigene legst du unter Steuerung › Alarme an.",
+      "measureNote": "Am Gerät wird nichts eingestellt. Es meldet weiter, und der Verlauf füllt sich. Alarmgrenzen gibt es so keine – eine Phase hätte welche gesetzt; eigene legst du unter Steuerung › Alarme an.",
       "apply": "Auf {{stage}} stellen",
-      "applying": "Zielwerte werden geschrieben …",
+      "applying": "Zielwerte werden gesetzt …",
       "wroteNothing": "Kein Gerät hier hat die Zielwerte übernommen.",
       "waits": "Das Klima wartet auf die ersten Einstellungen von {{device}}: Sobald sie da sind, wird das Gerät darauf gestellt.",
       "wroteTo_one": "Die Zielwerte gingen an {{count}} Gerät.",
       "wroteTo_other": "Die Zielwerte gingen an {{count}} Geräte.",
-      "phaseWritten": "Ein Grow hier ist in {{stage}} übergegangen.",
+      "phaseWritten": "Ein Grow hier ist jetzt in der Phase {{stage}}.",
       "onStage": "auf {{stage}}",
       "measuring": "nur messen",
       "nothingYet": "noch nichts gesetzt",
@@ -3427,8 +3427,8 @@
         "germination": "Dort läuft die Keimung: Das Lampenmodul bleibt aus, bis sie endet.",
         "drying": "Dort läuft die Trocknung: Das Lampenmodul bleibt währenddessen aus."
       },
-      "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen.",
-      "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat ein Klima, darum kommt dieses Gerät an einen eigenen."
+      "oneClimate_one": "{{places}} hat schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat nur ein Klima, darum kommt dieses Gerät an einen eigenen Ort.",
+      "oneClimate_other": "{{places}} haben schon einen Controller oder ein Kühlschrankmodul. Ein Ort hat nur ein Klima, darum kommt dieses Gerät an einen eigenen Ort."
     },
     "adding": {
       "fan": "Lüfter hinzufügen",
@@ -3484,7 +3484,7 @@
     },
     "refused": {
       "title": "Nicht für dieses Konto",
-      "line": "Die Flottenseiten gehören dem, der diese Installation betreibt. Dahinter würde diesem Konto nichts geantwortet, hier ist also nichts zu zeigen.",
+      "line": "Die Flottenseiten sind nur für den Betreiber dieses Servers. Dieses Konto bekäme dort keine Daten, darum gibt es hier nichts zu sehen.",
       "home": "Zurück zu Start"
     },
     "narrow": {
@@ -3496,13 +3496,13 @@
       "neverSeen": "nie",
       "open": "{{id}} öffnen",
       "noPlace": "Dieses Gerät steht an keinem Ort, es gibt also nichts zu öffnen.",
-      "showing": "{{shown}} von {{loaded}} geladenen gezeigt · {{devices}} auf dieser Installation",
-      "camerasOwn": "Kameras und Kamerazeilen sind die, die dieses Konto sehen kann – die Kameraliste antwortet einem Konto, nicht der Installation, deren Zahl auf der Zustandskarte steht",
+      "showing": "{{shown}} von {{loaded}} geladenen gezeigt · {{devices}} auf diesem Server",
+      "camerasOwn": "Kameras zeigt die Liste nur, soweit dieses Konto sie sehen kann – anders als die Zahl auf der Zustandskarte, die für den ganzen Server gilt",
       "loadMore": "Rest laden",
       "noMatch": "Kein Gerät passt zu diesen Filtern.",
-      "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Die Suche liest die ID eines Geräts, seine Seriennummer, seinen Namen und das Handle des Besitzers, nicht den Ort, an dem es steht.",
+      "noMatchSearch": "Kein Gerät passt zu „{{search}}“. Gesucht wird in ID, Seriennummer, Name und Handle des Besitzers, nicht im Ort.",
       "clearFilters": "Alles zeigen",
-      "empty": "Auf dieser Installation hat sich noch kein Gerät registriert.",
+      "empty": "Auf diesem Server hat sich noch kein Gerät registriert.",
       "column": {
         "device": "Gerät",
         "type": "Typ",
@@ -3520,7 +3520,7 @@
         "search": "Suchen",
         "searchReads": "ID, Seriennummer, Name, Besitzer"
       },
-      "camerasPartial": "Kameras jenseits der geladenen Seiten stehen in keiner Zeile und zählen in keiner Kameraspalte",
+      "camerasPartial": "Kameras außerhalb der geladenen Seiten fehlen in den Zeilen und in der Kameraspalte",
       "serial": "SN {{serial}}"
     },
     "rollout": {
@@ -3549,14 +3549,14 @@
       "alarmWatch": "Offline-Wache um {{time}} · vor {{age}} · {{watched}}",
       "noAlarmWatch": "Kein Offline-Alarmlauf abgeschlossen, seit dieser Server gestartet ist",
       "updates": "{{installing}} · {{gaveUp}}",
-      "statsFailed": "Die Zahlen der Installation ließen sich nicht lesen.",
+      "statsFailed": "Die Zahlen des Servers ließen sich nicht laden.",
       "statsMissing": "Dieser Server liefert seine eigenen Zahlen noch nicht: Er hat keine Route /admin/stats.",
-      "statsGap": "Solange sie nicht gelesen sind, fehlen auch: Geräte online, das Gewicht der Bilder, die Zeitraffer-Warteschlange, die Kamerazahl und der Aufräumlauf.",
-      "notAnswered": "Nicht hier, weil diese Installation dafür noch keine Zahl liefert: MQTT-Verbindungen, wie der Broker sie zählt – „online“ oben ist, was gehört wurde, nicht, was verbunden ist –, die Größe der Zeitreihen-Datenbank, das Server-Log und die Alarme der letzten sieben Tage je Gerät.",
+      "statsGap": "Solange sie fehlen, fehlen auch: Geräte online, das Gewicht der Bilder, die Zeitraffer-Warteschlange, die Kamerazahl und der Aufräumlauf.",
+      "notAnswered": "Fehlt hier, weil der Server dafür noch keine Zahl liefert: MQTT-Verbindungen, wie der Broker sie zählt („online“ oben heißt: hat sich gemeldet, nicht: ist verbunden), die Größe der Zeitreihen-Datenbank, das Server-Log und die Alarme der letzten sieben Tage je Gerät.",
       "cameras": "{{cameras}} · {{quiet}}",
-      "unclassified": "{{devices}} in keiner Klasse, die keine Ausrollung erreicht",
+      "unclassified": "{{devices}} ohne Klasse, also für keine Ausrollung erreichbar",
       "paused": "{{paused}} {{ofClasses}} pausiert",
-      "demo": "Demo · {{online}} {{ofDevices}} am Leben · letztes Wort vor {{age}}",
+      "demo": "Demo · {{online}} {{ofDevices}} online · zuletzt gemeldet vor {{age}}",
       "noDemo": "Kein Gerät ist als Demo-Gerät markiert",
       "asOfNow": "Zahlen von gerade eben"
     },
@@ -3567,15 +3567,15 @@
       "stage": "Gestufte Ausrollung",
       "stageReach": "{{percent}} % · etwa {{reach}} {{ofDevices}}",
       "concurrent": "Gleichzeitig installieren",
-      "maxFailures": "Fehlschläge, die sie stoppen",
+      "maxFailures": "Fehlschläge bis zum Stopp",
       "apply": "Übernehmen",
       "discard": "Verwerfen",
       "willPoint": "{{channel}} zeigt dann auf {{build}}. Das erreicht {{devices}} auf dem Kanal, in dieser Stufe etwa {{reach}}, höchstens {{concurrent}} installieren gleichzeitig.",
-      "willUnpoint": "{{channel}} zeigt dann auf keinen Build. Was darauf steht – {{devices}} – bekommt nichts weiter gesagt.",
+      "willUnpoint": "{{channel}} zeigt dann auf keinen Build. Die Geräte darauf – {{devices}} – bekommen keine Updates mehr.",
       "willStage": "Die Stufe geht von {{from}} % auf {{to}} %, also etwa {{after}} statt {{before}} {{ofDevices}}.",
-      "willPace": "Höchstens {{devices}} gleichzeitig in der Installation, und nach {{failures}} stoppt die Ausrollung von selbst.",
+      "willPace": "Höchstens {{devices}} installieren gleichzeitig, und nach {{failures}} stoppt die Ausrollung von selbst.",
       "confirmTitle": "Ausrollung für {{name}} ändern?",
-      "confirmBody": "Das erreicht innerhalb von Minuten Hardware, die bei jemandem an einem Ort steht:",
+      "confirmBody": "Das erreicht binnen Minuten echte Geräte bei echten Leuten:",
       "confirmYes": "Änderung übernehmen",
       "register": "Build anlegen",
       "buildName": "Name",
@@ -3586,23 +3586,23 @@
       "upload": "Datei hochladen",
       "rename": "Umbenennen",
       "delete": "Löschen",
-      "inUse": "Ein Kanal zeigt noch auf diesen Build. Lenke ihn zuerst woandershin.",
+      "inUse": "Ein Kanal zeigt noch auf diesen Build. Stell ihn zuerst auf einen anderen um.",
       "uploadTitle": "Datei hochladen",
-      "uploadBody": "Ein Gerät fragt eine Datei unter dem Namen an, für den es gebaut wurde – der Name gehört also zur Adresse. Derselbe Name noch einmal hochgeladen ersetzt, was da ist.",
+      "uploadBody": "Ein Gerät holt die Datei unter dem Namen, für den es gebaut wurde – der Name ist also Teil der Adresse. Lädst du denselben Namen noch einmal hoch, ersetzt er die alte Datei.",
       "file": "Datei",
-      "fileName": "Name, unter dem das Gerät fragt",
+      "fileName": "Name, unter dem das Gerät sie holt",
       "uploadIt": "Hochladen",
       "renameTitle": "Build umbenennen",
       "renameIt": "Speichern",
       "deleteTitle": "Build löschen",
-      "deleteBody": "{{build}} und jede Datei davon verschwinden. Ein Gerät mitten in der Installation findet nichts mehr zum Abholen.",
+      "deleteBody": "{{build}} wird mit allen Dateien gelöscht. Ein Gerät, das gerade installiert, findet dann nichts mehr.",
       "deleteIt": "Build löschen",
-      "noBuilds": "Auf dieser Installation ist noch kein Build angelegt.",
+      "noBuilds": "Auf diesem Server ist noch kein Build angelegt.",
       "column": {
         "build": "Build",
         "class": "Klasse",
         "registered": "Angelegt",
-        "channels": "Angezielt von",
+        "channels": "Kanäle",
         "running": "Geräte",
         "actions": "Aktionen"
       },
@@ -3618,7 +3618,7 @@
       "title": "Benutzer",
       "search": "Suchen",
       "create": "+ Konto",
-      "noMatch": "Kein Konto passt zu „{{search}}“. Die Suche liest Handles und Adressen.",
+      "noMatch": "Kein Konto passt zu „{{search}}“. Gesucht wird in Handles und E-Mail-Adressen.",
       "showing": "{{shown}} von {{loaded}} geladenen gezeigt",
       "active": "aktiv",
       "notActivated": "nicht aktiviert",
@@ -3630,14 +3630,14 @@
       "createTitle": "Neues Konto",
       "createBody": "Es ist sofort aktiv und bekommt keinen Aktivierungscode – wer es anlegt, gibt das Passwort weiter.",
       "password": "Passwort",
-      "makeAdmin": "Darf diese Installation betreiben",
+      "makeAdmin": "Darf diesen Server verwalten",
       "createIt": "Konto anlegen",
       "changeTitle": "@{{handle}} ändern",
-      "changeSomebody": "Das ist das Konto einer anderen Person: @{{handle}}. Was hier geändert wird, ist für sie geändert, und niemand sagt es ihr.",
+      "changeSomebody": "Das ist das Konto einer anderen Person: @{{handle}}. Was du hier änderst, gilt sofort für sie, und sie erfährt es nicht.",
       "changeMine": "Das ist dein eigenes Konto.",
-      "demoteMine": "Ohne „Darf diese Installation betreiben“ ist der Admin-Bereich für dich weg, sobald das gespeichert ist, und du kannst ihn dir nicht selbst zurückgeben.",
+      "demoteMine": "Ohne „Darf diesen Server verwalten“ ist der Admin-Bereich für dich weg, sobald du speicherst, und du kannst ihn dir nicht selbst zurückgeben.",
       "deactivateMine": "Ohne „Aktiv“ kann sich dieses Konto gar nicht mehr anmelden, und es ist das Konto, mit dem du angemeldet bist.",
-      "lastAdmin": "Das ist der einzige Administrator dieser Installation. Mach zuerst jemand anderen dazu, bevor du es hier wegnimmst.",
+      "lastAdmin": "Das ist der einzige Admin dieses Servers. Mach zuerst jemand anderen zum Admin, bevor du es hier wegnimmst.",
       "confirmMineTitle": "Eigenes Konto ändern?",
       "confirmMine": "Trotzdem speichern",
       "newPassword": "Neues Passwort",
@@ -3646,11 +3646,11 @@
       "save": "Speichern",
       "activationCode": "Aktivierungscode · {{code}}",
       "deleteTitle": "@{{handle}} löschen",
-      "deleteBody": "Alles, was @{{handle}} gehört, geht mit dem Konto: die eigenen Orte, Grows, Einträge, Bilder und Filme. Was die Person an fremden Orten geschrieben hat, bleibt dort und verliert ihren Namen. Das lässt sich nicht zurückholen.",
-      "deleteAdmin": "Ist das das Konto, mit dem die Installation konfiguriert ist, behält der Server es: Dieses Konto wird bei jedem Start über seine Adresse gesucht und hier nicht gelöscht.",
-      "deleteDevices": "Die Geräte, die dieses Konto hinzugefügt hat, kann danach wieder hinzufügen, wer sie in Händen hält.",
-      "deleteMine": "Das ist dein eigenes Konto. Löschen meldet dich ab und lässt diese Installation ohne dich zurück.",
-      "typeHandle": "Tippe {{handle}} zur Bestätigung",
+      "deleteBody": "Mit dem Konto wird alles gelöscht, was @{{handle}} gehört: die eigenen Orte, Grows, Einträge, Bilder und Filme. Was die Person an fremden Orten eingetragen hat, bleibt dort und verliert ihren Namen. Das lässt sich nicht zurückholen.",
+      "deleteAdmin": "Ist das das Admin-Konto aus der Konfiguration des Servers, behält der Server es: Er sucht dieses Konto bei jedem Start über seine Adresse, darum wird es hier nicht gelöscht.",
+      "deleteDevices": "Die Geräte dieses Kontos kann danach jeder wieder hinzufügen, der sie in der Hand hat.",
+      "deleteMine": "Das ist dein eigenes Konto. Löschen meldet dich ab, und auf diesem Server gibt es dich dann nicht mehr.",
+      "typeHandle": "Tippe zur Bestätigung {{handle}} ein",
       "deleteIt": "Konto löschen",
       "column": {
         "handle": "Handle",
@@ -3662,7 +3662,7 @@
     },
     "demo": {
       "title": "Demo-Gerät",
-      "empty": "Auf dieser Installation ist nichts als Demo-Objekt markiert, die Demo-Tour hat also nichts zu zeigen.",
+      "empty": "Auf diesem Server ist nichts für die Demo markiert, die Demo hat also nichts zu zeigen.",
       "devices": "Geräte",
       "deviceCount": "{{devices}} in der Demo",
       "noDevice": "Kein Gerät ist in der Demo.",
@@ -3692,7 +3692,7 @@
       "firmware": "Firmware · Kanal",
       "place": "Ort",
       "timeline": "Verlauf",
-      "settings": "Einstellungen, wie an das Gerät geschickt",
+      "settings": "Einstellungen, wie sie ans Gerät gingen",
       "noSettings": "Das Gerät hat noch kein Einstellungsdokument.",
       "factors": "Faktoren und Regelung",
       "hardware": "Hardware-Bericht des Geräts",
@@ -3727,18 +3727,18 @@
       "device_not_found": "Dieses Gerät gibt es nicht mehr, oder du darfst es nicht sehen.",
       "grow_not_found": "Diesen Grow gibt es nicht mehr, oder du darfst ihn nicht sehen.",
       "camera_not_found": "Diese Kamera gibt es nicht mehr, oder du darfst sie nicht sehen.",
-      "test_capture_not_found": "Dieser Test ist dem Server nicht mehr bekannt, etwa nach einem Neustart. Bitte erneut versuchen.",
+      "test_capture_not_found": "Der Server kennt diesen Test nicht mehr, etwa nach einem Neustart. Bitte erneut versuchen.",
       "plant_not_found": "Diese Pflanze gibt es nicht mehr.",
       "entry_not_found": "Diesen Eintrag gibt es nicht mehr.",
       "task_not_found": "Diese Aufgabe gibt es nicht mehr.",
       "insufficient_access": "Du darfst das lesen, aber nicht ändern.",
       "claim_code_unknown": "Kein Gerät zeigt gerade diesen Code. Lies ihn noch einmal vom Display ab.",
       "device_already_yours": "Dieses Gerät hast du schon hinzugefügt. Du findest es unter Steuerung.",
-      "device_claimed": "Dieses Gerät gehört schon jemand anderem. Es muss dort erst entfernt werden.",
+      "device_claimed": "Dieses Gerät gehört schon jemand anderem. Wer es hat, muss es erst abgeben.",
       "space_archived": "Diesen Ort gibt es nicht mehr.",
       "capability_not_announced": "Dieses Gerät hat nicht gemeldet, dass es das versteht. Es braucht eine neuere Firmware.",
-      "device_sent_no_settings": "Dieses Gerät hat seine Einstellungen noch nicht gesendet, es gibt also nichts, wohinein geschrieben werden kann.",
-      "device_states_no_climate": "Dieses Gerät nennt kein Klima, es gibt also nichts, wohin eines geschrieben werden kann.",
+      "device_sent_no_settings": "Dieses Gerät hat seine Einstellungen noch nicht geschickt, darum lässt sich noch nichts einstellen.",
+      "device_states_no_climate": "Dieses Gerät regelt kein Klima, darum lässt sich hier keines setzen.",
       "task_done_already": "Diese Aufgabe wurde schon abgehakt.",
       "occurred_in_the_future": "Ein Eintrag hält fest, was passiert ist. Er kann zurück-, aber nicht vorausdatiert werden.",
       "too_many_requests": "Zu viele Versuche in kurzer Zeit. Warte eine Minute und versuche es erneut.",
@@ -3749,12 +3749,12 @@
       "room_ended": "Diesen Raum gibt es nicht mehr: Er endete mit seinem letzten Ort.",
       "current_password_wrong": "Das aktuelle Passwort stimmt nicht.",
       "email_taken": "Für diese Adresse gibt es schon ein Konto.",
-      "handle_taken": "Diesen Benutzernamen trägt schon ein anderes Konto. Wähle einen anderen.",
-      "name_taken": "Diesen Namen trägt schon ein anderer Ort oder Raum. Wähle einen anderen.",
+      "handle_taken": "Diesen Benutzernamen hat schon ein anderes Konto. Wähle einen anderen.",
+      "name_taken": "Diesen Namen hat schon ein anderer Ort oder Raum. Wähle einen anderen.",
       "not_a_stream_address": "Eine Stream-Adresse beginnt mit rtsp:// oder rtsps:// und nennt die Kamera, etwa rtsp://192.168.1.40:554/stream1.",
       "all_dark": "Jedes Bild in diesem Zeitraum wurde bei ausgeschaltetem Licht aufgenommen. Einen Film daraus stellst du unter „Eigenen Zeitraffer zusammenstellen“ mit „Bilder aus der Dunkelphase“ zusammen.",
       "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film.",
-      "place_holds_a_climate": "Ein Ort hat ein Klima, und dort hält es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort.",
+      "place_holds_a_climate": "Ein Ort hat nur ein Klima, und dort regelt es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort.",
       "grow_stands_nowhere": "Hier stand der Grow zuerst – davor gibt es keinen Ort, an dem er wieder stehen könnte.",
       "grow_already_there": "Dort steht der Grow schon. Wähle einen anderen Ort."
     }
@@ -3789,7 +3789,7 @@
     "about": "Hilfe zu {{title}}",
     "vpd": {
       "title": "VPD – Dampfdruckdefizit",
-      "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte. Tief und Hoch sind bis zu drei Tagen die einzelner Messungen, darüber die von Mitteln über fünf Minuten."
+      "text": "Wie stark die Luft den Blättern Wasser entzieht, in kPa – berechnet aus Luftfeuchte und Blatttemperatur (standardmäßig tagsüber 2 °C unter der Luft). Einen eigenen Zielwert hat es nicht: Es ergibt sich aus den Zielwerten für Temperatur und Feuchte. Tief und Hoch stammen bei bis zu drei Tagen aus einzelnen Messungen, bei längeren Zeiträumen aus Fünf-Minuten-Mitteln."
     },
     "liveness": {
       "title": "Online und veraltet",
@@ -3797,7 +3797,7 @@
     },
     "band": {
       "title": "Im Ziel",
-      "text": "Nah genug am Zielwert, um als getroffen zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt. Nach jedem Wechsel zwischen Tag und Nacht hat das Klima eine Stunde Zeit, den neuen Werten zu folgen – beim Kühlschrank dazu die Minuten, in denen Lampe und Zielwerte gleiten. Ebenso eine Stunde nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart. Solange zählt alles zwischen dem Band davor und dem danach als im Ziel, und die Kachel sagt „im Übergang“."
+      "text": "Nah genug am Zielwert, um als erreicht zu gelten: bis ±1 °C, ±5 % Feuchte oder ±200 ppm CO₂. Nachts hat CO₂ kein Band, weil das Gerät CO₂ nur am Tag zugibt. Nach jedem Wechsel zwischen Tag und Nacht hat das Klima eine Stunde Zeit, den neuen Werten zu folgen – beim Kühlschrank dazu die Minuten, in denen Lampe und Zielwerte gleiten. Ebenso eine Stunde nach jeder Änderung der Zielwerte, des Lichtplans oder der Betriebsart. Solange zählt alles zwischen dem Band davor und dem danach als im Ziel, und die Kachel sagt „im Übergang“."
     },
     "verdict": {
       "title": "Im Zielband über 24 Stunden",
@@ -3809,15 +3809,15 @@
     },
     "stage": {
       "title": "Phase",
-      "text": "Die Phase sagt, wo die Pflanzen stehen, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima geht das Gerät dunkel; der Sämling ist die erste Phase mit Licht. Wer eine beginnt, schreibt sie in den Grow: ihr Startdatum und eine Tagebuchzeile – und mit ihrem Klima auch ihre Alarmregeln für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Nur eingetragen, lässt sie Klima und Alarme, wie sie sind: Die Alarme eines Orts richten sich nach dem Klima, das dort eingestellt ist – auch wenn dort ein zweiter Grow steht. Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Kurven. An einem beendeten Grow repariert eine nachgetragene Phase, was er durchlaufen hat, und bewegt nichts weiter."
+      "text": "Die Phase sagt, wie weit die Pflanzen sind, von der Keimung bis zur Reifung. Keimung heißt überall dasselbe: Samen keimen im Dunkeln, und mit ihrem Klima schaltet das Gerät das Licht aus; der Sämling ist die erste Phase mit Licht. Beginnst du eine Phase, kommt sie mit Startdatum und einer Tagebuchzeile in den Grow – und mit ihrem Klima auch ihre Alarmregeln für die Geräte, bei denen die Pflanzen stehen (die Reifung hat keine). Trägst du sie nur ein, bleiben Klima und Alarme, wie sie sind: Die Alarme eines Orts richten sich nach dem Klima, das dort eingestellt ist – auch wenn dort ein zweiter Grow steht. Die Phase zählt die Tage und Wochen des Grows – danach richten sich Düngeplan und Kurven. Bei einem beendeten Grow berichtigt eine nachgetragene Phase nur, was er durchlaufen hat, und ändert sonst nichts."
     },
     "stepPreset": {
       "title": "Ein Preset im Schritt",
-      "text": "Hier benennt ein Preset nur die Phase genauer – „Auto“ für einen Autoflower, „Späte Blüte“ für die letzten Wochen. Zielwerte schickt es keine: Der Schritt schreibt die Werte unten und sonst nichts."
+      "text": "Hier benennt ein Preset nur die Phase genauer – „Auto“ für einen Autoflower, „Späte Blüte“ für die letzten Wochen. Zielwerte schickt es keine: Der Schritt setzt nur die Werte unten."
     },
     "plan": {
       "title": "Grow-Plan",
-      "text": "Eine Liste von Schritten, jeder mit Phase, Dauer und den Zielwerten, die das Gerät halten soll. Solange er läuft, schaltet die Cloud nach Ablauf eines Schritts weiter und schickt die Zielwerte des aktuellen Schritts jede Stunde erneut, in der das Gerät online ist. Einen Plan zu speichern startet ihn nicht, und in Ruhe schreibt er nichts: Das Gerät behält, worauf es zuletzt gestellt wurde. Ein Gerät, das seine Einstellungen noch nicht geschickt hat, bekommt keinen Schritt – was ein Schritt trägt, träte an die Stelle seiner Abstimmung –, und eines, das kein Klima nennt, hat für die Werte keinen Platz."
+      "text": "Eine Liste von Schritten, jeder mit Phase, Dauer und den Zielwerten, die das Gerät halten soll. Solange er läuft, schaltet die Cloud nach Ablauf eines Schritts weiter und schickt die Zielwerte des aktuellen Schritts jede Stunde erneut, in der das Gerät online ist. Speichern startet einen Plan nicht, und solange er gestoppt ist, ändert er nichts: Das Gerät behält, worauf es zuletzt eingestellt wurde. Ein Gerät, das seine Einstellungen noch nicht geschickt hat, bekommt keinen Schritt – der Schritt würde sonst seine eigene Abstimmung überschreiben –, und eines, das kein Klima regelt, kann mit den Werten nichts anfangen."
     },
     "planMoves": {
       "title": "Starten und pausieren",
@@ -3845,15 +3845,15 @@
     },
     "growWeek": {
       "title": "Woche der Phase",
-      "text": "„Veg, Woche 2“ sind die Tage 8 bis 14, die der Grow in Veg steht: Eine Woche der Phase zählt von deren erstem Tag an. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Im Tagebuch heißt eine Woche nach ihren Tagen und trägt die Phase, in der der größte Teil der Woche lag."
+      "text": "„Veg, Woche 2“ sind der 8. bis 14. Tag in Veg: Eine Woche der Phase zählt ab deren erstem Tag. Wie weit der Grow insgesamt ist, sagt der Tag: Tag 1 ist der Tag, an dem er begann. Im Tagebuch heißt eine Woche nach ihren Tagen und trägt die Phase, in der der größte Teil der Woche lag."
     },
     "autoTag": {
       "title": "von allein",
-      "text": "Diese Phase kam von einem Grow-Plan oder einem Klima-Preset, das dabei auch die Zielwerte vor Ort geschrieben hat – sie wurde nicht nur eingetragen. Mit Autoflowers hat das nichts zu tun."
+      "text": "Diese Phase hat ein Plan oder ein Klima-Preset gesetzt und dabei auch die Zielwerte am Gerät eingestellt – sie wurde nicht nur eingetragen. Mit Autoflowers hat das nichts zu tun."
     },
     "phasePreset": {
       "title": "Zielwerte mit der Phase",
-      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Das gilt für jede Phase, auch für Keimung und Trocknung: Nur eingetragen, lässt sie das Gerät und seine Alarme, wie sie sind. Aus der Keimung oder Trocknung heraus bringt erst das Klima einer anderen Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach dem Klima der Phase, das eingestellt ist; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
+      "text": "„Lassen, wie sie sind“ trägt nur die Phase ein: Licht, Temperatur und Feuchte bleiben, wie sie unter Steuerung stehen. Wählst du ein Klima, stellt es die Zielwerte der Geräte dort sofort um – bei Blüte zum Beispiel das Licht auf 12 Stunden, bei „Keimung · dunkel“ das Licht ganz aus. Das gilt für jede Phase, auch für Keimung und Trocknung: Trägst du sie nur ein, bleiben Gerät und Alarme, wie sie sind. Aus der Keimung oder Trocknung heraus bringt erst das Klima einer anderen Phase das Licht zurück. „Auto“ ist für Autoflowers, die lange Tage behalten. Ein neues Klima ersetzt die Zielwerte unter Steuerung; wann das Licht angeht, bleibt. Die Trocknung hält die Nachtwerte rund um die Uhr, ohne Licht und ohne CO₂. Die Alarme „Zu warm“, „Zu kalt“ und „Zu feucht“ richten sich nach dem eingestellten Klima; in der Keimung ruht „Zu feucht“, solange du es nicht einschaltest."
     },
     "phaseCorrection": {
       "title": "Korrigieren oder zurückziehen",
@@ -3865,7 +3865,7 @@
     },
     "growEnds": {
       "title": "Den Grow beenden",
-      "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr datieren, bis du ihn über „Mehr“ (⋯) neben seinem Namen wieder öffnest. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
+      "text": "Sind die letzten Pflanzen geerntet, endet der Grow an diesem Tag: Danach lässt sich nichts mehr eintragen, bis du ihn über „Mehr“ (⋯) neben seinem Namen wieder öffnest. Trag Trocknung und Reifung vorher ein, wenn sie ins Tagebuch gehören."
     },
     "dayNightAverages": {
       "title": "Tag / Nacht",
@@ -3877,11 +3877,11 @@
     },
     "waterEc": {
       "title": "Wasser",
-      "text": "Der EC-Wert deines Wassers, bevor etwas hinzukommt. Er wird zu den EC-Zielwerten des Schemas addiert, sodass ein Zielwert ist, was dein Messgerät anzeigen sollte; 0 steht für Osmosewasser."
+      "text": "Der EC-Wert deines Wassers, bevor etwas hinzukommt. Er wird zu den EC-Zielwerten des Schemas addiert, damit der Zielwert dem entspricht, was dein Messgerät anzeigen sollte; 0 steht für Osmosewasser."
     },
     "feedFlip": {
       "title": "Umstellung",
-      "text": "Das Schema wird nach der Grow-Woche gelesen, gezählt ab Tag 1. Die Umstellung sagt, wann der Grow auf 12/12 ging, und kennzeichnet die Wochen des Schemas ab dann als Blüte; sie schaltet weder das Licht noch beginnt sie eine Phase."
+      "text": "Das Schema wird nach der Grow-Woche gelesen, gezählt ab Tag 1. Die Umstellung sagt, wann der Grow auf 12/12 ging, und kennzeichnet die Wochen des Schemas ab dann als Blüte; sie schaltet kein Licht um und beginnt keine Phase."
     },
     "muteAll": {
       "title": "Alles stumm",
@@ -3893,7 +3893,7 @@
     },
     "presetRules": {
       "title": "Regeln aus dem Klima",
-      "text": "Jedes Klima bringt vier Regeln mit – zu warm, zu feucht, nachts zu kalt und zu viel CO₂ – mit Grenzen, die aus seinen Zielwerten berechnet werden. Das nächste Klima verschiebt Grenzen und Wartezeiten, ob du es unter Steuerung übernimmst, mit einer Phase oder ein Plan es setzt; Zielwerte, die du von Hand änderst, verschieben nichts. Was du ausgeschaltet, anders eingestuft oder stummgeschaltet hast, bleibt, und die Reifung entfernt sie."
+      "text": "Jedes Klima bringt vier Regeln mit – zu warm, zu feucht, nachts zu kalt und zu viel CO₂ – mit Grenzen, die aus seinen Zielwerten berechnet werden. Das nächste Klima verschiebt Grenzen und Wartezeiten, ob du es unter Steuerung übernimmst, mit einer Phase oder ein Plan es setzt; Zielwerte, die du von Hand änderst, verschieben nichts. Was du ausgeschaltet, anders eingestuft oder stummgeschaltet hast, bleibt so; mit der Reifung fallen die vier Regeln weg."
     },
     "offlineRule": {
       "title": "Die Offline-Regel",
@@ -3905,11 +3905,11 @@
     },
     "alarmQuiet": {
       "title": "Stummschalten und Wartung",
-      "text": "Eine stummgeschaltete Regel beobachtet weiter: Die Meldung erscheint unter Meldungen und markiert den Ort auf Start – sie sagt nur niemandem Bescheid. Die Wartung hält die Alarme selbst zurück: für ihre 15 Minuten und 10 weitere, während das Klima zurückkommt."
+      "text": "Eine stummgeschaltete Regel beobachtet weiter: Die Meldung erscheint unter Meldungen und markiert den Ort auf Start – sie sagt nur niemandem Bescheid. Die Wartung hält die Alarme selbst zurück: für ihre 15 Minuten und 10 weitere, in denen sich das Klima erholt."
     },
     "severity": {
       "title": "Stufe",
-      "text": "Kritisch und Warnung gehen über die passenden Zeilen der Benachrichtigungseinstellungen jeder Person hinaus, und nur Kritisches kommt durch Ruhezeiten. Info wird darüber nicht gemeldet: Sie steht nur unter Meldungen."
+      "text": "Kritische Alarme und Warnungen gehen an jede Person so raus, wie sie es in ihren Benachrichtigungseinstellungen festgelegt hat, und nur Kritisches kommt durch Ruhezeiten. Info wird nicht verschickt: Sie steht nur unter Meldungen."
     },
     "tellBy": {
       "title": "Sag mir Bescheid per",
@@ -3921,7 +3921,7 @@
     },
     "emailAlarms": {
       "title": "Alarme per E-Mail",
-      "text": "Solange kein Weg eingerichtet ist, meldet sich nichts bei dir: kein Alarm, auch „Gerät offline“ nicht, keine fällige Aufgabe und keine Kamera, die nichts mehr liefert. Ein Tipp schickt per E-Mail an die Adresse, mit der du dich anmeldest, was sich bei dir melden kann: mit einem Gerät die kritischen Alarme, mit einer Kamera die Warnungen, mit einem Tagebuch die fälligen Aufgaben. Alles andere bleibt, wie es ist. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
+      "text": "Solange kein Kanal eingerichtet ist, meldet sich nichts bei dir: kein Alarm, auch „Gerät offline“ nicht, keine fällige Aufgabe und keine Kamera, die nichts mehr liefert. Mit einem Tipp schickt Terp Control per E-Mail an deine Anmeldeadresse, was sich bei dir melden kann: mit einem Gerät die kritischen Alarme, mit einer Kamera die Warnungen, mit einem Tagebuch die fälligen Aufgaben. Alles andere bleibt, wie es ist. Ändern oder abschalten kannst du das unter Ich › Benachrichtigungen. „Später“ blendet diesen Hinweis für eine Woche aus."
     },
     "quietHours": {
       "title": "Ruhezeiten",
@@ -3969,14 +3969,14 @@
     },
     "premiumCamera": {
       "title": "Premium",
-      "text": "Premium gehört zu einer Kamera, nicht zum Konto, und verlängert sich nie von selbst: Das Angebot dazu steht unter Ich › Premium auf der Karte der Kamera, sobald ihr Jahr zu Ende geht. Eine Terp Cam bringt beim ersten Koppeln 12 Monate mit; eine RTSP-Kamera hat Premium nur, wenn es für sie gekauft wird. Ohne Premium sind Filme SD mit Wasserzeichen, und HD- und Ganzer-Grow-Filme werden nicht erstellt. Selbst gehostete Installationen haben kein Premium und schalten nichts ab."
+      "text": "Premium gehört zu einer Kamera, nicht zum Konto, und verlängert sich nie von selbst: Das Angebot dazu steht unter Ich › Premium auf der Karte der Kamera, sobald ihr Jahr zu Ende geht. Eine Terp Cam bringt beim ersten Koppeln 12 Monate mit; eine RTSP-Kamera hat Premium nur, wenn es für sie gekauft wird. Ohne Premium sind Filme SD mit Wasserzeichen, und HD-Filme und Filme des ganzen Grows werden nicht erstellt. Auf einem selbst betriebenen Server gibt es kein Premium, und nichts ist gesperrt."
     },
     "timelapses": {
       "title": "Zeitraffer",
       "text": "Filme aus den gespeicherten Bildern dieser Kamera, 25 pro Sekunde. Die Tages-, Wochen- und Monatsfilme bauen sich selbst neu. Auf der Kameraseite spielst du den neuesten Film jeder Art ab; gibt es noch keinen, erstellst du ihn: vom gewählten Tag, von der letzten vollständigen Woche, der aktuellen Phase oder dem ganzen Grow."
     },
     "overlays": {
-      "title": "Overlays",
+      "title": "Einblendungen",
       "text": "Was auf den Film gezeichnet wird: der Tag des Grows, eine Temperatur- und Feuchtekurve mit markiertem Moment und Tagebucheinträge als Bildunterschriften. Jedes braucht eine Quelle – einen Grow, ein Gerät, Einträge – und entfällt, wo es keine gibt."
     },
     "lightsOffFrames": {
@@ -3984,24 +3984,24 @@
       "text": "Ausgeschaltet fallen Bilder weg, die bei ausgeschaltetem Licht des Geräts entstanden sind, damit der Film nicht jede Nacht dunkel aufblitzt. Ein Bild ohne Lichtmessung zählt als hell."
     },
     "render": {
-      "title": "Rendern",
-      "text": "HD hat 1920 Pixel an der langen Seite und braucht Premium; SD hat 1280, mit Wasserzeichen, wenn die Kamera kein Premium hat. Dieselben Tage mit anderen Einstellungen erneut zu rendern, ersetzt den zuvor gemachten Film."
+      "title": "Erstellen",
+      "text": "HD hat 1920 Pixel an der langen Seite und braucht Premium; SD hat 1280, mit Wasserzeichen, wenn die Kamera kein Premium hat. Erstellst du denselben Zeitraum noch einmal mit anderen Einstellungen, ersetzt das den vorigen Film."
     },
     "unpair": {
       "title": "Entkoppeln",
-      "text": "Die Cloud liest diese Kamera nicht mehr; ihre Bilder und Filme bleiben. Eine Terp Cam bleibt aber mit ihrem Gerät gekoppelt und kommt hierher zurück, sobald das Gerät sie das nächste Mal meldet, etwa nach einem Neustart."
+      "text": "Die Cloud holt keine Bilder mehr von dieser Kamera; ihre Bilder und Filme bleiben. Eine Terp Cam bleibt aber mit ihrem Gerät gekoppelt und kommt hierher zurück, sobald das Gerät sie das nächste Mal meldet, etwa nach einem Neustart."
     },
     "rtsp": {
       "title": "RTSP",
-      "text": "Der Live-Videostream, den die meisten Netzwerkkameras anbieten, unter einer Adresse, die mit rtsp:// beginnt. Die Cloud nimmt daraus im Intervall der Kamera ein Standbild, wie bei einer Terp Cam. Anders als eine Terp Cam bringt sie kein Jahr Premium mit: Premium wird für sie gekauft, wo die Installation es berechnet."
+      "text": "Der Live-Videostream, den die meisten Netzwerkkameras anbieten, unter einer Adresse, die mit rtsp:// beginnt. Die Cloud nimmt daraus im Intervall der Kamera ein Standbild, wie bei einer Terp Cam. Anders als eine Terp Cam bringt sie kein Jahr Premium mit: Premium kaufst du für sie dazu, wo der Server es verlangt."
     },
     "rolloutFailures": {
-      "title": "Fehlschläge, die sie stoppen",
-      "text": "Ein Gerät gilt als fehlgeschlagen, wenn es zum Update aufgefordert wurde und zehn Minuten später nicht den neuen Build fährt – Offline-Geräte eingeschlossen. Bei so vielen auf einem Kanal werden keine weiteren Geräte aufgefordert; die Verteilung läuft von selbst weiter, sobald sie den Build melden."
+      "title": "Fehlschläge bis zum Stopp",
+      "text": "Ein Gerät gilt als fehlgeschlagen, wenn es zum Update aufgefordert wurde und zehn Minuten später nicht mit dem neuen Build läuft – Offline-Geräte eingeschlossen. Bei so vielen auf einem Kanal werden keine weiteren Geräte aufgefordert; die Verteilung läuft von selbst weiter, sobald sie den Build melden."
     },
     "publicPage": {
       "title": "Öffentliche Seite",
-      "text": "Unter dieser Adresse kann jede:r das Tagebuch ohne Konto lesen – die Phasen, die Tage mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
+      "text": "Unter dieser Adresse kann jeder das Tagebuch ohne Konto lesen – die Phasen, die Tage mit ihren Fotos und die Bilder der Kamera. Die Adresse entsteht aus dem Namen des Grows und ist deshalb kein Geheimnis; ausgeschaltet ist die Seite sofort weg."
     },
     "linkActions": {
       "title": "Ändern, zurückziehen, löschen",
@@ -4009,7 +4009,7 @@
     },
     "shareWindow": {
       "title": "Ab, bis, läuft ab",
-      "text": "„Ab“ und „Bis“ bestimmen, welche Tage des Tagebuchs zu sehen sind; leer beginnen sie am Anfang und wachsen mit dem Tagebuch mit. „Läuft ab“ ist der Tag, an dessen Ende die Adresse selbst nicht mehr funktioniert, in deiner Zeitzone."
+      "text": "„Ab“ und „Bis“ bestimmen, welche Tage des Tagebuchs zu sehen sind; leer gelassen, zeigt der Link alles vom Anfang an und wächst mit dem Tagebuch mit. „Läuft ab“ ist der Tag, an dessen Ende die Adresse selbst nicht mehr funktioniert, in deiner Zeitzone."
     },
     "spaceLink": {
       "title": "Grow oder Ort",
@@ -4017,7 +4017,7 @@
     },
     "privacyRedaction": {
       "title": "Geteilte Ansichten",
-      "text": "Diese Schalter verbergen Zahlen vor allen, die über einen Link, deine öffentliche Seite oder als Folgende mitlesen. Wen du zu einem Ort einlädst, ist nicht fremd: Gewichte und Anzahlen bleiben für sie sichtbar."
+      "text": "Diese Schalter verbergen Zahlen vor allen, die über einen Link oder deine öffentliche Seite mitlesen oder deinen Grows folgen. Wen du zu einem Ort einlädst, gilt nicht als fremd: Gewichte und Pflanzenzahlen bleiben für diese Personen sichtbar."
     },
     "publicProfile": {
       "title": "Öffentliches Profil",
@@ -4025,7 +4025,7 @@
     },
     "deleteAccount": {
       "title": "Das Konto löschen",
-      "text": "Zeilen, die du an fremden Orten geschrieben hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu hinzufügen lassen. Einen einzelnen Grow löschst du auf seiner eigenen Seite."
+      "text": "Einträge, die du an fremden Orten gemacht hast, bleiben – ohne deinen Namen –, und die Klimadaten bleiben bei den Geräten, die sich danach neu hinzufügen lassen. Einen einzelnen Grow löschst du auf seiner eigenen Seite."
     },
     "passwordChange": {
       "title": "Das Passwort ändern",
@@ -4037,7 +4037,7 @@
     },
     "invite": {
       "title": "Einladen",
-      "text": "Wer einen Einladungslink hat, kann damit beitreten, so oft er benutzt wird, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer drin ist, bleibt. Wer beitritt, braucht ein eigenes Konto (E-Mail, Benutzername und Passwort) und sieht den Ort – bei einem Raum jeden Ort darin –, was dort wächst, die Kameras und jeden Grow, der früher dort stand, auch private; nicht deine anderen Orte und Grows, die nie dort standen. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf eintragen“ hinzugefügt, ohne gefragt zu werden."
+      "text": "Ein Einladungslink lässt beliebig viele Leute beitreten, bis er abläuft oder du ihn zurückziehst – Zurückziehen verhindert neue Beitritte, wer schon dabei ist, bleibt. Wer beitritt, braucht ein eigenes Konto (E-Mail, Benutzername und Passwort) und sieht den Ort – bei einem Raum jeden Ort darin –, was dort wächst, die Kameras und jeden Grow, der früher dort stand, auch private; nicht deine anderen Orte und Grows, die nie dort standen. Ein Benutzername, mit dem du schon einen Ort teilst, wird sofort mit „darf eintragen“ hinzugefügt, ohne gefragt zu werden."
     },
     "diaryLayer": {
       "title": "Grow-Tagebuch",
@@ -4045,7 +4045,7 @@
     },
     "follow": {
       "title": "Folgen",
-      "text": "Merkt diesen Grow unter Ich › Folge ich vor, solange er öffentlich ist. Wer folgt, erfährt der Grower nicht, und bei Änderungen wird dir nichts geschickt."
+      "text": "Merkt diesen Grow unter Ich › Abonniert vor, solange er öffentlich ist. Der Grower erfährt nicht, wer folgt, und bei Änderungen wird dir nichts geschickt."
     },
     "compressor": {
       "title": "Kompressor",
@@ -4078,7 +4078,7 @@
       },
       "cameraTunnel": {
         "title": "Über das Gerät holen",
-        "text": "Eingeschaltet holt die Cloud den Stream über die Verbindung des Geräts an diesem Ort aus deinem Heimnetz, so braucht die Kamera weder Portfreigabe noch DynDNS. Ausschalten nur für eine Kamera, die aus dem Internet erreichbar ist: dann öffnet die Cloud den Stream selbst, und die Verbindung des Geräts wird nicht belastet."
+        "text": "Eingeschaltet holt die Cloud den Stream über die Verbindung des Geräts an diesem Ort aus deinem Heimnetz, so braucht die Kamera weder Portfreigabe noch DynDNS. Ausschalten nur für eine Kamera, die aus dem Internet erreichbar ist: Dann öffnet die Cloud den Stream selbst, und die Verbindung des Geräts wird nicht belastet."
       },
       "cameraTransport": {
         "title": "Transport",
@@ -4102,7 +4102,7 @@
       },
       "plugProtections": {
         "title": "Schutzfunktionen",
-        "text": "Schalten den Plantalytix Socket ab, egal was er gerade regelt: über einer Temperatur, unter einer Temperatur, und sie halten Mindestzeiten an und aus ein, damit ein Gerät nicht im Sekundentakt schaltet. Wieder an geht er erst, wenn der Wert um den eingestellten Abstand zurück ist."
+        "text": "Sie schalten den Plantalytix Socket ab, egal was er gerade regelt – über oder unter einer bestimmten Temperatur –, und halten Mindestzeiten für an und aus ein, damit ein Gerät nicht im Sekundentakt schaltet. Wieder an geht er erst, wenn der Wert um den eingestellten Abstand zurückgegangen ist."
       },
       "lightRamp": {
         "title": "Sonnenauf- und -untergang",
@@ -4126,7 +4126,7 @@
       },
       "leafOffset": {
         "title": "Blatt zur Luft",
-        "text": "Wie viel wärmer oder kühler als die Luft das Blatt angenommen wird, wo kein Blattsensor misst. Daraus wird der VPD berechnet, den Start, Verlauf und die Zielwerte zeigen. Unter Licht verdunstet das Blatt Wasser und ist kühler: Standard ist tagsüber −2 °C und nachts 0 °C. Geregelt wird danach nichts."
+        "text": "Um wie viel das Blatt wärmer oder kühler als die Luft angenommen wird, wo kein Blattsensor misst. Daraus wird der VPD berechnet, den Start, Verlauf und die Zielwerte zeigen. Unter Licht verdunstet das Blatt Wasser und ist kühler: Standard ist tagsüber −2 °C und nachts 0 °C. Geregelt wird danach nichts."
       },
       "ppfdFactor": {
         "title": "Lux-zu-PPFD-Faktor",
@@ -4142,7 +4142,7 @@
       },
       "lightOverheat": {
         "title": "Überhitzungsschutz",
-        "text": "Über dieser Temperatur am Lichtmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
+        "text": "Über dieser Temperatur am Lampenmodul dimmt sich die Lampe herunter, bis es wieder kühler ist. Das schützt die Lampe und die Pflanzen direkt darunter."
       }
     },
     "installApp": {
@@ -4151,7 +4151,7 @@
     },
     "alarmRepeat": {
       "title": "Wiederholen",
-      "text": "Solange der Alarm anhält, kommt er alle so viele Minuten erneut – bei einer Warnung oder einem Hinweis genauso wie bei einem kritischen Alarm. Das hilft vor allem einem Webhook, der zu Hause etwas schaltet: Geht ein Aufruf verloren, kommt der nächste. 0 sagt es einmal. Eine E-Mail kommt höchstens alle fünf Minuten."
+      "text": "Solange der Alarm anhält, kommt er alle so viele Minuten erneut – bei einer Warnung oder einem Hinweis genauso wie bei einem kritischen Alarm. Das hilft vor allem einem Webhook, der zu Hause etwas schaltet: Geht ein Aufruf verloren, kommt der nächste. Bei 0 kommt er nur einmal. Eine E-Mail kommt höchstens alle fünf Minuten."
     },
     "webhookTemplate": {
       "title": "Dienst für den Webhook",
@@ -4219,7 +4219,7 @@
     },
     "dayShare": {
       "title": "Im Ziel",
-      "text": "Der Teil des Tages, an dem Temperatur und Feuchte am Ziel lagen: auf ±1 °C und ±5 %."
+      "text": "Der Anteil des Tages, in dem Temperatur und Feuchte im Ziel lagen: auf ±1 °C und ±5 % genau."
     },
     "mixing": {
       "title": "Mischen",
@@ -4227,7 +4227,7 @@
     },
     "feedGrid": {
       "title": "Das Raster",
-      "text": "Auf eine Zelle tippen, um sie zu ändern; eine Zeile ist ein Produkt, „+ Produkt“ fügt ein eigenes hinzu. Die Blüte-Spalten beginnen in der Woche der Umstellung. EC-Werte sind das, was dein Messgerät mit diesem Wasser anzeigen sollte (Tabellenwert + Wasser-EC). Die Tabelle des Herstellers ist ein Ausgangspunkt, keine Vorschrift. Änderungen an diesem Raster betreffen nur, was diese Pflanzen bekommen. Ein Schema im eigenen Regal ist eine Kopie: Wird es später bearbeitet, bleibt jeder laufende Grow genau so gedüngt wie bisher."
+      "text": "Tipp auf eine Zelle, um sie zu ändern. Jede Zeile ist ein Produkt; mit „+ Produkt“ fügst du ein eigenes hinzu. Die Blüte-Spalten beginnen in der Woche der Umstellung. EC-Werte sind das, was dein Messgerät mit diesem Wasser anzeigen sollte (Tabellenwert + Wasser-EC). Die Tabelle des Herstellers ist ein Ausgangspunkt, keine Vorschrift. Änderungen an diesem Raster betreffen nur, was diese Pflanzen bekommen. Ein Schema im eigenen Regal ist eine Kopie: Bearbeitest du es später, bleibt jeder laufende Grow genau so gedüngt wie bisher."
     },
     "harvestWeights": {
       "title": "Gewicht",
@@ -4247,7 +4247,7 @@
     },
     "alarmFor": {
       "title": "Wie lange",
-      "text": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird; 0 löst sofort aus. Bei einem Ausgang, der daraufhin beobachtet wird, ob er überhaupt läuft: wie lange er ohne Pause laufen muss, bevor das ein Alarm ist und kein Zyklus. Bei „Gerät offline“ kommt die Zeit zu den zehn Minuten hinzu, nach denen ein Gerät als offline gilt."
+      "text": "Wie lange der Wert hinter der Grenze bleiben muss, bevor der Alarm ausgelöst wird; 0 löst sofort aus. Bei einem Ausgang, der darauf beobachtet wird, ob er läuft: wie lange er ohne Pause laufen muss, bis es ein Alarm ist und kein normaler Zyklus. Bei „Gerät offline“ kommt die Zeit zu den zehn Minuten hinzu, nach denen ein Gerät als offline gilt."
     },
     "streamChange": {
       "title": "Adresse ändern",
@@ -4255,27 +4255,27 @@
     },
     "claimCode": {
       "title": "Der Code",
-      "text": "Das Gerät zeigt einen kurzen Code auf seinem Display; auf der Verpackung steht derselbe als QR-Code. Er ist der ganze Nachweis, dass das Gerät bei dir steht."
+      "text": "Das Gerät zeigt einen kurzen Code auf seinem Display; auf der Verpackung steht derselbe als QR-Code. Mehr braucht es nicht als Nachweis, dass das Gerät bei dir steht."
     },
     "claimLater": {
       "title": "Das hat Zeit",
-      "text": "Das Gerät arbeitet auch ohne Kamera. Eine Kamera koppelst du später bei den Geräten unter Steuerung; dort ändern sich auch die Vorgaben, Benachrichtigungen unter Ich."
+      "text": "Das Gerät arbeitet auch ohne Kamera. Eine Kamera koppelst du später bei den Geräten unter Steuerung; dort änderst du auch die Vorgaben, die Benachrichtigungen unter Ich."
     },
     "accountExport": {
       "title": "Alles exportieren",
-      "text": "Jeder Grow, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Das Klima kommt als eine Zeile pro Minute, gemittelt, und nicht als der Messwert alle paar Sekunden, mit dem es gemessen wurde. Einzelne Kamerabilder bleiben in der App – es sind Zehntausende – und das Zip zählt sie pro Kamera."
+      "text": "Jeder Grow, deine Tagebuchfotos und die fertigen Filme in einem Zip: JSON, CSV und die Bilder. Das Klima kommt als Minutenmittel, eine Zeile pro Minute, nicht als einzelne Messwerte alle paar Sekunden. Einzelne Kamerabilder bleiben in der App – es sind Zehntausende – und das Zip zählt sie pro Kamera."
     },
     "publicGrow": {
       "title": "Öffentliche Grows",
-      "text": "Ein öffentlicher Grow zeigt einem Fremden das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Handle. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die aktuellen Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
+      "text": "Ein öffentlicher Grow zeigt jedem das Tagebuch vom ersten Tag an: die Phasen, die Tage mit ihren Fotos und den Bildern der Kamera, die Klimamittelwerte, die Sorten und deinen Benutzernamen. Erntegewichte und Pflanzenzahlen richten sich nach deinen Privatsphäre-Einstellungen. Nie zu sehen sind die aktuellen Werte des Orts, seine Geräte, seine Alarme oder seine Aufgaben, und nie deine E-Mail. Wer folgt, sieht dieselbe Seite, und schreiben kann niemand."
     },
     "timezone": {
       "title": "Zeitzone",
-      "text": "Die Zeitzone ist beim Konto gespeichert. Jede Uhrzeit, die die App zeigt, und die Ruhezeiten werden darin gelesen – auf jedem Gerät gleich, wo immer es gerade steht."
+      "text": "Die Zeitzone ist beim Konto gespeichert. Alle Uhrzeiten in der App und die Ruhezeiten gelten in dieser Zeitzone – auf jedem Gerät gleich, wo immer es gerade ist."
     },
     "sessions": {
       "title": "Sitzungen",
-      "text": "Jeder Browser und jedes Skript, das als du angemeldet ist. Eine beendete Sitzung muss sich neu anmelden."
+      "text": "Jeder Browser und jedes Skript, die mit deinem Konto angemeldet sind. Nach dem Beenden einer Sitzung muss man sich dort neu anmelden."
     },
     "tasks": {
       "title": "Aufgaben",
@@ -4283,31 +4283,31 @@
     },
     "firmwareClasses": {
       "title": "Geräteklassen",
-      "text": "Ein Kanal zeigt auf einen Build, und jedes Gerät der Klasse, das diesem Kanal folgt, wird zur Installation aufgefordert. Bis auf Übernehmen wird hier nichts geschrieben, und was die Änderung erreichen würde, steht unter den Bedienelementen."
+      "text": "Ein Kanal zeigt auf einen Build, und jedes Gerät der Klasse, das diesem Kanal folgt, wird zur Installation aufgefordert. Erst „Übernehmen“ ändert etwas, und was die Änderung erreichen würde, steht unter den Bedienelementen."
     },
     "firmwareRegister": {
       "title": "Build anlegen",
-      "text": "Ein Build wird angelegt, bevor er Bytes hat; seine Dateien werden danach dazu hochgeladen. Die Version ist die UUID, die der Build-Container gestempelt hat, und wird nie mit einer anderen verglichen."
+      "text": "Ein Build wird zuerst leer angelegt; seine Dateien lädst du danach hoch. Die Version ist die UUID, die der Build-Container vergeben hat, und wird nie mit einer anderen verglichen."
     },
     "demoObjects": {
       "title": "Was die Demo zeigt",
-      "text": "Was ein Demo-Besucher sieht: jeder Ort, jedes Gerät, jede Kamera und jeder Grow, die als Demo-Objekt markiert sind. Diese Seite schreibt nichts – die Markierung ist eine Eigenschaft der Datenbank ohne Route dahinter und wird beim Aufsetzen der Demo gesetzt."
+      "text": "Was ein Demo-Besucher sieht: jeder Ort, jedes Gerät, jede Kamera und jeder Grow, die für die Demo markiert sind. Diese Seite ändert nichts – die Markierung steht nur in der Datenbank, ohne Route in der API, und wird beim Einrichten der Demo gesetzt."
     },
     "adminAddresses": {
       "title": "Adressen",
-      "text": "Eine Adresse steht auf dieser Seite und auf keiner anderen in der App. Die Suche liest nur, was schon geladen ist – hier Getipptes wird nirgendwohin geschickt."
+      "text": "Eine Adresse steht auf dieser Seite und auf keiner anderen in der App. Die Suche durchsucht nur, was schon geladen ist – was du hier tippst, wird nirgendwohin geschickt."
     },
     "rolloutStages": {
       "title": "Firmware-Ausrollung",
-      "text": "Eine Klasse gibt ihren Build über stable, beta und alpha aus. Eine Stufe erreicht jeweils einen Anteil der Klasse, und der Anteil wird aus der Geräte-ID gezogen – ein Gerät, das drin ist, bleibt drin, wenn die Stufe wächst. Ein Gerät meldet den installierten Build wenige Minuten später."
+      "text": "Eine Klasse gibt ihren Build über Stabil, Beta und Alpha aus. Eine Stufe erreicht jeweils einen Anteil der Klasse; welche Geräte dazugehören, ergibt sich aus der Geräte-ID – ein Gerät, das drin ist, bleibt drin, wenn die Stufe wächst. Ein Gerät meldet den installierten Build wenige Minuten später."
     },
     "removeMember": {
       "title": "Jemanden entfernen",
-      "text": "Was jemand hier geschrieben hat, bleibt im Tagebuch und trägt weiter seinen Namen. Wer über einen Link hereinkam, nimmt diesen Link mit: Wer genau diesen Link sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon drin ist, bleibt drin, deine anderen Links bleiben unberührt, und ein neuer ist einen Tipp entfernt. Wer auch über den Raum hereingelassen ist, sieht dessen Orte weiter."
+      "text": "Was jemand hier eingetragen hat, bleibt im Tagebuch und trägt weiter seinen Namen. Kam jemand über einen Link dazu, gilt dieser Link danach nicht mehr: Wer ihn sonst noch bekommen hat, kommt damit nicht mehr herein. Wer schon dabei ist, bleibt, deine anderen Links gelten weiter, und ein neuer ist schnell erstellt. Wer auch über den Raum Zugang hat, sieht dessen Orte weiter."
     },
     "stepSettings": {
-      "title": "Was ein Schritt schreibt",
-      "text": "Ein Schritt schreibt die Werte, die er bekommt, in die Einstellungen des Geräts: die Zielwerte für Tag und Nacht, das CO₂-Ziel, die Grenze des Lichts und wie lange es an ist. Ein leer gelassener Wert bleibt, wie das Gerät ihn hat, und ebenso alles andere in seinen Einstellungen. Meldet das Gerät keinen CO₂-Sensor, schreibt er kein CO₂-Ziel – seine Firmware hält es bei null, was immer man ihr sagt. Ein Schritt in die Trocknung oder die Keimung schaltet das Gerät dunkel und schreibt nur, was es dort hält; der nächste Schritt bringt das Licht zurück, auch einer ohne Phase – außer er ist selbst eine Keimung. Hat ein Gerät seine Einstellungen noch nicht geschickt, sendet der Plan keinen Schritt: Was er trägt, träte an die Stelle der Abstimmung des Geräts, und jede Einstellung, die er nicht nennt, stünde wieder auf einem Werkswert."
+      "title": "Was ein Schritt einstellt",
+      "text": "Ein Schritt trägt seine Werte in die Einstellungen des Geräts ein: die Zielwerte für Tag und Nacht, das CO₂-Ziel, die Lichtgrenze und wie lange das Licht an ist. Ein leer gelassener Wert bleibt, wie er am Gerät ist, ebenso alle anderen Einstellungen. Meldet das Gerät keinen CO₂-Sensor, setzt der Schritt kein CO₂-Ziel – die Firmware hält es dann ohnehin bei null. Ein Schritt in die Trocknung oder die Keimung schaltet das Licht aus und setzt nur, was das Gerät dort hält; der nächste Schritt bringt das Licht zurück, auch einer ohne Phase – außer er ist selbst eine Keimung. Hat ein Gerät seine Einstellungen noch nicht geschickt, sendet der Plan keinen Schritt: Er würde sonst die Abstimmung des Geräts überschreiben, und jede Einstellung, die er nicht nennt, fiele auf den Werkswert zurück."
     },
     "lightHardStart": {
       "title": "Ohne Hochdimmen",
@@ -4357,7 +4357,7 @@
       "bring": "Gerät hierher holen",
       "bringTitle": "{{name}}: Gerät hierher holen",
       "nowhere": "an keinem Ort",
-      "climateHeld": "{{from}} · hier regelt schon {{device}}, ein Ort hat ein Klima",
+      "climateHeld": "{{from}} · hier regelt schon {{device}}, ein Ort hat nur ein Klima",
       "claim": "Neues Gerät hinzufügen",
       "people": "Wer {{name}} sieht",
       "remove": "{{name}} entfernen",
@@ -4395,7 +4395,7 @@
         "end": "Grow beenden"
       },
       "kept": "Kurven und Bilder bis heute bleiben beim Grow {{names}}.",
-      "curves": "Die Kurven dieses Orts bleiben danach lesbar, wo sie verlinkt sind – etwa aus einer Meldung von hier.",
+      "curves": "Die Kurven dieses Orts bleiben danach dort sichtbar, wo auf sie verlinkt wird – etwa aus einer Meldung von hier.",
       "remove": "{{name}} entfernen",
       "removing": "Wird entfernt …",
       "cancel": "Abbrechen",
@@ -4466,7 +4466,7 @@
     "humidifierOn": "Der Befeuchter hält {{humidity}} – feuchter macht er es nie.",
     "humidifierOnNight": "Der Befeuchter hält die Nacht-Luftfeuchte – feuchter macht er es nie.",
     "humidifierOff": "Der Befeuchter ruht, bis die Keimung endet.",
-    "holdsAboveLine": "Der Befeuchter hält mehr, als „Zu feucht“ in der Keimung zulässt ({{line}} %): Der Alarm wird oft auslösen."
+    "holdsAboveLine": "Der Befeuchter hält die Luft feuchter, als „Zu feucht“ in der Keimung zulässt ({{line}} %): Der Alarm wird oft auslösen."
   },
   "advanced": {
     "title": "Erweitert"
@@ -4520,7 +4520,7 @@
     "title": "Passwort vergessen",
     "intro": "Gib die E-Mail-Adresse deines Kontos ein. Du bekommst eine Mail mit einem Link und einem Code, mit denen du ein neues Passwort setzt.",
     "send": "Mail senden",
-    "sending": "Sendet …",
+    "sending": "Wird gesendet …",
     "sent": "Wenn es zu {{email}} ein Konto gibt, ist jetzt eine Mail unterwegs. Öffne den Link darin oder gib den Code ein – beides gilt 60 Minuten. Schau auch im Spam-Ordner nach.",
     "enterCode": "Code aus der Mail eingeben",
     "haveCode": "Ich habe schon einen Code",
@@ -4528,7 +4528,7 @@
     "codeIntro": "Kopiere den Code aus der Mail in dieses Feld. Danach wählst du dein neues Passwort.",
     "code": "Code aus der Mail",
     "next": "Weiter",
-    "codeUnknown": "Zu diesem Code wartet keine Wiederherstellung. Vergleiche ihn mit der Mail – ein Code gilt 60 Minuten und nur einmal.",
+    "codeUnknown": "Diesen Code kennen wir nicht. Vergleiche ihn mit der Mail – ein Code gilt 60 Minuten und nur einmal.",
     "newTitle": "Neues Passwort",
     "newIntro": "Wähle ein neues Passwort für dein Konto. Danach meldest du dich damit an.",
     "set": "Passwort setzen",
@@ -4569,7 +4569,7 @@
     "lightsOn": "Licht an um",
     "windowOwn": "{{light}} – die Uhrzeit bringt dieser Schritt mit und stellt sie jede Stunde neu.",
     "windowDevice": "{{light}} – ab der Uhrzeit unter Zielwerte.",
-    "useDevice": "Uhrzeit von Zielwerte nehmen",
+    "useDevice": "Uhrzeit aus den Zielwerten übernehmen",
     "shortFrom": "{{hours}} Std Licht ab {{time}}"
   },
   "readyPlans": {
@@ -4608,7 +4608,7 @@
     "step": "{{number}} · {{name}}",
     "now": "jetzt",
     "go": "Hier weitermachen",
-    "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, und die Zeit des jetzigen ist vergessen.",
+    "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, und die bisherige Zeit des laufenden Schritts verfällt.",
     "askAtRest": "„{{plan}}“ startet bei {{step}} statt bei Schritt 1. Der Schritt beginnt von vorn.",
     "sends": "Seine Werte gehen innerhalb einer Minute ans Gerät.",
     "yes": "Bei Schritt {{number}} weitermachen",
@@ -4704,7 +4704,7 @@
       "yes": "Koppeln",
       "told": "Steckdose {{name}} gekoppelt · erscheint, sobald das Gerät sie meldet"
     },
-    "unheard": "{{device}} hört gerade nicht zu, also wurde nichts geändert. Versuch es wieder, wenn es online ist.",
+    "unheard": "{{device}} ist gerade nicht erreichbar, darum wurde nichts geändert. Versuch es wieder, wenn es online ist.",
     "role": "Rolle",
     "address": "Adresse",
     "username": "Benutzer",
@@ -4721,10 +4721,10 @@
       "role": "Wähle eine Rolle.",
       "address": "Eine Adresse ohne Leerzeichen, höchstens 40 Zeichen.",
       "credentials": "Benutzer und Passwort haben höchstens 48 Zeichen.",
-      "timer": "Die Steckdose muss kürzer an sein, als ihr Abstand dauert, und der Abstand höchstens einen Tag.",
+      "timer": "Die Einschaltdauer muss kürzer sein als der Abstand, und der Abstand höchstens einen Tag.",
       "timerFirmware": "Diese Firmware kennt keine Zeitschaltung. Sie kommt mit einem Firmware-Update."
     },
-    "noRoles": "Diese Firmware meldet nicht, welche Rollen sie kennt, also lässt sich hier nichts koppeln. Ein Firmware-Update bringt es; bis dahin koppelst du am Gerät selbst.",
+    "noRoles": "Diese Firmware meldet nicht, welche Rollen sie kennt, darum lässt sich hier nichts koppeln. Das bringt erst ein Firmware-Update; bis dahin koppelst du am Gerät selbst.",
     "edit": {
       "label": "Adresse, Rolle, Zugangsdaten",
       "title": "{{name}} ändern",
@@ -4750,7 +4750,7 @@
   },
   "ownPanel": {
     "title": "Einstellungen",
-    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, also gibt es hier noch nichts zu ändern.",
+    "waiting": "{{device}} hat seine Einstellungen noch nicht geschickt, darum lässt sich hier noch nichts ändern.",
     "unheard": "{{device}} hat sich noch nicht gemeldet. Sobald es online ist, schickt es seine Einstellungen, und hier lässt sich etwas ändern.",
     "status": "Werte kommen an · Plantalytix Socket: {{mode}}",
     "statusLight": "Werte kommen an · Licht {{on}}–{{off}}",
@@ -4849,14 +4849,14 @@
   "plugProtections": {
     "overheat": "Aus bei Übertemperatur",
     "overheatAt": "Aus über",
-    "overheatBack": "Wieder an, wenn so viel kühler",
+    "overheatBack": "Wieder an, wenn um so viel kühler",
     "cold": "Aus bei Untertemperatur",
     "coldAt": "Aus unter",
-    "coldBack": "Wieder an, wenn so viel wärmer",
+    "coldBack": "Wieder an, wenn um so viel wärmer",
     "least": "Mindestzeiten",
     "leastOn": "Mindestens an",
     "leastOff": "Mindestens aus",
-    "needsFirmware": "Diese Firmware hält die Schutzfunktionen nicht ein. Ein Firmware-Update bringt sie; bis dahin lassen sie sich nicht einstellen."
+    "needsFirmware": "Diese Firmware kennt die Schutzfunktionen noch nicht. Sie kommen mit einem Firmware-Update; bis dahin lassen sie sich nicht einstellen."
   },
   "lightOverheat": {
     "label": "Dimmen ab"
@@ -4972,7 +4972,7 @@
     "kept": {
       "account": {
         "title": "Konto:",
-        "text": "deine E-Mail-Adresse, dein Benutzername und dein Passwort, dieses nur verschlüsselt. Die Adresse dient der Anmeldung und den Nachrichten, die du selbst einschaltest."
+        "text": "deine E-Mail-Adresse, dein Benutzername und dein Passwort – das Passwort nur verschlüsselt. Die Adresse brauchst du zum Anmelden, und an sie gehen die Nachrichten, die du selbst einschaltest."
       },
       "devices": {
         "title": "Geräte:",
@@ -4984,7 +4984,7 @@
       },
       "notifications": {
         "title": "Benachrichtigungen:",
-        "text": "die Wege, die du einrichtest – E-Mail, Push, Telegram oder ein Webhook."
+        "text": "die Kanäle, die du einrichtest – E-Mail, Push, Telegram oder ein Webhook."
       },
       "sharing": {
         "title": "Teilen:",
@@ -4995,7 +4995,7 @@
         "text": "Unter Ich › Konto löschen entfernst du dein Konto mit allem, was dazu gehört."
       }
     },
-    "operator": "Verantwortlich für diese Daten ist, wer diese Installation betreibt.",
+    "operator": "Verantwortlich für diese Daten ist, wer diesen Server betreibt.",
     "back": "Zurück zur Registrierung"
   },
   "spoken": {
@@ -5104,7 +5104,7 @@
       "asksAgain": "Die Frage steht wieder auf Start"
     },
     "device": {
-      "title": "Mit einem Gerät misst es hier von selbst"
+      "title": "Mit einem Gerät wird hier von selbst gemessen"
     },
     "empty": {
       "title": "Womit fängst du an?",
@@ -5182,7 +5182,7 @@
     "camera": {
       "none": "Noch kein Bild",
       "delivers": "{{name}} liefert · Bild vor {{age}}",
-      "quietSince": "{{name}} liefert nicht · seit {{time}}",
+      "quietSince": "{{name}} ohne Bild · seit {{time}}",
       "nothingYet": "{{name}} hat noch kein Bild geliefert"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone.",
@@ -5233,7 +5233,7 @@
       "paired_one": "{{count}} gekoppelt",
       "paired_other": "{{count}} gekoppelt",
       "pairing": "eine wird gekoppelt …",
-      "unread": "Steckdosen ließen sich nicht lesen"
+      "unread": "Steckdosen ließen sich nicht laden"
     },
     "details": {
       "line": "Geräte-ID, Typ, Build",
@@ -5278,8 +5278,8 @@
           "germination": "trotz Keimung · {{why}}",
           "drying": "trotz Trocknung · {{why}}"
         },
-        "own": "seine Helligkeit ist danach gesetzt worden",
-        "coming": "das Dunkel ist noch nicht angekommen"
+        "own": "seine Helligkeit wurde danach eigens eingestellt",
+        "coming": "das Ausschalten ist noch nicht am Gerät angekommen"
       },
       "planSets": "{{what}} setzt der laufende Plan „{{name}}“ – jede Stunde neu.",
       "planWhat": {
@@ -5300,7 +5300,7 @@
       "take": "Übernehmen",
       "taken": "Klima-Preset {{name}}",
       "same": "Das sind schon die Werte dieses Klima-Presets.",
-      "sameNames": "Das sind schon die Werte dieses Klima-Presets; Übernehmen ändert keinen und gibt ihnen seinen Namen.",
+      "sameNames": "Das sind schon die Werte dieses Klima-Presets; Übernehmen ändert keinen Wert, gibt ihnen aber seinen Namen.",
       "sets": "Was das Klima-Preset ändert",
       "end": {
         "drying": "Trocknung beenden",
@@ -5397,7 +5397,7 @@
       "also": "auch {{others}}"
     },
     "outputs": {
-      "none": "Was hier steht, hat keine eigenen Ausgänge."
+      "none": "Die Geräte hier haben keine eigenen Ausgänge."
     },
     "device": {
       "firmware": "Firmware vom {{day}}",
@@ -5420,7 +5420,7 @@
     "climate": "Klima",
     "devices": "Geräte",
     "plan": {
-      "none": "Hier steht kein Gerät, dem ein Plan Zielwerte stellen kann."
+      "none": "Hier steht kein Gerät, für das ein Plan Zielwerte setzen kann."
     },
     "mode": {
       "none": "Hier gibt es keine Betriebsart zu wählen.",

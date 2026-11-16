@@ -297,7 +297,7 @@ describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', ()
         'Off when too hot: off → on\nOff when too hot · Off above: 30 °C → 32 °C\nLeast times · On at least: 0 s → 60 s\nOff when too cold · On again once this much warmer: 1 °C → 1.5 °C',
       );
       expect(line('de', [protections, 'heater', 'plug'])).toContain(
-        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn so viel wärmer: 1 °C → 1,5 °C',
+        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn um so viel wärmer: 1 °C → 1,5 °C',
       );
     });
 
