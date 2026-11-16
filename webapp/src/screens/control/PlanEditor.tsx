@@ -5,6 +5,7 @@ import { Asking } from '@/ui/Asking';
 import { useTranslation } from 'react-i18next';
 import type { Device, DeviceConfiguration, GrowthStage, Plan, PlanNotifyMode, StepDuration } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { useDiaryLayer } from '@/api/layers';
 import { useSavePlan } from '@/api/plans';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
@@ -324,6 +325,8 @@ function StepFields({
   const extra = otherSections(step.settings);
   const awaiting = awaitingClimate(device);
   const humidifier = useHumidifier(device);
+  // An account without the diary has no grow here for a step to put anywhere.
+  const diary = useDiaryLayer();
   // What a germination step does about the humidity: its own, or what the device does now until it says.
   const choices = step.germinationChoices ?? choicesOf(device);
 
@@ -372,7 +375,7 @@ function StepFields({
           </Choice>
         ))}
       </Choices>
-      <p className={ui.note}>{t('space.control.step.stageNote')}</p>
+      {diary ? <p className={ui.note}>{t('space.control.step.stageNote')}</p> : null}
 
       {step.stage && presetsOf(step.stage).length > 0 ? (
         <>
@@ -726,9 +729,13 @@ function FigureField({
   );
 }
 
-/** Where the plan writes when it moves on. The address is the one field somebody who may only look never sees, so it is only offered where it was answered. */
+/**
+ * Where the plan writes when it moves on. The address is the one field somebody who may only look never sees, so it is
+ * only offered where it was answered; the diary only to an account that keeps one.
+ */
 function Notify({ draft, onChange }: { draft: PlanDraft; onChange: (notify: PlanDraft['notify']) => void }) {
   const { t } = useTranslation();
+  const diary = useDiaryLayer();
   const modes: PlanNotifyMode[] = ['off', 'on_step', 'on_confirmation'];
 
   return (
@@ -755,12 +762,14 @@ function Notify({ draft, onChange }: { draft: PlanDraft; onChange: (notify: Plan
         </>
       )}
 
-      <SwitchRow
-        label={t('space.control.notify.writeEntries')}
-        note={t('space.control.notify.writeEntriesNote')}
-        on={draft.notify.writeEntries}
-        onChange={writeEntries => onChange({ ...draft.notify, writeEntries })}
-      />
+      {diary ? (
+        <SwitchRow
+          label={t('space.control.notify.writeEntries')}
+          note={t('space.control.notify.writeEntriesNote')}
+          on={draft.notify.writeEntries}
+          onChange={writeEntries => onChange({ ...draft.notify, writeEntries })}
+        />
+      ) : null}
     </Block>
   );
 }

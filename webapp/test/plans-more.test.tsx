@@ -36,7 +36,10 @@ const state = vi.hoisted(() => ({
   sent: [] as PlanTransition[],
   templates: { items: [] as unknown[], nextCursor: null },
   grows: [] as unknown[],
+  diary: true,
 }));
+
+vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
 
 vi.mock('@/api/grows', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -144,6 +147,7 @@ beforeEach(() => {
   state.sent = [];
   state.templates = { items: [], nextCursor: null };
   state.grows = [];
+  state.diary = true;
 });
 
 describe('light hours in a step', () => {
@@ -594,5 +598,34 @@ describe('Start´s line for a running plan', () => {
   it('says a paused plan stands still, and nothing about one put away', () => {
     expect(planLineOf(t, plan({}, { status: 'paused' }), NOW)).toMatch(/, paused – resume under Control$/);
     expect(planLineOf(t, plan({}, { status: 'stopped' }), NOW)).toBeNull();
+  });
+});
+
+describe('the plan editor in an account without the diary', () => {
+  // A plan of one step opens on it.
+  const open = () =>
+    drawAt(
+      <PlanEditor
+        device={device()}
+        plan={null}
+        draft={{ ...emptyDraft('A plan', { mode: 'off', email: null, writeEntries: true }), steps: [newStep('Veg')] }}
+        onClose={() => {}}
+      />,
+    );
+
+  it('offers no diary to write in and no grow the step puts into its phase', () => {
+    state.diary = false;
+    open();
+
+    expect(screen.getByRole('button', { name: 'Edit Veg', expanded: true })).toBeInTheDocument();
+    expect(screen.queryByText('Write it in the diary')).not.toBeInTheDocument();
+    expect(screen.queryByText(/puts the grow here/)).not.toBeInTheDocument();
+  });
+
+  it('offers both where the diary is kept', () => {
+    open();
+
+    expect(screen.getByText('Write it in the diary')).toBeInTheDocument();
+    expect(screen.getByText(/puts the grow here into this phase/)).toBeInTheDocument();
   });
 });
