@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-11-15
-source: the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+source: a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -119,7 +119,9 @@ hardware, the development devices and copies of production data are in
   as an argument (`v1-home.spec` was red 22:00-23:00 UTC because `HomeService.read` passed none to `readingsOf`).
 - An assertion that words an instant counted back from now meets the same boundary: "came here on …" for an
   arrival 20 hours ago is "came here at 01:25" late in the day, when that is still today (`timeline.test.tsx`, red
-  after 20:00 UTC until 2026-11-15) - match both forms, or pin the clock.
+  after 20:00 UTC until 2026-11-15) - match both forms, or pin the clock. A window days back laid from now names an
+  instant in it with or without its weekday by the hour the suite runs: lay it from today's noon (`NOON`,
+  `timeline.test.tsx`; two cases were red between 00:00 and 06:00 UTC until 2026-11-16).
 - Such tests were red between 00:00 and 02:20 in Berlin, for good once a fixed fixture date had aged past a limit, in
   early January, and in the quarter hour before a fixture fridge's 18:00 UTC light-off. To hunt them, run the whole
   suite with the process clock moved to every quarter hour of a day in Europe/Berlin, to weeks and months ahead and to

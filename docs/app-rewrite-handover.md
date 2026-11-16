@@ -1,7 +1,7 @@
 ---
 summary: The app rewrite is complete (merged 2026-10-04) and the navigation redesign on top of it is built - where their decisions and knowledge live, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk could see, and what the rewrite left open; read before picking up one of those items
 updated: 2026-11-15
-source: the eleventh whole-app walk's three reports decided (the redesign session of 2026-11-16), question 81 answered (Chris, 2026-11-16); the tenth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the tenth whole-app walk's report on setting up, steering and sharing decided, question 75 overridden (the redesign session of 2026-11-15); the tenth whole-app walk's reports on the grower's day and on Verlauf decided (the redesign session of 2026-11-15); Chris's answers after the ninth walk - the run's bar, questions 67 and 73, A9-3 (2026-11-15); the ninth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's three reports decided (the redesign session of 2026-11-15); the eighth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the eighth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the eighth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); a lamp module dark while its place dries, built (the redesign session's fix round after Chris's answers of 2026-11-15); Chris's answers after the seventh walk's fix round (2026-11-15); the seventh whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the seventh whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the seventh whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the seventh whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); Chris's answers after the sixth walk's fix round (2026-11-15); the sixth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the sixth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the sixth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); Chris's answers after the fifth walk's fix round built - step 033 (2026-11-15); Chris's answers after the fifth walk's fix round (2026-11-14); the fifth whole-app walk's lists and Chris's two answers built (the redesign session's fix round of 2026-11-14); Chris's answers after the fifth walk and the walk's report on setting up, steering and sharing decided (2026-11-14); the fifth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the fifth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); an ended grow's reminders resting, built (the redesign session after Chris's answers of 2026-11-14); Chris's answers after the fourth walk's fix round (2026-11-14); the fourth whole-app walk's lists built (the redesign session's fix round of 2026-11-14); the fourth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the fourth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the fourth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); Chris's answers after the third walk's fix round (2026-11-14); the third whole-app walk's lists built (the redesign session's fix round of 2026-11-14); the third whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the third whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); the third whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the activation code's resend fixed with this pull request, no hotfix (Chris, 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); Chris's answers after the second walk's fix round (2026-11-14); the second whole-app walk's lists built (the redesign session's fix round of 2026-11-14); migration steps 026-031 verified on a production copy on the real upgrade path (the redesign session, 2026-11-14); the second whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the second whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); the second whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); Chris's answers after the final fix round's second part (2026-11-14), and the round that built them; the whole-app walk's third report and Chris's answers built by the final fix round's second part (the redesign session of 2026-11-13); migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
+source: the eleventh whole-app walk's lists built (the redesign session's fix round of 2026-11-16); the run winding down and the German catalogue read for calques (Chris, 2026-11-16); the eleventh whole-app walk's three reports decided (the redesign session of 2026-11-16), question 81 answered (Chris, 2026-11-16); the tenth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the tenth whole-app walk's report on setting up, steering and sharing decided, question 75 overridden (the redesign session of 2026-11-15); the tenth whole-app walk's reports on the grower's day and on Verlauf decided (the redesign session of 2026-11-15); Chris's answers after the ninth walk - the run's bar, questions 67 and 73, A9-3 (2026-11-15); the ninth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's three reports decided (the redesign session of 2026-11-15); the eighth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the eighth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the eighth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); a lamp module dark while its place dries, built (the redesign session's fix round after Chris's answers of 2026-11-15); Chris's answers after the seventh walk's fix round (2026-11-15); the seventh whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the seventh whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the seventh whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the seventh whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); Chris's answers after the sixth walk's fix round (2026-11-15); the sixth whole-app walk's lists built (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-15); the sixth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-15); the sixth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-15); Chris's answers after the fifth walk's fix round built - step 033 (2026-11-15); Chris's answers after the fifth walk's fix round (2026-11-14); the fifth whole-app walk's lists and Chris's two answers built (the redesign session's fix round of 2026-11-14); Chris's answers after the fifth walk and the walk's report on setting up, steering and sharing decided (2026-11-14); the fifth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the fifth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); an ended grow's reminders resting, built (the redesign session after Chris's answers of 2026-11-14); Chris's answers after the fourth walk's fix round (2026-11-14); the fourth whole-app walk's lists built (the redesign session's fix round of 2026-11-14); the fourth whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the fourth whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the fourth whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); Chris's answers after the third walk's fix round (2026-11-14); the third whole-app walk's lists built (the redesign session's fix round of 2026-11-14); the third whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the third whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); the third whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); the activation code's resend fixed with this pull request, no hotfix (Chris, 2026-11-14); a target changed by hand clears the preset's name (Chris, 2026-11-14); Chris's answers after the second walk's fix round (2026-11-14); the second whole-app walk's lists built (the redesign session's fix round of 2026-11-14); migration steps 026-031 verified on a production copy on the real upgrade path (the redesign session, 2026-11-14); the second whole-app walk's report on setting up, steering and sharing decided (the redesign session of 2026-11-14); the second whole-app walk's report on Verlauf and what cuts across decided (the redesign session of 2026-11-14); the second whole-app walk's report on the grower's day decided (the redesign session of 2026-11-14); Chris's answers after the final fix round's second part (2026-11-14), and the round that built them; the whole-app walk's third report and Chris's answers built by the final fix round's second part (the redesign session of 2026-11-13); migration steps 026-030 verified on a production copy (the redesign session, 2026-11-13); the whole-app walk's third report decided (the redesign session of 2026-11-13); Chris's answers to the open questions (2026-11-13); the whole-app walk's lists built by the final fix round (the redesign session of 2026-11-13); the whole-app walk's second report decided (the redesign session of 2026-11-13); the whole-app walk's first report decided (the redesign session of 2026-11-13); Verlauf's eighth list built (the redesign session's Verlauf builder, 2026-11-13); the look "Nebel" chosen (Chris, 2026-11-13) and its values (the redesign session of 2026-11-13); what the consolidation pass left, decided (the redesign session of 2026-11-13); the consolidation pass - what was merged and what stays apart (the redesign session's consolidation pass of 2026-11-13); Verlauf's eighth walk decided (the redesign session of 2026-11-13); Verlauf's seventh list built (the redesign session's Verlauf builder, 2026-11-13); Verlauf's seventh walk decided, and a consolidation pass set (the redesign session of 2026-11-13); the list of the clearing-up round's critic built and entered (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); Verlauf's sixth list built (the redesign session's Verlauf builder, 2026-11-13); the redesign section rewritten as what is true now (the redesign session's clearing-up round of 2026-11-13, from the blocks each walk had added and the session's own list of what waits for Chris); where rounds 6 and 7 meet, the inbox's, Start's tasks' and Ich's part (the redesign session of 2026-11-13); Chris on 2026-11-13 (a round for type and colour); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13); round 6 of the navigation redesign - place and room (the redesign session of 2026-11-12); rewrite sessions 2026-09-16..10-04 with Chris's instructions in them (2026-09-17, 2026-09-22); PR #104 and the pull requests after it; verified against the code on 2026-10-08; Chris and a read of the web app on 2026-11-11 (navigation), its first round on 2026-11-12; round 4 of the navigation redesign, its two walks and fix passes (the redesign session of 2026-11-12); Verlauf as one page (the redesign session of 2026-11-12)
 paths:
   - webapp/src/screens/me/appearance/**
   - webapp/src/api/plans.ts
@@ -41,7 +41,13 @@ on 2026-11-12, which is the specification. New routes need no redirects from add
 production, and a change to the data model comes as a migration step (Chris, 2026-11-11). It was built in rounds
 by one session, each round walked by a critic who had built nothing
 ([development-workflow.md](knowledge/development-workflow.md#long-runs-and-rounds)); the walks end when one finds no
-major in any part, and the minors left then go to Chris's list and the pull request (Chris, 2026-11-15); the briefs, the list of every
+major in any part, and the minors left then go to Chris's list and the pull request (Chris, 2026-11-15). After the fix
+round of the eleventh walk the run winds down (Chris, 2026-11-16: "Komme langsam zum Ende und nutze nicht mehr mehrere
+Kritiker nach jeder Runde"): one focused critic a round rather than three whole-app walks, then the final checks and
+the pull request. Before the pull request a short round reads the German catalogue for strings the rewrite translated
+word for word from English - its sentence structure, noun chains, literal idioms - and rewrites them into natural
+German (Chris, 2026-11-16; the lasting rule is in [app-wording.md](knowledge/app-wording.md#german-slips-to-check-for));
+not built yet. The briefs, the list of every
 function with its new place and the decisions on each critic's findings are internal notes. **Everything in the
 second list below is that session's decision, not Chris's word, until he confirms it with the pull request.**
 
@@ -581,26 +587,41 @@ the bar items a place chip holds), the entry sheet +16, the members +8.
   bucket's minute; a hand-typed `range=grow` without `grow=`; a sparse backfill's late silence. Not built either:
   "Erledigt" on an open alert, a stored delivery per alert, a password minimum (Chris).
 
-**After the eleventh whole-app walk - decided, not yet built**
+**After the eleventh whole-app walk - built by the fix round after it**
 
 Critics walked the whole app on the image after the tenth walk's fix round and found its lists built; every path of
 a written climate moved the bands as decided. Verlauf and what cuts across found no major. Two majors at the bands'
 edges: a plan step that writes no figures still moved the bands to its stage (and its hourly re-send undid a
 climate written since), and "Widerrufen" of a preset left the bands of the preset it took back where the targets
-before had no name.
-- A plan step moves bands and names a preset only when it writes that climate's figures; its re-send of a step that
-  writes nothing changes nothing; a plan step in a place with two grows moves the grow the plan was started for.
-- Taking back a preset puts back the bands from before it, or drops them where there were none.
-- "Keimung beenden" where no named climate stood before ends on "Sämling · mit Licht", figures and bands, and says
-  so before the tap (Chris, 2026-11-16, question 81); "Trocknung beenden" there gives the figures back and drops the
-  stage bands until a climate is written (the session's analogue).
-- The place's Verlauf aims its day label, chips, cursor note and the bar's Eintrag at one grow and names it; a
-  climate written for the stage a grow stands in leaves a line and can be taken back; the server's film counts a
-  grow's days from its origin as every screen does.
-- Trifles: band rows say "Klima"; Eintrag's phase sheet over the current stage as the ⋯ sheet, nothing written with
-  "Lassen", a button that names what it does; the preset sheet names every grow staying in its stage; the place's
-  first grow and Eintrag's preselection by one rule; one lamp switch one time in both diaries; the plan editor
-  without diary options where the diary is off.
+before had no name. The session decided what they found, Chris answered question 81, and the fix round after it
+built all of it (where it is described now in brackets); a fork built critic C's items and the trifles of Start,
+Verlauf, Alarme and the plan editor. `webapp/src` went from 76,869 to 77,058 lines: the grow pages +63 (the take-back
+of a climate written, the phase sheets over the standing phase), the entry sheet and the log +45 (the place's lead
+grow, Eintrag's phase), Steuerung +39 (the end sheet's climate, the grows a preset leaves, the plan's grow and its
+"Hier weitermachen"), the API +20 (`bands`, `rulesClimate`), Verlauf +19 (its one grow), Start +3.
+- A plan step writes a climate - its name and the place's bands - only where it writes figures or a dark stage; a
+  step that writes nothing but its stage, its re-send and a step that only ends the germination before it leave both;
+  "Hier weitermachen" promises values only to a step that writes some (server-engines.md; app-ux; ADR 0001).
+- A plan moves the grow it was started for, not one begun beside it since, and names it where two stand
+  (`Plan.growId`; server-engines.md; app-ux; ADR 0001).
+- Taking back a preset puts back the bands from before it, or drops them where there were none: the save answers
+  `bandsBefore`, the undo sends it as `bands` (server-engines.md; ADR 0001).
+- "Keimung beenden" where no named climate stood before ends on "Sämling · mit Licht", figures, name and bands, and
+  the end sheet says so before the tap (`control.endsOn`; Chris, 2026-11-16, question 81); "Trocknung beenden" there
+  gives the figures back and drops the stage bands until a climate is written (server-engines.md; app-ux; ADR 0001).
+- A place leads with one grow everywhere - Start's picture and first card, Grow, Verlauf without `grow=` with its day
+  label, chips and cursor note, and the bar's Eintrag - and Verlauf names it where two stand (`placeAim`; app-ux;
+  webapp.md); a climate written over the stage a grow stands in leaves the line Steuerung's save leaves and can be
+  taken back - figures, name and bands (server-engines.md; app-ux); a film counts a grow's days from its origin as
+  every screen does (terp-cam.md).
+- Trifles: band rows say "Klima"; both phase sheets say the same over the stage the grow stands in, write nothing
+  with "Lassen", and the ⋯ sheet's button reads "Zielwerte setzen"; no phase sheet promises a day counter that begins
+  with the first phase; the preset sheet names every grow that stays in its phase; one lamp switch one time in both
+  diaries (a week read at the lamp's rhythm); the plan editor without diary options where the diary is off; two
+  Verlauf tests that failed between midnight and six UTC (app-ux; app-wording.md; data.md; webapp.md; testing.md).
+- Not built (staged): a share link's lamps named "Licht 1 · Licht 2"; two places with one name; restart lines
+  alternating between two devices; the light line's "first on, last off" (a rule). Not built either: "Erledigt" on an
+  open alert, a stored delivery per alert, a password minimum (Chris).
 
 **The run**
 - One branch and one pull request for the whole redesign.
@@ -889,6 +910,10 @@ otherwise - where it is described now in brackets)
   offered and each names the other grow and what changes for it (A9-3, built); a device somebody else holds now is
   named by its type alone in Verlauf, and one nobody holds keeps its name (the eighth walk's question 73, built).
 
+- Asked after the tenth walk's fix round (2026-11-16): "Keimung beenden" on a device that had no climate preset's
+  name when germination began ends on "Sämling · mit Licht" - its figures, its name and its bands -, and the end
+  sheet says so before the tap ("Auf Sämling enden", question 81; built by the fix round after the eleventh walk).
+
 **The contract**
 4. **Migration steps 026 to 031 on a copy of production data** (the redesign session, 2026-11-13 and 14, as Chris
    asked): from the backup before the rewrite's migration all 31 steps ran in 2.1 s without a reject, every
@@ -1057,13 +1082,10 @@ otherwise - where it is described now in brackets)
     before seconds were written keep a start rounded to the minute.
 
 **Left by the fix round after the tenth walk** (each built as described; say where it should go otherwise)
-81. **A spell ended on nothing named**: "Keimung beenden" on a device that had no climate preset's name when
-    germination began - a new device put straight into "Keimung · dunkel", say - puts back the figures from before and
-    no name, so the bands stay germination's (no climate was written to follow) and Alarme says "Zielwerte seither
-    geändert" over them. The alternative was to end such a germination on "Sämling · mit Licht", the first climate
-    with light.
-82. **A plan step's hourly re-send moves the bands too**, each hour its step is sent again - to the same stage, so
-    nothing a grower sees changes; a preset taken by hand beside a plan pauses the plan first, as before.
+82. ~~**A plan step's hourly re-send moves the bands too**, each hour its step is sent again - to the same stage, so
+    nothing a grower sees changes; a preset taken by hand beside a plan pauses the plan first, as before.~~ *Changed
+    after the eleventh walk (the redesign session, 2026-11-16):* a step - and its re-send - moves the bands only where
+    it writes figures or a dark stage; one that writes nothing but its stage undid a climate written since.
 83. **A device moved into a place where no climate was written drops its stage bands**, also one moved to a shelf of
     its own and back: it takes them again from the next climate written there, or from its neighbours where it comes
     back to a place that has some.
@@ -1073,7 +1095,38 @@ otherwise - where it is described now in brackets)
 85. **The place chip's words name the bar's items**, in the language's list form: "Grow, Timeline, and Control" in
     English, with the comma the language puts there, as the account's first layout notice already did.
 
+**Left by the fix round after the eleventh walk** (each built as described; say where it should go otherwise)
+86. **A plan step that only ends the germination before it** ("Dieser Schritt beendet nur die Keimung davor") writes
+    no climate, so the bands stay germination's - "Zu feucht" over 90 %, "Zu kalt" under 20 °C - over a day with light
+    until a climate is written; "Keimung beenden" now ends such a germination on "Sämling · mit Licht", and the step
+    could do the same.
+87. **A plan started where two grows stand moves the one begun last**, as the claim's step and a preset applied to a
+    place do (question 76); started where one stands, it keeps that one while it stands there, also once a second is
+    begun beside it.
+88. **A drying spell whose figures were changed by hand while it ran** keeps no name, so "Trocknung beenden" gives
+    back the figures from before and drops the stage bands, as for a spell begun from no name; before, the drying
+    room's bands stayed.
+89. **The grow a place leads with follows the chip Eintrag was last pointed at in the session**, a chip pressed
+    without writing included (the sheet's own memory, question 78), else the one standing there longest: Start's
+    picture and first card, Grow and the place's Verlauf now show the longer-standing grow where they showed the
+    newer, and a chip pressed moves them.
+90. **A climate written over the stage a grow stands in leaves Steuerung's line** - "Einstellungen geändert" with the
+    figures that moved, one per device - rather than a line of its own; its "Widerrufen" puts back each device's
+    targets as the sheet had read them, keeps any other setting saved since, and is not offered where the place
+    germinates or dries.
+91. **A lamp is read at its own rhythm over windows up to eight days**, so Verlauf's 7-day view reads it per sample
+    too: about 150 ms over a week at a sample every 5 s, estimated from the day's and three days' cost and not measured
+    on a real store.
+
 ### What the walks could not see
+
+- **The fix round after the eleventh walk, seen in tests only** (the stack ran the image of the tenth walk's round,
+  and this round neither rebuilt it nor wrote to it): a plan step's climate and its re-send, a preset taken back,
+  "Keimung beenden" from no name and "Trocknung beenden", a plan's grow, the line and the undo of a climate written over
+  the standing phase (unit tests on the real alarm rules, the real settings writer and the real plan engine, and the
+  integration suite); the place's lead grow on Start, Grow and Verlauf, the phase and preset sheets, the end sheet,
+  the plan's words (component tests); the film's day count (a unit test on the composer); widths only as the tests
+  lay them out.
 
 - **The fix round after the tenth walk, seen in tests only** (the stack ran the image of the ninth walk's round, and
   this round neither rebuilt it nor wrote to it): the bands following a Steuerung preset, a phase's climate and a

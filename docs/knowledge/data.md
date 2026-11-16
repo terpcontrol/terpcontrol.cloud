@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
 updated: 2026-11-15
-source: an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+source: a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -135,9 +135,12 @@ Pitfalls, each met at least once:
   `/live` is one `last()` over 30 days. `history()` adds each output's switchings, because a mean turns a lamp
   into a duty cycle: at a grain of five minutes at the most, and at the window's own step where that is finer
   (`switchingGrainFor`), so a zoom shows the second a dehumidifier came on and a compressor's four-minute rest.
-  Within three days the lamp and an AIR's `day` are a read of their own at five seconds, so a lamp's stretch
-  is its samples' on every zoom: 25 ms over a day and 67 ms over three at a sample every 5 s, beside the other
-  reads.
+  Within eight days (`LAMP_SAMPLED_SECONDS`: a week and the ten minutes before it, what a grow's diary reads in one
+  call) the lamp and an AIR's `day` are a read of their own at the device's rhythm, so a lamp's stretch is its
+  samples' on every zoom and one switch reads the same minute in both diaries of a place (the eleventh whole-app walk
+  found 23:25 in a long grow's week and 23:28 in a new one's): 25 ms over a day and 67 ms over three at a sample
+  every 5 s, beside the other reads, so about 150 ms over a week (estimated, not measured on a real store); longer
+  windows read them at five minutes.
 - **The first and last sample beside a silence** (`edgesQuery`, `edgesAround`, `edgesOf`; the redesign session of
   2026-11-13 after the sixth walk; what it is for: [server-engines.md](server-engines.md#read-models)): for
   each drawn window that stands beside a gap that may be a silence - a window stands empty in it and, a step
