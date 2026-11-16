@@ -45,7 +45,7 @@ export type GrantKind = 'included' | 'migration' | 'purchase';
 
 export type PlanStatus = 'running' | 'paused' | 'stopped' | 'completed';
 
-export type SpaceKind = 'tent' | 'fridge' | 'room' | 'balcony' | 'other';
+export type SpaceKind = 'tent' | 'fridge' | 'room' | 'balcony' | 'dry_box' | 'greenhouse' | 'other';
 
 export type GrowType = 'photoperiod' | 'autoflower';
 
@@ -75,6 +75,8 @@ export type FirmwareChannel = 'stable' | 'beta' | 'alpha' | 'manual';
 
 export type OperatingMode = 'standard' | 'greenhouse' | 'germination';
 
+export type DeviceRelease = 'given_up' | 'account_deleted';
+
 export type SocketState = 'on' | 'off' | 'unknown';
 
 export type SocketOverrideState = 'on' | 'off' | 'auto';
@@ -102,6 +104,10 @@ export type PlanTransition =
     }
   | {
       kind: 'resume';
+      /**
+       * For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.
+       */
+      growId?: string;
     }
   | {
       kind: 'goto';
@@ -109,6 +115,10 @@ export type PlanTransition =
        * The step the plan runs from, by its id.
        */
       stepId: string;
+      /**
+       * For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.
+       */
+      growId?: string;
     };
 
 export type AlarmOrigin = 'preset' | 'always' | 'device' | 'human';
@@ -246,7 +256,72 @@ export type ChartViewSpan =
       kind: 'grow';
     };
 
-export type ChartViewLayout = 'stacked' | 'overlay' | 'day_of_grow';
+export type ChartViewLayout = 'stacked' | 'overlay';
+
+export type GrowDayEvent =
+  | {
+      kind: 'light';
+      at: string;
+      on: boolean;
+      /**
+       * Whether the lamp is lit as this is read: it came on, nothing switched it off, the day is the one still running and its device still reports. False says only that it switched - of the time after, nothing.
+       */
+      still: boolean;
+    }
+  | {
+      kind: 'excursion';
+      /**
+       * When the reading left its band; the start of the day, or the moment its device was put there, where it was already outside.
+       */
+      at: string;
+      /**
+       * Null for a run still going when the day, or the reading of it, ended.
+       */
+      endedAt: string | null;
+      metric: Metric;
+      /**
+       * Which edge it left over: true is above the band.
+       */
+      above: boolean;
+      extremeValue: number | null;
+    }
+  | {
+      kind: 'maintenance';
+      /**
+       * When somebody put the devices of the place into maintenance, or the start of the day where they already were.
+       */
+      at: string;
+      /**
+       * Null while it is still on, or where the day ended first.
+       */
+      endedAt: string | null;
+    }
+  | {
+      kind: 'controlOff';
+      /**
+       * When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was.
+       */
+      at: string;
+      /**
+       * When it was switched on again; null while it is still off, or where the day ended first.
+       */
+      endedAt: string | null;
+    }
+  | {
+      kind: 'device';
+      /**
+       * When the device was put there: from here on the curves and the figures of the place are its own.
+       */
+      at: string;
+      /**
+       * What the device is called, as `Device.name`.
+       */
+      name: string | null;
+      /**
+       * Its type, as `Device.type`, which is what an unnamed device is called by.
+       */
+      type: string;
+    };
 
 export type VerdictRating = 'good' | 'watch' | 'poor';
 
@@ -308,6 +383,14 @@ export interface MetricValue {
 export interface SeriesPoint {
   measuredAt: string;
   value: number | null;
+  /**
+   * The lowest sample of the window, on a read that asks for the extremes (the Timeline). Left out where the window held one sample, where lowest and highest are the same figure, and for a day kept as its mean. Of a computed metric it is the least its inputs allow: the corner of the box they moved in.
+   */
+  min?: number;
+  /**
+   * The highest sample of the window, answered and left out as `min` is.
+   */
+  max?: number;
 }
 
 export interface GrowOrSpaceRef {
@@ -365,7 +448,7 @@ export interface LayoutSeen {
    */
   diary: boolean;
   /**
-   * Whether Start listed several places rather than being the cockpit of the only one.
+   * Whether Start listed several places rather than being the page of the only one.
    */
   places: boolean;
 }
@@ -775,6 +858,11 @@ export interface DryingReturn {
   lightLimit: number | null;
 }
 
+export interface AppliedClimate {
+  stage: GrowthStage;
+  preset: string | null;
+}
+
 export interface DeviceControl {
   /**
    * Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.
@@ -795,6 +883,14 @@ export interface DeviceControl {
   afterDrying?: DryingReturn1;
   afterGermination?: DryingReturn2;
   germinationChoices: GerminationChoices1;
+  /**
+   * The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept.
+   */
+  preset?: AppliedClimate | null;
+  /**
+   * While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell.
+   */
+  endsOn?: AppliedClimate | null;
 }
 
 /**
@@ -844,6 +940,21 @@ export interface DeviceState {
    */
   lastSeenAt: string | null;
   claimedAt: string | null;
+  /**
+   * When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.
+   */
+  released?: {
+    at: string;
+    by: DeviceRelease;
+  } | null;
+  /**
+   * The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.
+   */
+  awaitedClimate?: AppliedClimate | null;
+  /**
+   * A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.
+   */
+  limitBeforeDark?: number | null;
   /**
    * What the device reports it is running, which is the build uuid.
    */
@@ -943,6 +1054,18 @@ export interface DeviceConfigurationEnvelope {
      */
     humidifierHolds?: boolean;
   };
+  /**
+   * The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.
+   */
+  preset?: AppliedClimate | null;
+  /**
+   * The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.
+   */
+  bands?: AppliedClimate | null;
+  /**
+   * Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.
+   */
+  bandsBefore?: AppliedClimate | null;
 }
 
 export interface TimerWindow {
@@ -1184,6 +1307,17 @@ export interface DeviceClaimCreate {
    */
   name?: string;
   spaceId?: string;
+  /**
+   * What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.
+   */
+  spaceNames?: {
+    tent?: string;
+    fridge?: string;
+  };
+  /**
+   * Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.
+   */
+  joinSpaceId?: string;
 }
 
 export interface DeviceClaimResult {
@@ -1401,6 +1535,10 @@ export interface Plan {
    * What it was started from; null once it no longer matters.
    */
   templateId: string | null;
+  /**
+   * The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.
+   */
+  growId?: string | null;
   name: string;
   steps: PlanStep[];
   /**
@@ -1589,6 +1727,21 @@ export interface AlarmRulePage {
    * Pass back as `cursor` for the next page; null on the last one.
    */
   nextCursor: string | null;
+  /**
+   * Over every rule of the device, whichever page this is.
+   */
+  counts: {
+    total: number;
+    enabled: number;
+    /**
+     * Enabled rules whose watch is out of bounds now.
+     */
+    triggered: number;
+  };
+  /**
+   * While the place the device stands in germinates: what was chosen there about the humidity, which the stage's "too humid" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server.
+   */
+  germination?: GerminationChoices | null;
 }
 
 export interface AlarmRuleCreate {
@@ -1649,7 +1802,18 @@ export interface Alert {
   ruleId: string | null;
   deviceId: string | null;
   cameraId: string | null;
+  /**
+   * The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.
+   */
   spaceId: string | null;
+  /**
+   * What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.
+   */
+  spaceName: string | null;
+  /**
+   * The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.
+   */
+  startedIn: string | null;
   kind: AlertKind;
   severity: Severity;
   startedAt: string;
@@ -1732,6 +1896,29 @@ export interface Setpoints {
   transition?: SetpointsTransition | null;
 }
 
+export interface PendingSetting {
+  /**
+   * The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`.
+   */
+  field: string;
+  /**
+   * What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.
+   */
+  held: number | string | null;
+  /**
+   * When the value the cloud holds now was stored.
+   */
+  savedAt: string;
+}
+
+export interface PendingSettings {
+  /**
+   * When the device was last heard.
+   */
+  since: string;
+  settings: PendingSetting[];
+}
+
 export interface DeviceLive {
   deviceId: string;
   metrics: {
@@ -1747,6 +1934,10 @@ export interface DeviceLive {
    * null for a device that holds no targets, such as a plug.
    */
   setpoints: Setpoints | null;
+  /**
+   * Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.
+   */
+  pending: PendingSettings | null;
 }
 
 export interface MetricSeries {
@@ -1956,14 +2147,14 @@ export interface Space {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId: string | null;
   presetPrompt: PresetPrompt;
   retention: SpaceRetention;
   isDemo: boolean;
   /**
-   * A tombstone: history still names the space, so it is kept and no longer listed.
+   * When the place ended: a tombstone, since history still names it, so it is kept and no longer listed.
    */
   archivedAt: string | null;
   createdAt: string;
@@ -2232,11 +2423,11 @@ export interface GrowLocation {
 
 export interface GrowSummary {
   /**
-   * 1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.
+   * 1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase.
    */
   dayNumber: number | null;
   /**
-   * The stage of the largest group of plants.
+   * The stage of the largest group of the plants still standing; of all of them where none stands.
    */
   stage: GrowthStage | null;
   preset: string | null;
@@ -2246,11 +2437,15 @@ export interface GrowSummary {
    */
   weekNumber: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.
+   * The zone whose calendar the days above are dates of: the owner’s. What a client counts for itself - the day a line is dated to - it counts in this zone (`growDayAt`).
+   */
+  zone: string;
+  /**
+   * Which week of its stage the grow is in, counted from the stage’s own start: days 1 to 7 of the stage are week 1 (`stageWeekOf`). Null before the first phase.
    */
   stageWeek: number | null;
   /**
-   * The phase was set by a preset or by the plan rather than by hand.
+   * The phase was set by the plan rather than by a person: what the app marks "von allein".
    */
   isAuto: boolean;
   /**
@@ -2299,22 +2494,30 @@ export interface SpaceCreate {
   kind: SpaceKind;
   name: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
   retention?: SpaceRetention;
+  /**
+   * The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.
+   */
+  roomName?: string;
 }
 
 export interface SpaceUpdate {
   kind?: SpaceKind;
   name?: string;
   /**
-   * A space of kind `room`, one level deep. Null is a space that stands on its own.
+   * A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.
    */
   roomId?: string | null;
   presetPrompt?: PresetPrompt;
   retention?: SpaceRetention;
+  /**
+   * The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.
+   */
+  roomName?: string;
 }
 
 export interface PresetApplicationCreate {
@@ -2389,6 +2592,10 @@ export interface InvitePreview {
   role: MemberRole | null;
   invitedByHandle: string | null;
   expiresAt: string | null;
+  /**
+   * Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code.
+   */
+  hasCamera: boolean;
 }
 
 export interface InviteAcceptance {
@@ -2397,6 +2604,9 @@ export interface InviteAcceptance {
 }
 
 export interface PlantBatch {
+  /**
+   * Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name.
+   */
   strain: string;
   count: number;
 }
@@ -2423,7 +2633,7 @@ export interface PhaseCreate {
   stage: GrowthStage;
   preset?: string | null;
   /**
-   * Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false.
+   * Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false: the phase is then a record and no device is written, whatever the stage.
    */
   climate?: boolean;
   /**
@@ -2785,6 +2995,14 @@ export interface MoveEntryValues {
    * Where the plants moved to; null is "no fixed place".
    */
   spaceId: string | null;
+  /**
+   * What the place moved to was called then; null for no fixed place. Absent on a line written before a move named its places, and on a read that hides the place.
+   */
+  to?: string | null;
+  /**
+   * What the place the plants left was called then - a place that has since been removed still has its name here. Absent like `to`, and where the plants came from more than one place.
+   */
+  from?: string | null;
 }
 
 export interface HarvestEntryValues {
@@ -2895,7 +3113,7 @@ export interface EntryUpdate {
    */
   text?: string | null;
   mediaIds?: string[];
-  values?: EntryValuesDraft;
+  values?: EntryValuesDraft | HarvestEntryValues;
 }
 
 export interface MediaOverlays {
@@ -3217,6 +3435,12 @@ export interface CameraStill {
   capturedAt: string;
 }
 
+export interface PlantLabel {
+  id: string;
+  growId: string;
+  label: string;
+}
+
 export interface TestCapture {
   id: string;
   cameraId: string;
@@ -3235,6 +3459,61 @@ export interface TestCapture {
    * Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.
    */
   error: string | null;
+}
+
+export interface StreamTestCreate {
+  /**
+   * The login name the stream is opened with, written into the URL; empty takes it away.
+   */
+  username?: string;
+  /**
+   * The password the stream is opened with, written into the URL; empty takes it away.
+   */
+  password?: string;
+  /**
+   * The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.
+   */
+  deviceId?: string | null;
+  /**
+   * Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel.
+   */
+  tunnel?: boolean;
+  transport?: CameraTransport | null;
+  /**
+   * The place the camera would hang in, which whoever tests it has to manage.
+   */
+  spaceId: string;
+  /**
+   * The stream URL. A login written into it is used; `username` and `password` replace its halves.
+   */
+  url: string;
+}
+
+export interface StreamTestPicture {
+  capturedAt: string;
+  /**
+   * The picture as a JPEG, base64, at most 720 pixels wide.
+   */
+  jpeg: string;
+}
+
+export interface StreamTestCapture {
+  id: string;
+  state: TestCaptureState;
+  startedAt: string;
+  finishedAt: string | null;
+  /**
+   * What kind of failure it was, once `failed`.
+   */
+  reason: CaptureFailure | null;
+  /**
+   * Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.
+   */
+  error: string | null;
+  /**
+   * The picture it took, once `done`.
+   */
+  picture: StreamTestPicture | null;
 }
 
 export interface TimelapseCreate {
@@ -3482,15 +3761,6 @@ export interface CardTrend {
   points: (number | null)[];
 }
 
-export interface DueTask {
-  id: string;
-  kind: ReminderKind;
-  label: string;
-  dueAt: string;
-  subject: GrowOrSpaceRef;
-  assigneeId: string | null;
-}
-
 export interface OpenAlert {
   alertId: string;
   kind: AlertKind;
@@ -3525,7 +3795,7 @@ export interface GrowCard {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   * Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -3543,11 +3813,53 @@ export interface GrowCard {
    */
   plantCount: number | null;
   /**
+   * How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.
+   */
+  standingCount: number | null;
+  /**
    * Each strain once, in the order it was planted.
    */
   strains: string[];
   coverMediaId: string | null;
+  /**
+   * Each stage the plants still standing are in, with how many; every plant’s where none stands.
+   */
   stageGroups: GrowCardStageGroup[];
+}
+
+export interface DeviceArrival {
+  deviceId: string;
+  /**
+   * What the device is called, as `Device.name`.
+   */
+  name: string | null;
+  /**
+   * Its type, as `Device.type`, which is what an unnamed device is called by.
+   */
+  type: string;
+  /**
+   * When it was put here.
+   */
+  at: string;
+  /**
+   * The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place.
+   */
+  from: {
+    spaceId: string;
+    name: string;
+  } | null;
+}
+
+export interface TimelineDevice {
+  deviceId: string;
+  /**
+   * What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.
+   */
+  name: string | null;
+  /**
+   * Its type, as `Device.type`, which is what an unnamed device is called by.
+   */
+  type: string;
 }
 
 export interface HomeClimate {
@@ -3586,11 +3898,14 @@ export interface HomeSpaceCard {
   trend: CardTrend | null;
   grow: GrowCard | null;
   /**
-   * The grow’s newest entries, newest first.
+   * The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by.
    */
   entries: Entry[];
+  /**
+   * When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s.
+   */
+  events: GrowDayEvent[];
   latestStill: LatestStill | null;
-  dueTasks: DueTask[];
   openAlerts: OpenAlert[];
 }
 
@@ -3610,16 +3925,20 @@ export interface FollowedGrowCard {
   endedAt: string | null;
   coverMediaId: string | null;
   /**
-   * When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet.
+   * When the grow last moved, by what `updatedBy` says: the newest picture of a camera where it stands (where its page shows the cameras), the newest word from a device there, or the newest line of its diary - whichever came last -, else the day it started. An ended grow stands nowhere, so only its diary and its start date it.
    */
   updatedAt: string;
+  /**
+   * What `updatedAt` is the time of, which the card says beside the age.
+   */
+  updatedBy: 'picture' | 'reading' | 'entry' | 'start';
 }
 
 export interface HomeAnswer {
   spaces: HomeSpaceCard[];
   followedGrows: FollowedGrowCard[];
   /**
-   * Everyone the cards name, so a card can say who wrote an entry without another read.
+   * Everyone the cards name, so a card can say who wrote an entry without another read - and the owner of every place that is not the reader’s own, so a shared place says whose it is.
    */
   people: Person[];
   layers: AccountLayers;
@@ -3720,7 +4039,7 @@ export interface OverviewGrow {
    */
   phaseDay: number | null;
   /**
-   * Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state.
+   * Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states.
    */
   stageWeek: number | null;
   stage: GrowthStage | null;
@@ -3738,10 +4057,17 @@ export interface OverviewGrow {
    */
   plantCount: number | null;
   /**
+   * How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts.
+   */
+  standingCount: number | null;
+  /**
    * Each strain once, in the order it was planted.
    */
   strains: string[];
   coverMediaId: string | null;
+  /**
+   * Each stage the plants still standing are in, with how many; every plant’s where none stands.
+   */
   stageGroups: GrowCardStageGroup[];
   /**
    * Counted like the day counter, so it lines up with the feeding scheme's grid.
@@ -3752,19 +4078,6 @@ export interface OverviewGrow {
    * The grow’s own day counter on the day these plants arrived here, which is what "here since day 22" says.
    */
   placedOnDay: number | null;
-}
-
-export interface OverviewTask {
-  id: string;
-  kind: ReminderKind;
-  label: string;
-  dueAt: string;
-  subject: GrowOrSpaceRef;
-  assigneeId: string | null;
-  /**
-   * Prefilled entry values for the completion; null when the task prefills nothing.
-   */
-  defaults: any;
 }
 
 export interface OverviewTargets {
@@ -3821,14 +4134,25 @@ export interface SpaceOverview {
   grows: OverviewGrow[];
   cameras: OverviewCamera[];
   /**
-   * The newest lines of this space and of the grows standing in it, newest first.
+   * The newest lines of this space and of the grows standing in it, newest first, by the rules a day of the diary goes by: what people wrote, the alarms and the plan’s steps - not what else a device logs about itself. A reader from outside is answered what people wrote.
    */
   entries: Entry[];
+  /**
+   * When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s.
+   */
+  events: GrowDayEvent[];
   /**
    * What the grows those lines belong to call their measurements, so a reading is named rather than keyed.
    */
   readingNames: GrowReadingNames[];
-  dueTasks: OverviewTask[];
+  /**
+   * What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside.
+   */
+  devices: TimelineDevice[];
+  /**
+   * The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader.
+   */
+  plants: PlantLabel[];
   openAlerts: OpenAlert[];
   /**
    * Everyone the answer names, so an entry can say who wrote it without another read.
@@ -3953,6 +4277,16 @@ export interface TimelineTargets {
   settling?: boolean;
 }
 
+export interface TimelineReading {
+  measuredAt: string;
+  values: CardValue[];
+  outputs: {
+    output: OutputMetric;
+    on: boolean;
+    level: number | null;
+  }[];
+}
+
 export interface TimelinePanel {
   metric: Metric;
   points: SeriesPoint[];
@@ -3962,12 +4296,27 @@ export interface TimelinePanel {
   targets: TimelineTargets[];
 }
 
-export interface TimelineOutputLevel {
-  unit: 'percent' | 'count';
+export interface TimelineOutputPoint {
   /**
    * Stamped like the climate points: each closes the window it stands for.
    */
-  points: SeriesPoint[];
+  measuredAt: string;
+  /**
+   * How many samples of the output the window held.
+   */
+  heard: number;
+  /**
+   * In how many of them the output was running.
+   */
+  on: number;
+  /**
+   * The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.
+   */
+  level: number | null;
+  /**
+   * True where the device had fallen silent before this window, by the interval it was keeping there: the point then stands for its own window alone. Elsewhere it stands for the stretch since the point before it - a device slower than the step is one stretch - and a lane's first point for the stretch since the read began.
+   */
+  resumed?: boolean;
 }
 
 export interface TimelineOutputLane {
@@ -3985,19 +4334,14 @@ export interface TimelineOutputLane {
    * Set where a fridge module drives the output, whose dehumidifier output is the compressor that cools and dries at once and is called that. Told to a link too, which is not told the device: the name of a lane is not the hardware behind it.
    */
   fridge?: true;
-  level?: TimelineOutputLevel1;
-}
-
-/**
- * Only for an output the device drives at a level; absent where the output is a switch and nothing more.
- */
-
-export interface TimelineOutputLevel1 {
-  unit: 'percent' | 'count';
   /**
-   * Stamped like the climate points: each closes the window it stands for.
+   * Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device.
    */
-  points: SeriesPoint[];
+  reading?: true;
+  /**
+   * The output point by drawn point, in order; absent where the read did not count its samples.
+   */
+  points?: TimelineOutputPoint[];
 }
 
 export interface TimelineAlarm {
@@ -4016,7 +4360,7 @@ export interface TimelineAlarm {
 
 export interface TimelineMachineEvents {
   /**
-   * How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics.
+   * How many are in `events`. Zero on a shared or public read, whose lines are the grow's diary and never a device's diagnostics.
    */
   shown: number;
   /**
@@ -4065,7 +4409,15 @@ export interface SpaceTimeline {
    * Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
    */
   deviceIds: string[] | null;
+  /**
+   * The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured.
+   */
+  deviceId: string | null;
   panels: TimelinePanel[];
+  /**
+   * What the device the panels are of last read, whenever that was: the figures a screen shows as "now" - or as the last reading of a device gone quiet - for every reader alike. Null where no device standing here is drawn.
+   */
+  reading: TimelineReading | null;
   /**
    * When a device standing here last measured one of the panels' metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `panels` is empty in both. Answered only where `panels` is empty, because that is the one question it settles; null there where nothing standing here has ever measured, and null beside panels that speak for themselves.
    */
@@ -4078,15 +4430,49 @@ export interface SpaceTimeline {
    * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
    */
   transitions?: TimelineSpan[];
+  /**
+   * The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device.
+   */
+  silences: TimelineSpan[];
   alarms: TimelineAlarm[];
   outputs: TimelineOutputLane[];
   /**
-   * The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn.
+   * The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead.
    */
   events: Entry[];
+  /**
+   * When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read.
+   */
+  stretches: GrowDayEvent[];
+  /**
+   * When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read.
+   */
+  deviceChanges: {
+    kind: 'device';
+    /**
+     * When the device was put there: from here on the curves and the figures of the place are its own.
+     */
+    at: string;
+    /**
+     * What the device is called, as `Device.name`.
+     */
+    name: string | null;
+    /**
+     * Its type, as `Device.type`, which is what an unnamed device is called by.
+     */
+    type: string;
+  }[];
+  /**
+   * The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read.
+   */
+  arrivals: DeviceArrival[];
   machineEvents: TimelineMachineEvents;
   /**
-   * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room.
+   * Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read.
+   */
+  devices: TimelineDevice[];
+  /**
+   * Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. A link on the place is told the grows that stood here in the window, whose lines it reads, so that a line names its grow; any other shared or public read is given one grow and is not told what else has stood in the room, and gets none.
    */
   grows: TimelineGrow[];
   /**
@@ -4095,7 +4481,7 @@ export interface SpaceTimeline {
   readingNames: GrowReadingNames[];
   cameras: TimelineCamera[];
   /**
-   * Everyone the rail names, so a mark can say who wrote it without another read.
+   * Everyone the lines name, so a mark can say who wrote it without another read.
    */
   people: Person[];
 }
@@ -4112,77 +4498,94 @@ export interface WeekClimate {
   nightAverage: number | null;
 }
 
-export interface GrowWeekDay {
+export interface GrowDayClimate {
+  temperature: number | null;
+  humidity: number | null;
+  inBandFraction: number | null;
+}
+
+export interface GrowDiaryDay {
+  /**
+   * The date on the owner’s calendar, `YYYY-MM-DD`.
+   */
+  date: string;
   dayNumber: number;
   startsAt: string;
   /**
-   * The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it.
+   * The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first.
    */
-  stage: GrowthStage | null;
-  mediaId: string | null;
-  cameraId: string | null;
-  capturedAt: string | null;
+  endsAt: string;
+  /**
+   * The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras.
+   */
+  still: {
+    mediaId: string;
+    cameraId: string;
+    capturedAt: string;
+  } | null;
+  /**
+   * Null where nothing measured where the grow stood that day.
+   */
+  climate: GrowDayClimate | null;
+  /**
+   * The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it.
+   */
+  phase?: {
+    stage: GrowthStage;
+    preset: string | null;
+    stageWeek: number;
+  } | null;
+  /**
+   * In the order they happened.
+   */
+  events: GrowDayEvent[];
+  /**
+   * The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device.
+   */
+  entries: Entry[];
+  /**
+   * The devices that stood where the grow stood that day, while it stood there: a line of the day names its device where another of them stood there too, as Verlauf names one where its window held another (`SpaceTimeline.devices`). What each is called is `GrowDiaryPage.devices`. Absent for a reader from outside, and from a server that does not say it.
+   */
+  deviceIds?: string[];
 }
 
-export interface GrowWeekFeeding {
-  amounts: SchemeAmount[];
-  plannedCount: number;
-}
-
-export interface GrowWeekReading {
-  key: string;
-  value: number;
-  change: number | null;
-  measuredAt: string;
-}
-
-export interface GrowWeekCard {
+export interface GrowDiaryWeek {
   weekNumber: number;
   dayFrom: number;
   dayTo: number;
-  startsAt: string;
-  endsAt: string;
   stage: GrowthStage | null;
   preset: string | null;
   /**
-   * 1 in the week the stage began; null before the first phase.
+   * Which week of its stage the week’s stage was in, from the stage’s own start (days 1 to 7 are week 1): at the week’s middle for a week that is over, today for the week still running. The week itself is seven days of the grow, named by its days. Null before the first phase.
    */
   stageWeek: number | null;
+  film: {
+    mediaId: string;
+    dayFrom: number;
+    dayTo: number;
+    lengthSeconds: number | null;
+  } | null;
   /**
-   * The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not.
+   * The days of the week that have happened and that the reader may see, newest first.
    */
-  deviceIds: string[] | null;
-  climate: WeekClimate[];
-  /**
-   * Hours of light per day over the week, from the controller’s light output.
-   */
-  lightHours: number | null;
-  /**
-   * Seven; a day that has not happened yet carries no picture.
-   */
-  days: GrowWeekDay[];
-  /**
-   * Null for a grow that is fed no scheme.
-   */
-  feeding: GrowWeekFeeding | null;
-  readings: GrowWeekReading[];
-  waterCount: number;
-  feedCount: number;
-  /**
-   * The week’s diary lines, newest first, capped; `entryCount` is how many there are.
-   */
-  entries: Entry[];
-  entryCount: number;
-  timelapseMediaId: string | null;
+  days: GrowDiaryDay[];
 }
 
-export interface GrowWeekCardPage {
-  items: GrowWeekCard[];
+export interface GrowDiaryPage {
+  items: GrowDiaryWeek[];
   /**
    * Pass back as `cursor` for the next page; null on the last one.
    */
   nextCursor: string | null;
   people: Person[];
+  /**
+   * Newest first; empty on every page but the last.
+   */
+  earlier: Entry[];
+  /**
+   * What each device the page’s lines name, or its days’ `deviceIds`, is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside.
+   */
+  devices: TimelineDevice[];
 }
 
 export interface GrowReportPhase {
@@ -4207,7 +4610,7 @@ export interface GrowReportPhase {
   coverMediaId: string | null;
   climate: WeekClimate[];
   /**
-   * Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.
+   * Hours of light per day over the phase, from the controller’s light output; null over a stretch too short or too quiet to say.
    */
   lightHours: number | null;
   /**
@@ -4226,6 +4629,10 @@ export interface GrowHarvest {
   harvestedAt: string | null;
   wetWeightG: number | null;
   dryWeightG: number | null;
+  /**
+   * The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's.
+   */
+  plantIds: string[];
 }
 
 export interface GrowTotals {
@@ -4354,70 +4761,12 @@ export interface GrowSeries {
   startsAt: string;
   endsAt: string;
   /**
-   * The window each climate and output point summarises; 0 where no device was read at all.
-   */
-  stepSeconds: number;
-  /**
-   * The instant day 1 of this grow began, which is what day-of-grow counts from.
+   * The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from.
    */
   originAt: string;
   dayFrom: number | null;
   dayTo: number | null;
-  /**
-   * The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it.
-   */
-  deviceIds: string[] | null;
-  climate: TimelinePanel[];
-  /**
-   * When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves.
-   */
-  lastReadingAt: string | null;
-  outputs: TimelineOutputLane[];
-  /**
-   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
-   */
-  nights: TimelineSpan[];
-  /**
-   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
-   */
-  transitions?: TimelineSpan[];
   measurements: GrowMeasurementSeries[];
-  /**
-   * The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras.
-   */
-  cameras: TimelineCamera[];
-}
-
-export interface SpaceSeries {
-  spaceId: string;
-  startsAt: string;
-  endsAt: string;
-  /**
-   * The window each point summarises, as the server settled it; 0 where no device was read at all.
-   */
-  stepSeconds: number;
-  /**
-   * The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it.
-   */
-  deviceIds: string[] | null;
-  climate: TimelinePanel[];
-  /**
-   * When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline.
-   */
-  lastReadingAt: string | null;
-  outputs: TimelineOutputLane[];
-  /**
-   * When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor.
-   */
-  nights: TimelineSpan[];
-  /**
-   * When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.
-   */
-  transitions?: TimelineSpan[];
-  /**
-   * The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras.
-   */
-  cameras: TimelineCamera[];
 }
 
 export interface PublicAuthor {
@@ -4442,7 +4791,7 @@ export interface PublicGrowPage {
   stage: GrowthStage | null;
   preset: string | null;
   /**
-   * Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
+   * Which week of the stage above the diary is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`, which counts the whole grow. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today.
    */
   stageWeek: number | null;
   plantCount: number | null;
@@ -4451,7 +4800,15 @@ export interface PublicGrowPage {
   filmMediaId: string | null;
   range: TimeRange;
   includeCameras: boolean;
-  weeks: GrowWeekCard[];
+  /**
+   * What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed.
+   */
+  readingNames: ReadingName[];
+  /**
+   * The grow’s plants, so a line about some of them names them; none where the counts are hidden.
+   */
+  plants: PlantLabel[];
+  weeks: GrowDiaryWeek[];
   /**
    * Pass as `cursor` to the weeks route of the same address for the weeks before these; null where the page holds them all.
    */
@@ -4461,7 +4818,7 @@ export interface PublicGrowPage {
 }
 
 export interface PublicWeekPage {
-  items: GrowWeekCard[];
+  items: GrowDiaryWeek[];
   /**
    * Pass back as `cursor` for the next page; null on the last one.
    */
@@ -4473,9 +4830,19 @@ export interface PublicUserPage {
   grows: FollowedGrowCard[];
 }
 
+export interface SharedCurves {
+  spaceId: string;
+  name: string;
+  range: TimeRange;
+}
+
 export interface SharedGrow {
   type: 'grow';
   grow: PublicGrowPage;
+  /**
+   * Where the grow stood inside a window that ends, oldest first; none for a link onto a running grow, which is its diary.
+   */
+  curves: SharedCurves[];
 }
 
 export interface SharedSpace {
@@ -4502,4 +4869,8 @@ export interface LinkCard {
   handle: string | null;
   dayNumber: number | null;
   stage: GrowthStage | null;
+  /**
+   * The language of the owner's account, which the card's words are written in: `de` or `en`.
+   */
+  language: string;
 }

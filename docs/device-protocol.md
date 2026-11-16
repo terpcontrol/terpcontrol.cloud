@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-14
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-11-15
+source: a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -701,7 +701,9 @@ mode, the dehumidifier timings, the light ramps - which the cloud has never seen
 `device_sent_no_settings`, a climate preset passes the device by, and the app's screens write nothing to it
 (`awaitingClimate`, `webapp/src/ui/climate-hardware.ts`). Current firmware ends that state on its next connect
 ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)); an older build only when a setting is changed on the
-device itself.
+device itself. A climate preset applied to its place in the meantime is then written to it as any configuration
+is (`devices.awaitedClimate`, [server-engines.md](knowledge/server-engines.md#device-settings-and-plans)); nothing
+on the wire changes.
 
 | Direction | Payload | Where |
 | --- | --- | --- |
@@ -803,7 +805,10 @@ app shows the fan as uncoupled. It stays so until the plug's settings are saved 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
-refuses a plan for it with 422 `device_states_no_climate`.
+refuses a plan for it with 422 `device_states_no_climate`. The one exception is the dark of germination and drying
+(ADR 0007): while the place's climate device germinates or dries, the server writes `limit: 0`, keeps the brightness
+before (`limitBeforeDark` on the device row) and writes it back when that ends there or the light leaves the place -
+unless a brightness was set since.
 
 **cam**: `loadSettings` is empty (`cam.cpp:38-39`). A document is accepted and nothing is read from it, and the
 cam sends none ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
@@ -922,8 +927,11 @@ is controlling. It answers with `message-maintenance-mode-activated-remote:<minu
 device's own menu is logged as `message-maintenance-mode-activated:<minutes>`.
 
 The server keeps its own window, `devices.state.maintenanceUntil`: set before the command is published, so it
-survives a device that never heard it; set again from either log line when it arrives; and sent to the device again
-on its next `fetch` while a minute or more of it is left ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
+survives a device that never heard it; set again from either log line when it arrives - except where the line's
+whole minutes end up to a minute before the window already kept, which is the device saying back what it was told
+(set from such an echo, "bis 09:46" became "bis 09:45" a moment later; the fix round after the sixth whole-app
+walk) -; and sent to the device again on its next `fetch` while a minute or more of it is left
+([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
 The minutes the server sends are its seconds rounded, and on the repeat rounded down, so the device never holds
 past the end the screens name (`device-publisher.service.ts`, `device-ingest.service.ts`). Ending a window sends
 `durationMinutes: 0` and moves the server's end only where a window is open.

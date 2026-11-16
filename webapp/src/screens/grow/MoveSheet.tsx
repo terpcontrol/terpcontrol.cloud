@@ -3,15 +3,19 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, Placement, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
+import { placesFor } from '@/app/places';
+import { useLog } from '@/log/log-context';
 import { refusalCode } from '@/api/problem';
 import { useCorrectPlacement, useMovePlants, useWithdrawPlacement } from '@/api/lifecycle';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
-import { growPlaces, lastPlaceOf, placeName } from './placement';
+import { lastPlaceOf, placeName } from './placement';
+import { RepairAnswer } from './RepairAnswer';
 import { PlantPicker } from './PlantPicker';
 import styles from './Lifecycle.module.css';
 
@@ -41,15 +45,33 @@ export function MoveSheet({
 }) {
   const { t } = useTranslation();
   const move = useMovePlants(grow.id);
+  const { tell } = useLog();
 
-  const open = growPlaces(spaces);
-  const [spaceId, setSpaceId] = useState<string | null>(() => open.find(space => !standsIn(grow, space.id))?.id ?? null);
+  // The place the whole grow stands in is no destination, nor "no fixed place" for a grow that stands nowhere.
+  const here = grow.summary.locations.length === 1 ? grow.summary.locations[0].spaceId : null;
+  const open = placesFor(spaces).filter(space => space.id !== here);
+  const nowhere = grow.summary.locations.length > 0;
+  const [picked, setSpaceId] = useState<string | null | undefined>(undefined);
+  // A destination is one still offered: a move taken back below makes the place picked the one the grow stands in, and
+  // the button then named a move to where it already was.
+  const offered = (id: string | null | undefined) => (id === null ? nowhere : open.some(space => space.id === id));
+  const first = open.find(space => !standsIn(grow, space.id))?.id ?? (nowhere ? null : undefined);
+  const spaceId = offered(picked) ? picked : first;
   const [chosen, setChosen] = useState<string[] | null>(preselect ?? null);
   // Now as the server reckons it. The day field below caps at the server's
   // today, so a browser running fast would open this sheet on a day its own
   // control already refuses.
   const [at, setAt] = useState(() => serverNow().toJSDate());
   const [row, setRow] = useState<{ placementId: string; as: 'correct' | 'withdraw' } | null>(null);
+
+  // The answer says where they stand now. No one call takes a move back - the place they left is closed - so the
+  // way back is the row below, which the sheet keeps.
+  const moved = () => {
+    onClose();
+    const name = chosen === null ? grow.name : t('grow.lifecycle.somePlants', { count: chosen.length });
+    const label = spaceId == null ? t('grow.told.movedNowhere', { name }) : t('grow.told.moved', { place: placeName(t, spaces, spaceId), name });
+    tell({ label, undo: null });
+  };
 
   const placements = [...grow.placements].sort((one, other) => other.startedAt.localeCompare(one.startedAt));
   // A grow whose last placement is closed stands nowhere, and the header of the
@@ -61,7 +83,7 @@ export function MoveSheet({
   return (
     <Sheet title={t('grow.lifecycle.move.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <p className={`mono ${styles.now}`}>
+        <p className={styles.now}>
           {stood
             ? t('grow.stoodIn', { name: placeName(t, spaces, stood.spaceId) })
             : t('grow.lifecycle.move.standsIn', {
@@ -77,16 +99,13 @@ export function MoveSheet({
           <p className={ui.note}>{t('grow.lifecycle.move.endedNote')}</p>
         ) : (
           <Block label={t('grow.lifecycle.move.moveTo')}>
-            <Choices label={t('grow.lifecycle.move.moveTo')}>
-              {open.map(space => (
-                <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-                  {space.name}
-                </Choice>
-              ))}
-              <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-                {t('grow.noFixedPlace')}
-              </Choice>
-            </Choices>
+            <PlaceChoices<null | undefined>
+              label={t('grow.lifecycle.move.moveTo')}
+              places={open}
+              nowhere={nowhere}
+              chosen={spaceId}
+              onChoose={setSpaceId}
+            />
 
             <PlantPicker
               plants={plants}
@@ -103,18 +122,23 @@ export function MoveSheet({
             <button
               type="button"
               className={`${ui.button} ${ui.primary} ${styles.submit}`}
-              disabled={move.isPending}
+              disabled={move.isPending || spaceId === undefined}
               onClick={() =>
-                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: () => onClose() })
+                spaceId !== undefined &&
+                move.mutate({ spaceId, plantIds: chosen, startedAt: instantOf(DateTime.fromJSDate(at)) }, { onSuccess: moved })
               }
             >
-              {move.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.submit', { place: placeName(t, spaces, spaceId) })}
+              {move.isPending
+                ? t('grow.lifecycle.saving')
+                : spaceId === undefined
+                  ? t('grow.lifecycle.actions.move')
+                  : t('grow.lifecycle.move.submit', { place: placeName(t, spaces, spaceId) })}
             </button>
           </Block>
         )}
 
-        <Block label={t('grow.lifecycle.move.history')} aside={<span className="mono">{t('grow.lifecycle.move.newestFirst')}</span>}>
-          <ul className={styles.rows}>
+        <Block label={t('grow.lifecycle.move.history')} aside={t('grow.lifecycle.move.newestFirst')}>
+          <ul className={ui.list}>
             {placements.map(placement => (
               <PlacementRow
                 key={placement.id}
@@ -157,16 +181,16 @@ function PlacementRow({
 
   return (
     <li className={styles.row} data-dim={placement.endedAt !== null}>
-      <div className={styles.rowHead}>
+      <div className={ui.headRow}>
         <span className={styles.rowTitle}>{placeName(t, spaces, placement.spaceId)}</span>
-        <span className={`mono ${styles.rowMeta}`}>
+        <span className={styles.rowMeta}>
           {day(placement.startedAt)} → {placement.endedAt ? day(placement.endedAt) : t('grow.lifecycle.move.stillThere')}
           {placement.plantIds === null ? '' : ` · ${t('grow.lifecycle.somePlants', { count: placement.plantIds.length })}`}
         </span>
       </div>
 
       {open === null ? (
-        <div className={styles.rowActions}>
+        <div className={`${ui.wrap} ${styles.rowActions}`}>
           <button type="button" className={ui.chip} onClick={() => onOpen('correct')}>
             {t('grow.lifecycle.move.correct')}
           </button>
@@ -177,7 +201,7 @@ function PlacementRow({
       ) : open === 'correct' ? (
         <PlacementEditor grow={grow} placement={placement} spaces={spaces} onDone={() => onOpen(null)} />
       ) : (
-        <PlacementWithdrawal grow={grow} placement={placement} onDone={() => onOpen(null)} />
+        <PlacementWithdrawal grow={grow} placement={placement} spaces={spaces} onDone={() => onOpen(null)} />
       )}
     </li>
   );
@@ -202,16 +226,7 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
 
   return (
     <div className={styles.editor}>
-      <Choices label={t('grow.lifecycle.move.moveTo')}>
-        {growPlaces(spaces).map(space => (
-          <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-            {space.name}
-          </Choice>
-        ))}
-        <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-          {t('grow.noFixedPlace')}
-        </Choice>
-      </Choices>
+      <PlaceChoices label={t('grow.lifecycle.move.moveTo')} places={placesFor(spaces)} nowhere chosen={spaceId} onChoose={setSpaceId} />
 
       <WhenField label={t('grow.lifecycle.move.from')} at={from} onChange={setFrom} until={endOf(grow)} />
 
@@ -228,40 +243,39 @@ function PlacementEditor({ grow, placement, spaces, onDone }: { grow: GrowListIt
       <p className={ui.note}>{t('grow.lifecycle.move.correctionNote')}</p>
       <Refused error={correct.error} />
 
-      <div className={styles.rowActions}>
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={correct.isPending || !changed}
-          onClick={() => correct.mutate({ placementId: placement.id, body }, { onSuccess: onDone })}
-        >
-          {correct.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.saveCorrection')}
-        </button>
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+      <RepairAnswer
+        yes={t('grow.lifecycle.saveCorrection')}
+        busy={correct.isPending}
+        disabled={!changed}
+        onYes={() => correct.mutate({ placementId: placement.id, body }, { onSuccess: onDone })}
+        onDone={onDone}
+      />
     </div>
   );
 }
 
 /**
- * A move that never happened.
+ * A move that never happened: the stay the move closed goes on, so the plants stand where they stood before it.
  *
  * The one refusal this round has to make a person able to act on lives here: a
- * grow always answers where it is, so the row that says so is not the one to
- * remove. The way out is the move nobody has made yet, so it is offered as that
- * move - "put the grow nowhere, then take this row out" - rather than as the
- * rule it broke.
+ * grow always answers where it is, so the row that says where it first stood,
+ * with nothing before it, is not the one to remove. The way out is the move
+ * nobody has made yet, so it is offered as that move - "put the grow nowhere,
+ * then take this row out" - beside the reason, before anything is sent.
  */
-function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; placement: Placement; onDone: () => void }) {
+function PlacementWithdrawal({ grow, placement, spaces, onDone }: { grow: GrowListItem; placement: Placement; spaces: Space[]; onDone: () => void }) {
   const { t } = useTranslation();
   const withdraw = useWithdrawPlacement(grow.id);
   const move = useMovePlants(grow.id);
 
+  // The stay this move closed, which the server lets run on (`undoneMove`, `grows.service.ts`).
+  const before = grow.placements.find(
+    one => one.id !== placement.id && one.endedAt !== null && Date.parse(one.endedAt) === Date.parse(placement.startedAt),
+  );
+  const last = placement.endedAt === null && !grow.placements.some(one => one.id !== placement.id && one.endedAt === null);
   // Offered only on a grow still running: one that has ended moves nowhere, and
   // the server refuses the move the escape would start with.
-  const standsNowhere = refusalCode(withdraw.error) === 'grow_stands_nowhere' && !grow.endedAt;
+  const standsNowhere = !grow.endedAt && ((last && !before) || refusalCode(withdraw.error) === 'grow_stands_nowhere');
 
   /** The escape the refusal asks for: somewhere to stand, and then the row that never happened is free to go. */
   const rescue = () =>
@@ -272,33 +286,40 @@ function PlacementWithdrawal({ grow, placement, onDone }: { grow: GrowListItem; 
 
   return (
     <div className={styles.editor}>
-      <ul className={styles.effect}>
-        <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
-        <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
-      </ul>
+      {/* The stay a grow first stood in was no move: what a withdrawal does is not said of it, only why it cannot go. */}
+      {standsNowhere ? null : (
+        <ul className={`${ui.effects} ${styles.effect}`}>
+          <li>{t('grow.lifecycle.move.withdrawEffect')}</li>
+          {before ? (
+            <li>
+              {t(`grow.lifecycle.move.backTo.${placement.plantIds === null ? 'grow' : 'plants'}`, { place: placeName(t, spaces, before.spaceId) })}
+            </li>
+          ) : null}
+          <li>{t('grow.lifecycle.phase.effect.entryGone')}</li>
+        </ul>
+      )}
 
-      <Refused error={withdraw.error} />
+      {standsNowhere && !withdraw.error ? <p className={ui.note}>{t('problem.code.grow_stands_nowhere')}</p> : <Refused error={withdraw.error} />}
       <Refused error={move.error} />
 
-      <div className={styles.rowActions}>
-        {standsNowhere ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={move.isPending || withdraw.isPending} onClick={rescue}>
-            {move.isPending || withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.nowhereThenWithdraw')}
+      {/* A first stay at no fixed place has no escape: the move it would start with goes where the grow stands. */}
+      {standsNowhere && placement.spaceId === null ? (
+        <div className={ui.wrap}>
+          <button type="button" className={ui.button} onClick={onDone}>
+            {t('asking.cancel')}
           </button>
-        ) : (
-          <button
-            type="button"
-            className={`${ui.button} ${ui.dangerFilled}`}
-            disabled={withdraw.isPending}
-            onClick={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
-          >
-            {withdraw.isPending ? t('grow.lifecycle.saving') : t('grow.lifecycle.move.confirmWithdraw')}
-          </button>
-        )}
-        <button type="button" className={ui.button} onClick={onDone}>
-          {t('grow.lifecycle.cancel')}
-        </button>
-      </div>
+        </div>
+      ) : standsNowhere ? (
+        <RepairAnswer yes={t('grow.lifecycle.move.nowhereThenWithdraw')} busy={move.isPending || withdraw.isPending} onYes={rescue} onDone={onDone} />
+      ) : (
+        <RepairAnswer
+          yes={t('grow.lifecycle.move.confirmWithdraw')}
+          danger
+          busy={withdraw.isPending}
+          onYes={() => withdraw.mutate(placement.id, { onSuccess: onDone })}
+          onDone={onDone}
+        />
+      )}
     </div>
   );
 }

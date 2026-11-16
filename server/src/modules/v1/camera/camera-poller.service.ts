@@ -114,6 +114,16 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
   }
 
   /**
+   * One still of a stream that is no camera yet, for somebody testing its
+   * address: the read a camera's test is - refused at once through a device
+   * that is offline, within the same budget - and stored nowhere. No camera
+   * means nothing to join and nothing the schedule could be reading.
+   */
+  public readUnstored(camera: CameraWithSecret): Promise<Buffer> {
+    return this.throughAnOnlineDevice(camera).then(() => this.capture.readStill(camera));
+  }
+
+  /**
    * A camera read through its device is not tried while that device is
    * offline, here as in the pass: a Terp Cam would spend its whole budget -
    * three minutes of relay dial-ins - to report a relay that was never going to

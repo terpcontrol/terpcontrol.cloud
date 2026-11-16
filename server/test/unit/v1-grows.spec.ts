@@ -1,5 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { growthStage } from '@fg2/shared-types/v1-schemas/common.js';
 import { Reflector } from '@nestjs/core';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
@@ -38,6 +39,8 @@ const FRIDGE = 'space-fridge';
 const GROW = 'grow-1';
 const DEVICE = 'device-1';
 
+const STAGES = growthStage.options;
+
 const STARTED_AT = new Date('2026-05-01T08:00:00.000Z');
 const TEN_DAYS_LATER = new Date('2026-05-11T09:00:00.000Z');
 
@@ -45,16 +48,12 @@ const db = useV1TestDatabase();
 let access: AccessService;
 let grows: GrowsService;
 let applied: { spaceId: string; stage: string; preset: string | null }[];
-let moded: { spaceId: string; stage: string }[];
 
 /** Stands in for the space slice, which owns the preset table and writes it to the controllers of a space. */
 const presets: ClimatePresets = {
   applyToSpace: async (spaceId, stage, preset): Promise<AppliedPreset[]> => {
     applied.push({ spaceId, stage, preset });
     return [{ deviceId: DEVICE, targets: { day: { temperature: 26, humidity: 65 }, night: { temperature: 22, humidity: 70 }, co2: null } }];
-  },
-  modeToSpace: async (spaceId, stage): Promise<void> => {
-    moded.push({ spaceId, stage });
   },
 };
 
@@ -95,7 +94,6 @@ const plantsOfGrow = (growId = GROW): Promise<PlantDocument[]> => grows.plantsOf
 beforeEach(async () => {
   await db.reset();
   applied = [];
-  moded = [];
   grows = build(presets);
   await world();
 });
@@ -143,7 +141,7 @@ const planted = (...ids: string[]): PlantDocument[] => ids.map(id => ({ id }) as
 
 describe('what a grow´s phases and placements mean', () => {
   it('counts day 1 on the day the first phase started', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(summary.dayNumber).toBe(1);
     expect(summary.weekNumber).toBe(1);
@@ -164,7 +162,7 @@ describe('what a grow´s phases and placements mean', () => {
   });
 
   it('counts the days that have passed, and the week with them', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(11);
     expect(summary.weekNumber).toBe(2);
@@ -177,48 +175,54 @@ describe('what a grow´s phases and placements mean', () => {
    */
   it('counts from the day the grow began, as the week cards beneath it do, even when its first phase came later', () => {
     const later = new Date('2026-05-06T08:00:00.000Z');
-    const summary = summaryOf(grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(
+      grown({ startedAt: STARTED_AT, phases: [phase({ startedAt: later })] }),
+      planted('a'),
+      NOTHING_HIDDEN,
+      null,
+      TEN_DAYS_LATER,
+    );
 
     expect(summary.dayNumber).toBe(11);
     expect(summary.weekNumber).toBe(2);
     expect(summary.phaseDay).toBe(6);
   });
 
-  it('counts the day of the phase in the grow´s own days, the same days the phase bar counts', () => {
-    // The flip was pressed at two in the morning, and the grow's day turns over
-    // at eight. Counted in 24-hour blocks from the phase's own instant the
-    // header read a day less than the bar directly above it said the stage had
-    // lasted, which is the drift the shared arithmetic exists to stop.
+  it('counts the day of the phase in the grow´s own days, the same days the report´s chapters count', () => {
+    // The flip was pressed at two in the morning of the ninth, and it is the
+    // eleventh: three dates. Counted in 24-hour blocks from the phase's own
+    // instant the header and the chapter beneath it state two lengths.
     const flip = new Date('2026-05-09T02:00:00.000Z');
     const grow = grown({ phases: [phase({ id: 'phase-veg' }), phase({ id: 'phase-flower', stage: 'flowering', startedAt: flip })] });
 
-    const summary = summaryOf(grow, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
-    const span = stageSpansOf(grow, TEN_DAYS_LATER).find(one => one.stage === 'flowering');
+    const summary = summaryOf(grow, planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
+    const span = stageSpansOf(grow, TEN_DAYS_LATER, null).find(one => one.stage === 'flowering');
 
-    expect(summary.phaseDay).toBe(4);
-    expect(span?.dayCount).toBe(4);
+    expect(summary.phaseDay).toBe(3);
+    expect(span?.dayCount).toBe(3);
   });
 
   it('counts the day of a split group´s phase the same way, which the home and tent cards draw', () => {
     const flip = new Date('2026-05-09T02:00:00.000Z');
     const split = phase({ id: 'phase-drying', stage: 'drying', startedAt: flip, plantIds: ['c'] });
-    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), split] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), split] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.groups.map(group => ({ stage: group.stage, phaseDay: group.phaseDay }))).toEqual([
       { stage: 'vegetative', phaseDay: 11 },
-      { stage: 'drying', phaseDay: 4 },
+      { stage: 'drying', phaseDay: 3 },
     ]);
   });
 
-  it('counts nothing before the grow has entered a phase', () => {
-    const summary = summaryOf(grown({ placements: [placement({})] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+  /** The head said no day for a grow without a phase, nor how long it ran once ended, while its diary counted "Tag 21". */
+  it('counts the days from the start before the grow has entered a phase, as its diary does, and no stage', () => {
+    const summary = summaryOf(grown({ placements: [placement({})] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
-    expect(summary).toMatchObject({ dayNumber: null, weekNumber: null, stage: null, phaseDay: null, isAuto: false, groups: [] });
+    expect(summary).toMatchObject({ dayNumber: 11, weekNumber: 2, stage: null, phaseDay: null, isAuto: false, groups: [] });
   });
 
   it('stops counting on the day the grow ended', () => {
     const endedAt = new Date('2026-05-06T08:00:00.000Z');
-    const summary = summaryOf(grown({ phases: [phase({})], endedAt }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({})], endedAt }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.dayNumber).toBe(6);
   });
@@ -238,8 +242,8 @@ describe('what a grow´s phases and placements mean', () => {
     });
 
     it('stops the day counter and the headline where the window did', () => {
-      const whole = summaryOf(running, planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
-      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+      const whole = summaryOf(running, planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, null, FIVE_DAYS_IN);
 
       expect(whole).toMatchObject({ dayNumber: 10, stage: 'flowering' });
       expect(seen).toMatchObject({ dayNumber: 6, stage: 'vegetative' });
@@ -251,22 +255,22 @@ describe('what a grow´s phases and placements mean', () => {
     });
 
     it('leaves the plants where they stood, not where they were moved to afterwards', () => {
-      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, FIVE_DAYS_IN);
+      const seen = summaryOf(growUpTo(running, FIVE_DAYS_IN), planted('a'), NOTHING_HIDDEN, null, FIVE_DAYS_IN);
 
       expect(seen.locations.map(where => where.spaceId)).toEqual([TENT]);
     });
   });
 
   it('is auto when a preset or the plan put the grow there, and not when a person did', () => {
-    const byPreset = summaryOf(grown({ phases: [phase({ source: 'preset' })] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
-    const byHand = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, STARTED_AT);
+    const byPreset = summaryOf(grown({ phases: [phase({ source: 'preset' })] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
+    const byHand = summaryOf(grown({ phases: [phase({})] }), planted('a'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(byPreset.isAuto).toBe(true);
     expect(byHand.isAuto).toBe(false);
   });
 
   it('lists no groups while every plant is in the same phase', () => {
-    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, STARTED_AT);
+    const summary = summaryOf(grown({ phases: [phase({})] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, STARTED_AT);
 
     expect(summary.groups).toEqual([]);
     expect(summary.stage).toBe('vegetative');
@@ -274,7 +278,7 @@ describe('what a grow´s phases and placements mean', () => {
 
   it('lists every group once a split has scoped one, and takes the headline from the largest', () => {
     const drying = phase({ id: 'phase-drying', stage: 'drying', startedAt: TEN_DAYS_LATER, plantIds: ['c'] });
-    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), drying] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ phases: [phase({ id: 'phase-veg' }), drying] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.stage).toBe('vegetative');
     expect(summary.groups).toEqual([
@@ -285,7 +289,7 @@ describe('what a grow´s phases and placements mean', () => {
 
   it('says where each plant stands, from the open placements', () => {
     const moved = placement({ id: 'placement-fridge', spaceId: FRIDGE, startedAt: TEN_DAYS_LATER, plantIds: ['c'] });
-    const summary = summaryOf(grown({ placements: [placement({}), moved] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [placement({}), moved] }), planted('a', 'b', 'c'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([
       { spaceId: TENT, plantIds: ['a', 'b'] },
@@ -294,14 +298,14 @@ describe('what a grow´s phases and placements mean', () => {
   });
 
   it('still says where a grow with no plants of its own stands', () => {
-    const summary = summaryOf(grown({ placements: [placement({})] }), [], NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [placement({})] }), [], NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([{ spaceId: TENT, plantIds: [] }]);
   });
 
   it('forgets a placement that has been closed', () => {
     const left = placement({ endedAt: TEN_DAYS_LATER });
-    const summary = summaryOf(grown({ placements: [left] }), planted('a'), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const summary = summaryOf(grown({ placements: [left] }), planted('a'), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
 
     expect(summary.locations).toEqual([]);
   });
@@ -348,10 +352,10 @@ describe('starting a grow', () => {
     expect(grow.summary.locations).toEqual([{ spaceId: null, plantIds: grow.summary.locations[0].plantIds }]);
   });
 
-  it('counts no day until the grow has entered a phase', async () => {
-    const grow = await started();
+  it('counts its days from its start before the grow has entered a phase', async () => {
+    const grow = await started({ startedAt: new Date().toISOString() });
 
-    expect(grow.summary.dayNumber).toBeNull();
+    expect(grow.summary.dayNumber).toBe(1);
     expect(grow.phases).toEqual([]);
   });
 
@@ -385,13 +389,16 @@ describe('starting a grow', () => {
 // ---------------------------------------------------------------------------
 
 describe('entering a phase', () => {
-  it('puts the controllers of the space on the preset, and marks the phase as theirs', async () => {
+  /** The phase is the person's who asked for it: "by itself" is for what a plan or a preset applied to the place did. */
+  it('puts the controllers of the space on the preset, and the phase stays the one´s who set it', async () => {
     const grow = await started();
     const written = await grows.addPhase(grow.id, { stage: 'seedling', preset: 'early_seedling' }, OWNER, NOTHING_HIDDEN);
 
     expect(applied).toEqual([{ spaceId: TENT, stage: 'seedling', preset: 'early_seedling' }]);
-    expect(written).toMatchObject({ source: 'preset', deviceId: DEVICE, setBy: null });
+    expect(written).toMatchObject({ source: 'human', deviceId: DEVICE, setBy: OWNER });
     expect(written.targets?.day.temperature).toBe(26);
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.isAuto).toBe(false);
+    expect(await db.entries.findOne({ growId: grow.id, kind: 'phase' }).lean()).toMatchObject({ source: 'human', authorId: OWNER });
   });
 
   it("puts the controllers on the stage's own climate when it is asked for without a preset", async () => {
@@ -399,30 +406,24 @@ describe('entering a phase', () => {
     const written = await grows.addPhase(grow.id, { stage: 'flowering', climate: true }, OWNER, NOTHING_HIDDEN);
 
     expect(applied).toEqual([{ spaceId: TENT, stage: 'flowering', preset: null }]);
-    expect(written).toMatchObject({ stage: 'flowering', preset: null, source: 'preset', deviceId: DEVICE, setBy: null });
+    expect(written).toMatchObject({ stage: 'flowering', preset: null, source: 'human', deviceId: DEVICE, setBy: OWNER });
   });
 
-  it('leaves the climate alone when the stage comes without a preset and without asking for it', async () => {
+  /**
+   * A phase asked for without a climate is a record: the port to the devices is not called at all, whatever the
+   * stage. Drying entered so once put the tent into drying and its light off under a chip that said it stays.
+   */
+  it.each(STAGES)('writes no device for %s entered as a record, and every device for it entered with its climate', async stage => {
     const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'flowering', climate: false }, OWNER, NOTHING_HIDDEN);
-
+    await grows.addPhase(grow.id, { stage, preset: null }, OWNER, NOTHING_HIDDEN);
     expect(applied).toEqual([]);
-    expect(moded).toEqual([{ spaceId: TENT, stage: 'flowering' }]);
-  });
 
-  it('still lets a drying stage entered without its climate decide that the tent dries', async () => {
-    const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'drying', climate: false }, OWNER, NOTHING_HIDDEN);
-
+    const other = STAGES[(STAGES.indexOf(stage) + 1) % STAGES.length];
+    await grows.addPhase(grow.id, { stage: other, climate: false }, OWNER, NOTHING_HIDDEN);
     expect(applied).toEqual([]);
-    expect(moded).toEqual([{ spaceId: TENT, stage: 'drying' }]);
-  });
 
-  it('does not ask for the work mode again where the climate was written', async () => {
-    const grow = await started();
-    await grows.addPhase(grow.id, { stage: 'drying', climate: true }, OWNER, NOTHING_HIDDEN);
-
-    expect(moded).toEqual([]);
+    await grows.addPhase(grow.id, { stage, climate: true }, OWNER, NOTHING_HIDDEN);
+    expect(applied).toEqual([{ spaceId: TENT, stage, preset: null }]);
   });
 
   it('is set by the person who picked it when no preset came with it', async () => {
@@ -502,7 +503,36 @@ describe('moving plants', () => {
 
     const written = await db.entries.find({ growId: grow.id, kind: 'move' }).lean();
     expect(written).toHaveLength(1);
-    expect(written[0].values).toMatchObject({ kind: 'move', spaceId: FRIDGE });
+    expect(written[0].values).toMatchObject({ kind: 'move', spaceId: FRIDGE, from: 'Tent 1', to: 'The fridge' });
+  });
+
+  it('names no place the plants came from where a split stays where it is', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], stage: 'drying', spaceId: TENT }, OWNER, NOTHING_HIDDEN);
+
+    const [line] = await db.entries.find({ growId: grow.id, kind: 'move' }).lean();
+    expect(line.values).toMatchObject({ to: 'Tent 1' });
+    expect(line.values).not.toHaveProperty('from');
+  });
+
+  /** A move to where the grow stands ended its stay and began it again there, and the diary said it had been put there. */
+  it('refuses a move to where the plants already stand, and writes nothing', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const ALREADY = { status: 409, code: 'grow_already_there' };
+
+    await expect(grows.addPlacement(session(OWNER), grow.id, { spaceId: TENT }, OWNER, NOTHING_HIDDEN)).rejects.toMatchObject({ problem: ALREADY });
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+    await expect(
+      grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN),
+    ).rejects.toMatchObject({ problem: ALREADY });
+
+    // The whole grow into the fridge is a move for the two plants still in the tent.
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+    const read = await grows.read(grow.id, NOTHING_HIDDEN);
+    expect([...new Set(read.summary.locations.map(row => row.spaceId))]).toEqual([FRIDGE]);
+    expect(await db.entries.countDocuments({ growId: grow.id, kind: 'move' })).toBe(2);
   });
 
   it('refuses a space the caller may not manage', async () => {
@@ -539,6 +569,43 @@ const phaseLineOf = async (growId: string, phaseId: string) => db.entries.findOn
 const moveLineOf = async (growId: string, placementId: string) =>
   db.entries.findOne({ growId, kind: 'move', 'values.placementId': placementId }).lean();
 
+/**
+ * A place that has ended - removed or put away, which is one state in the data -
+ * takes no plants: a grow started there, moved there, split off into it or
+ * corrected into it would stand on no screen. The fridge beside it still takes
+ * each of them, so the refusal is the ended place's.
+ */
+describe('a place that has ended', () => {
+  const ENDED = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
+  const refused = async (action: () => Promise<unknown>) => {
+    await expect(action()).rejects.toMatchObject({ problem: ENDED });
+  };
+
+  it('takes no grow: none started there, moved there, split off into it or corrected into it', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { archivedAt: new Date() } });
+
+    await refused(() => started({ name: 'Too late', spaceId: FRIDGE }));
+    await refused(() => grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN));
+    await refused(() => grows.split(session(OWNER), grow.id, { plantIds: [plants[0].id], spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN));
+    await refused(() => grows.updatePlacement(session(OWNER), grow.id, open.id, { spaceId: FRIDGE }, NOTHING_HIDDEN));
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.locations.map(row => row.spaceId)).toEqual([TENT]);
+    expect(await db.grows.countDocuments({})).toBe(1);
+
+    await db.spaces.updateOne({ id: FRIDGE }, { $set: { archivedAt: null } });
+    await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).summary.locations.map(row => row.spaceId)).toEqual([FRIDGE]);
+  });
+
+  it('leaves a grow that stands nowhere alone: no place is asked about', async () => {
+    await db.spaces.updateOne({ id: TENT }, { $set: { archivedAt: new Date() } });
+
+    expect((await started({ spaceId: null })).placements[0].spaceId).toBeNull();
+  });
+});
+
 describe('correcting a phase', () => {
   const WRONG_DAY = new Date('2026-05-03T08:00:00.000Z');
 
@@ -555,7 +622,8 @@ describe('correcting a phase', () => {
   it('leaves who put the grow there alone, because a mistyped date decided nothing', async () => {
     const grow = await started();
     const entered = await grows.addPhase(grow.id, { stage: 'seedling', preset: 'early_seedling' }, OWNER, NOTHING_HIDDEN);
-    expect(entered.source).toBe('preset');
+    // As a preset applied to the place writes it: nobody picked the stage.
+    await db.grows.updateOne({ id: grow.id, 'phases.id': entered.id }, { $set: { 'phases.$.source': 'preset', 'phases.$.setBy': null } });
 
     const corrected = await grows.updatePhase(grow.id, entered.id, { startedAt: WRONG_DAY.toISOString() }, NOTHING_HIDDEN);
     expect(corrected).toMatchObject({ source: 'preset', setBy: null, deviceId: DEVICE });
@@ -567,7 +635,7 @@ describe('correcting a phase', () => {
 
     await grows.updatePhase(grow.id, entered.id, { startedAt: STARTED_AT.toISOString() }, NOTHING_HIDDEN);
 
-    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
     expect(read.summary.dayNumber).toBe(11);
     expect((await phaseLineOf(grow.id, entered.id))?.occurredAt).toEqual(STARTED_AT);
   });
@@ -581,7 +649,7 @@ describe('correcting a phase', () => {
 
     const stored = await grows.require(grow.id);
     expect(stored.startedAt).toEqual(twoDaysLater);
-    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER).summary.dayNumber).toBe(9);
+    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER).summary.dayNumber).toBe(9);
   });
 
   it('leaves a start of its own alone, one that came before every phase', async () => {
@@ -618,6 +686,77 @@ describe('correcting a phase', () => {
   });
 });
 
+describe('moving a grow´s start', () => {
+  const A_WEEK_EARLIER = new Date(STARTED_AT.getTime() - 7 * 86_400_000);
+
+  it('moves the first phase and its line with it, so the report´s first chapter begins where the days do', async () => {
+    const grow = await started();
+    const first = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: STARTED_AT.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.update(grow.id, { startedAt: A_WEEK_EARLIER.toISOString() }, NOTHING_HIDDEN);
+
+    const stored = await grows.require(grow.id);
+    expect(stored.startedAt).toEqual(A_WEEK_EARLIER);
+    expect(stored.phases.map(phase => phase.startedAt)).toEqual([A_WEEK_EARLIER]);
+    expect((await phaseLineOf(grow.id, first.id))?.occurredAt).toEqual(A_WEEK_EARLIER);
+    // The grow stood where it stands from its first day on, too.
+    expect(stored.placements.map(placement => placement.startedAt)).toEqual([A_WEEK_EARLIER]);
+    expect(serialiseGrow(stored, await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER).summary).toMatchObject({
+      dayNumber: 18,
+      phaseDay: 18,
+    });
+  });
+
+  it('leaves a phase that began later where it is', async () => {
+    const grow = await started();
+    const later = new Date(STARTED_AT.getTime() + 3 * 86_400_000);
+    await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: later.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    await grows.update(grow.id, { startedAt: A_WEEK_EARLIER.toISOString() }, NOTHING_HIDDEN);
+
+    expect((await grows.require(grow.id)).phases.map(phase => phase.startedAt)).toEqual([later]);
+  });
+});
+
+describe('a grow´s first phase, written a moment after the grow', () => {
+  it('begins with the grow, so the two stand on one instant and move with each other', async () => {
+    const made = await grows.create(session(OWNER), {
+      name: 'Just sown',
+      type: 'photoperiod',
+      spaceId: TENT,
+      plants: [{ strain: 'Amnesia', count: 1 }],
+    });
+
+    const first = await grows.addPhase(made.id, { stage: 'vegetative', startedAt: new Date(Date.now() + 500).toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(first.startedAt).toBe(made.startedAt);
+    // A week earlier, as the moment's pop-up moves a start: the phase goes with it.
+    const earlier = new Date(Date.parse(made.startedAt) - 7 * 86_400_000);
+    await grows.update(made.id, { startedAt: earlier.toISOString() }, NOTHING_HIDDEN);
+    expect((await grows.require(made.id)).phases.map(phase => phase.startedAt)).toEqual([earlier]);
+  });
+
+  it('keeps its own instant where it is entered later than a clock may differ', async () => {
+    const grow = await started();
+    const later = new Date(STARTED_AT.getTime() + 2 * 3600 * 1000);
+
+    const first = await grows.addPhase(grow.id, { stage: 'vegetative', startedAt: later.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(first.startedAt).toBe(later.toISOString());
+  });
+});
+
+describe('an instant from a clock a little ahead', () => {
+  it('is recorded as now, so that a read ending at now holds what was just written', async () => {
+    const grow = await started();
+    const ahead = new Date(Date.now() + 5_000);
+
+    const entered = await grows.addPhase(grow.id, { stage: 'flowering', startedAt: ahead.toISOString() }, OWNER, NOTHING_HIDDEN);
+
+    expect(Date.parse(entered.startedAt)).toBeLessThanOrEqual(Date.now());
+  });
+});
+
 describe('taking a phase back', () => {
   it('removes the line that announced it', async () => {
     const grow = await started();
@@ -636,7 +775,7 @@ describe('taking a phase back', () => {
 
     await grows.removePhase(grow.id, tooEarly.id);
 
-    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, TEN_DAYS_LATER);
+    const read = serialiseGrow(await grows.require(grow.id), await plantsOfGrow(grow.id), NOTHING_HIDDEN, null, TEN_DAYS_LATER);
     expect(read.summary.dayNumber).toBe(6);
   });
 
@@ -664,7 +803,7 @@ describe('correcting a placement', () => {
     await grows.updatePlacement(session(OWNER), grow.id, moved.id, { spaceId: null }, NOTHING_HIDDEN);
 
     const line = await moveLineOf(grow.id, moved.id);
-    expect(line?.values).toMatchObject({ kind: 'move', spaceId: null });
+    expect(line?.values).toMatchObject({ kind: 'move', spaceId: null, from: 'Tent 1', to: null });
     expect(line?.spaceId).toBeNull();
   });
 
@@ -713,6 +852,27 @@ describe('taking a move back', () => {
     const open = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
 
     await expect(grows.removePlacement(grow.id, open.id)).rejects.toThrow(ProblemException);
+  });
+
+  it('puts the grow back where it stood when its newest stay is taken back', async () => {
+    const grow = await started();
+    const first = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    const moved = await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlacement(grow.id, moved.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).placements).toMatchObject([{ id: first.id, spaceId: TENT, endedAt: null, plantIds: null }]);
+  });
+
+  it('folds the plants that did not go back into the stay they stood in', async () => {
+    const grow = await started();
+    const first = (await grows.read(grow.id, NOTHING_HIDDEN)).placements[0];
+    const one = (await plantsOfGrow(grow.id)).slice(0, 1).map(plant => plant.id);
+    const moved = await grows.addPlacement(session(OWNER), grow.id, { spaceId: FRIDGE, plantIds: one }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlacement(grow.id, moved.id);
+
+    expect((await grows.read(grow.id, NOTHING_HIDDEN)).placements).toMatchObject([{ id: first.id, spaceId: TENT, endedAt: null, plantIds: null }]);
   });
 });
 
@@ -772,6 +932,22 @@ describe('harvesting', () => {
     expect(line?.spaceId).toBe(TENT);
   });
 
+  /** Every page's yield is read from the harvest lines, so a weight corrected on a plant moves its line by as much. */
+  it('moves the harvest line by what a plant´s weight was corrected by on the plant', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    const cut = await grows.harvest(grow.id, { plantIds: [plants[0].id, plants[1].id], wetWeightG: 100, dryWeightG: null }, OWNER, NOTHING_HIDDEN);
+
+    await grows.updatePlant(
+      plants[0].id,
+      { harvest: { harvestedAt: cut.plants[0].harvest!.harvestedAt, wetWeightG: 60, dryWeightG: 12 } },
+      NOTHING_HIDDEN,
+    );
+
+    const line = await db.entries.findOne({ id: cut.entryId }).lean();
+    expect(line?.values).toMatchObject({ kind: 'harvest', wetWeightG: 110, dryWeightG: 12 });
+  });
+
   it('refuses a plant that has already come down, so the report cannot count it twice', async () => {
     const grow = await started();
     const plants = await plantsOfGrow(grow.id);
@@ -790,6 +966,43 @@ describe('harvesting', () => {
   it('refuses a plant that belongs to another grow', async () => {
     const grow = await started();
     await expect(grows.harvest(grow.id, { plantIds: ['plant-elsewhere'] }, OWNER, NOTHING_HIDDEN)).rejects.toThrow(ProblemException);
+  });
+
+  /** A grow's reminders end with it, as a place's do: "Gelato düngen" stood under Rhythmen after Gelato's harvest. */
+  it('rests the grow´s reminders when it ends, by the last plant or by hand, wakes them when it is reopened, and leaves a place´s', async () => {
+    const reminder = (id: string, subject: { type: 'grow' | 'space'; id: string }) => ({
+      id,
+      createdAt: TEN_DAYS_LATER,
+      subject,
+      kind: 'feed',
+      label: id,
+      everyDays: 3,
+      onceAt: null,
+      assigneeId: null,
+      defaults: null,
+      createdBy: OWNER,
+    });
+    const harvested = await started();
+    const byHand = await started();
+    await db.reminders.create([
+      reminder('of-the-harvested', { type: 'grow', id: harvested.id }),
+      reminder('of-the-one-ended-by-hand', { type: 'grow', id: byHand.id }),
+      reminder('of-the-place', { type: 'space', id: TENT }),
+    ]);
+    const plants = await plantsOfGrow(harvested.id);
+
+    const resting = async () => Object.fromEntries((await db.reminders.find({}).lean()).map(one => [one.id, one.restingSince ?? null]));
+
+    await grows.harvest(harvested.id, { plantIds: [plants[0].id] }, OWNER, NOTHING_HIDDEN);
+    expect((await resting())['of-the-harvested']).toBeNull();
+    await grows.harvest(harvested.id, { plantIds: [plants[1].id, plants[2].id], harvestedAt: TEN_DAYS_LATER.toISOString() }, OWNER, NOTHING_HIDDEN);
+    await grows.update(byHand.id, { endedAt: TEN_DAYS_LATER.toISOString() }, NOTHING_HIDDEN);
+
+    expect(await resting()).toEqual({ 'of-the-harvested': TEN_DAYS_LATER, 'of-the-one-ended-by-hand': TEN_DAYS_LATER, 'of-the-place': null });
+
+    await grows.update(byHand.id, { endedAt: null }, NOTHING_HIDDEN);
+    expect((await resting())['of-the-one-ended-by-hand']).toBeNull();
+    expect((await db.reminders.findOne({ id: 'of-the-one-ended-by-hand' }).lean())?.resumedAt).toEqual(expect.any(Date));
   });
 
   it('hands back no weights to a reader they are hidden from', async () => {
@@ -833,7 +1046,7 @@ describe('splitting a grow', () => {
     );
 
     expect(applied).toEqual([{ spaceId: FRIDGE, stage: 'drying', preset: 'slow_dry' }]);
-    expect(split.phase?.source).toBe('preset');
+    expect(split.phase).toMatchObject({ source: 'human', setBy: OWNER });
   });
 
   it('gives them a phase alone where no space was named', async () => {
@@ -878,6 +1091,23 @@ describe('plants', () => {
     expect(added.label).toBe('Amnesia 3');
   });
 
+  /**
+   * Counting the strain's plants put a plant added after a deletion into a name still taken: OG Kush 1, 2 and 3, the
+   * 2 deleted, and the new one was a second "OG Kush 3" in the harvest sheet and the diary.
+   */
+  it('numbers a plant past the highest number in use, never into a name still taken', async () => {
+    const grow = await started();
+    const third = await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN);
+    await grows.removePlant((await plantsOfGrow(grow.id)).find(plant => plant.label === 'Amnesia 2')!.id);
+
+    expect((await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN)).label).toBe('Amnesia 4');
+    expect(third.label).toBe('Amnesia 3');
+
+    // A name given by hand that the next number would take is passed over.
+    await grows.addPlant(grow.id, { strain: 'Amnesia', label: 'amnesia 5' }, NOTHING_HIDDEN);
+    expect((await grows.addPlant(grow.id, { strain: 'Amnesia' }, NOTHING_HIDDEN)).label).toBe('Amnesia 6');
+  });
+
   it('records what a plant weighed, days after it was cut', async () => {
     const grow = await started();
     const plant = (await plantsOfGrow(grow.id))[0];
@@ -916,6 +1146,25 @@ describe('plants', () => {
     expect(read.phases.flatMap(row => row.plantIds ?? [])).toEqual([plants[1].id]);
     expect(read.placements.flatMap(row => row.plantIds ?? [])).not.toContain(plants[0].id);
     expect(read.summary.locations.flatMap(where => where.plantIds)).not.toContain(plants[0].id);
+  });
+
+  /**
+   * "Pflanze löschen" after a harvest, or the undo of "Neue Pflanze", left a nameless "Geerntet" line in the diary
+   * that nothing could correct: the plant's harvest goes with it, and a harvest of several keeps the others - with
+   * its typed amounts as they were, which is what the scale said (Chris, 2026-11-14).
+   */
+  it('takes its harvest out of the diary with it, and keeps the rest of a harvest of several as it was typed', async () => {
+    const grow = await started();
+    const plants = await plantsOfGrow(grow.id);
+    await grows.harvest(grow.id, { plantIds: [plants[0].id], wetWeightG: 60, dryWeightG: 12.5 }, OWNER, NOTHING_HIDDEN);
+    await grows.harvest(grow.id, { plantIds: [plants[1].id, plants[2].id], wetWeightG: 200, dryWeightG: 41 }, OWNER, NOTHING_HIDDEN);
+
+    await grows.removePlant(plants[0].id);
+    await grows.removePlant(plants[1].id);
+
+    const lines = await db.entries.find({ growId: grow.id, kind: 'harvest' }).lean();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ plantIds: [plants[2].id], values: { kind: 'harvest', wetWeightG: 200, dryWeightG: 41 } });
   });
 
   it('takes a scope that was only that plant away with it', async () => {

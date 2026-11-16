@@ -8,17 +8,18 @@ import type {
   SocketPage,
   Space,
 } from '@fg2/shared-types/v1';
+import { nameKey, numbered } from '@fg2/shared-types/v1-schemas/place-names.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import type { Translate } from '@/i18n/i18n';
+import { pairsACam } from '@/screens/camera/add/pairers';
 import { alarmsReach, channelsLabel, reachedBy } from '@/screens/notifications/reach';
+import { placeKindOf } from '@/ui/naming';
 
 /**
  * What each step of the claim flow has settled, and the one line it says once
- * it is closed.
- *
- * A step is only rendered while it is open, so what it decided cannot live in
- * it: the screen holds the answers and these put them into the sentence the
- * ticked step carries. They are here rather than beside the steps because that
- * is the one thing the five have in common.
+ * it is closed. A step is only rendered while it is open, so what it decided
+ * cannot live in it: the screen holds the answers and these put them into the
+ * sentence the ticked step carries.
  */
 
 /** Monitoring only: the place is watched and charted, and nothing is written to the controller. */
@@ -31,10 +32,7 @@ export interface Doing {
   germination?: Partial<GerminationChoices>;
 }
 
-/**
- * The write the step makes, from its own button or from the screen's: the
- * stage, and with germination the switches that were moved.
- */
+/** The write the step makes, from its own button or from the screen's: the stage, and with germination the switches that were moved. */
 export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicationCreate =>
   stage === 'germination' && doing.germination && Object.keys(doing.germination).length > 0
     ? { stage, germinationChoices: doing.germination }
@@ -42,42 +40,73 @@ export const presetBodyOf = (stage: GrowthStage, doing: Doing): PresetApplicatio
 
 export const NOTHING_DOING: Doing = { chosen: null, applied: null };
 
+/** What is asked once a device is claimed, in the order it is asked. */
+export const ASKED = ['place', 'doing', 'hardware', 'notify', 'grow'] as const;
+export type Asked = (typeof ASKED)[number];
+
+/** Whether a device with targets of its own - a controller, a fridge module - stands in the place beside this one. */
+export const climateIn = (devices: readonly Device[], spaceId: string | null, beside: string): boolean =>
+  devices.some(one => one.spaceId === spaceId && one.id !== beside && OWN_CLIMATE_TYPES.includes(one.type));
+
 /**
- * What to call the place a claim has just made.
- *
- * A place is named after what it is and in the language the grower reads, so
- * the word comes out of the catalogue by the type of hardware standing in it
- * rather than being the type key itself - a home whose first card says
- * "controller" names a part and not a place, and says it in English whatever
- * the account is set to. The number is the first one none of their places
- * carries, so claiming a second controller gives "Tent 2" rather than a second
- * "Tent 1".
+ * The places a device is offered, one that holds a climate before one that does not. The first is where a fan, a
+ * socket or a lamp hangs until somebody says otherwise: its claim names it (`joinSpaceId`) before the type is known.
  */
-export const newPlaceName = (type: string, spaces: readonly Space[], t: Translate): string => {
-  const taken = new Set(spaces.map(one => one.name.trim().toLowerCase()));
-  let name = '';
+export const joinOrder = (places: readonly Space[], devices: readonly Device[], but = ''): Space[] =>
+  [true, false].flatMap(held => places.filter(one => climateIn(devices, one.id, but) === held));
 
-  for (let n = 1; n <= spaces.length + 1; n += 1) {
-    name = t(`claim.place.newName.${type}`, { n, defaultValue: t('claim.place.newName.other', { n }) });
-    if (!taken.has(name.toLowerCase())) break;
-  }
+/** Whether the claim ends on what grows here: for every account but one that said no to the diary. */
+export const asksWhatGrows = (me: Me | undefined): boolean => me?.preferences.diary !== 'off';
 
-  return name;
+/**
+ * The questions a claim will ask: where it hangs where there is more than one
+ * answer, a camera of one that can carry it, how alarms arrive of an account
+ * they do not reach yet, and what grows unless it said no to the diary. What
+ * the place is doing - its climate - is asked only where what grows is not, of
+ * the device that sets its place's climate (`beside`): "Was wächst hier?" sets
+ * the phase and its climate in one answer, and a stage asked before it was the
+ * same question twice. The head counts them once where it hangs is settled; no
+ * later answer adds one.
+ */
+export const planOf = (device: Pick<Device, 'type'>, place: boolean, beside: boolean, me: Me | undefined): Asked[] => {
+  const grows = asksWhatGrows(me);
+  const asked = {
+    place,
+    doing: !grows && OWN_CLIMATE_TYPES.includes(device.type) && !beside,
+    hardware: pairsACam(device),
+    notify: !me || !alarmsReach(me),
+  };
+
+  return ASKED.filter(step => (step === 'grow' ? grows : asked[step]));
 };
 
-/** The place, and what kind of place it is. */
-export const placeSummary = (space: Space | null, t: Translate): string =>
-  space ? `${space.name} · ${t(`claim.place.kind.${space.kind}`, { defaultValue: space.kind })}` : t('claim.place.unknown');
+/** A sentence about where a device hangs, in the verb of its kind: a fan hangs, a socket is plugged in, and both say so every time. */
+export const hangWords = (t: Translate, form: 'title' | 'done' | 'joined', type: string, values?: Record<string, string>): string =>
+  t(`claim.air.${form}.${type}`, { ...values, defaultValue: t(`claim.air.${form}.other`, values) });
 
 /**
- * The stage the place was put on, or that it is only being watched.
- *
- * What this screen chose lives in the screen and what it wrote lives on the
- * server, and only the second of those survives a locked phone. So where the
- * flow has no answer of its own it falls back to the stage the place is
- * actually on, and says nothing at all - null, for the question to be asked
- * again - until that is known: "nothing set yet" is a claim about the world,
- * and a ticked step is the worst place to guess one.
+ * What to call a place the app makes by itself for a device - a fridge for a
+ * fridge module, a tent for everything else, which its page changes: the word
+ * for what it is, in the language the grower reads - the server has none -
+ * and the first of its kind without a number, "Zelt", then "Zelt 2".
+ */
+export const newPlaceName = (type: string, spaces: readonly Pick<Space, 'name'>[], t: Translate): string =>
+  numbered(t(`claim.place.newName.${placeKindOf(type, 'tent')}`), new Set(spaces.map(one => nameKey(one.name))));
+
+/** The place by its name, and what kind of place it is where the name does not say. */
+export const placeSummary = (space: Space | null, t: Translate): string => {
+  if (!space) return t('claim.place.unknown');
+  const kind = t(`place.edit.kind.${space.kind}`, { defaultValue: space.kind });
+
+  return nameKey(space.name).includes(nameKey(kind)) ? space.name : `${space.name} · ${kind}`;
+};
+
+/**
+ * The stage the place was put on, or that it is only being watched. What the
+ * screen chose does not survive a locked phone, so where the flow has no
+ * answer of its own it falls back to the stage the place is on, and says
+ * nothing - null, for the question to be asked again - until that is known:
+ * "nothing set yet" is a claim about the world, and no ticked step guesses one.
  */
 export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage | null | undefined, t: Translate): string | null => {
   const stage = applied?.stage ?? (chosen === MEASURE ? null : onServer);
@@ -90,9 +119,7 @@ export const doingSummary = ({ chosen, applied }: Doing, onServer: GrowthStage |
 
 /** What the device reported, rather than anything that was set up in the step. */
 export const hardwareSummary = (device: Device | null, sockets: SocketPage | undefined, t: Translate, camOnly = false): string =>
-  camOnly
-    ? t('claim.code.camera', { name: cameraName(device, t) })
-    : `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${t('claim.code.camera', { name: cameraName(device, t) })}`;
+  camOnly ? cameraSaid(device, t) : `${t('claim.code.sockets', { count: sockets?.items.length ?? 0 })} · ${cameraSaid(device, t)}`;
 
 /** How a critical alarm reaches the account, or that nothing does; nothing at all while the account has yet to answer. */
 export const notifySummary = (me: Me | undefined, t: Translate): string | null => {
@@ -101,9 +128,11 @@ export const notifySummary = (me: Me | undefined, t: Translate): string | null =
   return alarmsReach(me) ? t('claim.notify.reaches', { channels: channelsLabel(t, reachedBy(me)) }) : t('claim.notify.none');
 };
 
-/** The tail of the paired camera's id, which is as much of it as anybody reads off a screen. */
-export const cameraName = (device: Device | null, t: Translate): string => {
+/** Whether a Terp Cam is coupled to the device: it reports the camera's id, or `none`. */
+export const camCoupled = (device: Device | null): boolean => {
   const paired = device?.state.hardware.webcam_did;
-
-  return paired && paired !== 'none' ? paired.slice(-6).toUpperCase() : t('claim.code.noCamera');
+  return Boolean(paired && paired !== 'none');
 };
+
+/** "Terp Cam gekoppelt" or "keine Kamera": whether a camera answers through the device, and never a piece of its id. */
+export const cameraSaid = (device: Device | null, t: Translate): string => t(camCoupled(device) ? 'claim.code.camCoupled' : 'claim.code.noCamera');

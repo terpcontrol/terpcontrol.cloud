@@ -185,10 +185,22 @@ export class PlanProgressService {
    * A step somebody activated: starting a plan that was stopped, resuming one
    * that has run to its end, or going on with the step somebody chose. The
    * clock starts over, and the step's stage is the grow's, exactly as when the
-   * engine reaches the step itself.
+   * engine reaches the step itself. `growId` is the grow a plan at rest is started for, the one its screen named.
    */
-  public async activate(plan: StoredPlan, index: number, now: Date, transition: PlanTransitionKind, by: string | null): Promise<StoredPlan> {
-    const started = await this.store(plan, running(index, now));
+  public async activate(
+    plan: StoredPlan,
+    index: number,
+    now: Date,
+    transition: PlanTransitionKind,
+    by: string | null,
+    growId?: string,
+  ): Promise<StoredPlan> {
+    // A plan started afresh is the grow's it was started for - the place's lead, which the screen named - while that
+    // stands there (`place`); one going on keeps the grow it was started for.
+    const fresh = plan.state.status === 'stopped' || plan.state.status === 'completed';
+    const startedFor = growId ?? null;
+    if (fresh && (plan.growId ?? null) !== startedFor) await this.plans.updateOne({ id: plan.id }, { $set: { growId: startedFor } }).exec();
+    const started = await this.store(fresh ? { ...plan, growId: startedFor } : plan, running(index, now));
     const step = activeStep(started);
     if (!step) return started;
 
@@ -272,17 +284,22 @@ export class PlanProgressService {
     return owner?.email ?? null;
   }
 
+  /**
+   * Where the plan's device stands, and the grow its steps move: the one the plan was started for while it stands
+   * there, so a second grow begun beside it is not put into the plan's stages - else the grow the place leads with,
+   * standing there longest as on every screen, which the plan keeps from then on (`growId`, which the plan screen
+   * names).
+   */
   private async place(plan: StoredPlan): Promise<DevicePlace> {
     const device = await this.devices
       .findOne({ id: plan.deviceId }, { spaceId: 1, ownerId: 1, configuration: 1 })
       .lean<Pick<StoredDevice, 'spaceId' | 'ownerId' | 'configuration'>>()
       .exec();
+    const spaceId = device?.spaceId ?? null;
+    const kept = plan.growId ?? null;
+    const growId = kept && (await this.phases.standsIn(kept, spaceId)) ? kept : await this.phases.leadGrowIn(spaceId);
+    if (growId !== kept) await this.plans.updateOne({ id: plan.id }, { $set: { growId } }).exec();
 
-    return {
-      spaceId: device?.spaceId ?? null,
-      growId: await this.phases.growIdIn(device?.spaceId ?? null),
-      ownerId: device?.ownerId ?? null,
-      configuration: device?.configuration ?? null,
-    };
+    return { spaceId, growId, ownerId: device?.ownerId ?? null, configuration: device?.configuration ?? null };
   }
 }

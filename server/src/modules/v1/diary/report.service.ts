@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { EntryKind, GrowReport, GrowReportPhase, GrowTotals, PhaseTargets } from '@fg2/shared-types/v1';
-import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
+import { STAGES_WITH_CLIMATE, type StageSpan, growDayAt, growDayUpTo, growOriginOf, stageSpansOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange, Grant, isOutsider } from '@common/v1/access.types';
 import { peopleNamed } from '@common/v1/people';
 import { clampRange, overlapsRange, seenOf, storyEndsAt, withinRange } from '@common/v1/range';
@@ -15,25 +15,25 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { spacesDuring } from '../grow/grow-places';
 import { Redaction, growUpTo, harvestOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
-import { DIARY_KINDS, serialiseDiaryEntry } from './diary-entries';
-import { horizonOf } from './grow-calendar';
+import { DIARY_KINDS, serialiseDiaryEntry, writtenFor } from './diary-entries';
+import { horizonOf, linesOf } from './grow-calendar';
 import { GrowClimateService } from './grow-climate.service';
 
 /**
- * The Report tab: the grow told as chapters, one per phase.
+ * The Report tab: the grow told as chapters, one per phase - a split's too.
  *
  * A chapter is a stretch of the grow at one stage, with the picture that stands
  * for it, how the tent was kept during it, how much of it was on target and
  * what was done to the plants. It is the same story the public page tells, one
- * level above the week cards.
+ * level above the diary's days.
  *
  * **What it costs.** One read of the grow and its plants, one of the diary that
  * the chapters count, one aggregate for the totals, one of the cameras and one
  * of the people it names. Then per chapter: one time-series read per controller
  * and one Mongo read for its cover. A grow with five phases in a tent with one
  * controller is therefore five Mongo reads and ten more - far less than the
- * week cards, because a phase is weeks long and is read as one window. That is
- * also why the report carries no week cards: the Weeks tab reads those, and a
+ * diary days, because a phase is weeks long and is read as one window. That is
+ * also why the report carries no days: the diary reads those, and a
  * report that repeated them would make opening the second tab cost the first
  * one twice over.
  */
@@ -84,6 +84,7 @@ export class GrowReportService {
     const grow = growUpTo(await this.grows.require(growId), until);
     const origin = growOriginOf(grow);
     const horizon = horizonOf(grow, until);
+    const zone = await this.grows.zoneOf(grow);
 
     const [hide, plants, diary, totals] = await Promise.all([
       this.grows.redaction(grant),
@@ -92,7 +93,9 @@ export class GrowReportService {
       this.totalsOf(growId, grant),
     ]);
 
-    const chapters = stageSpansOf(grow, horizon).filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
+    const chapters = [...stageSpansOf(grow, horizon, zone), ...splitSpansOf(grow, horizon, zone)]
+      .sort((one, other) => one.startsAt.getTime() - other.startsAt.getTime())
+      .filter(chapter => overlapsRange(range, chapter.startsAt, chapter.endsAt ?? horizon));
     const told = await Promise.all(chapters.map(chapter => this.chapterOf(chapter, { grow, hide, grant, range, horizon, diary })));
 
     const people = await peopleNamed(
@@ -107,14 +110,14 @@ export class GrowReportService {
       type: grow.type,
       startedAt: grow.startedAt.toISOString(),
       endedAt: grow.endedAt?.toISOString() ?? null,
-      dayCount: growDayAt(origin, horizon),
+      dayCount: growDayUpTo(origin, horizon, zone),
       plantCount: hide.counts ? null : plants.length,
       strains: [...new Set(plants.map(plant => plant.strain))],
       coverMediaId: grow.coverMediaId,
       filmMediaId: grow.filmMediaId,
       // Newest first, which is the order the chapters are read in.
       phases: told.reverse(),
-      harvest: harvestOf(plants, hide, range),
+      harvest: harvestOf(plants, diary, hide, range),
       totals,
       people,
     };
@@ -133,16 +136,24 @@ export class GrowReportService {
   private async chapterOf(chapter: Chapter, world: ReportWorld): Promise<GrowReportPhase> {
     const { grow, horizon } = world;
     const seen = seenOf({ startsAt: chapter.startsAt, endsAt: chapter.endsAt ?? horizon }, world.range);
-    const spaceIds = spacesDuring(grow, seen.startsAt, seen.endsAt);
-    const entries = world.diary.filter(entry => entry.occurredAt >= seen.startsAt && entry.occurredAt < seen.endsAt);
+    // A split's chapter is told where its own plants stood.
+    const split = chapter.phase.plantIds;
+    const stood = split
+      ? { ...grow, placements: grow.placements.filter(one => one.plantIds === null || one.plantIds.some(id => split.includes(id))) }
+      : grow;
+    const spaceIds = spacesDuring(stood, seen.startsAt, seen.endsAt);
+    const lines = linesOf(grow, seen);
+    // A split's chapter counts the lines about its own plants and those about the whole grow, never the other plants'.
+    const entries = world.diary.filter(
+      entry =>
+        entry.occurredAt >= lines.startsAt &&
+        entry.occurredAt < lines.endsAt &&
+        (!split || entry.plantIds.length === 0 || entry.plantIds.some(id => split.includes(id))),
+    );
 
-    const controllers = await this.climate.controllersIn(spaceIds);
+    const controllers = await this.climate.controllersIn(spaceIds, seen);
     const [climate, coverMediaId] = await Promise.all([
-      this.climate.summarise(
-        controllers.map(controller => controller.deviceId),
-        seen,
-        bandOf(chapter),
-      ),
+      this.climate.summarise(controllers, stood.placements, seen, bandOf(chapter)),
       this.coverOf(spaceIds, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant, world.range).then(
         cover => cover ?? photoOf(entries, new Date((seen.startsAt.getTime() + seen.endsAt.getTime()) / 2), world.grant),
       ),
@@ -157,9 +168,10 @@ export class GrowReportService {
       startedAt: chapter.startsAt.toISOString(),
       endedAt: chapter.endsAt?.toISOString() ?? null,
       dayFrom: chapter.dayFrom,
-      // The day before the next chapter's first, so the chapters are a partition
-      // of the grow and add up to the day count above them. Null while the phase
-      // is the one the grow is in, which is what "\u2192 today" says.
+      // The day before the next chapter's first, so the grow's own chapters are a
+      // partition of the grow and add up to the day count above them - a split's
+      // lies over them. Null while the phase is the one the grow is in, which is
+      // what "\u2192 today" says.
       dayTo: chapter.endsAt ? chapter.dayTo : null,
       dayCount: chapter.dayCount,
       // A chapter tells where the plants stood only to somebody who keeps them:
@@ -172,7 +184,7 @@ export class GrowReportService {
       // already worked out: the read above asks for the lamp's switchings
       // because the day and night averages are split by them, so the hours were
       // paid for and then dropped, and the report said nothing about light
-      // while the week cards of the same grow printed it. A phase is the
+      // while the diary's days of the same grow printed it. A phase is the
       // stretch over which a photoperiod is constant, which is the figure this
       // states better than any week does.
       lightHours: climate.lightHours,
@@ -240,7 +252,7 @@ export class GrowReportService {
 
   private diaryOf(growId: string, grant: Grant): Promise<EntryDocument[]> {
     return this.entries
-      .find({ $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] })
+      .find({ $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant)), writtenFor(grant)] })
       .sort({ occurredAt: 1, id: 1 })
       .limit(MAX_ENTRIES)
       .lean<EntryDocument[]>();
@@ -260,18 +272,23 @@ export class GrowReportService {
    * keeps them inside the window and the kinds this already clamps to, so a
    * share link cannot be told about a picture from outside its own weeks.
    *
+   * The entries counted are the grower's own: an alarm's line is the diary's to
+   * tell and no entry, and a share link, which is given no such line, must read
+   * the same figure as the owner.
+   *
    * A line about a camera's own picture is left out where the reader was not
    * given the cameras, matching the covers and the stills the rest of the page
    * withholds from that reader.
    */
   public async totalsOf(growId: string, grant: Grant): Promise<GrowTotals> {
     const pictures = { $size: { $ifNull: ['$mediaIds', []] } };
-    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; pictures: number }>([
-      { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant))] } },
+    const rows = await this.entries.aggregate<{ _id: EntryKind; count: number; own: number; pictures: number }>([
+      { $match: { $and: [{ growId, kind: { $in: DIARY_KINDS } }, withinRange('occurredAt', clampRange(grant)), writtenFor(grant)] } },
       {
         $group: {
           _id: '$kind',
           count: { $sum: 1 },
+          own: { $sum: { $cond: [{ $eq: ['$source', 'human'] }, 1, 0] } },
           pictures: { $sum: grant.includeCameras ? pictures : { $cond: [{ $eq: ['$cameraId', null] }, pictures, 0] } },
         },
       },
@@ -280,7 +297,7 @@ export class GrowReportService {
     const of = (kind: EntryKind): number => rows.find(row => row._id === kind)?.count ?? 0;
 
     return {
-      entryCount: rows.reduce((sum, row) => sum + row.count, 0),
+      entryCount: rows.reduce((sum, row) => sum + row.own, 0),
       waterCount: of('water'),
       feedCount: of('feed'),
       photoCount: rows.reduce((sum, row) => sum + row.pictures, 0),
@@ -310,6 +327,43 @@ export class GrowReportService {
 const bandOf = (chapter: Chapter): PhaseTargets | null =>
   STAGES_WITH_CLIMATE.includes(chapter.phase.stage) ? (chapter.phase.targets ?? null) : null;
 
+/**
+ * The chapters of a split: a phase only some of the plants entered - two of four
+ * gone into flowering while the rest stays in veg - is a chapter of its own, from
+ * its start to the next phase any of its plants entered or the grow's end. The
+ * grow's own chapters (`stageSpansOf`) leave it out, as a span of half the plants
+ * would say the grow flowered; told nowhere, the Bericht of a grow split into
+ * flowering said only "Veg". It lies over the grow's chapters rather than in
+ * their partition.
+ */
+const splitSpansOf = (grow: GrowDocument, horizon: Date, zone: string | null): Chapter[] => {
+  const origin = growOriginOf(grow);
+  const lastDay = growDayUpTo(origin, horizon, zone);
+  const phases = grow.phases.filter(phase => phase.startedAt.getTime() <= horizon.getTime());
+
+  return phases.flatMap(phase => {
+    const plantIds = phase.plantIds;
+    if (plantIds === null) return [];
+    const next = phases
+      .filter(other => other.startedAt > phase.startedAt && (other.plantIds === null || other.plantIds.some(id => plantIds.includes(id))))
+      .sort((one, other) => one.startedAt.getTime() - other.startedAt.getTime())[0];
+    const dayFrom = growDayAt(origin, phase.startedAt, zone);
+    const dayTo = next ? Math.max(dayFrom, growDayAt(origin, next.startedAt, zone) - 1) : Math.max(dayFrom, lastDay);
+
+    return [
+      {
+        phase,
+        stage: phase.stage,
+        startsAt: phase.startedAt,
+        endsAt: next?.startedAt ?? grow.endedAt,
+        dayFrom,
+        dayTo,
+        dayCount: dayTo - dayFrom + 1,
+      },
+    ];
+  });
+};
+
 interface ReportWorld {
   grow: GrowDocument;
   hide: Redaction;
@@ -322,7 +376,7 @@ interface ReportWorld {
 
 /**
  * A chapter the cameras did not see lit around its middle is told under the
- * photo written into it nearest that middle, as its week cards already are -
+ * photo written into it nearest that middle, as the days of its diary already are -
  * a picture of a cam taken into a photo line only where the reader may see the
  * cameras.
  */

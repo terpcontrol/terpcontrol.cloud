@@ -28,7 +28,9 @@ export * from './configuration-fields.js'; // the settings beyond the targets a 
 export * from './day-night.js'; // day and night as the firmware keeps them
 export * from './capture.js'; // how long one read of a camera may take, and how a failed one is named
 export * from './plan-clock.js'; // the clock on a plan's step
+export * from './place-names.js'; // one name per place, and the number a second one takes
 export * from './value-age.js'; // how old a value is
+export * from './cadence.js'; // what a silence is, by the interval a device was keeping
 export * from './steering.js'; // which readings a controller steers, and how far off still counts as on target
 export * from './pages.js'; // the largest page any list answers
 export * from './entitlement.js'; // when a camera's renewal is offered

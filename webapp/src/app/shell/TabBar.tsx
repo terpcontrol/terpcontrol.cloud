@@ -8,8 +8,10 @@ import styles from './TabBar.module.css';
 /**
  * The phone's navigation. Replaced by the rail from the tablet breakpoint up.
  *
- * Every tab is a place but the raised one: logging happens over the screen you
- * are on, so the button does not take you anywhere.
+ * Every item is a page but Eintrag: logging happens over the screen you are
+ * on, so the button does not take you anywhere. An account with nothing yet
+ * would have Start alone, which is no choice: it gets no bar, and the logo
+ * in the header leads to Start.
  */
 export function TabBar() {
   const { t } = useTranslation();
@@ -18,15 +20,17 @@ export function TabBar() {
   const tabs = useTabs();
   const isOn = useIsOn();
 
+  if (tabs.length < 2) return null;
+
   return (
     <nav className={styles.bar} aria-label={t('shell.navigation')} data-print="omit">
       {tabs.map(tab =>
-        tab.raised ? (
-          <button key={tab.path} type="button" className={`${styles.tab} ${styles.raised}`} onClick={() => openSheet(underneath)}>
-            <span className={styles.icon}>
-              <tab.Icon size={26} strokeWidth={2} aria-hidden />
+        tab.log ? (
+          <button key={tab.path} type="button" className={`${styles.tab} ${styles.log}`} onClick={() => openSheet(underneath)}>
+            <span className={styles.circle}>
+              <tab.Icon size={24} strokeWidth={2.4} aria-hidden />
             </span>
-            <span className={styles.caption}>{t(tab.labelKey)}</span>
+            {t(tab.labelKey)}
           </button>
         ) : (
           <Link
@@ -35,10 +39,8 @@ export function TabBar() {
             className={[styles.tab, isOn(tab) ? styles.active : ''].filter(Boolean).join(' ')}
             aria-current={isOn(tab) ? 'page' : undefined}
           >
-            <span className={styles.icon}>
-              <tab.Icon size={22} strokeWidth={1.75} aria-hidden />
-            </span>
-            <span className={styles.caption}>{t(tab.labelKey)}</span>
+            <tab.Icon size={22} strokeWidth={2} aria-hidden />
+            {t(tab.labelKey)}
           </Link>
         ),
       )}

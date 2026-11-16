@@ -24,3 +24,7 @@ export const useMovableGrows = (spaceId: string): { pending: boolean; items: Gro
     ),
   };
 };
+
+/** The grows running in a place besides the one named. */
+export const alsoIn = (grows: GrowListItem[] | undefined, spaceId: string | null, growId: string | undefined): GrowListItem[] =>
+  (grows ?? []).filter(grow => grow.id !== growId && grow.endedAt === null && grow.summary.locations.some(one => one.spaceId === spaceId));

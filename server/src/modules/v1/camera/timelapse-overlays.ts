@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import { MediaAspect, MediaOverlays, MediaQuality, SeriesPoint } from '@fg2/shared-types/v1';
+import { growDayAt, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { TimelapseContext } from './timelapse-context.service';
 
 /**
@@ -11,9 +12,9 @@ import { TimelapseContext } from './timelapse-context.service';
  * counter, the curve and the caption are one overlay per frame rather than
  * three filters, so a film of a week is one composite per frame.
  *
- * The type is the app's: Inter for words and figures, and Inter bold for the
- * day counter, which is a grow's own "where are we" and is set the way the app
- * sets a week's heading. librsvg finds a face through fontconfig, and only as a
+ * The type is the app's: Albert Sans for words and figures, and its medium for
+ * the day counter and a reading, which are what a frame is read for - nothing
+ * in the app is set bolder. librsvg finds a face through fontconfig, and only as a
  * TrueType or OpenType file - the WOFF and WOFF2 the web packages ship are not
  * read - so the image unpacks the @fontsource faces into .ttf files when it is
  * built and points FONTCONFIG_FILE at them (scripts/install-fonts.mjs). Run
@@ -26,20 +27,18 @@ import { TimelapseContext } from './timelapse-context.service';
  * the card a shared link is drawn as, which is the same trick: an SVG layer
  * composited onto a picture by sharp. A picture is seen through a plate at
  * night-time strength whatever mode the viewer's app is in, so the plate is the
- * navy of the dark theme and the lines are its signal colours.
+ * ground of the dark theme and the lines are its signal colours.
  */
-export const INK = '#f1f4fa';
-export const MUTED = '#b9c4dc';
-export const PANEL = 'rgb(20,38,74)';
-const TEMPERATURE = '#ffa166';
-const HUMIDITY = '#5fd4cf';
+export const INK = '#e9e8e3';
+export const MUTED = '#adaba3';
+export const PANEL = 'rgb(20,22,26)';
+const TEMPERATURE = '#e8a587';
+const HUMIDITY = '#8ac1d7';
 
-export const TEXT_FAMILY = 'Inter, DejaVu Sans, sans-serif';
+export const TEXT_FAMILY = 'Albert Sans, DejaVu Sans, sans-serif';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
-
-const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 /** The long side of a film, by the resolution it was asked for. */
 const ASPECT_LONG_SIDE: Readonly<Record<MediaQuality, number>> = { sd: 1280, hd: 1920 };
@@ -113,52 +112,113 @@ export const overlayLayer = (frame: OverlayFrame, overlays: MediaOverlays, conte
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${frame.width}" height="${frame.height}">${parts.join('')}</svg>`;
 };
 
+/**
+ * What the overlays are measured by: the frame's short side, so type, plates and
+ * margins are the same size on a portrait film as on a landscape one. Measured
+ * by the height, a portrait film set its words a half again larger than the
+ * others and cut its caption after twenty letters.
+ */
+const shortSide = (frame: OverlayFrame): number => Math.min(frame.width, frame.height);
+
 /** The word in front of the day number, in the language the account was last used in. */
 const DAY_WORD: Record<string, string> = { de: 'Tag', en: 'Day' };
 
-/** "Day 34", which is how a grower says where a grow is. */
+/** "Day 34", which is how a grower says where a grow is: counted as every screen counts it (`growDayAt`). */
 const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null => {
-  if (context.growStartedAt === null) return null;
+  if (context.growOrigin === null || frame.at < context.growOrigin) return null;
 
-  const day = Math.floor((frame.at.getTime() - context.growStartedAt.getTime()) / MS_IN_A_DAY) + 1;
-  if (day < 1) return null;
+  const day = growDayAt(context.growOrigin, frame.at, context.zone ?? null);
 
-  const size = Math.round(frame.height / 22);
-  const pad = Math.round(frame.height / 36);
+  const size = Math.round(shortSide(frame) / 22);
+  const pad = Math.round(shortSide(frame) / 36);
   const width = size * 5;
   const height = Math.round(size * 1.9);
 
   return `<g>
     <rect x="${pad}" y="${pad}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.58"/>
     <text x="${pad + width / 2}" y="${pad + height / 2}" text-anchor="middle" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="700" fill="${INK}">${DAY_WORD[context.language ?? 'en'] ?? DAY_WORD.en} ${day}</text>
+          font-family="${TEXT_FAMILY}" font-size="${size}" font-weight="500" fill="${INK}">${DAY_WORD[context.language ?? 'en'] ?? DAY_WORD.en} ${day}</text>
   </g>`;
+};
+
+/**
+ * A reading as the app writes it for the owner: its own decimals - one for the
+ * temperature, none for the humidity - with the language's decimal mark and a
+ * space before the unit ("25,6 °C", "59 %"), never "-0".
+ */
+export const readingIn = (value: number, decimals: number, unit: string, language: string | undefined): string => {
+  // Rounded first, and a rounded -0 made 0 by adding it to 0: "-0,0" is no reading.
+  const rounded = Number(value.toFixed(decimals)) + 0;
+  const figure = new Intl.NumberFormat(language ?? 'en', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: false,
+  }).format(rounded);
+  return `${figure} ${unit}`;
+};
+
+/** Where the climate box stands on a frame, which the caption above it takes its width from. */
+const climateBox = (frame: OverlayFrame): { left: number; width: number; height: number; pad: number } => {
+  const width = Math.round(frame.width * 0.62);
+  return { left: Math.round((frame.width - width) / 2), width, height: Math.round(shortSide(frame) / 5), pad: Math.round(shortSide(frame) / 36) };
+};
+
+/**
+ * Where a curve is drawn and where it is broken: its points by their time, from
+ * the first reading of the span to the last - a span that opens before the
+ * device reported, or closes after it stopped, still draws its readings across
+ * the box -, and a new stroke wherever the readings stop for longer than a
+ * device may be silent and still count as heard (`VALUE_AGE.staleSeconds`), or
+ * two of the series' windows, as Verlauf breaks a curve at a silence. Bridged,
+ * seven hours offline read as a straight slope.
+ */
+export const curveStrokes = (points: readonly SeriesPoint[], first: number, last: number): { at: number; value: number; starts: boolean }[] => {
+  const times = points.map(point => Date.parse(point.measuredAt));
+  const step = times.slice(1).reduce((least, at, index) => Math.min(least, at - times[index]), Number.POSITIVE_INFINITY);
+  const gap = Math.max(Number.isFinite(step) ? 2 * step : 0, VALUE_AGE.staleSeconds * 1000);
+  let before: number | null = null;
+
+  return points.flatMap((point, index) => {
+    if (point.value === null || times[index] < first || times[index] > last) return [];
+    const starts = before === null || times[index] - before > gap;
+    before = times[index];
+    return [{ at: times[index], value: point.value, starts }];
+  });
 };
 
 /**
  * The temperature and the humidity of the whole span, with a cursor on the
  * instant this frame was taken - which is what makes a film of a tent worth
- * watching rather than a film of a plant.
+ * watching rather than a film of a plant. The curves and the cursor are drawn
+ * inside the box, a stroke's width in from its edges and joined round, so a
+ * steep last step does not poke out of it - and under the row of the readings,
+ * so a spike does not run through "20,9 °C".
  */
 const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | null => {
   const lines = [
-    { points: context.temperature, colour: TEMPERATURE, unit: '°C' },
-    { points: context.humidity, colour: HUMIDITY, unit: '%' },
+    { points: context.temperature, colour: TEMPERATURE, unit: '°C', decimals: 1 },
+    { points: context.humidity, colour: HUMIDITY, unit: '%', decimals: 0 },
   ].filter(line => line.points.some(point => point.value !== null));
 
   if (lines.length === 0) return null;
 
-  const height = Math.round(frame.height / 5);
-  const width = Math.round(frame.width * 0.62);
-  const pad = Math.round(frame.height / 36);
+  const box = climateBox(frame);
+  const { height, pad } = box;
   const top = frame.height - height - pad;
-  const left = Math.round((frame.width - width) / 2);
-  const size = Math.round(frame.height / 30);
+  const size = Math.round(shortSide(frame) / 30);
+  const inset = Math.max(Math.round(size / 2), STROKE * 2);
+  // The plot inside the box, below the readings' row.
+  const left = box.left + inset;
+  const width = box.width - inset * 2;
+  const plotTop = top + Math.round(size * 1.5);
+  const plotBottom = top + height - inset;
 
-  const first = new Date(lines[0].points[0].measuredAt).getTime();
-  const last = new Date(lines[0].points[lines[0].points.length - 1].measuredAt).getTime();
-  const span = Math.max(last - first, 1);
-  const cursorX = left + width * clamp((frame.at.getTime() - first) / span);
+  // From the first reading to the last, which is what the box's width stands for, and the cursor runs over the same.
+  const read = lines.flatMap(line => line.points.flatMap(point => (point.value === null ? [] : [Date.parse(point.measuredAt)])));
+  const first = Math.min(...read);
+  const last = Math.max(...read);
+  const xOf = (at: number) => left + width * clamp((at - first) / Math.max(last - first, 1));
+  const cursorX = xOf(frame.at.getTime());
 
   const drawn = lines.map(line => {
     const values = line.points.flatMap(point => (point.value === null ? [] : [point.value]));
@@ -166,31 +226,17 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
     const high = Math.max(...values);
     const range = Math.max(high - low, 1);
 
-    // The first command of a path has to be a moveto, and the one that decides
-    // it is the first point actually drawn - not the first slot of the series.
-    // A span that opens before the readings do, which is every "Today" film
-    // asked for before the device's first report of the day and every longer
-    // film across a day the device was off, has a null in that slot; the path
-    // then began with an L, which is not path data at all, and the renderer
-    // drew the panel with no curve in it and said nothing about the curve it
-    // had dropped.
-    let started = false;
-
-    const path = line.points
-      .flatMap((point, index) => {
-        if (point.value === null) return [];
-
-        const x = left + (width * index) / Math.max(line.points.length - 1, 1);
-        const y = top + height - ((point.value - low) / range) * height * 0.8 - height * 0.1;
-        const command = started ? 'L' : 'M';
-        started = true;
-
-        return [`${command}${x.toFixed(1)} ${y.toFixed(1)}`];
-      })
+    // Every stroke opens with a moveto - the first point actually drawn, not the first slot of the series: a path
+    // that began with an L is no path data, and the renderer drew the panel with no curve in it.
+    const path = curveStrokes(line.points, first, last)
+      .map(
+        point =>
+          `${point.starts ? 'M' : 'L'}${xOf(point.at).toFixed(1)} ${(plotBottom - ((point.value - low) / range) * (plotBottom - plotTop)).toFixed(1)}`,
+      )
       .join(' ');
 
     const now = nearest(frame.at, line.points);
-    return { path, colour: line.colour, reading: now === null ? null : `${now.toFixed(1)}${line.unit}` };
+    return { path, colour: line.colour, reading: now === null ? null : readingIn(now, line.decimals, line.unit, context.language) };
   });
 
   // Each reading starts at a fixed place of its own, so one whose width changes
@@ -200,43 +246,99 @@ const climateCurve = (frame: OverlayFrame, context: TimelapseContext): string | 
       line.reading === null
         ? []
         : [
-            `<text x="${left + 8 + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
-                   font-weight="700" fill="${line.colour}">${line.reading}</text>`,
+            `<text x="${left + index * size * 5}" y="${top + size}" font-family="${TEXT_FAMILY}" font-size="${size}"
+                   font-weight="500" fill="${line.colour}">${line.reading}</text>`,
           ],
     )
     .join('');
 
   return `<g>
-    <rect x="${left}" y="${top}" width="${width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.45"/>
-    ${drawn.map(line => `<path d="${line.path}" fill="none" stroke="${line.colour}" stroke-width="2"/>`).join('')}
-    <line x1="${cursorX.toFixed(1)}" y1="${top}" x2="${cursorX.toFixed(1)}" y2="${top + height}" stroke="${MUTED}" stroke-width="1"/>
+    <rect x="${box.left}" y="${top}" width="${box.width}" height="${height}" rx="${Math.round(size / 3)}" fill="${PANEL}" fill-opacity="0.45"/>
+    ${drawn
+      .map(
+        line =>
+          `<path d="${line.path}" fill="none" stroke="${line.colour}" stroke-width="${STROKE}" stroke-linejoin="round" stroke-linecap="round"/>`,
+      )
+      .join('')}
+    <line x1="${cursorX.toFixed(1)}" y1="${plotTop}" x2="${cursorX.toFixed(1)}" y2="${plotBottom}" stroke="${MUTED}" stroke-width="1"/>
     ${readings}
   </g>`;
 };
 
-/** The diary line of this moment, as the board draws it: "Day 26 · topped". */
+/** The width of a curve's line. */
+const STROKE = 2;
+
+/**
+ * The diary line of this moment, as the board draws it: "Day 26 · topped" - the one nearest the frame, within half an
+ * hour of it. Taken as the first line of that hour, a line written ten minutes after another never stood on a frame.
+ */
+export const captionAt = (at: Date, captions: TimelapseContext['captions']): TimelapseContext['captions'][number] | null =>
+  captions.reduce<TimelapseContext['captions'][number] | null>((best, entry) => {
+    const off = Math.abs(entry.at.getTime() - at.getTime());
+    return off <= CAPTION_WINDOW_MS && (best === null || off < Math.abs(best.at.getTime() - at.getTime())) ? entry : best;
+  }, null);
+
 const caption = (frame: OverlayFrame, context: TimelapseContext): string | null => {
-  const line = context.captions.find(entry => Math.abs(entry.at.getTime() - frame.at.getTime()) <= CAPTION_WINDOW_MS);
+  const line = captionAt(frame.at, context.captions);
   if (!line) return null;
 
-  const size = Math.round(frame.height / 26);
-  const pad = Math.round(frame.height / 36);
+  const size = Math.round(shortSide(frame) / 26);
   const height = Math.round(size * 2);
-  const top = frame.height - height - pad - (context.temperature.length > 0 ? Math.round(frame.height / 5) + pad : 0);
+  // Over the climate box it stands as wide as that box, so the two read as one column, and wider where its words need
+  // it - up to the frame's own margins, where alone it stands anyway: a line is cut only where the frame ends.
+  const box = climateBox(frame);
+  const over = context.temperature.length > 0;
+  const room = frame.width - box.pad * 2;
+  const width = over ? Math.min(Math.max(box.width, Math.ceil(textWidth(line.text, size)) + box.pad * 2), room) : room;
+  const left = over ? Math.round((frame.width - width) / 2) : box.pad;
+  const top = frame.height - height - box.pad - (over ? box.height + box.pad : 0);
 
   return `<g>
-    <rect x="${pad}" y="${top}" width="${frame.width - pad * 2}" height="${height}" rx="${Math.round(size / 3)}"
+    <rect x="${left}" y="${top}" width="${width}" height="${height}" rx="${Math.round(size / 3)}"
           fill="${PANEL}" fill-opacity="0.58"/>
-    <text x="${pad * 2}" y="${top + height / 2}" dominant-baseline="central"
-          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeText(line.text)}</text>
+    <text x="${left + box.pad}" y="${top + height / 2}" dominant-baseline="central"
+          font-family="${TEXT_FAMILY}" font-size="${size}" fill="${INK}">${escapeXml(fitted(line.text, width - box.pad * 2, size))}</text>
   </g>`;
+};
+
+/**
+ * How wide Albert Sans sets each character at its regular weight, in thousandths of its size: the face's advance
+ * widths, read from its `hmtx` table. A caption is fitted to its bar by these: guessed as 0.55 of the size each,
+ * its "…" came a fifth before the bar's end. A character not measured here counts as a wide letter, and one of a
+ * script set a whole size wide (CJK, emoji) as that.
+ */
+const MEASURED = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~·–—…°€äöüÄÖÜß';
+const ADVANCES = [
+  280, 261, 305, 811, 574, 758, 704, 190, 408, 409, 476, 636, 264, 521, 235, 319, 629, 306, 601, 599, 655, 624, 599, 556, 632, 599, 244, 280, 497,
+  667, 496, 548, 983, 672, 660, 765, 729, 609, 587, 770, 705, 250, 508, 607, 520, 864, 705, 781, 612, 781, 625, 574, 610, 697, 677, 971, 708, 649,
+  596, 298, 320, 298, 653, 515, 234, 528, 606, 556, 606, 564, 324, 606, 567, 258, 251, 518, 228, 896, 563, 590, 606, 606, 360, 475, 352, 562, 527,
+  754, 491, 513, 479, 377, 284, 376, 545, 221, 634, 837, 596, 394, 785, 528, 590, 562, 672, 781, 697, 620,
+];
+const ADVANCE = new Map([...MEASURED].map((character, index) => [character, ADVANCES[index]]));
+const WIDE_LETTER = 700;
+const WHOLE_SIZE = 1000;
+
+const advanceOf = (character: string): number => ADVANCE.get(character) ?? ((character.codePointAt(0) ?? 0) >= 0x1100 ? WHOLE_SIZE : WIDE_LETTER);
+
+/** How wide a line of the face is at a size. */
+export const textWidth = (text: string, size: number): number => [...text].reduce((sum, character) => sum + advanceOf(character), 0) * (size / 1000);
+
+/** A caption as much of it as fits a width at a size, cut with "…" where it does not: it is cut rather than run past its bar. */
+export const fitted = (text: string, width: number, size: number): string => {
+  if (textWidth(text, size) <= width) return text;
+  const room = width - textWidth('…', size);
+  let used = 0;
+  let kept = '';
+  for (const character of text) {
+    used += advanceOf(character) * (size / 1000);
+    if (used > room) break;
+    kept += character;
+  }
+  return `${kept.trimEnd()}…`;
 };
 
 /** Text somebody typed, being put into an XML document. */
 export const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/** A caption is whatever somebody typed, and a frame has room for a line of it. */
-const escapeText = (text: string): string => escapeXml(text.slice(0, 80));
 
 const clamp = (value: number): number => Math.min(Math.max(value, 0), 1);
 

@@ -1,33 +1,51 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FastifyReply } from 'fastify';
+import { Model } from 'mongoose';
 import { z } from 'zod';
-import { Camera, CameraCreate, CameraUpdate, MediaPage, TestCapture, TimelapseAccepted, TimelapseCreate } from '@fg2/shared-types/v1';
+import {
+  Camera,
+  CameraCreate,
+  CameraUpdate,
+  MediaPage,
+  StreamTestCapture,
+  StreamTestCreate,
+  TestCapture,
+  TimelapseAccepted,
+  TimelapseCreate,
+} from '@fg2/shared-types/v1';
 import {
   camera,
   cameraCreate,
   cameraPage,
   cameraUpdate,
   mediaPage,
+  streamTestCapture,
+  streamTestCreate,
   testCapture,
   timelapseAccepted,
   timelapseCreate,
 } from '@fg2/shared-types/v1-schemas';
 import { AuthGuard, OptionalSessionGuard } from '@common/auth/auth.guard';
+import { RateLimitGuard, RateLimited } from '@common/rate-limit.guard';
 import { V1Body } from '@common/zod-validation.pipe';
 import { AccessGuard, Caller, CurrentGrant, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant, Grantee } from '@common/v1/access.types';
 import { badRequest, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange } from '@common/v1/range';
+import { refuseEndedId } from '@common/v1/rooms';
 import { V1Query, inOrder, instantQuery, pageQuery } from '@common/v1/validation';
+import { MODEL_V1 } from '@database/models';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { CamerasService } from './cameras.service';
 import { CameraPollerService } from './camera-poller.service';
 import { TestCapturesService } from './test-captures.service';
 import { MediaService } from './media.service';
 import { TimelapseService } from './timelapse.service';
-import { changesTheStream } from './stream-url';
+import { changesTheStream, isStreamAddress } from './stream-url';
 import { V1Answer } from '../answer-shape';
 import { SHARED_READ_OPERATION } from '../../../openapi';
 import { accountOf } from '../caller';
@@ -72,6 +90,13 @@ type SpanQuery = z.infer<typeof spanQuery>;
 /** The pipeline asks a camera for a picture every 30 seconds at most, so a shorter interval is a promise it cannot keep. */
 const MINIMUM_STILL_INTERVAL_SECONDS = 30;
 
+/**
+ * Tests of an address one client may start a minute. Each is a run of ffmpeg
+ * at an address of the caller's choosing, and the runs share a few lanes with
+ * every camera's stills; somebody trying addresses out presses a few times.
+ */
+const STREAM_TESTS_PER_MINUTE = 10;
+
 @ApiTags('cameras')
 @Controller('v1/cameras')
 export class CamerasController {
@@ -82,6 +107,7 @@ export class CamerasController {
     private readonly builder: TimelapseService,
     private readonly access: AccessService,
     private readonly tests: TestCapturesService,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
   @Get()
@@ -98,8 +124,8 @@ export class CamerasController {
   /**
    * Creating a camera is managing the place it stands in, so the space it is put
    * in - or, for one a controller answers for, that controller - is what the
-   * decision is made about. Whether an address answers is found out by the first
-   * capture and never here.
+   * decision is made about. An address that is no stream's is refused; whether
+   * one answers is found out by the first capture and never here.
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -115,13 +141,18 @@ export class CamerasController {
       throw badRequest('not_yet', 'Pairing a standalone Terp Cam is coming: a Terp Cam is reached through the device it is paired at.');
     }
 
+    if (body.kind === 'rtsp') refuseNoStreamAddress(body.url);
     const deviceId = body.deviceId ?? null;
     if (deviceId) await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
     if (body.kind === 'rtsp' && body.tunnel) {
       await this.requireATunnel(deviceId);
       refuseUdpThroughATunnel(body.transport);
     }
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (body.spaceId) {
+      await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+      // A camera looking into a place that has ended would be on no screen.
+      await refuseEndedId(this.spaces, body.spaceId);
+    }
     if (!deviceId && !body.spaceId) {
       throw badRequest('nowhere_to_put_it', 'A camera belongs to a space or to the controller that answers for it; name one of them.');
     }
@@ -138,6 +169,51 @@ export class CamerasController {
     // own: a manager of somebody's tent may add a camera to it, and what comes
     // back is then still the host's.
     return this.cameras.serialise(camera, this.cameras.granteeOf(ctx, camera));
+  }
+
+  /**
+   * A stream's address tried before any camera is made of it, so that whoever
+   * is adding one learns whether it answers without a camera - and the row that
+   * outlives it - being made for the try. It is judged as adding that camera
+   * is: the address is a stream's, a device it is pulled through is the
+   * caller's to manage and carries a tunnel, and the place it would hang in is
+   * the caller's to manage and has not ended. Then it is the read a camera's
+   * test is, answered at once and asked after below, and nothing is written.
+   */
+  @Post('test-captures')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @UseGuards(RateLimitGuard, AuthGuard)
+  @RateLimited({ limit: STREAM_TESTS_PER_MINUTE, message: 'Too many tests of a stream address, please try again in a minute.' })
+  @ApiOperation({ summary: "Read one picture from a stream's address without making a camera of it" })
+  @V1Answer(streamTestCapture, {
+    status: HttpStatus.ACCEPTED,
+    description: 'Running, and asked after through `GET /cameras/test-captures/{captureId}`.',
+  })
+  public async testStream(@Caller() ctx: AccessContext, @V1Body(streamTestCreate) body: StreamTestCreate): Promise<StreamTestCapture> {
+    const account = accountOf(ctx, 'A test of an address is asked after by the account that started it, and this session is none.');
+    refuseNoStreamAddress(body.url);
+    if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
+    if (body.tunnel) {
+      await this.requireATunnel(body.deviceId);
+      refuseUdpThroughATunnel(body.transport);
+    }
+    const { grantee } = await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    await refuseEndedId(this.spaces, body.spaceId);
+
+    const draft = await this.cameras.draft(account, { kind: 'rtsp', name: '', ...body });
+    return this.tests.startStream(account, grantee === 'owner' || grantee === 'admin', { ...draft, secret: null });
+  }
+
+  /** How a test of an address went, for the account that started it alone: nobody else knows the address. */
+  @Get('test-captures/:captureId')
+  @UseGuards(AuthGuard)
+  @ApiOperation({ summary: "How a test of a stream's address went: running, done with its picture, or failed and why" })
+  @V1Answer(streamTestCapture)
+  public streamTestState(@Caller() ctx: AccessContext, @Param('captureId') captureId: string): StreamTestCapture {
+    const capture = this.tests.findStream(accountOf(ctx), captureId);
+    if (!capture) throw notFound('test_capture_not_found', 'There is no test of an address of yours with that id, or it finished too long ago.');
+
+    return capture;
   }
 
   /**
@@ -180,11 +256,17 @@ export class CamerasController {
     const current = await this.require(id);
 
     // Moving a camera is managing two places, and the guard above has only
-    // decided about the one it stands in.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    // decided about the one it stands in. An ended place takes none - which is
+    // asked of a move alone, so a camera still standing in a place that has
+    // ended keeps its settings changeable.
+    if (body.spaceId) {
+      await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+      if (body.spaceId !== current.spaceId) await refuseEndedId(this.spaces, body.spaceId);
+    }
     if (current.kind !== 'rtsp' && (namesAStream(body) || body.deviceId !== undefined)) {
       throw unprocessable('not_a_stream', 'This camera is a Terp Cam, which the cloud reaches by its own id rather than at a stream address.');
     }
+    if (body.url !== undefined) refuseNoStreamAddress(body.url);
     // Naming somebody else's device would pull a stream through hardware they
     // never offered, so moving a camera onto one is managing that one too.
     if (body.deviceId) await this.access.require(ctx, subjectRef('device', body.deviceId), 'manage');
@@ -393,6 +475,14 @@ const settingsOf = (body: CameraCreate): CameraUpdate => ({
   logErrors: body.logErrors,
   staleWarning: body.staleWarning,
 });
+
+/** An address a stream cannot be opened at is refused before anything is written (`isStreamAddress`). */
+const refuseNoStreamAddress = (url: string): void => {
+  if (isStreamAddress(url)) return;
+  throw unprocessable('not_a_stream_address', 'A stream is opened at an address that begins with rtsp:// or rtsps:// and names a host.', [
+    { field: 'url', code: 'not_a_stream_address', detail: 'Write the address as rtsp://host/path or rtsps://host/path.' },
+  ]);
+};
 
 /** The fields only an RTSP camera has; a Terp Cam is reached by its own id. */
 const namesAStream = (body: CameraUpdate): boolean =>

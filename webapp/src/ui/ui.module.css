@@ -96,60 +96,30 @@
   border-color: var(--alarm);
 }
 
-/* Where a thing is, as a word on a green wash: a grow's stage - "Flower wk 5"
-   on a week's card, "Veg" under the day it began. `.tagSmall` is the one that
-   fits under a seventh of a card, reaching a little into the gutter either
-   side and cut rather than wrapped. */
-.tag {
-  display: inline-block;
-  flex: none;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--green-wash);
-  font-family: var(--font-figure);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
-  color: var(--green-ink);
-  white-space: nowrap;
-}
-
-.tagSmall {
-  max-width: calc(100% + 6px);
-  overflow: hidden;
-  padding: 0 4px;
-  font-size: 11px;
-  line-height: var(--line-body);
-  text-align: center;
-  text-overflow: ellipsis;
-}
-
 /* How recently a device or a camera was heard from, as a pill with a dot: the
    green wash and a ringed green dot while it is live, the warning ink once it
    is late, and quiet grey when it has gone offline. `data-liveness` says
    which; the dot is `.liveDot`. */
 .live {
-  display: inline-flex;
+  display: inline-block;
   flex: none;
-  align-items: center;
-  gap: var(--space-2);
-  height: 26px;
-  padding: 0 var(--space-3) 0 10px;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background: var(--card-2);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--muted);
   white-space: nowrap;
 }
 
 .liveDot {
-  flex: none;
+  display: inline-block;
   width: 8px;
   height: 8px;
+  margin: -2px var(--space-2) 0 0;
   border-radius: 50%;
   background: currentcolor;
+  vertical-align: middle;
 }
 
 .live[data-liveness='live'] {
@@ -162,8 +132,30 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
 }
 
-.live[data-liveness='stale'] {
+.live:is([data-liveness='stale'], [data-liveness='offline']) {
+  background: var(--warning-wash);
   color: var(--warning);
+}
+
+/* The word that explains itself is a finger high and wide where it is tapped, without the pill growing by it. */
+.live > button {
+  position: relative;
+}
+
+.live > button::after {
+  position: absolute;
+  inset: -14px -10px;
+  content: '';
+}
+
+/* Its focus is the pill's: a round ring around the pill, not a square one around the word inside it. */
+.live:has(> button:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.live > button:focus-visible {
+  outline: none;
 }
 
 /* A camera's picture shown whole: 16:9, as most cameras take it, with the
@@ -206,15 +198,6 @@
   text-align: center;
 }
 
-/* The row that walks a day of pictures, under the mat: play where there is
-   one, the one slider, and the ends or the time at the cursor beside it. */
-.transport {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-}
-
 /* What a picture is, laid on the picture: its time, its age, how many there
    are. Smoked glass in the corner, the same in both modes because the picture
    under it does not change with the theme; it sits bottom left, and is cut
@@ -231,9 +214,8 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: var(--radius-pill);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
   color: var(--on-overlay);
   text-overflow: ellipsis;
@@ -248,15 +230,10 @@
    edge while there is more to scroll; at the end of the row it stands in a
    space of its own after the last item, and a row that fits pushes it into
    the empty space at its end, so it never covers what nobody can scroll to.
-   It fades into `--veil-colour`, the page unless the row stands on a card.
-   `.scrollRowNarrow` scrolls only on a phone and a tablet and wraps from the
-   rail's width up. */
-.scrollRow,
-.scrollRowNarrow {
-  --veil-colour: var(--bg);
-}
-
+   It fades into `--veil-colour`, the page unless the row stands on a card. */
 .scrollRow {
+  --veil-colour: var(--bg);
+
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -282,42 +259,10 @@
   pointer-events: none;
 }
 
-.scrollRowNarrow {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 899px) {
-  .scrollRowNarrow {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .scrollRowNarrow::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollRowNarrow > * {
-    flex-shrink: 0;
-  }
-
-  .scrollRowNarrow::after {
-    content: '';
-    position: sticky;
-    right: 0;
-    flex: none;
-    width: 40px;
-    margin-left: auto;
-    background: linear-gradient(to right, transparent, var(--veil-colour));
-    pointer-events: none;
-  }
-}
-
 /* A few figures read as one strip, a hairline between each, the way a tent's
-   readouts stand on Home: a week's light and climate, a grow's totals, a
-   plant's size. Each item is a figure over its caption; a figure takes
-   `.stripValue`, which a page may set larger, and its unit `.stripUnit`. A
+   readouts stand on Home: a grow's totals, a plant's size. Each item is a
+   figure over its caption; a figure takes `.stripValue`, which a page may set
+   larger. A
    strip that shares its width equally on a phone - five counts across a
    report - adds `.stripEven`; from the rail's width up each item is as wide as
    its figure again. Written for a `<dl>`, so a term and its value carry no
@@ -358,18 +303,10 @@
   display: flex;
   align-items: baseline;
   gap: 3px;
-  font-family: var(--font-figure);
   font-size: 20px;
   font-weight: var(--weight-figure);
   letter-spacing: -0.01em;
   line-height: var(--line-tight);
-}
-
-.stripUnit {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  color: var(--muted);
 }
 
 @media (min-width: 900px) {
@@ -386,33 +323,6 @@
   }
 }
 
-/* The way to add one more to a list - a device, a camera, a grow: a dashed
-   row that closes the list it adds to, its words in the middle. */
-.addRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: var(--control-height);
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-  border: var(--rule-dashed);
-  border-radius: var(--radius);
-  color: var(--muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  text-align: center;
-  transition:
-    background-color 120ms ease-out,
-    color 120ms ease-out;
-}
-
-.addRow:hover {
-  background: color-mix(in srgb, var(--card) 60%, transparent);
-  color: var(--ink);
-}
-
 /* The secondary button, as the site draws its own: white, its words in the
    brand blue, an edge that turns blue under the pointer. */
 .button {
@@ -426,15 +336,19 @@
   border: var(--rule-width) solid var(--rule-strong);
   border-radius: var(--radius-sm);
   color: var(--brand);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
   transition:
     background-color 120ms ease-out,
     border-color 120ms ease-out;
 }
 
-.button:hover:not(:disabled) {
-  border-color: var(--brand);
+/* Only for a pointer that hovers: a tap leaves the pointer where it was, and the ring stayed on whatever slid under it - a
+   key of the keypad the sheet opened over a tile - where it reads as the focus. */
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    border-color: var(--brand);
+  }
 }
 
 /* An icon keeps its size when a narrow row squeezes the words beside it. */
@@ -477,16 +391,16 @@
   border-color: transparent;
 }
 
-/* A primary that cannot be pressed gives the green up rather than fading it.
-   Turning green down works in the light theme, where it washes towards a pale
-   page, and fails in the dark one, where it lands on a still-saturated green
-   that is the brightest thing on the screen; the card's own surface under muted
-   ink is dead in both, because both of those tokens flip with the theme. This
-   rule follows `.button:disabled` so that it wins the tie on equal weight. */
+/* A primary that cannot be pressed gives the green up rather than fading it:
+   turned down, it lands on a still-saturated green in the dark theme. It
+   takes the card's second surface, and its words step back towards that
+   surface, since the muted ink alone is nearly as bright as the ink there.
+   This rule follows `.button:disabled` so that it wins the tie on equal
+   weight. */
 .primary:disabled {
   background: var(--card-2);
   border-color: var(--rule);
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
   box-shadow: none;
   opacity: 1;
 }
@@ -505,9 +419,8 @@
   border: var(--rule-solid);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
@@ -591,15 +504,27 @@
   color: var(--alarm);
 }
 
-/* The yes to a question asked before such a step. */
-.dangerFilled {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--on-green);
+/* The yes to a question asked before such a step - removing a member, a place
+   or a socket, giving a device up, switching regulation off, deleting an alarm
+   or the account: one danger style, filled in the alarm's red under white
+   words, never the brand green. */
+.dangerFilled,
+.dangerFilled:hover:not(:disabled) {
+  background: var(--alarm-fill);
+  border-color: var(--alarm-fill);
+  color: var(--on-alarm);
 }
 
-/* A sheet's own answer that cannot be taken back - removing a socket, releasing
-   a device: outlined in the alarm colour as a button of its own. */
+/* Not armed yet - a handle still to be typed: as a primary that cannot be pressed. */
+.dangerFilled:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
+  opacity: 1;
+}
+
+/* The button that asks before such a step, where it stands as a button of its
+   own - unpairing a camera: outlined in the alarm colour. Its yes is filled. */
 .dangerOutline {
   display: inline-flex;
   align-items: center;
@@ -637,23 +562,8 @@
   padding: var(--space-3);
   border: var(--rule-dashed);
   border-radius: var(--radius);
-}
-
-/* The yes to such a question beside the way back. */
-.askingActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-/* A two-line action and the (i) that says more about it. Two share a line
-   where the card is wide enough, and stack on a phone. */
-.withHelp {
-  display: flex;
-  flex: 1 1 15rem;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
+  /* Brought into view when asked (`Asking.tsx`): clear of the bar at the window's foot, not under it. */
+  scroll-margin: var(--space-3) 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-3));
 }
 
 /* Read aloud but not drawn. */
@@ -666,28 +576,6 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-
-/* The title of a page below a tab - Manual targets, Alarms - with the way
-   back to the tab beside it. It names the page, so it is set as a name, not
-   as one more section label on a rule over the section labels under it. */
-.subhead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-2) 0 0;
-  border-bottom: 0;
-}
-
-.subhead > :first-child {
-  font-size: var(--text-xl);
-  font-weight: var(--weight-heading);
-  letter-spacing: var(--tracking-title);
-  line-height: var(--line-tight);
-  text-transform: none;
-  color: var(--heading);
 }
 
 /* What a head offers besides its title - "Timeline ›", "+ Grow", "‹ back to
@@ -705,7 +593,7 @@
   border: 0;
   font-family: inherit;
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   color: var(--muted);
   text-decoration: none;
   white-space: nowrap;
@@ -727,9 +615,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 32px;
-  height: 32px;
-  margin-left: calc(var(--space-2) * -1);
+  width: var(--control-height);
+  height: var(--control-height);
+  margin: -6px 0 -6px calc(var(--space-3) * -1);
   border-radius: var(--radius-pill);
   color: var(--muted);
 }
@@ -741,39 +629,25 @@
 
 @media (min-width: 900px) {
   .back {
-    margin-left: calc(-32px - var(--back-gap));
+    margin-left: calc(-38px - var(--back-gap));
   }
 }
 
-/* A line of short items joined by middle dots - "Nothing growing here yet ·
-   Start a grow · Move a grow here" - that breaks between items and never
-   leaves a dot hanging at either end of a line. Every item after the first
-   is a `.dot` starting with its own " · ", kept on one line. A line
-   always starts in the strip left of the column, `--dot-lead` wide, which
-   is cut away: a wrapped item's dot falls in it and is not drawn, and the
-   first line is pushed past it. The strip is a little wider than the dot
-   and narrower than the dot and its space, so no letter is ever cut. */
-.dots {
-  --dot-lead: 0.4em;
-  --dot-gap: 0.26em;
-
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--dot-gap);
-  margin-inline-start: calc(var(--dot-lead) * -1);
-  clip-path: inset(-4px -4px -4px var(--dot-lead));
-}
-
-.dots::before {
-  content: '';
-  flex: none;
-  width: calc(var(--dot-lead) - var(--dot-gap));
-}
-
-/* An item after the first: its own " · " and what follows, on one line. */
-.dot {
-  white-space: nowrap;
+/* A chip or a field that is a menu: the native select, keeping its keyboard
+   and the platform's own picker, giving up only its arrow and its padding. The
+   caret is drawn 8 to 16 px in from the edge, so the padding has to reach past
+   it or the widest option's last letter sits against the triangle. */
+.menu {
+  appearance: none;
+  padding-right: var(--space-5);
+  background-image: linear-gradient(45deg, transparent 50%, currentcolor 50%), linear-gradient(135deg, currentcolor 50%, transparent 50%);
+  background-position:
+    right 12px top 50%,
+    right 8px top 50%;
+  background-size:
+    4px 4px,
+    4px 4px;
+  background-repeat: no-repeat;
 }
 
 /* One answer out of two or three, as one control: a track, the chosen
@@ -815,7 +689,7 @@
   color: var(--muted);
   font-family: var(--font-text);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
   text-align: center;
   white-space: nowrap;
@@ -823,7 +697,9 @@
   overflow: hidden;
 }
 
-.segment:hover:not(:disabled) {
+/* No heavier than the chosen option's own rule below, which therefore keeps its ink under a pointer - and under
+   the hover a phone leaves on what was tapped last. */
+.segment:hover:where(:not(:disabled)) {
   color: var(--ink);
 }
 
@@ -996,6 +872,8 @@
   padding-right: 96px;
 }
 
+/* A button inside the field, in a button's colour and weight, so it does not read as the placeholder's grey beside
+   it; grey only while there is nothing to send. As high as the field, which is a finger's target. */
 .fieldAction {
   position: absolute;
   inset: 0 var(--space-3) 0 auto;
@@ -1005,8 +883,13 @@
   background: none;
   border: 0;
   padding: 0;
-  color: var(--muted);
+  color: var(--brand);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.fieldAction:disabled {
+  color: var(--muted);
 }
 
 /* What went wrong, under the control it belongs to. */
@@ -1033,6 +916,14 @@
   background: var(--card-2);
   border: var(--rule-width) solid var(--control-edge);
   border-radius: var(--radius-pill);
+}
+
+/* Drawn smaller than a finger, it is tapped as one wherever it stands: its target is 44 px both ways, counted from
+   inside its rule, reaching into the air around it without making its line taller. */
+.switch::after {
+  content: '';
+  position: absolute;
+  inset: calc((var(--control-height) - 24px) / -2 - var(--rule-width)) calc((var(--control-height) - 42px) / -2 - var(--rule-width));
 }
 
 /* On, the surface green - the button's darker fill fell under 3:1 on the
@@ -1069,4 +960,189 @@
 .switch[aria-checked='true'] .knob {
   background: var(--card);
   transform: translateX(18px);
+}
+
+/* How things stand to one another, said once for every screen. They come last
+   in this file, so one of them laid on an element beside a shape from above
+   decides where both speak; a screen's own class adds only what is its own.
+
+   One under the other, by the room between them. */
+.stack1,
+.stack2,
+.stack3,
+.stack4,
+.list,
+.effects,
+.textColumn,
+.panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.stack1,
+.effects {
+  gap: var(--space-1);
+}
+
+.stack2,
+.list {
+  gap: var(--space-2);
+}
+
+.stack3 {
+  gap: var(--space-3);
+}
+
+.stack4 {
+  gap: var(--space-4);
+}
+
+/* A list that is a column of its own rows, without the browser's bullets and indent. */
+.list,
+.effects {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* What a change will do, said before it does it: sentences one under the other, without markers, which would read
+   as options to choose between. */
+.effects {
+  font-size: var(--text-sm);
+}
+
+/* A page that is one column: as wide as text reads, a little below the header. A screen sets only how it differs. */
+.page {
+  max-width: var(--column-width);
+  padding-top: var(--space-2);
+}
+
+/* The words of a row beside its picture or its control: a name over its line, cut rather than pushing the control out. */
+.textColumn {
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Side by side: chips and buttons that wrap (`wrapRow` centres them on their line), and what stays on one line. */
+.wrap,
+.wrapRow,
+.row2,
+.row3,
+.rowTop,
+.headRow {
+  display: flex;
+}
+
+.wrap,
+.wrapRow {
+  flex-wrap: wrap;
+}
+
+.wrapRow,
+.row2,
+.row3 {
+  align-items: center;
+}
+
+.wrap,
+.wrapRow,
+.row2 {
+  gap: var(--space-2);
+}
+
+.row3,
+.rowTop,
+.headRow {
+  gap: var(--space-3);
+}
+
+/* Words that may wrap beside a switch or a pill that stays at their first line. */
+.rowTop {
+  align-items: flex-start;
+}
+
+/* A picture that fills the frame it stands in, cropped rather than squeezed. */
+.cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* One line, cut rather than wrapped. */
+.cut {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A heading with what belongs at its other end, on one baseline. */
+.headRow {
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+/* Two fields that are one answer, side by side on a phone too. */
+.halves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+/* The card Start and the diary are built from, and the small heading inside it. */
+.panel {
+  gap: 10px;
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.cardHeading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--label);
+}
+
+/* A card that is one row and one tap: it leads somewhere, opens what is under it or plays. */
+.rowCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--ink);
+}
+
+/* The button under a page's cards: outlined like one of them, as wide as the screen gives it. */
+.wide {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.wide:disabled {
+  opacity: 0.45;
+}
+
+/* The small outlined button in the brand colour: a card's one action. */
+.pill {
+  min-height: var(--control-height);
+  padding: 0 14px;
+  background: var(--card);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }

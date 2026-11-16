@@ -36,3 +36,23 @@ export const hasLogin = (url: string): boolean => {
     return false;
   }
 };
+
+/**
+ * Whether an address is one a stream can be pulled from: `rtsp://` or `rtsps://` and a host. Anything else - a
+ * word, an `http://` page, the scheme alone - made a camera that could never show a picture, so it is refused on
+ * the field before anything is written, as the server refuses it.
+ */
+export const isStreamAddress = (url: string): boolean => {
+  try {
+    const parsed = new URL(url.trim());
+    return (parsed.protocol === 'rtsp:' || parsed.protocol === 'rtsps:') && parsed.hostname !== '';
+  } catch {
+    return false;
+  }
+};
+
+/** Whether what is typed so far may still become an address: the start of `rtsp://` or of `rtsps://`. */
+export const beginsStreamAddress = (url: string): boolean => {
+  const typed = url.trim().toLowerCase();
+  return 'rtsp://'.startsWith(typed) || 'rtsps://'.startsWith(typed);
+};

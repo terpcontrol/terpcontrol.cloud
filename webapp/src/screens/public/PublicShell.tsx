@@ -1,8 +1,9 @@
 import { Moon, Sun } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useLayoutEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { noLongerThere } from '@/api/problem';
+import { windowTitle } from '@/app/shell/page-title';
 import { useTheme } from '@/theme/theme-context';
 import { Logo } from '@/ui/Logo';
 import { LoadFailed, Waiting } from '@/ui/PageState';
@@ -14,7 +15,7 @@ import styles from './Public.module.css';
  * dark switch, and a line at the foot saying what this is.
  *
  * Deliberately not the app shell. The tab bar, the rail and the top bar are
- * about an account - the bell, the avatar, the raised Log button - and every
+ * about an account - the bell, the way to Ich, the Eintrag button - and every
  * one of them would lead a stranger to the sign-in page. What is here instead
  * is what a reader who has never seen the product needs: the diary, who keeps
  * it, and one way in if they want one.
@@ -22,10 +23,11 @@ import styles from './Public.module.css';
 export function PublicShell({ title, children }: { title?: string; children: ReactNode }) {
   const { t } = useTranslation();
 
-  // The tab is part of the page for somebody who opened three links at once.
-  useEffect(() => {
+  // The tab is part of the page for somebody who opened three links at once. Before the page's own effects: one
+  // that leads nowhere names the window itself (`Nothing`).
+  useLayoutEffect(() => {
     const before = document.title;
-    document.title = title ? `${title} · Terp Control` : 'Terp Control';
+    document.title = windowTitle(title);
     return () => {
       document.title = before;
     };

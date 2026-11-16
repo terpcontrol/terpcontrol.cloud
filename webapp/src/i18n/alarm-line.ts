@@ -1,7 +1,55 @@
 import type { i18n as I18n } from 'i18next';
-import type { Metric } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmWatch, Metric } from '@fg2/shared-types/v1';
 import { OFFLINE_RULE_NAME } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
+import type { Translate } from './i18n';
+
+/** What a preset's rules are called, by what each watches: a stage writes the same four whichever preset it stands on. */
+const PRESET_TITLE: Record<string, string> = {
+  'temperature-upper': 'tooHot',
+  'temperature-lower': 'tooCold',
+  'humidity-upper': 'tooHumid',
+  'co2-upper': 'co2High',
+};
+
+/**
+ * The names those rules are stored under, which is all an open alert or a line of the diary says of its rule: the
+ * four a stage writes, and the ones a single tap under Steuerung writes (`alarms/templates.ts`), which are stored
+ * under the same kind of name so that they read in the reader's language too.
+ */
+const STORED_TITLE: Record<string, string> = {
+  'Too hot': 'tooHot',
+  'Too cold': 'tooCold',
+  'Too humid': 'tooHumid',
+  'CO₂ too high': 'co2High',
+  'Too dry': 'tooDry',
+  'CO₂ cylinder empty': 'co2Empty',
+  'Fridge runs without a break': 'running',
+};
+
+const presetTitle = (watch: AlarmWatch): string | null => {
+  if (watch.kind !== 'reading') return null;
+  const side = watch.upper !== null ? 'upper' : watch.lower !== null ? 'lower' : null;
+
+  return side ? (PRESET_TITLE[`${watch.metric}-${side}`] ?? null) : null;
+};
+
+/**
+ * What a rule is called, wherever it is named. The server names its own rules
+ * in English - the one it keeps for every device and the four a stage applies
+ * - so those are titled in the reader's language: from what the rule watches,
+ * else from the name it is stored under, which is how a rule made by one tap
+ * is named as well. A rule somebody named keeps its name.
+ */
+export const ruleTitle = (t: Translate, { name, origin, watch }: Pick<AlarmRule, 'name'> & Partial<Pick<AlarmRule, 'origin' | 'watch'>>): string => {
+  if (origin === 'always' || (!origin && name === OFFLINE_RULE_NAME)) return t('alarms.offlineRule');
+  const title = (origin === 'preset' && watch ? presetTitle(watch) : null) ?? STORED_TITLE[name];
+
+  return title ? t(`alarms.presetRule.${title}`) : name;
+};
+
+/** What a reading is called wherever an alarm names it, in full: "Blatttemperatur zu hoch". */
+export const metricName = (t: Translate, metric: Metric): string => t(`home.metric.${metric}`, { defaultValue: metric });
 
 /**
  * An alarm's diary line, in the reader's language.
@@ -25,11 +73,35 @@ import { figureWithUnit, targetWithUnit, UNIT } from '@/ui/units';
  * Anything that does not have one of these shapes is left to the caller, which
  * shows it as it came.
  */
-export const alarmLineText = (i18n: I18n, param: string, triggered: boolean): string | null =>
+export const alarmLineText = (i18n: I18n, param: string, triggered: boolean): string | null => {
+  const parts = alarmLineParts(i18n, param, triggered);
+  return parts ? [parts.rule, ...parts.said].join(' · ') : null;
+};
+
+/**
+ * The same line in its parts, for a surface that sets the rule's name as the
+ * line and what tripped it under it. `limit` is the reading and the edge it
+ * crossed without the figure it had ("Luftfeuchte über 60 %"), for a line that
+ * stands for many firings and has no one figure to state.
+ */
+interface AlarmLine {
+  rule: string;
+  said: string[];
+  limit: string | null;
+  /** For a silence raised: how long before the line's moment it was last heard, which is when Meldungen says it began. */
+  silentFor?: number;
+  /** How much longer than `silentFor` the silence may have been: a span written without its seconds is rounded down by up to its smallest unit. */
+  roughBy?: number;
+  /** A device's or a camera's silence, raised or over, rather than a reading's or an output's alarm. */
+  silence?: true;
+}
+
+export const alarmLineParts = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null =>
   thresholdLine(i18n, param, triggered) ?? silenceLine(i18n, param, triggered);
 
 const THRESHOLD = /^(.*) \(([A-Za-z0-9_]+)\), value=([^,]+?)(?:, upper threshold=([^,]+?), lower threshold=([^,]+?))?(?:, extreme value=([^,]+?))?$/;
-const SILENT = /^(.*), last heard (.+) ago$/;
+/** A silence raised, with the seconds the span rounds where the server wrote them (`silent=`): the line dates its start by them. */
+const SILENT = /^(.*), last heard (.+?) ago(?:, silent=(\d+(?:\.\d+)?))?$/;
 const BACK_AFTER = /^(.*), back after (.+)$/;
 const BACK = /^(.*), back$/;
 
@@ -41,9 +113,9 @@ const numberOf = (text: string | undefined): number | null => {
 
 const isReading = (watched: string): watched is Metric => watched in UNIT;
 
-const ruleName = (i18n: I18n, name: string): string => (name === OFFLINE_RULE_NAME ? i18n.t('alarmLine.deviceOffline') : name);
+const ruleName = (i18n: I18n, name: string): string => ruleTitle((key, options) => i18n.t(key, options ?? {}), { name });
 
-const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
+const thresholdLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
   const match = THRESHOLD.exec(param);
   if (!match) return null;
 
@@ -53,20 +125,29 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
 
   if (!isReading(watched)) {
     const output = i18n.t(`alerts.output.${watched}`, { defaultValue: watched });
-    return `${ruleName(i18n, name)} · ${i18n.t(value > 0 ? 'alarmLine.outputOn' : 'alarmLine.outputOff', { output })}`;
+    return { rule: ruleName(i18n, name), said: [i18n.t(value > 0 ? 'alarmLine.outputOn' : 'alarmLine.outputOff', { output })], limit: null };
   }
 
-  const metric = i18n.t(`alerts.metric.${watched}`, { defaultValue: i18n.t(`home.metric.${watched}`, { defaultValue: watched }) });
+  const metric = metricName((key, options) => i18n.t(key, options ?? {}), watched);
   const upper = numberOf(rawUpper);
   const lower = numberOf(rawLower);
   const extreme = numberOf(rawExtreme);
-  const edge = (sign: string, bound: number) => `${sign} ${targetWithUnit(bound, watched)}`;
-  const crossed = upper !== null && value > upper ? edge('›', upper) : lower !== null && value < lower ? edge('‹', lower) : null;
+  // The edge is said in words: "›" is the app's sign for "opens something".
+  const edge = (side: 'over' | 'under', bound: number) => i18n.t(`alarmLine.${side}`, { bound: targetWithUnit(bound, watched) });
+  const crossed = !triggered
+    ? null
+    : upper !== null && value > upper
+      ? edge('over', upper)
+      : lower !== null && value < lower
+        ? edge('under', lower)
+        : null;
 
-  const parts = [`${ruleName(i18n, name)} · ${metric} ${figureWithUnit(value, watched)}${triggered && crossed ? ` ${crossed}` : ''}`];
-  if (!triggered && extreme !== null) parts.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
+  const said = [`${metric} ${figureWithUnit(value, watched)}`];
+  if (crossed) said.push(crossed);
+  if (!triggered && extreme !== null) said.push(i18n.t('alarmLine.worst', { value: figureWithUnit(extreme, watched) }));
 
-  return parts.join(' · ');
+  // The limit stands as a line of its own, so the reading opens it as a sentence does.
+  return { rule: ruleName(i18n, name), said, limit: crossed ? `${metric.charAt(0).toLocaleUpperCase()}${metric.slice(1)} ${crossed}` : null };
 };
 
 /**
@@ -77,15 +158,37 @@ const thresholdLine = (i18n: I18n, param: string, triggered: boolean): string | 
 const spanIn = (i18n: I18n, span: string): string =>
   span.replace(/(\d+) (s|min|h|d)\b/g, (_, figure: string, unit: string) => `${figure} ${i18n.t(`units.${unit}`, { defaultValue: unit })}`);
 
-const silenceLine = (i18n: I18n, param: string, triggered: boolean): string | null => {
+/** The seconds a span the server wrote stands for - "1 d 2 h", "10 min" -, or null where it is no such span. */
+const secondsOf = (span: string): number | null => {
+  const parts = [...span.matchAll(/(\d+) (s|min|h|d)\b/g)];
+  return parts.length === 0 ? null : parts.reduce((sum, [, figure, unit]) => sum + Number(figure) * SECONDS[unit], 0);
+};
+
+const SECONDS: Record<string, number> = { s: 1, min: 60, h: 3600, d: 86_400 };
+
+/** The smallest unit a span the server wrote names, in seconds: what it may have been rounded down by. */
+const unitOf = (span: string): number => Math.min(...[...span.matchAll(/\d+ (s|min|h|d)\b/g)].map(([, unit]) => SECONDS[unit]));
+
+const silenceLine = (i18n: I18n, param: string, triggered: boolean): AlarmLine | null => {
+  const line = (rule: string, said: string): AlarmLine => ({ rule: ruleName(i18n, rule), said: [said], limit: null, silence: true });
+
   if (triggered) {
     const silent = SILENT.exec(param);
-    return silent ? `${ruleName(i18n, silent[1])} · ${i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })}` : null;
+    // The span is rounded - "11 min" of 11 min 40 s dated the start a minute later than Meldungen did; a line from
+    // before the seconds were written is read by its span.
+    const quiet = !silent ? null : silent[3] !== undefined ? Number(silent[3]) : secondsOf(silent[2]);
+    const rough = !silent || silent[3] !== undefined ? 0 : unitOf(silent[2]);
+    return silent
+      ? {
+          ...line(silent[1], i18n.t('alarmLine.silentFor', { span: spanIn(i18n, silent[2]) })),
+          ...(quiet === null ? {} : { silentFor: quiet, roughBy: rough }),
+        }
+      : null;
   }
 
   const after = BACK_AFTER.exec(param);
-  if (after) return `${ruleName(i18n, after[1])} · ${i18n.t('alarmLine.backAfter', { span: spanIn(i18n, after[2]) })}`;
+  if (after) return line(after[1], i18n.t('alarmLine.backAfter', { span: spanIn(i18n, after[2]) }));
 
   const back = BACK.exec(param);
-  return back ? `${ruleName(i18n, back[1])} · ${i18n.t('alarmLine.back')}` : null;
+  return back ? line(back[1], i18n.t('alarmLine.back')) : null;
 };

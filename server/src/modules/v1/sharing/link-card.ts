@@ -1,7 +1,8 @@
 import sharp from 'sharp';
 import { Injectable } from '@nestjs/common';
-import { LinkCard } from '@fg2/shared-types/v1';
+import { GrowthStage, LinkCard } from '@fg2/shared-types/v1';
 import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/timelapse-overlays';
+import { BRAND_MARK, brandMarkPng } from './brand-mark';
 
 /**
  * What a shared address looks like everywhere but in the app: the picture a
@@ -10,7 +11,8 @@ import { INK, MUTED, PANEL, TEXT_FAMILY, escapeXml } from '@modules/v1/camera/ti
  * Both are made from the same `LinkCard`, so the tags and the picture cannot say
  * different things - which is the whole reason the shape exists. The picture is
  * drawn the way a film's overlays are: one SVG layer composited by sharp, which
- * needs no font files in the container and no second dependency.
+ * needs no font files in the container and no second dependency, with the
+ * brand's small logo in its top corner, so a card says whose app it came from.
  */
 
 /** What every scraper expects of an Open Graph image, and what they all crop to. */
@@ -38,6 +40,14 @@ export const SHELL_CACHE_SECONDS = 120;
 
 const MARGIN = 72;
 const CONTENT_WIDTH = CARD_WIDTH - MARGIN * 2;
+
+/** Where the logo stands: in the top corner opposite the meta line, its middle on that line's. */
+export const LOGO_BOX = {
+  left: CARD_WIDTH - MARGIN - BRAND_MARK.width,
+  top: MARGIN + 20 - Math.round(BRAND_MARK.height / 2),
+  width: BRAND_MARK.width,
+  height: BRAND_MARK.height,
+};
 
 const TITLE_SIZE = 64;
 const META_SIZE = 30;
@@ -78,11 +88,66 @@ const wrap = (text: string, size: number, lines: number): string[] => {
   return wrapped.slice(0, lines);
 };
 
-/** "@mia · Day 34 · Flowering" - whichever of the three the card has. */
-const metaLineOf = (card: LinkCard): string =>
-  [card.handle ? `@${card.handle}` : null, card.dayNumber === null ? null : `Day ${card.dayNumber}`, card.stage]
-    .filter((part): part is string => part !== null)
+/**
+ * The few words a card says, in the owner's language: a card is the grower's
+ * diary shown to somebody, and a German diary's card said "A grow diary by".
+ * The stages are the app's names for them (`home.stage` in its catalogues).
+ */
+interface CardWords {
+  day: (day: number) => string;
+  diaryBy: (handle: string | null) => string;
+  diaries: (count: number) => string;
+  stage: Record<GrowthStage, string>;
+}
+
+const WORDS: Record<'de' | 'en', CardWords> = {
+  de: {
+    day: (day: number) => `Tag ${day}`,
+    diaryBy: (handle: string | null) => (handle ? `Ein Grow-Tagebuch von @${handle}` : 'Ein Grow-Tagebuch'),
+    diaries: (count: number) =>
+      count === 0
+        ? 'Noch kein öffentliches Grow-Tagebuch.'
+        : count === 1
+          ? 'Ein öffentliches Grow-Tagebuch.'
+          : `${count} öffentliche Grow-Tagebücher.`,
+    stage: { germination: 'Keimung', seedling: 'Sämling', vegetative: 'Veg', flowering: 'Blüte', drying: 'Trocknung', curing: 'Reifung' },
+  },
+  en: {
+    day: (day: number) => `Day ${day}`,
+    diaryBy: (handle: string | null) => (handle ? `A grow diary by @${handle}` : 'A grow diary'),
+    diaries: (count: number) =>
+      count === 0 ? 'No public grow diaries yet.' : count === 1 ? 'One public grow diary.' : `${count} public grow diaries.`,
+    stage: { germination: 'Germination', seedling: 'Seedling', vegetative: 'Veg', flowering: 'Flower', drying: 'Drying', curing: 'Curing' },
+  },
+};
+
+/** The words of a language the app speaks, English for any other. */
+export const cardWords = (language: string | null | undefined) => (language?.startsWith('de') ? WORDS.de : WORDS.en);
+
+/** What a grow with no description of its own says about itself, in its owner's language: "Ein Grow-Tagebuch von @mia · Tag 34 · Blüte". */
+export const growSentence = (language: string, handle: string | null, dayNumber: number | null, stage: GrowthStage | null): string => {
+  const words = cardWords(language);
+  return [words.diaryBy(handle), dayNumber === null ? null : words.day(dayNumber), stage ? words.stage[stage] : null].filter(Boolean).join(' · ');
+};
+
+/** The language a card is written in, as `<html lang>` and the words name it. */
+const cardLanguage = (language: string): 'de' | 'en' => (language.startsWith('de') ? 'de' : 'en');
+
+/**
+ * "@mia · Tag 34 · Blüte" - whichever of the three the card has, in the owner's language, and none the title or the
+ * line under it says already: a grow without a description of its own is described by the same three
+ * (`growSentence`), and a profile's title is its handle.
+ */
+export const metaLineOf = (card: LinkCard): string => {
+  const words = cardWords(card.language);
+  return [
+    card.handle ? `@${card.handle}` : null,
+    card.dayNumber === null ? null : words.day(card.dayNumber),
+    card.stage ? words.stage[card.stage] : null,
+  ]
+    .filter((part): part is string => part !== null && !card.description.includes(part) && !card.title.includes(part))
     .join('  ·  ');
+};
 
 const textLayer = (card: LinkCard, hasCover: boolean): string => {
   const title = wrap(card.title, TITLE_SIZE, 2);
@@ -90,8 +155,9 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
   const meta = metaLineOf(card);
 
   // A cover keeps its picture and gets a scrim dark enough to read white type
-  // over; a grow with no cover yet gets the app's own panel colour instead of a
-  // blank rectangle.
+  // over - at the foot under the title, and at the top under the meta line and
+  // the logo; a grow with no cover yet gets the app's own panel colour instead
+  // of a blank rectangle.
   const backdrop = hasCover
     ? `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="url(#scrim)"/>`
     : `<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="${PANEL}"/>`;
@@ -102,7 +168,7 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
     .map(
       (line, index) =>
         `<text x="${MARGIN}" y="${titleTop + (index + 1) * (TITLE_SIZE + 10)}" font-family="${TEXT_FAMILY}" font-size="${TITLE_SIZE}"
-               font-weight="600" fill="${INK}">${escapeXml(line)}</text>`,
+               font-weight="500" fill="${INK}">${escapeXml(line)}</text>`,
     )
     .join('');
 
@@ -118,7 +184,8 @@ const textLayer = (card: LinkCard, hasCover: boolean): string => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}">
     <defs>
       <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${PANEL}" stop-opacity="0.15"/>
+        <stop offset="0%" stop-color="${PANEL}" stop-opacity="0.6"/>
+        <stop offset="28%" stop-color="${PANEL}" stop-opacity="0.2"/>
         <stop offset="55%" stop-color="${PANEL}" stop-opacity="0.72"/>
         <stop offset="100%" stop-color="${PANEL}" stop-opacity="0.95"/>
       </linearGradient>
@@ -145,7 +212,11 @@ export const renderCard = async (card: LinkCard, cover: Buffer | null): Promise<
     : null;
 
   return sharp({ create: { width: CARD_WIDTH, height: CARD_HEIGHT, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([...(tile ? [{ input: tile, left: 0, top: 0 }] : []), { input: Buffer.from(textLayer(card, tile !== null)), left: 0, top: 0 }])
+    .composite([
+      ...(tile ? [{ input: tile, left: 0, top: 0 }] : []),
+      { input: Buffer.from(textLayer(card, tile !== null)), left: 0, top: 0 },
+      { input: brandMarkPng(), left: LOGO_BOX.left, top: LOGO_BOX.top },
+    ])
     .png()
     .toBuffer();
 };
@@ -216,7 +287,7 @@ export const shellHtml = (card: LinkCard): string => {
   const imageUrl = escapeHtml(card.imageUrl);
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${cardLanguage(card.language)}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -247,6 +247,14 @@
           "number",
           "null"
         ]
+      },
+      "min": {
+        "description": "The lowest sample of the window, on a read that asks for the extremes (the Timeline). Left out where the window held one sample, where lowest and highest are the same figure, and for a day kept as its mean. Of a computed metric it is the least its inputs allow: the corner of the box they moved in.",
+        "type": "number"
+      },
+      "max": {
+        "description": "The highest sample of the window, answered and left out as `min` is.",
+        "type": "number"
       }
     },
     "required": [
@@ -296,6 +304,8 @@
       "fridge",
       "room",
       "balcony",
+      "dry_box",
+      "greenhouse",
       "other"
     ]
   },
@@ -522,7 +532,7 @@
       },
       "places": {
         "type": "boolean",
-        "description": "Whether Start listed several places rather than being the cockpit of the only one."
+        "description": "Whether Start listed several places rather than being the page of the only one."
       }
     },
     "required": [
@@ -1915,6 +1925,24 @@
       "lightLimit"
     ]
   },
+  "AppliedClimate": {
+    "type": "object",
+    "properties": {
+      "stage": {
+        "$ref": "#/components/schemas/GrowthStage"
+      },
+      "preset": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "stage",
+      "preset"
+    ]
+  },
   "DeviceControl": {
     "type": "object",
     "properties": {
@@ -1945,6 +1973,28 @@
       "germinationChoices": {
         "description": "What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.",
         "$ref": "#/components/schemas/GerminationChoices"
+      },
+      "preset": {
+        "description": "The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "endsOn": {
+        "description": "While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -1953,6 +2003,13 @@
       "mode",
       "energySaving",
       "germinationChoices"
+    ]
+  },
+  "DeviceRelease": {
+    "type": "string",
+    "enum": [
+      "given_up",
+      "account_deleted"
     ]
   },
   "DeviceState": {
@@ -1981,6 +2038,49 @@
           {
             "type": "null"
           }
+        ]
+      },
+      "released": {
+        "description": "When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "by": {
+                "$ref": "#/components/schemas/DeviceRelease"
+              }
+            },
+            "required": [
+              "at",
+              "by"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "awaitedClimate": {
+        "description": "The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "limitBeforeDark": {
+        "description": "A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.",
+        "type": [
+          "number",
+          "null"
         ]
       },
       "firmwareId": {
@@ -2314,6 +2414,39 @@
             "description": "Whether a humidifier socket goes on holding the night's humidity while the device germinates - 75 % (`GERMINATION_HUMIDITY`) unless the grower set another. False rests it until germination ends; nothing else regulates the humidity in germination."
           }
         }
+      },
+      "preset": {
+        "description": "The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "bands": {
+        "description": "The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "bandsBefore": {
+        "description": "Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
@@ -2980,6 +3113,23 @@
         "type": "string"
       },
       "spaceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "spaceNames": {
+        "description": "What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name (\"Zelt 2\"); ignored where the device joins a place that exists.",
+        "type": "object",
+        "properties": {
+          "tent": {
+            "type": "string"
+          },
+          "fridge": {
+            "type": "string"
+          }
+        }
+      },
+      "joinSpaceId": {
+        "description": "Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.",
         "type": "string",
         "minLength": 1
       }
@@ -3712,6 +3862,18 @@
         ],
         "description": "What it was started from; null once it no longer matters."
       },
+      "growId": {
+        "description": "The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.",
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "name": {
         "type": "string"
       },
@@ -4037,6 +4199,11 @@
             "enum": [
               "resume"
             ]
+          },
+          "growId": {
+            "description": "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -4056,6 +4223,11 @@
             "type": "string",
             "minLength": 1,
             "description": "The step the plan runs from, by its id."
+          },
+          "growId": {
+            "description": "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -4443,11 +4615,50 @@
           "string",
           "null"
         ]
+      },
+      "counts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "enabled": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "triggered": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Enabled rules whose watch is out of bounds now."
+          }
+        },
+        "required": [
+          "total",
+          "enabled",
+          "triggered"
+        ],
+        "description": "Over every rule of the device, whichever page this is."
+      },
+      "germination": {
+        "description": "While the place the device stands in germinates: what was chosen there about the humidity, which the stage's \"too humid\" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/GerminationChoices"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
       "items",
-      "nextCursor"
+      "nextCursor",
+      "counts"
     ]
   },
   "AlarmRuleCreate": {
@@ -4619,7 +4830,27 @@
           {
             "type": "null"
           }
+        ],
+        "description": "The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place."
+      },
+      "spaceName": {
+        "description": "What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.",
+        "type": [
+          "string",
+          "null"
         ]
+      },
+      "startedIn": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place."
       },
       "kind": {
         "$ref": "#/components/schemas/AlertKind"
@@ -4681,6 +4912,8 @@
       "deviceId",
       "cameraId",
       "spaceId",
+      "spaceName",
+      "startedIn",
       "kind",
       "severity",
       "startedAt",
@@ -4853,6 +5086,55 @@
       "active"
     ]
   },
+  "PendingSetting": {
+    "type": "object",
+    "properties": {
+      "field": {
+        "type": "string",
+        "description": "The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`."
+      },
+      "held": {
+        "description": "What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.",
+        "type": [
+          "number",
+          "string",
+          "null"
+        ]
+      },
+      "savedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When the value the cloud holds now was stored."
+      }
+    },
+    "required": [
+      "field",
+      "held",
+      "savedAt"
+    ]
+  },
+  "PendingSettings": {
+    "type": "object",
+    "properties": {
+      "since": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When the device was last heard."
+      },
+      "settings": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PendingSetting"
+        }
+      }
+    },
+    "required": [
+      "since",
+      "settings"
+    ]
+  },
   "DeviceLive": {
     "type": "object",
     "properties": {
@@ -4889,13 +5171,25 @@
           }
         ],
         "description": "null for a device that holds no targets, such as a plug."
+      },
+      "pending": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PendingSettings"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it."
       }
     },
     "required": [
       "deviceId",
       "metrics",
       "outputs",
-      "setpoints"
+      "setpoints",
+      "pending"
     ]
   },
   "MetricSeries": {
@@ -5616,7 +5910,7 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
@@ -5638,7 +5932,7 @@
             "type": "null"
           }
         ],
-        "description": "A tombstone: history still names the space, so it is kept and no longer listed."
+        "description": "When the place ended: a tombstone, since history still names it, so it is kept and no longer listed."
       },
       "createdAt": {
         "type": "string",
@@ -6678,7 +6972,7 @@
             "type": "null"
           }
         ],
-        "description": "1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase."
+        "description": "1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase."
       },
       "stage": {
         "anyOf": [
@@ -6689,7 +6983,7 @@
             "type": "null"
           }
         ],
-        "description": "The stage of the largest group of plants."
+        "description": "The stage of the largest group of the plants still standing; of all of them where none stands."
       },
       "preset": {
         "type": [
@@ -6722,6 +7016,10 @@
         ],
         "description": "Counted like `dayNumber`, so it lines up with the feeding scheme's grid."
       },
+      "zone": {
+        "type": "string",
+        "description": "The zone whose calendar the days above are dates of: the owner’s. What a client counts for itself - the day a line is dated to - it counts in this zone (`growDayAt`)."
+      },
       "stageWeek": {
         "anyOf": [
           {
@@ -6733,11 +7031,11 @@
             "type": "null"
           }
         ],
-        "description": "Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase."
+        "description": "Which week of its stage the grow is in, counted from the stage’s own start: days 1 to 7 of the stage are week 1 (`stageWeekOf`). Null before the first phase."
       },
       "isAuto": {
         "type": "boolean",
-        "description": "The phase was set by a preset or by the plan rather than by hand."
+        "description": "The phase was set by the plan rather than by a person: what the app marks \"von allein\"."
       },
       "groups": {
         "type": "array",
@@ -6759,6 +7057,7 @@
       "preset",
       "phaseDay",
       "weekNumber",
+      "zone",
       "stageWeek",
       "isAuto",
       "groups",
@@ -6926,13 +7225,17 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
       },
       "retention": {
         "$ref": "#/components/schemas/SpaceRetention"
+      },
+      "roomName": {
+        "description": "The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.",
+        "type": "string"
       }
     },
     "required": [
@@ -6959,13 +7262,17 @@
             "type": "null"
           }
         ],
-        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own."
+        "description": "A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included."
       },
       "presetPrompt": {
         "$ref": "#/components/schemas/PresetPrompt"
       },
       "retention": {
         "$ref": "#/components/schemas/SpaceRetention"
+      },
+      "roomName": {
+        "description": "The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.",
+        "type": "string"
       }
     }
   },
@@ -7203,6 +7510,10 @@
             "type": "null"
           }
         ]
+      },
+      "hasCamera": {
+        "type": "boolean",
+        "description": "Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code."
       }
     },
     "required": [
@@ -7211,7 +7522,8 @@
       "spaceKind",
       "role",
       "invitedByHandle",
-      "expiresAt"
+      "expiresAt",
+      "hasCamera"
     ]
   },
   "InviteAcceptance": {
@@ -7233,7 +7545,8 @@
     "type": "object",
     "properties": {
       "strain": {
-        "type": "string"
+        "type": "string",
+        "description": "Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name."
       },
       "count": {
         "type": "integer",
@@ -7324,7 +7637,7 @@
         ]
       },
       "climate": {
-        "description": "Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false.",
+        "description": "Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false: the phase is then a record and no device is written, whatever the stage.",
         "type": "boolean"
       },
       "startedAt": {
@@ -8421,6 +8734,20 @@
           }
         ],
         "description": "Where the plants moved to; null is \"no fixed place\"."
+      },
+      "to": {
+        "description": "What the place moved to was called then; null for no fixed place. Absent on a line written before a move named its places, and on a read that hides the place.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "from": {
+        "description": "What the place the plants left was called then - a place that has since been removed still has its name here. Absent like `to`, and where the plants came from more than one place.",
+        "type": [
+          "string",
+          "null"
+        ]
       }
     },
     "required": [
@@ -8778,9 +9105,15 @@
             "const": "water"
           },
           "litres": {
-            "type": [
-              "number",
-              "null"
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "readings": {
@@ -8802,9 +9135,15 @@
             "const": "feed"
           },
           "litres": {
-            "type": [
-              "number",
-              "null"
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "schemeWeek": {
@@ -9054,7 +9393,14 @@
         }
       },
       "values": {
-        "$ref": "#/components/schemas/EntryValuesDraft"
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/EntryValuesDraft"
+          },
+          {
+            "$ref": "#/components/schemas/HarvestEntryValues"
+          }
+        ]
       }
     }
   },
@@ -10220,6 +10566,27 @@
       "capturedAt"
     ]
   },
+  "PlantLabel": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "growId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "label": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "growId",
+      "label"
+    ]
+  },
   "TestCaptureState": {
     "type": "string",
     "enum": [
@@ -10316,6 +10683,143 @@
       "still",
       "reason",
       "error"
+    ]
+  },
+  "StreamTestCreate": {
+    "type": "object",
+    "properties": {
+      "username": {
+        "description": "The login name the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "password": {
+        "description": "The password the stream is opened with, written into the URL; empty takes it away.",
+        "type": "string"
+      },
+      "deviceId": {
+        "description": "The device whose tunnel the stream is pulled through; absent or null is one the cloud reaches itself.",
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "tunnel": {
+        "type": "boolean",
+        "description": "Pull the stream through the tunnel of the device in `deviceId` rather than reaching it directly. A stream camera created with a device and without this field is pulled through it, unless it is read over UDP, which does not pass through a tunnel."
+      },
+      "transport": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CameraTransport"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "spaceId": {
+        "type": "string",
+        "minLength": 1,
+        "description": "The place the camera would hang in, which whoever tests it has to manage."
+      },
+      "url": {
+        "type": "string",
+        "description": "The stream URL. A login written into it is used; `username` and `password` replace its halves."
+      }
+    },
+    "required": [
+      "spaceId",
+      "url"
+    ]
+  },
+  "StreamTestPicture": {
+    "type": "object",
+    "properties": {
+      "capturedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "jpeg": {
+        "type": "string",
+        "description": "The picture as a JPEG, base64, at most 720 pixels wide."
+      }
+    },
+    "required": [
+      "capturedAt",
+      "jpeg"
+    ]
+  },
+  "StreamTestCapture": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "state": {
+        "$ref": "#/components/schemas/TestCaptureState"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "finishedAt": {
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "reason": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/CaptureFailure"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What kind of failure it was, once `failed`."
+      },
+      "error": {
+        "description": "Once `failed`, what the camera - or the process that reached for it - said, in the server's words; it can name the address the camera is reached at.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "picture": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/StreamTestPicture"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The picture it took, once `done`."
+      }
+    },
+    "required": [
+      "id",
+      "state",
+      "startedAt",
+      "finishedAt",
+      "reason",
+      "error",
+      "picture"
     ]
   },
   "TimelapseCreate": {
@@ -10611,8 +11115,7 @@
     "type": "string",
     "enum": [
       "stacked",
-      "overlay",
-      "day_of_grow"
+      "overlay"
     ]
   },
   "ChartViewDefinition": {
@@ -11163,48 +11666,6 @@
       "points"
     ]
   },
-  "DueTask": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1
-      },
-      "kind": {
-        "$ref": "#/components/schemas/ReminderKind"
-      },
-      "label": {
-        "type": "string"
-      },
-      "dueAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "subject": {
-        "$ref": "#/components/schemas/GrowOrSpaceRef"
-      },
-      "assigneeId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
-      }
-    },
-    "required": [
-      "id",
-      "kind",
-      "label",
-      "dueAt",
-      "subject",
-      "assigneeId"
-    ]
-  },
   "OpenAlert": {
     "type": "object",
     "properties": {
@@ -11332,7 +11793,7 @@
             "type": "null"
           }
         ],
-        "description": "Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state."
+        "description": "Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states."
       },
       "stage": {
         "anyOf": [
@@ -11374,6 +11835,19 @@
         ],
         "description": "Null where the owner hides counts."
       },
+      "standingCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts."
+      },
       "strains": {
         "type": "array",
         "items": {
@@ -11396,7 +11870,8 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowCardStageGroup"
-        }
+        },
+        "description": "Each stage the plants still standing are in, with how many; every plant’s where none stands."
       }
     },
     "required": [
@@ -11411,9 +11886,270 @@
       "preset",
       "isAuto",
       "plantCount",
+      "standingCount",
       "strains",
       "coverMediaId",
       "stageGroups"
+    ]
+  },
+  "DeviceArrival": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "description": "What the device is called, as `Device.name`.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": {
+        "type": "string",
+        "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+      },
+      "at": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "When it was put here."
+      },
+      "from": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "spaceId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "spaceId",
+              "name"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The place it stood in before, whose Verlauf holds what it measured there; null where the reader may not read that place."
+      }
+    },
+    "required": [
+      "deviceId",
+      "name",
+      "type",
+      "at",
+      "from"
+    ]
+  },
+  "TimelineDevice": {
+    "type": "object",
+    "properties": {
+      "deviceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "description": "What the device is called, as `Device.name`; where nobody holds it, the name the place’s owner let it go under. Null where somebody else holds it now, whose name it is not the place’s to read.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "type": {
+        "type": "string",
+        "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+      }
+    },
+    "required": [
+      "deviceId",
+      "name",
+      "type"
+    ]
+  },
+  "GrowDayEvent": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "light"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "on": {
+            "type": "boolean"
+          },
+          "still": {
+            "type": "boolean",
+            "description": "Whether the lamp is lit as this is read: it came on, nothing switched it off, the day is the one still running and its device still reports. False says only that it switched - of the time after, nothing."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "on",
+          "still"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "excursion"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the reading left its band; the start of the day, or the moment its device was put there, where it was already outside."
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null for a run still going when the day, or the reading of it, ended."
+          },
+          "metric": {
+            "$ref": "#/components/schemas/Metric"
+          },
+          "above": {
+            "type": "boolean",
+            "description": "Which edge it left over: true is above the band."
+          },
+          "extremeValue": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "endedAt",
+          "metric",
+          "above",
+          "extremeValue"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "maintenance"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When somebody put the devices of the place into maintenance, or the start of the day where they already were."
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null while it is still on, or where the day ended first."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "endedAt"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "controlOff"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When a device of the place had its regulation switched off (its work mode to `off`), or the start of the day where it already was."
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it was switched on again; null while it is still off, or where the day ended first."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "endedAt"
+        ]
+      },
+      {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "device"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the device was put there: from here on the curves and the figures of the place are its own."
+          },
+          "name": {
+            "description": "What the device is called, as `Device.name`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+          }
+        },
+        "required": [
+          "kind",
+          "at",
+          "name",
+          "type"
+        ]
+      }
     ]
   },
   "HomeClimate": {
@@ -11536,7 +12272,14 @@
         "items": {
           "$ref": "#/components/schemas/Entry"
         },
-        "description": "The grow’s newest entries, newest first."
+        "description": "The newest lines of the grow’s diary - of the place’s where no grow stands - newest first, by the rules a day of the diary goes by."
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "When maintenance was on, or regulation off, among those lines, each stretch once. Nothing of lamp or climate: that is a day’s."
       },
       "latestStill": {
         "anyOf": [
@@ -11547,12 +12290,6 @@
             "type": "null"
           }
         ]
-      },
-      "dueTasks": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/DueTask"
-        }
       },
       "openAlerts": {
         "type": "array",
@@ -11573,8 +12310,8 @@
       "trend",
       "grow",
       "entries",
+      "events",
       "latestStill",
-      "dueTasks",
       "openAlerts"
     ]
   },
@@ -11645,7 +12382,17 @@
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-        "description": "When the diary last moved: the newest line in it, or the day the grow started where nobody has written one yet."
+        "description": "When the grow last moved, by what `updatedBy` says: the newest picture of a camera where it stands (where its page shows the cameras), the newest word from a device there, or the newest line of its diary - whichever came last -, else the day it started. An ended grow stands nowhere, so only its diary and its start date it."
+      },
+      "updatedBy": {
+        "type": "string",
+        "enum": [
+          "picture",
+          "reading",
+          "entry",
+          "start"
+        ],
+        "description": "What `updatedAt` is the time of, which the card says beside the age."
       }
     },
     "required": [
@@ -11657,7 +12404,8 @@
       "stage",
       "endedAt",
       "coverMediaId",
-      "updatedAt"
+      "updatedAt",
+      "updatedBy"
     ]
   },
   "HomeAnswer": {
@@ -11680,7 +12428,7 @@
         "items": {
           "$ref": "#/components/schemas/Person"
         },
-        "description": "Everyone the cards name, so a card can say who wrote an entry without another read."
+        "description": "Everyone the cards name, so a card can say who wrote an entry without another read - and the owner of every place that is not the reader’s own, so a shared place says whose it is."
       },
       "layers": {
         "$ref": "#/components/schemas/AccountLayers"
@@ -12053,7 +12801,7 @@
             "type": "null"
           }
         ],
-        "description": "Which week of its stage the grow is in: 1 in the week the stage began, the same figure the grow page’s own header and week cards state."
+        "description": "Which week of its stage the grow is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure the grow page’s own header states."
       },
       "stage": {
         "anyOf": [
@@ -12095,6 +12843,19 @@
         ],
         "description": "Null where the owner hides counts."
       },
+      "standingCount": {
+        "anyOf": [
+          {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "How many of its plants still stand - neither harvested nor ended -, so a running grow cut down to the last plant is told as such. Null where the owner hides counts."
+      },
       "strains": {
         "type": "array",
         "items": {
@@ -12117,7 +12878,8 @@
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowCardStageGroup"
-        }
+        },
+        "description": "Each stage the plants still standing are in, with how many; every plant’s where none stands."
       },
       "weekNumber": {
         "anyOf": [
@@ -12163,58 +12925,13 @@
       "preset",
       "isAuto",
       "plantCount",
+      "standingCount",
       "strains",
       "coverMediaId",
       "stageGroups",
       "weekNumber",
       "placedAt",
       "placedOnDay"
-    ]
-  },
-  "OverviewTask": {
-    "type": "object",
-    "properties": {
-      "id": {
-        "type": "string",
-        "minLength": 1
-      },
-      "kind": {
-        "$ref": "#/components/schemas/ReminderKind"
-      },
-      "label": {
-        "type": "string"
-      },
-      "dueAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "subject": {
-        "$ref": "#/components/schemas/GrowOrSpaceRef"
-      },
-      "assigneeId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "defaults": {
-        "description": "Prefilled entry values for the completion; null when the task prefills nothing."
-      }
-    },
-    "required": [
-      "id",
-      "kind",
-      "label",
-      "dueAt",
-      "subject",
-      "assigneeId",
-      "defaults"
     ]
   },
   "OverviewTargets": {
@@ -12382,7 +13099,14 @@
         "items": {
           "$ref": "#/components/schemas/Entry"
         },
-        "description": "The newest lines of this space and of the grows standing in it, newest first."
+        "description": "The newest lines of this space and of the grows standing in it, newest first, by the rules a day of the diary goes by: what people wrote, the alarms and the plan’s steps - not what else a device logs about itself. A reader from outside is answered what people wrote."
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "When maintenance was on, or regulation off, among those lines, each stretch once; empty for a reader from outside. Nothing of lamp or climate: that is a day’s."
       },
       "readingNames": {
         "type": "array",
@@ -12391,11 +13115,19 @@
         },
         "description": "What the grows those lines belong to call their measurements, so a reading is named rather than keyed."
       },
-      "dueTasks": {
+      "devices": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/OverviewTask"
-        }
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "What each device those lines name is called here, as `SpaceTimeline.devices`, so a line names one that has left the place or the account. Empty for a reader from outside."
+      },
+      "plants": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PlantLabel"
+        },
+        "description": "The plants of the grows standing here, so a line about some of them names them; none of a grow whose counts are hidden from this reader."
       },
       "openAlerts": {
         "type": "array",
@@ -12425,8 +13157,10 @@
       "grows",
       "cameras",
       "entries",
+      "events",
       "readingNames",
-      "dueTasks",
+      "devices",
+      "plants",
       "openAlerts",
       "people"
     ]
@@ -12731,6 +13465,58 @@
       "night"
     ]
   },
+  "TimelineReading": {
+    "type": "object",
+    "properties": {
+      "measuredAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+      },
+      "values": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CardValue"
+        }
+      },
+      "outputs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "output": {
+              "$ref": "#/components/schemas/OutputMetric"
+            },
+            "on": {
+              "type": "boolean"
+            },
+            "level": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "output",
+            "on",
+            "level"
+          ]
+        }
+      }
+    },
+    "required": [
+      "measuredAt",
+      "values",
+      "outputs"
+    ]
+  },
   "TimelinePanel": {
     "type": "object",
     "properties": {
@@ -12757,27 +13543,44 @@
       "targets"
     ]
   },
-  "TimelineOutputLevel": {
+  "TimelineOutputPoint": {
     "type": "object",
     "properties": {
-      "unit": {
+      "measuredAt": {
         "type": "string",
-        "enum": [
-          "percent",
-          "count"
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "Stamped like the climate points: each closes the window it stands for."
+      },
+      "heard": {
+        "type": "integer",
+        "exclusiveMinimum": 0,
+        "maximum": 9007199254740991,
+        "description": "How many samples of the output the window held."
+      },
+      "on": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991,
+        "description": "In how many of them the output was running."
+      },
+      "level": {
+        "description": "The mean level over all of the samples in per cent of full output, to a tenth, a sample in which the output was off counting as 0: a heater at 80 % in one sample of three is 26.7. Null for an output that only switches, and for the CO2 valve, whose share of samples says all there is.",
+        "type": [
+          "number",
+          "null"
         ]
       },
-      "points": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/SeriesPoint"
-        },
-        "description": "Stamped like the climate points: each closes the window it stands for."
+      "resumed": {
+        "description": "True where the device had fallen silent before this window, by the interval it was keeping there: the point then stands for its own window alone. Elsewhere it stands for the stretch since the point before it - a device slower than the step is one stretch - and a lane's first point for the stretch since the read began.",
+        "type": "boolean"
       }
     },
     "required": [
-      "unit",
-      "points"
+      "measuredAt",
+      "heard",
+      "on",
+      "level"
     ]
   },
   "TimelineOutputLane": {
@@ -12815,9 +13618,17 @@
         "type": "boolean",
         "const": true
       },
-      "level": {
-        "description": "Only for an output the device drives at a level; absent where the output is a switch and nothing more.",
-        "$ref": "#/components/schemas/TimelineOutputLevel"
+      "reading": {
+        "description": "Set on the lanes of the device `reading` is of, so that what the reading says an output did is read onto its own lamp and not onto another lamp of the place. Told to a link too, which is not told the device.",
+        "type": "boolean",
+        "const": true
+      },
+      "points": {
+        "description": "The output point by drawn point, in order; absent where the read did not count its samples.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineOutputPoint"
+        }
       }
     },
     "required": [
@@ -12899,7 +13710,7 @@
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991,
-        "description": "How many are in `events`. Zero on a shared or public read, whose rail is the grow's diary and never a device's diagnostics."
+        "description": "How many are in `events`. Zero on a shared or public read, whose lines are the grow's diary and never a device's diagnostics."
       },
       "total": {
         "type": "integer",
@@ -13056,11 +13867,34 @@
         ],
         "description": "Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
       },
+      "deviceId": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The device the panels are read from: the one asked for, else the place’s own climate - one device, never a mean of several. Null on a shared or public read, and where no device here measured."
+      },
       "panels": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/TimelinePanel"
         }
+      },
+      "reading": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/TimelineReading"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the device the panels are of last read, whenever that was: the figures a screen shows as \"now\" - or as the last reading of a device gone quiet - for every reader alike. Null where no device standing here is drawn."
       },
       "lastReadingAt": {
         "anyOf": [
@@ -13089,6 +13923,13 @@
           "$ref": "#/components/schemas/TimelineSpan"
         }
       },
+      "silences": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineSpan"
+        },
+        "description": "The stretches of the window the device the panels are of said nothing in, by the interval it was keeping, each to the second where the read knew its samples: what a cursor standing in one is told, and the one verdict the curve, the lanes and the nights are cut by. One that begins with the window or ends with it was not seen to begin or end. Empty where nothing is drawn of a device."
+      },
       "alarms": {
         "type": "array",
         "items": {
@@ -13106,17 +13947,74 @@
         "items": {
           "$ref": "#/components/schemas/Entry"
         },
-        "description": "The rail: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn."
+        "description": "The lines of the Timeline: the diary of this space and of the grows standing in it, oldest first, as the marks are drawn. The lines that say maintenance went on and off, or regulation off and on by itself, are told in `stretches` instead."
+      },
+      "stretches": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "When maintenance was on, or regulation off, inside the window, each stretch once and oldest first - as a day of the diary tells them. Empty on a shared or public read."
+      },
+      "deviceChanges": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "device"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+              "description": "When the device was put there: from here on the curves and the figures of the place are its own."
+            },
+            "name": {
+              "description": "What the device is called, as `Device.name`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "description": "Its type, as `Device.type`, which is what an unnamed device is called by."
+            }
+          },
+          "required": [
+            "kind",
+            "at",
+            "name",
+            "type"
+          ]
+        },
+        "description": "When the device the panels are read from changed inside the window, oldest first: each time another device took over the climate of the place. Empty where one device was asked for, and on a shared or public read."
+      },
+      "arrivals": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DeviceArrival"
+        },
+        "description": "The devices standing here that came from another place, where the window reaches back before one came or nothing it measured here is in it - its curves begin when it came, and what it measured before is under the Verlauf of where it stood. Empty on a shared or public read."
       },
       "machineEvents": {
         "$ref": "#/components/schemas/TimelineMachineEvents"
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "Every device that stood here inside the window, with what it is called, so a strip, a line or the card names one that has left the place or the account since. Empty on a shared or public read."
       },
       "grows": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/TimelineGrow"
         },
-        "description": "Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the rail is the only screen that carries it. Empty on a shared or public read, which is given one grow and is not told what else has stood in the room."
+        "description": "Every grow that has stood in this space, newest first, which is what the two stretch chips may be pointed at - a grow that moved out in spring left its record behind and the Timeline is the only screen that carries it. A link on the place is told the grows that stood here in the window, whose lines it reads, so that a line names its grow; any other shared or public read is given one grow and is not told what else has stood in the room, and gets none."
       },
       "readingNames": {
         "type": "array",
@@ -13136,7 +14034,7 @@
         "items": {
           "$ref": "#/components/schemas/Person"
         },
-        "description": "Everyone the rail names, so a mark can say who wrote it without another read."
+        "description": "Everyone the lines name, so a mark can say who wrote it without another read."
       }
     },
     "required": [
@@ -13151,13 +14049,20 @@
       "endsAt",
       "stepSeconds",
       "deviceIds",
+      "deviceId",
       "panels",
+      "reading",
       "lastReadingAt",
       "nights",
+      "silences",
       "alarms",
       "outputs",
       "events",
+      "stretches",
+      "deviceChanges",
+      "arrivals",
       "machineEvents",
+      "devices",
       "grows",
       "readingNames",
       "cameras",
@@ -13211,9 +14116,41 @@
       "nightAverage"
     ]
   },
-  "GrowWeekDay": {
+  "GrowDayClimate": {
     "type": "object",
     "properties": {
+      "temperature": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "humidity": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "inBandFraction": {
+        "type": [
+          "number",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "temperature",
+      "humidity",
+      "inBandFraction"
+    ]
+  },
+  "GrowDiaryDay": {
+    "type": "object",
+    "properties": {
+      "date": {
+        "type": "string",
+        "description": "The date on the owner’s calendar, `YYYY-MM-DD`."
+      },
       "dayNumber": {
         "type": "integer",
         "minimum": -9007199254740991,
@@ -13224,110 +14161,121 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
-      "stage": {
+      "endsAt": {
+        "type": "string",
+        "format": "date-time",
+        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+        "description": "The end of the date, or now, the end of the grow or the end of the reader’s window, whichever comes first."
+      },
+      "still": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/GrowthStage"
+            "type": "object",
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cameraId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "capturedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "mediaId",
+              "cameraId",
+              "capturedAt"
+            ]
           },
           {
             "type": "null"
           }
         ],
-        "description": "The stage the grow entered on this day, where it entered one; null on a day it carried on in the stage before. A week is named after the stage it ended in, so this is the only place a card records a stage that began and was over inside it."
+        "description": "The camera’s picture of the day: the still taken in the light nearest midday, and on the day still running the newest one taken in the light. Null where no camera watched, or the reader was not given the cameras."
       },
-      "mediaId": {
+      "climate": {
         "anyOf": [
           {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/components/schemas/GrowDayClimate"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Null where nothing measured where the grow stood that day."
+      },
+      "phase": {
+        "description": "The grow's stage at the day's middle and that stage's week then: a row of folded days is named by the stage most of them lay in, which is not always the week's. Null before the first phase; absent from a server that does not say it.",
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "$ref": "#/components/schemas/GrowthStage"
+              },
+              "preset": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stageWeek": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "stage",
+              "preset",
+              "stageWeek"
+            ]
           },
           {
             "type": "null"
           }
         ]
       },
-      "cameraId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "capturedAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      }
-    },
-    "required": [
-      "dayNumber",
-      "startsAt",
-      "stage",
-      "mediaId",
-      "cameraId",
-      "capturedAt"
-    ]
-  },
-  "GrowWeekFeeding": {
-    "type": "object",
-    "properties": {
-      "amounts": {
+      "events": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/SchemeAmount"
+          "$ref": "#/components/schemas/GrowDayEvent"
+        },
+        "description": "In the order they happened."
+      },
+      "entries": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "description": "The lines of the day, newest first: the grow’s own diary and, for the people who keep the place, the alarms raised and the plan’s steps where the grow stood. What else a device logs - a restart, a sensor drifting - is not diary and stays with the device."
+      },
+      "deviceIds": {
+        "description": "The devices that stood where the grow stood that day, while it stood there: a line of the day names its device where another of them stood there too, as Verlauf names one where its window held another (`SpaceTimeline.devices`). What each is called is `GrowDiaryPage.devices`. Absent for a reader from outside, and from a server that does not say it.",
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
         }
-      },
-      "plannedCount": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
       }
     },
     "required": [
-      "amounts",
-      "plannedCount"
+      "date",
+      "dayNumber",
+      "startsAt",
+      "endsAt",
+      "still",
+      "climate",
+      "events",
+      "entries"
     ]
   },
-  "GrowWeekReading": {
-    "type": "object",
-    "properties": {
-      "key": {
-        "type": "string"
-      },
-      "value": {
-        "type": "number"
-      },
-      "change": {
-        "type": [
-          "number",
-          "null"
-        ]
-      },
-      "measuredAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      }
-    },
-    "required": [
-      "key",
-      "value",
-      "change",
-      "measuredAt"
-    ]
-  },
-  "GrowWeekCard": {
+  "GrowDiaryWeek": {
     "type": "object",
     "properties": {
       "weekNumber": {
@@ -13344,16 +14292,6 @@
         "type": "integer",
         "minimum": -9007199254740991,
         "maximum": 9007199254740991
-      },
-      "startsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "endsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
       "stage": {
         "anyOf": [
@@ -13382,123 +14320,72 @@
             "type": "null"
           }
         ],
-        "description": "1 in the week the stage began; null before the first phase."
+        "description": "Which week of its stage the week’s stage was in, from the stage’s own start (days 1 to 7 are week 1): at the week’s middle for a week that is over, today for the week still running. The week itself is seven days of the grow, named by its days. Null before the first phase."
       },
-      "deviceIds": {
+      "film": {
         "anyOf": [
           {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
+            "type": "object",
+            "properties": {
+              "mediaId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dayFrom": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "dayTo": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "lengthSeconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "mediaId",
+              "dayFrom",
+              "dayTo",
+              "lengthSeconds"
+            ]
           },
           {
             "type": "null"
           }
-        ],
-        "description": "The controllers the averages were read from. Empty where nothing measures in the places the grow stood, which a card says rather than drawing dashes; null on a shared or public read, where the averages are the diary and the hardware behind them is not."
-      },
-      "climate": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/WeekClimate"
-        }
-      },
-      "lightHours": {
-        "description": "Hours of light per day over the week, from the controller’s light output.",
-        "type": [
-          "number",
-          "null"
         ]
       },
       "days": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/GrowWeekDay"
+          "$ref": "#/components/schemas/GrowDiaryDay"
         },
-        "description": "Seven; a day that has not happened yet carries no picture."
-      },
-      "feeding": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/GrowWeekFeeding"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "Null for a grow that is fed no scheme."
-      },
-      "readings": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/GrowWeekReading"
-        }
-      },
-      "waterCount": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
-      },
-      "feedCount": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
-      },
-      "entries": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/Entry"
-        },
-        "description": "The week’s diary lines, newest first, capped; `entryCount` is how many there are."
-      },
-      "entryCount": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991
-      },
-      "timelapseMediaId": {
-        "anyOf": [
-          {
-            "type": "string",
-            "minLength": 1
-          },
-          {
-            "type": "null"
-          }
-        ]
+        "description": "The days of the week that have happened and that the reader may see, newest first."
       }
     },
     "required": [
       "weekNumber",
       "dayFrom",
       "dayTo",
-      "startsAt",
-      "endsAt",
       "stage",
       "preset",
       "stageWeek",
-      "deviceIds",
-      "climate",
-      "lightHours",
-      "days",
-      "feeding",
-      "readings",
-      "waterCount",
-      "feedCount",
-      "entries",
-      "entryCount",
-      "timelapseMediaId"
+      "film",
+      "days"
     ]
   },
-  "GrowWeekCardPage": {
+  "GrowDiaryPage": {
     "type": "object",
     "properties": {
       "items": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/GrowWeekCard"
+          "$ref": "#/components/schemas/GrowDiaryWeek"
         }
       },
       "nextCursor": {
@@ -13513,12 +14400,28 @@
         "items": {
           "$ref": "#/components/schemas/Person"
         }
+      },
+      "earlier": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Entry"
+        },
+        "description": "Newest first; empty on every page but the last."
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TimelineDevice"
+        },
+        "description": "What each device the page’s lines name, or its days’ `deviceIds`, is called where it stood, as `SpaceTimeline.devices`. Empty for a reader from outside."
       }
     },
     "required": [
       "items",
       "nextCursor",
-      "people"
+      "people",
+      "earlier",
+      "devices"
     ]
   },
   "GrowReportPhase": {
@@ -13611,7 +14514,7 @@
         }
       },
       "lightHours": {
-        "description": "Hours of light per day over the phase, from the controller’s light output, as a week card states it for its own seven days; null over a stretch too short or too quiet to say.",
+        "description": "Hours of light per day over the phase, from the controller’s light output; null over a stretch too short or too quiet to say.",
         "type": [
           "number",
           "null"
@@ -13687,12 +14590,21 @@
           "number",
           "null"
         ]
+      },
+      "plantIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "The plants it is the harvest of while some of the grow's are still growing - one plant of three harvested is that plant's harvest and not the grow's; empty once the last plant is harvested, when it is the grow's."
       }
     },
     "required": [
       "harvestedAt",
       "wetWeightG",
-      "dryWeightG"
+      "dryWeightG",
+      "plantIds"
     ]
   },
   "GrowTotals": {
@@ -14158,17 +15070,11 @@
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
       },
-      "stepSeconds": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The window each climate and output point summarises; 0 where no device was read at all."
-      },
       "originAt": {
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
-        "description": "The instant day 1 of this grow began, which is what day-of-grow counts from."
+        "description": "The start of the date the grow began on, on its owner’s calendar: where day 1 begins, and what a day-of-grow axis counts from."
       },
       "dayFrom": {
         "anyOf": [
@@ -14194,72 +15100,11 @@
           }
         ]
       },
-      "deviceIds": {
-        "anyOf": [
-          {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The devices the climate and the outputs were read from: whatever stood where the grow stood. Null on a shared or public read: what a reader is shown is the tent, not the hardware in it."
-      },
-      "climate": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelinePanel"
-        }
-      },
-      "lastReadingAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "When a device standing where this grow stood last measured one of the climate metrics, whenever that was - which is the only thing that tells a window nothing was heard in apart from a place where nothing measures, since `climate` is empty in both. The Timeline of the tent answers the same question the same way. Answered only where `climate` is empty, because that is the one question it settles; null there where nothing standing with the grow has ever measured, and null beside curves that speak for themselves."
-      },
-      "outputs": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineOutputLane"
-        }
-      },
-      "nights": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        },
-        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
-      },
-      "transitions": {
-        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        }
-      },
       "measurements": {
         "type": "array",
         "items": {
           "$ref": "#/components/schemas/GrowMeasurementSeries"
         }
-      },
-      "cameras": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineCamera"
-        },
-        "description": "The cameras of the places the grow stood in, with their stills over the window thinned to a few hundred: the picture at the cursor. Empty for a reader who is not shown cameras."
       }
     },
     "required": [
@@ -14267,115 +15112,10 @@
       "range",
       "startsAt",
       "endsAt",
-      "stepSeconds",
       "originAt",
       "dayFrom",
       "dayTo",
-      "deviceIds",
-      "climate",
-      "lastReadingAt",
-      "outputs",
-      "nights",
-      "measurements",
-      "cameras"
-    ]
-  },
-  "SpaceSeries": {
-    "type": "object",
-    "properties": {
-      "spaceId": {
-        "type": "string",
-        "minLength": 1
-      },
-      "startsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "endsAt": {
-        "type": "string",
-        "format": "date-time",
-        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-      },
-      "stepSeconds": {
-        "type": "integer",
-        "minimum": -9007199254740991,
-        "maximum": 9007199254740991,
-        "description": "The window each point summarises, as the server settled it; 0 where no device was read at all."
-      },
-      "deviceIds": {
-        "anyOf": [
-          {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "The devices standing in the place. Null on a shared read: what a reader is shown is the tent, not the hardware in it."
-      },
-      "climate": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelinePanel"
-        }
-      },
-      "lastReadingAt": {
-        "anyOf": [
-          {
-            "type": "string",
-            "format": "date-time",
-            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "When something standing here last measured, answered only where `climate` is empty - as on the grow's answer and the Timeline."
-      },
-      "outputs": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineOutputLane"
-        }
-      },
-      "nights": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        },
-        "description": "When the night's figures held: by the light schedule and the work mode of the device the place is steered by, as its record has them - drying and germination are one long night, 24 hours of light none. Where the record does not reach back, by the light output; an AIR fan alone, by its light sensor."
-      },
-      "transitions": {
-        "description": "When the steering device was changing between day and night and the climate was given time to follow (`SetpointsTransition`): a reading anywhere between the two bands is on target there.",
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineSpan"
-        }
-      },
-      "cameras": {
-        "type": "array",
-        "items": {
-          "$ref": "#/components/schemas/TimelineCamera"
-        },
-        "description": "The cameras of the place with their stills over the window, thinned; empty for a reader who is not shown cameras."
-      }
-    },
-    "required": [
-      "spaceId",
-      "startsAt",
-      "endsAt",
-      "stepSeconds",
-      "deviceIds",
-      "climate",
-      "lastReadingAt",
-      "outputs",
-      "nights",
-      "cameras"
+      "measurements"
     ]
   },
   "PublicAuthor": {
@@ -14497,7 +15237,7 @@
             "type": "null"
           }
         ],
-        "description": "Which week of the stage above the diary is in, counted against the grow’s own weeks exactly as the week cards below count them - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`: that gives the week of the whole grow, which is the week cards’ own heading and a different number entirely once a grow has changed stage. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today."
+        "description": "Which week of the stage above the diary is in, counted from the stage’s own start (days 1 to 7 are week 1) - the same figure `summary.stageWeek` answers the owner. It is here because it cannot be worked out from `dayNumber`, which counts the whole grow. Null where the grow has entered no phase, and, like the day number and the stage, counted up to the end of the reader’s window rather than to today."
       },
       "plantCount": {
         "anyOf": [
@@ -14545,10 +15285,24 @@
       "includeCameras": {
         "type": "boolean"
       },
+      "readingNames": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ReadingName"
+        },
+        "description": "What the grow calls its measurements, so a reading in a line of the diary is named rather than keyed."
+      },
+      "plants": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PlantLabel"
+        },
+        "description": "The grow’s plants, so a line about some of them names them; none where the counts are hidden."
+      },
       "weeks": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/GrowWeekCard"
+          "$ref": "#/components/schemas/GrowDiaryWeek"
         }
       },
       "weeksCursor": {
@@ -14591,6 +15345,8 @@
       "filmMediaId",
       "range",
       "includeCameras",
+      "readingNames",
+      "plants",
       "weeks",
       "weeksCursor",
       "harvest",
@@ -14603,7 +15359,7 @@
       "items": {
         "type": "array",
         "items": {
-          "$ref": "#/components/schemas/GrowWeekCard"
+          "$ref": "#/components/schemas/GrowDiaryWeek"
         }
       },
       "nextCursor": {
@@ -14637,6 +15393,26 @@
       "grows"
     ]
   },
+  "SharedCurves": {
+    "type": "object",
+    "properties": {
+      "spaceId": {
+        "type": "string",
+        "minLength": 1
+      },
+      "name": {
+        "type": "string"
+      },
+      "range": {
+        "$ref": "#/components/schemas/TimeRange"
+      }
+    },
+    "required": [
+      "spaceId",
+      "name",
+      "range"
+    ]
+  },
   "SharedGrow": {
     "type": "object",
     "properties": {
@@ -14646,11 +15422,19 @@
       },
       "grow": {
         "$ref": "#/components/schemas/PublicGrowPage"
+      },
+      "curves": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SharedCurves"
+        },
+        "description": "Where the grow stood inside a window that ends, oldest first; none for a link onto a running grow, which is its diary."
       }
     },
     "required": [
       "type",
-      "grow"
+      "grow",
+      "curves"
     ]
   },
   "SharedSpace": {
@@ -14758,6 +15542,10 @@
             "type": "null"
           }
         ]
+      },
+      "language": {
+        "type": "string",
+        "description": "The language of the owner's account, which the card's words are written in: `de` or `en`."
       }
     },
     "required": [
@@ -14767,7 +15555,8 @@
       "imageUrl",
       "handle",
       "dayNumber",
-      "stage"
+      "stage",
+      "language"
     ]
   }
 }

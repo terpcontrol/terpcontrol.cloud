@@ -143,7 +143,7 @@ describe('a deep link followed while the session is gone', () => {
     // The stored token was refused, so this really is the sign-in form and not
     // the "could not reach" page, which keeps the session and never asks.
     const button = await screen.findByRole('button', { name: 'Sign in' });
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'you@example.com' } });
+    fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'you@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a long enough secret' } });
     fireEvent.click(button);
 

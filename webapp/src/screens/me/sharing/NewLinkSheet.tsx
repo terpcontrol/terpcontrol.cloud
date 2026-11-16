@@ -5,12 +5,14 @@ import type { GrowListItem, GrowOrSpaceRef, ShareKind, ShareLink, Space } from '
 import { serverNow } from '@/api/clock';
 import { useCameras } from '@/api/cameras';
 import { useCreateShareLink } from '@/api/sharing';
+import { useLog } from '@/log/log-context';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { Switch } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
+import { picturesPossible } from './links';
 import styles from './sharing.module.css';
 
 /**
@@ -18,10 +20,13 @@ import styles from './sharing.module.css';
  * kind, the cams, the expiry - and nothing else.
  *
  * A range is asked for only where the screen it was opened from was showing
- * one - the charts, stepped back or zoomed - and is then what the link shows
- * unless the grower takes it as a whole. Otherwise what a reader sees through
- * the link is clamped by the server to what the grant allows - a grow's own
- * life, a tent as it stands - and the range is left out rather than invented.
+ * one - Verlauf, which names its window and offers the place first, since its
+ * curves are the place's - and is then what the link shows unless the grower
+ * takes it as a whole; a link onto a grow for a stretch of days shows that
+ * stretch's curves too. Otherwise what a reader sees through the link is clamped
+ * by the server to what the grant allows - a grow's own life, a tent as it
+ * stands - and the range is left out rather than invented. Rooms are not
+ * offered: what is shared is a grow or a place.
  *
  * A public page is permanent until the grow is made private, which is a
  * sentence and not a date, so the expiry row gives way to it. It is offered
@@ -38,12 +43,16 @@ interface ShareWindow {
   startsAt: string;
   endsAt: string;
   label: string;
+  /** A stretch somebody went looking for, which the link is held to unless they take the whole; a window that ends now is not. */
+  fixed: boolean;
 }
 
 export function NewLinkSheet({
   grows,
   spaces,
   window = null,
+  first = 'grow',
+  chosen = null,
   onClose,
   onCreated,
 }: {
@@ -51,27 +60,45 @@ export function NewLinkSheet({
   spaces: Space[];
   /** The stretch a screen was showing, offered as what the link shows; none shares the subject as it stands. */
   window?: ShareWindow | null;
+  /** Which of the two is offered first and chosen: the place from its curves, a grow elsewhere. */
+  first?: GrowOrSpaceRef['type'];
+  /** What the sheet opens on, where the page it was asked from is about one: a place's edit page. */
+  chosen?: GrowOrSpaceRef | null;
   onClose: () => void;
   /** Where the link just made is handed, for a screen that shows it at once rather than in the list of links. */
   onCreated?: (link: ShareLink) => void;
 }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const create = useCreateShareLink();
   const cameras = useCameras();
-  const [limited, setLimited] = useState(window !== null);
-  const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() =>
-    grows[0] ? { type: 'grow', id: grows[0].id } : spaces[0] ? { type: 'space', id: spaces[0].id } : null,
-  );
+  const places = spaces.filter(space => space.kind !== 'room');
+  const [limited, setLimited] = useState(window?.fixed === true);
+  const [subject, setSubject] = useState<GrowOrSpaceRef | null>(() => {
+    if (chosen && [...grows, ...places].some(row => row.id === chosen.id)) return chosen;
+    const [grow, place] = [grows[0] && ({ type: 'grow', id: grows[0].id } as const), places[0] && ({ type: 'space', id: places[0].id } as const)];
+    return (first === 'space' ? (place ?? grow) : (grow ?? place)) ?? null;
+  });
   const [kind, setKind] = useState<ShareKind>('view');
   const [cams, setCams] = useState(false);
   const [days, setDays] = useState<number | null>(7);
 
   const grow = subject?.type === 'grow' ? grows.find(row => row.id === subject.id) : undefined;
+  // A place without a grow has no diary for its link to carry: only its curves.
+  const growsHere =
+    subject?.type === 'space' &&
+    grows.some(row => row.endedAt === null && row.placements.some(placement => placement.spaceId === subject.id && placement.endedAt === null));
   // Pictures are offered only where a camera could have taken any: a place with none has nothing to include.
-  const camerasHere = (cameras.data?.items ?? []).some(camera => subject?.type !== 'space' || camera.spaceId === subject.id);
+  const camerasHere = subject !== null && picturesPossible(cameras.data?.items ?? [], subject);
   const growIsPublic = grow?.visibility === 'public';
   const blocked = kind === 'public_page' && !growIsPublic;
   const ready = subject !== null && !blocked && !create.isPending;
+
+  const placeChoices = places.map(row => (
+    <Choice key={row.id} chosen={subject?.type === 'space' && subject.id === row.id} onChoose={() => choose({ type: 'space', id: row.id })}>
+      {row.name}
+    </Choice>
+  ));
 
   const choose = (ref: GrowOrSpaceRef) => {
     setSubject(ref);
@@ -89,7 +116,15 @@ export function NewLinkSheet({
         includeCameras: cams && camerasHere,
         expiresAt: kind === 'public_page' || days === null ? null : instantOf(serverNow().plus({ days })),
       },
-      { onSuccess: link => (onCreated ? onCreated(link) : onClose()) },
+      {
+        // A screen that shows the new link at once answers with it; anywhere else the toast says it was made, and of what.
+        onSuccess: link => {
+          if (onCreated) return onCreated(link);
+          onClose();
+          const name = subject.type === 'grow' ? grows.find(row => row.id === subject.id)?.name : places.find(row => row.id === subject.id)?.name;
+          tell({ label: t('me.shareLinks.made', { name: name ?? '' }), undo: null });
+        },
+      },
     );
   };
 
@@ -110,27 +145,20 @@ export function NewLinkSheet({
     >
       <div className={styles.sheetBody}>
         <Block label={t('me.shareLinks.sheet.subject')} help="spaceLink">
-          {grows.length + spaces.length === 0 ? (
+          {grows.length + places.length === 0 ? (
             /* The screen no longer offers the card at all where there is
                nothing to hand out, so this is only what a list emptied under
                an open sheet falls back to - and it says the same thing. */
             <p className={ui.note}>{t('me.shareLinks.noSubjects')}</p>
           ) : (
             <Choices label={t('me.shareLinks.sheet.subject')}>
+              {first === 'space' ? placeChoices : null}
               {grows.map(row => (
                 <Choice key={row.id} chosen={subject?.type === 'grow' && subject.id === row.id} onChoose={() => choose({ type: 'grow', id: row.id })}>
                   {row.name}
                 </Choice>
               ))}
-              {spaces.map(row => (
-                <Choice
-                  key={row.id}
-                  chosen={subject?.type === 'space' && subject.id === row.id}
-                  onChoose={() => choose({ type: 'space', id: row.id })}
-                >
-                  {row.name}
-                </Choice>
-              ))}
+              {first === 'space' ? null : placeChoices}
             </Choices>
           )}
         </Block>
@@ -148,7 +176,7 @@ export function NewLinkSheet({
             <p className={`${ui.note} ${styles.sentence}`}>{t('me.shareLinks.sheet.viewNote')}</p>
           ) : blocked ? (
             <p className={`${ui.note} ${styles.sentence}`}>
-              {t('me.shareLinks.sheet.needsPublic', { name: grow?.name })} <Link to="/me/public">{t('me.public.title')}</Link>
+              {t('me.shareLinks.sheet.needsPublic', { name: grow?.name })} <Link to="/me/privacy">{t('me.privacy.title')}</Link>
             </p>
           ) : (
             <p className={`${ui.note} ${styles.sentence}`}>{t('me.shareLinks.sheet.untilPrivate')}</p>
@@ -165,17 +193,25 @@ export function NewLinkSheet({
                 {t('me.shareLinks.sheet.wholeWindow')}
               </Choice>
             </Choices>
-            <p className={`${ui.note} ${styles.sentence}`}>{t(limited ? 'me.shareLinks.sheet.windowNote' : 'me.shareLinks.sheet.wholeWindowNote')}</p>
+            <p className={`${ui.note} ${styles.sentence}`}>
+              {t(
+                limited
+                  ? 'me.shareLinks.sheet.windowNote'
+                  : subject?.type === 'grow'
+                    ? 'me.shareLinks.sheet.wholeGrowNote'
+                    : 'me.shareLinks.sheet.wholeWindowNote',
+              )}
+            </p>
           </Block>
         ) : null}
 
         {camerasHere ? (
           <Block label={t('me.shareLinks.sheet.cams')}>
-            <div className={styles.switchRow}>
+            <div className={ui.rowTop}>
               {/* The words switch it as well as the switch does. */}
-              <div className={styles.switchText} onClick={() => setCams(!cams)}>
+              <div className={ui.textColumn} onClick={() => setCams(!cams)}>
                 <span>{t('sharing.cameras')}</span>
-                <span className={ui.note}>{t('sharing.camerasNote')}</span>
+                <span className={ui.note}>{t(subject?.type === 'space' && !growsHere ? 'sharing.camerasNotePlace' : 'sharing.camerasNote')}</span>
               </div>
               <Switch label={t('sharing.cameras')} on={cams} onChange={setCams} />
             </div>

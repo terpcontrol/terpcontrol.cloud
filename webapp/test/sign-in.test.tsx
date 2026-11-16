@@ -36,7 +36,7 @@ const draw = (state: unknown = null) =>
   );
 
 /** Fill the form in with credentials that are right, and ask. */
-const signIn = (email = 'Email', password = 'Password', button = 'Sign in') => {
+const signIn = (email = 'E-mail', password = 'Password', button = 'Sign in') => {
   fireEvent.change(screen.getByLabelText(email), { target: { value: 'you@example.com' } });
   fireEvent.change(screen.getByLabelText(password), { target: { value: 'a long enough secret' } });
   fireEvent.click(screen.getByRole('button', { name: button }));
@@ -64,6 +64,13 @@ describe('a session that lapsed', () => {
 
     draw();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('says in one line that the account is gone to whoever just deleted it', async () => {
+    await i18next.changeLanguage('de');
+    draw({ deleted: true });
+
+    expect(screen.getByRole('status')).toHaveTextContent(/^Dein Konto ist gelöscht\.$/);
   });
 });
 

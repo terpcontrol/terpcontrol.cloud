@@ -1,12 +1,8 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Plant } from '@fg2/shared-types/v1';
 import { useUpdatePlant } from '@/api/grows';
-import { Sheet } from '@/ui/Sheet';
-import { Refused } from '@/ui/PageState';
-import { Block } from '@/ui/SheetParts';
-import ui from '@/ui/ui.module.css';
-import styles from './Plant.module.css';
+import { useAnswered } from '../told';
+import { NameSheet } from '@/ui/NameSheet';
 
 /**
  * What this plant is called, and what it is.
@@ -16,47 +12,37 @@ import styles from './Plant.module.css';
  * pots were being filled. Neither changes anything that was logged, which is
  * why this is the plant page's one write.
  */
-export function RenameSheet({ growId, plant, onClose }: { growId: string; plant: Plant; onClose: () => void }) {
+export function RenameSheet({ growId, plant, others, onClose }: { growId: string; plant: Plant; others: readonly Plant[]; onClose: () => void }) {
   const { t } = useTranslation();
   const rename = useUpdatePlant(growId);
-  const [label, setLabel] = useState(plant.label);
-  const [strain, setStrain] = useState(plant.strain);
-
-  const save = () => rename.mutate({ plantId: plant.id, body: { label: label.trim(), strain: strain.trim() } }, { onSuccess: onClose });
+  const answer = useAnswered(rename, `plant-${plant.id}`);
+  // What holds once a plant is called this: its name where that changed, and its strain where that did.
+  const said = (was: Pick<Plant, 'label' | 'strain'>, now: Pick<Plant, 'label' | 'strain'>) =>
+    [
+      was.label === now.label ? now.label : t('place.edit.told.named', { was: was.label, name: now.label }),
+      was.strain === now.strain ? null : t('grow.plant.told.strain', { strain: now.strain }),
+    ]
+      .filter(Boolean)
+      .join(' · ');
 
   return (
-    <Sheet title={t('grow.plant.renameTitle', { label: plant.label })} onClose={onClose}>
-      <div className={styles.sheetBody}>
-        <Block label={t('grow.plant.label')}>
-          <input
-            className={ui.input}
-            value={label}
-            aria-label={t('grow.plant.label')}
-            autoComplete="off"
-            onChange={event => setLabel(event.target.value)}
-          />
-        </Block>
-        <Block label={t('grow.plant.strain')}>
-          <input
-            className={ui.input}
-            value={strain}
-            aria-label={t('grow.plant.strain')}
-            autoComplete="off"
-            onChange={event => setStrain(event.target.value)}
-          />
-        </Block>
-
-        <Refused error={rename.error} />
-
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary} ${styles.submit}`}
-          disabled={rename.isPending || label.trim() === '' || strain.trim() === ''}
-          onClick={save}
-        >
-          {rename.isPending ? t('grow.plant.saving') : t('grow.plant.save')}
-        </button>
-      </div>
-    </Sheet>
+    <NameSheet
+      title={t('grow.plant.renameTitle', { label: plant.label })}
+      fields={{ label: { label: t('grow.plant.label'), value: plant.label }, strain: { label: t('grow.plant.strain'), value: plant.strain } }}
+      error={rename.error}
+      busy={rename.isPending}
+      save={rename.isPending ? t('grow.plant.saving') : t('grow.plant.save')}
+      // Two plants of a grow under one name could not be told apart in a line of the diary, so a name taken is not saved.
+      refused={body => (others.some(other => other.label === body.label) ? t('grow.plant.nameTaken', { name: body.label }) : null)}
+      onSave={body =>
+        answer(
+          { plantId: plant.id, body },
+          said(plant, body),
+          { to: { plantId: plant.id, body: { label: plant.label, strain: plant.strain } }, undone: said(body, plant) },
+          onClose,
+        )
+      }
+      onClose={onClose}
+    />
   );
 }

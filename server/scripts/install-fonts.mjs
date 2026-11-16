@@ -1,7 +1,7 @@
 // Puts the app's face where the image renderer can find it.
 //
 // A film's overlays and a shared link's card are SVG layers that sharp hands to
-// librsvg, which asks fontconfig for "Inter". Fontconfig
+// librsvg, which asks fontconfig for "Albert Sans". Fontconfig
 // reads TrueType and OpenType files only, and the @fontsource packages ship the
 // faces as WOFF and WOFF2 for the web. WOFF1 is the same sfnt tables, each one
 // zlib-compressed, so this unpacks the weights the overlays set into plain .ttf
@@ -10,23 +10,23 @@
 //
 //   node scripts/install-fonts.mjs /app/fonts
 //
-// Only the weights the server draws with are unpacked - Inter at 400, 600 and
-// 700 - in the latin and latin-ext subsets, so a German caption keeps its
+// Only the weights the server draws with are unpacked - Albert Sans at 400 and
+// 500 - in the latin and latin-ext subsets, so a German caption keeps its
 // umlauts in the same face.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
-const FACES = [{ pkg: '@fontsource/inter', family: 'Inter', file: 'inter', weights: [400, 600, 700] }];
+const FACES = [{ pkg: '@fontsource/albert-sans', family: 'Albert Sans', file: 'albert-sans', weights: [400, 500] }];
 
 // A static instance names its family after its weight where the weight is not
-// one of the four a legacy family can hold: the 600 files call themselves
-// "Inter SemiBold", so an SVG asking for "Inter" at weight 600 was never
+// one of the four a legacy family can hold: the 500 files call themselves
+// "Albert Sans Medium", so an SVG asking for "Albert Sans" at weight 500 was never
 // matched with them. The configuration
 // files each such face under its family's own name as it is scanned; the
 // weight it carries is what tells the instances apart.
-const WEIGHT_NAMES = { 600: 'SemiBold' };
+const WEIGHT_NAMES = { 500: 'Medium' };
 const SUBSETS = ['latin', 'latin-ext'];
 
 const target = resolve(process.argv[2] ?? 'fonts');

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { OutputMetric, SeriesPoint } from '@fg2/shared-types/v1';
-import { MAINTENANCE_SETTLE_SECONDS } from '@fg2/shared-types/v1-schemas';
+import { MAINTENANCE_SETTLE_SECONDS, RECEIPT_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
@@ -115,7 +115,7 @@ beforeEach(async () => {
     };
   };
   const data = { points: jest.fn(answer), outputPoints: jest.fn(answer), newestSamplesOf: jest.fn(newestSamplesOf) } as unknown as DataService;
-  const alertService = new AlertService(db.alerts, entries, delivery, null);
+  const alertService = new AlertService(db.alerts, entries, delivery);
   episodes = alertService;
 
   engine = new AlarmEngineService(db.alarmRules, db.devices, data, alertService);
@@ -235,6 +235,52 @@ describe('what keeps an alarm quiet', () => {
     await reads(32, new Date(Date.now() + 1_000));
 
     expect((await storedRule()).state.lastTriggeredAt!.getTime()).toBeGreaterThan(announcedAt.getTime());
+  });
+
+  /**
+   * The quiet holds back what is said, not the end of an episode: an alert open when maintenance began, whose
+   * reading came back while the door was open, stood open over a good reading until the settle ran out - and the
+   * record called eighteen minutes twenty-seven. It ends when the reading recovers, says so in the diary, and sends
+   * nobody the all-clear.
+   */
+  it('ends an episode whose reading recovers during maintenance then, with its true length and nothing sent', async () => {
+    const startedAt = new Date(Date.now() - 18 * 60_000);
+    await device({ state: { lastSeenAt: new Date(), maintenanceUntil: new Date(Date.now() + 10 * 60_000) } });
+    await db.alarmRules.create(
+      ruleFor({
+        delivery: { mode: 'custom', custom: { channel: 'email', target: 'somebody@example.com', includeDetails: false, webhook: null } },
+        state: { triggered: true, lastTriggeredAt: startedAt, lastResolvedAt: null, extremeValue: 32, lastSampleAt: null },
+      }),
+    );
+    await db.alerts.create({
+      id: 'alert-1',
+      createdAt: startedAt,
+      ruleId: 'rule-1',
+      deviceId: DEVICE,
+      cameraId: null,
+      spaceId: SPACE,
+      kind: 'threshold',
+      severity: 'warning',
+      startedAt,
+      resolvedAt: null,
+      value: 32,
+      extremeValue: 32,
+      watched: null,
+    });
+
+    await reads(25, new Date());
+
+    expect(await openAlert()).toBeNull();
+    const alert = await db.alerts.findOne({ id: 'alert-1' }).lean<StoredAlert>();
+    expect(alert!.resolvedAt!.getTime() - startedAt.getTime()).toBeLessThan(18 * 60_000 + 5_000);
+    expect(alert!.rested).not.toBe(true);
+    expect((await storedRule()).state.triggered).toBe(false);
+    expect((await db.entries.find({}).lean()).map(entry => entry.message?.key)).toEqual(['message-alarm-resolved']);
+    expect(mailed).toEqual([]);
+
+    // A reading out of its band again while the quiet lasts raises nothing.
+    await reads(33, new Date(Date.now() + 1_000));
+    expect(await openAlert()).toBeNull();
   });
 
   it('says the all-clear once, rather than repeating it for as long as nothing goes wrong', async () => {
@@ -406,6 +452,38 @@ describe('a "too humid" alarm while the device germinates', () => {
     await humid(85, new Date(Date.now() - 1_000));
     expect(await db.alerts.countDocuments({ resolvedAt: null })).toBe(1);
     expect(await openAlert()).toMatchObject({ rested: false });
+  });
+
+  it("rests a lamp module's and a fan's too beside a germinating controller, and in a fan's place put on germination alone", async () => {
+    const LAMP = 'lamp-1';
+    await germinating();
+    await db.devices.create({ id: LAMP, type: 'light', ownerId: OWNER, spaceId: SPACE, state: { lastSeenAt: new Date() } });
+    await db.alarmRules.create(tooHumid({ deviceId: LAMP }));
+    const lamp = (humidity: number, at: Date) => engine.onSample({ deviceId: LAMP, measuredAt: at, values: { humidity }, outputs: {} });
+
+    await lamp(95, new Date(Date.now() - 3_000));
+    expect(await db.alerts.countDocuments({})).toBe(0);
+
+    // Asked to warn, it watches at germination's line, as the controller's does.
+    await db.devices.updateOne({ id: DEVICE }, { $set: { germinationChoices: { warnTooHumid: true, humidifierHolds: true } } });
+    await lamp(85, new Date(Date.now() - 2_000));
+    expect(await db.alerts.countDocuments({})).toBe(0);
+    await lamp(95, new Date(Date.now() - 1_000));
+    expect((await openAlert())?.watched?.watch).toMatchObject({ upper: 90 });
+
+    // A fan alone in its place goes by the germination climate it was put on.
+    await db.reset();
+    await db.devices.create({
+      id: 'fan-1',
+      type: 'fan',
+      ownerId: OWNER,
+      spaceId: SPACE,
+      appliedClimate: { stage: 'germination', preset: null },
+      state: { lastSeenAt: new Date() },
+    });
+    await db.alarmRules.create(tooHumid({ deviceId: 'fan-1' }));
+    await engine.onSample({ deviceId: 'fan-1', measuredAt: new Date(), values: { humidity: 95 }, outputs: {} });
+    expect(await db.alerts.countDocuments({})).toBe(0);
   });
 
   it('goes quiet the moment it is asked to, rather than at the next reading', async () => {
@@ -604,7 +682,42 @@ describe('the health loop', () => {
     await health.run(at);
 
     expect(await openAlert()).toMatchObject({ kind: 'offline', value: 4 * 24 * 3600 + 90 * 60 });
-    expect((await db.entries.find({}).lean()).map(entry => entry.message?.params[0])).toEqual(['Device offline, last heard 4 d 1 h ago']);
+    expect((await db.entries.find({}).lean()).map(entry => entry.message?.params[0])).toEqual([
+      'Device offline, last heard 4 d 1 h ago, silent=351000',
+    ]);
+  });
+
+  /**
+   * The device stamps a sample in whole seconds by its clock, the cloud its note when the message arrives: 17:43:59
+   * and 17:44:00. Start said "offline seit 17:43" of the last value and Meldungen 17:44 of the same silence.
+   */
+  it('dates a silence from the sample the last message carried, not from the moment it arrived', async () => {
+    const at = new Date();
+    const sample = new Date(at.getTime() - 20 * 60_000);
+    await device({ state: { lastSeenAt: new Date(sample.getTime() + 1_300) } });
+    heard.set(DEVICE, sample);
+
+    await health.run(at);
+
+    expect(await openAlert()).toMatchObject({ kind: 'offline', value: 20 * 60 });
+  });
+
+  /**
+   * The alert was stamped a moment after the pass its seconds were counted to: its start, `startedAt` less `value`,
+   * fell a second after the last sample, and a last word in a minute's final second split the minute between Start
+   * and Meldungen again.
+   */
+  it('stamps a silence at the pass its seconds are counted to, so it begins on the last sample', async () => {
+    const at = new Date(Date.now() - 5_000);
+    const sample = new Date(at.getTime() - 20 * 60_000 - 250);
+    await device({ state: { lastSeenAt: sample } });
+    heard.set(DEVICE, sample);
+
+    await health.run(at);
+
+    const alert = (await openAlert())!;
+    expect(alert.startedAt.getTime()).toBe(at.getTime());
+    expect(alert.startedAt.getTime() - alert.value! * 1000).toBe(sample.getTime());
   });
 
   it('calls no device gone that the store heard from since the note was written', async () => {
@@ -632,7 +745,8 @@ describe('the health loop', () => {
 
     await health.run(new Date());
 
-    expect(heardAsked).toEqual([[{ deviceId: DEVICE, since: seen }]]);
+    // A moment before it: the sample that message carried may be stamped a little earlier.
+    expect(heardAsked).toEqual([[{ deviceId: DEVICE, since: new Date(seen.getTime() - RECEIPT_SECONDS * 1000) }]]);
   });
 
   it('raises for a camera that has stopped delivering stills', async () => {
@@ -717,6 +831,34 @@ describe('the health loop', () => {
 
     expect(await db.alerts.countDocuments({ kind: 'camera_stale' })).toBe(0);
   });
+
+  /** Every reconnect raised "Terp Cam ohne Bild", judged by a still from before the outage, in the pass that closed the offline alarm. */
+  it('counts a Terp Cam´s silence from its controller´s return, not from the last still before the outage', async () => {
+    const away = new Date(Date.now() - 2 * 3600_000);
+    await device({ state: { lastSeenAt: away } });
+    await db.cameras.create({
+      id: 'camera-1',
+      ownerId: OWNER,
+      kind: 'terpcam_controller',
+      name: 'Tent',
+      deviceId: DEVICE,
+      spaceId: SPACE,
+      stillIntervalSeconds: 30,
+      state: { lastStillAt: away },
+    });
+    await health.run(new Date(away.getTime() + GONE_MS + 60_000));
+    expect(await openAlert()).toMatchObject({ kind: 'offline' });
+
+    const back = new Date();
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': back } });
+    await health.run(back);
+    expect(await db.alerts.find({}).lean<StoredAlert[]>()).toEqual([expect.objectContaining({ kind: 'offline', resolvedAt: expect.any(Date) })]);
+
+    const later = new Date(back.getTime() + GONE_MS);
+    await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': later } });
+    await health.run(later);
+    expect(await openAlert()).toMatchObject({ kind: 'camera_stale', cameraId: 'camera-1' });
+  });
 });
 
 /**
@@ -735,7 +877,11 @@ describe('the line an alarm writes into the diary', () => {
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Device offline, last heard 4 d 7 h ago']);
+    // The span is what a person reads; the seconds after it are what the diary dates the silence's start by, as Meldungen does.
+    const [line] = await said();
+    expect(line).toMatch(/^Device offline, last heard 4 d 7 h ago, silent=374021\.\d+$/);
+    const alert = (await openAlert())!;
+    expect(Number(/silent=(.+)$/.exec(line)![1])).toBe(alert.value);
   });
 
   it('says the same for a camera that has stopped delivering stills, which has no rule to name it', async () => {
@@ -753,10 +899,10 @@ describe('the line an alarm writes into the diary', () => {
 
     await health.run(new Date());
 
-    expect(await said()).toEqual(['Fridgegrow, last heard 2 h ago']);
+    expect(await said()).toEqual([expect.stringMatching(/^Fridgegrow, last heard 2 h ago, silent=7200(\.\d+)?$/)]);
   });
 
-  it('dates the end of an absence from the episode rather than from the silence it was resolved on', async () => {
+  it('counts the end of an absence from when the silence began rather than from the alert or the silence it was resolved on', async () => {
     const subject = {
       name: 'Device offline',
       kind: 'offline' as const,
@@ -770,11 +916,12 @@ describe('the line an alarm writes into the diary', () => {
 
     const alert = await episodes.raise(subject, 660, startedAt);
     // What the loop hands the resolution is a fresh reading of the silence, and
-    // by then the device has just spoken: the episode is the hour and a half,
-    // not the twelve seconds that ended it.
+    // by then the device has just spoken: the absence is the hour and a half of
+    // the alert and the eleven minutes before it was raised, not the twelve
+    // seconds that ended it.
     await episodes.settle(subject, alert, 12, new Date());
 
-    expect(await said()).toEqual(['Device offline, last heard 11 min ago', 'Device offline, back after 1 h 30 min']);
+    expect(await said()).toEqual(['Device offline, last heard 11 min ago, silent=660', 'Device offline, back after 1 h 41 min']);
   });
 
   it('leaves a threshold alarm in the words it has always used', async () => {

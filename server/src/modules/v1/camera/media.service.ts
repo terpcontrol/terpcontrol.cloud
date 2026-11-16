@@ -10,6 +10,7 @@ import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { ImageStore } from '@database/image-store';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { picturesTheWayBackHolds } from '@/migrations/way-back';
@@ -83,6 +84,7 @@ export class MediaService {
     @InjectModel(MODEL_V1.media) private readonly media: Model<MediaDocument>,
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
     private readonly store: ImageStore,
+    @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
   ) {}
 
   public byId(id: string): Promise<MediaDocument | null> {
@@ -280,6 +282,25 @@ export class MediaService {
     if (ids.length === 0) return;
 
     await this.media.deleteMany({ id: { $in: ids } });
+  }
+
+  /**
+   * The pictures a diary holds on to: every one a line names, and every grow's
+   * cover. A still is the camera's and goes as it ages; one somebody wrote a
+   * line about, or chose to stand for a grow, has become part of the record,
+   * and the record outlives the camera's own history. One walk over the lines
+   * that carry pictures, which are few among all a place writes.
+   */
+  public async heldByDiaries(): Promise<Set<string>> {
+    const held = new Set<string>();
+    const lines = this.entries
+      .find({ 'mediaIds.0': { $exists: true } }, { mediaIds: 1, _id: 0 })
+      .lean<Pick<EntryDocument, 'mediaIds'>>()
+      .cursor();
+    for await (const line of lines) for (const id of line.mediaIds) held.add(id);
+    for (const cover of await this.grows.distinct('coverMediaId', { coverMediaId: { $ne: null } })) held.add(cover as string);
+
+    return held;
   }
 
   /** Of these pictures, the ones the previous release still holds a row for, which no sweep of ours may remove yet. */

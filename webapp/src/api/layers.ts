@@ -11,8 +11,8 @@ import { useWrite } from './write';
  * invitations to either - as the server worked it out for this account. The
  * home answers it beside its cards and the account beside itself, and the two
  * can disagree for a moment: starting a grow reads the home again, and the
- * account only when somebody asks. The fresher of the two answers, so the bar,
- * Start and the cockpit change together.
+ * account only when somebody asks. The fresher of the two answers, so the bar
+ * and Start change together.
  *
  * Undefined until either has answered. The demo is shown everything.
  */
@@ -57,6 +57,18 @@ export const useChooseDiary = () => {
 };
 
 /**
+ * Whether the account has switched the diary off - said outright, not merely
+ * not used it yet. Starting a grow takes that answer back: a grow is kept in
+ * the diary, and one nobody could open would be a grow that vanished.
+ */
+export const useDiaryDeclined = (): boolean => {
+  const { user } = useSession();
+  const me = useMe(false, user !== null && user.isDemo !== true);
+
+  return me.data?.preferences.diary === 'off';
+};
+
+/**
  * Records the shape of the app this person has now been shown, so the change
  * it explains is explained once - on this phone and on every other. Like the
  * diary answer it names its one preference and nothing else, so a zone adopted
@@ -67,3 +79,26 @@ export const useSeeLayout = () =>
     (layoutSeen: LayoutSeen) => api.patch<Me>('/me', { preferences: { layoutSeen } }),
     (client, me) => client.setQueryData(meKey, me),
   );
+
+/**
+ * What setup is about to switch on itself. Starting a grow as the last step
+ * of setting a device up brings the diary into the bar, and the shell
+ * announces every change of layout once - but not this one: the grower chose
+ * it a moment ago, on a page that said what it does. Setup says so before it
+ * writes, and the shell, recording the new layout as seen, leaves out the
+ * words for what was expected. It lives as long as the page, which is as long
+ * as the way from the claim's last step to Start.
+ */
+let expected: Partial<LayoutSeen> = {};
+
+/** Said before the write that brings the change; `false` takes the word back where the write was never made. */
+export const expectLayout = (change: Partial<LayoutSeen>): void => {
+  expected = { ...expected, ...change };
+};
+
+/** What of a change the shell is about to announce was expected; asking uses it up. */
+export const takeExpected = (): Partial<LayoutSeen> => {
+  const was = expected;
+  expected = {};
+  return was;
+};

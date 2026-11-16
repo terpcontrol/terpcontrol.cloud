@@ -3,7 +3,7 @@ import type { Me, NotificationCategory, NotificationChannel, Severity } from '@f
 import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
 import type { Translate } from '@/i18n/i18n';
 import { isAhead } from '@/ui/age';
-import { CHANNELS } from './settings';
+import { categoriesOn, CHANNELS, inWords } from './settings';
 
 /**
  * Whether anything reaches this account when something goes wrong.
@@ -102,3 +102,7 @@ export const callsReach = (me: Me, rows: NotificationCategory[]): boolean =>
 
 /** Where the one tap sends mail: the address the person already set, or else the one they sign in with - which is what the server does. */
 export const mailAddressOf = (me: Me): string => me.notifications.channels.email ?? me.email;
+
+/** What e-mail carries and where to, read off the grid: the receipt of the tap and its toast. */
+export const mailSaid = (t: Translate, language: string, me: Me): string =>
+  t('notifications.told.mail', { what: inWords(t, language, categoriesOn(me.notifications.routing, 'email')), address: mailAddressOf(me) });

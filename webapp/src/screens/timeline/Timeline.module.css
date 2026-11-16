@@ -1,418 +1,474 @@
-/* The stacked timeline. Every plot and every lane leaves the same gutter on the
-   left - set once here as `--gutter`, which the canvas of each plot is moved
-   over by - so one cursor runs straight down through the whole stack. It holds
-   a lane's name written out ("Entfeuchter", "Rückwandlüfter") without cutting
-   it, and widens where the screen does. */
+/* Verlauf: one column on a phone - the head, the cursor's card, a panel per curve, the diary of the window - and beside
+   the rail, once both fit, the panels left and the cursor's card and the diary right. */
 
 .screen {
-  --gutter: 88px;
+  /* The room beside every plot for its scale's two figures: no figure stands on a curve or on the dot of "now". */
+  --gutter: 38px;
 
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
+  width: 100%;
+  max-width: var(--page-width);
 }
 
-/* The window a chip asked for is still coming: the one on screen is the one
-   before it, dimmed rather than thrown away. */
-.screen[aria-busy='true'] {
-  opacity: 0.6;
-}
+/* ------------------------------------------------------------------ head */
 
-.subject {
-  font-size: var(--text-sm);
-  color: var(--muted);
-}
-
-/* The chips and, beside them, the days they asked for. The chips scroll because
-   six of them do not fit a phone; the range must not, because it is the only
-   place on this screen that names the window the panels are about - and a
-   sentence like "nothing heard in this window" is unreadable without it. So the
-   range is held out of the scroller and given the room it needs first. */
-.rangeBar {
+/* On a phone three rows: the title with "Anpassen", the ranges, the window between its arrows. On a wide window one,
+   as far as it fits - what does not takes the next row, so no chip is ever out of sight and no row scrolls. */
+.head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3) var(--space-2);
 }
 
-/* On a phone the chips are the row and the grow's days take a line of their
-   own under it, rather than squeezing the last chip to a fade beside them. */
-@media (max-width: 599px) {
-  .rangeBar {
-    flex-wrap: wrap;
-    row-gap: var(--space-1);
-  }
-
-  .rangeBar > .chips {
-    flex-basis: 100%;
-  }
-
-  .rangeBar > .days {
-    margin-left: 0;
-    padding-left: 0;
-  }
-}
-
-/* A row wider than the phone scrolls, veiled at the edge there is more of, as
-   the tabs above it are. */
-.chips {
+.title {
+  display: flex;
   flex: 1 1 auto;
-  align-items: center;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
   min-width: 0;
 }
 
-/*
- * Which grow the two stretch chips are about. The name is what is read and the
- * select over it is what is operated, the same way the tab's own place picker
- * is built; the chip keeps its shape while the names inside it vary.
- */
-.growChip {
-  position: relative;
-  display: inline-flex;
+.title h1 {
+  overflow-wrap: anywhere;
+}
+
+/* The place the page is about, beside the title where the account has several. A phone names it in its header. */
+.place {
+  display: none;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.adjustButton {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  background: var(--card);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.adjustButton:disabled {
+  opacity: 0.45;
+}
+
+.ranges {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Which of a place's climates is drawn, where it holds several. */
+.device {
+  display: flex;
+  flex: 1 1 100%;
   align-items: center;
-  gap: var(--space-1);
-  max-width: 14rem;
-}
-
-.growChip svg {
-  flex-shrink: 0;
-}
-
-.growChip select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-}
-
-.growName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.days {
-  flex-shrink: 0;
-  margin-left: auto;
-  padding-left: var(--space-2);
-  font-size: var(--text-xs);
-  white-space: nowrap;
+  gap: var(--space-2);
+  max-width: 100%;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
-/* ------------------------------------------------------------ the frame */
-
-/* The picture at the cursor on the shared mat, and under it the shared
-   transport that walks the window, both on one card: the transport sits under
-   the picture rather than over it, so nothing covers the plant. */
-.frame {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.device select {
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
   background: var(--card);
-  border: var(--rule-solid);
+  border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--weight-medium);
 }
 
-/* Beside the rail the picture took the whole first screen and pushed the first
-   curve under its edge; it keeps a glance's size there, about two fifths of
-   the height, and the curves start on the first screen. */
-@media (min-width: 900px) {
-  .frame {
-    width: min(100%, calc(40vh * 16 / 9 + 2px));
-  }
+.range {
+  min-height: var(--control-height);
+  padding: 0 10px;
+  background: var(--card);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
 }
 
-.dots {
-  position: absolute;
-  right: var(--space-2);
-  top: var(--space-2);
+.range[aria-pressed='true'] {
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
+}
+
+.nav {
   display: flex;
+  flex: 1 1 100%;
+  align-items: center;
   gap: var(--space-1);
+  min-width: 0;
 }
 
-.camDot {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  background: none;
-  border: 0;
-}
-
-.camDot::after {
-  content: '';
-  display: block;
-  width: 8px;
-  height: 8px;
-  margin: auto;
-  background: var(--on-overlay);
-  border-radius: var(--radius-pill);
-  box-shadow: 0 0 0 1px var(--overlay);
-  opacity: 0.5;
-}
-
-.camDot[aria-current='true']::after {
-  opacity: 1;
-}
-
-.play {
+.navButton {
   display: grid;
+  flex: none;
   place-items: center;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: var(--control-height);
+  height: var(--control-height);
   padding: 0;
-  background: var(--brand);
-  border: 0;
-  border-radius: var(--radius-pill);
-  color: var(--on-brand);
-}
-
-.play svg {
-  /* The triangle's weight is on its left, so it is nudged right to sit centred. */
-  translate: 1px 0;
-}
-
-.transportTime {
-  flex-shrink: 0;
-  min-width: 3.5em;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
-  text-align: right;
+  background: var(--card);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
   color: var(--ink);
 }
 
-/* ------------------------------------------------- the pinned scrub header */
-
-.scrubHead {
-  position: sticky;
-  top: calc(var(--topbar-height) + env(safe-area-inset-top));
-  z-index: 3;
-  display: flex;
-  /* A wide window writes the date as well as the clock, and the readings of
-     three metrics follow it: on a phone the line gives way between its parts
-     rather than inside a timestamp. */
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-raised);
-  font-size: var(--text-sm);
-}
-
-/* With nothing heard in the window the header holds only the time, and a
-   card around one clock read as a reading gone missing. It stands as a plain
-   line instead, over the empty box that says why. */
-.scrubHead:not(:has(.scrubValue, .scrubOutputs)) {
-  position: static;
-  padding: 0 var(--space-1);
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 0;
-  box-shadow: none;
+.navButton:disabled {
+  background: var(--bg);
+  border-color: var(--rule);
   color: var(--muted);
+  opacity: 0.6;
 }
 
-.scrubTime {
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-}
-
-.scrubValue {
-  font-weight: var(--weight-semibold);
-  white-space: nowrap;
-}
-
-.scrubUnit {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-}
-
-/* A figure keeps the width of the widest it can be, so a dash, "9,8" and
-   "1240" take the same room and the line never rewraps under a moving cursor. */
-.scrubFigure {
-  display: inline-block;
-  min-width: 4ch;
-  text-align: right;
-}
-
-/* One place per lane, kept whether the output ran or not. Five lanes are wider
-   than a phone: the group breaks between lanes, and always at the same lanes. */
-.scrubOutputs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0 var(--space-3);
-  margin-left: auto;
-  padding-left: var(--space-2);
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.scrubOutput {
-  white-space: nowrap;
-}
-
-.scrubShare {
-  display: inline-block;
-  min-width: 5ch;
-  text-align: right;
-  font-weight: var(--weight-semibold);
-  color: var(--output);
-}
-
-.scrubOutput[data-off] .scrubShare {
-  font-weight: var(--weight-medium);
-  color: var(--muted);
-}
-
-/* Nothing heard in the window, said where the panels would stand: the app's
-   empty state, one sentence left at the card's padding in a box its own
-   height, over the lanes that may still hold something. */
-.empty {
-  margin: 0;
-  text-wrap: pretty;
-}
-
-/* "Recording since 10:23": why the curves start part of the way in. */
-.recording {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border: var(--rule-dashed);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/* What the grey under the curves is: a swatch of the night's shade and its
-   name, which explains itself. */
-.legend {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-.nightSwatch {
+/* The way back to now, wherever the arrows and the zoom led. */
+.toNow {
   flex: none;
-  width: 18px;
-  height: 10px;
-  background: var(--night);
-  border: var(--rule-solid);
-  border-radius: 2px;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
-/* --------------------------------------------------------------- a panel */
+/* A window that would not load: said over the picture of the one before, with the way to ask again. */
+.failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
 
-.panel {
-  padding: var(--space-3) var(--space-4) var(--space-4) var(--space-3);
+.failed p {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
+/* The window in words; under it the grow's days and how fine the points are. It gives way before a button does. */
+.window {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+}
+
+.window small {
+  min-height: 1.3em;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+/* What is laid over the curves, and the way to take it off again. */
+.compared {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.dashes {
+  width: 22px;
+  border-top: 2px dashed var(--muted);
+}
+
+/* ----------------------------------------------------------------- stage */
+
+.stage,
+.curves,
+.beside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* On a phone the cursor's card stands over the panels and the diary under them. */
+.beside {
+  display: contents;
+}
+
+.curves {
+  order: 2;
+}
+
+/* The window before the one asked for, while that one is on its way. */
+.stage[data-busy] .curves {
+  opacity: 0.5;
+}
+
+.card,
+.panel,
+.cursorCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 14px var(--space-4);
   background: var(--card);
   border: var(--rule-solid);
   border-radius: var(--radius);
+}
+
+.card {
+  order: 3;
+}
+
+.panel[data-focus],
+.card[data-focus] {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.cardTitle,
+.panelHead h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+/* ----------------------------------------------------------- cursor card */
+
+/* It stays under the header while the panels scroll, so the figures are read while a thumb drags a lower curve. */
+.cursorCard {
+  position: sticky;
+  top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-1));
+  z-index: 2;
+  flex-direction: row;
+  align-items: center;
+  order: 1;
+  gap: var(--space-3);
+  padding: 10px;
   box-shadow: var(--shadow);
 }
 
-/* The reading a tile was tapped on: framed in the brand colour, so the eye lands on it. */
-.panel[data-focus] {
-  border-color: var(--brand);
-  box-shadow:
-    inset 0 0 0 1px var(--brand),
-    var(--shadow);
+.frame {
+  position: relative;
+  flex: none;
+  width: 96px;
+  height: 92px;
+  overflow: hidden;
+  background: var(--card-2);
+  border-radius: var(--radius-sm);
 }
 
-/* The metric's name in its line's colour, the reading at the cursor as a
-   figure, and the band it was held to at the far end. */
-.panelHead {
+.frame a,
+.frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Its words stand over the play button's corner, not under it. */
+.noFrame {
+  display: grid;
+  place-items: start center;
+  height: 100%;
+  padding: var(--space-2) var(--space-1) 44px;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* The window played through its pictures. A finger wide by the room around it, small enough to leave the picture. */
+.play {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--overlay-solid);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--on-overlay);
+}
+
+.play::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.cursorText {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 0 0 var(--space-3) var(--space-1);
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.metric {
-  font-size: var(--text-md);
-  font-weight: var(--weight-bold);
+/* Zooming, in the card that stays in sight: one over the other beside the figures. */
+.zoom {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.panelValue {
-  font-size: var(--text-lg);
-  font-weight: var(--weight-figure);
+.zoom:empty {
+  display: none;
 }
 
-.panelUnit {
-  margin-left: -4px;
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
+.cursorStamp,
+.cursorOutputs,
+.panelRange {
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
-.band {
-  margin-left: auto;
+.cursorValues {
+  font-family: var(--font-figure);
+  font-size: 16px;
+  font-weight: var(--weight-medium);
+}
+
+/* What a row of the card or a head's figure says at rest lies unseen under it (`data-rest`) and holds its room:
+   crossing into a silence, or onto a value with its own time, moves no plot under a finger. Its column is never
+   wider than the row's: a fact longer than the line - "Blatttemperatur 24,4 °C" at 360 px - widened it past the
+   card's text, and the figure ran under the zoom buttons. Such a fact breaks inside, at rest as on view. */
+.screen [data-rest] {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 100%;
+}
+
+.screen [data-rest]::before {
+  visibility: hidden;
+  content: attr(data-rest);
+  overflow-wrap: anywhere;
+}
+
+.screen [data-rest] > *,
+.screen [data-rest]::before {
+  grid-area: 1 / 1;
+}
+
+.otherCamera {
+  margin-left: var(--space-2);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font: inherit;
+  font-weight: var(--weight-medium);
+}
+
+/* ----------------------------------------------------------------- panel */
+
+/* The figure keeps the end of the name's row whatever wraps before it: in one row of name, range and figure a short
+   name ("CO₂") kept its figure on the row at 320 px while every longer one put it under the name. */
+.panelHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+
+.panelLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.panelHead h2,
+.panelName {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+/* The name in its curve's colour, which the frame round it carries. */
+.panelName h2 {
+  flex: none;
+  color: inherit;
+}
+
+/* The (i) beside a name, lent a finger's room around it. */
+.panelName button {
+  position: relative;
+  /* Over the figures beside it, so the room lent to it is its own to the last pixel. */
+  z-index: 1;
+}
+
+.panelName button::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
+.panelValue {
+  font-size: 16px;
+  font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
-.metric[data-metric='temperature'],
-.scrubValue[data-metric='temperature'] {
-  color: var(--temperature);
+/* All curves in one picture: each is named in its colour with its figure, and they wrap between the names. */
+.panelMany {
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+  font-weight: var(--weight-medium);
 }
 
-.metric[data-metric='humidity'],
-.scrubValue[data-metric='humidity'] {
-  color: var(--humidity);
+.panelMany span {
+  white-space: nowrap;
 }
 
-.metric[data-metric='co2'],
-.scrubValue[data-metric='co2'] {
-  color: var(--co2);
-}
-
-.metric[data-metric='leafTemperature'],
-.scrubValue[data-metric='leafTemperature'] {
-  color: var(--green-ink);
-}
-
-.metric[data-metric='lux'],
-.scrubValue[data-metric='lux'] {
-  color: var(--warning);
+.panelMany strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
 }
 
 .plot {
   position: relative;
-  /* Three panels and the lanes fit a phone without scrolling past the camera. */
   height: 104px;
-  /* The faint rules to read a curve across, at the top, the middle and the
-     foot, where the scale's two figures sit - the same three the Charts draw. */
-  background:
-    linear-gradient(var(--grid), var(--grid)) var(--gutter) 0 / calc(100% - var(--gutter)) 1px no-repeat,
-    linear-gradient(var(--grid), var(--grid)) var(--gutter) 50% / calc(100% - var(--gutter)) 1px no-repeat,
-    linear-gradient(var(--grid), var(--grid)) var(--gutter) 100% / calc(100% - var(--gutter)) 1px no-repeat;
+  margin-right: var(--gutter);
 }
 
-/* The canvas starts where the gutter ends. */
-.plot > [role='img'] {
-  margin-left: var(--gutter);
-}
-
+/* The scale's two ends, in the gutter beside the plot; one pair per curve where a picture holds several. */
 .scaleHigh,
 .scaleLow {
   position: absolute;
-  left: 0;
-  width: var(--gutter);
-  padding-right: var(--space-2);
-  font-size: var(--text-xs);
-  text-align: right;
-  color: var(--label);
+  left: calc(100% + 7px);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-figure);
+  line-height: 1.2;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  pointer-events: none;
 }
 
 .scaleHigh {
@@ -423,12 +479,19 @@
   bottom: 0;
 }
 
-/* The surface the cursor is dragged over. It claims sideways gestures only, so
-   the page still scrolls under a thumb moving up or down. */
+/* The surface the gestures land on. It claims sideways movement only, so a thumb still scrolls the page over it. */
 .overlay {
   position: absolute;
-  inset: 0 0 0 var(--gutter);
+  inset: 0;
   touch-action: pan-y;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.overlay:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 .cursor {
@@ -447,279 +510,421 @@
   width: 9px;
   height: 9px;
   margin: -4.5px 0 0 -4.5px;
-  background: var(--card);
-  border: 2px solid var(--ink);
+  background: currentcolor;
+  border: 2px solid var(--card);
   border-radius: var(--radius-pill);
   pointer-events: none;
 }
 
-/* ------------------------------------------------ the lanes and the rail */
+.selection {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--brand);
+  opacity: 0.16;
+  pointer-events: none;
+}
 
-.lanes {
+/* ---------------------------------------------------------------- strips */
+
+.strips {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: var(--space-4) var(--space-4) var(--space-3) var(--space-3);
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.lane {
-  display: flex;
-  align-items: center;
-  gap: 0;
-}
-
-.lane[data-focus] {
-  margin-inline: -6px;
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--brand-wash);
-}
-
-.lane[data-focus] .laneName {
-  font-weight: var(--weight-semibold);
-  color: var(--brand);
-}
-
-/* The average under the name, small enough that the name stays what is read. */
-.laneAverage {
-  display: block;
-  font-size: 10px;
-  color: var(--label);
-}
-
-/*
- * The label keeps the mark's own overhang clear of itself. A mark is centred on
- * the moment it stands for, which for one at the very start of the window puts
- * half of it - the 10px `.mark` pulls itself left by - outside the rail and over
- * the label: the grow range's first mark covered the last pixels of "EVENTS".
- * The room comes out of the gutter the label already has to itself, so nothing
- * else on the stack moves.
- */
-.laneName {
-  flex-shrink: 0;
-  width: var(--gutter);
-  /* A lane's name lives in the plot's gutter, which has no room for the
-     tracked capitals a section label takes: it is a caption instead. The one
-     name too long for it ("Rückwandlüfter") breaks at its soft hyphen onto a
-     second line rather than being cut. */
-  padding-right: 12px;
-  text-align: right;
-  hyphens: manual;
-}
-
-.track {
-  position: relative;
-  flex: 1;
-  height: 28px;
-  min-width: 0;
-  /* The foot and the top of the lane ruled as a panel rules its scale, so a lane reads as a small panel of its own. */
-  background:
-    linear-gradient(var(--grid), var(--grid)) 0 0 / 100% 1px no-repeat,
-    linear-gradient(var(--grid), var(--grid)) 0 100% / 100% 1px no-repeat;
-  touch-action: pan-y;
-}
-
-/* How hard an output worked: a line in the output blue over a pale area, drawn
-   as the climate curves above are drawn. Not the amber - running is not a
-   warning. A little room above and below keeps the line clear of the rules. */
-.load {
-  position: absolute;
-  inset: 3px 0 1px;
-  width: 100%;
-  height: calc(100% - 4px);
-  overflow: visible;
-}
-
-.loadArea {
-  fill: var(--output);
-  fill-opacity: 0.18;
-}
-
-.loadLine {
-  fill: none;
-  stroke: var(--output);
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.rail {
-  position: relative;
-  flex: 1;
-  height: 30px;
-  min-width: 0;
-}
-
-.mark {
-  position: absolute;
-  top: 50%;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
+  margin: 0;
   padding: 0;
-  background: var(--card);
-  border: var(--rule-solid);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
+  list-style: none;
 }
 
-.mark[aria-pressed='true'] {
-  border-color: var(--brand);
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.strip[data-focus] .stripName {
   color: var(--brand);
+  font-weight: var(--weight-medium);
 }
 
-.mark[data-severity='warning'] {
-  border-color: var(--warning);
-  color: var(--warning);
-}
-
-.mark[data-severity='critical'] {
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
-/*
- * How many lines the mark stands for, beside the kind it stands for rather than
- * over it. The badge is opaque and the glyph is 12px, so sitting inside the
- * circle it covered almost all of it: a mark of 28 notes drew a "28" and no note
- * at all, and the mark's own hit test answered the badge. Anchored off the top
- * right corner it clears the glyph, and it is drawn as the app's count badge -
- * a filled pill, as the rail's Alerts count is - in the muted ink rather than
- * the alarm red or the brand, because a count of notes is neither a warning
- * nor a choice, and a lane of twenty green dots shouted over the lines. A ring
- * in the card's colour lifts it off the circle it overlaps.
- */
-.markCount {
-  position: absolute;
-  top: -7px;
-  right: -9px;
-  display: inline-grid;
-  place-items: center;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  background: var(--muted);
-  border-radius: var(--radius-pill);
-  box-shadow: 0 0 0 1.5px var(--card);
-  font-size: 10px;
-  font-weight: var(--weight-bold);
-  line-height: 1;
-  color: var(--card);
-}
-
-.noEvents {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  transform: translateY(-50%);
+.stripName {
   font-size: var(--text-xs);
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
+
+/* The strip runs the width of the plot above it, so a run stands under what it did to the curve. */
+.stripTrack {
+  position: relative;
+  display: block;
+  height: 10px;
+  margin-right: var(--gutter);
+}
+
+/* An output driven at a level has the height to show it: a lamp at 60 % is not a lamp at 100 %. */
+.strip[data-levelled] .stripTrack {
+  height: 22px;
+}
+
+.stripTrack svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  shape-rendering: crispEdges;
+}
+
+.stripHeard {
+  fill: var(--tint);
+}
+
+.stripRan {
+  fill: var(--output);
+}
+
+.strip[data-output='light'] .stripRan {
+  fill: var(--lamp);
+}
+
+/* ------------------------------------------------------------------ axis */
 
 .axis {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  margin-left: var(--gutter);
-  padding-top: var(--space-1);
-}
-
-/* What the rail could not fit, said under it rather than left to be guessed at. */
-.capped {
-  margin-left: var(--gutter);
-  padding-top: var(--space-1);
-  font-size: var(--text-xs);
+  margin: 0 var(--gutter) 0 0;
+  font-family: var(--font-figure);
+  font-size: var(--text-2xs);
   color: var(--muted);
 }
 
-.stop {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/* A week's stops stand on its midnights, each centred under the line it names. */
-.axisDays {
-  position: relative;
-  display: block;
-  min-height: calc(var(--text-xs) * 1.6 + var(--space-1));
-}
-
-.dayStop {
+.axis [data-tick] {
   position: absolute;
+  top: 0;
   transform: translateX(-50%);
   white-space: nowrap;
 }
 
-.dayStopEnd {
-  position: absolute;
-  right: 0;
-  white-space: nowrap;
+/* ----------------------------------------------------------------- diary */
+
+.none {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
-/* The first and the last stop sit on the ends of the track rather than centred under them. */
-.stop:first-child {
-  margin-left: calc(var(--space-2) * -1);
+.more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  text-decoration: none;
 }
 
-.stop:last-child {
-  margin-right: calc(var(--space-2) * -1);
-}
-
-.opened {
+.nothing {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  margin: var(--space-2) 0 0;
-  padding: var(--space-2) 0 0;
-  border-top: var(--rule-solid);
+  order: 2;
+}
+
+/* A link inside a sentence keeps its target without the line's room: a note of one line stays one line high. */
+.inSentence {
+  min-height: 0;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
+}
+
+.hint {
+  display: none;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- sheets */
+
+.ticks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ticks legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--label);
+}
+
+.ticks label,
+.oneRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-height);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.ticks input,
+.oneRow input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand);
+}
+
+.oneRow {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  font-weight: var(--weight-medium);
+}
+
+.oneRow span {
+  flex: 1;
+}
+
+/* A setting chosen from a short list, in a row among the rows that open something. */
+.pickRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 6px var(--space-4);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.pickRow span {
+  flex: 1;
+  min-width: 0;
+}
+
+.pickRow small {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.pickRow select,
+.pickRow input {
+  flex: none;
+  max-width: 55%;
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  background: var(--card);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.views {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
+.views li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+}
+
+.viewName {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.keep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keep label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.shared {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.shared code {
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* On a phone a panel's low and high stand under its name, in every panel alike: left to fit, CO₂'s short name kept
+   them beside it while the others' wrapped. */
+@media (max-width: 599px) {
+  .panelRange {
+    flex-basis: 100%;
+  }
+}
+
+/* On the narrowest phones the card's words keep the width: a smaller picture, and the zoom in a row under them. */
+@media (max-width: 359px) {
+  .cursorCard {
+    flex-wrap: wrap;
+  }
+
+  /* High enough for "Kein Bild um diese Zeit" to stand over the play button's corner here too. */
+  .frame {
+    width: 72px;
+    height: 96px;
+  }
+
+  .zoom {
+    flex: 1 1 100%;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+/* --------------------------------------------------------- beside the rail */
+
 @media (min-width: 900px) {
-  .screen {
-    --gutter: 96px;
-
-    max-width: var(--reading-width);
-    padding-top: 0;
+  .place {
+    display: inline;
   }
 
-  .scrubHead {
-    top: var(--space-2);
-    font-size: var(--text-md);
-  }
-
-  /* The mat gives up height on a wide column, and the picture keeps its
-     shape on it rather than the card turning into a letterbox. */
-  .frame > :first-child {
-    max-height: 380px;
-  }
-
-  .panelValue {
-    font-size: var(--text-xl);
+  /* No header to stand under: the card keeps to the top of the window. */
+  .cursorCard {
+    top: var(--space-3);
   }
 
   .plot {
-    height: 140px;
+    height: 132px;
+  }
+
+  /* The window's ends are written once, under the last panel. */
+  .panel:not(:last-of-type) .axis {
+    display: none;
   }
 }
 
-/* A plot is read along its width: on a wide screen the Timeline takes the page. */
+/* Two columns once both fit: the panels, and beside them the cursor's card and the diary on a third of a page
+   that is wider here than a page of text - a diary line of four to six rows stood beside room nobody used. */
 @media (min-width: 1200px) {
-  .screen {
-    max-width: var(--page-width);
+  /* Wider than a page of text, and centred as one: under the shell's margin, a text page's, it stood up to 200 px
+     off the middle. Named twice to stand over the shell's `.main > *`, whichever sheet comes last. */
+  .screen.screen {
+    max-width: calc(var(--page-width) + 200px);
+    margin-inline: max(0px, calc((100% - var(--page-width) - 200px) / 2)) auto;
   }
 
-  .frame > :first-child {
-    max-height: 420px;
+  .stage {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
   }
 
-  .plot {
-    height: 160px;
+  .curves {
+    flex: 1 1 0;
+    order: 0;
+  }
+
+  .beside {
+    position: sticky;
+    top: var(--space-5);
+    display: flex;
+    flex: none;
+    width: clamp(300px, 32%, 440px);
+  }
+
+  .beside > * {
+    order: 0;
+  }
+
+  .cursorCard {
+    position: static;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+    box-shadow: none;
+  }
+
+  .frame {
+    width: 100%;
+    height: 176px;
+  }
+
+  .cursorText {
+    flex: none;
+    padding: 0 6px 4px;
+  }
+
+  .zoom {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  .cursorValues {
+    font-size: 18px;
+  }
+
+  .hint {
+    display: block;
   }
 }
 
+/* The head in one row where it fits, from where the page has two columns: the title, the ranges, the window between
+   its buttons, and "Anpassen" last - in that order in the markup too, so the keyboard reaches them as they stand.
+   The title is every page's size. Nothing in it shrinks out of sight - with several places and a device to choose,
+   or on the narrowest such window, it takes a second row. */
+@media (min-width: 1200px) {
+  .title {
+    flex: 0 1 auto;
+  }
+
+  .device {
+    flex: none;
+  }
+
+  .ranges {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .nav {
+    flex: 0 0 auto;
+  }
+
+  .window {
+    flex: 0 0 auto;
+    min-width: 150px;
+    padding: 0 var(--space-2);
+  }
+}

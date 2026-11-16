@@ -1,7 +1,7 @@
 import { createServer, Server, Socket } from 'node:net';
 import { Aedes } from 'aedes';
 
-export interface MqttBroker {
+interface MqttBroker {
   readonly port: number;
   /** The live instance; a restart replaces it, so read it rather than holding it. */
   readonly aedes: Aedes;

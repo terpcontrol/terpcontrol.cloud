@@ -2,7 +2,7 @@ import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { CAMERA_STILLS, OFFLINE_RULE_NAME, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
+import { CAMERA_STILLS, OFFLINE_RULE_NAME, RECEIPT_SECONDS, VALUE_AGE, heardAt, repeatSecondsOf } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -33,7 +33,7 @@ import { ALARM_DEVICE_FIELDS, AlarmDevice } from './alarm.types';
 const TICK_MS = 60 * 1000;
 
 /** What one pass did, which is what the health card is drawn from and what a test reads. */
-export interface AlarmHealthPass {
+interface AlarmHealthPass {
   /** Claimed devices the pass went round. */
   devices: number;
   /**
@@ -45,13 +45,13 @@ export interface AlarmHealthPass {
 }
 
 /** The same, with the instant it finished, which is the half a screen needs and a test does not. */
-export type LastAlarmHealthPass = AlarmHealthPass & { ranAt: Date };
+type LastAlarmHealthPass = AlarmHealthPass & { ranAt: Date };
 
 /**
  * How the loop itself is doing: its last completed pass, and the run of
  * failures since - which is the fact a bare log line could not carry.
  */
-export interface AlarmHealthState {
+interface AlarmHealthState {
   last: LastAlarmHealthPass | null;
   /** Passes that have failed since the last one that completed. */
   failures: number;
@@ -157,7 +157,10 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
   private spokeAt(devices: readonly AlarmDevice[], at: Date): Promise<NewestSamples> {
     const quiet = devices.filter(device => device.state.lastSeenAt !== null && isOffline(device.state.lastSeenAt, at));
 
-    return this.data.newestSamplesOf(quiet.map(device => ({ deviceId: device.id, since: device.state.lastSeenAt! })));
+    // From a moment before the last message: the sample it carried may be stamped a little earlier (`heardAt`).
+    return this.data.newestSamplesOf(
+      quiet.map(device => ({ deviceId: device.id, since: new Date(device.state.lastSeenAt!.getTime() - RECEIPT_SECONDS * 1000) })),
+    );
   }
 
   /** The instant this device is dated by: its last message, or a stored reading that came after it. */
@@ -257,14 +260,17 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
       // Judged by the stills it has missed, with a floor under that: a camera
       // asked every 30 seconds is not stale after two minutes, and one asked
       // every hour is not stale after a quarter of an hour.
-      const stale = quietSeconds >= Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
+      const missedSeconds = Math.max(camera.stillIntervalSeconds * CAMERA_STILLS.offlineAfter, VALUE_AGE.staleSeconds);
+      const stale = quietSeconds >= missedSeconds;
 
       if (!stale && open) await this.alerts.settle(subjectOf(camera), open, quietSeconds, at);
       // A picture always ends an alert; only raising one asks whether the tent
       // is switched off - a controller in `workmode: off` is not driving it, so
       // nothing asks its camera for a picture.
       const switchedOff = !!camera.deviceId && devices.get(camera.deviceId)?.configuration?.workmode === 'off';
-      if (stale && !open && !switchedOff) await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      if (stale && !open && !switchedOff && (await this.quietSinceAsked(camera, camera.state.lastStillAt, at)) >= missedSeconds) {
+        await this.alerts.raise(subjectOf(camera), quietSeconds, at);
+      }
     }
   }
 
@@ -297,6 +303,17 @@ export class AlarmHealthService implements OnModuleInit, OnApplicationShutdown {
     // The same instant the device's own alert is dated by: one file deciding a
     // device is away by two different clocks is the drift this is fixing.
     return isOffline(this.spokeLast(device, heard));
+  }
+
+  /**
+   * How long the camera has been asked for a picture and given none. A Terp Cam is asked through its controller,
+   * so while that was away nobody asked: its silence counts from the controller's return, or the first pass after
+   * a reconnect judged it by a still from before the outage and called it dark before it could deliver one.
+   */
+  private async quietSinceAsked(camera: CameraDocument, lastStillAt: Date, at: Date): Promise<number> {
+    const back = camera.deviceId ? await this.alerts.backOnlineAt(camera.deviceId) : null;
+    const since = Math.max(lastStillAt.getTime(), back?.getTime() ?? 0);
+    return (at.getTime() - since) / 1000;
   }
 }
 

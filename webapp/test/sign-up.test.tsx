@@ -1,4 +1,5 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { Route, Routes, useParams } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,6 +34,7 @@ const PREVIEW: InvitePreview = {
   role: 'can_log',
   invitedByHandle: 'chris',
   expiresAt: NOW.plus({ days: 5 }).toISO()!,
+  hasCamera: true,
 };
 
 const token = (hours: number) => ({ token: `token-${hours}`, validUntil: NOW.plus({ hours }).toISO()! });
@@ -93,7 +95,7 @@ const draw = (at: string) =>
 
 const fillIn = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
-beforeAll(() => translate());
+beforeAll(() => translate(['en', 'de']));
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
@@ -114,7 +116,7 @@ describe('the privacy agreement on an install that publishes no statement of its
 
     const link = screen.getByRole('link', { name: 'privacy policy' });
     expect(link).toHaveAttribute('href', '/privacy');
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
@@ -135,7 +137,7 @@ describe('the stranger an invitation was sent to', () => {
   it('is offered an account before a sign-in, and told in the invitation’s words what one takes', async () => {
     draw('/join/K7QZ4M2P');
 
-    expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent: you are invited')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create an account to join' })).toHaveAttribute('href', '/sign-up');
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
     expect(screen.getByText(/You need an account of your own/)).toBeInTheDocument();
@@ -145,8 +147,8 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    expect(await screen.findByText(/An invitation to Blue Dream tent is waiting/)).toBeInTheDocument();
-    fillIn('Email', 'mara@example.com');
+    expect(await screen.findByText(/An invitation is waiting: Blue Dream tent/)).toBeInTheDocument();
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', '@mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -167,7 +169,7 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -197,7 +199,7 @@ describe('the stranger an invitation was sent to', () => {
     draw('/join/K7QZ4M2P');
     fireEvent.click(await screen.findByRole('link', { name: 'Create an account to join' }));
 
-    fillIn('Email', 'mara@example.com');
+    fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('checkbox'));
@@ -207,13 +209,51 @@ describe('the stranger an invitation was sent to', () => {
     expect(screen.getByRole('button', { name: 'Create the account' })).toBeInTheDocument();
   });
 
+  /** In German the generic conflict - "reload the page" - stood there, and nobody learnt an account existed. */
+  it('says in its own words that the address or the username is taken, and leads an address that has an account to the sign-in', async () => {
+    await act(() => i18next.changeLanguage('de'));
+    try {
+      server.refuseSignUp = refusal('email_taken', 'There is already an account with that address.');
+      draw('/sign-up');
+      fillIn('E-Mail', 'mara@example.com');
+      fillIn('Benutzername', 'mara');
+      fillIn('Passwort', 'a long enough secret');
+      fireEvent.click(screen.getByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
+
+      // The alert is a live region that stands empty until the refusal arrives.
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Für diese Adresse gibt es schon ein Konto. Anmelden ›'));
+      expect(within(screen.getByRole('alert')).getByRole('link', { name: 'Anmelden ›' })).toHaveAttribute('href', '/sign-in');
+
+      server.refuseSignUp = refusal('handle_taken', 'That handle is taken.');
+      fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Diesen Benutzernamen hat schon ein anderes Konto.'));
+      expect(screen.queryByRole('link', { name: 'Anmelden ›' })).not.toBeInTheDocument();
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
+  });
+
+  it('leads a taken address to the sign-in with the address filled in', async () => {
+    server.refuseSignUp = refusal('email_taken', 'There is already an account with that address.');
+    draw('/sign-up');
+    fillIn('E-mail', 'mara@example.com');
+    fillIn('Username', 'mara');
+    fillIn('Password', 'a long enough secret');
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
+
+    fireEvent.click(await within(await screen.findByRole('alert')).findByRole('link', { name: /^Sign in/ }));
+    expect(await screen.findByRole('textbox', { name: 'E-mail' })).toHaveValue('mara@example.com');
+  });
+
   it('can type a code that was read to them and reach the same invitation', async () => {
     draw('/join');
 
     fireEvent.change(await screen.findByLabelText('Invitation code'), { target: { value: ' k7qz-4m2p ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open the invitation' }));
 
-    expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent: you are invited')).toBeInTheDocument();
     expect(String(vi.mocked(fetchStub).mock.calls.at(-1)?.[0])).toMatch(/\/invites\/K7QZ4M2P$/);
   });
 });
@@ -223,5 +263,26 @@ describe('the sign-in page', () => {
     draw('/sign-in');
 
     expect(await screen.findByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/sign-up');
+  });
+});
+
+/**
+ * Outside the shell nothing names the window after the page. A tab that came from the demo went on carrying the
+ * demo place's name over the sign-up form, so each of these pages names itself.
+ */
+describe('the window´s title outside the shell', () => {
+  it('names the sign-up page, whatever page stood in the tab before', async () => {
+    document.title = 'Blue Dream tent – Terp Control';
+    draw('/sign-up');
+
+    await screen.findByLabelText('E-mail');
+    expect(document.title).toBe('Create account · Terp Control');
+  });
+
+  it('names the sign-in page', async () => {
+    draw('/sign-in');
+
+    await screen.findByRole('link', { name: 'Create account' });
+    expect(document.title).toBe('Sign in · Terp Control');
   });
 });

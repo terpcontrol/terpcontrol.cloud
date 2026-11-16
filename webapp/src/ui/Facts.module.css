@@ -1,0 +1,31 @@
+/* Facts side by side with "·" between them. Every fact carries its separator in
+   front of itself, in a box of one width; the row is shifted left by that width
+   and cut there, so the separator of whatever fact starts a line is not drawn. */
+
+.facts {
+  --dot: 0.85em;
+
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  margin-left: calc(-1 * var(--dot));
+  /* Cut on the left only: a focus ring round a fact that is a link keeps its room on the other sides. */
+  clip-path: inset(-6px -6px -6px var(--dot));
+}
+
+.fact {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dot {
+  flex: none;
+  width: var(--dot);
+  text-align: center;
+}
+
+/* A row inside a row: its own facts break among themselves once it is alone on a line. */
+.fact > .facts {
+  flex: 0 1 auto;
+}

@@ -113,7 +113,7 @@ function Watching({ pairers, opened }: { pairers: Device[]; opened: UseQueryResu
           {t('cameras.add.terpcam.watching')}
         </p>
       ) : (
-        <ul className={styles.founds}>
+        <ul className={ui.list}>
           {found.map(camera => (
             <FoundCamera
               key={camera.id}
@@ -139,7 +139,7 @@ function NoDevice() {
   const { t } = useTranslation();
 
   return (
-    <section className={`${ui.cardDashed} ${styles.block}`}>
+    <section className={`${ui.cardDashed} ${ui.stack2}`}>
       <span className="label">{t('cameras.add.terpcam.noDevice.label')}</span>
       <p className={styles.text}>{t('cameras.add.terpcam.noDevice.text')}</p>
       <Link className={`${ui.button} ${styles.way}`} to="/claim">
@@ -198,7 +198,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
         )}
         <div className={styles.foundText}>
           <span className={styles.foundTitle}>
-            <span className={styles.foundName}>{called ?? t('cameras.add.found.title', { tag: cameraTag(camera) })}</span>
+            <span className={ui.cut}>{called ?? t('cameras.add.found.title', { tag: cameraTag(camera) })}</span>
             <span className={styles.pill}>{t('cameras.add.found.pill')}</span>
           </span>
           <span className={styles.foundNote}>{line}</span>
@@ -239,7 +239,7 @@ function FoundCamera({ camera, devices, spaces, stillId }: { camera: Camera; dev
 
           <Refused error={rename.error} />
 
-          <div className={styles.actions}>
+          <div className={`${ui.wrap} ${styles.actions}`}>
             <button type="button" className={`${ui.button} ${ui.primary} ${styles.grow}`} disabled={rename.isPending} onClick={save}>
               {rename.isPending ? t('cameras.add.found.saving') : t('cameras.add.found.save')}
             </button>

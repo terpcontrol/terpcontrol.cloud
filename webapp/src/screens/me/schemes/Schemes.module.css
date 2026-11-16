@@ -21,34 +21,14 @@
   color: var(--muted);
 }
 
-.schemeText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
 .schemeTitle {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .schemeLine {
   font-size: var(--text-sm);
   color: var(--muted);
   overflow-wrap: anywhere;
-}
-
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
 }
 
 .meta {
@@ -65,17 +45,4 @@
 .caption a {
   color: var(--muted);
   text-decoration: underline;
-}
-
-/* The yes to deleting a scheme, outlined in the alarm colour as the privacy
-   page's is. */
-.dangerButton {
-  background: transparent;
-  border-color: var(--alarm);
-  color: var(--alarm);
-}
-
-.dangerButton:disabled {
-  border-color: var(--rule);
-  color: var(--muted);
 }

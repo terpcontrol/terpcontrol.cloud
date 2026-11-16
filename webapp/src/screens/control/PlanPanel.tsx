@@ -1,10 +1,15 @@
-import type { DateTime } from 'luxon';
+import { DateTime } from 'luxon';
 import { Announce } from '@/ui/Announce';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
-import { isMissing, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
+import { useGrows } from '@/api/grows';
+import { useDiaryLayer } from '@/api/layers';
+import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
+import { useLog, type Back } from '@/log/log-context';
+import { usePlaceGrow } from '@/log/underneath';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Asking } from '@/ui/Asking';
@@ -16,12 +21,13 @@ import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
 import { deviceName, deviceTitle } from '@/ui/naming';
+import { alsoIn } from '@/screens/space/movable-grows';
+import { ContinuePlan } from './ContinuePlan';
 import { DurationField, PlanEditor } from './PlanEditor';
 import { KeepAsTemplateSheet, StartFromTemplateSheet } from './PlanTemplates';
 import { PlanRefusal } from './Refusal';
 import {
   activeStep,
-  countdownLabel,
   elapsedMs,
   isGoing,
   isOpenEnded,
@@ -31,44 +37,41 @@ import {
   nextStepIndex,
   overdueMs,
   readingAt,
-  spanLabel,
   startsInMs,
   throughStep,
 } from './plan-clock';
-import { draftOf, emptyDraft, type PlanDraft } from './plan-edit';
+import { draftOf, durationFits, emptyDraft, type PlanDraft } from './plan-edit';
 import { offersReadyPlans } from './ready-plans';
-import { followsGermination, stepLengthLabel, stepMeta } from './plan-labels';
+import {
+  followsGermination,
+  leftWords,
+  ownStepName,
+  pauseReasonOf,
+  servedWords,
+  stepLengthLabel,
+  stepMeta,
+  stepTitle,
+  stepWritesNothing,
+  usePlanWords,
+} from './plan-labels';
 import styles from './Control.module.css';
 
 /**
- * What one controller is being run by, and the five moves that can be made to
- * it.
+ * What one device is being run by, and the moves that can be made to it.
  *
- * The plan moves on the engine's clock: a step whose time is up is advanced
- * twenty seconds later whether or not this screen is open, so everything here
- * is drawn from the state the server last answered and the instants in it -
- * never from a status this screen decided. What the tent is actually holding is
- * a separate question again, and the line that says when the step last reached
- * the controller is dimmed by how long the controller has been quiet, because a
- * device that says nothing may have been running something else for an hour.
+ * The plan moves on the engine's clock whether or not this screen is open, so
+ * everything here is drawn from the state the server last answered and the
+ * instants in it.
  *
  * A step writes a climate and nothing else, so where that climate would land
- * decides what this panel offers, in the three states `climateLanding` tells
- * apart. A plug or a lamp is told there is nowhere for one to go. A controller
- * whose document has not arrived is told the same thing the targets page
- * tells it, in the same sentence: nothing here can stand in for
- * the settings it has never sent, and a step written for it would not be a
- * climate added to its tuning but a document put in place of it, with the work
- * mode, the light schedule, the dehumidifier's timings and the ramps back at
- * factory values.
- *
- * A plan that is already on either kind of device is still drawn in full,
- * because a plan nobody can see is a plan nobody can stop - and emptying a
- * step's settings is how one gets taken off.
+ * (`climateLanding`) decides what the panel offers. A plan on a device with
+ * nowhere for one to go is still drawn in full: a plan nobody can see is a
+ * plan nobody can stop.
  */
 export function PlanPanel({ device, mayManage, landing }: { device: Device; mayManage: boolean; landing: ClimateLanding }) {
   const { t } = useTranslation();
   const plan = useDevicePlan(device.id);
+  usePlanWords([plan.data]);
   const all = useDevices();
   // The beat re-renders the panel, and the reading is taken at the render: a
   // clock read up to a beat before the answer arrived puts a plan that was just
@@ -78,7 +81,6 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   const [editing, setEditing] = useState<PlanDraft | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [picking, setPicking] = useState(false);
-  // Starting from a template is offered only where there is one to start from.
   const templates = usePlanTemplates();
   const ready = offersReadyPlans(device);
   const anyTemplate = templates.data?.items.length !== 0 || ready;
@@ -101,20 +103,10 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
       ) : null}
     </>
   );
-  // The page is headed "Grow plan", so the panel is headed by whose plan it is.
-  // What a plan is, is said by the sentence under the title while there is
-  // none, and by the (i) beside it once there is one to read.
-  const title = (explained: boolean) => (
-    <span className="label">
-      {name}
-      {explained ? <Help topic="plan" /> : null}
-    </span>
-  );
 
   if (plan.isPending) {
     return (
-      <section className={styles.panel}>
-        {title(false)}
+      <section className={ui.stack3}>
         <Waiting lines={3} />
       </section>
     );
@@ -124,21 +116,26 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   // failure, and it is the one state this screen is offering to change.
   if (!plan.data) {
     return (
-      <section className={styles.panel}>
-        {title(false)}
+      <section className={ui.stack3}>
         {isMissing(plan.error) ? (
-          <div className={`${ui.cardDashed} ${styles.none}`}>
-            <p className={styles.noneWhat}>{t(landing === 'document' ? 'space.control.none' : 'space.control.noClimate')}</p>
-            <p className={ui.note}>
-              {landing === 'document'
-                ? t('space.control.noneNote')
-                : landing === 'awaited'
-                  ? t('targets.waiting', { device: deviceTitle(device, t, all.data?.items) })
-                  : t('space.control.noClimateNote')}
+          <div className={`${ui.cardDashed} ${ui.stack2}`}>
+            <p className={styles.noneWhat}>
+              {t('space.control.none')}
+              <Help topic="plan" />
             </p>
-            {landing === 'document' && ready ? <p className={ui.note}>{t('readyPlans.offer')}</p> : null}
+            {landing === 'awaited' ? (
+              <p className={ui.note}>
+                {t('targets.waiting', {
+                  device: deviceTitle(
+                    device,
+                    t,
+                    all.data?.items.filter(other => other.spaceId === device.spaceId),
+                  ),
+                })}
+              </p>
+            ) : null}
             {mayManage && landing === 'document' ? (
-              <div className={styles.actions}>
+              <div className={ui.wrap}>
                 {/* A fridge starts where a beginner starts: from one of the two ready plans. */}
                 {ready ? (
                   <button type="button" className={`${ui.button} ${ui.primary}`} onClick={() => setPicking(true)}>
@@ -154,14 +151,14 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
                 </button>
                 {anyTemplate && !ready ? (
                   <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-                    {t('space.control.fromTemplate')}
+                    {t('space.control.template.startTitle')}
                   </button>
                 ) : null}
               </div>
             ) : null}
           </div>
         ) : (
-          <LoadFailed retry={() => void plan.refetch()} />
+          <LoadFailed read={plan} />
         )}
 
         {sheets}
@@ -170,41 +167,36 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   }
 
   return (
-    <section className={styles.panel}>
-      {title(true)}
+    <section className={ui.stack3}>
       <RefreshFailed failedAt={plan.isError ? plan.dataUpdatedAt : null} now={now} />
 
-      {/* A plan that is already on hardware a climate cannot reach is shown
-          whole, so it can be looked at and stopped, with the fact said once
-          above it - and which of the two reasons it is, because they are not the
-          same fact and only one of them is anybody's to do something about. */}
+      {/* Why this plan writes nothing: which of the two reasons it is, since only one of them is anybody's to change. */}
       {landing === 'document' ? null : (
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t(landing === 'awaited' ? 'space.control.waitingHasPlan' : 'space.control.noClimateHasPlan')}
         </p>
       )}
 
-      <div className={`${ui.card} ${styles.plan}`}>
+      <div className={`${ui.card} ${ui.stack2}`}>
         <Standing plan={plan.data} device={device} now={now} />
         {mayManage ? <Moves plan={plan.data} device={device} now={now} onRefresh={() => void plan.refetch()} /> : null}
       </div>
 
       <Steps plan={plan.data} now={now} />
+      {mayManage && landing === 'document' ? <ContinuePlan device={device} /> : null}
 
       {mayManage ? (
-        <div className={styles.actions}>
+        <div className={ui.wrap}>
           <button type="button" className={ui.button} onClick={() => setEditing(draftOf(plan.data))}>
             {t('space.control.edit')}
           </button>
           <button type="button" className={ui.button} onClick={() => setKeeping(true)}>
-            {t('space.control.keepAsTemplate')}
+            {t('space.control.template.keepTitle')}
           </button>
-          {/* Editing stays, because emptying the steps is how a plan that should
-              never have been written here is taken off. Starting a fresh one
-              from a template would only write the same climate again. */}
+          {/* Editing stays where no climate lands - emptying the steps is how such a plan is taken off - but no fresh one is started. */}
           {landing === 'document' && anyTemplate ? (
             <button type="button" className={ui.button} onClick={() => setPicking(true)}>
-              {t('space.control.fromTemplate')}
+              {t('space.control.template.startTitle')}
             </button>
           ) : null}
         </div>
@@ -215,56 +207,48 @@ export function PlanPanel({ device, mayManage, landing }: { device: Device; mayM
   );
 }
 
-/**
- * What a plan written here notifies by default: no mail until somebody asks for
- * one, and a diary line at every step, because a tent that changed what it holds
- * is exactly what a diary is read for.
- */
+/** What a plan written here notifies by default: no mail until somebody asks, and a diary line at every step. */
 const DEFAULT_NOTIFY: PlanNotify = { mode: 'off', email: null, writeEntries: true };
 
-/**
- * Where the plan stands: which step, how long it has been there, what follows,
- * and - when the step is one somebody has to answer - that it is standing still
- * until they do.
- */
+/** Where the plan stands: which step, for how long, what follows - and that it stands still until somebody answers. */
 function Standing({ plan, device, now }: { plan: Plan; device: Device; now: DateTime }) {
   const { t } = useTranslation();
   const step = activeStep(plan);
   const waiting = isWaiting(plan, now);
   const left = leftMs(plan, now);
-  // An extension moves the step's clock forward, so there are stretches in which
-  // the step has served less than none of itself. What it served before the
-  // extension is gone by then - the server keeps one instant and moves it - so
-  // the line says when the counting starts rather than a figure it would have to
-  // make up, and the countdown beside it is right throughout.
+  // An extension moves the step's clock forward: until it begins the line says when the counting starts, not a figure
+  // it would have to make up.
   const ahead = startsInMs(plan.state, now);
   const through = throughStep(plan, now);
   const next = nextStepIndex(plan);
   const heard = useHeardAt(device);
   const liveness = deviceLiveness(heard, now);
   const zone = useZone();
-  // A plan at rest has no clock, so it is not given one: the step it stands at
-  // is where starting it would begin, and a bar filling up beside a tent that
-  // is being run by nothing would be the screen inventing a state.
+  // A plan at rest has no clock and is given none; one that has run every step stands at none of them.
   const going = isGoing(plan.state);
-  // A plan that has run every step stands at none of them. The server puts it
-  // back at the first, which is where starting it again begins, and the note
-  // below says so; a step line would say it is standing there.
+  // Where two grows stand, the plan names the one whose phases its steps set: the grow it was started for.
+  const diary = useDiaryLayer();
+  const grows = alsoIn(useGrows(diary && device.spaceId !== null).data?.items, device.spaceId, undefined);
+  const moves = grows.length > 1 ? grows.find(grow => grow.id === plan.growId) : undefined;
 
   return (
     <>
-      <header className={styles.head}>
-        <h2 className={styles.planName}>{plan.name}</h2>
-        <span className={`mono ${styles.status}`} data-status={plan.state.status}>
+      <header className={ui.headRow}>
+        <h2 className={styles.planName}>
+          {plan.name}
+          <Help topic="plan" />
+        </h2>
+        <span className={styles.status} data-status={plan.state.status}>
           {t(`space.control.status.${plan.state.status}`)}
         </span>
       </header>
+      {moves ? <p className={ui.note}>{t('space.control.movesGrow', { name: moves.name })}</p> : null}
       {/* A pause, a skip or a confirmation is said: the button pressed may be gone, and the page changes silently. */}
       <p className={ui.visuallyHidden} role="status">
         {[
           t(`space.control.status.${plan.state.status}`),
           plan.state.status !== 'completed' && step
-            ? `${t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })} ${step.name}`
+            ? `${t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })}${ownStepName(step.name, plan.state.activeStepIndex)}`
             : null,
         ]
           .filter(Boolean)
@@ -274,12 +258,13 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
       {plan.state.status === 'completed' ? null : step ? (
         <>
           <p className={styles.stepLine}>
-            <span className={`mono ${styles.stepNumber}`}>
+            <span className={styles.stepNumber}>
               {t('space.control.stepOf', { number: plan.state.activeStepIndex + 1, count: plan.steps.length })}
             </span>
-            <span className={styles.stepName}>{step.name}</span>
+            {/* A step whose name is its number is said once, by the number. */}
+            {ownStepName(step.name, plan.state.activeStepIndex) ? <span className={styles.stepName}>{step.name}</span> : null}
           </p>
-          <p className={`mono ${styles.stepMeta}`}>
+          <p className={styles.stepMeta}>
             {stepMeta(t, step, offsetOf(serverNow(), zone), followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop))}
           </p>
 
@@ -292,14 +277,14 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           {going ? (
             <p className={`mono ${styles.clock}`}>
               {ahead === null
-                ? t('space.control.served', { age: spanLabel(elapsedMs(plan.state, now)) })
+                ? t('space.control.served', { age: servedWords(t, elapsedMs(plan.state, now)) })
                 : t(plan.state.status === 'paused' ? 'space.control.extendedPausedClock' : 'space.control.extendedClock', {
-                    age: countdownLabel(ahead),
+                    age: leftWords(t, ahead),
                   })}
               {isOpenEnded(step.duration)
                 ? ` · ${t('space.control.openEnded')}`
                 : left !== null
-                  ? ` · ${t('space.control.left', { age: countdownLabel(left) })}`
+                  ? ` · ${t('space.control.left', { age: leftWords(t, left) })}`
                   : ` · ${t('space.control.over')}`}
             </p>
           ) : null}
@@ -314,7 +299,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           <Announce text={t('space.control.waiting.title')} />
           <span className="label">{t('space.control.waiting.title')}</span>
           <p className={styles.waitingWhat}>{step.confirmationMessage || t('space.control.waiting.noMessage')}</p>
-          <p className={ui.note}>{t('space.control.waiting.since', { age: spanLabel(overdueMs(plan, now) ?? 0) })}</p>
+          <p className={ui.note}>{t('space.control.waiting.since', { age: servedWords(t, overdueMs(plan, now) ?? 0) })}</p>
         </div>
       ) : null}
 
@@ -323,72 +308,138 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           ? t(plan.state.status === 'completed' ? 'space.control.next.completed' : 'space.control.next.atRest')
           : next === null
             ? t('space.control.next.ends')
-            : next === 0
-              ? t('space.control.next.loops', { name: plan.steps[0]?.name ?? '' })
-              : t('space.control.next.step', { number: next + 1, name: plan.steps[next]?.name ?? '' })}
+            : t(next === 0 ? 'space.control.next.loops' : 'space.control.next.step', {
+                number: next + 1,
+                name: ownStepName(plan.steps[next]?.name ?? '', next),
+              })}
       </p>
 
       {plan.state.status === 'paused' && plan.state.pauseReason ? (
-        <p className={ui.note}>{t('space.control.pausedFor', { reason: plan.state.pauseReason })}</p>
+        <p className={ui.note}>{t('space.control.pausedFor', { reason: pauseReasonOf(t, plan.state.pauseReason) })}</p>
       ) : null}
 
-      {/* What the controller last heard from the plan. On a plan that is going,
-          no `lastAppliedAt` means the step is owed rather than lost: the engine
-          clears it to start a plan, and clears it again on every edit purely so
-          that the step is re-sent within the tick instead of at the next hour -
-          which the editor has just promised in so many words.
-
-          A plan at rest is the other branch, and nothing recorded tells its two
-          cases apart: a plan that ran and was stopped and a plan saved a moment
-          ago and never started are both `stopped` with no `lastAppliedAt`. So
-          the line names no last step - it says the thing that is true of both,
-          which is that this plan is writing nothing and the controller is on
-          whatever it was on. */}
-      <p className={`mono ${styles.applied}`} {...ageAttribute(liveness)}>
-        {plan.state.lastAppliedAt
-          ? t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
-          : t(going ? 'space.control.applied.never' : 'space.control.applied.atRest')}
-        {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
-      </p>
+      {/* What the device last heard from the plan. A going plan without `lastAppliedAt` owes its step - the engine
+          clears it to send the step within its next pass, which a silent device takes once it reports again. A plan
+          at rest writes nothing, whether it ever ran or not, which the line about what follows says. */}
+      {/* A step that writes nothing is sent nothing: the line says that the device keeps what it has. */}
+      {going && step && stepWritesNothing(step) && !followsGermination(plan.steps, plan.state.activeStepIndex, plan.loop) ? (
+        <p className={styles.applied}>{t('space.control.step.writesNothing')}</p>
+      ) : going ? (
+        <p className={styles.applied} {...ageAttribute(liveness)}>
+          {plan.state.lastAppliedAt
+            ? justSent(plan.state.lastAppliedAt, now)
+              ? t('space.control.applied.justNow')
+              : t('space.control.applied.at', { age: ageLabel(plan.state.lastAppliedAt, now) })
+            : t(liveness === 'offline' ? 'space.control.applied.waits' : 'space.control.applied.never')}
+          {liveness === 'offline' ? ` · ${t('space.control.applied.quiet', { offline: offlineLabel(heard, now, zone) })}` : ''}
+        </p>
+      ) : null}
     </>
   );
 }
 
 /**
+ * A step sent in the last two minutes was sent "gerade eben": the engine sends a step started by a press on its next
+ * pass and the panel reads the plan again on its own beat, so a plan just started said "vor 1 Min" - as if the step
+ * had gone out before the press.
+ */
+const JUST_SENT_MS = 2 * 60_000;
+
+const justSent = (at: string, now: DateTime): boolean => now.toMillis() - DateTime.fromISO(at).toMillis() < JUST_SENT_MS;
+
+/**
  * The five moves and the stop, each offered only where the server would take
- * it. Skipping and stopping say what they will do before they do it, in the
- * place where the tap would be - the same two-step the rest of the app asks a
- * question in - because neither of them can be taken back afterwards.
+ * it. Skipping and stopping ask first, where the tap would be: neither can be
+ * taken back. So does going on while the device's regulation is off: the step
+ * it sends switches it back on, which is said before and after.
  */
 function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; now: DateTime; onRefresh: () => void }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
+  const client = useQueryClient();
   const move = usePlanTransition(device.id);
   const stop = useStopPlan(device.id);
   const remove = useRemovePlan(device.id);
-  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | 'remove' | null>(null);
+  const [asking, setAsking] = useState<'skip' | 'stop' | 'extend' | 'remove' | 'resume' | null>(null);
   const [by, setBy] = useState<StepDuration>({ value: 1, unit: 'days' });
+  const switchedOff = device.control?.running === false;
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
-  const startStage = activeStep(plan)?.stage ?? null;
+  // Starting moves a grow standing here into the step's stage: said only where one stands, and where two stand, which -
+  // the place's lead, as every page leads with it, which the start then asks for.
+  const growsHere = alsoIn(useGrows(device.spaceId !== null).data?.items, device.spaceId, undefined);
+  const lead = usePlaceGrow(device.spaceId) ?? null;
+  const leadHere = growsHere.length > 1 ? growsHere.find(grow => grow.id === lead) : undefined;
+  const startStage = growsHere.length > 0 ? (activeStep(plan)?.stage ?? null) : null;
   const busy = move.isPending || stop.isPending || remove.isPending;
   const close = () => setAsking(null);
+  /**
+   * What a move did, said once it has landed: the button that asked may be gone with it. Only a pause is taken back
+   * whole - continuing sends the step's figures again, and every other move starts or ends something.
+   */
+  const said = (what: string, params: Record<string, unknown> = {}) => t(`space.control.told.${what}`, { plan: plan.name, ...params });
+  const told = (what: string, params: Record<string, unknown> = {}, back: Back | { undo: null } = { undo: null }) => {
+    close();
+    tell({ label: said(what, params), ...back, from: `plan-${device.id}` });
+  };
+  const stepName = (index: number | null) => (index === null ? '' : stepTitle(t, plan.steps[index]?.name ?? '', index));
+  const paused = plan.state.status === 'paused';
+  // Going on sends the step, which switches regulation back on: the device is read again, so Steuerung says it is on.
+  const resume = () =>
+    move.mutate(paused || lead === null ? { kind: 'resume' } : { kind: 'resume', growId: lead }, {
+      onSuccess: () => {
+        if (switchedOff) void planMoved(client);
+        told(paused ? (switchedOff ? 'resumedOn' : 'resumed') : switchedOff ? 'startedOn' : 'started', {
+          step: stepName(plan.state.activeStepIndex),
+        });
+      },
+    });
 
   return (
     <div className={styles.moves}>
-      <div className={styles.actions}>
+      <div className={ui.wrap}>
         {can.confirm ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy} onClick={() => move.mutate({ kind: 'confirm' })}>
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={busy}
+            onClick={() =>
+              move.mutate({ kind: 'confirm' }, { onSuccess: () => told(next === null ? 'confirmedLast' : 'confirmed', { step: stepName(next) }) })
+            }
+          >
             {t('space.control.move.confirm')}
           </button>
         ) : null}
         {can.resume ? (
-          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy} onClick={() => move.mutate({ kind: 'resume' })}>
-            {t(plan.state.status === 'paused' ? 'space.control.move.resume' : 'space.control.move.start')}
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary}`}
+            disabled={busy}
+            onClick={() => (switchedOff ? setAsking(asking === 'resume' ? null : 'resume') : resume())}
+          >
+            {t(paused ? 'space.control.move.resume' : 'space.control.move.start')}
           </button>
         ) : null}
         {can.pause ? (
-          <button type="button" className={ui.button} disabled={busy} onClick={() => move.mutate({ kind: 'pause', reason: null })}>
+          <button
+            type="button"
+            className={ui.button}
+            disabled={busy}
+            onClick={() =>
+              move.mutate(
+                { kind: 'pause', reason: null },
+                {
+                  onSuccess: () =>
+                    told(
+                      'paused',
+                      {},
+                      { undo: () => move.mutateAsync({ kind: 'resume' }), undone: said('resumed', { step: stepName(plan.state.activeStepIndex) }) },
+                    ),
+                },
+              )
+            }
+          >
             {t('space.control.move.pause')}
           </button>
         ) : null}
@@ -420,19 +471,33 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
         {can.resume || can.pause ? <Help topic="planMoves" /> : null}
       </div>
 
-      {/* Starting puts the grow standing here into the stage the first step names, with a diary
-          line: said before the tap, because a ready plan begins at the seedling whatever the
-          grow stands in, and a fridge in bloom read nothing about it until it had happened. */}
-      {can.resume && plan.state.status !== 'paused' && startStage ? (
-        <p className={ui.note}>{t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}</p>
+      {/* Starting puts the grow standing here into the stage the first step names: said before the tap. */}
+      {can.resume && !paused && startStage ? (
+        <p className={ui.note}>
+          {leadHere
+            ? t('space.control.startsStageOf', { grow: leadHere.name, stage: t(`home.stage.${startStage}`) })
+            : t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}
+        </p>
+      ) : null}
+
+      {asking === 'resume' ? (
+        <Asking
+          note={t(paused ? 'space.control.ask.resumeOn' : 'space.control.ask.startOn', { plan: plan.name })}
+          yes={t(paused ? 'space.control.ask.resumeOnYes' : 'space.control.ask.startOnYes')}
+          // The one filled green stays "Fortsetzen": what also switches regulation on is not the obvious tap.
+          quiet
+          busy={busy}
+          onYes={resume}
+          onCancel={close}
+        />
       ) : null}
 
       {asking === 'extend' ? (
         <Asking
           note={t('space.control.ask.extend')}
-          yes={t('space.control.ask.extendYes', { length: stepLengthLabel(t, by) })}
-          busy={busy}
-          onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: close })}
+          yes={t('space.control.ask.extendYes', { length: durationFits(by, 1) ? stepLengthLabel(t, by) : '…' })}
+          busy={busy || !durationFits(by, 1)}
+          onYes={() => move.mutate({ kind: 'extend', by }, { onSuccess: () => told('extended', { length: stepLengthLabel(t, by) }) })}
           onCancel={close}
         >
           <DurationField value={by} min={1} onChange={setBy} />
@@ -446,12 +511,12 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
               ? t('space.control.ask.skipEnds')
               : t(plan.state.status === 'paused' ? 'space.control.ask.skipPaused' : 'space.control.ask.skip', {
                   number: next + 1,
-                  name: plan.steps[next]?.name ?? '',
+                  name: ownStepName(plan.steps[next]?.name ?? '', next),
                 })
           }
           yes={t('space.control.ask.skipYes')}
           busy={busy}
-          onYes={() => move.mutate({ kind: 'skip' }, { onSuccess: close })}
+          onYes={() => move.mutate({ kind: 'skip' }, { onSuccess: () => told(next === null ? 'skippedLast' : 'skipped', { step: stepName(next) }) })}
           onCancel={close}
         />
       ) : null}
@@ -462,7 +527,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           yes={t('space.control.ask.stopYes')}
           danger
           busy={busy}
-          onYes={() => stop.mutate(undefined, { onSuccess: close })}
+          onYes={() => stop.mutate(undefined, { onSuccess: () => told('stopped') })}
           onCancel={close}
         />
       ) : null}
@@ -473,7 +538,7 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
           yes={t('space.control.ask.removeYes')}
           danger
           busy={busy}
-          onYes={() => remove.mutate(undefined, { onSuccess: close })}
+          onYes={() => remove.mutate(undefined, { onSuccess: () => told('removed') })}
           onCancel={close}
         />
       ) : null}
@@ -503,12 +568,12 @@ function Steps({ plan, now }: { plan: Plan; now: DateTime }) {
         return (
           <li key={step.id} className={styles.step} data-current={active ? (how === 'running' ? 'now' : 'held') : undefined}>
             <span className={`mono ${styles.stepIndex}`}>{index + 1}</span>
-            <span className={styles.stepText}>
-              <span className={styles.stepTitle}>{step.name}</span>
-              <span className={`mono ${styles.stepNote}`}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
+            <span className={`${ui.textColumn} ${styles.stepText}`}>
+              <span className={styles.stepTitle}>{stepTitle(t, step.name, index)}</span>
+              <span className={styles.stepNote}>{stepMeta(t, step, offset, followsGermination(plan.steps, index, plan.loop))}</span>
             </span>
             {active ? (
-              <span className={`mono ${styles.here}`} data-status={how}>
+              <span className={styles.here} data-status={how}>
                 {how === 'waiting' ? t('space.control.waiting.short') : t(`space.control.status.${plan.state.status}`)}
               </span>
             ) : null}

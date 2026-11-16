@@ -32,7 +32,7 @@ export function PlanRefusal({ error, onRefresh }: { error: unknown; onRefresh?: 
   if (code === null || !SPOKEN.includes(code)) return <Refused error={error} />;
 
   return (
-    <div className={styles.refusal} role="alert">
+    <div className={`${ui.wrapRow} ${styles.refusal}`} role="alert">
       <p className={ui.problem}>{t(`space.control.refused.${code}`)}</p>
       {onRefresh && STALE.includes(code) ? (
         <button type="button" className={ui.button} onClick={onRefresh}>

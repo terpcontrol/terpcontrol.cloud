@@ -1,4 +1,5 @@
 import { type QueryClient } from '@tanstack/react-query';
+import i18next from 'i18next';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Device, Me } from '@fg2/shared-types/v1';
@@ -8,7 +9,7 @@ import { ApiError } from '@/api/problem';
 import { AddCamera } from '@/screens/camera/add/AddCamera';
 import { drawAt, testClient } from './harness';
 import { spaceWhere } from './session';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Adding a camera: what the two tabs offer, what turns up while somebody
@@ -65,7 +66,7 @@ const known = camera({ id: 'camera-old', name: 'Mother tent cam', did: 'TCAM00B0
 const paired = camera({ id: 'camera-new' });
 const madeRtsp = camera({ id: 'camera-rtsp', kind: 'rtsp', did: null, name: 'Balcony cam', url: 'rtsp://192.168.1.40/stream1' });
 
-/** A device as the Devices tab reads one: what type it is, and when it last said anything. */
+/** A device as the Devices page reads one: what type it is, and when it last said anything. */
 const device = (over: Partial<Device> & { seenSecondsAgo?: number }): Device =>
   ({
     id: 'device-1',
@@ -92,7 +93,7 @@ const plainStream = { username: '', password: '', transport: 'tcp' };
 // standing that decides whether they are offered at all.
 const spaces = [spaceWhere('own'), spaceWhere('own', { id: 'space-2', name: 'Balcony' })];
 
-const madeSpace = spaceWhere('own', { id: 'space-3', name: 'Attic', kind: 'room' });
+const madeSpace = spaceWhere('own', { id: 'space-3', name: 'Attic', kind: 'other' });
 
 const me = (enforced: boolean): Me =>
   ({ id: 'user-1', premium: { enforced, extendUrl: null, priceLabel: '29 € a year' }, pushPublicKey: null }) as unknown as Me;
@@ -108,14 +109,13 @@ const answers = (path: string) => {
   throw new Error(`nothing mocked for ${path}`);
 };
 
-/** Already over, which a capture the server could not even start - a refused stream - can be as it answers. */
+/** Already over, which a test the server could not even start - a refused stream - can be as it answers. */
 const refusedStream = {
   id: 'capture-1',
-  cameraId: 'camera-rtsp',
   state: 'failed',
   startedAt: '2026-09-23T12:00:00.000Z',
   finishedAt: '2026-09-23T12:00:00.000Z',
-  still: null,
+  picture: null,
   reason: 'noAnswer',
   error: 'Connection refused',
 };
@@ -187,10 +187,10 @@ describe('pairing a Terp Cam at a device', () => {
   it('says what to press, and waits with nothing to tap', async () => {
     await drawPairing();
 
-    expect(screen.getByText('Plug the cam in nearby')).toBeInTheDocument();
+    expect(screen.getByText('Plug the Terp Cam in nearby')).toBeInTheDocument();
     // The path the display's own menu takes, word for word.
     expect(screen.getByText('At the controller: press the knob, then Terp Cam › connect cam')).toBeInTheDocument();
-    expect(screen.getByText('No phone app, no Wi-Fi password: the device hands the cam its network. One cam per device.')).toBeInTheDocument();
+    expect(screen.getByText('No phone app, no Wi-Fi password: the device hands the camera its network. One camera per device.')).toBeInTheDocument();
     expect(screen.getByText('It shows up here')).toBeInTheDocument();
 
     // The camera this account already had is not something that turned up.
@@ -342,18 +342,10 @@ describe('an account with no device to pair a cam at', () => {
 
     expect(panel().getByText('No device yet')).toBeInTheDocument();
     expect(panel().getByText(/a fridge module, a controller, a fan or a Plantalytix Socket/)).toBeInTheDocument();
-    expect(panel().getByRole('link', { name: /Claim a device/ })).toHaveAttribute('href', '/claim');
+    expect(panel().getByRole('link', { name: /Add a device/ })).toHaveAttribute('href', '/claim');
     // A watch that nothing could ever cross is not left running.
     expect(panel().queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();
     expect(panel().queryByText(/press the knob/)).not.toBeInTheDocument();
-  });
-
-  it('promises no tunnel under the address before a place has been chosen', async () => {
-    draw();
-    await screen.findByLabelText('Stream address');
-
-    expect(screen.queryByText(/Pulled through/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Pick the place it looks at below/)).toBeInTheDocument();
   });
 });
 
@@ -379,23 +371,24 @@ describe('a camera at a stream address', () => {
     await screen.findByLabelText('Stream address');
   };
 
-  it('makes the camera through the device standing in the chosen tent, then asks it for one picture', async () => {
+  /** A test of an address has a route of its own, which makes no camera: the test made one and took it away, a row each time. */
+  it('asks for one picture through the device standing in the chosen tent, and adds nothing', async () => {
     await openRtsp();
     fill();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
 
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', {
-      kind: 'rtsp',
-      name: 'Balcony cam',
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/cameras/test-captures', {
       spaceId: 'space-1',
       url: 'rtsp://192.168.1.40/stream1',
       deviceId: 'device-1',
       tunnel: true,
       ...plainStream,
     });
-    expect(api.post).toHaveBeenNthCalledWith(2, '/cameras/camera-rtsp/test-captures');
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
     // A wrong address is an ordinary outcome of this button, so the kind of
     // failure is what is drawn, in the screen's language - and the camera's
     // own words, English ffmpeg with the tunnel's port in it, are folded under
@@ -404,6 +397,28 @@ describe('a camera at a stream address', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('Connection refused');
     expect(screen.getByText('What the camera said')).toBeInTheDocument();
     expect(screen.getByText('Connection refused')).toBeInTheDocument();
+  });
+
+  it('shows the picture a good address came back with, which is stored nowhere', async () => {
+    const answered = {
+      ...refusedStream,
+      state: 'done',
+      reason: null,
+      error: null,
+      picture: { capturedAt: new Date(Date.now() - 4_000).toISOString(), jpeg: '/9j/4AAQ' },
+    };
+    vi.mocked(api.post).mockImplementation((path: string) => Promise.resolve(path === '/cameras/test-captures' ? answered : posts(path)) as never);
+    await openRtsp();
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+    });
+
+    const shot = await screen.findByRole('img', { name: 'The picture the test came back with' });
+    expect(shot).toHaveAttribute('src', 'data:image/jpeg;base64,/9j/4AAQ');
+    expect(screen.getByText(/^A picture came back · /)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalledWith('/cameras', expect.anything());
   });
 
   it('keeps the camera´s own words back where the server did not hand them over', async () => {
@@ -445,26 +460,20 @@ describe('a camera at a stream address', () => {
     }
   });
 
-  it('opens the stream itself where no device stands in the chosen place', async () => {
+  it('says how the cloud reaches the address behind the help beside it, and under the field only where no device stands to fetch it', async () => {
     await openRtsp();
-    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp://192.168.1.40/stream1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
+    const field = screen.getByLabelText('Stream address').closest('section')!;
 
-    expect(screen.getByText(/the cloud opens the stream itself/)).toBeInTheDocument();
-  });
-
-  it('says nothing about a tunnel until a place has been chosen', async () => {
-    await openRtsp();
-
-    expect(screen.getByText(/Pick the place it looks at below/)).toBeInTheDocument();
-    expect(screen.queryByText(/Pulled through/)).not.toBeInTheDocument();
-  });
-
-  it('names the device the stream is pulled through', async () => {
-    await openRtsp();
+    const help = within(field).getByRole('button', { name: 'About Stream address' });
+    expect(help).toHaveAccessibleDescription(/the cloud pulls the stream from your network through it/);
+    expect(help).toHaveAccessibleDescription(/Otherwise it opens the stream itself, and the address has to be reachable from the internet\./);
+    // A place with a device keeps no sentence about the way in; one without says what that means for the address.
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
-
-    expect(screen.getByText('Pulled through Terp Controller from your network; a still every 30 s.')).toBeInTheDocument();
+    expect(within(field).queryByRole('paragraph')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
+    expect(within(field).getByRole('paragraph')).toHaveTextContent(
+      'Balcony: no device here fetches the stream from your network · an address on your home network will not answer the cloud',
+    );
   });
 
   it('pulls the stream through a fridge module, the only device in the place', async () => {
@@ -477,10 +486,7 @@ describe('a camera at a stream address', () => {
     });
 
     // Every Terp Control device carries the tunnel, the fridge module included.
-    expect(screen.getByText('Pulled through Fridge module from your network; a still every 30 s.')).toBeInTheDocument();
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', {
-      kind: 'rtsp',
-      name: 'Balcony cam',
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', {
       spaceId: 'space-1',
       url: 'rtsp://192.168.1.40/stream1',
       deviceId: 'device-5',
@@ -494,7 +500,6 @@ describe('a camera at a stream address', () => {
     await openRtsp();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
 
-    expect(screen.getByText('Pulled through Old controller from your network; a still every 30 s.')).toBeInTheDocument();
     expect(screen.getByText(/Old controller is offline · last heard 4 h ago/)).toBeInTheDocument();
   });
 
@@ -507,15 +512,18 @@ describe('a camera at a stream address', () => {
     expect(through.getByRole('button', { name: 'Terp Controller' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(through.getByRole('button', { name: 'Veg controller' }));
 
-    expect(screen.getByText(/Pulled through Veg controller/)).toBeInTheDocument();
+    expect(through.getByRole('button', { name: 'Veg controller' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByText('Advanced'));
+    expect(screen.getByText('The cloud pulls the stream from your network through Veg controller.')).toBeInTheDocument();
   });
 
   it('calls an unnamed device by its type as a word, not as the key a claim stored', async () => {
     state.devices = [device({ name: 'controller' })];
     await openRtsp();
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
+    fireEvent.click(screen.getByText('Advanced'));
 
-    expect(screen.getByText(/Pulled through Controller from your network/)).toBeInTheDocument();
+    expect(screen.getByText('The cloud pulls the stream from your network through Controller.')).toBeInTheDocument();
   });
 
   it('offers no choice of device where the place holds only one', async () => {
@@ -536,7 +544,7 @@ describe('a camera at a stream address', () => {
 
     expect(api.post).toHaveBeenNthCalledWith(
       1,
-      '/cameras',
+      '/cameras/test-captures',
       expect.objectContaining({ url: 'rtsp://192.168.1.40/stream1', username: 'tapo', password: 'p@ss:word' }),
     );
   });
@@ -564,13 +572,13 @@ describe('a camera at a stream address', () => {
     fireEvent.click(screen.getByText('Advanced'));
     fireEvent.click(screen.getByRole('switch', { name: 'Pull through the device' }));
 
-    expect(screen.getByText(/The cloud opens the stream itself \(Advanced\)/)).toBeInTheDocument();
+    expect(screen.getByText(/The cloud opens the stream itself, which only works for a camera reachable from the internet/)).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
 
     // The device still stands there, and still pauses the camera in maintenance.
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', expect.objectContaining({ deviceId: 'device-1', tunnel: false }));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', expect.objectContaining({ deviceId: 'device-1', tunnel: false }));
   });
 
   it('offers UDP only to a stream the cloud opens itself, and reads it the way chosen', async () => {
@@ -593,10 +601,10 @@ describe('a camera at a stream address', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Test' }));
     });
 
-    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras', expect.objectContaining({ tunnel: true, transport: 'http' }));
+    expect(api.post).toHaveBeenNthCalledWith(1, '/cameras/test-captures', expect.objectContaining({ tunnel: true, transport: 'http' }));
   });
 
-  it('moves the camera´s device when the place is changed after a test', async () => {
+  it('adds the camera as the form stands when the place is changed after a test, and opens it', async () => {
     await openRtsp();
     fill();
     await act(async () => {
@@ -604,12 +612,13 @@ describe('a camera at a stream address', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Balcony' }));
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open the camera' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
     });
 
-    // The tunnel is worked out again on every write, so the stored camera never
-    // keeps a device the screen has stopped promising.
-    expect(api.patch).toHaveBeenCalledWith('/cameras/camera-rtsp', {
+    // The tunnel is worked out again on every write, so the camera never keeps
+    // a device the screen has stopped promising.
+    expect(api.post).toHaveBeenLastCalledWith('/cameras', {
+      kind: 'rtsp',
       name: 'Balcony cam',
       spaceId: 'space-2',
       url: 'rtsp://192.168.1.40/stream1',
@@ -617,11 +626,42 @@ describe('a camera at a stream address', () => {
       tunnel: false,
       ...plainStream,
     });
+    expect(api.patch).not.toHaveBeenCalled();
   });
 
-  it('says what the server said when the camera was refused', async () => {
+  it('says a refused address in the field´s own words, once, whatever language the server wrote it in', async () => {
     vi.mocked(api.post).mockRejectedValue(
-      new ApiError({ status: 403, title: 'Refused', detail: 'That tent is not yours to hang a camera in.', code: 'forbidden', errors: [] }),
+      new ApiError({
+        status: 422,
+        title: 'Unprocessable',
+        detail: 'A stream is opened at an address that begins with rtsp:// or rtsps:// and names a host.',
+        code: 'not_a_stream_address',
+        errors: [{ field: 'url', code: 'not_a_stream_address', detail: 'Write the address as rtsp://host/path.' }],
+      } as never),
+    );
+    await openTab('RTSP');
+    await screen.findByLabelText('Stream address');
+    fill();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^A stream is opened at an address/);
+
+    // The server writes English only: German says it in the field's words, and the field's own refusal once.
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await act(() => i18next.changeLanguage('de'));
+    try {
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /^Eine Stream-Adresse beginnt mit rtsp:\/\/ oder rtsps:\/\/ und nennt die Kamera, etwa rtsp:\/\/192\.168\.1\.40:554\/stream1\.$/,
+      );
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
+  });
+
+  it('says what the server said when the test was refused', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({ status: 403, title: 'Refused', detail: 'That tent is not yours to hang a camera in.', code: 'insufficient_access', errors: [] }),
     );
     await openRtsp();
     fill();
@@ -643,45 +683,57 @@ describe('a camera at a stream address', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Tent 1' }));
     expect(screen.getByText('Give it a name first.')).toBeInTheDocument();
-    // The reason reaches a screen reader through the button that cannot be pressed.
+    // The reason reaches a screen reader through the button that cannot be pressed; a test needs no name.
     expect(screen.getByRole('button', { name: 'Add camera' })).toHaveAccessibleDescription('Give it a name first.');
+    expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+    // Beside "give it a name first", a placeholder that reads like a name ("Camera") looked like one already given.
+    expect(screen.getByLabelText('Name')).toHaveAttribute('placeholder', expect.stringMatching(/ …$/));
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Balcony cam' } });
     expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();
   });
 
-  it('says beforehand that testing adds the camera, and afterwards where it went', async () => {
+  it('says that the test adds nothing, and adds the camera on "Add camera" alone, opening its page', async () => {
     await openRtsp();
     fill();
 
-    expect(screen.getByText(/Test adds the camera and then asks it for one picture/)).toBeInTheDocument();
-
+    expect(screen.getByText('“Test” asks for one picture and adds nothing.')).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add camera' }));
     });
 
-    // The camera exists from here on, so the screen stops drawing the primary
-    // button as the tap that would commit it.
-    expect(screen.getByText('Added to Tent 1. It is on your Devices tab now, and testing again updates it.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add camera' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open the camera' })).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.post).toHaveBeenCalledWith('/cameras', expect.not.objectContaining({ logErrors: false }));
+    expect(api.delete).not.toHaveBeenCalled();
   });
 
-  it('takes the camera away again from the screen the address was mistyped on', async () => {
+  /** "quatsch" made a camera that could never show a picture. */
+  it('refuses an address that is no stream address under the field, before anything is written', async () => {
     await openRtsp();
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp:/' } });
+    // Still on its way to rtsp://: not refused yet, only not there.
+    expect(screen.getByLabelText('Stream address')).not.toHaveAttribute('aria-invalid');
     fill();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Test' }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Take it away again' }));
-    });
+    // The scheme alone is no address yet - it was told "Type the stream address first" over a field that held one.
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsp://' } });
+    expect(screen.getByRole('button', { name: 'Test' })).toHaveAccessibleDescription(
+      'That is no stream address yet: the camera is missing, such as rtsp://192.168.1.40:554/stream1.',
+    );
+    expect(screen.queryByText('Type the stream address first.')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'quatsch' } });
 
-    expect(api.delete).toHaveBeenCalledWith('/cameras/camera-rtsp');
-    expect(screen.queryByText(/It is on your Devices tab now/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add camera' })).toBeInTheDocument();
-    // The next tap makes a camera rather than amending the one just removed.
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const refusal = 'A stream address starts with rtsp:// or rtsps:// and names the camera, such as rtsp://192.168.1.40:554/stream1.';
+    expect(screen.getByLabelText('Stream address')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Stream address')).toHaveAccessibleDescription(refusal);
+    for (const name of ['Test', 'Add camera']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+      expect(screen.getByRole('button', { name })).toHaveAccessibleDescription(refusal);
+    }
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'http://192.168.1.40/stream1' } });
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Stream address'), { target: { value: 'rtsps://cam.example.org/live' } });
+    expect(screen.getByRole('button', { name: 'Add camera' })).toBeEnabled();
+    expect(api.post).not.toHaveBeenCalled();
   });
 
   it('makes the place the camera looks at where the account has none', async () => {
@@ -690,13 +742,19 @@ describe('a camera at a stream address', () => {
 
     expect(screen.getByText(/There is no place to put a camera in yet/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Name of the place'), { target: { value: 'Attic' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Room' }));
+    // The kinds of a place a camera looks into: a room that groups places is none of them, nor a fridge.
+    expect(
+      within(screen.getByRole('group', { name: 'Kind of place' }))
+        .getAllByRole('button')
+        .map(chip => chip.textContent),
+    ).toEqual(['Tent', 'Balcony', 'Drying box', 'Greenhouse', 'Other']);
+    fireEvent.click(screen.getByRole('button', { name: 'Other' }));
     state.spaces = [madeSpace];
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Make the place' }));
     });
 
-    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'room', name: 'Attic' });
+    expect(api.post).toHaveBeenCalledWith('/spaces', { kind: 'other', name: 'Attic' });
     // The place it just made is the chosen one, so nothing typed is lost.
     expect(await screen.findByRole('button', { name: 'Attic' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -705,7 +763,19 @@ describe('a camera at a stream address', () => {
     state.premium = false;
     await openRtsp();
 
-    expect(await screen.findByText('Premium is not charged on this installation, so an RTSP camera costs you nothing here.')).toBeInTheDocument();
+    expect(await screen.findByText('An RTSP camera costs nothing on this installation.')).toBeInTheDocument();
+  });
+});
+
+describe('a guest with no place of his own', () => {
+  it('is told he needs a place of his own first, and offered one, rather than the steps of pairing at a device he may not touch', async () => {
+    state.spaces = [spaceWhere('log', { id: 'space-9', name: 'Their tent', ownerId: 'user-2' })];
+    state.devices = [device({ id: 'device-9', spaceId: 'space-9', ownerId: 'user-2' } as Partial<Device>)];
+    draw();
+
+    expect(await screen.findByText(/A camera goes into a place of your own, and so far you only see other people’s places/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Which camera' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name of the place')).toBeInTheDocument();
   });
 });
 

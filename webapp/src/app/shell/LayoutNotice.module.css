@@ -1,5 +1,6 @@
 /* A change to the app's own shape, said once: the brand's calm wash rather
-   than the amber of something that has to be acted on. */
+   than the amber of something that has to be acted on, a column wide and
+   centred above whatever page it is said on. */
 .notice {
   display: flex;
   gap: var(--space-2);
@@ -21,9 +22,6 @@
 }
 
 .text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -34,6 +32,7 @@
   gap: var(--space-2) var(--space-4);
 }
 
-.ok {
-  height: var(--action-height);
+/* The way to where the diary is switched off again, a finger high. */
+.actions a {
+  min-height: var(--control-height);
 }

@@ -1,5 +1,5 @@
 import type { DeviceConfiguration, ProblemError } from '@fg2/shared-types/v1';
-import { isSection, MOST_TIMER_WINDOWS, nestedAt, PLUG_SWITCHING } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { isSection, MOST_TIMER_WINDOWS, nestedAt, PLUG_SWITCHING, TARGET_RANGES } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { DAY_SECONDS } from '@fg2/shared-types/v1-schemas/day-night.js';
 
 /**
@@ -35,6 +35,8 @@ interface NumberFigure {
   kind: 'number';
   min: number;
   max: number;
+  /** A target a person sets, held to the range they may set it in rather than the firmware's (`TARGET_RANGES`). */
+  target?: true;
 }
 
 /** On or off: the firmware reads a bool, or a float that counts above zero. */
@@ -237,12 +239,16 @@ const windowFault = (window: unknown, figure: WindowsFigure): boolean =>
 /** Why a value does not fit where it stands, or null; `ranged` is whether its range is asked as well as its kind. */
 const faultOf = (value: unknown, figure: DocumentFigure, type: string, ranged: boolean): Fault | null => {
   switch (figure.kind) {
-    case 'number':
+    case 'number': {
       if (!isNumber(value)) return { code: 'invalid_type', detail: `The ${type} reads this as a number.` };
       if (!ranged) return null;
-      if (value < figure.min) return { code: 'too_small', detail: `The ${type} reads this as a number from ${figure.min} to ${figure.max}.` };
-      if (value > figure.max) return { code: 'too_big', detail: `The ${type} reads this as a number from ${figure.min} to ${figure.max}.` };
+      const range = figure.target
+        ? `This target is set from ${figure.min} to ${figure.max}.`
+        : `The ${type} reads this as a number from ${figure.min} to ${figure.max}.`;
+      if (value < figure.min) return { code: 'too_small', detail: range };
+      if (value > figure.max) return { code: 'too_big', detail: range };
       return null;
+    }
     case 'flag':
       return typeof value === 'boolean' || isNumber(value)
         ? null
@@ -272,8 +278,22 @@ const faultOf = (value: unknown, figure: DocumentFigure, type: string, ranged: b
 /* ----------------------------------------------------------------- refusing */
 
 /**
+ * The figures as a person may set them: the targets in the ranges the app sets
+ * them in (`TARGET_RANGES`), everything else as the firmware reads it. Only a
+ * client's write is held to these; what a device reports, and what the server
+ * writes itself, is held to the firmware's.
+ */
+const asSetByHand = (figures: DocumentFigures): DocumentFigures => {
+  const targets = Object.entries(TARGET_RANGES).flatMap(([path, range]): [string, NumberFigure][] =>
+    figures[path]?.kind === 'number' ? [[path, { kind: 'number', min: range.min, max: range.max, target: true }]] : [],
+  );
+  return { ...figures, ...Object.fromEntries(targets) };
+};
+
+/**
  * Every figure of a document a client sent that the device's firmware would
- * misread, or that lies outside the firmware's range, as the problem's errors:
+ * misread, or that lies outside the range it may be set in - a target's
+ * (`TARGET_RANGES`), else the firmware's -, as the problem's errors:
  * `configuration.night.temperature`, under `field`. All of them at once, so a
  * client learns everything it has to correct in one answer.
  *
@@ -313,7 +333,7 @@ export const figureRefusals = (
     }
   }
 
-  for (const [path, figure] of Object.entries(figures)) {
+  for (const [path, figure] of Object.entries(asSetByHand(figures))) {
     const value = nestedAt(document, path);
     if (value === undefined || unchanged(path, value)) continue;
     const fault = faultOf(value, figure, type, true);

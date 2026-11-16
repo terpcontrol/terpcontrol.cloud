@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { placePath } from '@/app/places';
+import { windowTitle } from '@/app/shell/page-title';
 import type { InvitePreview } from '@fg2/shared-types/v1';
 import { useAcceptInvite, useInvitePreview } from '@/api/invites';
 import { session, useSession } from '@/api/session';
@@ -11,6 +12,9 @@ import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import styles from './Join.module.css';
+
+/** Names the window after the page, as `Nothing` does for an invitation that leads nowhere: the shell round them knows no title. */
+const useWindowTitle = (title: string) => useEffect(() => void (document.title = windowTitle(title)), [title]);
 
 /**
  * `/join/{code}`: what somebody who was sent a link sees, and `/join` on its
@@ -61,6 +65,7 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   const zone = useZone();
   const name = preview.spaceName ?? '';
   const here = `/join/${code}`;
+  useWindowTitle(t('space.members.join.title', { name }));
 
   // The sign-up page comes back here with this word once the account exists:
   // the person read the terms above before they went to make one, and made it
@@ -76,20 +81,19 @@ function Invitation({ preview, code, signedIn, isDemo }: { preview: InvitePrevie
   }, [takeUp, signedIn, isDemo, acceptInvite, code, navigate]);
 
   return (
-    <section className={styles.invitation}>
+    <section className={ui.stack3}>
       <span className="label">{t('space.members.join.label')}</span>
       <h1>{t('space.members.join.title', { name })}</h1>
       <p className={styles.by}>
         {preview.invitedByHandle ? t('space.members.join.by', { handle: preview.invitedByHandle }) : t('space.members.join.bySomebody')}
       </p>
 
-      <div className={`${ui.card} ${styles.terms}`}>
+      <div className={`${ui.card} ${ui.stack2}`}>
         <p className={styles.term}>{t(`space.members.join.asRole.${preview.role ?? 'can_log'}`)}</p>
-        <p className={styles.term}>{t('space.members.join.sees', { name })}</p>
+        {/* The cameras are named where one hangs there: a promise of pictures a place without one could not keep. */}
+        <p className={styles.term}>{t(preview.hasCamera ? 'space.members.join.sees' : 'space.members.join.seesNoCamera', { name })}</p>
         <p className={styles.term}>{t('space.members.join.doesNotSee')}</p>
-        {preview.expiresAt ? (
-          <p className={`mono ${styles.until}`}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p>
-        ) : null}
+        {preview.expiresAt ? <p className={styles.until}>{t('space.members.join.until', { date: calendarDay(preview.expiresAt, zone) })}</p> : null}
       </div>
 
       {isDemo ? (
@@ -134,15 +138,16 @@ function CodeEntry() {
   const navigate = useNavigate();
   const [typed, setTyped] = useState('');
   const code = typed.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  useWindowTitle(t('space.members.join.code.title'));
 
   return (
-    <section className={styles.invitation}>
+    <section className={ui.stack3}>
       <span className="label">{t('space.members.join.label')}</span>
       <h1>{t('space.members.join.code.title')}</h1>
       <p className={styles.by}>{t('space.members.join.code.body')}</p>
 
       <form
-        className={styles.codeForm}
+        className={ui.stack3}
         onSubmit={event => {
           event.preventDefault();
           if (code) void navigate(`/join/${code}`);
@@ -150,7 +155,7 @@ function CodeEntry() {
         noValidate
       >
         <input
-          className={`mono ${ui.input}`}
+          className={ui.input}
           aria-label={t('space.members.join.code.field')}
           placeholder={t('space.members.join.code.field')}
           autoCapitalize="characters"

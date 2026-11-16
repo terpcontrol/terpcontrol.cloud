@@ -1,13 +1,12 @@
-import type { HomeAnswer, HomeSpaceCard, Plant } from '@fg2/shared-types/v1';
+import type { GrowListItem, HomeAnswer, HomeSpaceCard, Plant } from '@fg2/shared-types/v1';
+import { alsoIn } from '@/screens/space/movable-grows';
 import type { LogOpening, LogTarget } from './log-context';
 
 /**
- * The chips of the target row: every place a line can go, and then the narrower
- * places inside the one that is chosen.
- *
- * A grow and the space it stands in are both first-class - a tent is logged
- * against when nothing grows in it, and a grow is logged against wherever it
- * stands - so the row is not a hierarchy to walk down but a list to pick from.
+ * The chips of the target row: what a line can be about. A grow, and then its
+ * plants. A place is a chip only where there are several to tell apart - one
+ * per grow growing there, named in it - or where nothing grows in it, so that
+ * the line is the place's.
  */
 
 const growTarget = (card: HomeSpaceCard): LogTarget | null =>
@@ -33,33 +32,65 @@ const spaceTarget = (card: HomeSpaceCard): LogTarget => ({
   standsIn: card.spaceId,
 });
 
-/** One chip per place, in the order the home lists them: its grow where one grows, the space itself where none does. */
-export const targetsOf = (home: HomeAnswer | undefined): LogTarget[] => (home?.spaces ?? []).map(card => growTarget(card) ?? spaceTarget(card));
+/** A grow that shares its place with the one the home leads with: the home's card carries the newer alone. */
+const twinTarget = (grow: GrowListItem, spaceId: string): LogTarget => ({
+  key: `grow:${grow.id}`,
+  label: grow.name,
+  growId: grow.id,
+  spaceId: null,
+  plantIds: [],
+  dayNumber: grow.summary.dayNumber,
+  standsIn: spaceId,
+});
 
-/** The card the chosen target belongs to, which is where its tent and its own name are. A grow that stands nowhere has none. */
-const cardOf = (home: HomeAnswer | undefined, target: LogTarget | null): HomeSpaceCard | null =>
-  target?.standsIn ? ((home?.spaces ?? []).find(card => card.spaceId === target.standsIn) ?? null) : null;
+/**
+ * The targets of the places, in the order the home lists them: each grow growing in a place - the one standing there
+ * longest first, the order every page leads with them (`placeAim` without a chip pressed, which would move a chip under
+ * the finger) - and the space itself where none does. A second grow in a place is a chip of its own, so a line written
+ * for it never lands in the other's diary.
+ */
+export const targetsOf = (home: Pick<HomeAnswer, 'spaces'> | undefined, grows?: GrowListItem[]): LogTarget[] =>
+  (home?.spaces ?? []).flatMap(card => {
+    const lead = growTarget(card);
+    if (!lead) return [spaceTarget(card)];
+    const others = card.spaceId === null ? [] : alsoIn(grows, card.spaceId, lead.growId!).map(grow => twinTarget(grow, card.spaceId!));
+    return [lead, ...others].sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
+  });
 
-/** The tent the chosen grow stands in and its plants: the rest of the board's row, and only while a grow is chosen. */
-export const narrowerTargets = (home: HomeAnswer | undefined, target: LogTarget | null, plants: Plant[]): LogTarget[] => {
-  if (!target?.growId) return [];
-
-  const card = cardOf(home, target);
-  const growing = plants.filter(plant => plant.status === 'active');
-
-  return [
-    ...(card ? [spaceTarget(card)] : []),
-    ...growing.map(plant => ({
-      key: `plant:${plant.id}`,
-      label: plant.label,
-      growId: target.growId,
-      spaceId: null,
-      plantIds: [plant.id],
-      dayNumber: target.dayNumber,
-      standsIn: target.standsIn,
-    })),
-  ];
+/**
+ * The names of the grows standing in a place, in the order every page leads with them: the place's lead first
+ * (`placeAim`), then the one standing there longest.
+ */
+export const namesInLeadOrder = (targets: LogTarget[], spaceId: string | null, lead: string | null | undefined): string[] => {
+  const here = targets.filter(target => target.growId !== null && spaceId !== null && target.standsIn === spaceId);
+  return [...here.filter(target => target.growId === lead), ...here.filter(target => target.growId !== lead)].map(target => target.label);
 };
+
+/**
+ * What a place's chip says where several places are chosen between: the place,
+ * and the grow growing there - "Zelt · Blue Dream". A grow standing in no
+ * place, and a place nothing grows in, is its own name.
+ */
+export const placeChip = (home: HomeAnswer | undefined, target: LogTarget): string => {
+  const card = target.growId && target.standsIn ? (home?.spaces ?? []).find(one => one.spaceId === target.standsIn) : null;
+  return card ? `${card.name} · ${target.label}` : target.label;
+};
+
+/** The plants of the chosen grow, each a narrower thing the line can be about. */
+export const narrowerTargets = (target: LogTarget | null, plants: Plant[]): LogTarget[] =>
+  target?.growId
+    ? plants
+        .filter(plant => plant.status === 'active')
+        .map(plant => ({
+          key: `plant:${plant.id}`,
+          label: plant.label,
+          growId: target.growId,
+          spaceId: null,
+          plantIds: [plant.id],
+          dayNumber: target.dayNumber,
+          standsIn: target.standsIn,
+        }))
+    : [];
 
 /** Where a sheet opens, and whether the address it was opened with could be honoured. */
 interface Aim {
@@ -69,10 +100,34 @@ interface Aim {
   missed: boolean;
 }
 
+/** When a target's grow came to stand where it stands now; '' where that is not known, which ranks first. */
+const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): string =>
+  (grows ?? [])
+    .find(grow => grow.id === target.growId)
+    ?.placements.filter(placement => placement.spaceId === target.standsIn && placement.endedAt === null)
+    .map(placement => placement.startedAt)
+    .sort()[0] ?? '';
+
+/**
+ * What a page about a place aims at where two grows stand there - Start's picture and first card, Grow, Verlauf's
+ * days, and Eintrag opened over any of them: the grow the last line was written for (`last`, a target's key), else the
+ * one standing there longest. The home leads with the newer, and seeds sown beside flowering plants are not where most
+ * lines go.
+ */
+export const placeAim = (targets: LogTarget[], spaceId: string | null | undefined, last: string | null, grows?: GrowListItem[]): LogTarget | null => {
+  const here = targets
+    .filter(target => spaceId && target.standsIn === spaceId)
+    .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
+  return here.find(target => target.key === last) ?? here[0] ?? null;
+};
+
 /**
  * Which chip starts chosen: the grow or tent the screen underneath is about,
- * then whatever was chosen last time, then the first place there is. A sheet
- * opened on the grow page is already pointed at that grow.
+ * then whatever was chosen last time, then the first place where something
+ * grows - an empty tent listed first is not where a line is most likely about -,
+ * then the first place there is. A sheet opened over a page about one grow - its
+ * own, Grow, Verlauf narrowed to it - is pointed at that grow. Opened over a
+ * place where two grows stand - its page, Start - it is the one `placeAim` says.
  *
  * The fallback is for an opening that named nothing, and for that only. A link
  * that did name a subject and missed is a different answer and not a smaller
@@ -84,13 +139,15 @@ interface Aim {
  * would land in a running grow's diary under somebody else's name. So the miss
  * is carried out of here as a miss, and the sheet says it and waits.
  */
-export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null): Aim => {
-  const asked =
-    targets.find(target => opening.growId && target.growId === opening.growId) ??
-    targets.find(target => opening.spaceId && target.standsIn === opening.spaceId) ??
-    null;
+export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null, grows?: GrowListItem[]): Aim => {
+  const inPlace = (spaceId: string | null | undefined): LogTarget | null => placeAim(targets, spaceId, last, grows);
+  const asked = targets.find(target => opening.growId && target.growId === opening.growId) ?? inPlace(opening.spaceId);
 
   if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };
 
-  return { target: targets.find(target => target.key === last) ?? targets[0] ?? null, missed: false };
+  const growing = targets.find(target => target.growId !== null);
+  return {
+    target: targets.find(target => target.key === last) ?? (growing && inPlace(growing.standsIn)) ?? growing ?? targets[0] ?? null,
+    missed: false,
+  };
 };

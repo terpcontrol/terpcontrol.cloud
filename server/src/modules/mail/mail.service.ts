@@ -5,7 +5,7 @@ import { mailConfig } from '../../config/configuration';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const nodemailer = require('nodemailer');
 
-export interface Mail {
+interface Mail {
   to: string;
   subject: string;
   text: string;

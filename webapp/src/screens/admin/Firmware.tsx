@@ -12,15 +12,20 @@ import {
   useUploadBinary,
 } from '@/api/admin';
 import { itemsOf, useFollowCursor } from '@/api/pages';
+import { Facts } from '@/ui/Facts';
+import { NameSheet } from '@/ui/NameSheet';
 import { Sheet } from '@/ui/Sheet';
-import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminNotLoaded } from './parts';
+import { typeName } from '@/ui/naming';
+import { together } from '@/api/read';
+import { NothingHere, Refused } from '@/ui/PageState';
+import { AdminHead, AdminNotLoaded, Label, OutOfTheRow } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { CLOCK, useZone, zoned } from '@/ui/zone';
 import { ClassRollout } from './ClassRollout';
 import { pointedAtBy } from './rollout';
 import styles from './Admin.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * The builds this cloud hands out, and where each class is handing them.
@@ -48,25 +53,24 @@ export function FirmwareScreen() {
   useFollowCursor(firmwares);
   useFollowCursor(devices);
 
-  const header = <AdminHead title={t('admin.firmware.title')} crumb={t('admin.firmware.title')} />;
+  const header = <AdminHead title={t('admin.firmware.title')} readAt={firmwares.dataUpdatedAt} />;
 
   if (classes.isPending || firmwares.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} retry={() => void classes.refetch()} />;
+  if (!classes.data || !firmwares.data) return <AdminNotLoaded head={header} read={together(classes, firmwares)} />;
 
   const builds = itemsOf(firmwares.data);
   const allDevices = itemsOf(devices.data);
   const known = classes.data.items;
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {header}
 
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <span className="label">{t('admin.firmware.classes')}</span>
+          <Label text={t('admin.firmware.classes')} help="firmwareClasses" />
         </div>
-        <p className={`${ui.note} ${styles.consequence}`}>{t('admin.firmware.classesHow')}</p>
         {known.map(deviceClass => (
           <ClassRollout
             key={deviceClass.id}
@@ -101,7 +105,7 @@ export function FirmwareScreen() {
         </table>
       </div>
 
-      {builds.length === 0 ? <p className={`${ui.cardDashed} ${ui.note}`}>{t('admin.firmware.noBuilds')}</p> : null}
+      {builds.length === 0 ? <NothingHere>{t('admin.firmware.noBuilds')}</NothingHere> : null}
     </section>
   );
 }
@@ -119,17 +123,16 @@ function Register({ classes }: { classes: DeviceClass[] }) {
   return (
     <section className={styles.card}>
       <div className={styles.cardHead}>
-        <span className="label">{t('admin.firmware.register')}</span>
+        <Label text={t('admin.firmware.register')} help="firmwareRegister" />
       </div>
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.firmware.registerHow')}</p>
 
       <div className={styles.fields}>
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.column.class')}</span>
-          <select className={`${ui.input} ${styles.menu}`} value={classId} onChange={event => setClassId(event.target.value)}>
+          <select className={`${ui.input} ${ui.menu}`} value={classId} onChange={event => setClassId(event.target.value)}>
             {classes.map(deviceClass => (
               <option key={deviceClass.id} value={deviceClass.id}>
-                {deviceClass.name}
+                {typeName(deviceClass.name, t)}
               </option>
             ))}
           </select>
@@ -140,11 +143,11 @@ function Register({ classes }: { classes: DeviceClass[] }) {
         </label>
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.version')}</span>
-          <input className={`mono ${ui.input}`} value={version} autoComplete="off" onChange={event => setVersion(event.target.value)} />
+          <input className={ui.input} value={version} autoComplete="off" onChange={event => setVersion(event.target.value)} />
         </label>
       </div>
 
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <button
           type="button"
           className={`${ui.button} ${ui.primary}`}
@@ -184,24 +187,37 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         {build.name ? <span>{build.name}</span> : <span className={styles.rowName}>{t('admin.firmware.unnamed')}</span>}
         <div className="mono">{build.version}</div>
       </td>
-      <td>{deviceClass?.name ?? <span className="mono">{build.classId}</span>}</td>
+      <td>{deviceClass ? typeName(deviceClass.name, t) : <span className="mono">{build.classId}</span>}</td>
       <td className="mono">{zoned(build.createdAt, zone).toFormat(`yyyy-LL-dd ${CLOCK}`)}</td>
-      <td className="mono">
-        {pointers.length > 0 ? pointers.map(one => `${one.deviceClass.name} · ${t(`devices.channel.${one.channel}`)}`).join(', ') : '—'}
-        {build.wasStable ? ` · ${t('admin.firmware.wasStable')}` : ''}
+      {/* Facts that break between them rather than one line the pinned actions cut: "21 auf…" said nothing. */}
+      <td>
+        {pointers.length > 0 || build.wasStable ? (
+          <Facts
+            facts={[
+              ...pointers.map(one => `${typeName(one.deviceClass.name, t)} · ${t(`devices.channel.${one.channel}`)}`),
+              build.wasStable ? t('admin.firmware.wasStable') : null,
+            ]}
+          />
+        ) : (
+          '—'
+        )}
       </td>
-      <td className={`mono ${styles.numbers}`}>
-        {stats
-          ? t('admin.firmware.runningCount', {
-              total: stats.total,
-              online: t('admin.count.online', { count: stats.online }),
-              installing: t('admin.count.installing', { count: stats.updating }),
-              failed: stats.failed,
-            })
-          : '—'}
+      <td className={styles.counts}>
+        {stats ? (
+          <Facts
+            facts={[
+              String(stats.total),
+              t('admin.count.online', { count: stats.online }),
+              t('admin.count.installing', { count: stats.updating }),
+              t('admin.firmware.gaveUp', { count: stats.failed }),
+            ]}
+          />
+        ) : (
+          '—'
+        )}
       </td>
       <td>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <button type="button" className={ui.chip} onClick={() => setOpen('upload')}>
             {t('admin.firmware.upload')}
           </button>
@@ -223,9 +239,11 @@ function BuildRow({ build, classes, fleet }: { build: Firmware; classes: DeviceC
         </span>
         {pointers.length > 0 ? <span className={styles.consequence}>{t('admin.firmware.inUse')}</span> : null}
 
-        {open === 'upload' ? <UploadSheet build={build} onClose={() => setOpen(null)} /> : null}
-        {open === 'rename' ? <RenameSheet build={build} onClose={() => setOpen(null)} /> : null}
-        {open === 'delete' ? <DeleteSheet build={build} onClose={() => setOpen(null)} /> : null}
+        <OutOfTheRow>
+          {open === 'upload' ? <UploadSheet build={build} onClose={() => setOpen(null)} /> : null}
+          {open === 'rename' ? <RenameSheet build={build} onClose={() => setOpen(null)} /> : null}
+          {open === 'delete' ? <DeleteSheet build={build} onClose={() => setOpen(null)} /> : null}
+        </OutOfTheRow>
       </td>
     </tr>
   );
@@ -273,42 +291,31 @@ function UploadSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       </label>
       <label className={styles.field}>
         <span className="label">{t('admin.firmware.fileName')}</span>
-        <input className={`mono ${ui.input}`} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
+        <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
       </label>
-      {file ? <p className={`mono ${styles.consequence}`}>{t('admin.count.bytes', { count: file.size })}</p> : null}
+      {file ? <p className={styles.consequence}>{t('admin.count.bytes', { count: file.size })}</p> : null}
       <Refused error={upload.error} />
     </Sheet>
   );
 }
 
-/** Relabelling. The version stays what the container stamped; only the name a person reads changes. */
+/** Relabelling. The version stays what the container stamped; only the name a person reads changes, and an empty one takes it away. */
 function RenameSheet({ build, onClose }: { build: Firmware; onClose: () => void }) {
   const { t } = useTranslation();
   const rename = useUpdateFirmware();
-  const [name, setName] = useState(build.name ?? '');
 
   return (
-    <Sheet
+    <NameSheet
       title={t('admin.firmware.renameTitle')}
       aside={build.version}
+      fields={{ name: { label: t('admin.firmware.buildName'), value: build.name ?? '' } }}
+      error={rename.error}
+      busy={rename.isPending}
+      save={t('admin.firmware.renameIt')}
+      ready={() => true}
+      onSave={({ name }) => rename.mutate({ firmwareId: build.id, body: { name: name || null } }, { onSuccess: onClose })}
       onClose={onClose}
-      actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.primary}`}
-          disabled={rename.isPending}
-          onClick={() => rename.mutate({ firmwareId: build.id, body: { name: name.trim() || null } }, { onSuccess: onClose })}
-        >
-          {t('admin.firmware.renameIt')}
-        </button>
-      }
-    >
-      <label className={styles.field}>
-        <span className="label">{t('admin.firmware.buildName')}</span>
-        <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
-      </label>
-      <Refused error={rename.error} />
-    </Sheet>
+    />
   );
 }
 
@@ -323,14 +330,13 @@ function DeleteSheet({ build, onClose }: { build: Firmware; onClose: () => void 
       aside={build.version}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.danger}`}
+        <Answer
+          yes={t('admin.firmware.deleteIt')}
+          danger
           disabled={remove.isPending}
-          onClick={() => remove.mutate(build.id, { onSuccess: onClose })}
-        >
-          {t('admin.firmware.deleteIt')}
-        </button>
+          onYes={() => remove.mutate(build.id, { onSuccess: onClose })}
+          onCancel={onClose}
+        />
       }
     >
       <p className={styles.sheetBody}>{t('admin.firmware.deleteBody', { build: build.name ?? build.version })}</p>

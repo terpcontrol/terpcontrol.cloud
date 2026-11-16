@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
-import type { Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
+import type { GrowDayEvent, Metric, SpaceTimeline, TimelineAlarm, TimelineGrow, TimelineRange } from '@fg2/shared-types/v1';
 import { outputMetric } from '@fg2/shared-types/v1-schemas';
-import { Grant, isOutsider } from '@common/v1/access.types';
+import { AccessService, subjectRef } from '@common/v1/access.service';
+import { AccessContext, Grant, isOutsider } from '@common/v1/access.types';
+import { calledIn } from '@common/v1/device-called';
+import { Stood, arrivalOf, stayOf } from '@common/v1/device-placements';
 import { badRequest, notFound } from '@common/v1/problem';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
-import { storyEndsAt, withinRange } from '@common/v1/range';
+import { Span, storyEndsAt, withinRange } from '@common/v1/range';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
@@ -14,41 +18,55 @@ import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { MediaDocument } from '@database/schemas/v1/media.schema';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
-import { DIARY_KINDS, MACHINE_KINDS, readingNamesOf, serialiseDiaryEntry } from '../diary/diary-entries';
+import {
+  DIARY_KINDS,
+  MACHINE_KINDS,
+  TOLD_OF_MACHINES,
+  readingNamesOf,
+  serialiseDiaryEntry,
+  stretchEvent,
+  toldOfRecord,
+  writtenFor,
+} from '../diary/diary-entries';
 import { grantRedaction } from '../grow/redactions';
-import { alertsRaisedIn } from '../home/open-alerts';
-import { recordOf } from '../phase/target-record';
 import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
-import { lastReadingOf } from './last-reading';
-import { PANEL_METRICS, chartPartsOf, panelsOf } from './timeline-series';
-import { TimelineWindow, camerasOfDevice, narrowedToDevice, steeringOf, stretchesOf, windowOf } from './timeline-window';
+import { lastReadingsOf, newestOf } from './last-reading';
+import { PANEL_METRICS, SamplesAround, chartPartsOf, heardNothing, panelsOf, readingOf, silencesOf } from './timeline-series';
+import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
+import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
 /**
- * The Timeline tab, as one answer.
+ * The Timeline, as one answer.
  *
  * Every part of it is a view of the same window - the frame above the panels,
  * the curves, the band that applied, the night, the alarms, the lanes and the
- * rail - so it is answered together. A screen that asked for them separately
+ * lines of the diary - so it is answered together. A screen that asked for them separately
  * would draw six windows that disagree at their edges and would have to scrub
  * them into agreement afterwards.
  *
- * **What the whole answer costs, for every range.** Up to thirteen reads of
+ * **What the whole answer costs, for every range.** Up to fifteen reads of
  * Mongo - the space, the devices standing in it, the grows that have stood in
  * it, the alerts overlapping the window, the metrics their rules watch, the
- * diary over the window and the machines' own lines over it, the cameras, one
- * aggregation for the frames, the people the rail names, and two or three of
+ * diary over the window and the machines' own lines over it, the lines of a
+ * maintenance or a regulation off before the window and from its start on (a
+ * stretch the window cuts is told whole), the cameras, one
+ * aggregation for the frames, the people the lines name, and two or three of
  * the steering device's target record - and two time-series reads per device
  * in the space, the curve and the switchings behind it. The frames and the
  * people are skipped where there is nothing to look up, the third read of the
  * record where the first two found it, and a redacted reader reads the diary
  * alone. A third time-series read per device is paid by
  * a window with no curves in it at all, and by no other: it is the one window
- * that cannot say for itself whether this place measures - see `lastReadingOf`.
+ * that cannot say for itself whether this place measures - see `lastReadingsOf`;
+ * and two of the drawn device where it was heard nowhere in the window, for the
+ * ends of the silence the window lies in (`samplesAround`).
  *
  * A long range costs no more than a short one, because the step follows from
  * the width of the window: `24 h` and a four-month grow are both one read of a
@@ -58,7 +76,7 @@ import { TimelineWindow, camerasOfDevice, narrowedToDevice, steeringOf, stretche
  * hundred rows over a season and the only thing a coarse window cannot say.
  *
  * Nothing here writes, and nothing it answers is a handle to write with: the
- * rail carries lines to open, never a task to tick off, so the answer a
+ * answer carries lines to open, never a task to tick off, so the answer a
  * read-only link is served is the answer its owner is served, clamped to the
  * link's window.
  */
@@ -80,12 +98,19 @@ const MAX_EVENTS = 500;
  * Both nets cut the far end of a newest-first read, so a single net over both
  * groups would let one failing capture every thirty seconds spend the whole of
  * it and push the grower's own notes off the far end of a wide window - the
- * lines the rail exists for would be the first to go. Read apart, a chatty
+ * lines the page is read for would be the first to go. Read apart, a chatty
  * device can only ever crowd out other chatter. It is the smaller number
  * because a machine's log is a stream to scrub past rather than a record read
  * line by line, and because lines this close together share one mark anyway.
  */
 const MAX_MACHINE_EVENTS = 200;
+
+/**
+ * How many of the lines that begin and end a maintenance or regulation off are read before the window: enough for the
+ * last switching of every device of a place and a maintenance renewed a few times over, which is what a stretch cut
+ * by the window's start is told from.
+ */
+const EDGE_LINES = 50;
 
 @Injectable()
 export class TimelineService {
@@ -98,41 +123,58 @@ export class TimelineService {
     @InjectModel(MODEL_V1.alarmRule) private readonly rules: Model<StoredAlarmRule>,
     @InjectModel(MODEL_V1.user) private readonly users: Model<StoredUser>,
     @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
+    private readonly access: AccessService,
     private readonly places: SpacesService,
     private readonly live: SpaceLiveService,
     private readonly data: DataService,
   ) {}
 
-  public async read(grant: Grant, spaceId: string, asked: TimelineQuery, now: Date = new Date()): Promise<SpaceTimeline> {
+  public async read(
+    grant: Grant,
+    spaceId: string,
+    asked: TimelineQuery,
+    now: Date = new Date(),
+    caller: AccessContext | null = null,
+  ): Promise<SpaceTimeline> {
     const at = asked.at ?? now;
-    const [space, standing, stood] = await Promise.all([
+    const [space, stood] = await Promise.all([
       this.places.require(spaceId),
-      this.live.devicesIn([spaceId]),
       // Every grow that has ever stood here, newest first: the one the bands are
-      // of and the ones the rail is of are both in this one read.
+      // of and the ones the lines are of are both in this one read.
       this.grows
         .find({ placements: { $elemMatch: { spaceId } } })
         .sort({ startedAt: -1, id: -1 })
         .lean<GrowDocument[]>(),
     ]);
 
-    const devices = narrowedToDevice(standing, asked.deviceId);
-
     // A link's window decides which grows it is told about: the ones that stood
     // here inside it, not whatever moved in after the window closed.
     const known = stood.filter(one => stoodDuring(one, spaceId, grant.range));
     const grow = this.growFor(asked, known, spaceId, storyEndsAt(grant.range, now));
-    const window = windowOf(asked.range, grant, grow, at);
-    const growIds = known.filter(one => stoodDuring(one, spaceId, window)).map(one => one.id);
+    const window = windowOf(asked.range, grant, grow, grow ? await zoneOfOwner(this.users, grow.ownerId) : null, at, asked.stepSeconds, asked.window);
+    const metrics = asked.metrics ?? PANEL_METRICS;
+    // Every device that stood here inside the window, each read over its stay: one that has left still draws the
+    // days it kept, and one that came draws nothing of where it stood before.
+    const present = narrowedToDevice(await this.live.stoodIn([spaceId], window), asked.deviceId);
+    const devices = present.map(one => one.device);
+    const steering = steeringOf(devices);
+    // Somebody who asked for one device is shown that device, not the place's climate through time.
+    const before = asked.deviceId ? [] : predecessorsOf(present, steering?.id ?? null, [spaceId]);
+    const inWindow = known.filter(one => stoodDuring(one, spaceId, window));
+    const growIds = inWindow.map(one => one.id);
 
-    const [series, alerts, recorded, cameras, aimed] = await Promise.all([
+    const [read, alerts, recorded, cameras, aimed] = await Promise.all([
       Promise.all(
-        devices.map(device =>
+        present.map(({ device, stay }) =>
           this.data.history(
             device.id,
             {
-              ...spanOf(window),
-              metrics: PANEL_METRICS,
+              ...stay,
+              stepSeconds: window.stepSeconds,
+              metrics,
+              // The lowest and the highest of every window, which a panel draws behind its mean.
+              extremes: true,
               // Every output in the same read: a lane is whatever the device
               // reported rather than whatever was asked for. The levels come
               // along, because a lane draws how hard its output ran as well as when.
@@ -144,32 +186,51 @@ export class TimelineService {
       ),
       this.alerts
         .find({
-          $and: [
-            alertsRaisedIn(
-              [spaceId],
-              devices.map(device => device.id),
-            ),
-            { startedAt: { $lte: window.endsAt } },
-            openInto(window.startsAt),
-          ],
+          $and: [raisedHere(spaceId, present, window), { startedAt: { $lte: window.endsAt } }, openInto(window.startsAt)],
         })
         .sort({ startedAt: 1 })
         .lean<StoredAlert[]>(),
-      this.eventsOf(grant, spaceId, growIds, window),
+      this.eventsOf(grant, spaceId, growIds, window, now),
       shownCameras(this.cameras, [spaceId], grant.includeCameras).then(all => camerasOfDevice(all, asked.deviceId)),
-      recordOf(this.targetRecord, steeringOf(devices)?.id ?? null, window),
+      recordAcross(this.targetRecord, present.find(one => one.device.id === steering?.id) ?? null, before, window),
     ]);
 
-    const [watched, frames, hide] = await Promise.all([
+    const [watched, frames, hide, ends, raised] = await Promise.all([
       this.metricsOf(alerts),
       framesOf(this.media, cameras, window, FRAME_SLOTS),
       grantRedaction(this.users, grant),
+      this.silenceEnds(alerts),
+      this.raisedBefore(grant, alerts, window),
     ]);
-    const told = recorded.entries.map(entry => serialiseDiaryEntry(entry, hide, grant));
-    const panels = panelsOf(
-      series.map(one => one.series),
-      stretchesOf(grow, devices, window, at, aimed),
-    );
+    const told = [...raised, ...recorded.entries].map(entry => serialiseDiaryEntry(entry, hide, grant));
+    // The curve and the strips of the leading device begin where it took the place over.
+    const series = read.map(one => (one.series.deviceId === steering?.id ? fromHandover(one, before) : one));
+    const leading = ownOf(devices, series);
+    const own = leading && leading.series.deviceId === steering?.id ? withPredecessors(leading, before, series) : leading;
+    const panels = panelsOf(own, stretchesOf(grow, devices, window, at, aimed), metrics);
+    // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
+    // those of the devices whose curve stands in front of it.
+    // The device that speaks for the place now: the one the curves are of, while it still stands here.
+    const acting = new Set([...actingOn(devices, own?.series.deviceId ?? null).map(device => device.id), ...before.map(link => link.deviceId)]);
+    // Where no climate stands here, the one device whose outputs are drawn speaks: a socket alone has a reading too.
+    const alone = devices.filter(device => acting.has(device.id) && device.spaceId === spaceId);
+    const drawn =
+      devices.find(device => device.id === (own?.series.deviceId ?? steering?.id) && device.spaceId === spaceId) ??
+      (alone.length === 1 ? alone[0] : null);
+    // Of the device the curves are of - the one asked for, else the place's own - so "to the last reading" lands on a
+    // value of the curve it stands under and not on another climate's that happens to be newer. Read only where the
+    // window has no curve: one with curves has answered the question already.
+    const heard =
+      panels.length > 0
+        ? new Map<string, string | null>()
+        : await lastReadingsOf(
+            this.data,
+            devices.filter(device => device.spaceId === spaceId && (!steering || asked.deviceId !== undefined || device.id === steering.id)),
+            spaceId,
+          );
+    // The silences are the drawn device's: the one the curves are of, else the one device whose outputs speak for the place.
+    const quiet = own ?? series.find(one => one.series.deviceId === drawn?.id) ?? null;
+    const around = quiet && heardNothing(quiet) ? await this.samplesAround(quiet.series.deviceId, present, spaceId, window, now) : null;
 
     return {
       spaceId: space.id,
@@ -181,15 +242,38 @@ export class TimelineService {
       dayTo: window.dayTo,
       startsAt: window.startsAt.toISOString(),
       endsAt: window.endsAt.toISOString(),
-      ...chartPartsOf({ histories: series, devices, window, redacted: isOutsider(grant), aimed, cameras, frames }),
+      ...chartPartsOf({
+        histories: series.filter(one => acting.has(one.series.deviceId)),
+        devices,
+        window,
+        redacted: isOutsider(grant),
+        aimed,
+        cameras,
+        frames,
+        reading: drawn?.id ?? null,
+      }),
+      // Which device the curves are of is the hardware in the tent, and a reader from outside is shown the tent.
+      deviceId: isOutsider(grant) ? null : (own?.series.deviceId ?? null),
       panels,
-      lastReadingAt: panels.length > 0 ? null : await lastReadingOf(this.data, devices),
-      alarms: alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null)),
+      silences: silencesOf(quiet, window, around),
+      // One `last()` more per read: "now" is then the same figures for the owner, a member and a link's reader.
+      reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
+      lastReadingAt: newestOf([...heard.values()]),
+      // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
+      alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null, ends)),
       events: told,
+      stretches: recorded.stretches,
+      // Which device measured when is the hardware in the tent as well.
+      deviceChanges: isOutsider(grant) ? [] : changesOf(present, steering?.id ?? null, before),
+      arrivals: isOutsider(grant) ? [] : await this.arrivalsOf(caller, spaceId, devices, window, heard),
       machineEvents: recorded.machine,
+      // What each device is called, for one that has left since: as everywhere a place's record names it (`calledIn`).
+      devices: isOutsider(grant) ? [] : devices.map(device => calledIn(device, space.ownerId)),
       // A reader who is shown one grow's week is not shown what else has stood
-      // in the room, so the chips they have not got are answered as none.
-      grows: grant.redacted ? [] : stood.map(one => growOf(one)),
+      // in the room, so the chips they have not got are answered as none; a
+      // place's link is told the grows that stood in its window, whose lines it
+      // reads, so a line names its own as the owner's does.
+      grows: !grant.redacted ? stood.map(one => growOf(one)) : grant.linkOn === 'space' ? inWindow.map(one => growOf(one)) : [],
       readingNames: readingNamesOf(known),
       people: await peopleNamed(
         this.users,
@@ -200,55 +284,121 @@ export class TimelineService {
 
   /**
    * Everything the space recorded inside the window, oldest first, which is the
-   * order the rail is read in.
+   * order the lines are read in.
    *
    * The whole record, not the diary half of it: a capture that keeps failing and
    * a plan that stepped are precisely what somebody scrubs a tent's timeline to
-   * find, and the tent's own Latest list already shows them, so a rail that left
+   * find, and the tent's own Latest list already shows them, so a Timeline that left
    * them out said "nothing was written here" over lines the screen before it had
    * just listed. The two groups are read under nets of their own so that neither
    * can spend the other's - see `MAX_MACHINE_EVENTS`.
    *
-   * A redacted reader is the exception and keeps the diary-only rail. A share
+   * A redacted reader is the exception and keeps the diary's lines alone. A share
    * link and a public page are given what happened to the grow, and a device's
    * line carries its own diagnostics verbatim - a failing capture's byte counts,
    * a socket's role, an address - which is the inside of somebody's flat rather
-   * than the story of their grow. Widening the rail must not widen what a link
+   * than the story of their grow. Widening the lines must not widen what a link
    * hands out, so the kinds a stranger never sees stay the kinds a stranger
    * never sees.
    *
    * How many machine lines the window held is answered beside them, because the
    * net is silent otherwise: a four-month grow in a chatty tent holds thousands
-   * and the rail drew two hundred of them with nothing on the screen to say that
+   * and the page drew two hundred of them with nothing on the screen to say that
    * the first months carried more than nothing.
    */
-  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow): Promise<SpaceEvents> {
+  private async eventsOf(grant: Grant, spaceId: string, growIds: string[], window: TimelineWindow, now: Date): Promise<SpaceEvents> {
     const recordedHere = { $or: [{ spaceId }, { growId: { $in: growIds } }] };
-    const of = (kinds: readonly string[]) => ({ $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window)] });
+    const of = (kinds: readonly string[]) => ({
+      $and: [recordedHere, { kind: { $in: kinds } }, withinRange('occurredAt', window), writtenFor(grant)],
+    });
     // Newest first so that a net cuts the far end of a long range rather than
     // the days somebody is most likely looking at.
     const newest = (kinds: readonly string[], net: number) =>
       this.entries.find(of(kinds)).sort({ occurredAt: -1, id: -1 }).limit(net).lean<EntryDocument[]>();
 
-    if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), machine: { shown: 0, total: 0 } };
+    if (grant.redacted) return { entries: (await newest(DIARY_KINDS, MAX_EVENTS)).reverse(), stretches: [], machine: { shown: 0, total: 0 } };
 
-    const [diary, machine] = await Promise.all([newest(DIARY_KINDS, MAX_EVENTS), newest(MACHINE_KINDS, MAX_MACHINE_EVENTS)]);
+    // The lines a stretch is told from, read across both edges of the window: before it, the newest; from its start
+    // on, the oldest, through the window and on past its end.
+    const switched = (occurredAt: Record<string, Date>, order: 1 | -1, net: number) =>
+      this.entries
+        .find({
+          $and: [recordedHere, { kind: 'system' }, TOLD_OF_MACHINES, { occurredAt }, withinRange('occurredAt', grant.range), writtenFor(grant)],
+        })
+        .sort({ occurredAt: order, id: order })
+        .limit(net)
+        .lean<EntryDocument[]>();
+    const [diary, machine, before, since] = await Promise.all([
+      newest(DIARY_KINDS, MAX_EVENTS),
+      newest(MACHINE_KINDS, MAX_MACHINE_EVENTS),
+      switched({ $lt: window.startsAt }, -1, EDGE_LINES),
+      switched({ $gte: window.startsAt }, 1, MAX_EVENTS),
+    ]);
     // Counted only where the net actually bit. Under the net the read is the
     // count, and the alternative would be a second pass over the entries of
     // every tent on every refresh to learn a number nothing would draw.
     const total = machine.length < MAX_MACHINE_EVENTS ? machine.length : await this.entries.countDocuments(of(MACHINE_KINDS));
+    // Maintenance and regulation off are told as the stretches they were, as Start and the grow's diary tell them -
+    // whole where the window cuts one: a maintenance begun before it was lost, and one that ended after it read as
+    // still running. Each is told from its true start to its true end; only one that has not ended by now runs on.
+    const told = toldOfRecord(machine);
+    const runs = toldOfRecord([...before, ...since]);
+    const across = (run: Span) => run.startsAt <= window.endsAt && run.endsAt >= window.startsAt;
 
     return {
-      entries: [...diary, ...machine].sort((one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id)),
+      entries: [...diary, ...told.lines].sort(
+        (one, other) => one.occurredAt.getTime() - other.occurredAt.getTime() || one.id.localeCompare(other.id),
+      ),
+      stretches: [
+        ...runs.maintenance.filter(across).map(run => stretchEvent('maintenance', run, now)),
+        ...runs.controlOff.filter(across).map(run => stretchEvent('controlOff', run, now)),
+      ].sort((one, other) => one.at.localeCompare(other.at)),
       machine: { shown: machine.length, total },
     };
+  }
+
+  /**
+   * The devices standing here that came from another place, where that matters to the window: it reaches back before
+   * one came, or nothing the device measured here is in it - its "last reading" is then from the other place, and
+   * this one has none to point at. Where it stood before is named to a reader who may read that place.
+   */
+  private async arrivalsOf(
+    caller: AccessContext | null,
+    spaceId: string,
+    devices: readonly StoredDevice[],
+    window: Span,
+    heard: ReadonlyMap<string, string | null>,
+  ): Promise<SpaceTimeline['arrivals']> {
+    const came = devices.flatMap(device => {
+      const arrival = device.spaceId === spaceId ? arrivalOf(device.placements, spaceId) : null;
+      const quiet = heard.has(device.id) && heard.get(device.id) === null;
+      return arrival && (arrival.at > window.startsAt || quiet) ? [{ device, ...arrival }] : [];
+    });
+    if (came.length === 0) return [];
+
+    const from = [...new Set(came.map(one => one.from))];
+    const readable = caller
+      ? await Promise.all(from.map(async id => ((await this.access.access(caller, subjectRef('space', id), 'view')) !== null ? [id] : [])))
+      : [];
+    const named = await this.spaces.find({ id: { $in: readable.flat() } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>();
+
+    return came.map(({ device, at, from: fromId }) => {
+      const place = named.find(one => one.id === fromId);
+      return {
+        deviceId: device.id,
+        name: device.name ?? null,
+        type: device.type,
+        at: at.toISOString(),
+        from: place ? { spaceId: place.id, name: place.name } : null,
+      };
+    });
   }
 
   /**
    * The grow the bands and the day counter are of. A named one has to have stood
    * in this space, or the tent would draw a band from a grow in somebody else's
    * room; without a name it is the grow standing here at `asOf` - now, or the
-   * end of a window that closed - newest first as the tent page lists them,
+   * end of a window that closed - newest first as Start lists them,
    * which the two rolling ranges manage without and the two stretches of a grow
    * cannot.
    */
@@ -261,7 +411,7 @@ export class TimelineService {
       }
 
       // Standing here then, not merely having stood here once: a grow that moved
-      // out in spring is what the rail still carries and not what the bands are of.
+      // out in spring is what the lines still carry and not what the bands are of.
       return (
         stood.find(grow =>
           grow.placements.some(one => one.spaceId === spaceId && one.startedAt <= asOf && (one.endedAt === null || one.endedAt > asOf)),
@@ -286,11 +436,88 @@ export class TimelineService {
     const rules = await this.rules.find({ id: { $in: ruleIds } }, { id: 1, watch: 1 }).lean<Pick<StoredAlarmRule, 'id' | 'watch'>[]>();
     return new Map(rules.flatMap(rule => (rule.watch.kind === 'reading' ? [[rule.id, rule.watch.metric] as [string, Metric]] : [])));
   }
+
+  /**
+   * Where a device heard nowhere in the window last spoke before it and first spoke after it, each while it stood
+   * here: what it said elsewhere is the other place's, and its first word after a move away is no end of a silence here.
+   */
+  private samplesAround(deviceId: string, present: readonly Stood[], spaceId: string, window: Span, now: Date): Promise<SamplesAround> | null {
+    const device = present.find(one => one.device.id === deviceId)?.device;
+    const stood = device ? stayOf(device.placements, [spaceId], { startsAt: new Date(0), endsAt: now }) : null;
+    return stood ? this.data.samplesAround(deviceId, window, stood) : null;
+  }
+
+  /**
+   * The lines that raised a silence the window begins inside of, though they stand before it: the diary tells a
+   * silence at its start, and one raised before the window - still going, or over after it began - is the window's
+   * too. A device quiet for three days had no line in a day of them, while the curves said it was quiet.
+   */
+  private raisedBefore(grant: Grant, alerts: readonly StoredAlert[], window: Span): Promise<EntryDocument[]> {
+    const ids = alerts.filter(alert => isSilence(alert) && alert.startedAt < window.startsAt).map(alert => alert.id);
+    if (grant.redacted || ids.length === 0) return Promise.resolve([]);
+
+    return this.entries
+      .find({ $and: [{ kind: 'alarm', alertId: { $in: ids }, occurredAt: { $lt: window.startsAt } }, writtenFor(grant)] })
+      .sort({ occurredAt: 1, id: 1 })
+      .limit(MAX_SILENCE_PIECES)
+      .lean<EntryDocument[]>();
+  }
+
+  /**
+   * Where each silence among the alerts ended: with the last alert of its device's or camera's that is the same silence
+   * - one dated from the same last sample. A restart of the server closed an alert and raised it again a minute later,
+   * and Friday's window read "bis 01:14" of a silence that went on to Sunday, which the diary and a wider window tell
+   * as one. Null where it still goes on; one read, and none where no silence among them is over.
+   */
+  private async silenceEnds(alerts: readonly StoredAlert[]): Promise<Map<string, Date | null>> {
+    const over = alerts.filter(alert => isSilence(alert) && alert.resolvedAt !== null);
+    if (over.length === 0) return new Map();
+
+    const ids = (of: (alert: StoredAlert) => string | null) => [...new Set(over.flatMap(alert => of(alert) ?? []))];
+    const later = await this.alerts
+      .find({
+        $or: [
+          { kind: 'offline', deviceId: { $in: ids(alert => (alert.kind === 'offline' ? alert.deviceId : null)) } },
+          { kind: 'camera_stale', cameraId: { $in: ids(alert => (alert.kind === 'camera_stale' ? alert.cameraId : null)) } },
+        ],
+        startedAt: { $gte: new Date(Math.min(...over.map(alert => alert.startedAt.getTime()))) },
+      })
+      .sort({ startedAt: 1 })
+      .limit(MAX_SILENCE_PIECES)
+      .lean<StoredAlert[]>();
+    return new Map(over.map(alert => [alert.id, endOfSilence(alert, later)]));
+  }
 }
 
-/** The rail's lines, and how many of the machines' own the window held behind the two hundred it was given. */
+/** The alerts that are about nothing arriving, which a restart of the server could part into pieces. */
+const isSilence = (alert: Pick<StoredAlert, 'kind'>): boolean => alert.kind === 'offline' || alert.kind === 'camera_stale';
+
+/** Two pieces whose silence began this close are one: the diary's rule (`ONE_SILENCE_MS`, `screens/grow/diary/days.ts`). */
+const ONE_SILENCE_MS = 60_000;
+
+/** A safety net over the pieces read after a window's silences: a night of restarts is a handful. */
+const MAX_SILENCE_PIECES = 200;
+
+/** When an alert's silence began: its device's or camera's last word before it, which its value counts from. */
+const silentSince = (alert: Pick<StoredAlert, 'startedAt' | 'value'>): number => alert.startedAt.getTime() - (alert.value ?? 0) * 1000;
+
+/** The end of the silence an alert is a piece of: the end of the last later piece that began with it, null while one is open. */
+const endOfSilence = (alert: StoredAlert, later: readonly StoredAlert[]): Date | null => {
+  const subject = (one: StoredAlert) => [one.kind, one.deviceId ?? '', one.cameraId ?? ''].join('|');
+  let end = alert.resolvedAt;
+  for (const piece of later) {
+    if (end === null) break;
+    const same = piece.id !== alert.id && subject(piece) === subject(alert) && piece.startedAt >= alert.startedAt;
+    if (same && alert.value !== null && Math.abs(silentSince(piece) - silentSince(alert)) <= ONE_SILENCE_MS) end = piece.resolvedAt;
+  }
+  return end;
+};
+
+/** The lines of the window, and how many of the machines' own the window held behind the two hundred it was given. */
 interface SpaceEvents {
   entries: EntryDocument[];
+  /** Maintenance and regulation off, oldest first. */
+  stretches: GrowDayEvent[];
   machine: { shown: number; total: number };
 }
 
@@ -308,15 +535,13 @@ interface TimelineQuery {
   growId?: string;
   /** The instant the window ends at; now, unless somebody scrubbed back. */
   at?: Date;
+  /** Both ends of a window named outright, which then is the window whatever the range. */
+  window?: { startsAt: Date; endsAt: Date };
+  stepSeconds?: number;
+  /** The panels asked for; the Timeline's own where none are named. */
+  metrics?: readonly Metric[];
   deviceId?: string;
 }
-
-/** The window on its own, for the readers that take a window and nothing else. */
-const spanOf = (window: TimelineWindow): { startsAt: Date; endsAt: Date; stepSeconds: number } => ({
-  startsAt: window.startsAt,
-  endsAt: window.endsAt,
-  stepSeconds: window.stepSeconds,
-});
 
 /**
  * An alert that had not been resolved before the window began. Its own
@@ -325,6 +550,25 @@ const spanOf = (window: TimelineWindow): { startsAt: Date; endsAt: Date; stepSec
  * moving its start to the edge would say it began there.
  */
 const openInto = (startsAt: Date): FilterQuery<StoredAlert> => ({ $or: [{ resolvedAt: null }, { resolvedAt: { $gte: startsAt } }] });
+
+/**
+ * An alert of this place: one that is over happened here, an open one stands
+ * here - it moves with its device, so what a device raised where it stood
+ * before it came, or raises where it has gone since, is that place's and not
+ * this one's. One that names no place counts by its device, inside the
+ * device's stay; while it is open, only for a device still standing here.
+ */
+const raisedHere = (spaceId: string, present: readonly Stood[], window: Span): FilterQuery<StoredAlert> => ({
+  $or: [
+    { spaceId },
+    ...present.map(({ device, stay }) => ({
+      spaceId: null,
+      deviceId: device.id,
+      ...(device.spaceId === spaceId ? {} : { resolvedAt: { $ne: null } }),
+      startedAt: { $lt: stay.endsAt, ...(stay.startsAt > window.startsAt ? { $gte: stay.startsAt } : {}) },
+    })),
+  ],
+});
 
 /** Whether the grow's plants stood in this space at any point in the window; an open end reaches as far as it likes. */
 const stoodDuring = (grow: GrowDocument, spaceId: string, window: { startsAt: Date | null; endsAt: Date | null }): boolean =>
@@ -335,13 +579,13 @@ const stoodDuring = (grow: GrowDocument, spaceId: string, window: { startsAt: Da
       (placement.endedAt === null || window.startsAt === null || placement.endedAt >= window.startsAt),
   );
 
-const alarmOf = (alert: StoredAlert, metric: Metric | null): TimelineAlarm => ({
+const alarmOf = (alert: StoredAlert, metric: Metric | null, ends: ReadonlyMap<string, Date | null>): TimelineAlarm => ({
   alertId: alert.id,
   kind: alert.kind,
   severity: alert.severity,
   metric,
   startedAt: alert.startedAt.toISOString(),
-  endedAt: alert.resolvedAt?.toISOString() ?? null,
+  endedAt: (ends.has(alert.id) ? ends.get(alert.id) : alert.resolvedAt)?.toISOString() ?? null,
   value: alert.value,
   extremeValue: alert.extremeValue,
 });

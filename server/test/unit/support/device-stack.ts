@@ -30,12 +30,16 @@ export const recordingMqtt = (): { mqtt: MqttClientService; published: Published
   return { mqtt, published };
 };
 
-/** What writes a device's document and reads what the device sends, wired over a recording broker. */
-export const deviceStackOn = (db: V1TestDatabase, followers: ScheduleFollower | null = null) => {
+/**
+ * What writes a device's document and reads what the device sends, wired over a recording broker. `sinks` stands in
+ * for the server's module reference, through which the writer reaches the alarms (`get(token)`).
+ */
+export const deviceStackOn = (db: V1TestDatabase, followers: ScheduleFollower | null = null, sinks: Record<symbol | string, unknown> = {}) => {
   const { mqtt, published } = recordingMqtt();
   const publisher = new DevicePublisherService(db.devices, mqtt);
   const entries = new EntryWriterService(db.entries);
-  const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, entries, followers);
+  const modules = { get: (token: symbol | string) => sinks[token] ?? null } as never;
+  const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, entries, followers, modules);
   const ingest = new DeviceIngestService(
     db.devices,
     db.cameras,
@@ -44,6 +48,12 @@ export const deviceStackOn = (db: V1TestDatabase, followers: ScheduleFollower | 
     publisher,
     new HardwareReportService(db.devices, db.cameras),
     entries,
+    null,
+    null,
+    null,
+    null,
+    null,
+    configuration,
   );
 
   return { published, configuration, ingest };

@@ -1,0 +1,111 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
+import { useAccountMe, useUpdateMe } from '@/api/account';
+import { useChooseDiary } from '@/api/layers';
+import { useSetPresetPrompt } from '@/api/spaces';
+import { useLog } from '@/log/log-context';
+import { Refused } from '@/ui/PageState';
+import { StartGrowSheet } from '@/screens/grow/new/WhatGrows';
+import { MoveHereSheet } from '@/screens/space/MoveHereSheet';
+import { useMovableGrows } from '@/screens/space/movable-grows';
+import styles from './Start.module.css';
+import ui from '@/ui/ui.module.css';
+
+/**
+ * "Was wächst hier?" - the diary, offered where a device regulates and
+ * nothing is said to grow: the card a skipped last step of the setup leaves
+ * on Start. An answer starts the grow, and with the first grow the diary.
+ * "Nein danke" is kept so the card does not come back on the next phone:
+ * with the account while it keeps no diary at all, and with this one place
+ * for somebody who keeps one elsewhere - a fridge full of jars holds no grow.
+ * The card is gone with the tap, so a toast answers it: that the diary stays
+ * off and where it is switched on, with the way to take the tap back.
+ *
+ * "Grow starten" opens the one form a grow is started with; "Grow hierher" moves in one that runs elsewhere - the
+ * one that left this place for no fixed place chosen, where there is one. A place kept by hand, whose grow ended, is
+ * offered its next one in the words of a diary with no climate to keep.
+ */
+export function GrowOffer({ spaceId, name, diary, byHand = false }: { spaceId: string; name: string; diary: boolean; byHand?: boolean }) {
+  const { t } = useTranslation();
+  const account = useChooseDiary();
+  const place = useSetPresetPrompt(spaceId);
+  const me = useAccountMe();
+  const { tell } = useLog();
+  const [asking, setAsking] = useState<'start' | 'move' | null>(null);
+  const busy = account.isPending || place.isPending;
+  const movable = useMovableGrows(spaceId).items;
+  const left = movable.find(
+    grow => grow.placements.some(one => one.spaceId === spaceId) && grow.summary.locations.every(one => one.spaceId === null),
+  );
+
+  // The card goes with the answer, so what follows it hangs on the write's own promise and not on this card still standing.
+  const decline = () => {
+    if (diary) {
+      void place.mutateAsync('never').then(
+        () => tell({ label: t('start.grow.declinedHere'), undo: () => place.mutateAsync('ask'), undone: t('start.grow.asksAgain') }),
+        () => undefined,
+      );
+      return;
+    }
+    // What the account said before, which is what taking the answer back restores: its own choice, or none.
+    const before = me.data?.preferences.diary ?? null;
+    void account.mutateAsync('off').then(
+      () => tell({ label: t('start.grow.declined'), undo: () => account.mutateAsync(before), undone: t('start.grow.asksAgain') }),
+      () => undefined,
+    );
+  };
+
+  return (
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-grow-offer">
+      <h2 className={styles.offerTitle} id="start-grow-offer">
+        {t('start.grow.here')}
+      </h2>
+      <p className={styles.cardText}>{t(byHand ? 'start.grow.textByHand' : 'start.grow.text')}</p>
+      <div className={styles.pair}>
+        <button type="button" className={styles.go} onClick={() => setAsking('start')}>
+          {t('home.invite.startGrow')}
+        </button>
+        {movable.length > 0 ? (
+          <button type="button" className={ui.wide} onClick={() => setAsking('move')}>
+            {t('home.invite.moveGrow')}
+          </button>
+        ) : null}
+        <button type="button" className={ui.wide} disabled={busy} onClick={decline}>
+          {t('home.diary.decline')}
+        </button>
+      </div>
+      <Refused error={account.error ?? place.error} />
+      {asking === 'start' ? <StartGrowSheet spaceId={spaceId} name={name} onClose={() => setAsking(null)} /> : null}
+      {asking === 'move' ? <MoveHereSheet spaceId={spaceId} spaceName={name} chosen={left?.id} onClose={() => setAsking(null)} /> : null}
+    </section>
+  );
+}
+
+/** Hardware, offered under a diary kept by hand. "Nein danke" is kept with the account. */
+export function DeviceOffer() {
+  const { t } = useTranslation();
+  const decline = useUpdateMe();
+
+  return (
+    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-device-offer">
+      <h2 className={styles.offerTitle} id="start-device-offer">
+        {t('start.device.title')}
+      </h2>
+      <div className={styles.pair}>
+        <Link to="/claim" className={styles.go} data-tone="brand">
+          {t('home.addDevice.title')}
+        </Link>
+        <button
+          type="button"
+          className={ui.wide}
+          disabled={decline.isPending}
+          onClick={() => decline.mutate({ preferences: { deviceOfferDeclined: true } })}
+        >
+          {t('home.diary.decline')}
+        </button>
+      </div>
+      <Refused error={decline.error} />
+    </section>
+  );
+}

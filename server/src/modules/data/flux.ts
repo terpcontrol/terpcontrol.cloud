@@ -46,14 +46,14 @@ const FIELD_NAME = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_WINDOWS = 1000;
 
 /**
- * And where it names one: somebody looking closely - a day at twenty seconds,
- * which is what the charts page offers - is drawn the points they asked for, up
- * to this many, and only a step finer than that is widened.
+ * And where it names one: somebody looking closely - a day at a minute to the
+ * point - is drawn the points they asked for, up to this many, and only a step
+ * finer than that is widened.
  */
 const MAX_ASKED_WINDOWS = 5000;
 
 /** The narrowest step there is, picked or asked for: what a device reports at. */
-const MIN_STEP_SECONDS = 5;
+export const MIN_STEP_SECONDS = 5;
 
 /** No range answers more points than this per series, whatever the caller asked for. */
 const MAX_POINTS = 50000;
@@ -126,23 +126,288 @@ export const seriesQuery = (bucket: string, deviceId: string, fields: readonly s
   `${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${anyField(fields)})${aggregate(window)}`;
 
+/** The two answers `extremesQuery` yields. */
+const EXTREME_RESULT = { min: 'min', max: 'max' } as const;
+
 /**
- * How finely an output's switchings are looked for, at every width of window.
+ * The lowest and the highest sample of every window of a series, beside the
+ * mean `seriesQuery` answers: what a mean flattens - a door open for forty
+ * seconds, a humidifier's burst - is what somebody opens a chart to find.
  *
- * It is a fixed grain and not the display step on purpose. An output is a state
- * and not a measurement: averaging it says what share of a window it ran for,
- * which at hours to the window is a duty cycle and never a cycle - an 18/6 lamp
- * read at eleven hours to the window never falls low enough to be called off,
- * and a whole season of nights disappears. So the store is asked for the
+ * Two more scans of the same fields, pushed down like the mean, and only of
+ * raw samples: a day kept as its mean has no extremes left. Empty windows are
+ * not created, since the mean's grid already carries them.
+ */
+export const extremesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: FluxWindow): string =>
+  Object.values(EXTREME_RESULT)
+    .map(
+      fn => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})${aggregate(window, fn, false)}
+    |> yield(name: "${fn}")`,
+    )
+    .join('\n');
+
+/** The lowest and the highest of one window of one field. */
+export interface Extremes {
+  min: number;
+  max: number;
+}
+
+/**
+ * The rows of that read, by field and instant. A device whose points were once
+ * tagged with an owner answers one table per tag, so two rows can name the
+ * same window: the lower low and the higher high stand. A window either end of
+ * which is a sentinel has no extremes - "no sensor" is not a reading, and the
+ * true low behind it cannot be told.
+ */
+export const extremesByField = (rows: (FluxRow & { result?: string })[]): Map<string, Map<string, Extremes>> => {
+  const byField = new Map<string, Map<string, Partial<Extremes> & { void?: true }>>();
+
+  for (const row of rows) {
+    const value = finiteOrNull(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const windows = byField.get(row._field) ?? new Map<string, Partial<Extremes> & { void?: true }>();
+    const known = windows.get(row._time) ?? {};
+    if (isSentinel(row._field, value)) known.void = true;
+    else if (row.result === EXTREME_RESULT.min) known.min = Math.min(known.min ?? value, value);
+    else known.max = Math.max(known.max ?? value, value);
+    windows.set(row._time, known);
+    byField.set(row._field, windows);
+  }
+
+  return new Map(
+    [...byField].map(([field, windows]) => [
+      field,
+      new Map(
+        [...windows].flatMap(([instant, one]) =>
+          one.void || one.min === undefined || one.max === undefined ? [] : [[instant, { min: one.min, max: one.max }] as [string, Extremes]],
+        ),
+      ),
+    ]),
+  );
+};
+
+/**
+ * How wide a window may be for its deficit to be worked out sample by sample:
+ * three days of a device that reports every five seconds are some fifty
+ * thousand samples.
+ *
+ * Measured on a tent of 120 days at 5 s (medians, on a developer machine):
+ * read raw and worked out in the server a day costs 64 ms, a week 476 ms and
+ * a month 2.2 s; the same in Flux - a pivot and the deficit of every row are
+ * not pushed down - 305 ms, 2 s, 8.5 s and 34 s for the four months. A wider
+ * window is therefore read as means over a grain (`grainsQuery`), which is
+ * pushed down: 17 ms a week, 50 ms a month, 182 ms the four months at five
+ * minutes.
+ */
+export const MAX_SAMPLED_SECONDS = 3 * 24 * 60 * 60;
+
+/** The grain a wide window's deficit is worked out at: narrow enough that a change of the light cannot bend it. */
+const DEFICIT_GRAIN_SECONDS = 300;
+
+/** How many grains a read holds at the most, under the store's own limit per series (`MAX_POINTS`). */
+const MAX_GRAINS = 40000;
+
+/**
+ * The grain for a window: five minutes, and for a window of more than four and
+ * a half months as many whole five minutes as keep the read within its limit.
+ */
+export const deficitGrainFor = (window: TimeWindow): number => {
+  const seconds = (window.endsAt.getTime() - window.startsAt.getTime()) / 1000;
+  return Math.max(DEFICIT_GRAIN_SECONDS, Math.ceil(seconds / MAX_GRAINS / DEFICIT_GRAIN_SECONDS) * DEFICIT_GRAIN_SECONDS);
+};
+
+/**
+ * Every raw sample of some fields over a window, as it was written: what a
+ * value worked out from two readings needs. The deficit a tent held is the
+ * deficit of a temperature and a humidity that met; the coldest and the
+ * dampest sample of three minutes need not be the same one, and a deficit
+ * built from both is one that never was.
+ */
+export const samplesQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+  `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(fields)})
+    |> keep(columns: ["_time", "_value", "_field"])`;
+
+/** The same over several stretches in one script: the samples of the few grains a wide read has to look into (`switchedGrains`). */
+export const samplesInQuery = (bucket: string, deviceId: string, fields: readonly string[], stretches: readonly TimeWindow[]): string => {
+  const reads = stretches.map(stretch => samplesQuery(bucket, deviceId, fields, stretch));
+  return reads.length === 1 ? reads[0] : `union(tables: [${reads.join(',')}])`;
+};
+
+/**
+ * The same fields as means over a grain, for a window too wide to read sample
+ * by sample. A grain of five minutes lies in one half of the day or the other
+ * - a lamp switches inside two of them a day - so each is judged day or night
+ * by its own time. Worked out from the means of a window as wide as the chart
+ * draws - hours, over a grow - a deficit took one leaf offset for air of both
+ * halves, in a pattern that drifted through the days: the same climate read
+ * 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another.
+ */
+export const grainsQuery = (
+  bucket: string,
+  deviceId: string,
+  fields: readonly string[],
+  window: TimeWindow,
+  grainSeconds: number,
+  /** Two fields whose readings are counted grain by grain, for `coveredGrains`. */
+  counted: readonly string[] = [],
+): string => {
+  const read = (names: readonly string[], fn: string) => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(names)})
+    |> aggregateWindow(every: ${Math.max(1, Math.trunc(grainSeconds))}s, fn: ${fn}, createEmpty: false)
+    |> keep(columns: ["_time", "_value", "_field"])`;
+
+  return counted.length === 0
+    ? read(fields, 'mean')
+    : `${read(fields, 'mean')}
+    |> yield(name: "mean")
+${read(counted, 'count')}
+    |> yield(name: "${GRAIN_COUNT}")`;
+};
+
+/** The answer of `grainsQuery` that says how many readings a grain held. */
+const GRAIN_COUNT = 'count';
+
+/**
+ * The grains' means without what does not cover its grain: a mean of `field` is kept only where the grain
+ * held at least half as many readings of it as of `beside`. A leaf sensor that wrote once in five minutes is
+ * no leaf temperature of those five minutes, and one stray reading bent the deficit of a whole grain.
+ */
+export const coveredGrains = (rows: readonly (FluxRow & { result?: string })[], field: string, beside: string): FluxRow[] => {
+  const counts = new Map<string, number>();
+  for (const row of rows)
+    if (row.result === GRAIN_COUNT && row._time && row._field) counts.set(`${row._field}@${row._time}`, finiteOrNull(row._value) ?? 0);
+  const of = (name: string, time: string) => counts.get(`${name}@${time}`) ?? 0;
+
+  return rows.filter(row => row.result !== GRAIN_COUNT && !(row._field === field && row._time && of(field, row._time) * 2 < of(beside, row._time)));
+};
+
+/** The rows of a read as readings: every instant with the value each field had at it. */
+const readingsByInstant = (rows: readonly FluxRow[]): Map<string, Record<string, number>> => {
+  const readings = new Map<string, Record<string, number>>();
+
+  for (const row of rows) {
+    const value = finiteOrNull(row._value);
+    if (!row._field || !row._time || value === null) continue;
+    const reading = readings.get(row._time) ?? {};
+    reading[row._field] = value;
+    readings.set(row._time, reading);
+  }
+
+  return readings;
+};
+
+/**
+ * The grains a change between day and night fell into, as the stretches to
+ * read sample by sample: of two grains that follow one another and lie in
+ * different halves, the lit one - the one a lamp switched in is lit by its
+ * mean level, and its neighbour is dark throughout - or both, where the half
+ * is not the lamp's to say (`both`: a fan's flag, a plug's schedule).
+ *
+ * A grain is judged day or night as a whole, and the one the lamp switched in
+ * is neither: lit in six samples of ten it took the day's leaf offset for the
+ * air of all ten, and a week's lowest deficit read 0.80 kPa where no sample
+ * of it was below 0.90. So that grain is worked out as its lit and its dark
+ * part, each from its own readings - two grains a day, and not a second read
+ * of every one. A grain whose leaf temperature was measured is left alone:
+ * the half decides the offset a missing leaf reading is replaced by, and
+ * nothing else.
+ */
+export const switchedGrains = (
+  rows: readonly FluxRow[],
+  grainSeconds: number,
+  dayOf: (at: (field: string) => number | null, time: number) => boolean | null,
+  both: boolean,
+): TimeWindow[] => {
+  const grain = grainSeconds * 1000;
+  const leaf = fieldOfMetric('leafTemperature') as string;
+  const grains = [...readingsByInstant(rows)]
+    .map(([instant, reading]) => {
+      const stamp = Date.parse(instant);
+      return { stamp, day: dayOf(field => reading[field] ?? null, stamp - grain / 2), measured: reading[leaf] !== undefined };
+    })
+    .sort((one, other) => one.stamp - other.stamp);
+
+  return grains.flatMap((one, index) => {
+    const before = grains[index - 1];
+    if (!before || one.stamp - before.stamp !== grain || one.day === null || before.day === null || one.day === before.day) return [];
+    const read = (both ? [before, one] : [one.day ? one : before]).filter(each => !each.measured);
+
+    return read.length === 0 ? [] : [{ startsAt: new Date(read[0].stamp - grain), endsAt: new Date(read[read.length - 1].stamp) }];
+  });
+};
+
+/** What a window's readings came to once each was worked out by itself: their mean, the lowest and the highest. */
+export interface WorkedOut extends Extremes {
+  mean: number;
+}
+
+/**
+ * What `valueOf` makes of each reading - a sample, or the mean of a grain -
+ * gathered by the window the reading fell into and keyed by the instant that
+ * window is stamped with. `aggregateWindow` cuts its windows on the step from
+ * the epoch, stamps each at its end and cuts the last to the range, and so
+ * does this: the figures stand at the instants the other means stand at.
+ *
+ * A grain is itself stamped at its end, so its own time is half of itself
+ * before that (`grainSeconds`); a sample's is its instant.
+ */
+export const workedOutBy = (
+  rows: readonly FluxRow[],
+  window: FluxWindow,
+  valueOf: (at: (field: string) => number | null, time: number) => number | null,
+  grainSeconds = 0,
+): Map<number, WorkedOut> => {
+  const readings = readingsByInstant(rows);
+  const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
+  const stop = window.endsAt.getTime();
+  const gathered = new Map<number, { sum: number; count: number } & Extremes>();
+
+  for (const [instant, reading] of readings) {
+    const time = Date.parse(instant) - grainSeconds * 500;
+    const value = valueOf(field => reading[field] ?? null, time);
+    if (value === null || Number.isNaN(time)) continue;
+
+    const stamped = Math.min(Math.floor(time / step) * step + step, stop);
+    const known = gathered.get(stamped);
+    if (!known) gathered.set(stamped, { sum: value, count: 1, min: value, max: value });
+    else {
+      known.sum += value;
+      known.count += 1;
+      known.min = Math.min(known.min, value);
+      known.max = Math.max(known.max, value);
+    }
+  }
+
+  return new Map([...gathered].map(([stamped, one]) => [stamped, { mean: one.sum / one.count, min: one.min, max: one.max }]));
+};
+
+/**
+ * How finely an output's switchings are looked for at the most, whatever the
+ * width of the window.
+ *
+ * It is a grain of its own and not simply the display step. An output is a
+ * state and not a measurement: averaging it says what share of a window it ran
+ * for, which at hours to the window is a duty cycle and never a cycle - an 18/6
+ * lamp read at eleven hours to the window never falls low enough to be called
+ * off, and a whole season of nights disappears. So the store is asked for the
  * switchings themselves, and a grow answers the same lamp a day answers.
  *
- * Five minutes is finer than any run a grower can see or act on, and it is what
- * keeps the read cheap: a duty-cycled PID crosses zero hundreds of thousands of
- * times a season, and `max` over the grain collapses that chatter in the store
- * rather than in this process. A run is therefore never reported shorter than it
- * was, and may be reported up to one grain longer at either end.
+ * Five minutes is what keeps a long read cheap: a duty-cycled PID crosses zero
+ * hundreds of thousands of times a season, and `max` over the grain collapses
+ * that chatter in the store rather than in this process. A window read at a
+ * finer step than that is read at the step (`switchingGrainFor`): somebody who
+ * zoomed into twenty minutes is looking for the second a dehumidifier came on,
+ * and a compressor's rest of four minutes never showed at five. A run is never
+ * reported shorter than it was, and may be reported up to one grain longer at
+ * either end.
  */
 const SWITCHING_GRAIN_SECONDS = 300;
+
+/** The grain a window's switchings are read at: its own step, between what a device reports at and the five minutes above. */
+export const switchingGrainFor = (stepSeconds: number | undefined): number =>
+  Math.min(SWITCHING_GRAIN_SECONDS, Math.max(MIN_STEP_SECONDS, Math.trunc(stepSeconds ?? SWITCHING_GRAIN_SECONDS)));
 
 /**
  * A safety net, not a page size. Every output of a real 218-day season answers
@@ -184,59 +449,168 @@ export const valveOpeningsQuery = (bucket: string, deviceId: string, window: Tim
     |> filter(fn: (r) => ${REAL_VALVE_FIGURE})
     |> sum()`;
 
-/** The two answers `levelsQuery` yields: a share of full output, and what the CO2 valve dosed. */
-const LEVEL_RESULT = { level: 'level', dose: 'dose' } as const;
+/** The two answers `countsQuery` yields: how many samples a window held of an output, and in how many of them it ran. */
+const COUNT_RESULT = { heard: 'heard', on: 'on' } as const;
 
 /**
- * How hard each output was driven, window by window, at the step the curves
- * beside it are drawn at.
+ * How many samples of each output every drawn window holds, and in how many of
+ * them the output was running: what every figure said about an output is
+ * counted from, beside the mean the series read already answers.
  *
- * A level is averaged over the samples the output was running in and over no
- * others. Averaged with the dark ones, a lamp dimmed to 60 % that came on half
- * way through a window read 30 %, and a whole season read as the duty cycle;
- * the lane's spans already say when it ran, so the level only has to say how
- * hard. The valve's ticks are summed instead, because each sample counts the
- * ticks since the one before it and a window's dose is all of them together.
- * Only raw samples are read: a day summarised into its mean has kept neither.
+ * A figure taken from the runs instead - the stretches between two switchings,
+ * each rounded out to the grain it was found at - called a valve that opens for
+ * five seconds every two minutes open three quarters of the day, and a heater
+ * a fifth of the time where its samples said an eighth.
+ *
+ * `counted` are the outputs driven at a level, and the valve. One that only
+ * switches writes 0 or 1, so the mean of a window is already the share of its
+ * samples it ran in, and it is left out of the second count: a filter on the
+ * value is the one thing here the store does not push down - four months of
+ * five outputs counted in 53 ms and counted above zero in 227 ms.
+ * The valve's "there is no valve" figure is counted like any other; whoever
+ * reads the counts drops a window whose mean is that figure (`gridOf`).
+ * Only raw samples are read: a day kept as its mean has no samples left.
  */
-export const levelsQuery = (bucket: string, deviceId: string, levels: readonly string[], doses: readonly string[], window: FluxWindow): string => {
-  const read = (fields: readonly string[], keep: string, fn: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
-    |> filter(fn: (r) => ${anyField(fields)})
-    |> filter(fn: (r) => ${keep})${aggregate(window, fn, false)}
+export const countsQuery = (bucket: string, deviceId: string, fields: readonly string[], counted: readonly string[], window: FluxWindow): string => {
+  const read = (names: readonly string[], kept: string, name: string) => `${head(bucket, deviceId, rangeOf(window))}
+    |> filter(fn: (r) => ${anyField(names)})${kept}${aggregate(window, 'count', false)}
     |> yield(name: "${name}")`;
 
   return [
-    levels.length > 0 ? read(levels, 'r._value > 0.0', 'mean', LEVEL_RESULT.level) : null,
-    doses.length > 0 ? read(doses, REAL_VALVE_FIGURE, 'sum', LEVEL_RESULT.dose) : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+    read(fields, '', COUNT_RESULT.heard),
+    ...(counted.length > 0 ? [read(counted, '\n    |> filter(fn: (r) => r._value > 0.0)', COUNT_RESULT.on)] : []),
+  ].join('\n');
 };
 
+/** What one window held of one output: its samples, and those it ran in - null where they were not counted. */
+export interface OutputCount {
+  heard: number;
+  on: number | null;
+}
+
 /**
- * The rows of that read, per field and in order. A device whose points were
- * once tagged with an owner answers one table per tag, so two rows can name the
- * same window: a dose is the two added up, a level the higher of the two.
+ * The rows of that read, per field and window. A device whose points were once
+ * tagged with an owner answers one table per tag, so two rows can name the
+ * same window, and their samples are added up.
  */
-export const levelsByField = (rows: (FluxRow & { result?: string })[]): Map<string, SeriesPoint[]> => {
-  const byField = new Map<string, Map<string, number>>();
+export const countsByField = (rows: (FluxRow & { result?: string })[]): Map<string, Map<string, OutputCount>> => {
+  const byField = new Map<string, Map<string, OutputCount>>();
 
   for (const row of rows) {
     const value = finiteOrNull(row._value);
     if (!row._field || !row._time || value === null) continue;
-    const windows = byField.get(row._field) ?? new Map<string, number>();
-    const known = windows.get(row._time);
-    windows.set(row._time, known === undefined ? value : row.result === LEVEL_RESULT.dose ? known + value : Math.max(known, value));
+    const windows = byField.get(row._field) ?? new Map<string, OutputCount>();
+    const known = windows.get(row._time) ?? { heard: 0, on: null };
+    windows.set(row._time, row.result === COUNT_RESULT.on ? { ...known, on: (known.on ?? 0) + value } : { ...known, heard: known.heard + value });
     byField.set(row._field, windows);
   }
 
-  return new Map(
-    [...byField].map(([field, windows]) => [
-      field,
-      [...windows].sort(([one], [other]) => one.localeCompare(other)).map(([measuredAt, value]) => ({ measuredAt, value })),
-    ]),
-  );
+  return byField;
 };
+
+/** When the first or the last sample of one drawn window was written - whichever of them was asked for. */
+export interface SampleEdges {
+  first?: number;
+  last?: number;
+}
+
+/** A window whose first or last sample is asked for, by the instant the window is stamped with. */
+export interface EdgeAsked extends TimeWindow {
+  end: 'first' | 'last';
+}
+
+/**
+ * When the first or the last sample of some windows was written, of whichever
+ * field: a device is heard when any of its fields reports, so the read names
+ * none - asked of one field, a heater that began reporting later than its
+ * controller moved a lamp's edges by up to a step.
+ *
+ * A window says that something was heard in it, not when: a device back at
+ * 16:00 has a point at 16:03 at three minutes to the point and at 16:30 at an
+ * hour and a half, and one that fell silent at 16:18 a last point at 17:00 at
+ * an hour. Only the windows either side of a silence are asked about, each a
+ * `first()` or a `last()` over one step, so a device without silences costs
+ * nothing and one with them about a millisecond an edge.
+ */
+export const edgesQuery = (bucket: string, deviceId: string, asked: readonly EdgeAsked[]): string => {
+  const reads = asked.map(
+    one => `${head(bucket, deviceId, rangeOf(one))}
+    |> ${one.end}()
+    |> keep(columns: ["_time", "_field"])`,
+  );
+  return reads.length === 1 ? reads[0] : `union(tables: [${reads.join(',')}])`;
+};
+
+/** The rows of that read by the instant each asked window is stamped with: the earliest of its `first` rows, the latest of its `last`. */
+export const edgesOf = (rows: readonly FluxRow[], asked: readonly EdgeAsked[]): Map<number, SampleEdges> => {
+  const times = rows.flatMap(row => (row._time ? [Date.parse(row._time)] : [])).filter(time => !Number.isNaN(time));
+  const edges = new Map<number, SampleEdges>();
+
+  for (const one of asked) {
+    const [from, to] = [one.startsAt.getTime(), one.endsAt.getTime()];
+    const inside = times.filter(time => time >= from && time <= to);
+    if (inside.length === 0) continue;
+    edges.set(to, { ...edges.get(to), [one.end]: one.end === 'first' ? Math.min(...inside) : Math.max(...inside) });
+  }
+
+  return edges;
+};
+
+/**
+ * The windows either side of every silence in a row of stamps: the one a
+ * stretch of what was heard begins in (its first sample) and the one it ends
+ * in (its last). The first stretch begins in the read's first window only if
+ * that is not the first there is, and the last ends at the device's newest
+ * sample, which the read knows without this. `limits` say how long the
+ * device may say nothing at each place (`quietLimits`); without them any
+ * empty window is asked about.
+ */
+export const edgesAround = (stamps: readonly number[], window: FluxWindow, limits?: readonly number[]): EdgeAsked[] => {
+  const step = Math.max(1, Math.trunc(window.stepSeconds)) * 1000;
+  const [starts, stop] = [window.startsAt.getTime(), window.endsAt.getTime()];
+  // A window is cut on the step from the epoch and stamped at its end, the last one where the read ends.
+  const asked = (stamp: number, end: EdgeAsked['end']): EdgeAsked => ({
+    startsAt: new Date(Math.max(starts, stamp === stop && stamp % step !== 0 ? stamp - (stamp % step) : stamp - step)),
+    endsAt: new Date(stamp),
+    end,
+  });
+
+  // A gap may be a silence where a window stands empty in it and, measured by its samples - a step to either
+  // side of what the stamps say - it could be longer than its limit: those are asked about, and judged by the answer.
+  const open = (index: number) => stamps[index] - stamps[index - 1] > step && stamps[index] - stamps[index - 1] + step > (limits?.[index] ?? 0);
+
+  return stamps.flatMap((stamp, index) => [
+    ...((index === 0 ? stamp - step > starts : open(index)) ? [asked(stamp, 'first')] : []),
+    ...(index < stamps.length - 1 && open(index + 1) ? [asked(stamp, 'last')] : []),
+  ]);
+};
+
+/** One drawn window of one output, counted from its samples. */
+export interface OutputFigure {
+  measuredAt: string;
+  /** How many samples the window held. */
+  heard: number;
+  /** In how many of them the output was running. */
+  on: number;
+  /** The mean of all of them as the device wrote them, a sample in which it was off counting as the 0 it is. */
+  mean: number;
+}
+
+/**
+ * One output's figures: for every window the series holds a mean of it, the
+ * samples counted there. The mean is the series' own - of every sample, off or
+ * on - and a window whose mean is the valve's "there is no valve" has none
+ * (`gridOf`), so it has no figure either. An output that only switches
+ * (`switches`) writes 0 or 1, and the samples it ran in are its mean of them all.
+ */
+export const figuresOf = (points: readonly SeriesPoint[], counts: ReadonlyMap<string, OutputCount> | undefined, switches: boolean): OutputFigure[] =>
+  points.flatMap(point => {
+    const counted = counts?.get(point.measuredAt);
+    if (point.value === null || !counted || counted.heard <= 0) return [];
+    const on = counted.on ?? (switches ? Math.round(point.value * counted.heard) : 0);
+
+    return [{ measuredAt: point.measuredAt, heard: counted.heard, on: Math.min(counted.heard, Math.max(0, on)), mean: point.value }];
+  });
 
 /** The two answers `switchingsQuery` yields, which is what tells the state a window opens in from a switching inside it. */
 const SWITCHING_RESULT = { opening: 'opening', switching: 'switching' } as const;
@@ -266,11 +640,17 @@ export interface OutputSwitching {
  * stop InfluxDB pushing the aggregate down into the storage engine, which is the
  * difference between half a second and half a minute over a season.
  */
-export const switchingsQuery = (bucket: string, deviceId: string, fields: readonly string[], window: TimeWindow): string =>
+export const switchingsQuery = (
+  bucket: string,
+  deviceId: string,
+  fields: readonly string[],
+  window: TimeWindow,
+  grainSeconds = SWITCHING_GRAIN_SECONDS,
+): string =>
   `runs = ${head(bucket, deviceId, rangeOf(window))}
     |> filter(fn: (r) => ${anyField(fields)})
     |> filter(fn: (r) => ${NOT_A_SENTINEL})
-    |> aggregateWindow(every: ${SWITCHING_GRAIN_SECONDS}s, fn: max, createEmpty: false, timeSrc: "_start")
+    |> aggregateWindow(every: ${grainSeconds}s, fn: max, createEmpty: false, timeSrc: "_start")
     |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then 1.0 else 0.0 }))
 runs |> first() |> yield(name: "${SWITCHING_RESULT.opening}")
 runs
@@ -332,10 +712,6 @@ export const runningSpansOf = (switchings: readonly OutputSwitching[]): RunningS
 export const runningFor = (spans: readonly RunningSpan[], from: number, to: number): number =>
   spans.reduce((sum, span) => sum + Math.max(0, Math.min(to, span.to) - Math.max(from, span.from)), 0);
 
-/** Whether those stretches cover more than half of one window, which is what makes a bucket a lit one or a dark one. */
-export const runningMostOf = (spans: readonly RunningSpan[], from: number, to: number): boolean =>
-  to > from && runningFor(spans, from, to) * 2 > to - from;
-
 /**
  * The days that have already been summarised, read back as they were stored.
  *
@@ -358,10 +734,10 @@ export const summaryQuery = (bucket: string, deviceId: string, fields: readonly 
  * nothing and a server that was down for a month catches up a chunk at a time.
  * `first()` answers one row per field; the earliest of them is the answer.
  */
-export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date): string => `${head(
+export const oldestSampleQuery = (bucket: string, deviceId: string, before: Date, from: Date | null = null): string => `${head(
   bucket,
   deviceId,
-  `start: 0, stop: ${before.toISOString()}`,
+  `start: ${from ? from.toISOString() : 0}, stop: ${before.toISOString()}`,
 )}
     |> first()`;
 
@@ -470,7 +846,7 @@ export const latestByField = (rows: FluxRow[]): Map<string, { value: number; mea
  * kept as the gap it is rather than dropped: a chart draws the hole rather than
  * joining across it, which is what an unfitted sensor really leaves behind.
  */
-export interface SeriesGrid {
+interface SeriesGrid {
   instants: string[];
   valuesByField: Map<string, Map<string, number | null>>;
 }
@@ -499,7 +875,7 @@ export const gridOf = (rows: FluxRow[]): SeriesGrid => {
 };
 
 /** The readings a computed metric is built from, at one instant. */
-export interface Readings {
+interface Readings {
   temperature: number | null;
   humidity: number | null;
   leafTemperature: number | null;
@@ -547,15 +923,18 @@ const FIELDS_OF_COMPUTED: Partial<Record<Metric, readonly string[]>> = {
  * The curve is the contract's, because the targets screen works out the VPD of
  * a setpoint from the same one, and the figure is rounded as every VPD goes out.
  */
+/**
+ * Which half of the cycle a reading lies in. One whose own lamp level is zero
+ * was taken in the dark, whatever the caller's cycle says; else the caller's
+ * word, and the lamp's level where the caller has none.
+ */
+export const litOf = (readings: Pick<Readings, 'light' | 'isDay'>): boolean =>
+  readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
+
 export const vpdOf = (readings: Readings, factors: DeviceSettings): number | null => {
   if (readings.temperature === null || readings.humidity === null) return null;
 
-  // A reading whose own lamp level is zero was taken in the dark, whatever the
-  // five-minute grain the caller's cycle is read from says: that grain counts a
-  // lamp on for the whole of it once any sample in it was lit, and a dark
-  // minute took the day offset beside a VPD the device itself gave as night.
-  const isDay = readings.light === 0 ? false : (readings.isDay ?? (readings.light ?? 0) > 0.5);
-  const leaf = readings.leafTemperature ?? readings.temperature + (isDay ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
+  const leaf = readings.leafTemperature ?? readings.temperature + (litOf(readings) ? factors.vpdLeafOffsetDay : factors.vpdLeafOffsetNight);
 
   return parseFloat(vapourPressureDeficit(readings.temperature, leaf, readings.humidity).toFixed(METRIC_DECIMALS.vpd));
 };

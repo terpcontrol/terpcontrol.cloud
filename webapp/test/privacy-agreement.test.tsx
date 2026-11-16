@@ -46,7 +46,7 @@ const draw = () =>
   );
 
 const fill = () => {
-  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@example.com' } });
+  fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'new@example.com' } });
   fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'newbie' } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a long enough secret' } });
 };

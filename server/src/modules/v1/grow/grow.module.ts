@@ -15,7 +15,7 @@ import { PlantsController } from './plants.controller';
  * Grows and the plants in them.
  *
  * It depends on the phase writer, and on the measurement store for the two
- * answers that read one - the Charts view and the export. `CLIMATE_PRESETS` is
+ * answers that read one - the grow's series and the export. `CLIMATE_PRESETS` is
  * what it asks of the space slice and is bound where the slices are joined, so
  * a grow that enters a phase can put a tent on that stage's preset without
  * knowing anything about presets or about devices.

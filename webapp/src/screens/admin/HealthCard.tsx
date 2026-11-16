@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import type { AdminAlarmWatch, AdminRetentionRun, AdminStats, Device, Fleet } from '@fg2/shared-types/v1';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
-import { ageLabel, deviceLiveness } from '@/ui/age';
+import { ageLabel, deviceLiveness, isJustNow } from '@/ui/age';
 import { fileSize } from '@/ui/figures';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
@@ -58,10 +58,14 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
     <section className={styles.card}>
       <div className={styles.cardHead}>
         <span className="label">{t('admin.health.title')}</span>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           {/* A dozen counts gathered over a second are not "now", and the
               answer says when it was taken; so does the card. */}
-          {answer ? <span className={`mono ${styles.consequence}`}>{t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}</span> : null}
+          {answer ? (
+            <span className={styles.consequence}>
+              {isJustNow(answer.collectedAt, now) ? t('admin.health.asOfNow') : t('admin.health.asOf', { age: ageLabel(answer.collectedAt, now) })}
+            </span>
+          ) : null}
           <Link className={ui.chip} to="/admin/demo">
             {t('admin.health.openDemo')}
           </Link>
@@ -69,7 +73,7 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
       </div>
 
       {answer ? (
-        <span className={`mono ${styles.figure}`}>
+        <span className={styles.figure}>
           {[
             t('admin.count.online', { count: answer.devices.online }),
             t('admin.health.pictures', { size: sizeLabel(answer.content.mediaBytes, t) }),
@@ -84,9 +88,9 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
           </span>
         </span>
       ) : stats.isPending ? (
-        <span className={`mono ${styles.figure} ${styles.waitingFigure}`}>{t('home.waiting')}</span>
+        <span className={`${styles.figure} ${styles.waitingFigure}`}>{t('home.waiting')}</span>
       ) : (
-        <div className={styles.row}>
+        <div className={ui.wrapRow}>
           <p className={ui.problem} role="alert">
             {stats.error instanceof ApiError && stats.error.status === 404 ? t('admin.health.statsMissing') : t('admin.health.statsFailed')}
           </p>
@@ -97,15 +101,13 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
       )}
 
       <ul className={styles.lines}>
+        {answer ? <li>{answer.retention ? <RetentionLine run={answer.retention} now={now} /> : t('admin.health.noRetention')}</li> : null}
         {answer ? (
-          <li className="mono">{answer.retention ? <RetentionLine run={answer.retention} now={now} /> : t('admin.health.noRetention')}</li>
-        ) : null}
-        {answer ? (
-          <li className="mono">
+          <li>
             <AlarmWatchLine watch={answer.alarmWatch} now={now} />
           </li>
         ) : null}
-        <li className="mono">
+        <li>
           {demo.length === 0
             ? t('admin.health.noDemo')
             : t('admin.health.demo', {
@@ -114,22 +116,22 @@ export function HealthCard({ fleet, devices, stats, now }: { fleet: Fleet; devic
                 age: newest ? ageLabel(newest, now) : '—',
               })}
         </li>
-        <li className="mono">
+        <li>
           {t('admin.health.updates', {
             installing: t('admin.count.installing', { count: updating }),
             gaveUp: t('admin.count.gaveUp', { count: gaveUp }),
           })}
         </li>
         {answer ? (
-          <li className="mono">
+          <li>
             {t('admin.health.cameras', {
               cameras: t('admin.count.cameras', { count: answer.cameras.total }),
               quiet: t('admin.count.quietCameras', { count: answer.cameras.stale }),
             })}
           </li>
         ) : null}
-        <li className="mono">{t('admin.health.unclassified', { devices: t('admin.count.devices', { count: fleet.unclassifiedDevices }) })}</li>
-        <li className="mono">{t('admin.health.paused', { paused, ofClasses: t('admin.count.ofClasses', { count: fleet.classes.length }) })}</li>
+        <li>{t('admin.health.unclassified', { devices: t('admin.count.devices', { count: fleet.unclassifiedDevices }) })}</li>
+        <li>{t('admin.health.paused', { paused, ofClasses: t('admin.count.ofClasses', { count: fleet.classes.length }) })}</li>
       </ul>
 
       {/* Said plainly, because an operator who cannot see a figure should know

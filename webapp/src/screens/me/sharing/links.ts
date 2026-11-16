@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon';
-import type { ShareLink } from '@fg2/shared-types/v1';
+import type { GrowOrSpaceRef, ShareLink } from '@fg2/shared-types/v1';
 import { DAY, DAY_IN_YEAR, nowThere, zoned } from '@/ui/zone';
 import { appUrl } from '@/ui/clipboard';
 
@@ -19,16 +19,12 @@ export const isDead = (link: ShareLink, now: DateTime): boolean =>
   link.revokedAt !== null || (link.expiresAt !== null && DateTime.fromISO(link.expiresAt) <= now);
 
 /**
- * How long a link was made for, in whole days, from the two instants the
- * server answers - which is what the board writes after the kind ("7 days")
- * and what the sheet asked. Null for a link with no end.
+ * Whether a link onto this subject could carry camera pictures: a place with a camera standing in it, or a grow of an
+ * account with a camera anywhere. The sheet that makes a link offers the pictures only there, and the card of a link
+ * says whether it carries them only there - "Kamerabilder aus" for a place without a camera answers nothing asked.
  */
-export const lifetimeDays = (link: ShareLink): number | null => {
-  if (link.expiresAt === null) return null;
-  const days = Math.round(DateTime.fromISO(link.expiresAt).diff(DateTime.fromISO(link.createdAt), 'days').days);
-
-  return days >= 1 ? days : null;
-};
+export const picturesPossible = (cameras: readonly { spaceId: string | null }[], subject: GrowOrSpaceRef): boolean =>
+  cameras.some(camera => subject.type !== 'space' || camera.spaceId === subject.id);
 
 /**
  * "22 Sep", and the year only where it is not this one - read where the
@@ -43,7 +39,8 @@ export const lifetimeDays = (link: ShareLink): number | null => {
 export const dayLabel = (at: string, now: DateTime, locale: string, zone: string | null): string => {
   const day = zoned(at, zone).setLocale(locale);
 
-  return day.toFormat(day.year === nowThere(now, zone).year ? DAY_IN_YEAR : DAY);
+  // One date is one word to a line: "läuft ab 21. Nov" broke between the day and its month.
+  return day.toFormat(day.year === nowThere(now, zone).year ? DAY_IN_YEAR : DAY).replace(/ /g, '\u00a0');
 };
 
 /** The address handed out: the token's, for both kinds, because opening it is what the server counts. */

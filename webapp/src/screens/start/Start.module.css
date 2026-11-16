@@ -1,0 +1,968 @@
+/* Start: one place's page, the cards of several, and what stands there before
+   anything does. A phone's column first, and the same one column beside the
+   rail until two fit: from 1100px a place is the picture left and its cards
+   right, and a list of places the cards left and what is due right. */
+
+.page {
+  width: 100%;
+  max-width: var(--column-width);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+  min-height: var(--control-height);
+}
+
+/* A name is as wide as the screen at most: a word longer than its line breaks inside it, with a hyphen where the
+   browser knows one - and only such a word, so that an ordinary name is not cut up to fill its lines. */
+.head h1,
+.offerTitle,
+.placeName {
+  min-width: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
+}
+
+.head h1 {
+  flex: 1 1 auto;
+}
+
+/* How fresh the place is and its menu go together: where the name leaves them no room, both move to the row under it. */
+.headEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  margin-left: auto;
+}
+
+/* The pill's word explains itself: a finger's room round it, inside the row's own height. */
+.headEnd [data-liveness] > button {
+  position: relative;
+}
+
+.headEnd [data-liveness] > button::after {
+  content: '';
+  position: absolute;
+  inset: -13px -12px;
+}
+
+.menu {
+  flex: none;
+}
+
+.columns,
+.column {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .page {
+    gap: var(--space-4);
+  }
+
+  /* On a desktop the sentence stands between the pill and the menu - and on a row
+     of its own under the name as soon as the name leaves it no room: the head
+     wraps before anything in it overlaps. */
+  .head {
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .head h1 {
+    flex: 0 1 auto;
+  }
+
+  .headEnd {
+    display: contents;
+  }
+
+  .head .statusFrame {
+    flex: 1 1 18rem;
+    order: 1;
+  }
+
+  .head .menu {
+    order: 2;
+    margin-left: auto;
+  }
+}
+
+@media (min-width: 1100px) {
+  .page {
+    max-width: var(--page-width);
+  }
+
+  /* One column of cards - a diary kept by hand, a failure - keeps a phone's width. */
+  .page[data-single] {
+    max-width: var(--column-width);
+  }
+
+  .page:not([data-single]) > .columns {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .page:not([data-single]) .column:first-child {
+    flex: 1 1 0;
+  }
+
+  .page:not([data-single]) .column:last-child {
+    flex: none;
+    width: 360px;
+  }
+
+  /* A column with nothing in it - the demo's list has nothing due and nothing to add - gives its room back. */
+  .page:not([data-single]) .column:last-child:empty {
+    display: none;
+  }
+}
+
+/* --- whose place it is, for somebody let into it --- */
+
+.guest > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.role {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* Whose place it is, on one line: the room and the owner each in a box of
+   their own that is cut where the line ends - the shorter one whole, since
+   the tracks share the line evenly up to what each needs. As the way to who
+   else is here it is a finger high. */
+.guestSaid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
+  align-items: center;
+}
+
+a.guestSaid {
+  min-height: var(--control-height);
+}
+
+.guestSaid > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+/* --- the demo's banner --- */
+
+.demo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.demo > :first-child {
+  flex: 1;
+}
+
+.demoAction {
+  flex: none;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: var(--rule-width) solid var(--selected-edge);
+  border-radius: var(--radius-pill);
+  background: var(--selected);
+  color: var(--on-selected);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- the status sentence --- */
+
+.statusFrame {
+  min-width: 0;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+  color: var(--muted);
+}
+
+a.status {
+  min-height: var(--control-height);
+}
+
+.status[data-tone='good'] {
+  color: var(--green-ink);
+}
+
+.status[data-tone='warn'] {
+  color: var(--warning);
+}
+
+.status[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+/* What stands open behind a status that does not name it, in the alarm's colour where one of it is critical. */
+.open[data-tone='alarm'] {
+  color: var(--alarm);
+}
+
+.mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.modeChange {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-weight: var(--weight-medium);
+}
+
+.loadedAt {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* --- the picture that heads a place --- */
+
+.picture {
+  position: relative;
+  display: block;
+  aspect-ratio: 358 / 232;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--overlay-solid);
+  color: var(--on-overlay);
+}
+
+/* A picture as bright as the page - a lit tent, a white wall - keeps an edge against it. */
+.picture::after {
+  position: absolute;
+  inset: 0;
+  border: var(--rule-solid);
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+/* The picture itself is the way to where it comes from; what lies on it is drawn over the link. */
+.pictureLink {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* The last picture of a place nobody has heard from, stepped back behind what says so. */
+.picture[data-age='offline'] img {
+  opacity: 0.55;
+}
+
+.pictureEmpty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  color: var(--on-overlay);
+}
+
+/* What the picture shows, left, and when it was taken, right: the hour is never cut, the name gives way to it.
+   Neither is pressed - a tap on them goes to the picture underneath. */
+/* Where the grow's name and the picture's age do not fit one row, the age takes a row of its own under it in its
+   corner, and the name has the whole of the first: cut at 390 px with room left beside it, it read as a stray word. */
+.chips {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px var(--space-2);
+  pointer-events: none;
+}
+
+.chip {
+  display: flex;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--overlay);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* The name gives way; the day of the grow beside it never does. */
+.chipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipKept {
+  flex: none;
+  white-space: pre;
+}
+
+.chip[data-side='right'] {
+  flex: none;
+  margin-left: auto;
+}
+
+.chip[data-tone='warn'] {
+  background: var(--warning-wash);
+  color: var(--warning);
+}
+
+.pictureBar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-1);
+  background: var(--overlay);
+  text-align: center;
+}
+
+/* Equal shares of one row, and a figure wider than its share - a VPD below zero on a narrow phone - takes what it
+   needs from the others rather than running into its neighbour; a second row where a place with two lamps has more
+   than fits. */
+.pictureFigures {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* Each figure is the way to its curve, and takes the bar's height as what can be pressed. */
+.pictureFigure {
+  display: flex;
+  flex: 1 0 0;
+  flex-direction: column;
+  justify-content: center;
+  min-width: max-content;
+  min-height: var(--control-height);
+  padding: 10px 0;
+}
+
+/* Figures that have stopped coming step back, and the line under them says as of when they are. */
+.picture:is([data-age='stale'], [data-age='offline']) .pictureFigures {
+  opacity: 0.6;
+}
+
+.pictureValue {
+  font-size: var(--text-name);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-tight);
+  white-space: nowrap;
+}
+
+.pictureLabel {
+  font-size: var(--text-2xs);
+}
+
+.stand {
+  padding-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+@media (min-width: 900px) {
+  .chips {
+    top: 14px;
+    right: 14px;
+    left: 14px;
+  }
+
+  .chip {
+    padding: 5px 12px;
+    font-size: var(--text-sm);
+  }
+
+  .pictureBar {
+    padding: 0 var(--space-2);
+  }
+
+  .pictureFigure {
+    padding: 14px 0;
+  }
+
+  .pictureValue {
+    font-size: var(--text-xl);
+  }
+
+  .pictureLabel {
+    font-size: var(--text-xs);
+  }
+}
+
+/* --- the readings as tiles, where no picture carries them --- */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* An odd tile at the end takes the row: a place that reads three things has no hole beside the third. */
+.tiles > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) 14px;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tileLabel {
+  font-size: var(--text-sm);
+  color: var(--label);
+}
+
+/* The reading's name is the way to its curve, stretched over the tile; a word that explains itself stands above the stretch. */
+a.tileLabel::after {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  content: '';
+}
+
+.tile :is(button, [role='button']) {
+  position: relative;
+  z-index: 1;
+}
+
+.tileFigure {
+  font-size: var(--text-figure);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-tight);
+  white-space: nowrap;
+}
+
+.tileNote {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* "im Ziel" explains itself where it is tapped: a finger high and wide, into the tile's air around the words. */
+.tileNote button::after {
+  position: absolute;
+  inset: -12px -4px;
+  content: '';
+}
+
+.tileNote[data-tone='good'] {
+  font-weight: var(--weight-medium);
+  color: var(--green-ink);
+}
+
+.tileNote[data-tone='off'] {
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+/*
+ * Each further reading is the way to its own curve, a finger high; the dot between two stands at their middle. The
+ * line is a line of text, so a reading that wraps at 320 px stands a line under the others and not a finger's height
+ * lower: each reading reaches up and down into the line's padding, under the words of the one beside it, so a tap on
+ * a reading's words is that reading's and two reaches share no strip (app-ux §5).
+ */
+.extras {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  padding-block: calc((var(--control-height) - 1lh) / 2);
+}
+
+.extra {
+  position: relative;
+}
+
+.extra::after {
+  position: absolute;
+  z-index: -1;
+  inset: calc((var(--control-height) - 1lh) / -2) -4px;
+  content: '';
+}
+
+/* --- the grow: phase, week, and how far along --- */
+
+.phase {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-height);
+}
+
+.phaseWords {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.phaseWords > * {
+  white-space: nowrap;
+}
+
+.growCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.growName {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-name);
+  font-weight: var(--weight-medium);
+}
+
+.growName > :first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+/* --- a card with a small heading: Heute, Zuletzt, Zielwerte --- */
+
+.offerTitle {
+  font-size: var(--text-lg);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.cardText {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.due {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.dueText {
+  flex: 1;
+  min-width: 0;
+}
+
+.dueNote {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.dueAction {
+  flex: none;
+}
+
+.dueAsk {
+  flex-basis: 100%;
+}
+
+/* A finger high, and drawn into the card's own padding so its words do not stand in a gap of their own. */
+.more {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: var(--control-height);
+  margin: calc(-1 * var(--space-2)) 0 -10px;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- a row that leads somewhere (`ui.rowCard`): the targets, a door of the empty Start --- */
+
+.rowText {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+}
+
+.rowText[data-tone='brand'] {
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+}
+
+.rowNote {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.door {
+  min-height: 0;
+  padding: var(--space-4);
+  border-color: var(--rule-strong);
+  gap: var(--space-3);
+}
+
+.door .rowText {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-medium);
+}
+
+.door .rowNote {
+  font-size: var(--text-sm);
+}
+
+.door[data-first] {
+  background: var(--selected);
+  border-color: var(--selected-edge);
+  color: var(--on-selected);
+}
+
+.door[data-first] :is(.rowNote, .chevron) {
+  color: inherit;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.pair > * {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+/* Half of a 320 px card leaves a button about 120 px: an outlined button's own 16 px a side broke "Grow hierher"
+   onto two lines beside a one-line "Grow starten". */
+.pair > :is(button, a) {
+  padding-inline: var(--space-2);
+}
+
+/* A third answer - "Nein danke" beside two ways in - takes the row under them. */
+.pair > :nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.go {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--green-fill);
+  color: var(--on-green);
+  font-weight: var(--weight-medium);
+}
+
+.go[data-tone='brand'] {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 var(--rule-width) var(--selected-edge);
+  color: var(--on-selected);
+}
+
+.add {
+  align-self: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.invited {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- the empty Start --- */
+
+.empty {
+  padding-top: var(--space-5);
+}
+
+.empty h1 {
+  margin-bottom: var(--space-2);
+}
+
+/* --- several places: a card each, under the room it stands in --- */
+
+/* A room's heading opens a group of its own: more room above it than between two cards. */
+.places > .room:not(:first-child),
+.places > .room + .place {
+  margin-top: var(--space-2);
+}
+
+.place {
+  display: flex;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.place[data-asks] {
+  border-color: var(--warning-edge);
+}
+
+.place:has(.still) {
+  padding: var(--space-3);
+}
+
+.still {
+  flex: none;
+  width: 104px;
+  height: 88px;
+  border-radius: var(--radius-sm);
+  /* A bright picture keeps an edge against the card. */
+  outline: var(--rule-solid);
+  outline-offset: calc(-1 * var(--rule-width));
+  object-fit: cover;
+}
+
+/* On the narrowest phones the picture gives the words their room. */
+@media (max-width: 359px) {
+  .still {
+    width: 72px;
+    height: 64px;
+  }
+}
+
+.placeText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.placeHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-2);
+}
+
+.placeName {
+  flex: 1;
+  font-size: var(--text-name);
+  font-weight: var(--weight-medium);
+}
+
+.pill {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.pill[data-tone='warn'],
+.pill[data-tone='alarm'] {
+  background: var(--warning-wash);
+  color: var(--warning);
+}
+
+/* Maintenance is somebody's choice: said, in the quiet surface's ink. */
+.pill[data-tone='quiet'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
+.placeStatus {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.placeStatus:is([data-tone='warn'], [data-tone='alarm']) {
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+.placeFigures {
+  font-weight: var(--weight-medium);
+}
+
+.placeGrow {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* That something is due there, which "Heute" under the cards lists. */
+.placeDue {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+}
+
+/* The cards keep a phone's width also where the column beside them is gone. */
+.places {
+  max-width: var(--column-width);
+}
+
+/* --- the last day as two small curves, on a desktop --- */
+
+.day {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+}
+
+.day > .cardTitle {
+  flex: none;
+}
+
+.curve {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* What the curve is of, in its colour, and what it ran between. */
+.curveLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--temperature);
+}
+
+.curveLabel[data-tone='humidity'] {
+  color: var(--humidity);
+}
+
+.curveLabel small {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.curve svg {
+  display: block;
+  width: 100%;
+  height: 44px;
+  overflow: visible;
+}
+
+.curveNight {
+  fill: var(--night);
+}
+
+.curveBand {
+  fill: var(--band);
+}
+
+.curveLine {
+  fill: none;
+  stroke: var(--temperature);
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.curveLine[data-tone='humidity'] {
+  stroke: var(--humidity);
+}
+
+/* --- waiting: the shape of a place, grey --- */
+
+.wait {
+  display: block;
+  border-radius: var(--radius-sm);
+  background: var(--rule);
+}
+
+.waitPicture {
+  aspect-ratio: 358 / 232;
+  border-radius: var(--radius);
+}
+
+.card .wait {
+  background: var(--card-2);
+}

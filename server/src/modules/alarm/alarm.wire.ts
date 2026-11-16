@@ -50,13 +50,15 @@ export const alarmRuleOf = (rule: StoredAlarmRule, mayManage: boolean): AlarmRul
   state: stateOf(rule.state),
 });
 
-export const alertOf = (alert: StoredAlert): Alert => ({
+export const alertOf = (alert: StoredAlert, { spaceName, startedIn }: Pick<Alert, 'spaceName' | 'startedIn'>): Alert => ({
   id: alert.id,
   createdAt: alert.createdAt.toISOString(),
   ruleId: alert.ruleId,
   deviceId: alert.deviceId,
   cameraId: alert.cameraId,
   spaceId: alert.spaceId,
+  spaceName,
+  startedIn,
   kind: alert.kind,
   severity: alert.severity,
   startedAt: alert.startedAt.toISOString(),

@@ -1,7 +1,8 @@
+import sharp from 'sharp';
 import { anonymous, createAccount, loginAsAdmin, Session } from '../support/api';
-import { claimCodeOf, DeviceSimulator, provisionDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceSimulator, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 import { argumentAfter, armFfmpeg, ffmpegCalls, resetFfmpeg } from '../support/ffmpeg';
-import { joinSpace, setRow } from '../support/fixtures';
+import { joinSpace, seedStillRows, setRow } from '../support/fixtures';
 import { takeTestPicture } from '../support/test-picture';
 
 /**
@@ -118,6 +119,35 @@ describe('adding a camera', () => {
     }
   });
 
+  it('makes the Terp Cam a controller paired while it was nobody´s at the claim, not when the device next says it', async () => {
+    // A device says its camera once per boot, and the boot came before the
+    // claim, so the claim is the only moment left to make the row in.
+    const controller = await registerDevice('controller');
+    const simulator = await startSimulator(controller);
+    await settle();
+
+    try {
+      await simulator.publish('log', { severity: 0, message: 'hardware-info:webcam_did=TERPCAMUNOWNED' });
+      await settle(600);
+
+      const claimed = await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(controller.deviceId) })
+        .expect(201);
+
+      const [paired] = (await owner.client.get(`/v1/cameras?deviceId=${controller.deviceId}`).expect(200)).body.items;
+      expect(paired).toMatchObject({
+        kind: 'terpcam_controller',
+        name: 'Terp Cam',
+        did: 'TERPCAMUNOWNED',
+        deviceId: controller.deviceId,
+        spaceId: claimed.body.device.spaceId,
+      });
+    } finally {
+      await simulator.close();
+    }
+  });
+
   it('takes every transport ffmpeg reads RTSP over, and refuses UDP through a tunnel that carries TCP alone', async () => {
     for (const transport of ['tcp', 'udp', 'http', 'https']) {
       await owner.client.post('/v1/cameras').send(rtsp({ transport })).expect(201);
@@ -139,6 +169,21 @@ describe('adding a camera', () => {
     await takeTestPicture(owner, id);
 
     expect(openedAt('apart-from-the-address')).toBe('rtsp://cam:p%40ss@10.0.0.70:554/apart-from-the-address');
+  });
+
+  it('refuses an address no stream is opened at, and adds nothing', async () => {
+    const before = (await owner.client.get(`/v1/cameras?spaceId=${tent}`).expect(200)).body.items.length;
+
+    for (const url of ['quatsch', 'http://10.0.0.30/stream1', 'rtsp://', 'rtsp:///stream1']) {
+      const refused = await owner.client.post('/v1/cameras').send(rtsp({ url })).expect(422);
+      expect(refused.body).toMatchObject({ code: 'not_a_stream_address', errors: [{ field: 'url', code: 'not_a_stream_address' }] });
+    }
+    expect((await owner.client.get(`/v1/cameras?spaceId=${tent}`).expect(200)).body.items).toHaveLength(before);
+
+    // rtsps:// is a stream too, and a changed address is held to the same.
+    const id = await addCamera(rtsp({ url: 'rtsps://10.0.0.33:322/stream1' }));
+    expect((await owner.client.patch(`/v1/cameras/${id}`).send({ url: 'quatsch' }).expect(422)).body.code).toBe('not_a_stream_address');
+    expect((await owner.client.get(`/v1/cameras/${id}`).expect(200)).body.url).toBe('rtsps://10.0.0.33:322/stream1');
   });
 
   it('will not put a camera nowhere, nor into somebody else´s tent', async () => {
@@ -378,6 +423,95 @@ describe('a test picture', () => {
 });
 
 /**
+ * A stream's address tested before any camera is made of it. The test made a
+ * camera of its own and took it away again, which left a removed camera behind
+ * for every press; this route reads the address as the camera would be read
+ * and writes nothing at all.
+ */
+describe('a test of a stream´s address', () => {
+  /** The test the form starts, asked after until it is over. */
+  const testAddress = async (session: Session, body: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const until = Date.now() + 20_000;
+    let capture = (await session.client.post('/v1/cameras/test-captures').send(body).expect(202)).body;
+    while (capture.state === 'running') {
+      if (Date.now() > until) throw new Error(`The test of an address ${capture.id} was still running after 20 s.`);
+      await settle(100);
+      capture = (await session.client.get(`/v1/cameras/test-captures/${capture.id}`).expect(200)).body;
+    }
+    return capture;
+  };
+  const cameraRows = async () => (await owner.client.get('/v1/cameras').query({ includeRemoved: 'true', limit: 100 }).expect(200)).body.items.length;
+
+  it('answers the picture a good address gave, and makes no camera and stores no picture', async () => {
+    const picture = await sharp({ create: { width: 1280, height: 720, channels: 3, background: '#3a6' } })
+      .jpeg()
+      .toBuffer();
+    resetFfmpeg();
+    armFfmpeg([{ match: 'good-address', stdout: picture.toString('base64') }]);
+    const before = await cameraRows();
+
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://10.0.0.81:554/good-address', username: 'cam', password: 'p@ss' });
+
+    expect(answer).toMatchObject({ state: 'done', reason: null, error: null, picture: { capturedAt: expect.any(String) } });
+    expect(answer).not.toHaveProperty('cameraId');
+    // Handed over whole, since it is kept nowhere, and no wider than the form draws it.
+    const handed = await sharp(Buffer.from((answer.picture as { jpeg: string }).jpeg, 'base64')).metadata();
+    expect(handed).toMatchObject({ format: 'jpeg', width: 720, height: 405 });
+    // Opened as the camera would be, the login written into the address.
+    expect(openedAt('good-address')).toBe('rtsp://cam:p%40ss@10.0.0.81:554/good-address');
+    expect(await cameraRows()).toBe(before);
+  });
+
+  it('refuses an address no stream is opened at before anything is read', async () => {
+    resetFfmpeg();
+    const refused = await owner.client.post('/v1/cameras/test-captures').send({ spaceId: tent, url: 'quatsch' }).expect(422);
+
+    expect(refused.body).toMatchObject({ code: 'not_a_stream_address', errors: [expect.objectContaining({ field: 'url' })] });
+    expect(ffmpegCalls()).toEqual([]);
+  });
+
+  it('says an address that does not answer is a failed test, what kind of failure, and what the stream said', async () => {
+    resetFfmpeg();
+    const before = await cameraRows();
+
+    // The harness answers an address on another machine as ffmpeg does one it cannot reach.
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://viewer:hunter2@192.168.1.82:554/unreachable' });
+
+    expect(answer).toMatchObject({ state: 'failed', picture: null, reason: 'noAnswer', error: expect.stringContaining('No route to host') });
+    expect(answer.error).not.toContain('hunter2');
+    expect(await cameraRows()).toBe(before);
+  });
+
+  it('is refused to whoever may not manage the place, and asked after by the account that started it alone', async () => {
+    const reader = await createAccount('cameras-address-reader');
+    await joinSpace(owner, tent, reader, 'can_log');
+    const stranger = await createAccount('cameras-address-stranger');
+    resetFfmpeg();
+    const body = { spaceId: tent, url: 'rtsp://10.0.0.83:554/not-theirs' };
+
+    const read = await reader.client.post('/v1/cameras/test-captures').send(body).expect(403);
+    expect(read.body.code).toBe('insufficient_access');
+    expect((await stranger.client.post('/v1/cameras/test-captures').send(body).expect(404)).body.code).toBe('space_not_found');
+    expect(ffmpegCalls()).toEqual([]);
+
+    const started = (await owner.client.post('/v1/cameras/test-captures').send(body).expect(202)).body;
+    expect((await reader.client.get(`/v1/cameras/test-captures/${started.id}`).expect(404)).body.code).toBe('test_capture_not_found');
+    await owner.client.get('/v1/cameras/test-captures/not-a-test').expect(404);
+    await owner.client.get(`/v1/cameras/test-captures/${started.id}`).expect(200);
+  });
+
+  it('through a device that is offline, is answered at once with the device being offline', async () => {
+    const fridge = await provisionDevice(owner, 'fridge');
+    resetFfmpeg();
+
+    const answer = await testAddress(owner, { spaceId: tent, url: 'rtsp://10.0.0.84:554/never-heard', deviceId: fridge.deviceId, tunnel: true });
+
+    expect(answer).toMatchObject({ state: 'failed', picture: null, reason: 'deviceOffline' });
+    expect(ffmpegCalls().some(args => args.join(' ').includes('never-heard'))).toBe(false);
+  });
+});
+
+/**
  * Answers enough runs of one stream to cover the poller as well as the request:
  * a new camera is due at once, and a run the poller took would otherwise leave
  * the request without the answer this spec gave it.
@@ -521,9 +655,13 @@ describe('the composer', () => {
   let camera: string;
 
   const span = { startsAt: '2026-08-01T00:00:00.000Z', endsAt: '2026-08-20T00:00:00.000Z' };
+  /** A picture every `hours` from half past midnight of one August day up to another: a film is asked only of pictures. */
+  const every = (hours: number, from: number, to: number): Date[] =>
+    Array.from({ length: Math.floor(((to - from) * 24) / hours) }, (_, index) => new Date(Date.UTC(2026, 7, from, 0, 30) + index * hours * 3600_000));
 
   beforeAll(async () => {
     camera = await addCamera(rtsp({ name: 'Composer cam' }));
+    await seedStillRows(camera, every(12, 1, 20));
   });
 
   it('answers a job that is polled, because a render does not finish inside a request', async () => {
@@ -578,6 +716,7 @@ describe('the composer', () => {
    */
   it('gives a link reader only the films that lie inside its window from first frame to last', async () => {
     const filmed = await addCamera(rtsp({ name: 'Windowed cam' }));
+    await seedStillRows(filmed, [...every(6, 1, 5), ...every(6, 8, 10), ...every(1, 10, 11), ...every(6, 11, 14)]);
     const film = async (startsAt: string, endsAt: string): Promise<string> =>
       (await owner.client.post(`/v1/cameras/${filmed}/timelapses`).send({ window: 'custom', startsAt, endsAt }).expect(202)).body.media.id;
     const inside = await film('2026-08-01T00:00:00.000Z', '2026-08-05T00:00:00.000Z');

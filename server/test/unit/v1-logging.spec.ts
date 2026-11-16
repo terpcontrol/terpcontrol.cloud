@@ -153,12 +153,21 @@ beforeEach(async () => {
     db.plants,
     db.devices,
     db.reminders,
+    db.users,
     access,
     new EntryWriterService(db.entries),
     maintenance,
+    db.spaces,
   );
 
-  const alarms: StageAlarms = { applyStage: async () => undefined };
+  const alarms: StageAlarms = {
+    applyStage: async () => undefined,
+    followClimate: async () => undefined,
+    dropStage: async () => undefined,
+    leaveClimate: async () => undefined,
+    climateHere: async () => null,
+    stageOf: async () => null,
+  };
   const mail = { send: async () => undefined } as unknown as MailService;
   const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
   plans = new PlanService(
@@ -221,6 +230,35 @@ describe('who may write a line, and against what', () => {
       status: 400,
       code: 'entry_about_nothing',
     });
+  });
+
+  /**
+   * A place that has ended is on no screen, so a line somebody writes about it
+   * is refused - written new or moved there. The grow that stood in it is
+   * still written to, a line already on the place stays correctable, and what
+   * a machine records goes through the writer and is not asked.
+   */
+  it('takes no line about a place that has ended, from a person', async () => {
+    const onThePlace = { kind: 'note' as const, spaceId: SPACE, values: { kind: 'note' as const }, text: 'Wiped the walls.' };
+    const kept = await entries.create(session(OWNER), onThePlace);
+    const onTheGrow = await entries.create(session(OWNER), aNote);
+    await db.spaces.updateOne({ id: SPACE }, { $set: { archivedAt: new Date() } });
+    const ended = { status: 409, code: 'space_archived' };
+
+    expect(await problem(entries.create(session(OWNER), onThePlace))).toEqual(ended);
+    expect(await problem(entries.update(session(OWNER), onTheGrow.id, { spaceId: SPACE }))).toEqual(ended);
+    expect(await db.entries.countDocuments()).toBe(2);
+
+    expect((await entries.update(session(OWNER), kept.id, { text: 'Wiped the walls and the floor.' })).text).toBe('Wiped the walls and the floor.');
+    expect((await entries.create(session(OWNER), aNote)).growId).toBe(GROW);
+    const logged = await new EntryWriterService(db.entries).write({
+      source: 'device',
+      authorId: null,
+      spaceId: SPACE,
+      deviceId: DEVICE,
+      values: { kind: 'system' },
+    });
+    expect(logged.spaceId).toBe(SPACE);
   });
 
   it('writes against named plants, and finds their grow from them', async () => {
@@ -316,6 +354,14 @@ describe('when a line says it happened', () => {
       status: 400,
       code: 'occurred_in_the_future',
     });
+  });
+
+  it('records a line stamped by a clock a little ahead as now: a read that ends at now holds it at once', async () => {
+    const ahead = new Date(Date.now() + 2_000).toISOString();
+
+    const entry = await entries.create(session(OWNER), { kind: 'note', growId: GROW, occurredAt: ahead, values: { kind: 'note' } });
+
+    expect(Date.parse(entry.occurredAt)).toBeLessThanOrEqual(Date.now());
   });
 });
 
@@ -504,6 +550,17 @@ describe('ticking a task off', () => {
     await entries.remove(session(OWNER), watered.id);
     const back = await entries.create(session(OWNER), { kind: 'water', growId: GROW, values: { kind: 'water' } });
     expect(back.taskId).toBe(watered.taskId);
+  });
+
+  /** A task's "Eintragen" names the task its line closes; ticked by somebody else meanwhile, the watering still stands. */
+  it('closes the task a line names, and writes the line though the task was closed meanwhile', async () => {
+    await aReminder({ kind: 'water', label: 'Water', defaults: null });
+
+    const named = await entries.create(session(OWNER), { kind: 'water', growId: GROW, taskId: 'reminder-1:1', values: { kind: 'water', litres: 2 } });
+    expect(named.taskId).toBe('reminder-1:1');
+
+    const late = await entries.create(session(LOGGER), { kind: 'water', growId: GROW, taskId: 'reminder-1:1', values: { kind: 'water', litres: 1 } });
+    expect(late).toMatchObject({ taskId: null, values: { litres: 1 } });
   });
 
   it('tells a stranger there is no such task before it tells them what is due there', async () => {

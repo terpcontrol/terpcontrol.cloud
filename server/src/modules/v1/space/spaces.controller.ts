@@ -1,20 +1,9 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import {
-  Co2Report,
-  Device,
-  PresetApplication,
-  PresetApplicationCreate,
-  Space,
-  SpaceCreate,
-  SpaceLive,
-  SpacePage,
-  SpaceUpdate,
-} from '@fg2/shared-types/v1';
+import { Co2Report, PresetApplication, PresetApplicationCreate, Space, SpaceCreate, SpaceLive, SpacePage, SpaceUpdate } from '@fg2/shared-types/v1';
 import {
   co2Report,
-  device as deviceShape,
   presetApplication,
   presetApplicationCreate,
   space as spaceShape,
@@ -40,15 +29,16 @@ import { SpacesService } from './spaces.service';
  *
  * Every route but the list and the creation is about one space and says what it
  * needs of the caller: a member reads a space, a manager changes it, and only
- * the owner ends one. Ending is a route of its own in both flavours - archiving
- * a place that is not in use, and deleting one - so that neither is something a
+ * the owner ends one, says which room it stands in or takes a device out of
+ * every place. Ending is a route of its own in both flavours - archiving a
+ * place that is not in use, and deleting one - so that neither is something a
  * settings form does in passing.
  */
 
 /** A query string carries a flag as text, so it is read as the two words it can be. */
 const spaceListQuery = pageQuery.extend({
   roomId: z.string().optional().describe('Only the spaces grouped by this room.'),
-  archived: z.enum(['true', 'false']).optional().describe('`true` lists the spaces that have been archived instead of the ones in use.'),
+  archived: z.enum(['true', 'false']).optional().describe('`true` lists the spaces that have ended instead of the ones in use.'),
 });
 
 @ApiTags('spaces')
@@ -130,24 +120,6 @@ export class SpacesController {
     return this.spaces.remove(id);
   }
 
-  @Put(':id/archive')
-  @UseGuards(AuthGuard, AccessGuard)
-  @Requires('manage', 'space')
-  @ApiOperation({ summary: 'Put a space away without ending it' })
-  @V1Answer(spaceShape)
-  public archive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
-    return this.spaces.archive(ctx, id, true);
-  }
-
-  @Delete(':id/archive')
-  @UseGuards(AuthGuard, AccessGuard)
-  @Requires('manage', 'space')
-  @ApiOperation({ summary: 'Take a space back out of the archive' })
-  @V1Answer(spaceShape)
-  public unarchive(@Caller() ctx: AccessContext, @Param('id') id: string): Promise<Space> {
-    return this.spaces.archive(ctx, id, false);
-  }
-
   /**
    * The phase tiles: a climate preset written to whatever stands here, and the
    * stage the grow standing here enters with it. It is `manage` rather than
@@ -167,19 +139,6 @@ export class SpacesController {
     return this.presets.apply(ctx, id, body);
   }
 
-  @Put(':id/devices/:deviceId')
-  @UseGuards(AuthGuard, AccessGuard)
-  @Requires('manage', 'space')
-  @ApiOperation({ summary: 'Put a device in this space' })
-  @V1Answer(deviceShape)
-  public async placeDevice(@Caller() ctx: AccessContext, @Param('id') id: string, @Param('deviceId') deviceId: string): Promise<Device> {
-    // Moving a device is managing two things, and the guard above has only
-    // decided about the space it is being put into.
-    await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
-
-    return this.spaces.placeDevice(id, deviceId, ctx.isDemo);
-  }
-
   @Delete(':id/devices/:deviceId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthGuard, AccessGuard)
@@ -187,7 +146,7 @@ export class SpacesController {
   @ApiOperation({ summary: 'Take a device out of this space' })
   @ApiNoContentResponse({ description: 'The device stands nowhere until it is put somewhere else.' })
   public async removeDevice(@Caller() ctx: AccessContext, @Param('id') id: string, @Param('deviceId') deviceId: string): Promise<void> {
-    await this.access.require(ctx, subjectRef('device', deviceId), 'manage');
+    await this.access.require(ctx, subjectRef('device', deviceId), 'own');
 
     return this.spaces.removeDevice(id, deviceId);
   }

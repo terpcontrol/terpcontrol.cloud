@@ -38,4 +38,19 @@ export default tseslint.config({ ignores: ['dist/', 'logs/'] }, tseslint.configs
       },
     ],
   },
+}, {
+  files: ['src/**/*.ts'],
+  rules: {
+    // The container's swc build writes a union type's design metadata as
+    // `Object`, so `@Optional() x: Service | null` resolves to nothing there
+    // and to the service under ts-node: a dependency that quietly does nothing
+    // in production alone. Naming the token keeps the two builds alike.
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: "TSParameterProperty:has(Decorator[expression.callee.name='Optional']):not(:has(Decorator[expression.callee.name=/^Inject/]))",
+        message: 'Name what an @Optional() parameter injects (@Inject, @InjectModel): swc writes a union type as Object.',
+      },
+    ],
+  },
 });

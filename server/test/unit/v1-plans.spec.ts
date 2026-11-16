@@ -43,6 +43,7 @@ let engineWith: (announcer: PlanAnnouncer) => PlanEngineService;
 
 let applied: { deviceId: string; settings: DeviceConfiguration }[];
 let appliedFor: (string | null | undefined)[];
+let presetsFor: ({ stage: string; preset: string | null } | null | undefined)[];
 let choicesFor: unknown[];
 let mailed: { to: string; subject: string; text: string }[];
 let stages: { deviceId: string; stage: string; preset: string | null }[];
@@ -120,22 +121,31 @@ beforeEach(async () => {
   await db.reset();
   applied = [];
   appliedFor = [];
+  presetsFor = [];
   choicesFor = [];
   mailed = [];
   stages = [];
 
   const configuration: DeviceConfigurationWriter = {
-    applyConfiguration: async (deviceId, settings, stage, choices) => {
+    applyConfiguration: async (deviceId, settings, stage, choices, preset) => {
       applied.push({ deviceId, settings });
       appliedFor.push(stage);
+      presetsFor.push(preset);
       choicesFor.push(choices);
       return true;
     },
+    lampsFollow: async () => undefined,
+    awaitClimate: async () => undefined,
   };
   const alarms: StageAlarms = {
     applyStage: async (deviceId, stage, preset) => {
       stages.push({ deviceId, stage, preset });
     },
+    followClimate: async () => undefined,
+    dropStage: async () => undefined,
+    leaveClimate: async () => undefined,
+    climateHere: async () => null,
+    stageOf: async () => null,
   };
   const mail = { send: async (message: (typeof mailed)[number]) => void mailed.push(message) } as unknown as MailService;
 
@@ -227,6 +237,30 @@ describe('what the step is applied to', () => {
     await engine.run(NOW);
 
     expect(appliedFor).toEqual(['drying']);
+  });
+
+  it('hands on the preset of the step´s stage, which the device keeps as what names it on Steuerung', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Flower', stage: 'flowering', preset: 'late_flowering', settings: { day: { temperature: 24 } } })]);
+
+    await engine.run(NOW);
+
+    expect(appliedFor).toEqual(['flowering']);
+    expect(presetsFor).toEqual([{ stage: 'flowering', preset: 'late_flowering' }]);
+  });
+
+  /**
+   * A Veg step with "Lassen, wie sie sind" and 25 °C left the device named "Klima-Preset: Veg" over the step's own
+   * figures: a step's stage decides the work mode and names no preset (Chris, 2026-11-14).
+   */
+  it('names no preset for a step that names none, whatever its stage', async () => {
+    await aDevice();
+    await aPlan([step({ id: 'a', name: 'Veg', stage: 'vegetative', preset: null, settings: { day: { temperature: 25 } } })]);
+
+    await engine.run(NOW);
+
+    expect(appliedFor).toEqual(['vegetative']);
+    expect(presetsFor).toEqual([null]);
   });
 
   it('sends a step that names only a stage, because the stage decides the work mode', async () => {
@@ -839,7 +873,7 @@ describe('removing a plan', () => {
 });
 
 describe('the phase a step puts the grow into', () => {
-  it('writes the phase, the entry and the thresholds once, with the targets the controller runs', async () => {
+  it('writes the phase and the entry once, with the targets the controller runs, and no threshold of its own', async () => {
     await aDevice();
     await aGrowIn(SPACE);
     await aPlan([
@@ -854,7 +888,9 @@ describe('the phase a step puts the grow into', () => {
     expect(phases).toHaveLength(1);
     expect(phases[0]).toMatchObject({ stage: 'flowering', preset: 'late_flowering', source: 'plan', setBy: null, deviceId: DEVICE });
     expect(phases[0].targets).toEqual({ day: { temperature: 26, humidity: 60 }, night: { temperature: 21, humidity: 55 }, co2: 900 });
-    expect(stages).toEqual([{ deviceId: DEVICE, stage: 'flowering', preset: 'late_flowering' }]);
+    // The thresholds follow the climate the step writes, with a grow there or without (`DeviceConfigurationService.store`):
+    // the phase moves none of its own.
+    expect(stages).toEqual([]);
 
     const phaseEntry = (await entries()).find(entry => entry.kind === 'phase');
     expect(phaseEntry).toMatchObject({ source: 'plan', growId: GROW, spaceId: SPACE, deviceId: DEVICE });
@@ -863,6 +899,65 @@ describe('the phase a step puts the grow into', () => {
     // The step after it carries the same stage, which is not a phase change.
     await engine.run(at(48 * HOUR));
     expect((await grow()).phases).toHaveLength(1);
+  });
+
+  /** A second grow begun beside the one a plan was started for is not put into the plan's stages; the plan names its grow. */
+  it('moves the grow the plan was started for, not one begun beside it since', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower', stage: 'flowering' })], { state: stoppedState });
+    await transitions.transition(DEVICE, { kind: 'resume' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
+
+    await db.grows.create({
+      id: 'grow-2',
+      ownerId: OWNER,
+      name: 'Second grow',
+      type: 'photoperiod',
+      slug: 'grow-2',
+      startedAt: new Date(),
+      placements: [{ id: 'placement-2', spaceId: SPACE, startedAt: new Date(), endedAt: null, plantIds: null }],
+    });
+    await transitions.transition(DEVICE, { kind: 'goto', stepId: 'b' }, OWNER);
+
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+    expect((await db.grows.findOne({ id: 'grow-2' }).lean().exec())!.phases).toHaveLength(0);
+    expect((await stored()).growId).toBe(GROW);
+  });
+
+  /**
+   * Started where two grows stand, it moves the grow the screen named before the tap - the place's lead -, else the one
+   * standing there longest, as every screen leads with: it moved the seedlings begun a day before into flower.
+   */
+  it('started where two grows stand, moves the one the screen named, else the one standing there longest', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await db.grows.create({
+      id: 'grow-2',
+      ownerId: OWNER,
+      name: 'Second grow',
+      type: 'photoperiod',
+      slug: 'grow-2',
+      startedAt: at(-24 * HOUR),
+      placements: [{ id: 'placement-2', spaceId: SPACE, startedAt: at(-24 * HOUR), endedAt: null, plantIds: null }],
+    });
+    const second = async () => (await db.grows.findOne({ id: 'grow-2' }).lean().exec())!.phases.map(phase => phase.stage);
+    await aPlan([step({ id: 'a', name: 'Flower', stage: 'flowering' })], { state: stoppedState });
+
+    await transitions.transition(DEVICE, { kind: 'resume' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+    expect(await second()).toEqual([]);
+
+    await transitions.stop(DEVICE);
+    await transitions.transition(DEVICE, { kind: 'goto', stepId: 'a', growId: 'grow-2' }, OWNER);
+    expect((await stored()).growId).toBe('grow-2');
+    expect(await second()).toEqual(['flowering']);
+
+    // A grow that does not stand there is not moved: the plan takes the place's lead.
+    await transitions.stop(DEVICE);
+    await transitions.transition(DEVICE, { kind: 'resume', growId: 'grow-elsewhere' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
   });
 
   it('invents no grow for a controller that is simply on', async () => {

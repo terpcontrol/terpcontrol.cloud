@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowOrSpaceRef, Reminder, ReminderCreate, ReminderKind, Space } from '@fg2/shared-types/v1';
 import { Link } from 'react-router';
@@ -6,12 +6,15 @@ import { useMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
 import { channelsLabel, isConfigured } from '@/screens/notifications/reach';
 import { useCreateReminder, useDeleteReminder, useUpdateReminder } from '@/api/reminders';
+import { useLog, type Back } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { dayEdgeInstant, dayOf, startOfDayOn } from '@/ui/days';
 import { Refused } from '@/ui/PageState';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { useZone } from '@/ui/zone';
+import { litresOf } from './tasks';
 import styles from './Tasks.module.css';
 
 const KINDS: ReminderKind[] = ['water', 'feed', 'chore', 'custom'];
@@ -68,13 +71,18 @@ interface ReminderSheetProps {
  *
  * Deleting stops the rhythm and nothing else: the diary lines it produced stay,
  * because what was done does not stop having happened. It asks first, in the
- * place the tap was, because it cannot be taken back.
+ * place the tap was, because it cannot be taken back: a rhythm made again
+ * would count from that day, not from its last tick.
+ *
+ * Every write is answered by a toast that names the reminder. A change is
+ * taken back by writing what stood before, a new one by deleting it.
  */
 export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: ReminderSheetProps) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const create = useCreateReminder();
-  const update = useUpdateReminder(reminder?.id ?? '');
-  const remove = useDeleteReminder(reminder?.id ?? '');
+  const update = useUpdateReminder();
+  const remove = useDeleteReminder();
   const [draft, setDraft] = useState<Draft>(() => draftOf(reminder, userId));
   const zone = useZone();
   const [askingDelete, setAskingDelete] = useState(false);
@@ -87,23 +95,63 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
   const onceOn = draft.onceOn ?? dayOf(dueOn(reminder), zone);
   const change = (over: Partial<Draft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
-  const complete = draft.label.trim().length > 0 && draft.subject !== null && (draft.rhythm === 'every' ? draft.everyDays >= 1 : onceOn !== '');
   const asksForCan = draft.kind === 'water' || draft.kind === 'feed';
+  // A reminder to water is called "Gießen" until somebody calls it something else: typing the kind's name a second
+  // time was what Save waited for. A chore and one's own kind name nothing a reminder could be called.
+  const kindName = asksForCan ? t(`tasks.kind.${draft.kind}`) : null;
+  const named = draft.label.trim() || kindName || '';
+  // What Save still waits for, said beside it rather than left to a button that does not answer.
+  const missing = named === '' ? 'label' : draft.subject === null ? 'subject' : draft.rhythm === 'once' && onceOn === '' ? 'day' : null;
+  const missingId = useId();
 
+  const told = (what: 'created' | 'changed' | 'deleted', label: string, back: Back | { undo: null } = { undo: null }) => {
+    tell({ label: t(`tasks.told.${what}`, { label }), ...back });
+    onClose();
+  };
   const save = () => {
-    const body = bodyOf(draft, onceOn, userId, reminder?.assigneeId ?? null, zone);
-    if (reminder) update.mutate(body, { onSuccess: onClose });
-    else create.mutate(body, { onSuccess: onClose });
+    const body = bodyOf({ ...draft, label: named }, onceOn, userId, reminder?.assigneeId ?? null, zone);
+    if (!reminder)
+      return create.mutate(body, {
+        onSuccess: made => told('created', made.label, { undo: () => remove.mutateAsync(made.id), undone: t('log.noMore', { what: made.label }) }),
+      });
+    const { id, kind, label, everyDays, onceAt, assigneeId, defaults } = reminder;
+    const before = { id, kind, label, everyDays, onceAt, assigneeId, defaults };
+    update.mutate(
+      { id, ...body },
+      { onSuccess: () => told('changed', body.label, { undo: () => update.mutateAsync(before), undone: t('log.asBefore', { what: label }) }) },
+    );
   };
 
   return (
-    <Sheet title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')} onClose={onClose}>
+    <Sheet
+      title={t(reminder ? 'tasks.sheet.editTitle' : 'tasks.sheet.newTitle')}
+      onClose={onClose}
+      // In the sheet's foot, in view however far the questions scroll, with what it still waits for above it.
+      actions={
+        <>
+          {missing ? (
+            <p id={missingId} className={ui.note}>
+              {t(`tasks.sheet.missing.${missing}`)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className={`${ui.button} ${ui.primary} ${styles.submit}`}
+            disabled={busy || missing !== null}
+            aria-describedby={missing ? missingId : undefined}
+            onClick={save}
+          >
+            {create.isPending || update.isPending ? t('tasks.sheet.saving') : t('tasks.sheet.save')}
+          </button>
+        </>
+      }
+    >
       <div className={ui.sheetBody}>
         <Block label={t('tasks.sheet.what')}>
           <input
             className={ui.input}
             value={draft.label}
-            placeholder={t('tasks.sheet.labelPlaceholder')}
+            placeholder={kindName ?? t('tasks.sheet.labelPlaceholder')}
             aria-label={t('tasks.sheet.label')}
             autoComplete="off"
             onChange={event => change({ label: event.target.value })}
@@ -119,7 +167,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.litres')}</span>
               <input
-                className={`mono ${styles.fieldInput} ${styles.number}`}
+                className={`${styles.fieldInput} ${styles.number}`}
                 type="number"
                 min={0}
                 step={0.5}
@@ -130,7 +178,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
           ) : null}
         </Block>
 
-        <Block label={t('tasks.sheet.about')} aside={<span className="mono">{t('tasks.sheet.aboutFixed')}</span>}>
+        <Block label={t('tasks.sheet.about')} aside={t('tasks.sheet.aboutFixed')}>
           {grows.length === 0 && spaces.length === 0 ? <p className={ui.note}>{t('tasks.sheet.nowhere')}</p> : null}
           <Group
             label={t('tasks.sheet.grows')}
@@ -151,7 +199,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
         </Block>
 
         <Block label={t('tasks.sheet.rhythm')} help="rhythmEvery">
-          <div className={styles.rhythm}>
+          <div className={ui.wrapRow}>
             <Choices label={t('tasks.sheet.rhythm')}>
               <Choice chosen={draft.rhythm === 'every'} onChoose={() => change({ rhythm: 'every' })}>
                 {t('tasks.sheet.every')}
@@ -165,7 +213,7 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.everyDays')}</span>
               <input
-                className={`mono ${styles.fieldInput} ${styles.number}`}
+                className={`${styles.fieldInput} ${styles.number}`}
                 type="number"
                 min={1}
                 step={1}
@@ -174,19 +222,13 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
               />
             </label>
           ) : (
-            // Its own date field rather than the sheets' shared one: that one
-            // records what has already been done and refuses the future, and a
-            // reminder is for nothing else. The floor is today where the
-            // account is, because that is the day the field's own value means:
-            // a reminder falls due at the start of its day in the account's
-            // zone, so a floor taken from the reader's calendar refuses the
-            // account's own today to anybody east of it and offers a day the
-            // account has already spent to anybody west - and, west of it,
-            // opened on a stored reminder below its own floor.
+            // Its own date field rather than the sheets' shared one, which
+            // refuses the future. The floor is today where the account is: a
+            // reminder falls due at the start of its day in the account's zone.
             <label className={`${ui.card} ${styles.field}`}>
               <span className={styles.fieldLabel}>{t('tasks.sheet.onceOn')}</span>
               <input
-                className={`mono ${styles.fieldInput}`}
+                className={styles.fieldInput}
                 type="date"
                 min={dayOf(serverNow().toJSDate(), zone)}
                 value={onceOn}
@@ -217,30 +259,19 @@ export function ReminderSheet({ reminder, grows, spaces, userId, onClose }: Remi
 
         <Refused error={create.error ?? update.error} />
 
-        <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy || !complete} onClick={save}>
-          {create.isPending || update.isPending ? t('tasks.sheet.saving') : t('tasks.sheet.save')}
-        </button>
-
         {reminder ? (
-          <div className={styles.asking}>
+          <div className={ui.stack2}>
             {askingDelete ? (
-              <>
-                <p className={ui.note}>{t('tasks.sheet.deleteAsk')}</p>
+              <Asking
+                note={t(reminder.everyDays === null ? 'tasks.sheet.deleteAskOnce' : 'tasks.sheet.deleteAsk')}
+                yes={t('tasks.sheet.deleteYes')}
+                danger
+                busy={busy}
+                onYes={() => remove.mutate(reminder.id, { onSuccess: () => told('deleted', reminder.label) })}
+                onCancel={() => setAskingDelete(false)}
+              >
                 <Refused error={remove.error} />
-                <div className={ui.askingActions}>
-                  <button
-                    type="button"
-                    className={`${ui.button} ${ui.dangerFilled}`}
-                    disabled={busy}
-                    onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
-                  >
-                    {t('tasks.sheet.deleteYes')}
-                  </button>
-                  <button type="button" className={ui.button} onClick={() => setAskingDelete(false)}>
-                    {t('tasks.sheet.cancel')}
-                  </button>
-                </div>
-              </>
+              </Asking>
             ) : (
               <button type="button" className={`${ui.button} ${ui.danger}`} disabled={busy} onClick={() => setAskingDelete(true)}>
                 {t('tasks.sheet.delete')}
@@ -277,7 +308,7 @@ function Group({
   if (items.length === 0) return null;
 
   return (
-    <div className={styles.subgroup}>
+    <div className={ui.stack2}>
       <span className={styles.subLabel}>{label}</span>
       <Choices label={label}>
         {items.map(item => (
@@ -302,7 +333,7 @@ const isSubject = (subject: GrowOrSpaceRef | null, type: GrowOrSpaceRef['type'],
  * undo; Save waits for it instead.
  */
 const draftOf = (reminder: Reminder | null, userId: string): Draft => {
-  const litres = reminder ? litresIn(reminder.defaults) : null;
+  const litres = litresOf(reminder?.defaults);
 
   return {
     label: reminder?.label ?? '',
@@ -322,32 +353,18 @@ const draftOf = (reminder: Reminder | null, userId: string): Draft => {
  * yet.
  *
  * Which day that instant is read as is the caller's to say, and it says the
- * account's - which is the half this sheet used to get wrong. The stored
- * instant is the start of a day where the account is, `bodyOf` writes it back
- * as the start of a day where the account is, and a read of it on the reader's
- * own calendar in between made those two different days for anybody behind
- * their account: the field opened on the day before, and Save - a Save that
- * changed nothing - filed the reminder there. Done again it moved again, so a
- * reminder walked backwards through the calendar one day per save.
+ * account's: the stored instant is the start of a day there and `bodyOf`
+ * writes it back as one, so a Save that changed nothing must not move it.
  */
 const dueOn = (reminder: Reminder | null): Date => (reminder?.onceAt ? new Date(reminder.onceAt) : serverNow().toJSDate());
-
-const litresIn = (defaults: unknown): number | null => {
-  const values = defaults as { litres?: unknown } | null;
-  return values && typeof values.litres === 'number' ? values.litres : null;
-};
 
 /**
  * What goes on the wire. Exactly one of the two rhythms is set, which is the
  * contract's rule; a one-off falls due at the start of its day in the account's
- * zone, so it is today's task from the morning on - and it is the account's
- * because that is the zone the Tasks tab sorts what is waiting into days by. A
- * day picked on a browser two zones east of the account began there the
- * evening before, and the task turned up a day early. It starts that day
- * through `ui/days`, which is where the day it is handed was read, so that the
- * two can only ever be told the same zone. The can is the entry's default of
- * the same shape the Log sheet writes, so a tick records it the way a tap on
- * the Water tile would.
+ * zone, the one the task list sorts what is waiting into days by, so it is
+ * today's task from the morning on. The can is the entry's default of the
+ * shape the Log sheet writes, so a tick records it the way a tap on the Water
+ * tile would.
  *
  * A reminder that is somebody else's is sent back with that person still on it:
  * whoever is editing it can only have come to change something else.

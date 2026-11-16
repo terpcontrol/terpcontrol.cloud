@@ -5,7 +5,7 @@ import { InfluxPoint } from './stores';
  * is understood; anything else is ignored rather than rejected, so a query that
  * gains an unrelated clause keeps working.
  */
-export interface ParsedFlux {
+interface ParsedFlux {
   start: string;
   stop: string;
   measurement?: string;
@@ -27,9 +27,13 @@ export interface ParsedFlux {
   switchings: boolean;
   /** `timeSrc: "_start"` stamps a window at its start rather than at its stop, which is what the switchings read asks for. */
   timeAtStart: boolean;
+  /** A filter that keeps only the samples above zero, which is how the samples an output ran in are counted. */
+  aboveZero: boolean;
+  /** A bare `|> first()`: the oldest point of every field in the range, as `last` is the newest. */
+  first: boolean;
 }
 
-export type AggregateFn = 'mean' | 'max' | 'sum';
+type AggregateFn = 'mean' | 'max' | 'min' | 'sum' | 'count';
 
 /** The `limit(n:)` the server's own queries carry, so a wide range with a small
  * interval cannot build an unbounded list here either. */
@@ -91,6 +95,8 @@ export const parseFlux = (query: string): ParsedFlux => ({
   last: /\|>\s*last\(\)/.test(query),
   switchings: /\|>\s*difference\(/.test(query),
   timeAtStart: /timeSrc:\s*"_start"/.test(query),
+  aboveZero: /filter\(fn: \(r\) => r\._value > 0\.0\)/.test(query),
+  first: /\|>\s*first\(\)/.test(query),
 });
 
 const aggregate = (values: number[], fn: AggregateFn): number | null => {
@@ -98,14 +104,18 @@ const aggregate = (values: number[], fn: AggregateFn): number | null => {
   switch (fn) {
     case 'max':
       return Math.max(...values);
+    case 'min':
+      return Math.min(...values);
     case 'sum':
       return values.reduce((a, b) => a + b, 0);
+    case 'count':
+      return values.length;
     default:
       return values.reduce((a, b) => a + b, 0) / values.length;
   }
 };
 
-export interface ResultRow {
+interface ResultRow {
   time: number;
   value: number | null;
   field: string;
@@ -148,7 +158,7 @@ export const runQuery = (points: InfluxPoint[], parsed: ParsedFlux, now: number)
 
 const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, start: number, stop: number): ResultRow[] => {
   const measurement = parsed.measurement ?? 'status';
-  const written = matching.filter(point => field in point.fields);
+  const written = matching.filter(point => field in point.fields && (!parsed.aboveZero || point.fields[field] > 0));
   const identity = {
     field,
     measurement,
@@ -158,7 +168,7 @@ const fieldRows = (matching: InfluxPoint[], field: string, parsed: ParsedFlux, s
 
   const every = parsed.every ? parseDuration(parsed.every) : NaN;
   if (!Number.isFinite(every) || every <= 0) {
-    const points = parsed.last ? written.slice(-1) : written;
+    const points = parsed.last ? written.slice(-1) : parsed.first ? written.slice(0, 1) : written;
     return points.map(point => ({ time: point.time, value: point.fields[field] ?? null, ...identity }));
   }
 

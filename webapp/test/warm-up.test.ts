@@ -81,7 +81,7 @@ describe('the warm-up before the first render', () => {
     const asked = serve(json(TOKENS));
     const { warmUp, queryClient } = await fresh();
 
-    warmUp({ pathname: '/charts' });
+    warmUp({ pathname: '/timeline' });
     await vi.waitFor(() => expect(queryClient.getQueryData(['home'])).toEqual(EMPTY_HOME));
 
     expect(asked).toHaveLength(2);

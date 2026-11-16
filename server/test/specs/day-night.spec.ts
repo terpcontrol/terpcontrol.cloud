@@ -160,7 +160,8 @@ describe('the targets a mode leaves alone', () => {
       .patch(`/v1/devices/${fridge.deviceId}/configuration`)
       .send({ set: { mode: 'standard' } })
       .expect(200);
-    // Going back puts the night germination wrote over back: 21 °C, not the germination's 24 °C.
+    // Going back ends on "Sämling · mit Licht", as no climate had a name before the germination - the save in the dark
+    // changes nothing about that: its night of 21 °C and 65 %, not the germination's 24 °C.
     expect((await owner.client.get(`/v1/devices/${fridge.deviceId}`).expect(200)).body.configuration.night).toMatchObject({ temperature: 21 });
     const always = await write(
       fridge,
@@ -170,7 +171,7 @@ describe('the targets a mode leaves alone', () => {
         night: { temperature: 26, humidity: 60 },
       }),
     );
-    expect(always).toMatchObject({ day: { temperature: 26, humidity: 60 }, night: { temperature: 21, humidity: 55 } });
+    expect(always).toMatchObject({ day: { temperature: 26, humidity: 60 }, night: { temperature: 21, humidity: 65 } });
 
     await owner.client
       .patch(`/v1/devices/${fridge.deviceId}/configuration`)

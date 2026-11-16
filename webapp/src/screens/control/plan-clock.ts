@@ -8,22 +8,18 @@ import {
   isOver as overAt,
   nextStepIndex,
 } from '@fg2/shared-types/v1-schemas/plan-clock.js';
-import { countdownLabel as wordsLeftFor, spanLabel as wordsFor } from '@/ui/age';
 
 /**
  * Where a plan stands, read the way the server reads it.
  *
- * The plan is the one thing on these screens that moves without anybody asking:
- * the engine walks it every twenty seconds, so between two reads the step the
- * device is on may already be over. What is worked out here is therefore not a
- * second opinion but the same arithmetic the engine does (`plan-clock.ts` in
- * the contract), so the screen says what the next pass will do rather than what
- * it would like to be true. The instants are all the server's; only the reading
- * of them is ours.
+ * The plan moves without anybody asking: the engine walks it every twenty
+ * seconds, so between two reads the step the device is on may already be over.
+ * What is worked out here is the same arithmetic the engine does
+ * (`plan-clock.ts` in the contract), so the screen says what the next pass
+ * will do. The instants are all the server's; only the reading of them is ours.
  *
  * Which of the five moves are offered is the same question asked once: the
- * server refuses the rest, and a button that is only there to be refused is a
- * button that has told somebody nothing.
+ * server refuses the rest.
  */
 
 export { activeStep, nextStepIndex };
@@ -59,10 +55,9 @@ const CLOCKS_AGREE_MS = 2_000;
 /**
  * The instant to read a plan at. A step started this very moment carries the
  * server's instant of the press, which this side's reading of the server's clock
- * can put a second or so in the future; read as it stands, a step nobody
- * extended then said its clock was yet to start, with a minute too many left. A
- * start that close ahead is taken as now - an extension is at least a minute,
- * so one is never mistaken for it for longer than the clocks disagree.
+ * can put a second or so in the future. A start that close ahead is taken as
+ * now - an extension is at least a minute, so one is never mistaken for it for
+ * longer than the clocks disagree.
  */
 export const readingAt = (state: PlanState, now: DateTime): DateTime => {
   if (!state.stepStartedAt) return now;
@@ -71,7 +66,7 @@ export const readingAt = (state: PlanState, now: DateTime): DateTime => {
   return ahead > 0 && ahead <= CLOCKS_AGREE_MS ? started : now;
 };
 
-export const isOver = (plan: Plan, now: DateTime): boolean => overAt(plan, now.toMillis());
+const isOver = (plan: Plan, now: DateTime): boolean => overAt(plan, now.toMillis());
 
 /** How much of the step is left, or null where it has no length or is already over. */
 export const leftMs = (plan: Plan, now: DateTime): number | null => {
@@ -141,20 +136,3 @@ export const overdueMs = (plan: Plan, now: DateTime): number | null => {
   const over = elapsedMs(plan.state, now) - durationMs(step.duration);
   return over > 0 ? over : null;
 };
-
-/**
- * A span of milliseconds in the words every other age on a screen is put in.
- * The app has one way of saying "4 min" and this borrows it rather than
- * rounding a second time. A span is a length and not an instant, so no clock
- * comes into it.
- *
- * What the step has served and how long it has been standing still are both
- * ages and are written by this. What it has left to run is not - a countdown
- * floored the way an age is would read a day short for the whole of its first
- * day, and the card states the step's own length one line above it, where the
- * shortfall is there to be read off.
- */
-export const spanLabel = (ms: number): string => (Number.isFinite(ms) ? wordsFor(ms / 1000) : '—');
-
-/** The same, for what is still to come: rounded up, so a step never reads shorter than what is left of it. */
-export const countdownLabel = (ms: number): string => (Number.isFinite(ms) ? wordsLeftFor(ms / 1000) : '—');

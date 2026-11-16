@@ -1,4 +1,4 @@
-import type { DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
+import type { AppliedClimate, DeviceConfiguration, DeviceControl, GrowthStage, OperatingMode } from '@fg2/shared-types/v1';
 import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { dryingReturnOf } from './drying-return';
@@ -40,9 +40,17 @@ export type WriteIntent =
    * again. `drying` says whether they are a drying room's - true dries, false
    * ends a drying spell - and left out a drying device stays drying.
    * `germination` is the same for germination in the dark, which false ends
-   * for the standard mode.
+   * for the standard mode. `bands` is the climate the place's thresholds go
+   * back to, null for none, where a save that moved them is taken back.
    */
-  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid }
+  | {
+      kind: 'targets';
+      drying?: boolean;
+      germination?: boolean;
+      choices?: ChoicesSaid;
+      applied?: AppliedClimate | null;
+      bands?: AppliedClimate | null;
+    }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
    * dries and germination germinates in the dark; any other stage - or a plan
@@ -51,9 +59,18 @@ export type WriteIntent =
    * it on its own mode. `requested` is what a plan step carries itself.
    * `stated` names the night's figures the write brings of its own, which
    * coming out of germination otherwise puts back (see
-   * `DeviceConfigurationService.store`).
+   * `DeviceConfigurationService.store`). `applied` - here and on the targets -
+   * is the preset the write puts the device on, kept to name it by; null is a
+   * write that names none and clears the name.
    */
-  | { kind: 'climate'; stage: GrowthStage | null; requested?: unknown; stated?: readonly string[]; choices?: ChoicesSaid }
+  | {
+      kind: 'climate';
+      stage: GrowthStage | null;
+      requested?: unknown;
+      stated?: readonly string[];
+      choices?: ChoicesSaid;
+      applied?: AppliedClimate | null;
+    }
   /** The settings a person changed one at a time, of which these are about the work mode and germination. */
   | { kind: 'fields'; control?: boolean; drying?: boolean; mode?: OperatingMode; energySaving?: boolean; choices?: ChoicesSaid }
   /** The times of day moved onto the owner's clock, which decides nothing else. */
@@ -105,6 +122,48 @@ export const controlOf = (
       : {}),
     germinationChoices: germinationChoicesOf(germinationChoices),
   };
+};
+
+/** The first climate with light, which a germination ends on where no climate had a name before it (Chris, 2026-11-16). */
+export const SEEDLING: AppliedClimate = { stage: 'seedling', preset: null };
+
+const SPELL_STAGES: readonly GrowthStage[] = ['germination', 'drying'];
+
+/**
+ * The climate a device stood on before its spell: the one the spell kept, or - for a spell begun at the device's own
+ * menu, which kept nothing - the name it still carries, unless that is the spell's own; null where none had a name.
+ */
+export const climateBefore = (device: {
+  appliedClimate?: AppliedClimate | null;
+  climateBeforeSpell?: AppliedClimate | null;
+}): AppliedClimate | null => {
+  if (device.climateBeforeSpell !== undefined) return device.climateBeforeSpell;
+  const named = device.appliedClimate ?? null;
+  return named && !SPELL_STAGES.includes(named.stage) ? named : null;
+};
+
+/**
+ * What ending the spell that runs by its own button puts the device on (`DeviceControl.endsOn`): the climate it came
+ * from, "Sämling · mit Licht" for a germination begun where none had a name, and none - the figures from before, no
+ * stage's thresholds - for such a drying spell; nothing told outside a spell.
+ */
+export const spellEndsOn = (
+  control: DeviceControl | null,
+  device: { appliedClimate?: AppliedClimate | null; climateBeforeSpell?: AppliedClimate | null },
+): { endsOn?: AppliedClimate | null } =>
+  control?.mode === 'germination'
+    ? { endsOn: device.climateBeforeSpell === null ? SEEDLING : climateBefore(device) }
+    : control?.drying
+      ? { endsOn: climateBefore(device) }
+      : {};
+
+/**
+ * Whether a climate device keeps its place dark: germinating - in the dark mode, or switched off from it, which goes
+ * back to it - or drying.
+ */
+export const darkIn = (type: string, configuration: DeviceConfiguration | null, base: string | null | undefined): boolean => {
+  const control = controlOf(type, configuration, base);
+  return control?.mode === 'germination' || control?.drying === true;
 };
 
 /** The standard mode a device comes back to from another: the one it last ran, energy saving included, which is a fridge's alone. */

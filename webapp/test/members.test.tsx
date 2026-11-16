@@ -1,30 +1,32 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import type { ReactNode } from 'react';
-import { Route, Routes } from 'react-router';
+import { createBrowserRouter, Link, Route, RouterProvider, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Invite, InvitePreview, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
+import type { Invite, InvitePreview, MemberRole, Membership, MembershipPage, Problem, Space } from '@fg2/shared-types/v1';
+import type { Told } from '@/log/log-context';
 import { JoinRoute } from '@/screens/join/JoinRoute';
+import { PlaceMembers } from '@/screens/place/PlaceMembers';
 import { Members } from '@/screens/space/members/Members';
-import { decidesHere, guestsOf, peopleCount, viaRoomCount } from '@/screens/space/members/people';
+import { guestsOf, inSentence, mentionsOn, rowsFor } from '@/screens/space/members/people';
 import { ThemeProvider } from '@/theme/ThemeProvider';
-import { drawAt, json, NOT_FOUND } from './harness';
-import { translate } from './translations';
+import { drawAt, json, NOT_FOUND, testClient } from './harness';
+import { catalogue, translate } from './translations';
 
 /**
- * Sharing a tent, from both ends: the member list its owner keeps, and the
+ * Sharing a place, from both ends: the list of who sees it, and the
  * invitation a stranger opens.
  *
- * Two things are worth more than the rest here and are checked hardest. The
- * first is that a row held on the room is drawn in the tent and changed only in
- * the room - a menu or a remove button on such a row would take somebody out of
- * every tent grouped under it while naming one. The second is that handing out
- * the way in belongs to the owner alone: a member sees the same list, because
- * they have to be able to tell whose entry they are reading, and no control on
- * it but the one that lets them out. The third is that the list is a list of
- * people: somebody who holds a row on the room and a row on the tent is one
- * person with the stronger of the two roles, not two cards that contradict
- * each other and the count above them.
+ * What is checked hardest: that the list is one list of people - the owner,
+ * the place's guests and the room's members, somebody who holds a row on both
+ * drawn once with the stronger role; that a row is written at the space it
+ * stands on, since the server refuses a room's row changed through a place;
+ * that every write is answered by a toast, a changed role with its way back;
+ * and that handing out the way in belongs to the owner alone - a member sees
+ * the same list and no control on it but the one that lets them out.
  *
  * The fetch is stubbed by route rather than the hooks being mocked, so what is
  * asserted about a write is the body that went on the wire.
@@ -41,6 +43,12 @@ vi.mock('@/api/session', async importOriginal => {
 
   return { ...original, useSession: () => seats[session.who] };
 });
+
+const told: Told[] = [];
+vi.mock('@/log/log-context', async importOriginal => ({
+  ...(await importOriginal<object>()),
+  useLog: () => ({ tell: (one: Told) => told.push(one) }),
+}));
 
 const NOW = DateTime.now();
 
@@ -114,8 +122,6 @@ const server = {
   wrote: [] as { method: string; path: string; body: unknown }[],
   /** Whether the account keeps a diary, as `/me` answers it; null leaves `/me` unanswered, which is the app as it always was. */
   diary: null as boolean | null,
-  /** The account's cameras, as `/cameras` answers them. */
-  cameras: [] as { id: string; removedAt: string | null; isDemo: boolean }[],
 };
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -131,23 +137,25 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (method === 'GET' && path.startsWith('/spaces?')) return json({ items: server.spaces, nextCursor: null });
   if (method === 'GET' && path === '/spaces') return json({ items: server.spaces, nextCursor: null });
   if (method === 'GET' && path === '/me' && server.diary !== null) return json({ id: 'user-1', handle: 'chris', layers: { diary: server.diary } });
-  if (method === 'GET' && path.startsWith('/cameras')) return json({ items: server.cameras, nextCursor: null });
   if (method === 'GET' && path.startsWith('/spaces/space-1/members')) return json(server.members);
-  if (method === 'GET' && path.startsWith('/spaces/space-1/invites')) return json({ items: server.invites, nextCursor: null });
-  if (method === 'POST' && path === '/spaces/space-1/invites') {
-    server.invites = [invite()];
+  const listed = /^\/spaces\/([^/]+)\/invites/.exec(path);
+  if (method === 'GET' && listed) return json({ items: server.invites.filter(one => one.spaceId === listed[1]), nextCursor: null });
+  if (method === 'POST' && listed) {
+    server.invites = [invite({ id: `invite-into-${listed[1]}`, spaceId: listed[1] }), ...server.invites];
     return json(server.invites[0], 201);
   }
-  if (method === 'POST' && path === '/spaces/space-1/members') return json(membership({ id: 'membership-3', userId: 'user-9' }), 201);
-  if (method === 'PATCH' && path.startsWith('/spaces/space-1/members/')) return json(membership({ role: 'can_manage' }));
-  // As the server does it: the row goes, and the code it came in on is revoked
-  // with it - which is what takes the person's card, and the sheet on it, off
-  // the screen mid-act.
-  if (method === 'DELETE' && path.startsWith('/spaces/space-1/members/')) {
-    const userId = path.slice('/spaces/space-1/members/'.length);
-    const row = server.members.items.find(one => one.userId === userId && one.spaceId === 'space-1');
-    server.members = { ...server.members, items: server.members.items.filter(one => one !== row) };
-    server.invites = server.invites.map(one => (one.id === row?.inviteId ? { ...one, revokedAt: NOW.toISO()! } : one));
+  // As the server does it: a row is written at the space it stands on, and the code somebody came in on is revoked with their row.
+  const row = /^\/spaces\/([^/]+)\/members(?:\/([^/]+))?$/.exec(path);
+  const held = row ? server.members.items.find(one => one.spaceId === row[1] && one.userId === row[2]) : undefined;
+  if (method === 'POST' && row) return json(membership({ id: 'membership-3', spaceId: row[1], userId: 'user-9' }), 201);
+  if (method === 'PATCH' && held) {
+    const next = { ...held, role: (body as { role: MemberRole }).role };
+    server.members = { ...server.members, items: server.members.items.map(one => (one === held ? next : one)) };
+    return json(next);
+  }
+  if (method === 'DELETE' && held) {
+    server.members = { ...server.members, items: server.members.items.filter(one => one !== held) };
+    server.invites = server.invites.map(one => (one.id === held.inviteId ? { ...one, revokedAt: NOW.toISO()! } : one));
     return new Response(null, { status: 204 });
   }
   if (method === 'PUT' && path.endsWith('/revocation')) return json(invite({ revokedAt: NOW.toISO()! }));
@@ -157,21 +165,43 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
+function Watch() {
+  return <span data-testid="address">{useLocation().pathname}</span>;
+}
+
 const wrapped = (node: ReactNode, at = '/') => drawAt(<ThemeProvider>{node}</ThemeProvider>, { at });
 
-const drawTab = (roomId: string | null = 'room-1') => wrapped(<Members spaceId="space-1" name="Blue Dream tent" kind="tent" roomId={roomId} />);
+/** The list as the place's pages draw it, at an address a leaver is taken away from. */
+const drawTab = (roomId: string | null = 'room-1') =>
+  wrapped(
+    <>
+      <Members spaceId="space-1" name="Blue Dream tent" roomId={roomId} />
+      <Watch />
+    </>,
+    '/spaces/space-1/members',
+  );
 
+/** The rows of the one card: the owner, then everybody else who sees the place. */
 const drawnPeople = async () => {
   drawTab();
   await screen.findByText('@jonas');
   return screen.getAllByRole('listitem');
 };
 
+/** The ways to invite stand behind the card's last row: opened, as the owner opens them. */
+const inviting = async () => {
+  drawTab();
+  fireEvent.click(await screen.findByRole('button', { name: '+ Invite somebody' }));
+};
+
+const wrote = (index = 0) => server.wrote[index];
+
 beforeAll(() => translate());
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.who = 'owner';
+  told.length = 0;
   server.spaces = [
     space({ roomId: 'room-1' }),
     space({ id: 'room-1', kind: 'room', name: 'Grow room' }),
@@ -182,7 +212,6 @@ beforeEach(() => {
   server.refuse = null;
   server.wrote = [];
   server.diary = null;
-  server.cameras = [];
   server.preview = {
     isValid: true,
     spaceName: 'Blue Dream tent',
@@ -190,100 +219,91 @@ beforeEach(() => {
     role: 'can_log',
     invitedByHandle: 'chris',
     expiresAt: NOW.plus({ days: 5 }).toISO()!,
+    hasCamera: true,
   };
 });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('the arithmetic of a member list', () => {
-  it('counts the owner, who is never a row', () => {
-    expect(peopleCount(MEMBERS)).toBe(3);
+  it('tells one sort of row from the other by the space each one names, the place´s own first', () => {
+    expect(guestsOf(MEMBERS, 'space-1').map(guest => [guest.userId, guest.here?.spaceId, guest.viaRoom?.spaceId])).toEqual([
+      ['user-2', 'space-1', undefined],
+      ['user-3', undefined, 'room-1'],
+    ]);
   });
 
-  it('tells one sort of row from the other by the space each one names', () => {
-    expect(viaRoomCount(MEMBERS, 'space-1')).toBe(1);
-    expect(guestsOf(MEMBERS, 'space-1').map(guest => guest.userId)).toEqual(['user-2', 'user-3']);
-  });
-
-  it('folds two rows of one person into one guest with the stronger role, and counts them once', () => {
-    const page = BOTH_WAYS('can_log', 'can_manage');
-    const guests = guestsOf(page, 'space-1');
+  it('folds two rows of one person into one guest with the stronger role', () => {
+    const guests = guestsOf(BOTH_WAYS('can_log', 'can_manage'), 'space-1');
 
     expect(guests).toHaveLength(1);
     expect(guests[0].role).toBe('can_manage');
     expect(guests[0].here?.spaceId).toBe('space-1');
     expect(guests[0].viaRoom?.spaceId).toBe('room-1');
-    expect(peopleCount(page)).toBe(2);
-    expect(viaRoomCount(page, 'space-1')).toBe(1);
   });
 
-  it("lets the tent's own row decide only where the room does not already grant more", () => {
-    expect(decidesHere(guestsOf(BOTH_WAYS('can_log', 'can_manage'), 'space-1')[0])).toBe(true);
-    expect(decidesHere(guestsOf(BOTH_WAYS('can_log', 'can_log'), 'space-1')[0])).toBe(true);
-    expect(decidesHere(guestsOf(BOTH_WAYS('can_manage', 'can_log'), 'space-1')[0])).toBe(false);
-    expect(decidesHere(guestsOf(MEMBERS, 'space-1')[1])).toBe(false);
+  it('writes a stronger role to the place´s own row, and a weaker one to every row that grants more', () => {
+    const written = (page: MembershipPage, role: MemberRole, index = 0) => rowsFor(guestsOf(page, 'space-1')[index], role).map(row => row.spaceId);
+
+    expect(written(BOTH_WAYS('can_log', 'can_log'), 'can_manage')).toEqual(['space-1']);
+    expect(written(MEMBERS, 'can_manage', 0)).toEqual(['space-1']);
+    expect(written(MEMBERS, 'can_log', 1)).toEqual(['room-1']);
+    expect(written(BOTH_WAYS('can_log', 'can_manage'), 'can_log')).toEqual(['space-1']);
+    expect(written(BOTH_WAYS('can_manage', 'can_log'), 'can_log')).toEqual(['room-1']);
+    expect(written(BOTH_WAYS('can_manage', 'can_manage'), 'can_log')).toEqual(['space-1', 'room-1']);
+  });
+
+  it('names whoever holds a row on a space, and sets names in a sentence', () => {
+    expect([...mentionsOn(MEMBERS, 'room-1')]).toEqual([['user-3', '@jonas']]);
+    expect([...mentionsOn(undefined, 'room-1')]).toEqual([]);
+    expect(inSentence(['@mara'], 'de')).toBe('@mara');
+    expect(inSentence(['@mara', '@jonas'], 'de')).toBe('@mara und @jonas');
+    expect(inSentence(['@mara', '@jonas', '@lea'], 'de')).toBe('@mara, @jonas und @lea');
   });
 });
 
-describe('the Members tab as its owner', () => {
-  it('names everybody in the tent, says how they got here, and counts the room in', async () => {
+describe('who sees a place, as its owner', () => {
+  it('is one list of everybody: the owner, the place´s guests, and the room´s members tagged as that', async () => {
     const rows = await drawnPeople();
 
-    expect(screen.getByText('People in Blue Dream tent')).toBeInTheDocument();
-    expect(screen.getByText('3 · 1 via the room')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('You')).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/joined via link/)).toBeInTheDocument();
-    expect(within(rows[2]).getByText(/via Grow room/)).toBeInTheDocument();
+    // On one line, however narrow the phone: the owner and what they do are facts side by side.
+    expect(rows[0]).toHaveTextContent(/^You · manage this place$/);
+    expect(within(rows[1]).getByText('@lea')).toBeInTheDocument();
+    expect(rows[1]).not.toHaveTextContent('via the room Grow room');
+    expect(within(rows[2]).getByText('@jonas')).toBeInTheDocument();
+    expect(rows[2]).toHaveTextContent('via the room Grow room');
+    // The last row invites; what each role may do is behind the help button, not a table on the page.
+    expect(rows).toHaveLength(4);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('says when each person last wrote here, and says so in words when they never have', async () => {
     const rows = await drawnPeople();
 
-    expect(within(rows[1]).getByText(/last logged 1 d/)).toBeInTheDocument();
-    expect(within(rows[2]).getByText(/nothing logged yet/)).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent('last logged 1 d');
+    expect(rows[2]).toHaveTextContent('via the room Grow room · nothing logged yet');
   });
 
-  it('says somebody has written nothing rather than leaving the line at how they got here', async () => {
-    server.members = { ...MEMBERS, activity: [] };
+  it('dates nobody´s last entry for an account that keeps no diary', async () => {
+    server.diary = false;
     const rows = await drawnPeople();
 
-    expect(within(rows[1]).getByText(/nothing logged yet/)).toBeInTheDocument();
-    expect(within(rows[1]).getByText(/joined via link/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/nothing logged yet|last logged/)).not.toBeInTheDocument());
+    expect(rows[2]).toHaveTextContent('via the room Grow room');
   });
 
-  it('draws somebody who is in the room and in the tent once, with the stronger role and both ways in', async () => {
+  it('draws somebody who is in the room and in the place once, with the stronger role', async () => {
     server.members = BOTH_WAYS('can_log', 'can_manage');
     drawTab();
     await screen.findByText('@lea');
     const rows = screen.getAllByRole('listitem');
 
     expect(screen.getAllByText('@lea')).toHaveLength(1);
-    expect(screen.getByText('2 · 1 via the room')).toBeInTheDocument();
-    expect(within(rows[1]).getByText('joined via link · also via Grow room')).toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent('via the room Grow room');
     expect(within(rows[1]).getByRole('combobox', { name: 'What lea may do here' })).toHaveValue('can_manage');
   });
 
-  it('draws a chip rather than a menu where the room already grants more than the tent could', async () => {
-    server.members = BOTH_WAYS('can_manage', 'can_log');
-    drawTab();
-    await screen.findByText('@lea');
-    const rows = screen.getAllByRole('listitem');
-
-    expect(within(rows[1]).queryByRole('combobox')).not.toBeInTheDocument();
-    expect(within(rows[1]).getByText('can manage')).toBeInTheDocument();
-    expect(within(rows[1]).queryByText('can log')).not.toBeInTheDocument();
-  });
-
-  it('says that ending the row of somebody who is also in the room leaves them the tent through it', async () => {
-    server.members = BOTH_WAYS('can_log', 'can_manage');
-    drawTab();
-    await screen.findByText('@lea');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Take lea out of this place' }));
-    expect(screen.getByText(/keep this place through Grow room/)).toBeInTheDocument();
-  });
-
-  it('draws a handle with nowhere to break whole, in its own row', async () => {
+  it('draws a handle with nowhere to break whole, in its own row with its controls', async () => {
     server.members = {
       ...MEMBERS,
       people: [
@@ -295,86 +315,114 @@ describe('the Members tab as its owner', () => {
 
     expect(within(rows[1]).getByText('@karlsruherkellergaertner')).toBeInTheDocument();
     expect(within(rows[1]).getByRole('combobox', { name: 'What karlsruherkellergaertner may do here' })).toBeInTheDocument();
+    expect(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take karlsruherkellergaertner out' })).toBeInTheDocument();
   });
 
-  it('says of the owner that they own the place, on a row of their own at the top', async () => {
-    const rows = await drawnPeople();
-
-    expect(within(rows[0]).getByText('You')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('owner of Blue Dream tent')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('owner')).toBeInTheDocument();
-  });
-
-  it('offers the room beside the tent, as an address of its own', async () => {
-    await drawnPeople();
-
-    expect(screen.getByRole('link', { name: 'Grow room · 2 places' })).toHaveAttribute('href', '/spaces/room-1/members');
-  });
-
-  it('leaves a row held on the room alone, because ending it there would empty every tent in it', async () => {
-    const rows = await drawnPeople();
-
-    expect(within(rows[1]).getByRole('combobox', { name: 'What lea may do here' })).toBeInTheDocument();
-    expect(within(rows[2]).queryByRole('combobox')).not.toBeInTheDocument();
-    expect(within(rows[2]).queryByRole('button', { name: /Take jonas/ })).not.toBeInTheDocument();
-    expect(within(rows[2]).getByText('can manage')).toBeInTheDocument();
-  });
-
-  it('makes a link that lives seven days and lets somebody in to log unless told otherwise, and shows the address afterwards', async () => {
-    drawTab();
-    fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Make the link' }));
-
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    const body = server.wrote[0].body as { role: string; expiresAt: string };
-    expect(body.role).toBe('can_log');
-    expect(DateTime.fromISO(body.expiresAt).diff(NOW, 'days').days).toBeCloseTo(7, 1);
-
-    await waitFor(() => expect(screen.getAllByText(/\/join\/K7QZ4M2P$/).length).toBeGreaterThan(0));
-    expect(screen.getAllByRole('button', { name: 'Copy the invite link' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/joins as “can log” · until/).length).toBeGreaterThan(0);
-  });
-
-  it('adds by handle without the sigil people type out of habit, and empties the field', async () => {
-    drawTab();
-    const field = await screen.findByLabelText('A username you already grow with');
-
-    fireEvent.change(field, { target: { value: ' @mara ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'POST', path: '/spaces/space-1/members', body: { handle: 'mara', role: 'can_log' } });
-    await waitFor(() => expect(field).toHaveValue(''));
-  });
-
-  it('says what the server said when a handle is nobody it grows with', async () => {
-    server.refuse = refusal('handle_not_found', 'Nobody you grow with goes by that name.', 404);
-    drawTab();
-
-    fireEvent.change(await screen.findByLabelText('A username you already grow with'), { target: { value: 'stranger' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-
-    expect(await screen.findByText('Nobody you grow with goes by that name.')).toBeInTheDocument();
-  });
-
-  it('changes one role and names only the person it belongs to', async () => {
+  it('changes a role, says who may do what now and where, and takes it back with a word about what is back', async () => {
     const rows = await drawnPeople();
 
     fireEvent.change(within(rows[1]).getByRole('combobox', { name: 'What lea may do here' }), { target: { value: 'can_manage' } });
 
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'PATCH', path: '/spaces/space-1/members/user-2', body: { role: 'can_manage' } });
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'PATCH', path: '/spaces/space-1/members/user-2', body: { role: 'can_manage' } });
+    expect(told[0].label).toBe('@lea can now manage · Blue Dream tent');
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'What lea may do here' })).toHaveValue('can_manage'));
+
+    await told[0].undo!();
+    expect(wrote(1)).toMatchObject({ method: 'PATCH', path: '/spaces/space-1/members/user-2', body: { role: 'can_log' } });
+    expect(told).toMatchObject([{ undone: '@lea can now log · Blue Dream tent' }]);
   });
 
-  it('asks before taking somebody out, and says that what they wrote stays', async () => {
+  it('changes a room´s member from this list, at the room', async () => {
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this place' }));
-    expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
+    fireEvent.change(within(rows[2]).getByRole('combobox', { name: 'What jonas may do here' }), { target: { value: 'can_log' } });
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'PATCH', path: '/spaces/room-1/members/user-3', body: { role: 'can_log' } });
+    expect(told[0].label).toBe('@jonas can now log · Grow room');
+  });
+
+  it('takes a role down on every row that grants it, and puts each back as it was', async () => {
+    server.members = BOTH_WAYS('can_manage', 'can_manage');
+    drawTab();
+
+    const menu = await screen.findByRole('combobox', { name: 'What lea may do here' });
+    expect(menu).toHaveValue('can_manage');
+    fireEvent.change(menu, { target: { value: 'can_log' } });
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(server.wrote.map(one => one.path)).toEqual(['/spaces/space-1/members/user-2', '/spaces/room-1/members/user-2']);
+    expect(told[0].label).toBe('@lea can now log · Blue Dream tent · Grow room');
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'What lea may do here' })).toHaveValue('can_log'));
+
+    await told[0].undo!();
+    expect(server.wrote.slice(2).map(one => one.body)).toEqual([{ role: 'can_manage' }, { role: 'can_manage' }]);
+    expect(told).toMatchObject([{ undone: '@lea can now manage · Blue Dream tent · Grow room' }]);
+  });
+
+  it('says under the row what the server said when it refused a role', async () => {
+    const rows = await drawnPeople();
+    server.refuse = refusal('member_of_the_room', 'This membership is held on the room.');
+
+    fireEvent.change(within(rows[1]).getByRole('combobox'), { target: { value: 'can_manage' } });
+
+    expect(await within(rows[1]).findByText('This membership is held on the room.')).toBeInTheDocument();
+    expect(told).toHaveLength(0);
+  });
+
+  it('asks before taking somebody out in one sentence, in the danger style, and answers without a way back', async () => {
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
+    const sheet = screen.getByRole('dialog', { name: 'Blue Dream tent: take @lea out?' });
+    expect(within(sheet).getByText('They lose this place; what they wrote here stays.')).toBeInTheDocument();
+    // What follows from it stands behind the help, not in a paragraph over the button.
+    expect(within(sheet).getByRole('button', { name: /Taking somebody out/ })).toBeInTheDocument();
+    const yes = within(sheet).getByRole('button', { name: 'Take them out' });
+    expect(yes.className).toMatch(/dangerFilled/);
+    expect(yes.className).not.toMatch(/primary/);
+    // The yes stands beside the way back, as every question's does (`Answer`).
+    expect(yes.nextElementSibling).toHaveAccessibleName('Cancel');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(told).toHaveLength(0);
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Take them out' }));
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
+    expect(told[0]).toMatchObject({ label: '@lea no longer sees Blue Dream tent', undo: null });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('@lea')).not.toBeInTheDocument());
+    expect(screen.getByTestId('address')).toHaveTextContent('/spaces/space-1/members');
+  });
+
+  it('takes a room´s member out of the room from this list, and says that every place in it goes', async () => {
+    const rows = await drawnPeople();
+
+    fireEvent.click(within(rows[2]).getByRole('button', { name: 'Grow room: take jonas out' }));
+    const sheet = screen.getByRole('dialog', { name: 'Grow room: take @jonas out?' });
+    expect(within(sheet).getByText(/They lose every place of this room/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/room-1/members/user-3' });
+    expect(told[0].label).toBe('@jonas no longer sees Grow room');
+  });
+
+  it('ends the place´s own row of somebody who is also in the room, and says they keep the place through it', async () => {
+    server.members = BOTH_WAYS('can_log', 'can_manage');
+    drawTab();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Blue Dream tent: take lea out' }));
+    expect(screen.getByText(/keep this place through the room Grow room/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Take them out' }));
 
-    await waitFor(() => expect(server.wrote).toHaveLength(1));
-    expect(server.wrote[0]).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
+    expect(told[0].label).toBe('@lea still sees Blue Dream tent through the room Grow room');
   });
 
   /**
@@ -382,22 +430,20 @@ describe('the Members tab as its owner', () => {
    * expects: one link may have been sent to a whole club, and the host who cut
    * it spends it on the first person they take out. So it is said before the
    * tap, named by the code so it can be told from the other keys out, and said
-   * again afterwards - the live link simply disappears from the block above,
-   * and a host left to work that out for themselves learns it from the next
-   * person who cannot get in.
+   * again in the answer.
    */
   it('says which link taking somebody out will stop, and reports it once it has', async () => {
     server.invites = [invite()];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this place' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
     const sheet = screen.getByRole('dialog');
-    expect(within(sheet).getByText(/came in on the link K7QZ4M2P/)).toBeInTheDocument();
-    expect(within(sheet).getByText(/Whoever is already in stays in/)).toBeInTheDocument();
+    expect(await within(sheet).findByText(/The link K7QZ4M2P they came in on stops working/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Take them out' }));
 
-    expect(await screen.findByText(/The link K7QZ4M2P was stopped when @lea was taken out/)).toBeInTheDocument();
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('@lea no longer sees Blue Dream tent · The link K7QZ4M2P no longer works');
     expect(server.wrote).toHaveLength(1);
   });
 
@@ -405,10 +451,10 @@ describe('the Members tab as its owner', () => {
     server.invites = [invite({ revokedAt: NOW.minus({ days: 1 }).toISO()! })];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this place' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
 
-    expect(screen.getByText(/goes on carrying their name/)).toBeInTheDocument();
-    expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
+    expect(screen.getByText(/what they wrote here stays/)).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog')).queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
   });
 
   it('says nothing about a link for somebody who was added by hand', async () => {
@@ -416,75 +462,133 @@ describe('the Members tab as its owner', () => {
     server.members = { ...MEMBERS, items: [membership({ inviteId: null }), MEMBERS.items[1]] };
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Take lea out of this place' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Blue Dream tent: take lea out' }));
 
-    // The block behind the sheet still lists that live link; the sheet says nothing of it.
+    // The page behind the sheet still lists that live link; the sheet says nothing of it.
     expect(within(screen.getByRole('dialog')).queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
   });
 
-  it('closes with the note that says why there is no fourth role', async () => {
-    await drawnPeople();
+  it('ends the card with the row that invites, and shows the ways to invite only once it is opened', async () => {
+    const rows = await drawnPeople();
+    const row = within(rows[rows.length - 1]).getByRole('button', { name: '+ Invite somebody' });
 
-    expect(screen.getByText(/Read-only viewing is what share links do; there is no viewer role/)).toBeInTheDocument();
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('A username you already grow with')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Make a link' })).not.toBeInTheDocument();
+
+    fireEvent.click(row);
+    expect(row).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('A username you already grow with')).toBeInTheDocument();
+    // It leads to the new link's sheet on this place, not to the list whose sheet chooses a grow.
+    expect(screen.getByRole('link', { name: 'Create a share link ›' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/\/grows\/share-links\?place=/),
+    );
   });
-});
 
-/**
- * The table of what each role may do names only what there is: grows, entries
- * and tasks belong to the diary, and cameras to an account that has one. A
- * fridge without either was promised "grows and cams" and a row of entries,
- * tasks and photos it would never see.
- */
-describe('what the role table promises', () => {
-  const table = async () => {
+  it('shows a link that is out without anything being opened, the place´s and the room´s each named', async () => {
+    server.invites = [invite(), invite({ id: 'invite-2', code: 'R00MC0DE', spaceId: 'room-1', role: 'can_manage' })];
     drawTab();
-    await screen.findByText('@jonas');
-    return screen.getByRole('table');
-  };
 
-  it('promises the place and its readings, and no diary row, to an account that keeps no diary and has no camera', async () => {
-    server.diary = false;
-    const grid = await table();
-
-    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place and its readings' })).toBeInTheDocument());
-    expect(within(grid).queryByText('Log entries, tick tasks, photos')).not.toBeInTheDocument();
-    expect(within(grid).getByRole('rowheader', { name: 'Targets, plan, alarms, maintenance' })).toBeInTheDocument();
-    expect(within(grid).getAllByRole('row')).toHaveLength(4);
-    expect(screen.getByText('Read-only viewing is what share links do; there is no viewer role. Notifications are per person.')).toBeInTheDocument();
-    // Nobody logs anything without a diary, so no row dates when they last did.
-    expect(screen.queryByText(/nothing logged yet|last logged/)).not.toBeInTheDocument();
+    const ofPlace = await screen.findByRole('listitem', { name: 'K7QZ4M2P' });
+    expect(ofPlace).toHaveTextContent(/\/join\/K7QZ4M2P/);
+    expect(ofPlace).toHaveTextContent('Blue Dream tent · joins as “can log”');
+    expect(await screen.findByRole('listitem', { name: 'R00MC0DE' })).toHaveTextContent('Grow room · joins as “can manage”');
+    expect(screen.getByRole('button', { name: '+ Invite somebody' })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('names the cameras once the account has one', async () => {
-    server.diary = false;
-    server.cameras = [{ id: 'cam-1', removedAt: null, isDemo: false }];
-    const grid = await table();
+  it('lets the next invitation be for the room, and changes nothing else by that choice', async () => {
+    server.invites = [invite()];
+    await inviting();
+    await screen.findByRole('listitem', { name: 'K7QZ4M2P' });
+    fireEvent.change(screen.getByLabelText('A username you already grow with'), { target: { value: 'mara' } });
+    const before = screen.getAllByRole('listitem').map(row => row.textContent);
 
-    expect(await within(grid).findByRole('rowheader', { name: 'See the place, its readings and cams' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox', { name: 'An invitation is for' }), { target: { value: 'room' } });
+
+    expect(screen.getAllByRole('listitem').map(row => row.textContent)).toEqual(before);
+    expect(screen.getByRole('button', { name: '+ Invite somebody' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('A username you already grow with')).toHaveValue('mara');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'POST', path: '/spaces/room-1/members', body: { handle: 'mara', role: 'can_log' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make a link' }));
+    const sheet = screen.getByRole('dialog', { name: 'Invite' });
+    expect(within(sheet).getByRole('heading', { level: 2 })).toHaveTextContent('Grow room');
+    // A room's link lets into each of its places: "sees the place and its grows" said one.
+    expect(within(sheet).getByRole('radio', { name: /^can log/ })).toHaveTextContent('sees the room’s places and their grows, logs, ticks tasks');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Make the link' }));
+    await waitFor(() => expect(server.wrote).toHaveLength(2));
+    expect(wrote(1)).toMatchObject({ method: 'POST', path: '/spaces/room-1/invites' });
   });
 
-  it('names the grows and the diary row for an account that keeps a diary', async () => {
-    server.diary = true;
-    const grid = await table();
+  it('asks nothing about a room where the place stands in none', async () => {
+    server.members = { ...MEMBERS, items: [MEMBERS.items[0]], room: null };
+    drawTab(null);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Invite somebody' }));
 
-    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place, its readings and grows' })).toBeInTheDocument());
-    expect(within(grid).getByRole('rowheader', { name: 'Log entries, tick tasks, photos' })).toBeInTheDocument();
-    expect(within(screen.getAllByRole('listitem')[1]).getByText(/last logged 1 d/)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'An invitation is for' })).not.toBeInTheDocument();
   });
 
-  it('leaves a camera that was removed, or the demo´s, out of what there is to see', async () => {
-    server.diary = true;
-    server.cameras = [
-      { id: 'cam-1', removedAt: NOW.toISO()!, isDemo: false },
-      { id: 'cam-2', removedAt: null, isDemo: true },
-    ];
-    const grid = await table();
+  it('makes a link that lives seven days and lets somebody in to log unless told otherwise, and shows the address afterwards', async () => {
+    await inviting();
+    fireEvent.click(await screen.findByRole('button', { name: 'Make a link' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Make the link' }));
 
-    await waitFor(() => expect(within(grid).getByRole('rowheader', { name: 'See the place, its readings and grows' })).toBeInTheDocument());
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(wrote().path).toBe('/spaces/space-1/invites');
+    const body = wrote().body as { role: string; expiresAt: string };
+    expect(body.role).toBe('can_log');
+    expect(DateTime.fromISO(body.expiresAt).diff(NOW, 'days').days).toBeCloseTo(7, 1);
+
+    await waitFor(() => expect(screen.getAllByText(/\/join\/K7QZ4M2P$/).length).toBeGreaterThan(0));
+    // It may break after a slash and nowhere else: "K7QZ4M / 2P" is a code nobody can read out.
+    for (const address of screen.getAllByText(/\/join\/K7QZ4M2P$/)) {
+      expect([...address.querySelectorAll('wbr')].map(one => one.previousSibling?.textContent)).toEqual(['/', '/']);
+    }
+    expect(screen.getAllByRole('button', { name: 'Copy the invite link' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('dialog')).toHaveTextContent(/joins as “can log” · until/);
+  });
+
+  it('adds by handle without the sigil people type out of habit, and empties the field', async () => {
+    await inviting();
+    const field = await screen.findByLabelText('A username you already grow with');
+
+    fireEvent.change(field, { target: { value: ' @mara ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    await waitFor(() => expect(server.wrote).toHaveLength(1));
+    expect(wrote()).toMatchObject({ method: 'POST', path: '/spaces/space-1/members', body: { handle: 'mara', role: 'can_log' } });
+    await waitFor(() => expect(field).toHaveValue(''));
+  });
+
+  /**
+   * A German reader was told "Das gibt es nicht mehr. Lade die Seite neu", under a placeholder that promised any
+   * account: only somebody the reader already grows with is added by name, and anybody else by a link.
+   */
+  it('says that a handle is nobody it grows with yet, and how to invite them instead', async () => {
+    server.refuse = refusal('handle_not_found', 'Nobody you grow with goes by that name.', 404);
+    await inviting();
+
+    const field = await screen.findByLabelText('A username you already grow with');
+    expect(field).toHaveAttribute('placeholder', 'or the @name you already grow with');
+    fireEvent.change(field, { target: { value: '@stranger' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(await screen.findByText('You don’t grow with @stranger yet – invite them with a link.')).toBeInTheDocument();
+  });
+
+  /** "Hinzufügen" stood in the placeholder's grey inside the field and read as a hint, not as a button. */
+  it('draws the button inside the field in a button´s colour, grey only while there is nothing to add', () => {
+    const css = readFileSync(resolve(__dirname, '../src/ui/ui.module.css'), 'utf8');
+    expect(/\.fieldAction \{([^}]*)\}/.exec(css)?.[1]).toMatch(/color: var\(--brand\);/);
+    expect(/\.fieldAction:disabled \{([^}]*)\}/.exec(css)?.[1]).toMatch(/color: var\(--muted\);/);
   });
 });
 
-describe('the Members tab as somebody who was let in', () => {
+describe('who sees a place, as somebody who was let in', () => {
   beforeEach(() => {
     session.who = 'member';
     // What they may do here is the server's answer, and everything this screen
@@ -493,21 +597,39 @@ describe('the Members tab as somebody who was let in', () => {
   });
 
   it('shows the same list and hands out no keys', async () => {
+    server.invites = [invite()];
     const rows = await drawnPeople();
 
+    expect(rows).toHaveLength(3);
     expect(screen.getByText('@jonas')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Make a link' })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('A username you already grow with')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Invite somebody' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-    expect(within(rows[0]).getByText('The owner')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('can log')).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent(/^The owner · manages this place$/);
   });
 
   it('names the owner, who is otherwise the one person on the list without a name', async () => {
     server.members = { ...MEMBERS, people: [...MEMBERS.people, { id: 'user-1', handle: 'chris' }] };
     const rows = await drawnPeople();
 
-    expect(within(rows[0]).getByText('@chris')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('owner of Blue Dream tent')).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent(/^@chris · manages this place$/);
+  });
+
+  it('lets them out by the one control on their own row, takes them to Start and says what they left', async () => {
+    const rows = await drawnPeople();
+
+    expect(within(rows[2]).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Take lea out/ })).not.toBeInTheDocument();
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave Blue Dream tent' }));
+
+    const sheet = screen.getByRole('dialog', { name: 'Leave Blue Dream tent?' });
+    expect(within(sheet).getByText(/Blue Dream tent disappears from Home/)).toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Leave' }));
+
+    await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/$/));
+    expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/space-1/members/user-2' });
+    expect(told).toEqual([expect.objectContaining({ label: 'You have left Blue Dream tent', undo: null })]);
   });
 
   /**
@@ -519,34 +641,132 @@ describe('the Members tab as somebody who was let in', () => {
     server.invites = [invite()];
     const rows = await drawnPeople();
 
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this place' }));
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave Blue Dream tent' }));
 
     expect(screen.getByText(/goes on carrying your name/)).toBeInTheDocument();
     expect(screen.queryByText(/K7QZ4M2P/)).not.toBeInTheDocument();
   });
 
-  it('leaves the one control that lets them out, on their own row alone, named as leaving', async () => {
-    const rows = await drawnPeople();
-
-    expect(within(rows[1]).getByRole('button', { name: 'Leave this place' })).toBeInTheDocument();
-    expect(within(rows[2]).queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Take lea out/ })).not.toBeInTheDocument();
-
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Leave this place' }));
-    expect(screen.getByRole('button', { name: 'Leave the place' })).toBeInTheDocument();
-  });
-
-  it('tells them, when they are also in the room, that leaving here keeps the tent', async () => {
+  it('tells them, when they are also in the room, that leaving here keeps the place - and leaves them on the page', async () => {
     server.members = BOTH_WAYS('can_log', 'can_manage');
     drawTab();
     await screen.findByText('You');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leave this place' }));
-    expect(screen.getByText(/You keep this place through Grow room/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leave Blue Dream tent' }));
+    expect(screen.getByText(/You keep this place through the room Grow room/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('You still see Blue Dream tent through the room Grow room');
+    expect(screen.getByTestId('address')).toHaveTextContent('/spaces/space-1/members');
+  });
+
+  it('lets somebody who is here through the room leave the room, and says that every place in it goes', async () => {
+    server.members = { ...MEMBERS, items: [membership({ id: 'membership-2', spaceId: 'room-1', inviteId: null })] };
+    drawTab();
+    await screen.findByText('You');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Leave Grow room' }));
+    expect(
+      within(screen.getByRole('dialog', { name: 'Leave Grow room?' })).getByText(/Every place of this room disappears from Home/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+
+    await waitFor(() => expect(screen.getByTestId('address')).toHaveTextContent(/^\/$/));
+    expect(wrote()).toMatchObject({ method: 'DELETE', path: '/spaces/room-1/members/user-2' });
+    expect(told[0].label).toBe('You have left Grow room');
   });
 });
 
-describe('the Members tab on the demo', () => {
+describe('the page of who sees a place', () => {
+  const drawPage = (id: string) =>
+    wrapped(
+      <Routes>
+        <Route path="/spaces/:spaceId/members" element={<PlaceMembers />} />
+        <Route path="/spaces/:spaceId/edit" element={<p>the edit page</p>} />
+      </Routes>,
+      `/spaces/${id}/members`,
+    );
+
+  beforeEach(() => {
+    session.who = 'member';
+    server.spaces = [
+      ...server.spaces.map(one => ({ ...one, youMay: 'log' as const })),
+      space({ id: 'ended', youMay: 'log', archivedAt: NOW.toISO()! }),
+    ];
+  });
+
+  it('shows a member the list under the place´s name, with what the roles mean behind the help button', async () => {
+    drawPage('space-1');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Who sees Blue Dream tent' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Roles' })).toBeInTheDocument();
+    expect(await screen.findByText('@jonas')).toBeInTheDocument();
+  });
+
+  /**
+   * On the window's own history, where an open sheet stands on an entry over its page's (`ui/sheet-back.ts`) and a
+   * memory router keeps none: a replace from the sheet took the sheet's entry and left the page's under Start.
+   */
+  it('leaves no entry of the page a guest left from: Back from Start leads to where they came from', async () => {
+    window.history.replaceState(null, '', '/came-from');
+    const router = createBrowserRouter([
+      { path: '/came-from', element: <Link to="/spaces/space-1/members">Who sees it</Link> },
+      { path: '/spaces/:spaceId/members', element: <PlaceMembers /> },
+      { path: '/', element: <p>Start</p> },
+    ]);
+    render(
+      <QueryClientProvider client={testClient()}>
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    try {
+      fireEvent.click(screen.getByRole('link', { name: 'Who sees it' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Leave Blue Dream tent' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Leave' }));
+
+      expect(await screen.findByText('Start')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(told).toEqual([expect.objectContaining({ label: 'You have left Blue Dream tent' })]);
+
+      await act(async () => {
+        window.history.back();
+        await new Promise(resolve => window.addEventListener('popstate', resolve, { once: true }));
+      });
+      expect(await screen.findByRole('link', { name: 'Who sees it' })).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/came-from');
+    } finally {
+      router.dispose();
+    }
+  });
+
+  it('sends whoever manages the place to the page that edits it', async () => {
+    server.spaces = server.spaces.map(one => ({ ...one, youMay: 'manage' as const }));
+    drawPage('space-1');
+
+    expect(await screen.findByText('the edit page')).toBeInTheDocument();
+  });
+
+  it.each(['nowhere', 'ended', 'room-1'])('is one page for what is not there - an unknown id, a place that has ended, a room (%s)', async id => {
+    drawPage(id);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Place' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('offers to read again where the places could not be read', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    drawPage('space-1');
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Place' })).not.toBeInTheDocument();
+  });
+});
+
+describe('who sees a place, on the demo', () => {
   it('says there is nobody to let in, and asks the server nothing', async () => {
     session.who = 'demo';
     drawTab();
@@ -570,21 +790,52 @@ describe('an invitation somebody was sent', () => {
     );
 
   it('says only that the address leads nowhere, whichever of the four it was', async () => {
-    server.preview = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null };
+    server.preview = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null, hasCamera: false };
     drawJoin();
 
     expect(await screen.findByText('This invitation leads nowhere')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Join/ })).not.toBeInTheDocument();
+    // The window says it too: outside the app's shell nothing else names it.
+    expect(document.title).toBe('This invitation leads nowhere · Terp Control');
   });
 
   it('tells a stranger what they would and would not see, and carries the address to the sign-in', async () => {
     session.who = 'signedOut';
     drawJoin();
 
-    expect(await screen.findByText('You are invited to Blue Dream tent')).toBeInTheDocument();
+    expect(await screen.findByText('Blue Dream tent: you are invited')).toBeInTheDocument();
+    expect(document.title).toBe('Blue Dream tent: you are invited · Terp Control');
     expect(screen.getByText('from @chris')).toBeInTheDocument();
     expect(screen.getByText(/You do not see: their other places/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in to join' })).toHaveAttribute('href', '/sign-in');
+  });
+
+  it('names the cameras among what they would see where the place has one', async () => {
+    drawJoin();
+
+    expect(await screen.findByText(/^You see: Blue Dream tent, every grow .* and the cameras\.$/)).toBeInTheDocument();
+  });
+
+  it('promises no cameras where the place has none', async () => {
+    server.preview = { ...server.preview, hasCamera: false };
+    drawJoin();
+
+    expect(
+      await screen.findByText('You see: Blue Dream tent and every grow that has grown there – private and finished ones too.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/cameras/)).not.toBeInTheDocument();
+  });
+
+  it('names the window of the page a code is typed on', async () => {
+    wrapped(
+      <Routes>
+        <Route path="/join" element={<JoinRoute />} />
+      </Routes>,
+      '/join',
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Have an invitation code?' })).toBeInTheDocument();
+    expect(document.title).toBe('Have an invitation code? · Terp Control');
   });
 
   it('takes somebody who is signed in straight in', async () => {
@@ -610,5 +861,16 @@ describe('an invitation somebody was sent', () => {
 
     expect(await screen.findByText(/The demo has no account of its own/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Join/ })).not.toBeInTheDocument();
+  });
+});
+
+/** A guest read "Ändern kann, wer Zelt verwaltet" on Start and "wer den Ort steuert" on Steuerung of the one role "darf steuern". */
+describe('the role that may change a place', () => {
+  it('is said by its name wherever German says who may change something', async () => {
+    const de = (await catalogue('de')) as Record<string, Record<string, Record<string, string>>>;
+    const said = [de.start.targets.whoChanges, de.space.control.youMayLog, de.tasks.stepIsManaged];
+
+    expect((de.space.members as unknown as Record<string, Record<string, string>>).role.can_manage).toBe('darf steuern');
+    for (const sentence of said) expect(sentence).toMatch(/wer .* steuern darf\./);
   });
 });

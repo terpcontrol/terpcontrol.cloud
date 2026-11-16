@@ -10,7 +10,7 @@ import { OverviewService } from './overview.service';
 import { SHARED_READ_OPERATION } from '../../../openapi';
 
 /**
- * The tent page's landing tab. It is a read of one space, so it declares the
+ * Start of one place. It is a read of one space, so it declares the
  * same need every read does and is built from what the guard decided: a share
  * link reaches this route as well as a session - the link is the whole identity
  * a stranger has - and the window it was given is what the answer is clamped to.

@@ -5,6 +5,7 @@ import { CameraModule } from '@modules/v1/camera/camera.module';
 import { DiaryModule } from '../diary/diary.module';
 import { GrowModule } from '../grow/grow.module';
 import { OverviewModule } from '../overview/overview.module';
+import { SpaceModule } from '../space/space.module';
 import { FollowsController } from './follows.controller';
 import { FollowsService } from './follows.service';
 import { CardCache } from './link-card';
@@ -19,7 +20,7 @@ import { ShareLinksService } from './share-links.service';
  * they follow, and the pages a stranger lands on.
  *
  * It is the one slice that assembles other slices rather than owning much of a
- * model. A public page is the week cards the grow page is made of, the totals
+ * model. A public page is the diary the grow page is made of, the totals
  * the report counts and the card the home screen draws, served through a grant
  * that was decided for somebody with no account - so it reads the diary slice,
  * the grow slice and the tent page rather than building any of them again. What
@@ -27,7 +28,7 @@ import { ShareLinksService } from './share-links.service';
  * is drawn as.
  */
 @Module({
-  imports: [ModelsModule, V1CommonModule, CameraModule, DiaryModule, GrowModule, OverviewModule],
+  imports: [ModelsModule, V1CommonModule, CameraModule, DiaryModule, GrowModule, OverviewModule, SpaceModule],
   controllers: [ShareLinksController, FollowsController, PublicController, LinkShellController],
   providers: [ShareLinksService, FollowsService, PublicPagesService, CardCache],
 })

@@ -1,0 +1,354 @@
+import { useEffect, useId, useRef, useState, type ComponentProps } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
+import type { GerminationChoices as Choices, GrowthStage } from '@fg2/shared-types/v1';
+import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { serverNow } from '@/api/clock';
+import { useGrows } from '@/api/grows';
+import { useSpaces } from '@/api/spaces';
+import { GROW, placesFor, useChosenPlace } from '@/app/places';
+import { useLog } from '@/log/log-context';
+import { GerminationChoices } from '@/screens/control/germination/GerminationChoices';
+import { choicesOf, useHumidifier } from '@/screens/control/germination/germination-choices';
+import { lampsAmong, lampsSaid } from '@/screens/control/held-light';
+import { useLead } from '@/screens/control/lead';
+import { usePlaceStage } from '@/screens/start/stage';
+import { darkStage } from '@/ui/climate-hardware';
+import { DAY_MS, dayOf, momentOn } from '@/ui/days';
+import { unbroken } from '@/ui/figures';
+import { fieldValue } from '@/ui/advanced/field-values';
+import { Asking } from '@/ui/Asking';
+import { Refused } from '@/ui/PageState';
+import { stageChoiceName } from '@/ui/presets';
+import { Sheet } from '@/ui/Sheet';
+import ui from '@/ui/ui.module.css';
+import { deviceName } from '@/ui/naming';
+import { useZone } from '@/ui/zone';
+import { usePlaceClimate } from '../phase-climate';
+import { growBody, growIn, recordsOnly, START_STAGES, suggestedName } from './new-grow';
+import { useStartGrow } from './start-grow';
+import styles from './NewGrow.module.css';
+
+type Since = 'today' | 'week' | 'date';
+
+/** "No fixed place" in the list of places. */
+const NOWHERE = '';
+
+/**
+ * "Was wächst hier?" - the one form a grow is started with, behind every
+ * "Grow starten" and "+ Neuer Grow": what it is, since when, how many, where
+ * - asked only where the caller names no place - and the phase it is in.
+ * Everything else has an answer that can wait and is changed on the grow's own
+ * page: a feeding scheme, the strains by name, an autoflower.
+ *
+ * It opens on the stage the place is on - read off what its device runs
+ * where that is a stage's (`usePlaceStage`), or the one a step earlier in the
+ * same sitting put it on (`stage`) - and waits for that answer rather than
+ * choosing before it. Where nothing says, a grow started today opens on the
+ * seedling - a tent that already regulates rarely holds seeds - and one that
+ * began earlier on no stage at all: one tap must not record a grow on its
+ * first day as flowering.
+ *
+ * A stage the form only opened on is recorded and moves nothing. A stage the
+ * grower chose puts the place's controller on its climate, and then the button
+ * says so - except beside plants already growing there, whose climate is not
+ * the new grow's to change: there the stage is recorded and the form says why
+ * (`recordsOnly`). Where that climate is germination's, the form
+ * asks what germination does about the humidity, as every way of setting
+ * germination does - of the device the climate preset is taken on
+ * (`usePlaceClimate`) - and only what was moved is sent. A controller that has
+ * not sent its settings yet is put on the climate as they arrive, so a stage
+ * chosen before its first report is sent all the same, and the toast says it
+ * waits.
+ *
+ * A place whose one device with targets is an AIR fan holds no climate: the
+ * stage sets the fan's targets and nothing else, and the button says that
+ * rather than "Klima".
+ *
+ * Drawn on a page the button ends the form; as a `sheet` it is the sheet's
+ * foot, which stands while the questions scroll.
+ */
+export function WhatGrows({
+  spaceId: fixed = null,
+  stage: given,
+  onStarting,
+  onStarted,
+  submitClass,
+  sheet,
+}: {
+  /** The place the form was opened for; null where it asks. */
+  spaceId?: string | null;
+  /** The stage the place was put on a moment ago, which its device may not say yet. */
+  stage?: GrowthStage | null;
+  /** The form was sent: from here on the grow may exist, whatever the page around the form reads next. */
+  onStarting?: () => void;
+  onStarted: (growId: string, spaceId: string | null) => void;
+  submitClass?: string;
+  /** The sheet the form is asked on, where it is one. */
+  sheet?: Omit<ComponentProps<typeof Sheet>, 'children' | 'actions'>;
+}) {
+  const { t } = useTranslation();
+  const form = useId();
+  const countRefusal = useId();
+  const zone = useZone();
+  const grows = useGrows();
+  // Read also for a place the form was opened for: a second grow there is asked about by the place's name.
+  const spaces = useSpaces();
+  const { start, busy, refused } = useStartGrow();
+  const chosen = useChosenPlace();
+  const { tell } = useLog();
+  const [name, setName] = useState('');
+  const [since, setSince] = useState<Since>('today');
+  const [date, setDate] = useState(() => serverNow().toJSDate());
+  // As typed: a count the form cannot read is refused under the field, never turned into one it can.
+  const [count, setCount] = useState('1');
+  const [picked, setStage] = useState<GrowthStage | null>(null);
+  const [where, setWhere] = useState<string | null>(null);
+  const [germination, setGermination] = useState<Partial<Choices>>({});
+  const [asking, setAsking] = useState(false);
+
+  const places = placesFor(spaces.data?.items ?? []);
+  const running = grows.data?.items ?? [];
+  // Asked for, the place stands chosen that the grower is looking at - the header's, or the first there is: a grow
+  // started from "Alle Grows" with one tent belongs in that tent, not in no place. Never one a grow already runs
+  // in, which would put a second grow there unasked: with none free it is no fixed place.
+  const free = places.filter(one => growIn(running, one.id) === null);
+  const inView = free.find(one => one.id === chosen) ?? free[0];
+  const spaceId = fixed ?? (where === null ? (inView?.id ?? null) : where || null);
+  // A grow already running where this one goes: starting a second is allowed, and asked first.
+  const there = spaceId ? growIn(running, spaceId) : null;
+  const onPlace = usePlaceStage(spaceId);
+  const on = given ?? onPlace;
+  const { controller, awaiting } = usePlaceClimate(spaceId);
+  const here = useLead(spaceId).devices.items;
+  const opened: GrowthStage | null = on === undefined ? null : on && START_STAGES.includes(on) ? on : since === 'today' ? 'seedling' : null;
+  const stage = picked ?? opened;
+  // Nothing chosen where the place has answered: the button says what it waits for.
+  const unstaged = stage === null && on !== undefined;
+  const stageMissing = useId();
+  // A controller that has not sent its settings yet takes the climate as they arrive: it is sent all the same.
+  const steered = picked !== null && picked !== on && (controller !== null || awaiting !== null);
+  const climate = steered && !recordsOnly(there);
+  const germinates = climate && stage === 'germination';
+  const plants = /^\s*\d+\s*$/.test(count) ? Number(count) : 0;
+  const countRefused = plants < 1;
+  // Asked of the place's sockets only once the choices are on the form.
+  const humidifier = useHumidifier(germinates ? controller : null);
+  // The choices open under the stage that was tapped, which on a short screen is behind the sheet's foot: they are
+  // brought into view, and again when the humidifier's switch joins them.
+  const choices = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (germinates) choices.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [germinates, humidifier]);
+
+  // What the climate does to each lamp of the place and to a fan at a fixed speed is said above the button, as a preset says it.
+  const said =
+    climate && stage && controller
+      ? [
+          lampsSaid(t, controller, lampsAmong(here), darkStage(stage), serverNow(), zone),
+          ...here
+            .filter(device => device.type === 'fan' && fieldValue(device, 'fanMode') === 'fixed')
+            .map(fan => t('grow.new.fanFixed', { device: deviceName(fan, t) })),
+        ].filter(Boolean)
+      : [];
+
+  const submit = async (second = false) => {
+    // Not before the place has said which stage it is on: what is chosen is told apart from it.
+    if (stage === null || on === undefined || countRefused) return;
+    if (there && !second) return setAsking(true);
+    setAsking(false);
+    const now = serverNow().toJSDate();
+    const startedAt = since === 'today' ? now : since === 'week' ? new Date(now.getTime() - 7 * DAY_MS) : date;
+    const typed = name.trim();
+    const body = growBody(
+      { name: typed || suggestedName(running, spaceId, t('grow.new.firstName')), strain: typed, count: plants },
+      spaceId,
+      startedAt,
+    );
+    onStarting?.();
+    try {
+      const germinationChoices = germinates && Object.keys(germination).length > 0 ? germination : undefined;
+      const growId = await start({ body, stage, startedAt, climate, germinationChoices });
+      // The grow is its own answer - its page opens. That the place's targets were written with it is said, since
+      // nothing on that page shows it; the way back is Steuerung's, not one call from here.
+      if (climate) {
+        const set = controller ? t('log.targetsSet') : t('grow.new.climateAwaited', { device: deviceName(awaiting!, t) });
+        tell({ label: `${t('grow.told.started', { name: body.name })} · ${set}`, undo: null });
+      }
+      onStarted(growId, spaceId);
+    } catch {
+      // The refusal is drawn under the fields; what already stands is not written again on the next tap.
+    }
+  };
+
+  const button = (
+    <>
+      <Refused error={refused} />
+      {asking && there ? (
+        <Asking
+          note={t('grow.new.second', { place: places.find(one => one.id === spaceId)?.name ?? '', grow: there.name })}
+          yes={t('grow.new.secondYes')}
+          busy={busy}
+          onYes={() => void submit(true)}
+          onCancel={() => setAsking(false)}
+        />
+      ) : null}
+      {unstaged ? (
+        <p id={stageMissing} className={ui.note}>
+          {t('grow.new.stageMissing')}
+        </p>
+      ) : null}
+      {said.length > 0 && !asking ? <p className={ui.note}>{said.join(' ')}</p> : null}
+      {steered && there ? <p className={ui.note}>{t('grow.new.keepsClimate', { grow: there.name })}</p> : null}
+      {/* While the question stands, its yes is the one way on: one filled button, not two. */}
+      {asking ? null : (
+        <button
+          type="submit"
+          form={form}
+          className={`${submitClass ?? `${ui.button} ${ui.primary}`} ${styles.start}`}
+          disabled={busy || grows.isPending || stage === null || on === undefined || countRefused || (fixed === null && spaces.isPending)}
+          aria-describedby={countRefused ? countRefusal : unstaged ? stageMissing : undefined}
+        >
+          {busy
+            ? t('grow.new.starting')
+            : climate && stage
+              ? controller && !OWN_CLIMATE_TYPES.includes(controller.type)
+                ? // A fan has no lamp: its targets are the stage's, never "dunkel" or "mit Licht".
+                  t('grow.new.startAndSetTargets', { device: deviceName(controller, t), climate: unbroken(t(`home.stage.${stage}`)) })
+                : t('grow.new.startAndSet', { climate: unbroken(stageChoiceName(t, stage)) })
+              : t('home.invite.startGrow')}
+        </button>
+      )}
+    </>
+  );
+
+  const questions = (
+    <form
+      id={form}
+      className={`${ui.stack4} ${styles.whatGrows}`}
+      onSubmit={event => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <label className={styles.field}>
+        {t('start.grow.name')}
+        <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
+      </label>
+      <div className={styles.fieldPair}>
+        <label className={styles.field}>
+          {t('start.grow.since')}
+          <select className={ui.input} value={since} onChange={event => setSince(event.target.value as Since)}>
+            <option value="today">{t('start.grow.today')}</option>
+            <option value="week">{t('start.grow.week')}</option>
+            <option value="date">{t('start.grow.date')}</option>
+          </select>
+        </label>
+        <label className={styles.field}>
+          {t('grow.new.plants')}
+          <input
+            className={ui.input}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            value={count}
+            aria-invalid={countRefused || undefined}
+            aria-describedby={countRefused ? countRefusal : undefined}
+            onChange={event => setCount(event.target.value)}
+          />
+        </label>
+      </div>
+      {countRefused ? (
+        <p id={countRefusal} className={ui.problem} role="alert">
+          {t('grow.new.plantsRefused')}
+        </p>
+      ) : null}
+      {since === 'date' ? (
+        <label className={styles.field}>
+          {t('grow.new.startedOn')}
+          <input
+            className={ui.input}
+            type="date"
+            max={dayOf(serverNow().toJSDate(), zone)}
+            value={dayOf(date, zone)}
+            onChange={event => event.target.value && setDate(momentOn(event.target.value, date, zone))}
+          />
+        </label>
+      ) : null}
+      {fixed === null && places.length > 0 ? (
+        <label className={styles.field}>
+          {t('grow.new.where')}
+          <select className={ui.input} value={spaceId ?? NOWHERE} onChange={event => setWhere(event.target.value)}>
+            {places.map(one => (
+              <option key={one.id} value={one.id}>
+                {one.name}
+              </option>
+            ))}
+            <option value={NOWHERE}>{t('grow.noFixedPlace')}</option>
+          </select>
+        </label>
+      ) : null}
+      <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('home.entryKind.phase')}>
+        {START_STAGES.map(one => (
+          <button key={one} type="button" className={ui.segment} aria-pressed={stage === one} onClick={() => setStage(one)}>
+            {t(`home.stage.${one}`)}
+          </button>
+        ))}
+      </div>
+      {germinates ? (
+        <GerminationChoices
+          ref={choices}
+          value={{ ...choicesOf(controller), ...germination }}
+          onChange={change => setGermination({ ...germination, ...change })}
+          humidifier={humidifier}
+          humidity={GERMINATION_HUMIDITY}
+          disabled={busy}
+        />
+      ) : null}
+      {sheet ? null : button}
+    </form>
+  );
+
+  return sheet ? (
+    <Sheet {...sheet} actions={button}>
+      <div className={ui.sheetBody}>{questions}</div>
+    </Sheet>
+  ) : (
+    questions
+  );
+}
+
+/**
+ * The form as a sheet over the page it was asked on. A grow started in a
+ * place is drawn by Grow, which is where the sheet lets go to; one standing in
+ * none has only its own page.
+ */
+export function StartGrowSheet({
+  spaceId = null,
+  name = null,
+  replace = false,
+  onClose,
+}: {
+  spaceId?: string | null;
+  /** What the place is called, where the sheet was opened for one. */
+  name?: string | null;
+  /** True where the sheet is the address itself, so the grow's page takes its place rather than stacking on it. */
+  replace?: boolean;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  return (
+    <WhatGrows
+      spaceId={spaceId}
+      sheet={{ title: spaceId && name ? t('start.grow.title', { name }) : t('grow.new.title'), noEntry: replace, onClose }}
+      onStarted={(growId, where) => {
+        if (!replace) onClose();
+        void navigate(where ? `${GROW}?${new URLSearchParams({ space: where }).toString()}` : `/grows/${growId}`, { replace });
+      }}
+    />
+  );
+}

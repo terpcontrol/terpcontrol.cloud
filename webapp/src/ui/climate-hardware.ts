@@ -1,5 +1,6 @@
-import type { Device, DeviceConfiguration, OutputMetric } from '@fg2/shared-types/v1';
+import type { Device, DeviceConfiguration, DeviceSettings, OutputMetric } from '@fg2/shared-types/v1';
 import { figureAt, workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 
 /**
  * Whether a climate could land anywhere in a tent, asked of the hardware in it:
@@ -29,7 +30,7 @@ export const statesTargets = (configuration: DeviceConfiguration | null): boolea
  * their way from a plug that will never have any. An unknown type is believed
  * once its document arrives.
  */
-export const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
+const HOLDS_A_CLIMATE = ['controller', 'fridge', 'fan'];
 
 /**
  * A device that has never sent its document but whose kind says it will state a
@@ -78,13 +79,55 @@ export const darkReasonOf = (device: Device | null): DarkReason | null => {
 /** Whether a device germinates in the dark now. */
 export const germinates = (device: Device | null): boolean => darkReasonOf(device) === 'germination';
 
+/** A spell that keeps every lamp of the place dark, a lamp module's too (ADR 0007): germination or drying. */
+export type DarkSpell = 'drying' | 'germination';
+
+/** The spell a device holds its place dark in now, or null. */
+export const darkSpellOf = (device: Device | null): DarkSpell | null => {
+  const reason = darkReasonOf(device);
+  return reason === 'off' ? null : reason;
+};
+
+/** The spell its devices keep a place dark in, or null: a lamp module has no work mode, and goes by its place's. */
+export const darkSpellAmong = (devices: readonly Device[]): DarkSpell | null => devices.map(darkSpellOf).find(spell => spell !== null) ?? null;
+
+/** The spell a stage puts a place into, or null for a stage with light. */
+export const darkStage = (stage: string | null | undefined): DarkSpell | null => (stage === 'drying' || stage === 'germination' ? stage : null);
+
 /**
  * What an output is called on this kind of hardware: one name per machine
  * wherever it is met. A fridge module drives one compressor that both cools and
  * dries, on the output the firmware calls the dehumidifier, so on a fridge that
- * output is the compressor - on the cockpit, the charts, the Timeline, the
+ * output is the compressor - on the charts, the Timeline, the
  * alarms and the maintenance sheet alike - and never an "Entfeuchter" the
  * cabinet does not have.
  */
 export const outputWord = <O extends OutputMetric>(output: O, fridge: boolean): O | 'compressor' =>
   fridge && output === 'dehumidifier' ? 'compressor' : output;
+
+/**
+ * The outputs each kind of hardware drives, from the list of what every type
+ * reports in `docs/device-protocol.md`, section 5.4: what an alarm rule may
+ * watch, and which devices of a place light it.
+ */
+const OUTPUTS_OF: Record<string, OutputMetric[]> = {
+  controller: ['dehumidifier', 'heater', 'light', 'co2'],
+  fridge: ['co2', 'dehumidifier', 'heater', 'light', 'fanInternal', 'fanExternal', 'fanBackwall'],
+  plug: ['relais'],
+  fan: ['fan'],
+  light: ['light'],
+};
+
+export const outputsOf = (device: Pick<Device, 'type'>): OutputMetric[] => OUTPUTS_OF[device.type] ?? [];
+
+/**
+ * The figures the cloud works a device's readings out with that it has a use for: the leaf offsets where Start and
+ * the targets draw its VPD - a fridge and a tent controller; a plug, a fan and a lamp measure the air too, but beside
+ * one of those their VPD is not the one anybody reads - and the lux factor where its light sensor reports lux. The
+ * device page offers these and support's view lists these - a fan's listed leaf offsets and a lux factor it had no
+ * use for.
+ */
+export const sensorFactorsOf = (device: Pick<Device, 'type' | 'state'>): (keyof DeviceSettings)[] => [
+  ...(OWN_CLIMATE_TYPES.includes(device.type) ? (['vpdLeafOffsetDay', 'vpdLeafOffsetNight'] as const) : []),
+  ...(device.state?.hardware?.ppfd === 'on' ? (['ppfdLuxFactor'] as const) : []),
+];

@@ -21,7 +21,7 @@
 }
 
 .basedOnName {
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .basedOnAside {
@@ -55,7 +55,6 @@
   border: 0;
   padding: 0;
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -73,7 +72,6 @@
 .waterKind {
   flex: none;
   color: var(--muted);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
 }
 
@@ -93,7 +91,6 @@
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
-  font-family: var(--font-figure);
   font-size: var(--text-xs);
 }
 
@@ -102,9 +99,14 @@
 .rowHead,
 .cell {
   border-bottom: var(--rule-solid);
-  padding: var(--space-2) var(--space-1);
+  padding: var(--space-1);
   text-align: center;
   white-space: nowrap;
+}
+
+/* The doses stand under one another week by week: digits of one width. A week's head ("W1") and a product's name stand
+   alone, in the face's own. */
+.cell {
   font-family: var(--font-figure);
 }
 
@@ -140,7 +142,7 @@
 
 .weekHead[data-current='true'] {
   color: var(--green-ink);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* Only as wide as the name: a row head that filled its cell would push the unit
@@ -180,8 +182,11 @@
   color: var(--green-ink);
 }
 
+/* A finger's target, as every repeated action is: a week's cell is tapped more than anything else in the grid. */
 .cellButton {
   width: 100%;
+  min-width: var(--action-height);
+  min-height: var(--action-height);
   background: none;
   border: 0;
   padding: var(--space-1) var(--space-2);
@@ -197,6 +202,7 @@
 .cellInput {
   width: 100%;
   min-width: 44px;
+  min-height: var(--action-height);
   background: var(--card);
   border: 1.5px solid var(--brand);
   border-radius: var(--radius-xs);
@@ -214,27 +220,31 @@
   color: var(--label);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
 .note {
   font-size: var(--text-sm);
   color: var(--muted);
 }
 
-.caption {
-  font-size: var(--text-xs);
-  color: var(--label);
-}
-
-/* What is not saved yet, said where the edits were made. */
+/* What is not saved yet stays in view: the bar stands at the window's foot, above the tab bar, for as long as its
+   place in the page is below the fold - a grid chosen and never saved is otherwise learnt of by a reload. */
 .unsaved {
+  position: sticky;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--space-2));
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 900px) {
+  .unsaved {
+    bottom: var(--space-3);
+  }
 }
 
 .unsavedNote {
@@ -243,14 +253,17 @@
   color: var(--label);
 }
 
-/* Adding a row: a name, the unit it is measured in, and the tap that makes it. */
-.newProduct {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
+/* The question a navigation held back by the unsaved cells asks, in the bar's own frame. */
+.leaving {
+  flex: 1;
 }
 
+.leaving > * {
+  padding: 0;
+  border: none;
+}
+
+/* Adding a row: a name, the unit it is measured in, and the tap that makes it. */
 .newProductName {
   flex: 1;
   min-width: 140px;
@@ -263,15 +276,7 @@
   border: var(--rule-solid);
   border-radius: var(--radius);
   color: var(--ink);
-  font-family: var(--font-figure);
   font-size: var(--text-sm);
-}
-
-/* The sheet behind the card: which scheme this grow follows, and the shelf. */
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 .saveOwn {
@@ -299,14 +304,7 @@
     max-width: none;
   }
 
-  .note,
-  .caption {
-    max-width: 72ch;
-  }
-
-  /* The note that there is no scheme yet spans the tab like every other
-     tab's content, so the page's right edge stays put between tabs. */
-  .none > :global(.note) {
+  .note {
     max-width: 72ch;
   }
 }

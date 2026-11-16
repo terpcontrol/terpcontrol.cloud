@@ -43,16 +43,27 @@ const PARALLEL_UPLOADS = 3;
 
 type Picked = { file: File; url: string; rotate: number };
 
-export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: () => void }) {
+export function PhotoEntry({
+  target,
+  at: given,
+  onBack,
+  onClose,
+}: {
+  target: LogTarget;
+  at: Date | null;
+  onBack?: (() => void) | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const { log } = useLog();
   const zone = useZone();
   const { data: grow } = useGrow(target.growId);
   const [pictures, setPictures] = useState<Picked[]>([]);
   /** When the line happened, or null for now; `fromPicture` says the first picture's file named it. */
-  const [at, setAt] = useState<Date | null>(null);
+  const [at, setAt] = useState<Date | null>(given);
   const [fromPicture, setFromPicture] = useState(false);
-  const byHand = useRef(false);
+  // A moment said before the sheet opened is said by hand: the first picture's own date does not overrule it.
+  const byHand = useRef(given !== null);
   const [tags, setTags] = useState<string[]>([]);
   const [own, setOwn] = useState('');
   const [note, setNote] = useState('');
@@ -91,6 +102,10 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
     // Outlives one attempt, so Try again sends only the pictures that did not arrive.
     const mediaIds: (string | null)[] = pictures.map(() => null);
 
+    // Dated when it was written: an upload that only gets through later is still of this moment.
+
+    const written = at ?? serverNow().toJSDate();
+
     log({
       label: lineLabel(t, 'photo', filed),
       send: async progress => {
@@ -109,7 +124,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
         return writeEntry({
           kind: 'photo',
           ...about(target),
-          ...occurredAt(at),
+          ...occurredAt(written),
           mediaIds: mediaIds.filter((id): id is string => id !== null),
           text: words || null,
           values: { kind: 'photo' },
@@ -121,6 +136,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
   return (
     <Sheet
       title={t('log.photoTitle')}
+      onBack={onBack}
       corner={
         <Moment
           at={at}
@@ -132,6 +148,11 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
         />
       }
       onClose={onClose}
+      actions={
+        <button type="button" className={`${ui.button} ${ui.primary}`} onClick={save} disabled={pictures.length === 0}>
+          {filed.dayNumber === null ? t('log.save') : t('log.saveDay', { day: filed.dayNumber })}
+        </button>
+      }
     >
       {pictures.length === 0 ? (
         <div className={styles.picture}>
@@ -144,7 +165,12 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
         <div className={styles.pictures}>
           {pictures.map((picture, index) => (
             <div key={picture.url} className={styles.picked}>
-              <img src={picture.url} alt={t('log.pictureAlt', { n: index + 1 })} style={{ transform: `rotate(${picture.rotate}deg)` }} />
+              <img
+                className={ui.cover}
+                src={picture.url}
+                alt={t('log.pictureAlt', { n: index + 1 })}
+                style={{ transform: `rotate(${picture.rotate}deg)` }}
+              />
               <button
                 type="button"
                 className={`${styles.pickedAction} ${styles.pickedTurn}`}
@@ -170,7 +196,7 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
         </div>
       )}
 
-      {fromPicture ? <p className={`mono ${styles.subject}`}>{t('log.moment.fromPicture')}</p> : null}
+      {fromPicture ? <p className={styles.subject}>{t('log.moment.fromPicture')}</p> : null}
 
       {/* No capture attribute: it would open the camera straight away and leave no way to the pictures already taken. */}
       <input
@@ -214,10 +240,6 @@ export function PhotoEntry({ target, onClose }: { target: LogTarget; onClose: ()
       </div>
 
       <input className={ui.input} value={note} placeholder={t('log.noteOptional')} onChange={event => setNote(event.target.value)} />
-
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.save}`} onClick={save} disabled={pictures.length === 0}>
-        {filed.dayNumber === null ? t('log.save') : t('log.saveDay', { day: filed.dayNumber })}
-      </button>
     </Sheet>
   );
 }

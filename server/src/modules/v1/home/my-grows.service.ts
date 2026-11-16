@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import type { MyGrowCard, MyGrowPage, MyGrowPlace, Person, StrainCount } from '@fg2/shared-types/v1';
 import { AccessContext } from '@common/v1/access.types';
 import { CursorPage, decodeCursor, pageLimit, pageOf, PagePosition } from '@common/v1/pages';
+import { zonesOfOwners } from '@common/v1/owner-zone';
 import { peopleNamed } from '@common/v1/people';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
@@ -14,7 +15,7 @@ import { MediaDocument } from '@database/schemas/v1/media.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { Redaction, harvestOf, summaryOf } from '../grow/grow-serialiser';
+import { Redaction, harvestLinesOf, harvestOf, summaryOf } from '../grow/grow-serialiser';
 import { GrowsService } from '../grow/grows.service';
 import { ownerRedactions } from '../grow/redactions';
 
@@ -61,11 +62,12 @@ export class MyGrowsService {
     const grows = await this.grows.find({ id: { $in: ids } }).lean<GrowDocument[]>();
     const spaceIds = [...new Set(grows.flatMap(grow => grow.placements.flatMap(placement => (placement.spaceId ? [placement.spaceId] : []))))];
 
-    const [plants, spaces, cameras, photos, hide, owners] = await Promise.all([
+    const [plants, harvests, spaces, cameras, photos, hide, owners, zone] = await Promise.all([
       this.plants
         .find({ growId: { $in: ids } })
         .sort({ createdAt: 1, _id: 1 })
         .lean<PlantDocument[]>(),
+      harvestLinesOf(this.entries, ids),
       this.spaces.find({ id: { $in: spaceIds } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>(),
       // A camera that has since been removed is a tombstone whose pictures keep their link, so it is asked as well.
       this.cameras.find({ spaceId: { $in: spaceIds } }, { id: 1, spaceId: 1 }).lean<Pick<CameraDocument, 'id' | 'spaceId'>[]>(),
@@ -79,13 +81,17 @@ export class MyGrowsService {
         grows.map(grow => grow.ownerId),
       ),
       this.ownersOf(ctx, grows),
+      zonesOfOwners(
+        this.users,
+        grows.map(grow => grow.ownerId),
+      ),
     ]);
     const stills = new Map(await Promise.all(grows.map(async grow => [grow.id, await this.newestLitStill(grow, cameras, now)] as const)));
 
     const cards = grows.map((grow): MyGrowCard => {
       const own = plants.filter(plant => plant.growId === grow.id);
       const hidden = hide(grow.ownerId);
-      const summary = summaryOf(grow, own, hidden, now);
+      const summary = summaryOf(grow, own, hidden, zone(grow.ownerId), now);
 
       return {
         growId: grow.id,
@@ -101,7 +107,12 @@ export class MyGrowsService {
         plantCount: hidden.counts ? null : own.length,
         strains: strainsOf(own, hidden),
         coverMediaId: grow.coverMediaId ?? stills.get(grow.id) ?? photos.get(grow.id) ?? null,
-        harvest: harvestOf(own, hidden, WHOLE_LIFE),
+        harvest: harvestOf(
+          own,
+          harvests.filter(line => line.growId === grow.id),
+          hidden,
+          WHOLE_LIFE,
+        ),
       };
     });
 
