@@ -1146,7 +1146,7 @@
       "somePlants_other": "{{count}} plants",
       "phase": {
         "title": "Phase",
-        "noPhaseYet": "No phase yet · the day counter starts with the first one",
+        "noPhaseYet": "No phase yet",
         "nowLine": "Now {{stage}} · day {{phaseDay}} of the phase · day {{growDay}}, week {{week}} of the grow",
         "endedLine": "Ended in {{stage}} on day {{growDay}} of the grow · {{date}}",
         "enter": "Enter a phase",
@@ -1174,7 +1174,7 @@
           "growDay": "The grow then shows day {{to}}, week {{weekTo}} instead of day {{from}}, week {{weekFrom}}.",
           "phaseDay": "This phase then shows day {{to}} instead of day {{from}}.",
           "stage": "The grow then shows {{to}} instead of {{from}}.",
-          "noPhaseLeft": "The grow is left with no phase and no day counter until one is entered again.",
+          "noPhaseLeft": "The grow is left with no phase until one is entered again.",
           "timelineOnly": "Nothing the grow page shows moves: this phase lies before the one the grow is in.",
           "entry": "The diary line that announced it moves with it.",
           "entryGone": "The diary line that announced it goes with it.",

@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import i18next from 'i18next';
 import { DateTime, Settings } from 'luxon';
 import { Route, Routes } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -996,6 +997,21 @@ describe('the phase sheet over a grow that has ended', () => {
 
     expect(screen.getByText('Now Flower · day 11 of the phase · day 35, week 5 of the grow')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enter Drying' })).toBeInTheDocument();
+  });
+
+  /** A grow counts its days from its start, phase or none: the sheet said the counter began with the first phase. */
+  it('promises no day counter to a grow without a phase, which counts its days already', () => {
+    const bare: GrowListItem = { ...grow, phases: [], summary: { ...grow.summary, stage: null, preset: null, phaseDay: null } };
+    drawAt(
+      <LogProvider>
+        <PhaseSheet grow={bare} onClose={() => {}} />
+      </LogProvider>,
+    );
+
+    expect(screen.getByText('No phase yet')).toBeInTheDocument();
+    expect(screen.queryByText(/day counter/)).not.toBeInTheDocument();
+    // Nor takes one away from a grow whose last phase is withdrawn.
+    expect(i18next.t('grow.lifecycle.phase.effect.noPhaseLeft')).not.toMatch(/day counter/);
   });
 });
 

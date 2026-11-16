@@ -1156,7 +1156,7 @@
       "somePlants_other": "{{count}} Pflanzen",
       "phase": {
         "title": "Phase",
-        "noPhaseYet": "Noch keine Phase · der Tageszähler beginnt mit der ersten",
+        "noPhaseYet": "Noch keine Phase",
         "nowLine": "Jetzt {{stage}} · Tag {{phaseDay}} der Phase · Tag {{growDay}}, Woche {{week}} des Grows",
         "endedLine": "Beendet in {{stage}} an Tag {{growDay}} des Grows · {{date}}",
         "enter": "Phase setzen",
@@ -1184,7 +1184,7 @@
           "growDay": "Der Grow zeigt dann Tag {{to}}, Woche {{weekTo}} statt Tag {{from}}, Woche {{weekFrom}}.",
           "phaseDay": "Diese Phase zeigt dann Tag {{to}} statt Tag {{from}}.",
           "stage": "Der Grow zeigt dann {{to}} statt {{from}}.",
-          "noPhaseLeft": "Der Grow bleibt ohne Phase und ohne Tageszähler, bis wieder eine gesetzt wird.",
+          "noPhaseLeft": "Der Grow bleibt ohne Phase, bis wieder eine gesetzt wird.",
           "timelineOnly": "Auf der Grow-Seite ändert sich nichts: Diese Phase liegt vor der, in der der Grow steht.",
           "entry": "Die Tagebuchzeile, die sie angekündigt hat, zieht mit.",
           "entryGone": "Die Tagebuchzeile, die sie angekündigt hat, verschwindet mit ihr.",
