@@ -131,6 +131,13 @@ const NEWEST_SAMPLE_LANES = 8;
  */
 const NEWEST_SAMPLES_BUDGET_MS = 20_000;
 
+/**
+ * How wide a window may be whose lamp is still read at the device's own rhythm: a week of a grow's diary and the lead
+ * before it, which is read at once. Read at five minutes there, a lamp that came on at 23:28 was "on since 23:25" in a
+ * long grow's diary and "since 23:28" in that of a grow begun beside it two days before.
+ */
+const LAMP_SAMPLED_SECONDS = 8 * 24 * 60 * 60;
+
 /** One device and the instant its caller wants its samples counted from. */
 export interface DeviceSince {
   deviceId: string;
@@ -503,12 +510,13 @@ export class DataService implements LightStateReader, SeriesReader, DeviceSample
     const extra = outputs.includes('fan') ? [DAY_FIELD] : [];
     // At the step the series settles on, so an output's figures stand under the reading of the same window.
     const stepSeconds = stepFor(request.startsAt, request.endsAt, request.stepSeconds);
-    // Within three days the lamp's switchings - and an AIR's own day - are read at the device's own rhythm, so a
-    // lamp's stretch is its samples' to the minute and the same on every zoom: read at the step, a day said
-    // "06:00 bis 18:03" and a week "06:00 bis 18:05" of a lamp that ran from 06:02 to 18:02. A read of its own
-    // beside the others, of one field or two: 25 ms over a day and 67 ms over three, at a sample every 5 s.
-    const fine = request.endsAt.getTime() - request.startsAt.getTime() <= MAX_SAMPLED_SECONDS * 1000;
-    const lamp = outputs.filter(output => fine && output === 'light');
+    // Within three days an AIR's own day, and within a week and a day the lamp's switchings, are read at the device's
+    // own rhythm, so a lamp's stretch is its samples' to the minute and the same on every zoom: read at the step, a
+    // day said "06:00 bis 18:03" and a month "06:00 bis 18:05" of a lamp that ran from 06:02 to 18:02. A read of its
+    // own beside the others, of one field or two: 25 ms over a day and 67 ms over three, at a sample every 5 s.
+    const width = request.endsAt.getTime() - request.startsAt.getTime();
+    const fine = width <= MAX_SAMPLED_SECONDS * 1000;
+    const lamp = outputs.filter(output => output === 'light' && width <= LAMP_SAMPLED_SECONDS * 1000);
     const [series, coarse, sampled, lastSampleAt, counts] = await Promise.all([
       this.series(deviceId, request),
       this.switchingsOf(

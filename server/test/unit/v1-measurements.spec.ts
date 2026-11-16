@@ -683,4 +683,23 @@ describe('the deficit of a window', () => {
 
     expect(answer.metrics[0].points.map(point => point.value)).toEqual([DAY, DAY]);
   });
+
+  /**
+   * A week of a grow's diary is read at once and a new grow's first day on its own: read at five minutes, one lamp
+   * came on at 23:25 in the one and at 23:28 in the other.
+   */
+  it('reads a lamp´s switchings at the device´s rhythm over a week of the diary as over a day, and a month at five minutes', async () => {
+    const lampGrain = async (days: number): Promise<string | undefined> => {
+      const data = reading(() => []);
+      const startsAt = new Date('2026-01-12T00:00:00.000Z');
+      // The diary reads its week with ten minutes before it.
+      const endsAt = new Date(startsAt.getTime() + days * 24 * 3600 * 1000 + 600_000);
+      await data.history(DEVICE, { metrics: [], outputs: ['light'], startsAt, endsAt, stepSeconds: 300 });
+      return /aggregateWindow\(every: (\d+s)/.exec(data.asked.find(query => query.includes('out_light') && query.includes('difference(')) ?? '')?.[1];
+    };
+
+    expect(await lampGrain(1)).toBe('5s');
+    expect(await lampGrain(7)).toBe('5s');
+    expect(await lampGrain(30)).toBe('300s');
+  });
 });
