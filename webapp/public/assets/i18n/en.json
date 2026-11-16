@@ -1633,6 +1633,7 @@
       "openEnded": "runs until it is moved on",
       "pausedFor": "Paused: {{reason}}",
       "startsStage": "Starting puts a grow here into {{stage}}.",
+      "startsStageOf": "Starting puts {{grow}} into {{stage}}.",
       "status": {
         "running": "Running",
         "paused": "Paused",

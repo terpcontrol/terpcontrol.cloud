@@ -286,6 +286,23 @@ export class PhaseWriterService implements DevicePlacement {
     return grow?.id ?? null;
   }
 
+  /**
+   * The grow a place leads with where two stand, by the rule every screen follows: the one standing there longest -
+   * its placement there begun first -, the id breaking a tie. Null where nothing grows there.
+   */
+  public async leadGrowIn(spaceId: string | null): Promise<string | null> {
+    if (!spaceId) return null;
+
+    const grows = await this.grows.find(standingIn(spaceId), { id: 1, placements: 1 }).lean<Pick<GrowDocument, 'id' | 'placements'>[]>().exec();
+    const since = (grow: Pick<GrowDocument, 'placements'>) =>
+      Math.min(
+        ...grow.placements
+          .filter(placement => placement.spaceId === spaceId && placement.endedAt === null)
+          .map(placement => placement.startedAt.getTime()),
+      );
+    return grows.sort((one, other) => since(one) - since(other) || one.id.localeCompare(other.id))[0]?.id ?? null;
+  }
+
   /** Whether the grow - or the plants named - stand in this phase already, which putting them there again does not begin. */
   public async standsInPhase(growId: string, stage: GrowthStage, preset: string | null, plantIds: string[] | null): Promise<boolean> {
     const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>().exec();

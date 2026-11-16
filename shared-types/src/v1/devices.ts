@@ -924,6 +924,16 @@ export const planTemplateCreate = named(
 export const planTemplateUpdate = named('PlanTemplateUpdate', planTemplateCreate.partial());
 
 /**
+ * The grow a plan at rest is started for, whose phases its steps set while it stands where the device stands: the
+ * place's lead grow, which the plan screen names before the tap. Not read for a plan that is running or paused.
+ */
+const startedFor = id()
+  .optional()
+  .describe(
+    "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+  );
+
+/**
  * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
  * plan from the start of the step it names, whether it was running, paused or
  * at rest: going back a step, or starting a plan in the middle of a grow.
@@ -935,8 +945,8 @@ export const planTransition = named(
     z.object({ kind: planTransitionKind.extract(['skip']) }),
     z.object({ kind: planTransitionKind.extract(['extend']), by: stepDuration }),
     z.object({ kind: planTransitionKind.extract(['pause']), reason: z.string().nullable() }),
-    z.object({ kind: planTransitionKind.extract(['resume']) }),
-    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.') }),
+    z.object({ kind: planTransitionKind.extract(['resume']), growId: startedFor }),
+    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.'), growId: startedFor }),
   ]),
 );
 

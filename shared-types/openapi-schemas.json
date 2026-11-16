@@ -4192,6 +4192,11 @@
             "enum": [
               "resume"
             ]
+          },
+          "growId": {
+            "description": "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
@@ -4211,6 +4216,11 @@
             "type": "string",
             "minLength": 1,
             "description": "The step the plan runs from, by its id."
+          },
+          "growId": {
+            "description": "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [

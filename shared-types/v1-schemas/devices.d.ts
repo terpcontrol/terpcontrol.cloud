@@ -1808,11 +1808,13 @@ export declare const planTransition: z.ZodDiscriminatedUnion<[z.ZodObject<{
     kind: z.ZodEnum<{
         resume: "resume";
     }>;
+    growId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>, z.ZodObject<{
     kind: z.ZodEnum<{
         goto: "goto";
     }>;
     stepId: z.ZodString;
+    growId: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>], "kind">;
 /**
  * Where a rule came from. `always` is a rule the cloud keeps for every device

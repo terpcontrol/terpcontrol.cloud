@@ -925,6 +925,41 @@ describe('the phase a step puts the grow into', () => {
     expect((await stored()).growId).toBe(GROW);
   });
 
+  /**
+   * Started where two grows stand, it moves the grow the screen named before the tap - the place's lead -, else the one
+   * standing there longest, as every screen leads with: it moved the seedlings begun a day before into flower.
+   */
+  it('started where two grows stand, moves the one the screen named, else the one standing there longest', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await db.grows.create({
+      id: 'grow-2',
+      ownerId: OWNER,
+      name: 'Second grow',
+      type: 'photoperiod',
+      slug: 'grow-2',
+      startedAt: at(-24 * HOUR),
+      placements: [{ id: 'placement-2', spaceId: SPACE, startedAt: at(-24 * HOUR), endedAt: null, plantIds: null }],
+    });
+    const second = async () => (await db.grows.findOne({ id: 'grow-2' }).lean().exec())!.phases.map(phase => phase.stage);
+    await aPlan([step({ id: 'a', name: 'Flower', stage: 'flowering' })], { state: stoppedState });
+
+    await transitions.transition(DEVICE, { kind: 'resume' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+    expect(await second()).toEqual([]);
+
+    await transitions.stop(DEVICE);
+    await transitions.transition(DEVICE, { kind: 'goto', stepId: 'a', growId: 'grow-2' }, OWNER);
+    expect((await stored()).growId).toBe('grow-2');
+    expect(await second()).toEqual(['flowering']);
+
+    // A grow that does not stand there is not moved: the plan takes the place's lead.
+    await transitions.stop(DEVICE);
+    await transitions.transition(DEVICE, { kind: 'resume', growId: 'grow-elsewhere' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
+  });
+
   it('invents no grow for a controller that is simply on', async () => {
     await aDevice();
     await aGrowIn('another-space');

@@ -104,6 +104,10 @@ export type PlanTransition =
     }
   | {
       kind: 'resume';
+      /**
+       * For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.
+       */
+      growId?: string;
     }
   | {
       kind: 'goto';
@@ -111,6 +115,10 @@ export type PlanTransition =
        * The step the plan runs from, by its id.
        */
       stepId: string;
+      /**
+       * For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.
+       */
+      growId?: string;
     };
 
 export type AlarmOrigin = 'preset' | 'always' | 'device' | 'human';

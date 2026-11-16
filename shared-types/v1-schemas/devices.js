@@ -669,6 +669,13 @@ exports.planTemplateCreate = (0, common_js_1.named)('PlanTemplateCreate', export
 /** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
 exports.planTemplateUpdate = (0, common_js_1.named)('PlanTemplateUpdate', exports.planTemplateCreate.partial());
 /**
+ * The grow a plan at rest is started for, whose phases its steps set while it stands where the device stands: the
+ * place's lead grow, which the plan screen names before the tap. Not read for a plan that is running or paused.
+ */
+const startedFor = (0, common_js_1.id)()
+    .optional()
+    .describe("For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.");
+/**
  * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
  * plan from the start of the step it names, whether it was running, paused or
  * at rest: going back a step, or starting a plan in the middle of a grow.
@@ -678,8 +685,8 @@ exports.planTransition = (0, common_js_1.named)('PlanTransition', zod_1.z.discri
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['skip']) }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['extend']), by: exports.stepDuration }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['pause']), reason: zod_1.z.string().nullable() }),
-    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['resume']) }),
-    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['goto']), stepId: (0, common_js_1.id)().describe('The step the plan runs from, by its id.') }),
+    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['resume']), growId: startedFor }),
+    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['goto']), stepId: (0, common_js_1.id)().describe('The step the plan runs from, by its id.'), growId: startedFor }),
 ]));
 /* ------------------------------------------------------------------- alarms */
 /**

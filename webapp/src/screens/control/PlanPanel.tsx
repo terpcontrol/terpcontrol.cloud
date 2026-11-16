@@ -9,6 +9,7 @@ import { useGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { useLog, type Back } from '@/log/log-context';
+import { usePlaceGrow } from '@/log/underneath';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
 import type { ClimateLanding } from '@/ui/climate-hardware';
 import { Asking } from '@/ui/Asking';
@@ -365,9 +366,12 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 
   const can = movesOf(plan, now);
   const next = nextStepIndex(plan);
-  // Starting moves a grow standing here into the step's stage: said only where one stands.
-  const growsHere = alsoIn(useGrows(device.spaceId !== null).data?.items, device.spaceId, undefined).length > 0;
-  const startStage = growsHere ? (activeStep(plan)?.stage ?? null) : null;
+  // Starting moves a grow standing here into the step's stage: said only where one stands, and where two stand, which -
+  // the place's lead, as every page leads with it, which the start then asks for.
+  const growsHere = alsoIn(useGrows(device.spaceId !== null).data?.items, device.spaceId, undefined);
+  const lead = usePlaceGrow(device.spaceId) ?? null;
+  const leadHere = growsHere.length > 1 ? growsHere.find(grow => grow.id === lead) : undefined;
+  const startStage = growsHere.length > 0 ? (activeStep(plan)?.stage ?? null) : null;
   const busy = move.isPending || stop.isPending || remove.isPending;
   const close = () => setAsking(null);
   /**
@@ -383,17 +387,14 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
   const paused = plan.state.status === 'paused';
   // Going on sends the step, which switches regulation back on: the device is read again, so Steuerung says it is on.
   const resume = () =>
-    move.mutate(
-      { kind: 'resume' },
-      {
-        onSuccess: () => {
-          if (switchedOff) void planMoved(client);
-          told(paused ? (switchedOff ? 'resumedOn' : 'resumed') : switchedOff ? 'startedOn' : 'started', {
-            step: stepName(plan.state.activeStepIndex),
-          });
-        },
+    move.mutate(paused || lead === null ? { kind: 'resume' } : { kind: 'resume', growId: lead }, {
+      onSuccess: () => {
+        if (switchedOff) void planMoved(client);
+        told(paused ? (switchedOff ? 'resumedOn' : 'resumed') : switchedOff ? 'startedOn' : 'started', {
+          step: stepName(plan.state.activeStepIndex),
+        });
       },
-    );
+    });
 
   return (
     <div className={styles.moves}>
@@ -472,7 +473,11 @@ function Moves({ plan, device, now, onRefresh }: { plan: Plan; device: Device; n
 
       {/* Starting puts the grow standing here into the stage the first step names: said before the tap. */}
       {can.resume && !paused && startStage ? (
-        <p className={ui.note}>{t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}</p>
+        <p className={ui.note}>
+          {leadHere
+            ? t('space.control.startsStageOf', { grow: leadHere.name, stage: t(`home.stage.${startStage}`) })
+            : t('space.control.startsStage', { stage: t(`home.stage.${startStage}`) })}
+        </p>
       ) : null}
 
       {asking === 'resume' ? (

@@ -37,7 +37,10 @@ const state = vi.hoisted(() => ({
   templates: { items: [] as unknown[], nextCursor: null },
   grows: [] as unknown[],
   diary: true,
+  lead: null as string | null,
 }));
+
+vi.mock('@/log/underneath', async importOriginal => ({ ...(await importOriginal<object>()), usePlaceGrow: () => state.lead }));
 
 vi.mock('@/api/layers', async importOriginal => ({ ...(await importOriginal<object>()), useDiaryLayer: () => state.diary }));
 
@@ -148,6 +151,7 @@ beforeEach(() => {
   state.templates = { items: [], nextCursor: null };
   state.grows = [];
   state.diary = true;
+  state.lead = null;
 });
 
 describe('light hours in a step', () => {
@@ -495,6 +499,20 @@ describe('a plan in a place with two grows', () => {
     state.grows = [standing('grow-1', 'First grow')];
     drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
     expect(screen.queryByText(/into the phases of its steps/)).not.toBeInTheDocument();
+  });
+
+  /** Before the tap it names the grow it will move - the place's lead, as every page leads with it - and starts for it. */
+  it('names the grow a start moves, the place´s lead, and starts the plan for it', () => {
+    const fridge = device();
+    const standing = (id: string, name: string) => ({ id, name, endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } });
+    state.plan = plan({}, { status: 'stopped', stepStartedAt: null, lastAppliedAt: null });
+    state.grows = [standing('grow-2', 'Seedlings'), standing('grow-1', 'First grow')];
+    state.lead = 'grow-1';
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+
+    expect(screen.getByText('Starting puts First grow into Veg.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start the plan' }));
+    expect(state.sent).toEqual([{ kind: 'resume', growId: 'grow-1' }]);
   });
 });
 

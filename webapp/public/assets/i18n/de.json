@@ -1643,6 +1643,7 @@
       "openEnded": "läuft, bis ihn jemand weiterschaltet",
       "pausedFor": "Pausiert: {{reason}}",
       "startsStage": "Starten setzt einen Grow hier auf {{stage}}.",
+      "startsStageOf": "Starten setzt {{grow}} auf {{stage}}.",
       "status": {
         "running": "Läuft",
         "paused": "Pausiert",

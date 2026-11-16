@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { planMoved, useDevicePlan, usePlanTransition } from '@/api/plans';
 import type { Device } from '@fg2/shared-types/v1';
 import { useLog } from '@/log/log-context';
+import { usePlaceGrow } from '@/log/underneath';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Asking } from '@/ui/Asking';
 import { climateChoiceName } from '@/ui/presets';
@@ -31,6 +32,7 @@ export function ContinuePlan({ device }: { device: Device }) {
   const move = usePlanTransition(device.id);
   const [chosen, setChosen] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const lead = usePlaceGrow(device.spaceId) ?? null;
 
   const steps = plan.data?.steps ?? [];
   if (steps.length === 0) return null;
@@ -94,7 +96,8 @@ export function ContinuePlan({ device }: { device: Device }) {
           busy={move.isPending}
           onYes={() =>
             move.mutate(
-              { kind: 'goto', stepId: step.id },
+              // A plan at rest is started for the place's lead grow, as Starten names it.
+              going || lead === null ? { kind: 'goto', stepId: step.id } : { kind: 'goto', stepId: step.id, growId: lead },
               {
                 onSuccess: () => {
                   setAsking(false);
