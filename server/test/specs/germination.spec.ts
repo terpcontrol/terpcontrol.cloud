@@ -389,7 +389,12 @@ describe('the operating mode of a tent controller', () => {
       .patch(`/v1/devices/${device.deviceId}/configuration`)
       .send({ set: { mode: 'standard' } })
       .expect(200);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
+    // Begun where no climate had a name, it ends on "Sämling · mit Licht" (Chris, 2026-11-16).
+    expect(await configurationOf(device)).toMatchObject({
+      workmode: 'small',
+      day: { temperature: 24, humidity: 70 },
+      night: { temperature: 21, humidity: 65 },
+    });
   });
 });
 
