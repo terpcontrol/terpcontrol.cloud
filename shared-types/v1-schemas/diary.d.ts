@@ -588,8 +588,8 @@ export declare const entryCreate: z.ZodObject<{
     cameraId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     deviceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     occurredAt: z.ZodOptional<z.ZodISODateTime>;
     taskId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mediaIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
@@ -654,8 +654,8 @@ export declare const entryUpdate: z.ZodObject<{
     cameraId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
-    plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     growId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    plantIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;
     occurredAt: z.ZodOptional<z.ZodOptional<z.ZodISODateTime>>;
     taskId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     mediaIds: z.ZodOptional<z.ZodOptional<z.ZodArray<z.ZodString>>>;

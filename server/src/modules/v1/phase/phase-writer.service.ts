@@ -286,6 +286,11 @@ export class PhaseWriterService implements DevicePlacement {
     return grow?.id ?? null;
   }
 
+  /** Whether this grow stands in the space now: its placement there is open and it has not ended. */
+  public async standsIn(growId: string, spaceId: string | null): Promise<boolean> {
+    return spaceId !== null && (await this.grows.exists({ id: growId, ...standingIn(spaceId) }).exec()) !== null;
+  }
+
   /**
    * The grow standing in a space: the one begun last, the id breaking a tie,
    * because two grows can share a tent while one is on its way out - or with

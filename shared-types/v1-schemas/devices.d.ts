@@ -1464,6 +1464,7 @@ export declare const plan: z.ZodObject<{
     createdAt: z.ZodISODateTime;
     deviceId: z.ZodString;
     templateId: z.ZodNullable<z.ZodString>;
+    growId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     name: z.ZodString;
     steps: z.ZodArray<z.ZodObject<{
         id: z.ZodString;

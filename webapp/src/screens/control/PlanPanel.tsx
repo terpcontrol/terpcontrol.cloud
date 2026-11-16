@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import type { Device, Plan, PlanNotify, StepDuration } from '@fg2/shared-types/v1';
 import { useDevices, useHeardAt } from '@/api/devices';
 import { useGrows } from '@/api/grows';
+import { useDiaryLayer } from '@/api/layers';
 import { isMissing, planMoved, useDevicePlan, usePlanTemplates, usePlanTransition, useRemovePlan, useStopPlan } from '@/api/plans';
 import { useLog, type Back } from '@/log/log-context';
 import { ageAttribute, ageLabel, deviceLiveness, offlineLabel } from '@/ui/age';
@@ -224,6 +225,10 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
   const zone = useZone();
   // A plan at rest has no clock and is given none; one that has run every step stands at none of them.
   const going = isGoing(plan.state);
+  // Where two grows stand, the plan names the one whose phases its steps set: the grow it was started for.
+  const diary = useDiaryLayer();
+  const grows = alsoIn(useGrows(diary && device.spaceId !== null).data?.items, device.spaceId, undefined);
+  const moves = grows.length > 1 ? grows.find(grow => grow.id === plan.growId) : undefined;
 
   return (
     <>
@@ -236,6 +241,7 @@ function Standing({ plan, device, now }: { plan: Plan; device: Device; now: Date
           {t(`space.control.status.${plan.state.status}`)}
         </span>
       </header>
+      {moves ? <p className={ui.note}>{t('space.control.movesGrow', { name: moves.name })}</p> : null}
       {/* A pause, a skip or a confirmation is said: the button pressed may be gone, and the page changes silently. */}
       <p className={ui.visuallyHidden} role="status">
         {[

@@ -478,6 +478,22 @@ describe('the two ready-made plans', () => {
   });
 });
 
+describe('a plan in a place with two grows', () => {
+  it('names the grow whose phases its steps set, and nothing where one grow stands', () => {
+    const fridge = device();
+    const standing = (id: string, name: string) => ({ id, name, endedAt: null, summary: { locations: [{ spaceId: fridge.spaceId }] } });
+    state.plan = plan({ growId: 'grow-1' });
+    state.grows = [standing('grow-1', 'First grow'), standing('grow-2', 'Second grow')];
+    const view = drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.getByText('The plan moves First grow into the phases of its steps.')).toBeInTheDocument();
+    view.unmount();
+
+    state.grows = [standing('grow-1', 'First grow')];
+    drawn(<PlanPanel device={fridge} mayManage landing={climateLanding(fridge)} />);
+    expect(screen.queryByText(/into the phases of its steps/)).not.toBeInTheDocument();
+  });
+});
+
 describe('going on with a plan at a step', () => {
   /** It stands under the steps it chooses among, for whoever may move the plan - and not where a climate could not land. */
   it('is offered under the plan to whoever may change it, and to nobody else', () => {

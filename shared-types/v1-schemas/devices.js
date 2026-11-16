@@ -614,6 +614,10 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
     createdAt: (0, common_js_1.instant)(),
     deviceId: (0, common_js_1.id)(),
     templateId: (0, common_js_1.id)().nullable().describe('What it was started from; null once it no longer matters.'),
+    growId: (0, common_js_1.id)()
+        .nullable()
+        .optional()
+        .describe("The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started."),
     name: zod_1.z.string(),
     steps: zod_1.z.array(exports.planStep),
     loop: zod_1.z.boolean().describe('Start again at the first step instead of completing.'),

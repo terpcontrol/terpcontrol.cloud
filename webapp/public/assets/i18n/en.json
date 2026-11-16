@@ -1613,6 +1613,7 @@
   },
   "space": {
     "control": {
+      "movesGrow": "The plan moves {{name}} into the phases of its steps.",
       "noControllerAdd": "Add a device",
       "none": "No plan yet.",
       "noClimateHasPlan": "This device states no climate; what these steps write has nowhere to go there.",

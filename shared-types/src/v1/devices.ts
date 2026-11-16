@@ -847,6 +847,12 @@ export const plan = named(
     createdAt: instant(),
     deviceId: id(),
     templateId: id().nullable().describe('What it was started from; null once it no longer matters.'),
+    growId: id()
+      .nullable()
+      .optional()
+      .describe(
+        "The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.",
+      ),
     name: z.string(),
     steps: z.array(planStep),
     loop: z.boolean().describe('Start again at the first step instead of completing.'),

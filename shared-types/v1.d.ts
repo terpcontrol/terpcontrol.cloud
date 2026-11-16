@@ -1533,6 +1533,10 @@ export interface Plan {
    * What it was started from; null once it no longer matters.
    */
   templateId: string | null;
+  /**
+   * The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.
+   */
+  growId?: string | null;
   name: string;
   steps: PlanStep[];
   /**

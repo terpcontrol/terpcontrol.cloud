@@ -901,6 +901,30 @@ describe('the phase a step puts the grow into', () => {
     expect((await grow()).phases).toHaveLength(1);
   });
 
+  /** A second grow begun beside the one a plan was started for is not put into the plan's stages; the plan names its grow. */
+  it('moves the grow the plan was started for, not one begun beside it since', async () => {
+    await aDevice();
+    await aGrowIn(SPACE);
+    await aPlan([step({ id: 'a', name: 'Veg' }), step({ id: 'b', name: 'Flower', stage: 'flowering' })], { state: stoppedState });
+    await transitions.transition(DEVICE, { kind: 'resume' }, OWNER);
+    expect((await stored()).growId).toBe(GROW);
+
+    await db.grows.create({
+      id: 'grow-2',
+      ownerId: OWNER,
+      name: 'Second grow',
+      type: 'photoperiod',
+      slug: 'grow-2',
+      startedAt: new Date(),
+      placements: [{ id: 'placement-2', spaceId: SPACE, startedAt: new Date(), endedAt: null, plantIds: null }],
+    });
+    await transitions.transition(DEVICE, { kind: 'goto', stepId: 'b' }, OWNER);
+
+    expect((await grow()).phases.map(phase => phase.stage)).toEqual(['flowering']);
+    expect((await db.grows.findOne({ id: 'grow-2' }).lean().exec())!.phases).toHaveLength(0);
+    expect((await stored()).growId).toBe(GROW);
+  });
+
   it('invents no grow for a controller that is simply on', async () => {
     await aDevice();
     await aGrowIn('another-space');

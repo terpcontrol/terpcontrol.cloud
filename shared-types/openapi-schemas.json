@@ -3855,6 +3855,18 @@
         ],
         "description": "What it was started from; null once it no longer matters."
       },
+      "growId": {
+        "description": "The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.",
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "name": {
         "type": "string"
       },
