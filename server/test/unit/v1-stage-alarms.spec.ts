@@ -502,6 +502,7 @@ describe('every climate written moves the place´s bands', () => {
   const FLOWER = [16, 60, 30];
   const SEEDLING = [17, 80, 29];
   let configuration: DeviceConfigurationService;
+  let ingest: ReturnType<typeof deviceStackOn>['ingest'];
   let grows: GrowsService;
 
   /** Too cold, too humid, too hot: the three figures the alarms page reads. */
@@ -617,6 +618,33 @@ describe('every climate written moves the place´s bands', () => {
     expect(await bands(OTHER)).toEqual([undefined, undefined, undefined]);
   });
 
+  /** "Widerrufen" of a figure changed by hand puts the name back with the figures; the bands were never moved. */
+  it('keeps the bands through a figure changed by hand and taken back', async () => {
+    await steuerung('vegetative');
+    const named = await document();
+    await configuration.replace(DEVICE, { ...named, day: { temperature: 27, humidity: 70 } }, OWNER);
+    expect(await bands()).toEqual(VEG);
+    await configuration.replace(DEVICE, named, OWNER, undefined, undefined, undefined, { stage: 'vegetative', preset: null });
+    expect(await bands()).toEqual(VEG);
+  });
+
+  /** A climate chosen for a place whose controller has not sent its settings yet is written there all the same. */
+  it('follows a climate that waits for a device´s first settings', async () => {
+    await db.devices.create({ id: 'device-new', type: 'controller', ownerId: OWNER, spaceId: 'space-new', configuration: null });
+    await new ClimatePresetsService(db.devices, configuration).applyToSpace('space-new', 'flowering', null);
+    expect(await bands('device-new')).toEqual(FLOWER);
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
+  });
+
+  /** What the device reports it was set to at its own menu - germination begun there included - writes no climate. */
+  it('moves no band for settings changed at the device´s own menu', async () => {
+    ({ configuration, ingest } = deviceStackOn(db, null, { [STAGE_ALARMS]: service }));
+    await steuerung('vegetative');
+    await ingest.handle(`/devices/${DEVICE}/configuration`, JSON.stringify({ ...(await document()), workmode: 'breed' }));
+    expect((await document()).workmode).toBe('breed');
+    expect(await bands()).toEqual(VEG);
+  });
+
   describe('a Grow-Plan step', () => {
     const NOW = new Date();
     /** The device's Grow-Plan, standing on one step, and the engine's pass at `now` (the device answering). */
@@ -653,6 +681,14 @@ describe('every climate written moves the place´s bands', () => {
       await planPass({ stage: 'flowering' }, new Date(NOW.getTime() + 2 * 3600_000), NOW);
       expect(await bands()).toEqual(VEG);
       expect(await named()).toEqual({ stage: 'vegetative', preset: null });
+    });
+
+    /** "Dieser Schritt beendet nur die Keimung davor": it brings back day and night and writes no climate, so the bands stay. */
+    it('that only ends the germination before it moves no band', async () => {
+      await steuerung('germination');
+      await planPass({});
+      expect((await document()).workmode).toBe('small');
+      expect((await bands())[1]).toBe(90);
     });
 
     it('that writes figures moves the bands to its climate, and a dark one with no figures to its stage', async () => {
