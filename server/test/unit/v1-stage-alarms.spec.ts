@@ -733,20 +733,34 @@ describe('every climate written moves the place´s bands', () => {
     expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
   });
 
-  /** Its figures the grower's own since, it ends on the night from before, named nothing, with no stage's bands. */
-  it('ends a germination changed by hand on the figures from before, and drops the stage bands', async () => {
+  /** A spell's figures are thrown away at its end anyway: one nudged by hand ends on the climate it came from, as an untouched one does. */
+  it('ends a germination changed by hand on the climate it came from, name and bands', async () => {
+    await steuerung('seedling');
+    const seedling = await document();
     await steuerung('germination');
-    await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 25, humidity: 75 } }, OWNER);
+    const germinating = await document();
+    const night = germinating.night as { temperature: number; humidity: number };
+    await configuration.replace(DEVICE, { ...germinating, night: { ...night, temperature: night.temperature + 0.5 } }, OWNER);
     await configuration.configure(DEVICE, { control: false }, OWNER);
     await configuration.configure(DEVICE, { control: true }, OWNER);
-    const germinating = (await db.devices.findOne({ id: DEVICE }).lean())!;
-    expect(spellEndsOn(controlOf('controller', germinating.configuration, germinating.baseWorkmode), germinating)).toEqual({ endsOn: null });
+    const nudged = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(spellEndsOn(controlOf('controller', nudged.configuration, nudged.baseWorkmode), nudged)).toEqual({
+      endsOn: { stage: 'seedling', preset: null },
+    });
 
     await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
 
-    expect(await bands()).toEqual([undefined, undefined, undefined]);
-    expect(await document()).toMatchObject({ day: DOCUMENT.day, night: DOCUMENT.night, workmode: 'small' });
-    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
+    expect(await bands()).toEqual(SEEDLING);
+    expect(await document()).toMatchObject({ day: seedling.day, night: seedling.night, workmode: 'small' });
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
+
+    // Begun from no name and nudged, it ends on "Sämling · mit Licht" all the same.
+    await db.devices.updateOne({ id: DEVICE }, { $set: { appliedClimate: null } });
+    await steuerung('germination');
+    await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 25, humidity: 75 } }, OWNER);
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+    expect(await bands()).toEqual(SEEDLING);
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
   });
 
   it('ends a drying spell begun from no named climate on the figures from before, and drops the stage bands', async () => {
@@ -763,7 +777,7 @@ describe('every climate written moves the place´s bands', () => {
     expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
   });
 
-  it('ends a drying spell on the climate it came from, and keeps nothing aside once the figures are the grower´s', async () => {
+  it('ends a drying spell on the climate it came from, nudged by hand while it ran or not', async () => {
     await steuerung('vegetative');
     await steuerung('drying');
     await configuration.configure(DEVICE, { drying: false }, OWNER);
@@ -771,9 +785,8 @@ describe('every climate written moves the place´s bands', () => {
 
     await steuerung('drying');
     await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 15, humidity: 60 } }, OWNER);
-    // Ended on figures nobody named, it holds no stage's thresholds until a climate is written.
     await configuration.configure(DEVICE, { drying: false }, OWNER);
-    expect(await bands()).toEqual([undefined, undefined, undefined]);
-    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
+    expect(await bands()).toEqual(VEG);
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'vegetative', preset: null } });
   });
 });

@@ -781,8 +781,9 @@ const inSpell = (configuration: DeviceConfiguration | null, base: string | null 
  * had, as it keeps the figures it writes over; ended by its own button it gives both back, so the device ends on the
  * climate it came from - "Veg" before a germination is "Veg" after it. Where none had a name, a germination ends on
  * `seedling`, whose figures the write carries, and a drying spell gives the figures back and drops the stage
- * thresholds until a climate is written. A figure changed by hand while it runs makes the figures the grower's own,
- * and nothing is put aside any more.
+ * thresholds until a climate is written. A figure changed by hand while it runs, or a step re-sent, keeps what was put
+ * aside: the end throws the spell's figures away, so a nudged spell ends on the climate it came from as an untouched
+ * one does.
  */
 const namedAfter = (
   intent: WriteIntent,
@@ -807,8 +808,7 @@ const namedAfter = (
     const back = before?.workmode === 'dry' || SCHEDULED_MODES.includes(after.workmode as string);
     return { set: { appliedClimate: endsOn }, forget: true, endsOn: endsOn ?? (back ? null : undefined) };
   }
-  if (was && !is) return { set: named, forget: true, endsOn: undefined };
-  return { set: named, forget: was && named.appliedClimate === null, endsOn: undefined };
+  return { set: named, forget: was && !is, endsOn: undefined };
 };
 
 /**

@@ -138,8 +138,7 @@ export const climateBefore = (device: {
 /**
  * What ending the spell that runs by its own button puts the device on (`DeviceControl.endsOn`): the climate it came
  * from, "Sämling · mit Licht" for a germination begun where none had a name, and none - the figures from before, no
- * stage's thresholds - for such a drying spell or a spell whose figures were changed by hand since; nothing told
- * outside a spell.
+ * stage's thresholds - for such a drying spell; nothing told outside a spell.
  */
 export const spellEndsOn = (
   control: DeviceControl | null,
