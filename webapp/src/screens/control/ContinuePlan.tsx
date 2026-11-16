@@ -6,6 +6,7 @@ import type { Device } from '@fg2/shared-types/v1';
 import { useLog } from '@/log/log-context';
 import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Asking } from '@/ui/Asking';
+import { climateChoiceName } from '@/ui/presets';
 import ui from '@/ui/ui.module.css';
 import { isGoing } from './plan-clock';
 import { ownStepName, stepTitle, stepWritesNothing } from './plan-labels';
@@ -43,6 +44,7 @@ export function ContinuePlan({ device }: { device: Device }) {
   const label = (number: number, name: string) =>
     ownStepName(name, number - 1) ? t('continuePlan.step', { number, name: name.trim() }) : stepTitle(t, name, number - 1);
   const switchedOff = device.control?.running === false;
+  const endsOn = device.control?.endsOn;
 
   return (
     <>
@@ -75,14 +77,15 @@ export function ContinuePlan({ device }: { device: Device }) {
         <Asking
           note={[
             t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' }),
-            // A step that writes nothing promises no values: the device keeps what it has, or only leaves germination.
-            t(
-              !stepWritesNothing(step)
-                ? 'continuePlan.sends'
-                : device.control?.mode === 'germination'
-                  ? 'space.control.step.endsGermination'
-                  : 'space.control.step.writesNothing',
-            ),
+            // A step that writes nothing promises no values: the device keeps what it has, or only leaves germination -
+            // which ends as "Keimung beenden" ends it, on the climate the server names (`endsOn`).
+            !stepWritesNothing(step)
+              ? t('continuePlan.sends')
+              : device.control?.mode !== 'germination'
+                ? t('space.control.step.writesNothing')
+                : endsOn === undefined
+                  ? t('space.control.step.endsGermination')
+                  : `${t('continuePlan.endsGermination')} ${endsOn ? t('targets.endsOn', { name: climateChoiceName(t, endsOn) }) : t('targets.endsOnNothing')}`,
             switchedOff ? t('continuePlan.switchesOn') : null,
           ]
             .filter(Boolean)

@@ -543,6 +543,27 @@ describe('going on with a plan at a step', () => {
     expect(screen.getByText(/carries on at 1 · Veg/)).toHaveTextContent(/Its values reach the device within a minute\.$/);
   });
 
+  /** A step of nothing but a phase over a germination ends it as "Keimung beenden" does, and says on what. */
+  it('names the climate a step that only ends the germination ends it on', () => {
+    state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Seedling', stage: 'seedling', settings: {}, lightHours: null })] });
+    const germinating = (endsOn: { stage: 'seedling'; preset: null } | null) => {
+      const one = device('controller');
+      return { ...one, control: { ...one.control!, mode: 'germination' as const, endsOn } };
+    };
+    const view = drawn(<ContinuePlan device={germinating({ stage: 'seedling', preset: null })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Seedling/)).toHaveTextContent(
+      /This step only ends the germination\. After that the climate Seedling · with light holds with its targets, and the alarms follow it\.$/,
+    );
+    view.unmount();
+
+    drawn(<ContinuePlan device={germinating(null)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Seedling/)).toHaveTextContent(
+      /This step only ends the germination\. After that the targets from before hold again\./,
+    );
+  });
+
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;
