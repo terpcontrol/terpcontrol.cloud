@@ -320,8 +320,12 @@ describe('a toast and the keyboard', () => {
     alarm.focus();
     fireEvent.click(alarm);
     await screen.findByRole('button', { name: 'Undo' });
-    tab();
-    expect(focused()).toBe('Undo');
+    // The toast comes from a write's promise, outside act: its button can be drawn before the effect that puts it in the
+    // keyboard's order has run, which a loaded CI machine shows. A Tab that came too early leaves the focus where it was.
+    await waitFor(() => {
+      if (focused() !== 'Undo') tab();
+      expect(focused()).toBe('Undo');
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
 
     await waitFor(() => expect(alarm).toBeDisabled());

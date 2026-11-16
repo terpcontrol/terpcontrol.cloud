@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-11-15
-source: a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+updated: 2026-11-16
+source: a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -109,6 +109,10 @@ hardware, the development devices and copies of production data are in
 - *`test/warm-up.test.ts` counts four requests where it expects two, or times out:* it waits on the clock of a
   machine under load (seen beside the server's integration suite, 2026-11-13); alone it passes. Re-run it alone
   before looking for a cause.
+- *`toasts.test.tsx` "hands the focus back to a control its undo holds disabled" finds the focus on the switch, not on
+  "Undo" (CI, 2026-11-16):* its toast comes from a write's promise, outside `act`, so the button can be in the DOM
+  before the effect that puts it into the keyboard's order has run, and a Tab sent right after `findByRole` changes
+  nothing. A test that tabs to something a promise drew retries the Tab inside `waitFor` until it lands.
 - *`write ECONNRESET` in a body-limit test:* Fastify refuses on `Content-Length` and closes while the client still
   writes. Announce the length, write a few bytes, read the 413 (`answerToABodyOf` in `http-contract.spec.ts`).
 
