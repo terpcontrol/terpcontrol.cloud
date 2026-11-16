@@ -38,7 +38,12 @@ vi.mock('@/api/session', async importOriginal => {
 vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
 
 const NOW = Date.now();
+/**
+ * Noon of today, UTC: a window days back whose words name a weekday or only a time by the day an instant falls on reads
+ * the same at every hour the suite runs.
+ */
 const HOUR = 3600_000;
+const NOON = Math.floor(NOW / (24 * HOUR)) * 24 * HOUR + 12 * HOUR;
 const iso = (time: number) => new Date(time).toISOString();
 const ago = (hours: number) => iso(NOW - hours * HOUR);
 
@@ -1606,7 +1611,7 @@ describe('the diary of the window', () => {
    * says the silence ended lies after the window. The window's alarms know its end, and the line says it.
    */
   it('reads the end of a silence the window ends inside from its alert, and draws it over', async () => {
-    const [from, to] = [NOW - 72 * HOUR, NOW - 48 * HOUR];
+    const [from, to] = [NOON - 72 * HOUR, NOON - 48 * HOUR];
     const raised = from + 6 * HOUR;
     server.over = {
       alarms: [
@@ -1616,7 +1621,7 @@ describe('the diary of the window', () => {
           severity: 'critical',
           metric: null,
           startedAt: iso(raised),
-          endedAt: iso(NOW - 30 * HOUR),
+          endedAt: iso(NOON - 30 * HOUR),
           value: 600,
           extremeValue: 600,
         },
@@ -1642,7 +1647,7 @@ describe('the diary of the window', () => {
     const list = within(screen.getByRole('region', { name: 'Diary in this window' }));
     await waitFor(() => expect(list.getByText(/Device offline/)).toBeInTheDocument());
     const [line] = list.getAllByRole('listitem').filter(one => /Device offline/.test(one.textContent ?? ''));
-    const end = zonedAt(NOW - 30 * HOUR, 'UTC');
+    const end = zonedAt(NOON - 30 * HOUR, 'UTC');
     expect(line.textContent).toMatch(new RegExp(`Device offline · until ${end.toFormat('ccc')}\u00a0${end.toFormat('HH:mm')} · over`));
     expect(line).not.toHaveAttribute('data-severity');
   });
@@ -1949,7 +1954,7 @@ describe('Verlauf with nothing to draw', () => {
 
   /** Saturday, wholly inside a silence from Friday to Sunday, said "letzter Wert So 15:20" of a value after it. */
   it('says the silence a past window lies wholly inside, and leads to the last value before it', async () => {
-    const [from, to, quiet, back] = [NOW - 72 * HOUR, NOW - 48 * HOUR, NOW - 77 * HOUR, NOW - 30 * HOUR];
+    const [from, to, quiet, back] = [NOON - 72 * HOUR, NOON - 48 * HOUR, NOON - 77 * HOUR, NOON - 30 * HOUR];
     server.over = { panels: [], outputs: [], cameras: [], lastReadingAt: ago(1), silences: [{ startsAt: iso(quiet), endsAt: iso(back) }] };
     draw(`/timeline?from=${iso(from)}&to=${iso(to)}`);
 
