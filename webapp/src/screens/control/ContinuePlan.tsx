@@ -8,7 +8,7 @@ import { SettingRow } from '@/ui/advanced/SettingRow';
 import { Asking } from '@/ui/Asking';
 import ui from '@/ui/ui.module.css';
 import { isGoing } from './plan-clock';
-import { ownStepName, stepTitle } from './plan-labels';
+import { ownStepName, stepTitle, stepWritesNothing } from './plan-labels';
 import { PlanRefusal } from './Refusal';
 import styles from './ContinuePlan.module.css';
 
@@ -75,6 +75,14 @@ export function ContinuePlan({ device }: { device: Device }) {
         <Asking
           note={[
             t(going ? 'continuePlan.ask' : 'continuePlan.askAtRest', { step: label(index + 1, step.name), plan: plan.data?.name ?? '' }),
+            // A step that writes nothing promises no values: the device keeps what it has, or only leaves germination.
+            t(
+              !stepWritesNothing(step)
+                ? 'continuePlan.sends'
+                : device.control?.mode === 'germination'
+                  ? 'space.control.step.endsGermination'
+                  : 'space.control.step.writesNothing',
+            ),
             switchedOff ? t('continuePlan.switchesOn') : null,
           ]
             .filter(Boolean)

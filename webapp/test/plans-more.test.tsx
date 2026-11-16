@@ -510,6 +510,19 @@ describe('going on with a plan at a step', () => {
     expect(question).not.toBeInTheDocument();
   });
 
+  it('promises values only for a step that writes some', () => {
+    state.plan = plan({ steps: [step(), step({ id: 'step-2', name: 'Flower', stage: 'flowering', settings: {}, lightHours: null })] });
+    drawn(<ContinuePlan device={device()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 2 · Flower/)).toHaveTextContent(/This step writes nothing: the device keeps what it has\.$/);
+    expect(screen.queryByText(/its values reach the device/)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Step' }), { target: { value: 'step-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue here' }));
+    expect(screen.getByText(/carries on at 1 · Veg/)).toHaveTextContent(/Its values reach the device within a minute\.$/);
+  });
+
   it('draws nothing for a device that runs no plan', () => {
     state.plan = null;
     state.planError = noPlan;

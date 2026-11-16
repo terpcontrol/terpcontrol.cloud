@@ -4118,7 +4118,7 @@
       },
       "continuePlan": {
         "title": "Continue the plan at a step",
-        "text": "Puts the plan on a step of your choice: back to a step that ended too soon, or into the middle of a grow, straight into flower for instance. The step starts from the beginning, its values reach the device within a minute, and a grow in this place moves into its phase. A paused or stopped plan runs again afterwards."
+        "text": "Puts the plan on a step of your choice: back to a step that ended too soon, or into the middle of a grow, straight into flower for instance. The step starts from the beginning, its values – where it has any – reach the device within a minute, and a grow in this place moves into its phase. A paused or stopped plan runs again afterwards."
       },
       "co2Report": {
         "title": "CO₂ cylinder",
@@ -4592,8 +4592,9 @@
     "step": "{{number}} · {{name}}",
     "now": "now",
     "go": "Continue here",
-    "ask": "“{{plan}}” carries on at {{step}}. The step starts from the beginning, the time of the current one is dropped, and its values reach the device within a minute.",
-    "askAtRest": "“{{plan}}” starts at {{step}} instead of step 1. The step starts from the beginning, and its values reach the device within a minute.",
+    "ask": "“{{plan}}” carries on at {{step}}. The step starts from the beginning, and the time of the current one is dropped.",
+    "askAtRest": "“{{plan}}” starts at {{step}} instead of step 1. The step starts from the beginning.",
+    "sends": "Its values reach the device within a minute.",
     "yes": "Continue at step {{number}}",
     "done": "The plan is now running at step {{number}}{{name}}",
     "switchesOn": "Control is off and comes back on with it.",

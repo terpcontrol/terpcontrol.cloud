@@ -17,8 +17,11 @@ export interface DeviceConfigurationWriter {
    * is for: a drying one puts the device into its drying mode, and any other
    * switches a device that was off or drying back on. `choices` is what a
    * germination step does about the humidity, kept on the device, and
-   * `applied` the climate preset the step names, kept to name it by - null for
-   * a step that names none, which clears the name. True when something changed.
+   * `applied` the climate the step writes, kept to name it by and followed by
+   * the place's thresholds - null for a step that writes figures and names no
+   * preset, which clears the name and puts the thresholds on its stage; left out
+   * for a step that writes no climate, which leaves both. True when something
+   * changed.
    */
   applyConfiguration(
     deviceId: string,

@@ -4128,7 +4128,7 @@
       },
       "continuePlan": {
         "title": "Plan bei Schritt fortsetzen",
-        "text": "Setzt den Plan auf einen Schritt deiner Wahl: zurück zu einem Schritt, der zu früh vorbei war, oder mitten in einen Grow einsteigen, etwa direkt in die Blüte. Der gewählte Schritt beginnt von vorn, seine Werte gehen innerhalb einer Minute ans Gerät, und ein Grow an diesem Ort wechselt in seine Phase. Ein pausierter oder gestoppter Plan läuft danach wieder."
+        "text": "Setzt den Plan auf einen Schritt deiner Wahl: zurück zu einem Schritt, der zu früh vorbei war, oder mitten in einen Grow einsteigen, etwa direkt in die Blüte. Der gewählte Schritt beginnt von vorn, seine Werte – wo er welche hat – gehen innerhalb einer Minute ans Gerät, und ein Grow an diesem Ort wechselt in seine Phase. Ein pausierter oder gestoppter Plan läuft danach wieder."
       },
       "co2Report": {
         "title": "CO₂-Flasche",
@@ -4602,8 +4602,9 @@
     "step": "{{number}} · {{name}}",
     "now": "jetzt",
     "go": "Hier weitermachen",
-    "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, die Zeit des jetzigen ist vergessen, und seine Werte gehen innerhalb einer Minute ans Gerät.",
-    "askAtRest": "„{{plan}}“ startet bei {{step}} statt bei Schritt 1. Der Schritt beginnt von vorn, und seine Werte gehen innerhalb einer Minute ans Gerät.",
+    "ask": "„{{plan}}“ macht bei {{step}} weiter. Der Schritt beginnt von vorn, und die Zeit des jetzigen ist vergessen.",
+    "askAtRest": "„{{plan}}“ startet bei {{step}} statt bei Schritt 1. Der Schritt beginnt von vorn.",
+    "sends": "Seine Werte gehen innerhalb einer Minute ans Gerät.",
     "yes": "Bei Schritt {{number}} weitermachen",
     "done": "Der Plan läuft jetzt bei Schritt {{number}}{{name}}",
     "switchesOn": "Die Regelung ist aus und geht damit wieder an.",

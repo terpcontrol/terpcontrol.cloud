@@ -1,5 +1,9 @@
+import type { PlanStep } from '@fg2/shared-types/v1';
 import { stageAlarmBands } from '@fg2/shared-types/v1-schemas';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
+import { MailService } from '@modules/mail/mail.service';
+import { PlanEngineService } from '@modules/v1/plan/plan-engine.service';
+import { PlanProgressService } from '@modules/v1/plan/plan-progress.service';
 import { AlarmDeliveryService } from '@modules/alarm/alarm-delivery.service';
 import { AlarmEngineService } from '@modules/alarm/alarm-engine.service';
 import { AlarmRuleService } from '@modules/alarm/alarm-rule.service';
@@ -25,6 +29,19 @@ import { useV1TestDatabase } from './support/v1-database';
  * next stage moves the band and nothing else, because a rule switched off for a
  * drying room must not come back on when the jars go in.
  */
+
+const PLAN_STEP: PlanStep = {
+  id: 'step-1',
+  name: 'Blüte',
+  stage: null,
+  preset: null,
+  duration: { value: 1, unit: 'weeks' },
+  settings: {},
+  lightHours: null,
+  waitForConfirmation: false,
+  confirmationMessage: null,
+  germinationChoices: null,
+};
 
 const DEVICE = 'device-controller';
 const OTHER = 'device-other';
@@ -565,6 +582,55 @@ describe('every climate written moves the place´s bands', () => {
 
     await configuration.replace(DEVICE, { ...(await document()), day: { temperature: 27, humidity: 70 } }, OWNER);
     expect(await bands()).toEqual(FLOWER);
+  });
+
+  describe('a Grow-Plan step', () => {
+    const NOW = new Date();
+    /** The device's Grow-Plan, standing on one step, and the engine's pass at `now` (the device answering). */
+    const planPass = async (planStep: Partial<PlanStep>, now = NOW, lastAppliedAt: Date | null = null) => {
+      await db.devices.updateOne({ id: DEVICE }, { $set: { 'state.lastSeenAt': now } });
+      await db.plans.deleteMany({});
+      await db.plans.create({
+        id: 'plan-1',
+        deviceId: DEVICE,
+        templateId: null,
+        name: 'Phasenplan',
+        steps: [{ ...PLAN_STEP, ...planStep }],
+        loop: false,
+        notify: { mode: 'off', email: null, writeEntries: false },
+        state: { status: 'running', activeStepIndex: 0, stepStartedAt: now, pausedElapsedMs: 0, lastAppliedAt },
+      });
+      const mail = { send: async () => undefined } as unknown as MailService;
+      const phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, service);
+      const progress = new PlanProgressService(db.plans, db.devices, db.users, new EntryWriterService(db.entries), phases, mail);
+      await new PlanEngineService(db.plans, db.devices, configuration, progress).run(now);
+    };
+    const named = async () => (await db.devices.findOne({ id: DEVICE }).lean())!.appliedClimate;
+
+    it('that writes no figures moves no band and names nothing, after a preset or a phase´s climate', async () => {
+      await steuerung('vegetative');
+      await planPass({ stage: 'flowering', preset: 'autoflower' });
+      expect(await bands()).toEqual(VEG);
+      expect(await named()).toEqual({ stage: 'vegetative', preset: null });
+
+      // The hourly re-send after a climate written since leaves that climate's bands.
+      await aGrowInVeg();
+      await grows.addPhase(GROW, { stage: 'vegetative', climate: true }, OWNER, HIDE);
+      expect(await bands()).toEqual(VEG);
+      await planPass({ stage: 'flowering' }, new Date(NOW.getTime() + 2 * 3600_000), NOW);
+      expect(await bands()).toEqual(VEG);
+      expect(await named()).toEqual({ stage: 'vegetative', preset: null });
+    });
+
+    it('that writes figures moves the bands to its climate, and a dark one with no figures to its stage', async () => {
+      await steuerung('vegetative');
+      await planPass({ stage: 'flowering', settings: { day: { humidity: 50 } } });
+      expect(await bands()).toEqual(FLOWER);
+      expect(await named()).toBeNull();
+
+      await planPass({ stage: 'drying' });
+      expect((await bands())[1]).toBe(68);
+    });
   });
 
   it('ends a germination on the climate it came from, name and bands', async () => {

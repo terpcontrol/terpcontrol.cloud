@@ -145,9 +145,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * puts a device that was off, drying or germinating back on its own mode.
    * `choices` is what germination does about the humidity, where the climate
    * says so. `applied` is the climate preset the write puts the device on,
-   * which names it on Steuerung from then on; null says the write names none and
-   * clears the name, as a plan step without a preset does; left out, the name
-   * goes only where a figure a preset sets moves.
+   * which names it on Steuerung from then on and which the place's thresholds
+   * follow; null says the write names none and clears the name, and the
+   * thresholds follow `stage`, as a plan step with figures but no preset does;
+   * left out, the thresholds stay and the name goes only where a figure a preset
+   * sets moves, as for a plan step that writes nothing but its stage.
    */
   public async applyConfiguration(
     deviceId: string,
@@ -719,8 +721,9 @@ const CLIMATE_PATHS = [...Object.keys(TARGET_RANGES), 'daynight.day', 'daynight.
 /**
  * The climate preset a device is named by afterwards. A preset applied - from
  * Steuerung, by a phase, by a plan step that names one - is kept. A plan step
- * that names none clears it, whatever it moves: its stage only decides the work
- * mode, and naming that stage would claim a preset nobody applied. Anything
+ * with figures that names none clears it, whatever it moves: naming its stage
+ * would claim a preset nobody applied; one that writes no figures is a write
+ * like any other here. Anything
  * else that moves a figure a preset sets - the targets or the light saved by
  * hand - clears it too: the figures are then the grower's own. A write that
  * moves none of them (regulation switched, the clock moved) leaves it as it
@@ -775,10 +778,11 @@ const namedAfter = (
 
 /**
  * The climate a write puts the device on, which the place's thresholds follow: a preset taken - under Steuerung, by a
- * phase, the claim or a plan step - and a plan step's stage, which a step without a preset of its own names alone.
- * Figures saved by hand, a regulation switched and the clock write none.
+ * phase, the claim or a plan step - and the stage of a plan step that writes a climate without naming a preset
+ * (`applied: null`). A plan step that writes nothing but a stage leaves `applied` out and writes none, and neither do
+ * figures saved by hand, a regulation switched and the clock.
  */
 const climateWritten = (intent: WriteIntent): AppliedClimate | null => {
   if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied) return intent.applied;
-  return intent.kind === 'climate' && intent.stage !== null ? { stage: intent.stage, preset: null } : null;
+  return intent.kind === 'climate' && intent.applied === null && intent.stage !== null ? { stage: intent.stage, preset: null } : null;
 };
