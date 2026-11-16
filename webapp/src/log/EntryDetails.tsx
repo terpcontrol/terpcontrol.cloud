@@ -37,8 +37,10 @@ import {
   phaseTold,
   useGrowsBeside,
   usePlaceController,
+  usePlaceTakeBack,
   type PhaseClimate,
 } from '@/screens/grow/phase-climate';
+import { standsInStage } from '@/screens/grow/phase-effect';
 import { Facts } from '@/ui/Facts';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Asking } from '@/ui/Asking';
@@ -186,6 +188,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
   const [picked, setClimate] = useState<PhaseClimate | null>(null);
   const placeController = usePlaceController(target.spaceId ?? target.standsIn);
   const beside = useGrowsBeside(target.spaceId ?? target.standsIn, target.growId);
+  const takeBackFor = usePlaceTakeBack(target.spaceId ?? target.standsIn);
   const climate = picked ?? (stage ? defaultPick(stage, placeController, beside.length > 0) : KEEP_CLIMATE);
   const [saving, setSaving] = useState(false);
   /** The corner's pop-up stands open on a moment it refuses: nothing is saved under a moment nobody chose. */
@@ -280,12 +283,16 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
    */
   const standing = (plants?.items ?? []).filter(plant => plant.status === 'active' && plant.harvest === null);
   const wholeGrow = plantIds.length === 0 || (plants !== undefined && standing.every(plant => plantIds.includes(plant.id)));
+  // Over the phase the whole grow stands in, a phase begins nothing: the targets alone are written, or nothing is.
+  const stays = kind === 'phase' && !!grow && !!stage && wholeGrow && standsInStage(grow, stage, climate.preset);
   const savePhase = async () => {
     if (!target.growId || !stage) return;
     setSaving(true);
     setFailed(null);
     try {
       const growId = target.growId;
+      // Read before the climate is written: over the phase the grow stands in it begins none to take back.
+      const takeBack = climate.climate && stays ? await takeBackFor(stage).catch(() => null) : null;
       const phase = await startPhase(growId, {
         stage,
         ...climateRequest(climate, stage),
@@ -297,7 +304,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
       onClose();
       // The sheet is gone and nothing on the page need have moved: the toast says what was set (`phaseTold`).
       const withdraw = (phaseId: string) => api.delete(`/grows/${growId}/phases/${phaseId}`).then(() => diaryChanged(client));
-      tell(phaseTold(t, { phase, before: grow?.phases ?? [], stage, pick: climate, name: target.label, withdraw }));
+      tell(phaseTold(t, { phase, before: grow?.phases ?? [], stage, pick: climate, name: target.label, withdraw, takeBack }));
     } catch {
       setSaving(false);
       setFailed('save');
@@ -391,7 +398,7 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
           type="button"
           className={`${ui.button} ${ui.primary}`}
           onClick={save}
-          disabled={saving || refusedMoment || nothingSaid || refused || (kind === 'phase' && !stage)}
+          disabled={saving || refusedMoment || nothingSaid || refused || (kind === 'phase' && (!stage || (stays && !climate.climate)))}
           aria-describedby={refused ? refusal : undefined}
         >
           {saveLabel(t, kind, entry, filed, step !== null)}
@@ -578,6 +585,9 @@ function Details({ kind, target, entry, at: given, taskId, onBack, onClose, draf
           <ClimatePick stage={stage} spaceId={target.spaceId ?? target.standsIn} growId={target.growId} value={climate} onChange={setClimate} />
           {/* A phase dated back starts back then in the diary; the devices can only be told now. */}
           {dated && climate.climate ? <p className={ui.note}>{t('log.moment.climateNow')}</p> : null}
+          {stays ? (
+            <p className={ui.note}>{t(climate.climate ? 'grow.lifecycle.phase.alreadyThereClimate' : 'grow.lifecycle.phase.alreadyThere')}</p>
+          ) : null}
         </div>
       ) : null}
 

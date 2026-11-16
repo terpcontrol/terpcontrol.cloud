@@ -155,7 +155,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * follow; null says the write names none and clears the name, and the
    * thresholds follow `stage`, as a plan step with figures but no preset does;
    * left out, the thresholds stay and the name goes only where a figure a preset
-   * sets moves, as for a plan step that writes nothing but its stage.
+   * sets moves, as for a plan step that writes nothing but its stage. `by`,
+   * where given, writes the diary line of the figures that moved, as `replace`
+   * does: a climate written where no phase line says so.
    */
   public async applyConfiguration(
     deviceId: string,
@@ -163,6 +165,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     stage: GrowthStage | null = null,
     choices?: ChoicesSaid,
     applied?: AppliedClimate | null,
+    by?: string | null,
   ): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
@@ -177,6 +180,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         ? null
         : mergeSections(current, settings),
     );
+    if (written && by !== undefined) await this.writeDown(deviceId, written, by);
 
     return written?.changed ?? false;
   }

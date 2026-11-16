@@ -1128,6 +1128,25 @@ describe('the log sheet', () => {
     await waitFor(() => expect(screen.queryByText(/No connection/)).not.toBeInTheDocument());
   });
 
+  /** Over the phase the grow stands in, Eintrag says what the ⋯ sheet says, and "Lassen" leaves nothing to save. */
+  it('says over the phase the grow stands in that nothing is written, and saves nothing without a climate', async () => {
+    const before = grow.phases;
+    grow.phases = [
+      { id: 'p1', stage: 'drying', preset: null, startedAt: daysAgo(2), source: 'human', plantIds: null, deviceId: null, targets: null, setBy: null },
+    ];
+    try {
+      await openSheet();
+      fireEvent.click(screen.getByRole('button', { name: /^Phase/ }));
+      const sheet = await screen.findByRole('dialog', { name: 'Phase' });
+      fireEvent.click(within(sheet).getByRole('button', { name: /^Drying/ }));
+
+      expect(await within(sheet).findByText('The grow is already in this phase: nothing is written.')).toBeInTheDocument();
+      expect(within(sheet).getByRole('button', { name: /^Save/ })).toBeDisabled();
+    } finally {
+      grow.phases = before;
+    }
+  });
+
   it('answers a phase set from its tile with a toast that says what changed', async () => {
     vi.stubGlobal(
       'fetch',

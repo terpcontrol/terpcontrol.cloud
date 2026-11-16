@@ -1151,16 +1151,25 @@ describe('the climate beside a phase', () => {
    * in. "Blüte · jetzt" with Blüte said "Blüte begonnen", and the stage only recorded again offered to take back the
    * phase the grow had stood in for weeks.
    */
-  it('says the targets were set where the grow already stood in the stage, and offers no way back to a phase before', async () => {
-    const asked: { method: string; url: string }[] = [];
+  /**
+   * Over the phase the grow stands in no phase begins: the targets alone are written, and taken back as a preset under
+   * Steuerung is - the figures, the name and the alarm thresholds from before. With "Lassen" there is nothing to save.
+   */
+  it('sets the targets where the grow already stands in the stage, takes them back, and saves nothing without a climate', async () => {
+    const asked: { method: string; url: string; body?: unknown }[] = [];
+    const device = tent({ control: { ...standing().control!, preset: null } as Device['control'] });
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        asked.push({ method: init?.method ?? 'GET', url: String(input) });
+        const url = String(input);
+        asked.push({ method: init?.method ?? 'GET', url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        if (url.includes('/alarm-rules')) return json({ items: [{ origin: 'preset', presetId: 'vegetative' }], nextCursor: null });
+        if (url.includes('/configuration')) return json({ configuration: device.configuration });
+        if (/\/devices\/[^/?]+(\?|$)/.test(url)) return json(device);
         return json(phase('p2', 'flowering', 5));
       }),
     );
-    hardware.devices = [tent()];
+    hardware.devices = [device];
     const flowering: GrowListItem = {
       ...grow,
       phases: [phase('p1', 'vegetative', 20), phase('p2', 'flowering', 5)],
@@ -1175,10 +1184,16 @@ describe('the climate beside a phase', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
     fireEvent.click(within(screen.getByRole('group', { name: 'Targets' })).getByRole('button', { name: 'Flower' }));
     expect(screen.getByText('The grow is already in this phase: only the targets are written.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set the targets' }));
     expect(await screen.findByText(reading('Targets set · Flower · Spring run'))).toBeInTheDocument();
     expect(screen.queryByText(/Entered Flower/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(asked.some(call => call.method === 'PUT')).toBe(true));
+    expect(asked.find(call => call.method === 'PUT')).toMatchObject({
+      url: expect.stringContaining(`/devices/${device.id}/configuration`),
+      body: { configuration: { day: { temperature: 26, humidity: 62 } }, bands: { stage: 'vegetative', preset: null } },
+    });
+    expect(asked.some(call => call.method === 'DELETE')).toBe(false);
     unmount();
 
     drawAt(
@@ -1187,10 +1202,8 @@ describe('the climate beside a phase', () => {
       </LogProvider>,
     );
     fireEvent.click(within(screen.getByRole('group', { name: 'Phase' })).getByRole('button', { name: /^Flower/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Enter Flower' }));
-    expect(await screen.findByText(reading('Flower · Spring run · already in this phase'))).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
-    expect(asked.some(call => call.method === 'DELETE')).toBe(false);
+    expect(screen.getByText('The grow is already in this phase: nothing is written.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enter Flower' })).toBeDisabled();
   });
 
   /**

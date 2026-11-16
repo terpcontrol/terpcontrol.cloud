@@ -20,8 +20,9 @@ export interface DeviceConfigurationWriter {
    * `applied` the climate the step writes, kept to name it by and followed by
    * the place's thresholds - null for a step that writes figures and names no
    * preset, which clears the name and puts the thresholds on its stage; left out
-   * for a step that writes no climate, which leaves both. True when something
-   * changed.
+   * for a step that writes no climate, which leaves both. `by`, where given,
+   * writes the diary line of the figures that moved, naming who moved them.
+   * True when something changed.
    */
   applyConfiguration(
     deviceId: string,
@@ -29,6 +30,7 @@ export interface DeviceConfigurationWriter {
     stage?: GrowthStage | null,
     choices?: Partial<GerminationChoices>,
     applied?: AppliedClimate | null,
+    by?: string | null,
   ): Promise<boolean>;
 
   /**

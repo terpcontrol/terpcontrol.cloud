@@ -50,6 +50,7 @@ export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink
     stage: GrowthStage,
     preset: string | null,
     choices?: Partial<GerminationChoices>,
+    by?: string | null,
   ): Promise<AppliedPreset[]> {
     const here = await this.devices.find({ spaceId }, { id: 1, type: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
     const applied: AppliedPreset[] = [];
@@ -69,7 +70,7 @@ export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink
       if (!settings) continue;
 
       try {
-        await this.configuration.applyConfiguration(device.id, settings, stage, germination, { stage, preset });
+        await this.configuration.applyConfiguration(device.id, settings, stage, germination, { stage, preset }, by);
       } catch (error) {
         logger.error(`Could not put device ${device.id} on the ${stage} preset: ${error}`);
         continue;

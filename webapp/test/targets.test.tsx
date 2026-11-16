@@ -139,6 +139,8 @@ const wire = {
   sockets: null as string[] | null,
   /** The grow standing in the place, as its overview names it; none answers a place nothing grows in. */
   grow: null as { stage: string; preset: string | null } | null,
+  /** The grows the account reads, by name, stage and the place they stand in. */
+  grows: [] as { id: string; name: string; endedAt: null; summary: { stage: string; locations: { spaceId: string }[] } }[],
   /** The climate the place's alarm thresholds followed before a save that moved them, where the save is to answer one. */
   bandsBefore: undefined as { stage: string; preset: string | null } | null | undefined,
   /** The document the server holds, which every save replaces. */
@@ -189,6 +191,7 @@ vi.stubGlobal(
           })
         : problem(404, 'not_found', 'No socket table.');
     }
+    if (method === 'GET' && path === '/grows') return json({ items: wire.grows, nextCursor: null });
     if (method === 'GET' && path === '/spaces/space-1/overview') {
       return json({ spaceId: 'space-1', name: 'Tent', grows: wire.grow ? [{ growId: 'grow-1', ...wire.grow }] : [], climates: [] });
     }
@@ -278,6 +281,7 @@ beforeEach(() => {
   wire.grow = null;
   wire.stored = CONFIGURATION;
   wire.bandsBefore = undefined;
+  wire.grows = [];
   wire.calls = [];
   told.length = 0;
 });
@@ -719,6 +723,24 @@ describe('the climate under Steuerung', () => {
       expect(body.preset).toEqual({ stage: 'flowering', preset: null });
       await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
       expect(told[0].undo).not.toBeNull();
+    });
+
+    it('names every grow of the place that stays in its phase', async () => {
+      const standing = (id: string, name: string, stage: string) => ({
+        id,
+        name,
+        endedAt: null,
+        summary: { stage, locations: [{ spaceId: 'space-1' }] },
+      });
+      wire.grows = [standing('grow-1', 'First', 'flowering'), standing('grow-2', 'Second', 'vegetative')];
+      await drawn();
+      tap('Climate preset');
+      const sheet = screen.getByRole('dialog', { name: 'Apply a climate preset' });
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+
+      expect(
+        await within(sheet).findByText(/^This changes the targets only: First \(Flower\) and Second \(Veg\) stay in their phases\./),
+      ).toBeInTheDocument();
     });
 
     /** "Undo" puts back the alarm thresholds the save moved, or none where none were: the save answered which. */

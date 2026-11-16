@@ -3,13 +3,15 @@ import type { ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets
 import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
+import { readRulesClimate } from '@/api/alarm-rules';
+import { readConfiguration, useSaveConfiguration } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import type { Translate } from '@/i18n/i18n';
 import { useLead } from '@/screens/control/lead';
 import { alsoIn } from '@/screens/space/movable-grows';
 import { scheduleTitle } from '@/screens/control/targets/schedule-words';
-import { draftOf } from '@/screens/control/targets/targets-draft';
-import { germinates, statesTargets } from '@/ui/climate-hardware';
+import { draftOf, withDraft } from '@/screens/control/targets/targets-draft';
+import { darkStage, germinates, statesTargets } from '@/ui/climate-hardware';
 import type { Told } from '@/log/log-context';
 import { climateChoiceName, writesClimate } from '@/ui/presets';
 import { targetFigure } from '@/ui/units';
@@ -34,7 +36,7 @@ export const KEEP_CLIMATE: PhaseClimate = { climate: false, preset: null };
  * was written) and is taken back from the toast where that is all it did: one that also wrote the place's targets would
  * leave them standing. Where the grow already stood in that stage no phase began - the answer is the phase it stands
  * in, and taking that back would undo a phase nobody asked about: the climate written is all there is to say
- * ("Zielwerte gesetzt · Blüte").
+ * ("Zielwerte gesetzt · Blüte"), and it is taken back as a preset taken under Steuerung is (`takeBack`).
  */
 export const phaseTold = (
   t: Translate,
@@ -45,6 +47,7 @@ export const phaseTold = (
     pick,
     name,
     withdraw,
+    takeBack,
   }: {
     phase: Phase;
     before: readonly Phase[];
@@ -52,17 +55,46 @@ export const phaseTold = (
     pick: PhaseClimate;
     name: string;
     withdraw: (phaseId: string) => Promise<unknown>;
+    /** The way back from the climate written (`usePlaceTakeBack`), where there is one. */
+    takeBack?: (() => Promise<unknown>) | null;
   },
 ): Told => {
   if (before.some(one => one.id === phase.id)) {
     const climate = climateChoiceName(t, { stage, preset: pick.preset });
     const said = (pick.climate ? [t('log.targetsSet'), climate, name] : [climate, name, t('log.phaseKept')]).join(' · ');
-    return { label: said.charAt(0).toLocaleUpperCase() + said.slice(1), undo: null };
+    const label = said.charAt(0).toLocaleUpperCase() + said.slice(1);
+    return pick.climate && takeBack ? { label, undo: takeBack, undone: t('log.asBefore', { what: t('targets.title') }) } : { label, undo: null };
   }
   const label = [t('home.card.enteredPhase', { stage: t(`home.stage.${stage}`) }), name, pick.climate ? t('log.targetsSet') : null]
     .filter(Boolean)
     .join(' · ');
   return pick.climate ? { label, undo: null } : { label, undo: () => withdraw(phase.id), undone: t('log.phaseBefore') };
+};
+
+/**
+ * The way back from a climate written to a place, read before it is written: every device there that holds targets
+ * gets the figures it held and the name it had, and the place's alarm thresholds the climate they followed (`bands`).
+ * None for a climate of the dark, which begins or ends more than figures - as under Steuerung.
+ */
+export const usePlaceTakeBack = (spaceId: string | null): ((stage: GrowthStage) => Promise<(() => Promise<unknown>) | null>) => {
+  const { devices } = useLead(spaceId);
+  const save = useSaveConfiguration();
+  return async stage => {
+    const held = devices.items.filter(device => !!device.configuration && statesTargets(device.configuration));
+    if (held.length === 0 || darkStage(stage) !== null || held.some(device => device.control?.drying || germinates(device))) return null;
+    const bands = await readRulesClimate(held[0].id);
+    return async () => {
+      for (const device of held) {
+        const current = (await readConfiguration(device.id)) ?? device.configuration!;
+        await save.mutateAsync({
+          deviceId: device.id,
+          configuration: withDraft(current, draftOf(device.configuration!)),
+          preset: device.control?.preset ?? undefined,
+          bands,
+        });
+      }
+    };
+  };
 };
 
 /**

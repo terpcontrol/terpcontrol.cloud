@@ -6,9 +6,9 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { controlPath } from '@/app/places';
 import type { AlarmRule, AppliedClimate, Device, GerminationChoices, Me } from '@fg2/shared-types/v1';
-import { restsInGermination, stageOfPresetId, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { workModesOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import { useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { rulesClimate, useAlarmRulesOf, useCreateAlarmRule, useDeviceAlarmRules, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
 import { useSpaceOverview } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
 import { useLog } from '@/log/log-context';
@@ -199,8 +199,7 @@ function DeviceRules({ device, level, me, toldAbove, mayManage, highlighted, res
   // The stage's rules are headed by the climate their bands were written for, never a stage only recorded since -
   // beside a second grow, say -, and say whether they still follow the climate the place runs: where its targets were
   // changed since, or it was put on another one, the bands are that climate's no longer.
-  const presetId = rules.data.items.find(rule => rule.origin === 'preset' && rule.presetId)?.presetId;
-  const written = presetId ? stageOfPresetId(presetId) : null;
+  const written = rulesClimate(rules.data.items);
   const climate = written ? climateChoiceName(t, written) : null;
   const aside =
     !written || runs === undefined

@@ -1157,6 +1157,7 @@
         "alreadyThereClimate": "The grow is already in this phase: only the targets are written.",
         "alreadyThereEnded": "The grow ended in this phase: nothing is written.",
         "submit": "Enter {{stage}}",
+        "submitTargets": "Set the targets",
         "submitEnded": "Record {{stage}}",
         "history": "Phases so far",
         "oldestFirst": "oldest first",
@@ -3011,6 +3012,8 @@
     "readOnly": "This session can look but not change anything.",
     "endsOn": "After that the climate {{name}} holds with its targets, and the alarms follow it.",
     "endsOnNothing": "After that the targets from before hold again. The climate’s alarms go until a climate is set again.",
+    "growsStay": "This changes the targets only: {{grows}} stay in their phases. To move the phase and the climate together, use Phase in the grow.",
+    "growIn": "{{name}} ({{stage}})",
     "growStays": "This changes the targets only: {{name}} stays in the {{stage}} phase. To move the phase and the climate together, use Phase in the grow.",
     "drying": {
       "starts": "Applying starts drying: no light and no CO₂, the device only dehumidifies and heats.",

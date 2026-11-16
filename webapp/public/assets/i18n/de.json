@@ -1167,6 +1167,7 @@
         "alreadyThereClimate": "Der Grow steht bereits in dieser Phase: Es werden nur die Zielwerte geschrieben.",
         "alreadyThereEnded": "Der Grow ist in dieser Phase zu Ende gegangen: Es wird nichts geschrieben.",
         "submit": "{{stage}} setzen",
+        "submitTargets": "Zielwerte setzen",
         "submitEnded": "{{stage}} nachtragen",
         "history": "Bisherige Phasen",
         "oldestFirst": "älteste zuerst",
@@ -3021,6 +3022,8 @@
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
     "endsOn": "Danach gilt das Klima {{name}} mit seinen Zielwerten, und die Alarme richten sich nach ihm.",
     "endsOnNothing": "Danach gelten wieder die Zielwerte von vorher. Die Alarme des Klimas fallen weg, bis wieder ein Klima eingestellt ist.",
+    "growsStay": "Das ändert nur die Zielwerte: {{grows}} bleiben in ihren Phasen. Phase und Klima zusammen stellst du im Grow unter Phase um.",
+    "growIn": "{{name}} ({{stage}})",
     "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um.",
     "drying": {
       "starts": "Übernehmen schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",

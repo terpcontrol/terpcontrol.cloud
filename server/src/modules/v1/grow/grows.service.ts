@@ -621,9 +621,12 @@ export class GrowsService {
     setBy: string | null,
   ): Promise<PhaseDocument> {
     const writesClimate = request.preset !== null || request.climate === true;
+    // The climate of the phase the grow already stands in begins no phase, so no line would say it was written: it is
+    // written down as Steuerung's save of the same figures is.
+    const stays = writesClimate && (await this.phases.standsInPhase(growId, request.stage, request.preset, request.plantIds));
     const applied =
       writesClimate && spaceId !== null
-        ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices)) ?? [])
+        ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices, stays ? setBy : undefined)) ?? [])
         : [];
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 

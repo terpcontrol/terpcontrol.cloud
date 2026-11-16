@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, GerminationChoices as ChoiceValues } from '@fg2/shared-types/v1';
+import type { Device, GerminationChoices as ChoiceValues, GrowListItem } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { serverNow } from '@/api/clock';
-import { useHome } from '@/api/home';
+import { useGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { darkStage } from '@/ui/climate-hardware';
 import { Help } from '@/ui/Help';
@@ -14,6 +14,7 @@ import { Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { targetFigure } from '@/ui/units';
 import { useZone } from '@/ui/zone';
+import { alsoIn } from '@/screens/space/movable-grows';
 import { GerminationChoices } from '../germination/GerminationChoices';
 import { choicesOf } from '../germination/germination-choices';
 import { lampsBack, lampsSaid } from '../held-light';
@@ -76,16 +77,17 @@ export function PresetSheet({
   onEnd: (spell: 'drying' | 'germination') => Promise<boolean>;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const zone = useZone();
   const [picked, setPicked] = useState<ClimateChoice | null>(null);
   const [ending, setEnding] = useState(false);
   const [changes, setChanges] = useState<Partial<ChoiceValues> | null>(null);
   const [asked, setAsked] = useState(false);
   const running = shape.regime === 'drying' || shape.regime === 'germination' ? shape.regime : null;
-  const home = useHome();
   const diary = useDiaryLayer();
-  const grow = diary ? ((home.data?.spaces ?? []).find(card => card.spaceId === device.spaceId)?.grow ?? null) : null;
+  // Every grow standing in the place keeps its phase: a preset moves the targets alone.
+  const grows = alsoIn(useGrows(diary).data?.items, device.spaceId, undefined).filter(grow => grow.summary.stage !== null);
+  const stays = (grow: GrowListItem) => ({ name: grow.name, stage: t(`home.stage.${grow.summary.stage}`) });
 
   const preset = picked ? presetOf(picked) : null;
   const next = preset ? prefilled(baseline, preset) : baseline;
@@ -227,8 +229,14 @@ export function PresetSheet({
         {lampsWords && (ending || hours || moved.includes('lightLimit') || darkStage(picked?.stage) || (running && picked)) ? (
           <p className={styles.note}>{lampsWords}</p>
         ) : null}
-        {(sets || ending) && grow?.stage ? (
-          <p className={styles.note}>{t('targets.growStays', { name: grow.name, stage: t(`home.stage.${grow.stage}`) })}</p>
+        {(sets || ending) && grows.length > 0 ? (
+          <p className={styles.note}>
+            {grows.length === 1
+              ? t('targets.growStays', stays(grows[0]))
+              : t('targets.growsStay', {
+                  grows: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(grows.map(grow => t('targets.growIn', stays(grow)))),
+                })}
+          </p>
         ) : null}
         {paused ? (
           <p className={styles.warn} role="status">

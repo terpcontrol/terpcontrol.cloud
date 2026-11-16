@@ -24,9 +24,17 @@ export interface ClimatePresets {
   /**
    * Writes the preset to every controller standing in the space, and answers
    * the ones it reached. `choices` is what germination does about the humidity
-   * there, read with the germination stage alone.
+   * there, read with the germination stage alone. `by`, where given, writes the
+   * diary line of each device's figures that moved, as a save under Steuerung
+   * does - for a climate no phase line announces.
    */
-  applyToSpace(spaceId: string, stage: GrowthStage, preset: string | null, choices?: Partial<GerminationChoices>): Promise<AppliedPreset[]>;
+  applyToSpace(
+    spaceId: string,
+    stage: GrowthStage,
+    preset: string | null,
+    choices?: Partial<GerminationChoices>,
+    by?: string | null,
+  ): Promise<AppliedPreset[]>;
 }
 
 export const CLIMATE_PRESETS = Symbol('ClimatePresets');

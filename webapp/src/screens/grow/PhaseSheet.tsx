@@ -22,8 +22,17 @@ import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { ClimatePick, StageClimates } from './ClimatePick';
 import { RepairAnswer } from './RepairAnswer';
-import { climateRequest, defaultPick, phaseTold, useGrowsBeside, useHeldNow, usePlaceController, type PhaseClimate } from './phase-climate';
-import { correctionEffect, phasesInOrder, withdrawalEffect, type PhaseEffect } from './phase-effect';
+import {
+  climateRequest,
+  defaultPick,
+  phaseTold,
+  useGrowsBeside,
+  useHeldNow,
+  usePlaceController,
+  usePlaceTakeBack,
+  type PhaseClimate,
+} from './phase-climate';
+import { correctionEffect, phasesInOrder, standsInStage, withdrawalEffect, type PhaseEffect } from './phase-effect';
 import styles from './Lifecycle.module.css';
 
 /**
@@ -62,6 +71,7 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const [picked, setPick] = useState<PhaseClimate | null>(null);
   const controller = usePlaceController(ended ? null : standsIn(grow));
   const beside = useGrowsBeside(ended ? null : standsIn(grow), grow.id);
+  const takeBackFor = usePlaceTakeBack(ended ? null : standsIn(grow));
   const pick = picked ?? defaultPick(stage, controller, beside.length > 0);
   const preset = pick.preset;
   // A grow that is over opens on the day it ended; one still running opens on
@@ -72,13 +82,9 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   const [open, setOpen] = useState<{ phaseId: string; as: 'correct' | 'withdraw' } | null>(null);
 
   const ordered = phasesInOrder(grow);
-  // What the writer compares against: the latest phase written over the whole
-  // grow, which is not always the headline - a split can leave a scoped phase
-  // covering more plants than the one the grow as a whole last entered. The
-  // date is not part of it, because the writer does not look at the date: the
-  // same stage twice in a row is not a phase change on any day.
-  const standing = ordered.filter(phase => phase.plantIds === null).at(-1) ?? null;
-  const standsThere = standing !== null && standing.stage === stage && standing.preset === preset;
+  const standsThere = standsInStage(grow, stage, preset);
+  // Over the phase it stands in, the button names what it does - the targets alone - or there is nothing to save.
+  const nothing = standsThere && !ended && !pick.climate;
 
   // The climate belongs to the stage it is the climate of, so a change of stage asks again.
   const pickStage = (next: GrowthStage) => {
@@ -121,23 +127,32 @@ export function PhaseSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           <button
             type="button"
             className={`${ui.button} ${ui.primary} ${styles.submit}`}
-            disabled={add.isPending}
-            onClick={() =>
+            disabled={add.isPending || nothing}
+            onClick={async () => {
+              // Read before the climate is written over the phase the grow stands in, which begins none to take back.
+              const takeBack = pick.climate && standsThere ? await takeBackFor(stage).catch(() => null) : null;
               add.mutate(
                 { growId: grow.id, body: { stage, ...climateRequest(pick, stage), startedAt: instantOf(DateTime.fromJSDate(at)) } },
                 {
                   // As the entry sheet answers a phase (`phaseTold`).
                   onSuccess: phase => {
                     onClose();
-                    tell(phaseTold(t, { phase, before: grow.phases, stage, pick, name: grow.name, withdraw: withdraw.mutateAsync }));
+                    tell(phaseTold(t, { phase, before: grow.phases, stage, pick, name: grow.name, withdraw: withdraw.mutateAsync, takeBack }));
                   },
                 },
-              )
-            }
+              );
+            }}
           >
             {add.isPending
               ? t('grow.lifecycle.saving')
-              : t(ended ? 'grow.lifecycle.phase.submitEnded' : 'grow.lifecycle.phase.submit', { stage: label(t, stage, preset) })}
+              : t(
+                  ended
+                    ? 'grow.lifecycle.phase.submitEnded'
+                    : standsThere && pick.climate
+                      ? 'grow.lifecycle.phase.submitTargets'
+                      : 'grow.lifecycle.phase.submit',
+                  { stage: label(t, stage, preset) },
+                )}
           </button>
         </Block>
 

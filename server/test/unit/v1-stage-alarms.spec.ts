@@ -11,6 +11,7 @@ import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.serv
 import { AlertService } from '@modules/alarm/alert.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { DataService } from '@modules/data/data.service';
+import { CONFIGURATION_UPDATED } from '@modules/device-protocol/change-lines';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { controlOf, spellEndsOn } from '@modules/device-protocol/work-modes';
 import { GrowsService } from '@modules/v1/grow/grows.service';
@@ -558,8 +559,13 @@ describe('every climate written moves the place´s bands', () => {
     expect(await bands()).toEqual(VEG);
 
     // "Blüte · jetzt" with Blüte: no phase begins, the climate is written, and every device of the place follows it.
+    const linesBefore = await db.entries.countDocuments({ 'message.key': CONFIGURATION_UPDATED });
     await grows.addPhase(GROW, { stage: 'flowering', climate: true }, OWNER, HIDE);
     expect(await bands()).toEqual(FLOWER);
+    // Written down as Steuerung's save of the same figures is: no phase line says it.
+    const lines = await db.entries.find({ 'message.key': CONFIGURATION_UPDATED }).lean();
+    expect(lines).toHaveLength(linesBefore + 1);
+    expect(lines.at(-1)).toMatchObject({ authorId: OWNER, deviceId: DEVICE, spaceId: TENT });
     expect(await bands(OTHER)).toEqual(FLOWER);
     expect(await bands('device-elsewhere')).toEqual([undefined, undefined, undefined]);
     expect((await db.grows.findOne({ id: GROW }).lean())!.phases.map(phase => phase.stage)).toEqual(['vegetative', 'flowering']);

@@ -286,6 +286,13 @@ export class PhaseWriterService implements DevicePlacement {
     return grow?.id ?? null;
   }
 
+  /** Whether the grow - or the plants named - stand in this phase already, which putting them there again does not begin. */
+  public async standsInPhase(growId: string, stage: GrowthStage, preset: string | null, plantIds: string[] | null): Promise<boolean> {
+    const grow = await this.grows.findOne({ id: growId }).lean<GrowDocument>().exec();
+    const standing = grow ? currentPhase(grow, plantIds) : null;
+    return standing !== null && standing.stage === stage && standing.preset === preset;
+  }
+
   /** Whether this grow stands in the space now: its placement there is open and it has not ended. */
   public async standsIn(growId: string, spaceId: string | null): Promise<boolean> {
     return spaceId !== null && (await this.grows.exists({ id: growId, ...standingIn(spaceId) }).exec()) !== null;

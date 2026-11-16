@@ -1,6 +1,7 @@
 import { useQueries } from '@tanstack/react-query';
 import { isFirstLoad, LIVE_BEAT_MS, useRead } from './read';
-import type { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmRuleCreate, AlarmRulePage, AlarmRuleUpdate, AlarmSilence, AppliedClimate } from '@fg2/shared-types/v1';
+import { stageOfPresetId } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import { api } from './client';
 import { invalidate, useWriteSettled } from './write';
 
@@ -30,6 +31,15 @@ const rulesKey = (deviceId: string) => ['devices', deviceId, 'alarm-rules'];
 
 const readRules = (deviceId: string, signal?: AbortSignal) =>
   api.get<AlarmRulePage>(`/devices/${deviceId}/alarm-rules`, { limit: RULES_LIMIT }, signal);
+
+/** The climate a device's stage rules were written for (`presetId`); null where it carries none. */
+export const rulesClimate = (rules: readonly AlarmRule[]): AppliedClimate | null => {
+  const presetId = rules.find(rule => rule.origin === 'preset' && rule.presetId)?.presetId;
+  return presetId ? stageOfPresetId(presetId) : null;
+};
+
+/** That climate as the server holds it this moment: what taking back a climate written puts the place's thresholds on. */
+export const readRulesClimate = async (deviceId: string): Promise<AppliedClimate | null> => rulesClimate((await readRules(deviceId)).items);
 
 export const useDeviceAlarmRules = (deviceId: string) =>
   useRead({
