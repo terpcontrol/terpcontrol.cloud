@@ -1629,7 +1629,7 @@
       "none": "Noch kein Plan.",
       "noClimateHasPlan": "Dieses Gerät regelt kein Klima, deshalb kann es mit diesen Schritten nichts anfangen.",
       "waitingHasPlan": "Dieses Gerät hat seine Einstellungen noch nicht geschickt; bis dahin hält der Plan seine Schritte zurück.",
-      "write": "Plan schreiben",
+      "write": "Plan erstellen",
       "edit": "Plan bearbeiten",
       "noSteps": "Dieser Plan hat keine Schritte, er kann also nicht laufen.",
       "noStage": "Keine Phase",
@@ -1713,7 +1713,7 @@
       },
       "editor": {
         "title": "Plan bearbeiten",
-        "newTitle": "Plan schreiben",
+        "newTitle": "Plan erstellen",
         "plan": "Der Plan",
         "name": "Name",
         "loop": "Wieder bei Schritt 1 beginnen",
