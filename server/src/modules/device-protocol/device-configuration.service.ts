@@ -395,11 +395,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       : germinates && !bringsOwn(GERMINATION_HUMIDITY_PATH)
         ? withFigures(returned, [[GERMINATION_HUMIDITY_PATH, GERMINATION_HUMIDITY]])
         : returned;
-    // Germination ended by its own button where no climate had a name before it ends on the first climate with light,
-    // "Sämling · mit Licht" (Chris, 2026-11-16): figures, name and thresholds - the night from before alone held the
-    // dark's thresholds over a day with light again.
+    // Germination ended without a climate of its own (`endsBare`) where no climate had a name before it ends on the
+    // first climate with light, "Sämling · mit Licht" (Chris, 2026-11-16): figures, name and thresholds - the night
+    // from before alone held the dark's thresholds over a day with light again.
     const seedling =
-      intent.kind === 'fields' && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && device.climateBeforeSpell === null
+      endsBare(intent, before) && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && device.climateBeforeSpell === null
         ? presetConfiguration(SEEDLING.stage, SEEDLING.preset, unseeded, device.type === 'fridge' || device.state?.hardware?.co2 === 'on')
         : null;
     const wanted = seedling ? mergeSections(unseeded, seedling) : unseeded;
@@ -776,9 +776,19 @@ const inSpell = (configuration: DeviceConfiguration | null, base: string | null 
   SPELLS.includes(configuration?.workmode) || (configuration?.workmode === 'off' && base === 'breed');
 
 /**
+ * A write that ends a spell without a climate of its own, which then ends on the climate the spell came from: the
+ * spell's own button, and a plan step that writes nothing but a stage, or nothing, ending a germination as "Keimung
+ * beenden" does - "Keimung, then Sämling" with no figures kept germination's thresholds, and a critical "too cold"
+ * fired at the night's target. A drying spell ended by such a step - a curing step - keeps its thresholds, as a stage
+ * only recorded does.
+ */
+const endsBare = (intent: WriteIntent, before: DeviceConfiguration | null): boolean =>
+  intent.kind === 'fields' || (intent.kind === 'climate' && intent.applied === undefined && before?.workmode !== 'dry');
+
+/**
  * The name a write leaves the device with (`appliedOf`), the one a spell puts aside, and the climate the place's
  * thresholds follow for it (`endsOn`: undefined moves none, null drops them). A spell begun keeps the name the device
- * had, as it keeps the figures it writes over; ended by its own button it gives both back, so the device ends on the
+ * had, as it keeps the figures it writes over; ended without a climate of its own (`endsBare`) it gives both back, so the device ends on the
  * climate it came from - "Veg" before a germination is "Veg" after it. Where none had a name, a germination ends on
  * `seedling`, whose figures the write carries, and a drying spell gives the figures back and drops the stage
  * thresholds until a climate is written. A figure changed by hand while it runs, or a step re-sent, keeps what was put
@@ -801,7 +811,7 @@ const namedAfter = (
   const was = inSpell(before, device.baseWorkmode);
   const is = inSpell(after, base ?? device.baseWorkmode);
   if (!was && is) return { set: { ...named, climateBeforeSpell: device.appliedClimate ?? null }, forget: false, endsOn: undefined };
-  if (was && !is && intent.kind === 'fields') {
+  if (was && !is && endsBare(intent, before)) {
     const endsOn = seedling ?? climateBefore(device);
     // Ended on figures nobody named, the place holds no stage's thresholds until a climate is written; switched off
     // rather than ended, a germination keeps its own, as it always did.

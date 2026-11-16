@@ -683,12 +683,44 @@ describe('every climate written moves the place´s bands', () => {
       expect(await named()).toEqual({ stage: 'vegetative', preset: null });
     });
 
-    /** "Dieser Schritt beendet nur die Keimung davor": it brings back day and night and writes no climate, so the bands stay. */
-    it('that only ends the germination before it moves no band', async () => {
-      await steuerung('germination');
-      await planPass({});
+    /**
+     * "Keimung · 3 Tage → Sämling · 1 Woche", both steps without figures, begun where no climate had a name: the second
+     * step ends the germination as "Keimung beenden" does, on "Sämling · mit Licht" - germination's "too cold" under
+     * 20 °C stayed over a night target of 20 °C and fired a critical alarm at it.
+     */
+    it('that ends a germination ends it as its own button does, on the seedling climate where none had a name', async () => {
+      await planPass({ stage: 'germination' });
+      expect(await bands()).toEqual([20, 90, 29]);
+
+      await planPass({ stage: 'seedling' }, new Date(NOW.getTime() + 3 * 24 * 3600_000));
+
+      expect(await bands()).toEqual(SEEDLING);
+      expect(await bands(OTHER)).toEqual(SEEDLING);
+      const seedling = presetConfiguration('seedling', null, DOCUMENT, true)!;
+      expect(await document()).toMatchObject({ day: seedling.day, night: seedling.night, workmode: 'small' });
+      expect(await named()).toEqual({ stage: 'seedling', preset: null });
+    });
+
+    /** "Dieser Schritt beendet nur die Keimung davor": back on the climate it came from, through the step's re-sends. */
+    it('that only ends the germination before it ends it on the climate it came from', async () => {
+      await steuerung('flowering');
+      const flowering = await document();
+      await planPass({ stage: 'germination' });
+      await planPass({ stage: 'germination' }, new Date(NOW.getTime() + 2 * 3600_000), NOW);
+      expect((await bands())[0]).toBe(20);
+
+      await planPass({}, new Date(NOW.getTime() + 3 * 24 * 3600_000));
+
       expect((await document()).workmode).toBe('small');
-      expect((await bands())[1]).toBe(90);
+      expect(await document()).toMatchObject({ day: flowering.day, night: flowering.night });
+      expect(await bands()).toEqual(FLOWER);
+      expect(await named()).toEqual({ stage: 'flowering', preset: null });
+    });
+
+    it('that ends a drying spell with no climate of its own, a curing step, leaves the drying bands', async () => {
+      await steuerung('drying');
+      await planPass({ stage: 'curing' });
+      expect((await bands())[1]).toBe(68);
     });
 
     it('that writes figures moves the bands to its climate, and a dark one with no figures to its stage', async () => {

@@ -163,7 +163,8 @@ const DARK_STAGES: readonly (GrowthStage | null)[] = ['germination', 'drying'];
  * step that writes figures of its own - targets or light hours - or a dark stage writes a climate: its preset where it
  * names one and the figures are there, else its stage alone (null, which clears a name). A step that writes nothing
  * but a stage that is not dark leaves the device's name and the place's thresholds as they are (undefined): naming its
- * stage would claim a climate the device does not hold, and its hourly re-send would undo one written since.
+ * stage would claim a climate the device does not hold, and its hourly re-send would undo one written since. Where it
+ * ends a germination, the germination ends as its own button ends it, on the climate it came from (`endsBare`).
  */
 const climateOf = (step: PlanStep): AppliedClimate | null | undefined => {
   const figures = Object.keys(step.settings ?? {}).length > 0 || (step.lightHours ?? null) !== null;

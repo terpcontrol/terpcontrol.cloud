@@ -562,7 +562,7 @@ describe('every other way a document is written', () => {
   });
 
   it('brings the night from before germination back where the next stage comes without a climate, and keeps the light on re-sends', async () => {
-    await device();
+    await device(NAMED);
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
 
     await configuration.applyConfiguration(DEVICE, {}, 'seedling');
@@ -570,7 +570,7 @@ describe('every other way a document is written', () => {
 
     // The plan's hourly re-send of a seedling step leaves the light where it is.
     published.length = 0;
-    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling');
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'seedling', undefined, null);
     expect((await stored()).configuration?.workmode).toBe('small');
     expect(documentsOf(published).at(-1)).toMatchObject({ workmode: 'small' });
   });
@@ -588,17 +588,26 @@ describe('every other way a document is written', () => {
     await configuration.applyConfiguration(DEVICE, { workmode: 'breed', night: { temperature: 24 } }, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
 
-    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } }, null);
+    // A step with figures of its own writes a climate, its stage's or none (`applied: null`), as the plan engine sends it.
+    await configuration.applyConfiguration(
+      DEVICE,
+      { day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } },
+      null,
+      undefined,
+      null,
+    );
     const after = await stored();
     expect(after.configuration).toMatchObject({ workmode: 'full', day: { temperature: 26 }, night: { temperature: 22 }, lights: { limit: 80 } });
     expect(after.beforeGermination).toBeNull();
 
     // A step of nothing but a light limit brings the night from before germination back with the light.
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, after.configuration, true)!, 'germination');
-    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null);
+    await configuration.applyConfiguration(DEVICE, { lights: { limit: 60 } }, null, undefined, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'full', night: { temperature: 22 }, lights: { limit: 60 } });
 
-    // And so does a step that names nothing at all, the one "+ Schritt hinzufügen" makes.
+    // And so does a step that names nothing at all, the one "+ Schritt hinzufügen" makes: as "Keimung beenden" does, on the
+    // climate it came from - here the one put back by hand.
+    await db.devices.updateOne({ id: DEVICE }, { $set: NAMED });
     await configuration.applyConfiguration(DEVICE, presetConfiguration('germination', null, (await stored()).configuration, true)!, 'germination');
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
     published.length = 0;
@@ -753,7 +762,7 @@ describe('a humidifier while the device germinates', () => {
   });
 
   it('gives a fridge its tuning back when germination ends, from the day humidity as ever', async () => {
-    await device({ configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 } }) });
+    await device({ ...NAMED, configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 } }) });
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24 } }, 'germination', { humidifierHolds: false });
     expect(bandOf((await stored()).configuration)).toBe(100);
 
@@ -887,7 +896,7 @@ describe('a humidifier while the device germinates', () => {
     await device();
     await configuration.applyConfiguration(DEVICE, { night: { temperature: 24, humidity: 80 } }, 'germination');
 
-    await configuration.applyConfiguration(DEVICE, { night: { temperature: 21 } }, null);
+    await configuration.applyConfiguration(DEVICE, { night: { temperature: 21 } }, null, undefined, null);
     expect((await stored()).configuration).toMatchObject({ workmode: 'small', night: { temperature: 21, humidity: 55 } });
   });
 
