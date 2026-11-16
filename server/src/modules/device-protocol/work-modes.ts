@@ -117,6 +117,35 @@ export const controlOf = (
   };
 };
 
+/** The first climate with light, which a germination ends on where no climate had a name before it (Chris, 2026-11-16). */
+export const SEEDLING: AppliedClimate = { stage: 'seedling', preset: null };
+
+const SPELL_STAGES: readonly GrowthStage[] = ['germination', 'drying'];
+
+/**
+ * The climate a device stood on before its spell: the one the spell kept, or - for a spell begun at the device's own
+ * menu, which kept nothing - the name it still carries, unless that is the spell's own; null where none had a name.
+ */
+export const climateBefore = (device: {
+  appliedClimate?: AppliedClimate | null;
+  climateBeforeSpell?: AppliedClimate | null;
+}): AppliedClimate | null => {
+  if (device.climateBeforeSpell !== undefined) return device.climateBeforeSpell;
+  const named = device.appliedClimate ?? null;
+  return named && !SPELL_STAGES.includes(named.stage) ? named : null;
+};
+
+/**
+ * What ending the spell that runs by its own button puts the device on (`DeviceControl.endsOn`): the climate it came
+ * from, "Sämling · mit Licht" for a germination where none had a name, none for such a drying spell; nothing told
+ * outside a spell.
+ */
+export const spellEndsOn = (
+  control: DeviceControl | null,
+  device: { appliedClimate?: AppliedClimate | null; climateBeforeSpell?: AppliedClimate | null },
+): { endsOn?: AppliedClimate | null } =>
+  control?.mode === 'germination' ? { endsOn: climateBefore(device) ?? SEEDLING } : control?.drying ? { endsOn: climateBefore(device) } : {};
+
 /**
  * Whether a climate device keeps its place dark: germinating - in the dark mode, or switched off from it, which goes
  * back to it - or drying.

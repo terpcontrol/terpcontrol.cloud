@@ -4,7 +4,6 @@ import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import {
   AdminDeviceCreate,
-  AppliedClimate,
   Device,
   DeviceClaimCreate,
   DeviceClaimResult,
@@ -35,7 +34,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { demoDevice } from '@utils/demo';
 import { logger } from '@utils/logger';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
-import { controlOf } from '@modules/device-protocol/work-modes';
+import { controlOf, spellEndsOn } from '@modules/device-protocol/work-modes';
 import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from '../plan/device-configuration.port';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 import { accountOf } from '../caller';
@@ -493,7 +492,7 @@ export class DevicesService {
           device.beforeGermination ?? null,
           device.germinationChoices ?? null,
         ),
-        device.appliedClimate ?? null,
+        device,
       ),
       isDemo: device.isDemo,
       state: {
@@ -534,5 +533,5 @@ const told = (before: Pick<StoredDevice, 'firmware' | 'state'>, body: DeviceUpda
   body.firmware !== undefined && body.firmware.targetId !== before.firmware.targetId && body.firmware.targetId !== before.state.firmwareId;
 
 /** A device's control with the climate preset it was last put on, which Steuerung names it by. */
-const withApplied = (control: DeviceControl | null, applied: AppliedClimate | null): DeviceControl | null =>
-  control && { ...control, preset: applied };
+const withApplied = (control: DeviceControl | null, device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell'>): DeviceControl | null =>
+  control && { ...control, preset: device.appliedClimate ?? null, ...spellEndsOn(control, device) };

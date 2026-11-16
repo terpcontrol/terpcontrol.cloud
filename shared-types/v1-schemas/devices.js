@@ -85,6 +85,10 @@ exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
         .nullable()
         .optional()
         .describe("The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept."),
+    endsOn: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe("While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell."),
 }));
 /** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
 exports.deviceRelease = (0, common_js_1.named)('DeviceRelease', zod_1.z.enum(['given_up', 'account_deleted']));

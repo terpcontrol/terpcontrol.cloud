@@ -31,6 +31,7 @@ import { CONFIGURATION_UPDATED, GERMINATION_CHOICES, changeLine, changeOf, lines
 import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
+import { presetConfiguration } from '../v1/space/climate-presets';
 import { DEVICE_GERMINATION_SINK, type DeviceGerminationSink } from './device-sinks';
 import { figureRefusals, withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leavesGermination } from './germination-memory';
@@ -38,7 +39,7 @@ import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClock
 import { targetsOf } from '../v1/phase/phase-targets';
 import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
-import { ChoicesSaid, darkIn, decideWorkmode, standardOf, WriteIntent } from './work-modes';
+import { ChoicesSaid, climateBefore, darkIn, decideWorkmode, SEEDLING, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it, and what germination is to do about the humidity before and after. */
 interface Written {
@@ -316,6 +317,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           restedHumidityBand: 1,
           appliedClimate: 1,
           climateBeforeSpell: 1,
+          'state.hardware': 1,
         },
       )
       .lean<Pick<
@@ -332,6 +334,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         | 'restedHumidityBand'
         | 'appliedClimate'
         | 'climateBeforeSpell'
+        | 'state'
       > | null>();
     if (!device) {
       throw new HttpException('Device not found', 404);
@@ -380,7 +383,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // a preset, a phase and the targets page bring it themselves. The figure
     // before it was a dehumidifier's - where to start drying a leafy plant's
     // air - and a humidifier holding it in the dark would leave the seeds dry.
-    const wanted = backFromGermination
+    const unseeded = backFromGermination
       ? withFigures(
           returned,
           Object.entries(germinated).filter(([path]) => !bringsOwn(path)),
@@ -388,6 +391,14 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       : germinates && !bringsOwn(GERMINATION_HUMIDITY_PATH)
         ? withFigures(returned, [[GERMINATION_HUMIDITY_PATH, GERMINATION_HUMIDITY]])
         : returned;
+    // Germination ended by its own button where no climate had a name before it ends on the first climate with light,
+    // "Sämling · mit Licht" (Chris, 2026-11-16): figures, name and thresholds - the night from before alone held the
+    // dark's thresholds over a day with light again.
+    const seedling =
+      intent.kind === 'fields' && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && climateBefore(device) === null
+        ? presetConfiguration(SEEDLING.stage, SEEDLING.preset, unseeded, device.type === 'fridge' || device.state?.hardware?.co2 === 'on')
+        : null;
+    const wanted = seedling ? mergeSections(unseeded, seedling) : unseeded;
     // What germination does about the humidity: what this write says, over what
     // the device keeps, over what holds where nobody said. The device keeps it
     // for the one germination: a write that ends germination lets it go, so the
@@ -415,7 +426,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // checked, or a document stored before any of this, is put right here.
     const { configuration, dropped } = withFiguresHeld(device.type, timed, before);
     if (dropped.length > 0) logger.warn(`Device ${deviceId}: not sent as stored, as its firmware would misread them: ${dropped.join(', ')}`);
-    const named = namedAfter(intent, before, configuration, appliedOf(intent, before, held), device);
+    const named = namedAfter(intent, before, configuration, appliedOf(intent, before, held), device, seedling ? SEEDLING : null);
 
     await this.devices.updateOne(
       { id: deviceId },
@@ -452,7 +463,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
     if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
     const taken = intent.kind === 'targets' && intent.bands !== undefined;
-    const bands = await this.bandsFollow(deviceId, taken ? intent.bands : (climateWritten(intent) ?? named.endsOn ?? undefined));
+    const bands = await this.bandsFollow(deviceId, taken ? intent.bands : (climateWritten(intent) ?? named.endsOn));
     // A device that germinates now - begun, chosen about, or sent its step again -
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
@@ -759,12 +770,13 @@ const SPELLS: readonly unknown[] = ['breed', 'dry'];
 const inSpell = (configuration: DeviceConfiguration | null): boolean => SPELLS.includes(configuration?.workmode);
 
 /**
- * The name a write leaves the device with (`appliedOf`), and the one a spell puts aside. A spell begun keeps the name
- * the device had, as it keeps the figures it writes over; ended by its own button it gives both back, so the device
- * ends on the climate it came from (`endsOn`) - "Sämling · mit Licht" before a germination is "Sämling · mit Licht"
- * after it. A figure changed by hand while it runs makes the figures the grower's own, and nothing is put aside any
- * more. A spell the device began at its own menu kept nothing (absent), and ending it leaves the name as `appliedOf`
- * says.
+ * The name a write leaves the device with (`appliedOf`), the one a spell puts aside, and the climate the place's
+ * thresholds follow for it (`endsOn`: undefined moves none, null drops them). A spell begun keeps the name the device
+ * had, as it keeps the figures it writes over; ended by its own button it gives both back, so the device ends on the
+ * climate it came from - "Veg" before a germination is "Veg" after it. Where none had a name, a germination ends on
+ * `seedling`, whose figures the write carries, and a drying spell gives the figures back and drops the stage
+ * thresholds until a climate is written. A figure changed by hand while it runs makes the figures the grower's own,
+ * and nothing is put aside any more.
  */
 const namedAfter = (
   intent: WriteIntent,
@@ -772,22 +784,22 @@ const namedAfter = (
   after: DeviceConfiguration,
   named: { appliedClimate?: AppliedClimate | null },
   device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell'>,
+  seedling: AppliedClimate | null,
 ): {
   set: { appliedClimate?: AppliedClimate | null; climateBeforeSpell?: AppliedClimate | null };
   forget: boolean;
-  endsOn: AppliedClimate | null;
+  endsOn: AppliedClimate | null | undefined;
 } => {
   const was = inSpell(before);
   const is = inSpell(after);
-  if (!was && is) return { set: { ...named, climateBeforeSpell: device.appliedClimate ?? null }, forget: false, endsOn: null };
-  if (was && !is && intent.kind === 'fields' && device.climateBeforeSpell !== undefined) {
-    return { set: { appliedClimate: device.climateBeforeSpell }, forget: true, endsOn: device.climateBeforeSpell };
+  if (!was && is) return { set: { ...named, climateBeforeSpell: device.appliedClimate ?? null }, forget: false, endsOn: undefined };
+  if (was && !is && intent.kind === 'fields') {
+    const endsOn = seedling ?? climateBefore(device);
+    // Switched off rather than ended, a germination with no name before keeps its thresholds, as it always did.
+    return { set: { appliedClimate: endsOn }, forget: true, endsOn: endsOn ?? (before?.workmode === 'dry' ? null : undefined) };
   }
-  if (was && !is) {
-    const endsOn = intent.kind === 'fields' ? ('appliedClimate' in named ? (named.appliedClimate ?? null) : (device.appliedClimate ?? null)) : null;
-    return { set: named, forget: true, endsOn };
-  }
-  return { set: named, forget: was && named.appliedClimate === null, endsOn: null };
+  if (was && !is) return { set: named, forget: true, endsOn: undefined };
+  return { set: named, forget: was && named.appliedClimate === null, endsOn: undefined };
 };
 
 /**

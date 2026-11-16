@@ -879,6 +879,10 @@ export interface DeviceControl {
    * The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept.
    */
   preset?: AppliedClimate | null;
+  /**
+   * While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell.
+   */
+  endsOn?: AppliedClimate | null;
 }
 
 /**

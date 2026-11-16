@@ -12,6 +12,7 @@ import { AlertService } from '@modules/alarm/alert.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { DataService } from '@modules/data/data.service';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
+import { controlOf, spellEndsOn } from '@modules/device-protocol/work-modes';
 import { GrowsService } from '@modules/v1/grow/grows.service';
 import { PhaseWriterService } from '@modules/v1/phase/phase-writer.service';
 import { STAGE_ALARMS, StageAlarms } from '@modules/v1/phase/stage-alarms.port';
@@ -671,6 +672,39 @@ describe('every climate written moves the place´s bands', () => {
     expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
   });
 
+  /** "Keimung beenden" where no climate had a name before: "Sämling · mit Licht", figures, name and bands (Chris, 2026-11-16). */
+  it('ends a germination begun from no named climate on the seedling climate', async () => {
+    await steuerung('germination');
+    expect((await bands())[1]).toBe(90);
+    // The end sheet is told so before the tap.
+    const germinating = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(spellEndsOn(controlOf('controller', germinating.configuration, germinating.baseWorkmode), germinating)).toEqual({
+      endsOn: { stage: 'seedling', preset: null },
+    });
+
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+
+    expect(await bands()).toEqual(SEEDLING);
+    expect(await bands(OTHER)).toEqual(SEEDLING);
+    const seedling = presetConfiguration('seedling', null, DOCUMENT, true)!;
+    expect(await document()).toMatchObject({ day: seedling.day, night: seedling.night, workmode: 'small' });
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
+  });
+
+  it('ends a drying spell begun from no named climate on the figures from before, and drops the stage bands', async () => {
+    await steuerung('drying');
+    expect((await bands())[1]).toBe(68);
+    const drying = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(spellEndsOn(controlOf('controller', drying.configuration, drying.baseWorkmode), drying)).toEqual({ endsOn: null });
+
+    await configuration.configure(DEVICE, { drying: false }, OWNER);
+
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
+    expect(await bands(OTHER)).toEqual([undefined, undefined, undefined]);
+    expect(await document()).toMatchObject({ day: DOCUMENT.day, night: DOCUMENT.night });
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
+  });
+
   it('ends a drying spell on the climate it came from, and keeps nothing aside once the figures are the grower´s', async () => {
     await steuerung('vegetative');
     await steuerung('drying');
@@ -679,8 +713,9 @@ describe('every climate written moves the place´s bands', () => {
 
     await steuerung('drying');
     await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 15, humidity: 60 } }, OWNER);
+    // Ended on figures nobody named, it holds no stage's thresholds until a climate is written.
     await configuration.configure(DEVICE, { drying: false }, OWNER);
-    expect((await bands())[1]).toBe(68);
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
     expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
   });
 });

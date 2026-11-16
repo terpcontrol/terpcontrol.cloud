@@ -881,6 +881,25 @@ describe('the climate under Steuerung', () => {
       await waitFor(() => expect(said()).toBe('Germination ended'));
     });
 
+    /** What ending puts the device on is named before the tap: "Sämling · mit Licht" where no climate had a name (Chris, 2026-11-16). */
+    it('says the climate a germination ends on, with its figures, and that a drying spell without one ends the alarms', async () => {
+      const germinating = draw(device({ type: 'fridge', control: { ...CONTROL, mode: 'germination', endsOn: { stage: 'seedling', preset: null } } }));
+      await screen.findByRole('table', { name: 'Targets' });
+      tap(/^Climate preset/);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'End germination' }));
+      expect(
+        within(screen.getByRole('dialog')).getByText(/the climate Seedling · with light holds with its targets, and the alarms follow it\.$/),
+      ).toBeInTheDocument();
+      const back = within(screen.getByRole('dialog')).getByRole('list', { name: 'What applies again afterwards' });
+      expect(within(back).getByText('Day humidity').parentElement).toHaveTextContent('60 % → 70 %');
+      germinating.unmount();
+
+      await drawn(device({ type: 'fridge', control: { ...CONTROL, drying: true, endsOn: null } }));
+      tap(/^Climate preset/);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'End drying' }));
+      expect(within(screen.getByRole('dialog')).getByText(/The climate’s alarms go until a climate is set again\.$/)).toBeInTheDocument();
+    });
+
     it('offers to end nothing while no spell runs', async () => {
       await drawn(device({ type: 'fridge', control: CONTROL }));
 

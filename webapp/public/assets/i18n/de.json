@@ -3018,6 +3018,8 @@
     "saving": "Wird gespeichert …",
     "discard": "Verwerfen",
     "readOnly": "Diese Sitzung darf schauen, aber nichts einstellen.",
+    "endsOn": "Danach gilt das Klima {{name}} mit seinen Zielwerten, und die Alarme richten sich nach ihm.",
+    "endsOnNothing": "Danach gelten wieder die Zielwerte von vorher. Die Alarme des Klimas fallen weg, bis wieder ein Klima eingestellt ist.",
     "growStays": "Das ändert nur die Zielwerte: {{name}} bleibt in der Phase {{stage}}. Phase und Klima zusammen stellst du im Grow unter Phase um.",
     "drying": {
       "starts": "Übernehmen schaltet die Trocknung ein: kein Licht und kein CO₂, das Gerät entfeuchtet und heizt nur.",

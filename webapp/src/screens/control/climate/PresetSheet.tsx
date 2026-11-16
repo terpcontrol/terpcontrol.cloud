@@ -106,9 +106,13 @@ export function PresetSheet({
       !(spell && FIGURES[field].half === 'day' && field !== 'co2'),
   );
   const hours = next.lightHours !== baseline.lightHours && device.type !== 'fan';
-  // Ending a spell by itself puts back what it wrote over, figure by figure where the server kept it.
-  const kept: Partial<Record<FigureField, number | null>> =
-    (running === 'drying' ? device.control?.afterDrying : device.control?.afterGermination) ?? {};
+  // Ending a spell by itself puts back what it wrote over, figure by figure where the server kept it - and a germination
+  // ends on the climate the server names (`endsOn`), "Sämling · mit Licht" where none had a name, whose figures it writes.
+  const endsOn = running ? device.control?.endsOn : undefined;
+  const endsOnPreset = running === 'germination' && endsOn ? presetOf(endsOn) : null;
+  const kept: Partial<Record<FigureField, number | null>> = endsOnPreset
+    ? prefilled(baseline, endsOnPreset)
+    : ((running === 'drying' ? device.control?.afterDrying : device.control?.afterGermination) ?? {});
   const figures = ending
     ? (Object.keys(FIGURES) as FigureField[]).flatMap(field => {
         const to = kept[field] ?? null;
@@ -204,6 +208,9 @@ export function PresetSheet({
             {t(ending ? `targets.${running}.ends` : drying ? `targets.drying.${drying}` : `targets.germination.${germination}`, {
               humidity: targetFigure(GERMINATION_HUMIDITY, 'humidity'),
             })}
+            {ending && endsOn !== undefined
+              ? ` ${endsOn ? t('targets.endsOn', { name: climateChoiceName(t, endsOn) }) : t('targets.endsOnNothing')}`
+              : null}
           </p>
         ) : null}
         {/* Germination regulates no humidity of its own; what it does about it is the grower's to say. */}

@@ -121,6 +121,17 @@ export declare const deviceControl: z.ZodObject<{
         }>;
         preset: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>>;
+    endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
 export declare const deviceRelease: z.ZodEnum<{
@@ -227,6 +238,17 @@ export declare const device: z.ZodObject<{
             }>;
             preset: z.ZodNullable<z.ZodString>;
         }, z.core.$strip>>>;
+        endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            stage: z.ZodEnum<{
+                germination: "germination";
+                seedling: "seedling";
+                vegetative: "vegetative";
+                flowering: "flowering";
+                drying: "drying";
+                curing: "curing";
+            }>;
+            preset: z.ZodNullable<z.ZodString>;
+        }, z.core.$strip>>>;
     }, z.core.$strip>>;
     isDemo: z.ZodBoolean;
     state: z.ZodObject<{
@@ -316,6 +338,17 @@ export declare const devicePage: z.ZodObject<{
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
             preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 stage: z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";
@@ -584,6 +617,17 @@ export declare const provisionedDevice: z.ZodObject<{
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
             preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 stage: z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";
@@ -889,6 +933,17 @@ export declare const deviceClaimResult: z.ZodObject<{
                 humidifierHolds: z.ZodBoolean;
             }, z.core.$strip>;
             preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                stage: z.ZodEnum<{
+                    germination: "germination";
+                    seedling: "seedling";
+                    vegetative: "vegetative";
+                    flowering: "flowering";
+                    drying: "drying";
+                    curing: "curing";
+                }>;
+                preset: z.ZodNullable<z.ZodString>;
+            }, z.core.$strip>>>;
+            endsOn: z.ZodOptional<z.ZodNullable<z.ZodObject<{
                 stage: z.ZodEnum<{
                     germination: "germination";
                     seedling: "seedling";

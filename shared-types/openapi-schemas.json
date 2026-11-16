@@ -1984,6 +1984,17 @@
             "type": "null"
           }
         ]
+      },
+      "endsOn": {
+        "description": "While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "required": [
