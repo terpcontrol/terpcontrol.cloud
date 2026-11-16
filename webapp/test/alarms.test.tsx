@@ -297,7 +297,7 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText('above 30 °C')).toBeInTheDocument();
-    expect(within(hot).getByText('phase · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
+    expect(within(hot).getByText('climate · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
 
     const offline = await card('Device offline');
     expect(within(offline).getByText('built in · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
@@ -349,7 +349,7 @@ describe('the alarm rules page', () => {
     expect(within(await card('Dehumidifier running non-stop')).getByText(`device · warning · your quiet hours until ${until}`)).toBeInTheDocument();
     expect(
       within(await card('Too hot')).getByText(
-        'phase · for 10 min · critical · goes to you by push + Telegram · comes through despite quiet hours · does not repeat',
+        'climate · for 10 min · critical · goes to you by push + Telegram · comes through despite quiet hours · does not repeat',
       ),
     ).toBeInTheDocument();
   });
@@ -373,7 +373,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(
-      within(await card('Too hot')).getByText('phase · for 10 min · critical · goes to you by push (off) + Telegram · does not repeat'),
+      within(await card('Too hot')).getByText('climate · for 10 min · critical · goes to you by push (off) + Telegram · does not repeat'),
     ).toBeInTheDocument();
   });
 
@@ -415,7 +415,7 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => (path === '/me' ? new Promise(() => {}) : Promise.resolve(answers(path))) as never);
     draw();
 
-    expect(within(await card('Too hot')).getByText('phase · for 10 min · critical · does not repeat')).toBeInTheDocument();
+    expect(within(await card('Too hot')).getByText('climate · for 10 min · critical · does not repeat')).toBeInTheDocument();
     expect(screen.queryByText(/does not reach you/)).not.toBeInTheDocument();
   });
 
@@ -473,7 +473,7 @@ describe('the alarm rules page', () => {
     const hot = await card('Too hot');
     // A silenced rule tells nobody, so the line promises no channel and no repeat.
     expect(
-      within(hot).getByText(`phase · for 10 min · critical · silenced for everyone until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`),
+      within(hot).getByText(`climate · for 10 min · critical · silenced for everyone until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`),
     ).toBeInTheDocument();
     fireEvent.click(within(hot).getByRole('button', { name: 'Unsilence' }));
 
@@ -696,7 +696,7 @@ describe('the alarm rules page', () => {
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('phase · for 10 min · critical · does not repeat')).toHaveLength(1);
+    expect(screen.getAllByText('climate · for 10 min · critical · does not repeat')).toHaveLength(1);
     expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
   });
 
@@ -711,12 +711,12 @@ describe('the alarm rules page', () => {
     draw();
 
     const co2 = await card('CO₂ too high');
-    expect(within(co2).getByText('phase · for 10 min · critical · switched off')).toBeInTheDocument();
+    expect(within(co2).getByText('climate · for 10 min · critical · switched off')).toBeInTheDocument();
     expect(within(co2).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
     expect(co2.textContent).not.toMatch(/goes to you|does not repeat|repeats every/);
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText('phase · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
+    expect(within(hot).getByText('climate · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
   });
 
   /**

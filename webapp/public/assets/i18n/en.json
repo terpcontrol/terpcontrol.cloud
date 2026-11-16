@@ -2741,7 +2741,7 @@
       "human": "Written here"
     },
     "origin": {
-      "preset": "phase",
+      "preset": "climate",
       "always": "built in",
       "device": "device",
       "human": "custom"

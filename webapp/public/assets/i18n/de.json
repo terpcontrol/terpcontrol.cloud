@@ -2751,7 +2751,7 @@
       "human": "Hier angelegt"
     },
     "origin": {
-      "preset": "Phase",
+      "preset": "Klima",
       "always": "eingebaut",
       "device": "Gerät",
       "human": "eigen"
