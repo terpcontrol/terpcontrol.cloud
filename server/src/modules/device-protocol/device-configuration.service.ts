@@ -121,7 +121,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     drying?: boolean,
     germination?: boolean,
     choices?: ChoicesSaid,
-    applied?: AppliedClimate,
+    applied?: AppliedClimate | null,
     bands?: AppliedClimate | null,
   ): Promise<{ configuration: DeviceConfiguration | null; bandsBefore?: AppliedClimate | null }> {
     const device = await this.typeAndDocument(deviceId);

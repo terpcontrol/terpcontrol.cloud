@@ -763,7 +763,8 @@ describe('the climate under Steuerung', () => {
         });
         const back = sent('PUT')[1].body as { preset?: unknown; bands?: unknown };
         expect(back.bands).toEqual(before);
-        expect(back.preset).toBeUndefined();
+        // The targets before it were named by no preset, and are again.
+        expect(back.preset).toBeNull();
         page.unmount();
       }
     });
@@ -801,6 +802,33 @@ describe('the climate under Steuerung', () => {
       expect(body.configuration.day).toMatchObject({ temperature: 25, humidity: 50 });
       await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
       expect(told[0].undo).toBeNull();
+    });
+
+    /** Where the name also moved the place's alarm thresholds, "Undo" takes both back like any other preset's. */
+    it('takes back a preset whose figures already stood where it moved the alarm thresholds', async () => {
+      const flowerFigures = {
+        ...CONFIGURATION,
+        day: { temperature: 25, humidity: 50 },
+        night: { temperature: 20, humidity: 50 },
+        co2: { target: 1000 },
+        'lights.limit': 100,
+      };
+      wire.bandsBefore = null;
+      await drawn(device({ configuration: flowerFigures }));
+      tap('Climate preset');
+      const sheet = screen.getByRole('dialog');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+      await waitFor(() => expect(told).toHaveLength(1));
+      expect(told[0].undo).not.toBeNull();
+
+      await act(async () => {
+        await told[0].undo!();
+      });
+      const back = sent('PUT')[1].body as { configuration: DeviceConfiguration; preset?: unknown; bands?: unknown };
+      expect(back.bands).toBeNull();
+      expect(back.preset).toBeNull();
+      expect(back.configuration.day).toMatchObject({ temperature: 25, humidity: 50 });
     });
 
     /** Drying is a mode of the device as well as figures: the chip starts the spell, which is more than one write to take back. */

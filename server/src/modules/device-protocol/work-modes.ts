@@ -43,7 +43,14 @@ export type WriteIntent =
    * for the standard mode. `bands` is the climate the place's thresholds go
    * back to, null for none, where a save that moved them is taken back.
    */
-  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid; applied?: AppliedClimate; bands?: AppliedClimate | null }
+  | {
+      kind: 'targets';
+      drying?: boolean;
+      germination?: boolean;
+      choices?: ChoicesSaid;
+      applied?: AppliedClimate | null;
+      bands?: AppliedClimate | null;
+    }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
    * dries and germination germinates in the dark; any other stage - or a plan

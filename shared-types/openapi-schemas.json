@@ -2416,8 +2416,15 @@
         }
       },
       "preset": {
-        "description": "The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.",
-        "$ref": "#/components/schemas/AppliedClimate"
+        "description": "The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.",
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/AppliedClimate"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "bands": {
         "description": "The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.",

@@ -208,8 +208,9 @@ exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfiguratio
         .optional()
         .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
     preset: exports.appliedClimate
+        .nullable()
         .optional()
-        .describe('The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.'),
+        .describe('The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.'),
     bands: exports.appliedClimate
         .nullable()
         .optional()

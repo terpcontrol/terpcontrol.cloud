@@ -174,8 +174,11 @@ export const useSaveConfiguration = () =>
       germination?: boolean;
       /** What germination does about the humidity, where the page shows it; left out it stands as it was. */
       germinationChoices?: Partial<GerminationChoices>;
-      /** The climate preset the targets are, where one was applied with them: what Steuerung names it by afterwards. */
-      preset?: AppliedClimate;
+      /**
+       * The climate preset the targets are, where one was applied with them: what Steuerung names it by afterwards -
+       * null for none, where a save is taken back to targets no preset named.
+       */
+      preset?: AppliedClimate | null;
       /** The climate the place's alarm thresholds go back to, or none: a save that moved them (`bandsBefore`) taken back. */
       bands?: AppliedClimate | null;
     }) =>

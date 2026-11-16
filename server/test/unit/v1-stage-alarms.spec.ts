@@ -618,6 +618,22 @@ describe('every climate written moves the place´s bands', () => {
     expect(await bands(OTHER)).toEqual([undefined, undefined, undefined]);
   });
 
+  /** A preset whose figures already stood gave them its name and its bands: taken back, both go, the figures stay. */
+  it('takes back a preset that only named the figures standing, name and bands', async () => {
+    const untouched = await document();
+    await configuration.replace(DEVICE, { ...untouched, ...presetConfiguration('seedling', null, untouched, true) }, OWNER);
+    const seedling = await document();
+    const named = await steuerung('seedling');
+    expect(named.bandsBefore).toBeNull();
+    expect(await bands()).toEqual(SEEDLING);
+
+    await configuration.replace(DEVICE, seedling, OWNER, undefined, undefined, undefined, null, named.bandsBefore);
+
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
+    expect(await document()).toEqual(seedling);
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
+  });
+
   /** "Widerrufen" of a figure changed by hand puts the name back with the figures; the bands were never moved. */
   it('keeps the bands through a figure changed by hand and taken back', async () => {
     await steuerung('vegetative');

@@ -1054,7 +1054,10 @@ export interface DeviceConfigurationEnvelope {
      */
     humidifierHolds?: boolean;
   };
-  preset?: AppliedClimate1;
+  /**
+   * The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.
+   */
+  preset?: AppliedClimate | null;
   /**
    * The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.
    */
@@ -1063,15 +1066,6 @@ export interface DeviceConfigurationEnvelope {
    * Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.
    */
   bandsBefore?: AppliedClimate | null;
-}
-
-/**
- * The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.
- */
-
-export interface AppliedClimate1 {
-  stage: GrowthStage;
-  preset: string | null;
 }
 
 export interface TimerWindow {

@@ -197,7 +197,7 @@ export function Climate({
         return save.mutateAsync({
           deviceId: device.id,
           configuration: withDraft(current, { ...draftOf(current), ...figures }, climateOnly),
-          preset: wasNamed,
+          preset: wasNamed ?? null,
           bands: answer.bandsBefore,
           ...extra,
         });
@@ -208,10 +208,13 @@ export function Climate({
       // more than figures. Germination ended is begun again in two writes, since the dark keeps the day it finds
       // and the night it replaces: the night germination had kept in the light, then germination with its own.
       // A humidifier's rested band is not kept across that, so there is no way back then.
-      // A preset whose figures already stood only gave them its name, which no write here takes back.
+      // A preset whose figures already stood gave them its name, and is taken back like any other where it moved the
+      // place's alarm thresholds too; one that only named them has nothing worth a way back.
       const nameOnly = chip !== null && moved.length === 0 && dryingChange === null && germinationChange === null && choices === undefined;
+      const bandsMoved =
+        answer.bandsBefore !== undefined && (answer.bandsBefore?.stage !== chip?.stage || answer.bandsBefore?.preset !== chip?.preset);
       const undo =
-        nameOnly || dryingChange !== null || (germinationChange === null && choices !== undefined)
+        (nameOnly && !bandsMoved) || dryingChange !== null || (germinationChange === null && choices !== undefined)
           ? null
           : germinationChange === 'starts'
             ? () => put(before, { germination: false }).then(resume)

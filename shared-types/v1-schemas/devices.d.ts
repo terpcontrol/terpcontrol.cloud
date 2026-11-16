@@ -460,7 +460,7 @@ export declare const deviceConfigurationEnvelope: z.ZodObject<{
         warnTooHumid: z.ZodOptional<z.ZodBoolean>;
         humidifierHolds: z.ZodOptional<z.ZodBoolean>;
     }, z.core.$strip>>;
-    preset: z.ZodOptional<z.ZodObject<{
+    preset: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         stage: z.ZodEnum<{
             germination: "germination";
             seedling: "seedling";
@@ -470,7 +470,7 @@ export declare const deviceConfigurationEnvelope: z.ZodObject<{
             curing: "curing";
         }>;
         preset: z.ZodNullable<z.ZodString>;
-    }, z.core.$strip>>;
+    }, z.core.$strip>>>;
     bands: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         stage: z.ZodEnum<{
             germination: "germination";
