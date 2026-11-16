@@ -12,7 +12,7 @@ import { forgetKept } from '@/ui/kept';
 import { LoadFailed } from '@/ui/PageState';
 import { zonedAt } from '@/ui/zone';
 import { drawAt, json, NOT_FOUND } from './harness';
-import { cardOf, entry, fridge, homeOf } from './place-wire';
+import { cardOf, entry, fridge, growOf, homeOf } from './place-wire';
 import { meWith, spacePage, spaceWhere } from './session';
 import { translate } from './translations';
 
@@ -185,6 +185,8 @@ const server = {
   gone: false,
   /** Whether every read of the account's grows fails, as a server error does. */
   growsFail: false,
+  /** The grow the home's card of the place leads with: the newer, where two stand there. */
+  homeGrow: null as ReturnType<typeof growOf> | null,
 };
 
 const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -198,7 +200,7 @@ const wire = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (server.growsFail && path.startsWith('/grows')) return json({ status: 500, code: 'unexpected', title: 'Broken', detail: '', errors: [] }, 500);
   if (path === '/home') {
     const cards = [
-      cardOf({ name: 'Tent 1', kind: 'tent' }),
+      cardOf({ name: 'Tent 1', kind: 'tent', grow: server.homeGrow }),
       ...(second ? [cardOf({ spaceId: 'space-2', name: 'Tent 2', kind: 'tent', deviceIds: ['device-2'] })] : []),
     ];
     return json(homeOf(cards, true));
@@ -318,6 +320,7 @@ beforeEach(() => {
     plants: null,
     gone: false,
     growsFail: false,
+    homeGrow: null,
   });
   opened.length = 0;
   told.length = 0;
@@ -1815,6 +1818,35 @@ describe('the diary of the window', () => {
     expect(opened).toHaveLength(1);
     expect(opened[0][0]).toBe('note');
     expect((opened[0][3] as Date).getTime()).toBe(cursor);
+  });
+
+  /** The place's Verlauf counted the newer grow's days and wrote its note there, while its Eintrag opened on the other. */
+  it('is of the grow the place leads with where two grow here, says whose days it counts, and writes its note there', async () => {
+    const standing = (id: string, name: string, hoursAgo: number) => ({
+      id,
+      name,
+      startedAt: ago(hoursAgo),
+      endedAt: null,
+      phases: [],
+      placements: [{ id: `placement-${id}`, spaceId: 'space-1', startedAt: ago(hoursAgo), endedAt: null, plantIds: null }],
+      summary: { zone: 'UTC', dayNumber: 1, locations: [{ spaceId: 'space-1', plantIds: [] }] },
+    });
+    server.homeGrow = growOf({ growId: 'grow-2', name: 'Gelato', dayNumber: 1 });
+    server.grows = [standing('grow-2', 'Gelato', 20), standing('grow-1', 'Amnesia', 28 * 24)];
+    server.over = {
+      grows: [
+        { growId: 'grow-2', name: 'Gelato', startedAt: ago(20), endedAt: null },
+        { growId: 'grow-1', name: 'Amnesia', startedAt: ago(28 * 24), endedAt: null },
+      ],
+    };
+    const cursor = NOW - 6 * HOUR;
+    draw(`/timeline?at=${iso(cursor)}`);
+    await settled();
+
+    expect(server.asked.map(one => one.get('growId'))).toEqual(server.asked.map(() => 'grow-1'));
+    expect(await screen.findByText(/^Day 28–29 · Amnesia · /)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /^Write a note at \d\d:\d\d/ }));
+    expect(opened[0][1]).toMatchObject({ growId: 'grow-1', label: 'Amnesia' });
   });
 
   it('offers no note for a moment before the place existed', async () => {

@@ -29,6 +29,7 @@ import type { Translate } from '@/i18n/i18n';
 import { useCorrecting } from '@/log/corrections';
 import { useLog } from '@/log/log-context';
 import { targetsOf } from '@/log/targets';
+import { usePlaceGrow } from '@/log/underneath';
 import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { linkAddress } from '@/screens/me/sharing/links';
 import { ageLabel, instantOf, sinceLabel, valueAge } from '@/ui/age';
@@ -132,6 +133,8 @@ interface Own {
   byline: boolean;
   /** The plants of the grow the page is of, so a line or a reading about some of them names those. */
   plants: readonly Plant[];
+  /** Whether two grows stand here, so the window's days say whose they are. */
+  twoGrows: boolean;
 }
 
 interface TimelineProps {
@@ -173,7 +176,8 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
           : named.growId && (namedGrow.gone || (namedGrow.grow && !namedGrow.grow.placements.some(one => one.spaceId === spaceId)))
             ? { what: 'grow', id: named.growId, ...(namedGrow.gone ? { gone: true } : {}) }
             : null;
-  const page = usePage(spaceId, null, vain);
+  // Where the address names no grow, the page is of the one the place leads with, which its Eintrag aims at.
+  const page = usePage(spaceId, null, vain, null, usePlaceGrow(spaceId));
   const visiting = useVisiting(spaceId);
   const home = useHome();
   const spaces = useSpaces();
@@ -301,6 +305,7 @@ function OwnTimeline({ spaceId, title, place: placeName, ended = false }: Timeli
     // The demo is answered no authors, so its lines say what was done and name nobody.
     byline: user?.isDemo !== true,
     plants: plants ?? [],
+    twoGrows: here.filter(one => one.growId !== null).length > 1,
   };
 
   return <Screen page={page} spaceId={spaceId} title={title} place={placeName} own={own} />;
@@ -323,7 +328,7 @@ export function SharedTimeline({
   title: React.ReactNode;
   bounds?: Span | null;
 }) {
-  const page = usePage(spaceId, shared.token, null, bounds);
+  const page = usePage(spaceId, shared.token, null, bounds, null);
   return <Screen page={page} spaceId={spaceId} title={title} place={null} own={null} picture={shared.picture} />;
 }
 
@@ -336,7 +341,14 @@ interface Vain {
 }
 
 /** The view the address names, the answer to it, and the one way the view is changed. */
-const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' | null = null, bounds: Span | null = null) => {
+const usePage = (
+  spaceId: string,
+  share: string | null,
+  vain: Vain | 'checking' | null,
+  bounds: Span | null,
+  /** The grow asked about where the view names none; undefined holds the read until it is known. */
+  lead: string | null | undefined,
+) => {
   const [params, setParams] = useSearchParams();
   const now = useNow();
   const view = useMemo(() => viewOf(params), [params]);
@@ -348,12 +360,15 @@ const usePage = (spaceId: string, share: string | null, vain: Vain | 'checking' 
   const asked = confined && whole ? { ...inside(view.fixed ?? whole, confined), live: false } : windowOf(view, beat);
   // Keyed by its two ends, so the clock moving on does not ask again for a window that stands still.
   const ask = useMemo(
-    () => askOf(confined ? { ...view, range: '24h', growId: null } : view, asked, share),
+    () => {
+      const one = askOf(confined ? { ...view, range: '24h', growId: null } : view, asked, share);
+      return one.growId === null && lead ? { ...one, growId: lead } : one;
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `asked` is new every render; its ends are what it is
-    [view, asked?.from, asked?.to, asked?.live, share],
+    [view, asked?.from, asked?.to, asked?.live, share, lead],
   );
   // Held back while what the address names is looked up, and for good where it names something in vain.
-  const timeline = useTimeline(spaceId, vain === null ? ask : null);
+  const timeline = useTimeline(spaceId, vain === null && (lead !== undefined || view.growId !== null) ? ask : null);
   // Inside a link's window every change of the stretch - a zoom, a day, the way to a last reading - stands still in it.
   const held = (over: Partial<View>): Partial<View> => {
     if (!confined || !('fixed' in over || 'last' in over || 'range' in over)) return over;
@@ -590,12 +605,16 @@ function Screen(props: TimelineProps & { page: ReturnType<typeof usePage>; own: 
   // offered. Zoomed into a quiet part of a window that has curves, the zoom stays, as the way back out.
   const nothingToRead = confined !== null && widest(-1) && data !== undefined && !cursorShown && data.lastReadingAt === null;
   // The line under the window's name opens with a capital, whichever of its parts it begins with.
-  const beneath = [
+  const growDays =
     data && data.dayFrom !== null && data.dayTo !== null && !timeline.isPlaceholderData && !failed
       ? data.dayFrom === data.dayTo
         ? t('timeline.dayN', { day: data.dayTo })
         : t('timeline.dayRange', { from: data.dayFrom, to: data.dayTo })
-      : null,
+      : null;
+  const beneath = [
+    growDays,
+    // Where two grow here, the days say whose they are.
+    growDays && own?.twoGrows ? data?.grows.find(one => one.growId === data.growId)?.name : null,
     // How far apart the points are, said once and quietly: a point of a day is three minutes, not a sample.
     stepDrawn !== null && !timeline.isPlaceholderData ? stepWords(t, stepDrawn) : null,
   ]
