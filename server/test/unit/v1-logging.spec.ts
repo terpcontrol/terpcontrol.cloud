@@ -164,6 +164,8 @@ beforeEach(async () => {
     applyStage: async () => undefined,
     followClimate: async () => undefined,
     dropStage: async () => undefined,
+    leaveClimate: async () => undefined,
+    climateHere: async () => null,
     stageOf: async () => null,
   };
   const mail = { send: async () => undefined } as unknown as MailService;

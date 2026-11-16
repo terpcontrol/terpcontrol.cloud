@@ -1043,6 +1043,14 @@ export interface DeviceConfigurationEnvelope {
     humidifierHolds?: boolean;
   };
   preset?: AppliedClimate1;
+  /**
+   * The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.
+   */
+  bands?: AppliedClimate | null;
+  /**
+   * Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.
+   */
+  bandsBefore?: AppliedClimate | null;
 }
 
 /**

@@ -47,6 +47,8 @@ interface Written {
   changed: boolean;
   /** Set where the write changed a choice of germination's (`GerminationChoices`): what held before it, and what holds now. */
   choices?: { before: GerminationChoiceValues; after: GerminationChoiceValues };
+  /** Set where the write moved the place's thresholds: the climate they followed before, null for none. */
+  bandsBefore?: AppliedClimate | null;
 }
 
 /**
@@ -99,9 +101,11 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * whether they are a drying room's, `germination` whether they are for
    * germinating in the dark, `choices` what germination does about the
    * humidity, and `applied` the climate preset they are, where one was applied
-   * with them (see `WriteIntent`).
+   * with them (see `WriteIntent`). `bands` puts the place's thresholds back on
+   * a climate, or on none, where a save that moved them is taken back.
    *
-   * What is stored is answered, because it is not always what was sent: the
+   * What is stored is answered, with the climate the place's thresholds
+   * followed before where the save moved them (`bandsBefore`), because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
    * (`idle-figures.ts`), and the type's rules hold the rest (`class-rules.ts`).
    *
@@ -117,15 +121,16 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     germination?: boolean,
     choices?: ChoicesSaid,
     applied?: AppliedClimate,
-  ): Promise<DeviceConfiguration | null> {
+    bands?: AppliedClimate | null,
+  ): Promise<{ configuration: DeviceConfiguration | null; bandsBefore?: AppliedClimate | null }> {
     const device = await this.typeAndDocument(deviceId);
     const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
     if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
 
-    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices, applied }, () => configuration);
+    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices, applied, bands }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
-    return written?.after ?? null;
+    return { configuration: written?.after ?? null, ...(written && 'bandsBefore' in written ? { bandsBefore: written.bandsBefore } : {}) };
   }
 
   /**
@@ -446,8 +451,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
     if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
-    const climate = climateWritten(intent) ?? named.endsOn;
-    if (climate) await this.bandsFollow(deviceId, climate);
+    const taken = intent.kind === 'targets' && intent.bands !== undefined;
+    const bands = await this.bandsFollow(deviceId, taken ? intent.bands : (climateWritten(intent) ?? named.endsOn ?? undefined));
     // A device that germinates now - begun, chosen about, or sent its step again -
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
@@ -467,6 +472,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       after: configuration,
       changed: JSON.stringify(before) !== JSON.stringify(configuration) || choicesChanged,
       ...(choicesChanged ? { choices: { before: kept, after: choices } } : {}),
+      ...bands,
     };
   }
 
@@ -480,15 +486,23 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
   }
 
   /**
-   * The place's thresholds follow the climate written there (`climateWritten`). Every write of a device's settings
-   * comes through `store`, so this is the one place they are moved: a preset taken under Steuerung, a phase's climate,
-   * a plan step, the claim's, a spell ended - none of them has to remember it.
+   * The place's thresholds follow the climate written there (`climateWritten`), or the one a save taken back puts
+   * them back on - none for null; undefined moves nothing. Every write of a device's settings comes through `store`, so
+   * this is the one place they are moved: a preset taken under Steuerung and its undo, a phase's climate, a plan step,
+   * the claim's, a spell ended - none of them has to remember it. What they followed before is answered, so that
+   * taking the write back can put them there again.
    */
-  private async bandsFollow(deviceId: string, { stage, preset }: AppliedClimate): Promise<void> {
+  private async bandsFollow(deviceId: string, climate: AppliedClimate | null | undefined): Promise<{ bandsBefore?: AppliedClimate | null }> {
+    const alarms = climate === undefined ? null : this.sink<StageAlarms>(STAGE_ALARMS);
+    if (!alarms) return {};
     try {
-      await this.sink<StageAlarms>(STAGE_ALARMS)?.followClimate(deviceId, stage, preset);
+      const bandsBefore = await alarms.climateHere(deviceId);
+      if (climate) await alarms.followClimate(deviceId, climate.stage, climate.preset);
+      else await alarms.leaveClimate(deviceId);
+      return { bandsBefore };
     } catch (error) {
-      logger.error(`Could not move the thresholds of device ${deviceId}'s place to the ${stage} climate: ${error}`);
+      logger.error(`Could not move the thresholds of device ${deviceId}'s place to the ${climate?.stage ?? 'no'} climate: ${error}`);
+      return {};
     }
   }
 
@@ -520,7 +534,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    */
   public async awaitClimate(deviceIds: readonly string[], awaited: AwaitedClimate): Promise<void> {
     await this.devices.updateMany({ id: { $in: [...deviceIds] }, configuration: null }, { $set: { awaitedClimate: awaited } });
-    if (deviceIds.length > 0) await this.bandsFollow(deviceIds[0], awaited);
+    if (deviceIds.length > 0) await this.bandsFollow(deviceIds[0], { stage: awaited.stage, preset: awaited.preset });
   }
 
   /**

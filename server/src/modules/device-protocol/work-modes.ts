@@ -40,9 +40,10 @@ export type WriteIntent =
    * again. `drying` says whether they are a drying room's - true dries, false
    * ends a drying spell - and left out a drying device stays drying.
    * `germination` is the same for germination in the dark, which false ends
-   * for the standard mode.
+   * for the standard mode. `bands` is the climate the place's thresholds go
+   * back to, null for none, where a save that moved them is taken back.
    */
-  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid; applied?: AppliedClimate }
+  | { kind: 'targets'; drying?: boolean; germination?: boolean; choices?: ChoicesSaid; applied?: AppliedClimate; bands?: AppliedClimate | null }
   /**
    * A climate preset, a phase, or a plan step, with the stage it is for. Drying
    * dries and germination germinates in the dark; any other stage - or a plan

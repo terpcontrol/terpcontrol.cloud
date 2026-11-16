@@ -285,6 +285,18 @@ export const deviceConfigurationEnvelope = named(
       .describe(
         'The climate preset the targets saved are, where one was applied with them - or the one they are again, where a change by hand is taken back. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.',
       ),
+    bands: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.",
+      ),
+    bandsBefore: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.",
+      ),
   }),
 );
 

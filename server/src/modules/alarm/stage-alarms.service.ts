@@ -66,15 +66,26 @@ export class StageAlarmsService implements StageAlarms {
    * climate one of them was put on, a plug in the tent measuring the same air as the controller.
    */
   public async followClimate(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void> {
-    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
-    const here = device?.spaceId ? await this.devices.find({ spaceId: device.spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>() : [];
-    const ids = new Set([deviceId, ...here.map(one => one.id)]);
-
-    for (const id of ids) await this.applyStage(id, stage, preset);
+    for (const id of await this.placeOf(deviceId)) await this.applyStage(id, stage, preset);
   }
 
   public dropStage(deviceId: string): Promise<void> {
     return this.removeStale(deviceId, []);
+  }
+
+  public async leaveClimate(deviceId: string): Promise<void> {
+    for (const id of await this.placeOf(deviceId)) await this.dropStage(id);
+  }
+
+  public async climateHere(deviceId: string): Promise<{ stage: GrowthStage; preset: string | null } | null> {
+    return this.stageOf(await this.placeOf(deviceId));
+  }
+
+  /** The device and every device standing where it stands. */
+  private async placeOf(deviceId: string): Promise<string[]> {
+    const device = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+    const here = device?.spaceId ? await this.devices.find({ spaceId: device.spaceId }, { id: 1 }).lean<Pick<StoredDevice, 'id'>[]>() : [];
+    return [...new Set([deviceId, ...here.map(one => one.id)])];
   }
 
   private async removeStale(deviceId: string, bands: readonly StageAlarmBand[]): Promise<void> {

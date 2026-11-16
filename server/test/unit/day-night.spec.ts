@@ -776,12 +776,16 @@ describe('a save of the targets', () => {
       fridge({ workmode: 'breed', day: { temperature: 24, humidity: 55 }, night: { temperature: 24, humidity: 55 } }),
       'user-1',
     );
-    expect(stored).toMatchObject({ workmode: 'breed', day: { temperature: 25, humidity: 60 }, night: { temperature: 24, humidity: 55 } });
+    expect(stored.configuration).toMatchObject({
+      workmode: 'breed',
+      day: { temperature: 25, humidity: 60 },
+      night: { temperature: 24, humidity: 55 },
+    });
 
     await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }) } });
     const drying = await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }), 'user-1');
     // 50 % is a dry target, whatever the unused day says.
-    expect(drying?.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
+    expect(drying.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
   });
 
   it('records when the cycle moved as well as the targets, and nothing for a write that moved neither', async () => {

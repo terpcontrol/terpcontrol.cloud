@@ -139,6 +139,8 @@ const wire = {
   sockets: null as string[] | null,
   /** The grow standing in the place, as its overview names it; none answers a place nothing grows in. */
   grow: null as { stage: string; preset: string | null } | null,
+  /** The climate the place's alarm thresholds followed before a save that moved them, where the save is to answer one. */
+  bandsBefore: undefined as { stage: string; preset: string | null } | null | undefined,
   /** The document the server holds, which every save replaces. */
   stored: CONFIGURATION,
   calls: [] as Call[],
@@ -210,7 +212,7 @@ vi.stubGlobal(
     if (method === 'PUT' && path === '/devices/device-1/configuration') {
       if (wire.refuseSave) return problem(wire.refuseSave.status, wire.refuseSave.code, wire.refuseSave.detail, wire.refuseSave.errors);
       wire.stored = body.configuration;
-      return json(body);
+      return json(wire.bandsBefore === undefined ? body : { ...body, bandsBefore: wire.bandsBefore });
     }
     return problem(404, 'not_found', `No stub for ${method} ${path}`);
   }),
@@ -275,6 +277,7 @@ beforeEach(() => {
   wire.sockets = null;
   wire.grow = null;
   wire.stored = CONFIGURATION;
+  wire.bandsBefore = undefined;
   wire.calls = [];
   told.length = 0;
 });
@@ -716,6 +719,31 @@ describe('the climate under Steuerung', () => {
       expect(body.preset).toEqual({ stage: 'flowering', preset: null });
       await waitFor(() => expect(said()).toBe('Climate preset Flower saved'));
       expect(told[0].undo).not.toBeNull();
+    });
+
+    /** "Undo" puts back the alarm thresholds the save moved, or none where none were: the save answered which. */
+    it('takes a preset back with the alarm thresholds from before it', async () => {
+      for (const before of [{ stage: 'vegetative', preset: null }, null]) {
+        wire.calls = [];
+        told.length = 0;
+        wire.bandsBefore = before;
+        wire.stored = CONFIGURATION;
+        const page = draw();
+        await screen.findByRole('table', { name: 'Targets' });
+        tap('Climate preset');
+        const sheet = screen.getByRole('dialog', { name: 'Apply a climate preset' });
+        fireEvent.click(within(sheet).getByRole('button', { name: 'Flower' }));
+        fireEvent.click(within(sheet).getByRole('button', { name: 'Apply' }));
+        await waitFor(() => expect(told).toHaveLength(1));
+
+        await act(async () => {
+          await told[0].undo!();
+        });
+        const back = sent('PUT')[1].body as { preset?: unknown; bands?: unknown };
+        expect(back.bands).toEqual(before);
+        expect(back.preset).toBeUndefined();
+        page.unmount();
+      }
     });
 
     /**

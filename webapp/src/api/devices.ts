@@ -166,6 +166,7 @@ export const useSaveConfiguration = () =>
       germination,
       germinationChoices,
       preset,
+      bands,
     }: {
       deviceId: string;
       configuration: DeviceConfiguration;
@@ -175,8 +176,17 @@ export const useSaveConfiguration = () =>
       germinationChoices?: Partial<GerminationChoices>;
       /** The climate preset the targets are, where one was applied with them: what Steuerung names it by afterwards. */
       preset?: AppliedClimate;
+      /** The climate the place's alarm thresholds go back to, or none: a save that moved them (`bandsBefore`) taken back. */
+      bands?: AppliedClimate | null;
     }) =>
-      api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, { configuration, drying, germination, germinationChoices, preset }),
+      api.put<DeviceConfigurationEnvelope>(`/devices/${deviceId}/configuration`, {
+        configuration,
+        drying,
+        germination,
+        germinationChoices,
+        preset,
+        bands,
+      }),
     client => invalidate(client, ['devices']),
   );
 

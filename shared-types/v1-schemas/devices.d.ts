@@ -438,6 +438,28 @@ export declare const deviceConfigurationEnvelope: z.ZodObject<{
         }>;
         preset: z.ZodNullable<z.ZodString>;
     }, z.core.$strip>>;
+    bands: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
+    bandsBefore: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        stage: z.ZodEnum<{
+            germination: "germination";
+            seedling: "seedling";
+            vegetative: "vegetative";
+            flowering: "flowering";
+            drying: "drying";
+            curing: "curing";
+        }>;
+        preset: z.ZodNullable<z.ZodString>;
+    }, z.core.$strip>>>;
 }, z.core.$strip>;
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on

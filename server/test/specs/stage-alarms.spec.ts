@@ -145,3 +145,26 @@ describe('a device that arrives in a tent already in a stage', () => {
     expect(byName(await presetRulesOf(controller))['Too hot']).toMatchObject({ watch: { upper: 31 }, presetId: 'vegetative' });
   });
 });
+
+describe('a preset taken back under Steuerung', () => {
+  it('answers the thresholds it moved, and its undo puts them back or takes them away', async () => {
+    const { deviceId } = await claimAController();
+    const document = { workmode: 'small', day: { temperature: 25, humidity: 60 }, night: { temperature: 20, humidity: 55 } };
+    const save = (body: Record<string, unknown>) =>
+      owner.client
+        .put(`/v1/devices/${deviceId}/configuration`)
+        .send({ configuration: document, ...body })
+        .expect(200);
+    const tooHumid = async () => (byName(await presetRulesOf(deviceId))['Too humid']?.watch as { upper?: number } | undefined)?.upper;
+
+    expect((await save({ preset: { stage: 'vegetative', preset: null } })).body.bandsBefore).toBeNull();
+    const flower = await save({ preset: { stage: 'flowering', preset: null } });
+    expect(flower.body.bandsBefore).toEqual({ stage: 'vegetative', preset: null });
+    expect(await tooHumid()).toBe(60);
+
+    await save({ bands: flower.body.bandsBefore });
+    expect(await tooHumid()).toBe(72);
+    await save({ bands: null });
+    expect(await presetRulesOf(deviceId)).toEqual([]);
+  });
+});

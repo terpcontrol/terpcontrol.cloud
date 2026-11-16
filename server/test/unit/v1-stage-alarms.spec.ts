@@ -320,6 +320,8 @@ describe('a device stood in a space', () => {
       applyStage: async (deviceId, stage, preset) => void applied.push({ deviceId, stage, preset }),
       followClimate: async () => undefined,
       dropStage: async deviceId => void dropped.push(deviceId),
+      leaveClimate: async () => undefined,
+      climateHere: async () => null,
       stageOf: deviceIds => service.stageOf(deviceIds),
     };
     phases = new PhaseWriterService(db.grows, new EntryWriterService(db.entries), db.entries, db.devices, alarms);
@@ -509,7 +511,7 @@ describe('every climate written moves the place´s bands', () => {
   /** "Übernehmen" on a chip of Steuerung's Klima-Preset: the whole document with the preset's figures, and its name. */
   const steuerung = async (stage: 'vegetative' | 'flowering' | 'seedling' | 'germination' | 'drying') => {
     const current = await document();
-    await configuration.replace(
+    return configuration.replace(
       DEVICE,
       { ...current, ...presetConfiguration(stage, null, current, true) },
       OWNER,
@@ -582,6 +584,30 @@ describe('every climate written moves the place´s bands', () => {
 
     await configuration.replace(DEVICE, { ...(await document()), day: { temperature: 27, humidity: 70 } }, OWNER);
     expect(await bands()).toEqual(FLOWER);
+  });
+
+  /** "Widerrufen" in the preset's toast: the figures from before, the name they had, and the bands the save answered. */
+  it('puts back the bands from before a preset taken back, or none where there were none', async () => {
+    await steuerung('flowering');
+    await configuration.replace(DEVICE, { ...(await document()), day: { temperature: 25, humidity: 52 } }, OWNER);
+    const handMade = await document();
+
+    const veg = await steuerung('vegetative');
+    expect(veg.bandsBefore).toEqual({ stage: 'flowering', preset: null });
+    expect(await bands()).toEqual(VEG);
+    await configuration.replace(DEVICE, handMade, OWNER, undefined, undefined, undefined, undefined, veg.bandsBefore);
+    expect(await bands()).toEqual(FLOWER);
+    expect(await bands(OTHER)).toEqual(FLOWER);
+    expect(await document()).toEqual(handMade);
+
+    // A place that had no stage bands has none again.
+    await db.alarmRules.deleteMany({ origin: 'preset' });
+    const untouched = await document();
+    const blüte = await steuerung('flowering');
+    expect(blüte.bandsBefore).toBeNull();
+    await configuration.replace(DEVICE, untouched, OWNER, undefined, undefined, undefined, undefined, blüte.bandsBefore);
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
+    expect(await bands(OTHER)).toEqual([undefined, undefined, undefined]);
   });
 
   describe('a Grow-Plan step', () => {

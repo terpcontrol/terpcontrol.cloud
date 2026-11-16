@@ -19,6 +19,10 @@ export interface StageAlarms {
   followClimate(deviceId: string, stage: GrowthStage, preset: string | null): Promise<void>;
   /** Takes the stage rules off a device: it stands where no climate was written. */
   dropStage(deviceId: string): Promise<void>;
+  /** Takes the stage rules off every device standing where this one stands: the climate written there was taken back. */
+  leaveClimate(deviceId: string): Promise<void>;
+  /** The climate the stage rules of the place this device stands in follow, the one most of its devices carry; null for none. */
+  climateHere(deviceId: string): Promise<{ stage: GrowthStage; preset: string | null } | null>;
   /** The stage and preset the stage rules of these devices were written for, the one most of them carry; null where none has any. */
   stageOf(deviceIds: readonly string[]): Promise<{ stage: GrowthStage; preset: string | null } | null>;
 }

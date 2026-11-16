@@ -222,8 +222,9 @@ export class DevicesController {
       body.germination,
       body.germinationChoices,
       body.preset,
+      body.bands,
     );
-    return { configuration: stored ?? body.configuration };
+    return { ...stored, configuration: stored.configuration ?? body.configuration };
   }
 
   /**
