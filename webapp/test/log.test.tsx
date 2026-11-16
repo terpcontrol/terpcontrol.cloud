@@ -1243,8 +1243,13 @@ describe('the log sheet in a place where two grows stand', () => {
     const sheet = await screen.findByRole('dialog', { name: 'Log' });
     const chips = await within(sheet).findByRole('group', { name: 'What the entry is about' });
 
-    // Start leads with Spring run, the newer; Amnesia has stood there six days longer.
+    // The home's card carries Spring run, the newer; Amnesia has stood there six days longer, and leads the chips too.
     expect(within(chips).getByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
+    const tent = within(chips)
+      .getAllByRole('button')
+      .map(chip => chip.textContent)
+      .filter(name => name?.startsWith('Tent 1'));
+    expect(tent).toEqual(['Tent 1 · Amnesia', 'Tent 1 · Spring run']);
     fireEvent.click(within(chips).getByRole('button', { name: 'Tent 1 · Spring run' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
     await waterSaved();
@@ -1292,7 +1297,8 @@ describe('the log sheet in a place where two grows stand', () => {
     // Amnesia's start moved back from the sheet's foot: the place now leads with Spring run.
     homeNow = leading(grow);
     await act(() => client.invalidateQueries({ queryKey: ['home'] }));
-    await waitFor(() => expect(within(sheet).getAllByRole('button', { name: /^Tent 1 · / })[0]).toHaveTextContent('Spring run'));
+    // The chips keep the order the grows stand in, whichever the home's card carries.
+    await waitFor(() => expect(within(sheet).getAllByRole('button', { name: /^Tent 1 · / })[0]).toHaveTextContent('Amnesia'));
 
     expect(within(sheet).getByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());

@@ -25,6 +25,8 @@ import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { growDay } from '@/screens/grow/progress';
 import { alsoIn } from '@/screens/space/movable-grows';
+import { namesInLeadOrder, targetsOf } from '@/log/targets';
+import { usePlaceGrow } from '@/log/underneath';
 import { DemoBanner, GuestLine } from './states';
 import { duePlaces, useDue } from './due';
 import { Today } from './Today';
@@ -204,12 +206,15 @@ function PlaceCard({
           ? t('start.status.maintenanceUntil', { until: clock(status.quiet.until, zone) })
           : words;
   const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
-  // A place that holds two grows names both: the card's answer carries the newer one alone.
-  const others = alsoIn(useGrows(diary && card.grow !== null).data?.items, card.spaceId, card.grow?.growId);
+  // A place that holds two grows names both, in the order every page leads with them: the card's answer carries the
+  // newer one alone.
+  const grows = useGrows(diary && card.grow !== null).data?.items;
+  const others = alsoIn(grows, card.spaceId, card.grow?.growId);
+  const lead = usePlaceGrow(others.length > 0 ? card.spaceId : null);
   const grow =
     diary && card.grow
       ? others.length > 0
-        ? [[card.grow.name, ...others.map(one => one.name)].join(', ')]
+        ? [namesInLeadOrder(targetsOf({ spaces: [card] }, grows), card.spaceId, lead).join(', ')]
         : [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null]
       : [];
 

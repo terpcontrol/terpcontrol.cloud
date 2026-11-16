@@ -44,18 +44,27 @@ const twinTarget = (grow: GrowListItem, spaceId: string): LogTarget => ({
 });
 
 /**
- * The targets of the places, in the order the home lists them: each grow growing in a place - the newer first, as
- * Start leads with it - and the space itself where none does. A second grow in a place is a chip of its own, so a
- * line written for it never lands in the other's diary.
+ * The targets of the places, in the order the home lists them: each grow growing in a place - the one standing there
+ * longest first, the order every page leads with them (`placeAim` without a chip pressed, which would move a chip under
+ * the finger) - and the space itself where none does. A second grow in a place is a chip of its own, so a line written
+ * for it never lands in the other's diary.
  */
-export const targetsOf = (home: HomeAnswer | undefined, grows?: GrowListItem[]): LogTarget[] =>
+export const targetsOf = (home: Pick<HomeAnswer, 'spaces'> | undefined, grows?: GrowListItem[]): LogTarget[] =>
   (home?.spaces ?? []).flatMap(card => {
     const lead = growTarget(card);
     if (!lead) return [spaceTarget(card)];
-    const others =
-      card.spaceId === null ? [] : alsoIn(grows, card.spaceId, lead.growId!).sort((one, other) => other.startedAt.localeCompare(one.startedAt));
-    return [lead, ...others.map(grow => twinTarget(grow, card.spaceId!))];
+    const others = card.spaceId === null ? [] : alsoIn(grows, card.spaceId, lead.growId!).map(grow => twinTarget(grow, card.spaceId!));
+    return [lead, ...others].sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
   });
+
+/**
+ * The names of the grows standing in a place, in the order every page leads with them: the place's lead first
+ * (`placeAim`), then the one standing there longest.
+ */
+export const namesInLeadOrder = (targets: LogTarget[], spaceId: string | null, lead: string | null | undefined): string[] => {
+  const here = targets.filter(target => target.growId !== null && spaceId !== null && target.standsIn === spaceId);
+  return [...here.filter(target => target.growId === lead), ...here.filter(target => target.growId !== lead)].map(target => target.label);
+};
 
 /**
  * What a place's chip says where several places are chosen between: the place,

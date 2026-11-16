@@ -1847,15 +1847,21 @@ describe('Start with several places', () => {
     expect(screen.getByRole('region', { name: 'In no room' })).toContainElement(cards[1]);
   });
 
-  it('names both grows on the card of a place that holds two', async () => {
+  /** In the order every page leads with them: the card's answer carries the newer, the mothers have stood there longer. */
+  it('names both grows on the card of a place that holds two, the one standing there longest first', async () => {
+    const here = (hoursAgo: number) => ({
+      endedAt: null,
+      placements: [{ spaceId: 'space-2', startedAt: ago(hoursAgo), endedAt: null }],
+      summary: { locations: [{ spaceId: 'space-2' }] },
+    });
     server.grows = [
-      standing('space-2', { id: 'grow-2', name: 'Autumn cuttings', endedAt: null, summary: { locations: [{ spaceId: 'space-2' }] } }),
-      standing('space-2', { id: 'grow-3', name: 'Mothers', endedAt: null, summary: { locations: [{ spaceId: 'space-2' }] } }),
+      standing('space-2', { id: 'grow-2', name: 'Autumn cuttings', ...here(9 * 24) }),
+      standing('space-2', { id: 'grow-3', name: 'Mothers', ...here(90 * 24) }),
     ];
     draw();
 
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2');
-    await waitFor(() => expect(card()).toHaveTextContent('Autumn cuttings, Mothers'));
+    await waitFor(() => expect(card()).toHaveTextContent('Mothers, Autumn cuttings'));
   });
 
   it('counts a step of the grow plan waiting for its word among what is due at a place', async () => {
