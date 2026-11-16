@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router';
 import { GROW, growShown, isAboutPlace, isPlace, usePlaceChoice } from '@/app/places';
+import { useGrows } from '@/api/grows';
 import { useHomeShape } from '@/api/home';
 import { useSession } from '@/api/session';
-import type { LogOpening } from './log-context';
+import { useLastAim, type LogOpening } from './log-context';
+import { placeAim, targetsOf } from './targets';
 
 /**
  * What the page underneath the Eintrag button is about. A page about one grow
@@ -12,8 +14,7 @@ import type { LogOpening } from './log-context';
  * (`grow=`). A page about a place aims at the place: its own page and the chosen
  * place on the pages that show it, and on Start the place Start is, where it is
  * one. A page about neither answers nothing. Where two grows stand in one place,
- * which of them a page about the place opens on is `openingTarget`'s to say;
- * Grow showed the newer and its Eintrag wrote into the older.
+ * a page about the place opens on the one it leads with (`placeAim`).
  *
  * The rail and the tab bar sit outside the routes, so they read the address
  * rather than the route's parameters. Without this the button opened on the
@@ -50,7 +51,29 @@ export const useOpeningUnderneath = (): LogOpening => {
   const only = places?.length === 1 ? places[0].spaceId : null;
   const here = usePlaceChoice(places).here;
   const current = here?.spaceId ?? null;
-  const shown = home.data ? growShown(home.data.spaces, here) : null;
+  const lead = usePlaceGrow(current);
+  // Until the grows are read the place's own rule aims the sheet, rather than the newer that Grow falls back on.
+  const shown = home.data && lead !== undefined ? growShown(home.data.spaces, here, lead) : null;
 
   return useMemo(() => openingOf(pathname, search, { current, only, shown }), [pathname, search, current, only, shown]);
+};
+
+/**
+ * The grow a page about a place leads with where two grow there - Start's picture and first card, Grow, Verlauf's
+ * days - by the rule Eintrag opened over that page aims by (`placeAim`). Undefined until the home and the grows are
+ * read, null where nothing grows in the place.
+ */
+export const usePlaceGrow = (spaceId: string | null): string | null | undefined => {
+  const { user } = useSession();
+  const home = useHomeShape(user !== null);
+  const grows = useGrows(user !== null);
+  const last = useLastAim();
+
+  return useMemo(
+    () =>
+      !home.data || grows.isPending
+        ? undefined
+        : (placeAim(targetsOf(home.data, grows.data?.items), spaceId, last, grows.data?.items)?.growId ?? null),
+    [home.data, grows.isPending, grows.data, spaceId, last],
+  );
 };

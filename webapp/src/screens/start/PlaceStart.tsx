@@ -13,6 +13,7 @@ import { useHomeShape } from '@/api/home';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
+import { usePlaceGrow } from '@/log/underneath';
 import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
 import { BackLink } from '@/ui/BackLink';
 import { useCameraCalled } from '@/ui/camera-name';
@@ -130,9 +131,11 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
   const layer = useDiaryLayer() && (me.data !== undefined || demo);
   const diary = visiting ? overview.grows.length > 0 : layer;
-  const grow = diary ? (overview.grows[0] ?? null) : null;
-  // A second grow started where one already runs: both are shown, the newer under the picture, the other as its card.
-  const also = diary ? overview.grows.slice(1) : [];
+  // A second grow started where one already runs: both are shown, the one the place leads with under the picture - the
+  // one Eintrag over it aims at - and the other as its card.
+  const lead = usePlaceGrow(spaceId);
+  const grow = diary ? (overview.grows.find(one => one.growId === lead) ?? overview.grows[0] ?? null) : null;
+  const also = diary ? overview.grows.filter(one => one !== grow) : [];
   // A refresh that fails ages the page, not the device: the place is judged as the last answer left it.
   const judged = judgedAt(now, failedAt);
   // The place lives and falls silent with the device that holds its climate, whatever else of it still reports.

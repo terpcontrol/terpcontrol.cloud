@@ -116,9 +116,14 @@ interface LogState {
   complete: (taskId: string, label: string, options?: CompleteOptions) => void;
   /** Says what a tap just did where nothing else on the screen will - an offer declined, a phase set - and offers to take it back. */
   tell: (told: Told) => void;
+  /** The chip the sheet was pointed at last, in this session: a page about a place leads with it (`placeAim`). */
+  last: string | null;
 }
 
 export const LogContext = createContext<LogState | null>(null);
+
+/** The chip the sheet was pointed at last; nothing outside the log, which a page drawn on its own is. */
+export const useLastAim = (): string | null => use(LogContext)?.last ?? null;
 
 export function useLog(): LogState {
   const state = use(LogContext);

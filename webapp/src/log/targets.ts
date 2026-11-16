@@ -100,14 +100,25 @@ const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): st
     .sort()[0] ?? '';
 
 /**
+ * What a page about a place aims at where two grows stand there - Start's picture and first card, Grow, Verlauf's
+ * days, and Eintrag opened over any of them: the grow the last line was written for (`last`, a target's key), else the
+ * one standing there longest. The home leads with the newer, and seeds sown beside flowering plants are not where most
+ * lines go.
+ */
+export const placeAim = (targets: LogTarget[], spaceId: string | null | undefined, last: string | null, grows?: GrowListItem[]): LogTarget | null => {
+  const here = targets
+    .filter(target => spaceId && target.standsIn === spaceId)
+    .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
+  return here.find(target => target.key === last) ?? here[0] ?? null;
+};
+
+/**
  * Which chip starts chosen: the grow or tent the screen underneath is about,
  * then whatever was chosen last time, then the first place where something
  * grows - an empty tent listed first is not where a line is most likely about -,
  * then the first place there is. A sheet opened over a page about one grow - its
  * own, Grow, Verlauf narrowed to it - is pointed at that grow. Opened over a
- * place where two grows stand - its page, Start - it is the one the last line
- * was written for, else the one standing there longest: the home leads with the
- * newer, and seeds sown beside flowering plants are not where most lines go.
+ * place where two grows stand - its page, Start - it is the one `placeAim` says.
  *
  * The fallback is for an opening that named nothing, and for that only. A link
  * that did name a subject and missed is a different answer and not a smaller
@@ -120,12 +131,7 @@ const standingSince = (grows: GrowListItem[] | undefined, target: LogTarget): st
  * is carried out of here as a miss, and the sheet says it and waits.
  */
 export const openingTarget = (targets: LogTarget[], opening: LogOpening, last: string | null, grows?: GrowListItem[]): Aim => {
-  const inPlace = (spaceId: string | null | undefined): LogTarget | null => {
-    const here = targets
-      .filter(target => spaceId && target.standsIn === spaceId)
-      .sort((one, other) => standingSince(grows, one).localeCompare(standingSince(grows, other)));
-    return here.find(target => target.key === last) ?? here[0] ?? null;
-  };
+  const inPlace = (spaceId: string | null | undefined): LogTarget | null => placeAim(targets, spaceId, last, grows);
   const asked = targets.find(target => opening.growId && target.growId === opening.growId) ?? inPlace(opening.spaceId);
 
   if ((opening.growId || opening.spaceId) && (asked !== null || !opening.underneath)) return { target: asked, missed: asked === null };

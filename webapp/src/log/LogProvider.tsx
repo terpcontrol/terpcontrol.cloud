@@ -272,6 +272,7 @@ export function LogProvider({ children }: { children: ReactNode }) {
 
   const sheetOpen = opening !== null;
   const state = {
+    last: lastTarget,
     openSheet: useCallback((next: LogOpening = {}) => {
       setDetails(null);
       setOpening(next);

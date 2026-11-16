@@ -664,6 +664,22 @@ describe('Start of one place with a camera and a grow', () => {
     await waitFor(() => expect(within(today).getByRole('listitem')).toHaveTextContent(/^WaterSpring run · due since/));
   });
 
+  /** The picture named the grow started yesterday while Eintrag over the same page opened on the one there for weeks. */
+  it('leads with the grow standing there longest, which Eintrag over the place aims at too', async () => {
+    const gelato = growOf({ growId: 'grow-2', name: 'Gelato', dayNumber: 1, stage: 'seedling', stageWeek: 1, stagesReached: ['seedling'] });
+    onePlace(overviewOf({ cameras: [camera()], grows: [gelato, growOf()] }), true);
+    const here = (hoursAgo: number) => ({
+      endedAt: null,
+      placements: [{ spaceId: 'space-1', startedAt: ago(hoursAgo), endedAt: null }],
+      summary: { locations: [{ spaceId: 'space-1' }] },
+    });
+    server.grows = [standing('space-1', { id: 'grow-2', name: 'Gelato', ...here(20) }), standing('space-1', here(28 * 24))];
+    draw();
+
+    expect(await screen.findByRole('link', { name: /^Gelato · Day 1/ })).toHaveAttribute('href', '/grows/grow-2');
+    expect(screen.queryByRole('link', { name: /^Spring run · Day 29/ })).not.toBeInTheDocument();
+  });
+
   it('keeps what only some places measure in one line under the picture, each the way to its own curve', async () => {
     const more = [
       { metric: 'leafTemperature', value: 24.2, measuredAt: ago(0.3), state: 'live' },

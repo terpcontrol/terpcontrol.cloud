@@ -4,6 +4,7 @@ import { Link, Navigate, useParams } from 'react-router';
 import { useGrowsEverIn } from '@/api/grows';
 import { useSpaceOverview } from '@/api/spaces';
 import { GROW, ALL_GROWS, growShown, useCurrentPlace } from '@/app/places';
+import { usePlaceGrow } from '@/log/underneath';
 import { PlaceEnded, Visited, VisitingTitle } from '@/screens/place/PlaceTitle';
 import { LoadFailed, NoLongerHere, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
@@ -27,10 +28,12 @@ export function CurrentGrow() {
   const { t } = useTranslation();
   const { tab: segment } = useParams();
   const { home, here, visiting, ended, stray } = useCurrentPlace(true);
+  const lead = usePlaceGrow(here?.spaceId ?? null);
   const tab = growTabOf(segment);
 
   if (tab === null) return <Navigate to={GROW} replace />;
-  if (home.isPending || ended === undefined) {
+  // Which of two grows a place leads with is known once the grows are read.
+  if (home.isPending || ended === undefined || (here?.grow && lead === undefined)) {
     return (
       <NoGrow>
         <Waiting lines={4} />
@@ -56,7 +59,7 @@ export function CurrentGrow() {
     );
   }
 
-  const growId = growShown(home.data.spaces, here);
+  const growId = growShown(home.data.spaces, here, lead);
   if (growId) return <GrowScreen key={growId} growId={growId} tab={tab} current />;
 
   return (

@@ -10,7 +10,7 @@ import { keepDraft } from '@/log/draft';
 import { LogProvider } from '@/log/LogProvider';
 import { useLog, type LogOpening } from '@/log/log-context';
 import { openingTarget } from '@/log/targets';
-import { useOpeningUnderneath } from '@/log/underneath';
+import { useOpeningUnderneath, usePlaceGrow } from '@/log/underneath';
 import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
@@ -1305,15 +1305,16 @@ describe('the log sheet in a place where two grows stand', () => {
 
   /**
    * Grow showed Spring run, the newer, and its Eintrag preselected Amnesia, the one standing there longest: a note
-   * written from the Grow tab landed in the other grow's diary. A page about one grow aims at that grow.
+   * written from the Grow tab landed in the other grow's diary. A page about one grow aims at that grow, and Grow shows
+   * the one its place leads with.
    */
-  it('writes from Grow and its tabs to the grow Grow shows, not the one standing there longest', async () => {
+  it('writes from Grow and its tabs to the grow Grow shows, the one the place leads with', async () => {
     const sheet = await openOver('/grow/plants');
 
-    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Water' })).toBeEnabled());
     await waterSaved();
-    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-1' }));
+    expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-2' }));
   });
 
   it('writes from Verlauf narrowed to a grow to that grow', async () => {
@@ -1325,6 +1326,25 @@ describe('the log sheet in a place where two grows stand', () => {
     expect(api.post).toHaveBeenCalledWith('/entries', expect.objectContaining({ growId: 'grow-1' }));
   });
 
+  it('leads the place with the grow the last line was written for, in the pages about it as in the sheet', async () => {
+    function Lead() {
+      return <output data-testid="lead">{usePlaceGrow('space-1')}</output>;
+    }
+    drawAt(
+      <LogProvider>
+        <Bar />
+        <Lead />
+      </LogProvider>,
+      { at: '/grow' },
+    );
+    await waitFor(() => expect(screen.getByTestId('lead')).toHaveTextContent('grow-2'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Log over space-1' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Log' });
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' }));
+
+    expect(screen.getByTestId('lead')).toHaveTextContent('grow-1');
+  });
+
   it('records a phase from Grow on the grow Grow shows', async () => {
     vi.stubGlobal(
       'fetch',
@@ -1333,12 +1353,12 @@ describe('the log sheet in a place where two grows stand', () => {
     vi.mocked(api.post).mockResolvedValue({ id: 'phase-new' } as never);
     const sheet = await openOver('/grow');
 
-    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Spring run' })).toHaveAttribute('aria-pressed', 'true');
+    expect(await within(sheet).findByRole('button', { name: 'Tent 1 · Amnesia' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(await within(sheet).findByRole('button', { name: /^Phase/ }));
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Phase' })).getByRole('button', { name: /^Save/ }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-1/phases', expect.anything()));
-    expect(api.post).not.toHaveBeenCalledWith('/grows/grow-2/phases', expect.anything());
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/grows/grow-2/phases', expect.anything()));
+    expect(api.post).not.toHaveBeenCalledWith('/grows/grow-1/phases', expect.anything());
   });
 
   it('wraps the chips into rows rather than scrolling them sideways', async () => {
