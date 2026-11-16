@@ -399,7 +399,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // "Sämling · mit Licht" (Chris, 2026-11-16): figures, name and thresholds - the night from before alone held the
     // dark's thresholds over a day with light again.
     const seedling =
-      intent.kind === 'fields' && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && climateBefore(device) === null
+      intent.kind === 'fields' && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && device.climateBeforeSpell === null
         ? presetConfiguration(SEEDLING.stage, SEEDLING.preset, unseeded, device.type === 'fridge' || device.state?.hardware?.co2 === 'on')
         : null;
     const wanted = seedling ? mergeSections(unseeded, seedling) : unseeded;
@@ -430,7 +430,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // checked, or a document stored before any of this, is put right here.
     const { configuration, dropped } = withFiguresHeld(device.type, timed, before);
     if (dropped.length > 0) logger.warn(`Device ${deviceId}: not sent as stored, as its firmware would misread them: ${dropped.join(', ')}`);
-    const named = namedAfter(intent, before, configuration, appliedOf(intent, before, held), device, seedling ? SEEDLING : null);
+    const named = namedAfter(intent, before, configuration, appliedOf(intent, before, held), device, seedling ? SEEDLING : null, mode?.base);
 
     await this.devices.updateOne(
       { id: deviceId },
@@ -771,7 +771,9 @@ const appliedOf = (
 
 /** The work modes a spell runs in: germination in the dark and drying, each ended by a climate or by its own button. */
 const SPELLS: readonly unknown[] = ['breed', 'dry'];
-const inSpell = (configuration: DeviceConfiguration | null): boolean => SPELLS.includes(configuration?.workmode);
+/** In a spell: germinating or drying, or switched off from germination, which the device goes back to when switched on. */
+const inSpell = (configuration: DeviceConfiguration | null, base: string | null | undefined): boolean =>
+  SPELLS.includes(configuration?.workmode) || (configuration?.workmode === 'off' && base === 'breed');
 
 /**
  * The name a write leaves the device with (`appliedOf`), the one a spell puts aside, and the climate the place's
@@ -787,20 +789,23 @@ const namedAfter = (
   before: DeviceConfiguration | null,
   after: DeviceConfiguration,
   named: { appliedClimate?: AppliedClimate | null },
-  device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell'>,
+  device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell' | 'baseWorkmode'>,
   seedling: AppliedClimate | null,
+  base: string | null | undefined,
 ): {
   set: { appliedClimate?: AppliedClimate | null; climateBeforeSpell?: AppliedClimate | null };
   forget: boolean;
   endsOn: AppliedClimate | null | undefined;
 } => {
-  const was = inSpell(before);
-  const is = inSpell(after);
+  const was = inSpell(before, device.baseWorkmode);
+  const is = inSpell(after, base ?? device.baseWorkmode);
   if (!was && is) return { set: { ...named, climateBeforeSpell: device.appliedClimate ?? null }, forget: false, endsOn: undefined };
   if (was && !is && intent.kind === 'fields') {
     const endsOn = seedling ?? climateBefore(device);
-    // Switched off rather than ended, a germination with no name before keeps its thresholds, as it always did.
-    return { set: { appliedClimate: endsOn }, forget: true, endsOn: endsOn ?? (before?.workmode === 'dry' ? null : undefined) };
+    // Ended on figures nobody named, the place holds no stage's thresholds until a climate is written; switched off
+    // rather than ended, a germination keeps its own, as it always did.
+    const back = before?.workmode === 'dry' || SCHEDULED_MODES.includes(after.workmode as string);
+    return { set: { appliedClimate: endsOn }, forget: true, endsOn: endsOn ?? (back ? null : undefined) };
   }
   if (was && !is) return { set: named, forget: true, endsOn: undefined };
   return { set: named, forget: was && named.appliedClimate === null, endsOn: undefined };

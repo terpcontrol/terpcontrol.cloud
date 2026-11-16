@@ -100,10 +100,11 @@ poller and timelapses in [terp-cam.md](terp-cam.md); the stored data in [data.md
   "Keimung beenden", "Trocknung beenden" - ends on the climate it came from: the name the device had when the spell
   began is kept with the figures (`climateBeforeSpell`) and comes back with them, and the bands follow it ("Veg"
   before a germination is "Veg" after it; `namedAfter`; a spell begun at the device's own menu kept nothing and ends
-  on the name it still carries, `climateBefore`). **Where no climate had a name before it**, a germination ends on
-  "Sämling · mit Licht" - its figures merged in by `store`, its name and its bands (Chris, 2026-11-16, question 81) -
-  and a drying spell gives the figures back and drops the stage bands until a climate is written (the session's
-  analogue), as does one whose figures were changed by hand while it ran. The device's control says what ending puts
+  on the name it still carries, `climateBefore`). **Where no climate had a name before it**, a germination begun
+  through the cloud ends on "Sämling · mit Licht" - its figures merged in by `store`, its name and its bands (Chris,
+  2026-11-16, question 81) - and a drying spell gives the figures back and drops the stage bands until a climate is
+  written (the session's analogue); so does either spell whose figures were changed by hand while it ran, which keeps
+  no name any more. A germination switched off and on again is still the same spell (`inSpell` reads the base mode). The device's control says what ending puts
   it on (`control.endsOn`, `spellEndsOn`), and the end sheet says it before the tap. A stage only recorded, a figure
   changed by hand and its undo, settings changed at the device's own menu, a correction and a withdrawal move none -
   but a germination or a drying

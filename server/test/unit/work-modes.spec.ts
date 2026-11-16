@@ -43,6 +43,12 @@ const device = (fields: Partial<StoredDevice> = {}) =>
 
 const stored = async () => (await db.devices.findOne({ id: DEVICE }).lean<StoredDevice>())!;
 
+/**
+ * A device on a named climate: ending a germination by itself gives back the night from before only where a climate
+ * had a name; where none had, it ends on "Sämling · mit Licht" (`v1-stage-alarms.spec`).
+ */
+const NAMED = { appliedClimate: { stage: 'vegetative' as const, preset: null } };
+
 beforeEach(async () => {
   await db.reset();
   ({ published, configuration, ingest } = deviceStackOn(db));
@@ -298,7 +304,7 @@ describe('a setting changed by name', () => {
    * left every night after it at 24 °C.
    */
   it('puts the night back that germination wrote over, when the device goes back to another mode by itself', async () => {
-    await device();
+    await device(NAMED);
 
     await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
     const germinating = await stored();
@@ -827,7 +833,7 @@ describe('a humidifier while the device germinates', () => {
   });
 
   it('writes the humidity germination is saved with, and puts the night from before back afterwards', async () => {
-    await device();
+    await device(NAMED);
     // The page prefills germination's 75 % with its chip; the save writes it as the night's.
     await configuration.replace(DEVICE, fridgeDocument({ night: { temperature: 24, humidity: 75 } }), OWNER, false, true);
     expect((await stored()).configuration).toMatchObject({ workmode: 'breed', night: { temperature: 24, humidity: 75 } });
@@ -842,7 +848,7 @@ describe('a humidifier while the device germinates', () => {
 
   it('brings germination its own humidity however it begins, and gives the night from before back however it ends', async () => {
     // The operating mode by name names no humidity: germination brings its 75 % all the same.
-    await device({ configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } }) });
+    await device({ ...NAMED, configuration: fridgeDocument({ day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } }) });
     await configuration.configure(DEVICE, { mode: 'germination' }, OWNER);
     const germinating = await stored();
     // The temperature stays the night's until the grower sets another; the humidity is germination's.

@@ -1103,9 +1103,10 @@ otherwise - where it is described now in brackets)
 87. **A plan started where two grows stand moves the one begun last**, as the claim's step and a preset applied to a
     place do (question 76); started where one stands, it keeps that one while it stands there, also once a second is
     begun beside it.
-88. **A drying spell whose figures were changed by hand while it ran** keeps no name, so "Trocknung beenden" gives
-    back the figures from before and drops the stage bands, as for a spell begun from no name; before, the drying
-    room's bands stayed.
+88. **A spell whose figures were changed by hand while it ran** keeps no name, so "Keimung beenden" and "Trocknung
+    beenden" give back the figures from before and drop the stage bands - not "Sämling · mit Licht", which would write
+    over a day the grower may have set since; before, the spell's bands stayed. A germination switched off and on
+    again is the same spell and keeps what it had kept.
 89. **The grow a place leads with follows the chip Eintrag was last pointed at in the session**, a chip pressed
     without writing included (the sheet's own memory, question 78), else the one standing there longest: Start's
     picture and first card, Grow and the place's Verlauf now show the longer-standing grow where they showed the

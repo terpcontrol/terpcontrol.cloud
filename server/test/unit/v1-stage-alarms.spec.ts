@@ -733,6 +733,22 @@ describe('every climate written moves the place´s bands', () => {
     expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: { stage: 'seedling', preset: null } });
   });
 
+  /** Its figures the grower's own since, it ends on the night from before, named nothing, with no stage's bands. */
+  it('ends a germination changed by hand on the figures from before, and drops the stage bands', async () => {
+    await steuerung('germination');
+    await configuration.replace(DEVICE, { ...(await document()), night: { temperature: 25, humidity: 75 } }, OWNER);
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.configure(DEVICE, { control: true }, OWNER);
+    const germinating = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(spellEndsOn(controlOf('controller', germinating.configuration, germinating.baseWorkmode), germinating)).toEqual({ endsOn: null });
+
+    await configuration.configure(DEVICE, { mode: 'standard' }, OWNER);
+
+    expect(await bands()).toEqual([undefined, undefined, undefined]);
+    expect(await document()).toMatchObject({ day: DOCUMENT.day, night: DOCUMENT.night, workmode: 'small' });
+    expect(await db.devices.findOne({ id: DEVICE }).lean()).toMatchObject({ appliedClimate: null });
+  });
+
   it('ends a drying spell begun from no named climate on the figures from before, and drops the stage bands', async () => {
     await steuerung('drying');
     expect((await bands())[1]).toBe(68);
