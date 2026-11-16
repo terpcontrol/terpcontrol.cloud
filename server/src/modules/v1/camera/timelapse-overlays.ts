@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { MediaAspect, MediaOverlays, MediaQuality, SeriesPoint } from '@fg2/shared-types/v1';
-import { VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { growDayAt, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
 import { TimelapseContext } from './timelapse-context.service';
 
 /**
@@ -39,8 +39,6 @@ export const TEXT_FAMILY = 'Albert Sans, DejaVu Sans, sans-serif';
 
 /** How far either side of a diary line its caption is shown. */
 const CAPTION_WINDOW_MS = 30 * 60 * 1000;
-
-const MS_IN_A_DAY = 24 * 60 * 60 * 1000;
 
 /** The long side of a film, by the resolution it was asked for. */
 const ASPECT_LONG_SIDE: Readonly<Record<MediaQuality, number>> = { sd: 1280, hd: 1920 };
@@ -125,12 +123,11 @@ const shortSide = (frame: OverlayFrame): number => Math.min(frame.width, frame.h
 /** The word in front of the day number, in the language the account was last used in. */
 const DAY_WORD: Record<string, string> = { de: 'Tag', en: 'Day' };
 
-/** "Day 34", which is how a grower says where a grow is. */
+/** "Day 34", which is how a grower says where a grow is: counted as every screen counts it (`growDayAt`). */
 const dayBadge = (frame: OverlayFrame, context: TimelapseContext): string | null => {
-  if (context.growStartedAt === null) return null;
+  if (context.growOrigin === null || frame.at < context.growOrigin) return null;
 
-  const day = Math.floor((frame.at.getTime() - context.growStartedAt.getTime()) / MS_IN_A_DAY) + 1;
-  if (day < 1) return null;
+  const day = growDayAt(context.growOrigin, frame.at, context.zone ?? null);
 
   const size = Math.round(shortSide(frame) / 22);
   const pad = Math.round(shortSide(frame) / 36);

@@ -86,7 +86,7 @@ const build = (): void => {
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
-  const context = { contextFor: async () => ({ temperature: [], humidity: [], light, captions: [], growStartedAt: null }) };
+  const context = { contextFor: async () => ({ temperature: [], humidity: [], light, captions: [], growOrigin: null }) };
   const builder = new TimelapseService(cameras, media, entitlement, context as never);
   builder.renderQueued = () => undefined;
 
@@ -406,6 +406,29 @@ describe('a film of a whole grow', () => {
 
     expect((await db.grows.findOne({ id: 'grow-1' }).lean())?.filmMediaId).toBe('film-1');
   });
+
+  /** A grow given its first phase a month after it started read "Tag 1" in its film, and "Tag 31" on every screen. */
+  it('counts the days from where every screen counts them: the earliest of the grow’s start and its phases', async () => {
+    const startedAt = new Date('2026-08-01T00:00:00.000Z');
+    const phase = (stage: string, at: string) => ({ id: `phase-${stage}`, stage, startedAt: new Date(at), plantIds: null, source: 'human' });
+    await db.grows.create({
+      id: 'grow-1',
+      ownerId: OWNER,
+      name: 'Autumn',
+      type: 'photoperiod',
+      slug: 'autumn',
+      startedAt,
+      phases: [phase('flowering', '2026-08-31T00:00:00.000Z'), phase('seedling', '2026-07-29T00:00:00.000Z')],
+      placements: [{ id: 'placement-1', spaceId: TENT, startedAt, endedAt: null, plantIds: null }],
+    });
+    const context = new TimelapseContextService(db.grows, db.entries, db.devices, null);
+    const span = { startsAt: new Date('2026-08-30T00:00:00.000Z'), endsAt: new Date('2026-09-01T00:00:00.000Z') };
+    const wants = { dayCounter: true, climate: false, captions: false, light: false };
+
+    expect((await context.contextFor({ spaceId: TENT, deviceId: null }, span, wants)).growOrigin).toEqual(new Date('2026-07-29T00:00:00.000Z'));
+    await db.grows.updateOne({ id: 'grow-1' }, { $pull: { phases: { stage: 'seedling' } } });
+    expect((await context.contextFor({ spaceId: TENT, deviceId: null }, span, wants)).growOrigin).toEqual(startedAt);
+  });
 });
 
 describe('what the builder makes of it', () => {
@@ -448,7 +471,7 @@ describe('what the builder makes of it', () => {
   it('draws two cameras side by side with the overlays on top, at the size of the film', async () => {
     const size = sizeFor('9_16', 'sd');
     const context = {
-      growStartedAt: new Date('2026-08-01T00:00:00.000Z'),
+      growOrigin: new Date('2026-08-01T00:00:00.000Z'),
       temperature: [
         { measuredAt: '2026-08-20T00:00:00.000Z', value: 24.5 },
         { measuredAt: '2026-08-20T12:00:00.000Z', value: 27.5 },
@@ -489,7 +512,7 @@ describe('what the builder makes of it', () => {
       { measuredAt: '2026-08-20T12:00:00.000Z', value: 24.5 },
       { measuredAt: '2026-08-20T18:00:00.000Z', value: 27.5 },
     ];
-    const context = { growStartedAt: null, temperature: readings, humidity: readings, light: [], captions: [] };
+    const context = { growOrigin: null, temperature: readings, humidity: readings, light: [], captions: [] };
 
     const layer = overlayLayer(
       { at: new Date('2026-08-20T18:00:00.000Z'), width: 1080, height: 1920 },
@@ -503,7 +526,7 @@ describe('what the builder makes of it', () => {
   });
 
   it('counts the days in the language the owner uses the app in', () => {
-    const context = { growStartedAt: new Date('2026-08-01T00:00:00.000Z'), temperature: [], humidity: [], light: [], captions: [] };
+    const context = { growOrigin: new Date('2026-08-01T00:00:00.000Z'), temperature: [], humidity: [], light: [], captions: [] };
     const frame = { at: new Date('2026-08-04T12:00:00.000Z'), width: 1280, height: 720 };
     const only = { dayCounter: true, climate: false, entries: false };
 
@@ -511,10 +534,26 @@ describe('what the builder makes of it', () => {
     expect(overlayLayer(frame, only, context)).toContain('>Day 4</text>');
   });
 
+  it('changes the day at the owner’s midnight, as the screens do, and draws none before the grow began', () => {
+    // Begun at 22:00 in Berlin: the next morning is day 2, though not 24 hours have passed.
+    const context = {
+      growOrigin: new Date('2026-08-01T20:00:00.000Z'),
+      zone: 'Europe/Berlin',
+      temperature: [],
+      humidity: [],
+      light: [],
+      captions: [],
+    };
+    const only = { dayCounter: true, climate: false, entries: false };
+
+    expect(overlayLayer({ at: new Date('2026-08-02T06:00:00.000Z'), width: 1280, height: 720 }, only, context)).toContain('>Day 2</text>');
+    expect(overlayLayer({ at: new Date('2026-08-01T19:00:00.000Z'), width: 1280, height: 720 }, only, context)).toBeNull();
+  });
+
   /** A German owner's film said "25.6°C" beside "Tag 29": the figures are the app's, in the owner's language. */
   it('writes the climate´s figures as the app writes them for the owner: its decimals, its decimal mark, a space before the unit', () => {
     const readings = (values: number[]) => values.map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
-    const context = { growStartedAt: null, temperature: readings([24.04, 25.63]), humidity: readings([58.4, 59.2]), light: [], captions: [] };
+    const context = { growOrigin: null, temperature: readings([24.04, 25.63]), humidity: readings([58.4, 59.2]), light: [], captions: [] };
     const frame = { at: new Date('2026-08-20T01:00:00.000Z'), width: 1280, height: 720 };
     const climate = { dayCounter: false, climate: true, entries: false };
 
@@ -528,7 +567,7 @@ describe('what the builder makes of it', () => {
     // A steep last step, which a mitred join drew past the box's edge.
     const steep = [20, 20, 20, 30, 20].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
     const context = {
-      growStartedAt: null,
+      growOrigin: null,
       temperature: steep,
       humidity: steep,
       light: [],
@@ -562,7 +601,7 @@ describe('what the builder makes of it', () => {
   it('gives a caption the width it needs, up to the frame´s margins, on a portrait film as on a landscape one', () => {
     const readings = [20, 21].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
     const caption = (text: string) => ({
-      growStartedAt: null,
+      growOrigin: null,
       temperature: readings,
       humidity: readings,
       light: [],
@@ -615,7 +654,7 @@ describe('what the builder makes of it', () => {
       overlayLayer(
         frame,
         { dayCounter: false, climate: false, entries: true },
-        { growStartedAt: null, temperature: [], humidity: [], light: [], captions },
+        { growOrigin: null, temperature: [], humidity: [], light: [], captions },
       ),
     ).toContain('>Spitzen gelb.</text>');
   });
@@ -661,7 +700,7 @@ describe('what the builder makes of it', () => {
     const layer = overlayLayer(
       { at: new Date(at(200)), width: 1280, height: 720 },
       { dayCounter: false, climate: true, entries: false },
-      { growStartedAt: null, temperature: points, humidity: [], light: [], captions: [] },
+      { growOrigin: null, temperature: points, humidity: [], light: [], captions: [] },
     )!;
     expect([.../<path d="([^"]*)"/.exec(layer)![1].matchAll(/M/g)]).toHaveLength(2);
   });
@@ -677,7 +716,7 @@ describe('what the builder makes of it', () => {
     const layer = overlayLayer(
       frame,
       { dayCounter: false, climate: true, entries: false },
-      { growStartedAt: null, temperature: points, humidity: [], light: [], captions: [] },
+      { growOrigin: null, temperature: points, humidity: [], light: [], captions: [] },
     )!;
 
     const [box] = [...layer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({ left: Number(found[1]), width: Number(found[2]) }));
@@ -687,7 +726,7 @@ describe('what the builder makes of it', () => {
   });
 
   it('draws nothing where every overlay that was asked for has nothing to say', () => {
-    const empty = { growStartedAt: null, temperature: [], humidity: [], light: [], captions: [] };
+    const empty = { growOrigin: null, temperature: [], humidity: [], light: [], captions: [] };
 
     expect(overlayLayer({ at: new Date(), width: 1280, height: 720 }, { dayCounter: true, climate: true, entries: true }, empty)).toBeNull();
   });

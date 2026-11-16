@@ -407,6 +407,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
         })),
         // The day counter's word and the climate's figures are written as the owner reads the app.
         language: overlays.dayCounter || overlays.climate ? await this.cameras.languageOf(camera) : undefined,
+        zone: overlays.dayCounter ? await this.cameras.zoneOf(camera) : null,
       };
 
       const { all, frames, frameInterval } = await this.framesFor(
