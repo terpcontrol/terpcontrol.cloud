@@ -59,7 +59,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   change can drop the session. Kept in NVS, reported as `webcam_pwd`; a camera that refuses keeps the default and
   pairs anyway, and is secured later from the idle loop (`terpCamNeedsSecuring`, one attempt even on a zero budget).
 - "disconnect cam" asks, ends a running relay and sends `restore_factory.cgi` over a checked session for 4 s (the
-  camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing. Best
+  camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing.
+  Where that finds nothing - always for a streaming camera - the reset goes over the camera's setup AP instead
+  (below). Best
   effort: `forgetTerpCam` erases every camera key (Chris, 2026-09-30) and reports the `webcam_*` keys as `none` either
   way - also with no `webcam_did` stored, since keys left by an interrupted pairing crashed the next one (PR #123).
 
@@ -81,8 +83,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   with "the device has not yet found its camera on its network".
 - Through the tunnel the read takes as long as the keyframe takes to cross MQTT; the keyframe is the first thing
   ffmpeg keeps (`-skip_frame nokey`), and the P-frames before it are dropped unread by the decoder.
-- Disconnecting can switch the stream off only where the camera's setup AP is in reach; a camera on the home Wi-Fi
-  takes no command and has to be reset by hand.
+- Disconnecting resets the camera over its setup AP, because on the home Wi-Fi it takes no command: a power cycle
+  puts it back there (measured on a development camera, 2026-11-25), so the device asks for one and waits up to
+  3 minutes for the AP. Without it the user is told to reset the camera by hand.
 
 ## Finding the camera on the LAN
 - `realdeviceid` (`webcam_did`) is the identity; `webcam_uid` and `webcam_ip` are hints. Discovery asks the cached

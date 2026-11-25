@@ -1329,31 +1329,45 @@ static std::string terpCamApSsid(const std::string& did) {
   return digits.empty() ? std::string() : TERP_CAM_AP_PREFIX + digits;
 }
 
-// Undo enableTerpCamStream before the camera is forgotten, so it is left as it
-// came. Possible only where the camera is on its setup AP - it falls back to it
-// when it loses the home Wi-Fi - since on the home Wi-Fi it takes no command.
+// Reset the camera over its setup AP: switch its stream off (undoing
+// enableTerpCamStream) and restore its factory settings, so it is left as it
+// came. On the home Wi-Fi a streaming camera takes no command at all, and one
+// the P2P reset cannot reach is no better off; but it is back on its setup AP
+// after a power cycle, so this looks for that AP for up to `wait_ms` - zero
+// means one scan. Only the camera that names itself `did` there is reset.
 // Leaves the device on its home Wi-Fi either way.
-static bool disableTerpCamStream(const std::string& did) {
+static bool resetTerpCamOverAp(const std::string& did, uint32_t wait_ms) {
   const std::string ssid = terpCamApSsid(did);
   if(ssid.empty()) return false;
   bool visible = false;
-  for(const auto& network : scanWifiNetworks()) visible = visible || network == ssid;
+  const uint32_t until = millis() + wait_ms;
+  for(;;) {
+    for(const auto& network : scanWifiNetworks()) visible = visible || network == ssid;
+    if(visible || (int32_t)(until - millis()) <= 0) break;
+    delayWithWatchdog(3000);
+  }
   if(!visible || !connectToWifi(ssid, "")) {
     if(!WiFi.isConnected()) connectToWifi(primary_ssid, primary_password);
     return false;
   }
-  const std::string pwd = sanitizeSettingString(fg::settings().getStr(fg::TERP_CAM_PWD_NVS_KEY));
+  std::string status;
+  // It only answers once it has finished booting into the AP.
+  for(int i = 0; i < 10 && status.empty(); i++) {
+    if(!httpGet((std::string(TERP_CAM_AP_BASE) + "/get_status.cgi?" + TERP_CAM_AUTH).c_str(), &status)) status.clear();
+    if(status.empty()) delayWithWatchdog(2000);
+  }
   bool ok = false;
-  for(const std::string& auth : { "loginuse=admin&loginpas=" + pwd, std::string(TERP_CAM_AUTH) }) {
-    if(ok) break;
-    ok = httpGet((std::string(TERP_CAM_AP_BASE) + "/set_users.cgi?" + auth +
-                  "&pwd_change_realtime=1&ExUser=admin&ExPwd=" + fg::TERP_CAM_DEFAULT_PASSWORD + "&ExUserSwitch=0&").c_str());
-    if(ok) httpGet((std::string(TERP_CAM_AP_BASE) + "/restore_factory.cgi?" + auth + "&").c_str());
+  if(sanitizeSettingString(parseCamVar(status, "realdeviceid")) == did) {
+    const std::string pwd = sanitizeSettingString(fg::settings().getStr(fg::TERP_CAM_PWD_NVS_KEY));
+    for(const std::string& auth : { std::string(TERP_CAM_AUTH), "loginuse=admin&loginpas=" + pwd }) {
+      if(ok) break;
+      ok = httpGet((std::string(TERP_CAM_AP_BASE) + "/set_users.cgi?" + auth +
+                    "&pwd_change_realtime=1&ExUser=admin&ExPwd=" + fg::TERP_CAM_DEFAULT_PASSWORD + "&ExUserSwitch=0&").c_str());
+      // The camera reboots on it, often before it answers.
+      if(ok) httpGet((std::string(TERP_CAM_AP_BASE) + "/restore_factory.cgi?" + auth + "&").c_str());
+    }
   }
   connectToWifi(primary_ssid, primary_password);
-  if(smart_socket_cloud_handle != nullptr) {
-    smart_socket_cloud_handle->log(ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", ok ? 0 : 1);
-  }
   return ok;
 }
 
@@ -1618,24 +1632,45 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       // can be paired again. Without this it stays joined to a network it is no
       // longer paired with, and the only way back is the physical reset button.
       //
-      // Best effort on purpose: a camera that is powered off or out of range
-      // must not make disconnecting impossible, so the module forgets it either
-      // way. The reset is also what makes the *next* pairing work — after it the
-      // camera answers `loginpas=888888` again.
-      // A camera that serves its own stream takes commands only on its setup AP.
+      // Over the LAN where the camera takes it (P2P), else over its setup AP,
+      // where it is after a power cycle - which the user is offered when it is
+      // not there yet. Best effort on purpose: a camera that is powered off or
+      // out of range must not make disconnecting impossible, so the module
+      // forgets it either way.
+      const std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
       ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
       ui_handle->loop();
-      const bool reset_ok = fg::terpCamStreams()
-        ? disableTerpCamStream(sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY)))
-        : fg::terpCamFactoryReset(smart_socket_cloud_handle);
+      // The P2P reset logs its own outcome; the one over the AP is logged once, at the end.
+      const bool reset_over_lan = !fg::terpCamStreams() && fg::terpCamFactoryReset(smart_socket_cloud_handle);
+      const bool reset_ok = reset_over_lan || resetTerpCamOverAp(did, 0);
       ui_handle->pop();
 
-      forgetTerpCam();
+      auto finish = [reset_over_lan](bool ok) {
+        if(!reset_over_lan && smart_socket_cloud_handle != nullptr) {
+          smart_socket_cloud_handle->log(ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", ok ? 0 : 1);
+        }
+        forgetTerpCam();
+        ui_handle->push<TextDisplay>(ok ? "cam disconnected\nand reset"
+                                        : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
+                                     1, []() { ui_handle->pop(); });
+      };
+      if(reset_ok) {
+        finish(true);
+        return;
+      }
 
-      ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
-                                            : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
-                                   1, []() {
+      // The title is one line; the camera boots into its AP within about a minute.
+      std::vector<std::string> wait_options = {"skip", "plugged in again"};
+      ui_handle->push<fg::SelectInput>("unplug cam 10s", 1, wait_options, [did, finish](uint32_t choice) {
         ui_handle->pop();
+        bool ok = false;
+        if(choice == 1) {
+          ui_handle->push<TextDisplay>("waiting for\ncam...", 0, [](){});
+          ui_handle->loop();
+          ok = resetTerpCamOverAp(did, 180000);
+          ui_handle->pop();
+        }
+        finish(ok);
       });
     });
   });

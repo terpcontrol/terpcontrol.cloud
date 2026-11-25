@@ -1185,9 +1185,13 @@ Budget, ffmpeg lanes, poller and storage are the RTSP camera's; one tunnel conne
    from the idle loop and sweeps three addresses per pass when it no longer answers. Only a stream whose MAC is the
    stored one counts; without a stored MAC, only a sweep that finds exactly one stream. A new address is reported as
    `webcam_ip`; `message-terp-cam-not-found` and `message-terp-cam-found` are logged once per loss and recovery.
-3. **Disconnect** (`disableTerpCamStream`): on its home Wi-Fi the camera takes no command, so the device switches the
-   stream off (`ExPwd=888888&ExUserSwitch=0`) and sends `restore_factory.cgi` only where the camera's setup AP
-   `@IPC-<digits of its id>` is in reach; otherwise the user is told to reset it by hand.
+3. **Disconnect** (`resetTerpCamOverAp`, `wifi.cpp`): on its home Wi-Fi the camera takes no command, but after a power
+   cycle it is back on its setup AP `@IPC-<digits of its id>`. The device scans for that AP once; when it is not
+   there it asks the user to unplug the camera for 10 s and plug it in again, and looks for the AP for up to 3
+   minutes. On it, and only when `get_status.cgi` names the paired camera, it switches the stream off
+   (`ExPwd=888888&ExUserSwitch=0`) and sends `restore_factory.cgi`; it then rejoins its own Wi-Fi. A camera paired
+   the P2P way gets the P2P reset first and the AP way when that finds nothing. One `message-cam-reset:ok` or
+   `:no-response` per disconnect.
 
 A device in this mode refuses `cam_relay`.
 
