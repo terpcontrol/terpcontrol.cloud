@@ -467,7 +467,8 @@ describe('a test of a stream´s address', () => {
     const refused = await owner.client.post('/v1/cameras/test-captures').send({ spaceId: tent, url: 'quatsch' }).expect(422);
 
     expect(refused.body).toMatchObject({ code: 'not_a_stream_address', errors: [expect.objectContaining({ field: 'url' })] });
-    expect(ffmpegCalls()).toEqual([]);
+    // Only this address: the poller may read an earlier test's camera at any moment.
+    expect(ffmpegCalls().some(args => args.join(' ').includes('quatsch'))).toBe(false);
   });
 
   it('says an address that does not answer is a failed test, what kind of failure, and what the stream said', async () => {
@@ -492,7 +493,7 @@ describe('a test of a stream´s address', () => {
     const read = await reader.client.post('/v1/cameras/test-captures').send(body).expect(403);
     expect(read.body.code).toBe('insufficient_access');
     expect((await stranger.client.post('/v1/cameras/test-captures').send(body).expect(404)).body.code).toBe('space_not_found');
-    expect(ffmpegCalls()).toEqual([]);
+    expect(ffmpegCalls().some(args => args.join(' ').includes('not-theirs'))).toBe(false);
 
     const started = (await owner.client.post('/v1/cameras/test-captures').send(body).expect(202)).body;
     expect((await reader.client.get(`/v1/cameras/test-captures/${started.id}`).expect(404)).body.code).toBe('test_capture_not_found');
