@@ -11,6 +11,7 @@ import { useDiaryLayer } from '@/api/layers';
 import { useOwnSchemes, useSchemes } from '@/api/schemes';
 import { session, useSession } from '@/api/session';
 import { useFollows, useShareLinks } from '@/api/sharing';
+import { useFeedback } from '@/app/feedback';
 import { FROM_ME, MY_GROWS } from '@/app/places';
 import { initials } from '@/ui/handle';
 import { ownsCamera } from '@/screens/devices/cameras';
@@ -68,6 +69,7 @@ export function Me() {
       <div className={ui.group}>
         <Door to="/me/appearance" title={t('me.appearance.title')} line={<AppearanceLine language={i18n.resolvedLanguage ?? i18n.language} />} />
         <Door to="/me/about" title={t('me.about.title')} line={versionLine(t, APP_VERSION, BUILD_MODE)} />
+        <Feedback />
       </div>
 
       <div className={styles.foot}>
@@ -238,6 +240,26 @@ function Door({ to, title, line, aside = null, state }: { to: string; title: str
       {aside ? <span className={`mono ${styles.aside}`}>{aside}</span> : null}
       <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
     </Link>
+  );
+}
+
+/**
+ * The feedback form, where the install loads one (`app/feedback.ts`). It opens over this page rather than leading to
+ * another, so it is a button with the door's look and no chevron. The line says where a report ends up: on
+ * terpcontrol.cloud that is a public issue, which nobody should learn only after sending.
+ */
+function Feedback() {
+  const { t } = useTranslation();
+  const open = useFeedback();
+  if (!open) return null;
+
+  return (
+    <button type="button" className={`${styles.row} ${styles.link} ${styles.action}`} onClick={open}>
+      <span className={styles.doorText}>
+        <span className={styles.rowTitle}>{t('me.feedback.title')}</span>
+        <span className={`mono ${styles.doorLine}`}>{t('me.feedback.line')}</span>
+      </span>
+    </button>
   );
 }
 

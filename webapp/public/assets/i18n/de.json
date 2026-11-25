@@ -936,6 +936,10 @@
         "line": "Ein Controller misst und regelt das Klima, eine Kamera macht Bilder fürs Tagebuch"
       }
     },
+    "feedback": {
+      "title": "Feedback senden",
+      "line": "Fehler, Idee, Frage · öffentlich auf GitHub"
+    },
     "privacy": {
       "title": "Privatsphäre",
       "demo": "Die Demo hat kein eigenes Konto, hier gibt es also nichts einzustellen.",

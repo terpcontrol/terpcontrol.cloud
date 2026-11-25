@@ -928,6 +928,10 @@
         "line": "A controller measures and steers the climate, a camera takes pictures for the diary"
       }
     },
+    "feedback": {
+      "title": "Send feedback",
+      "line": "a bug, an idea, a question · public on GitHub"
+    },
     "privacy": {
       "title": "Privacy",
       "demo": "The demo has no account of its own, so there is nothing here to settle.",

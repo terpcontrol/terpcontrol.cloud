@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { MemoryRouter } from 'react-router';
@@ -496,6 +496,34 @@ describe('the demo', () => {
     expect(screen.getByRole('link', { name: /^About/ })).toHaveAttribute('href', '/me/about');
     expect(await lineUnder('Appearance')).toBe('theme: System · language: English');
     expect(server.asked.filter(path => path.startsWith('/v1/'))).toEqual([]);
+  });
+});
+
+describe('the feedback form', () => {
+  afterEach(() => delete window.BugDrop);
+
+  it('has no door where the install loads no feedback widget', async () => {
+    draw();
+
+    await screen.findByText('christian@example.org · public profile on');
+    expect(screen.queryByRole('button', { name: /Send feedback/ })).not.toBeInTheDocument();
+  });
+
+  it('opens the widget from Me once it is ready, and says where a report ends up', async () => {
+    const open = vi.fn();
+    draw();
+    expect(screen.queryByRole('button', { name: /Send feedback/ })).not.toBeInTheDocument();
+
+    // The widget is a plain script that may finish after the page has drawn; it says so on `window`.
+    act(() => {
+      window.BugDrop = { open };
+      window.dispatchEvent(new Event('bugdrop:ready'));
+    });
+    const door = await screen.findByRole('button', { name: /Send feedback/ });
+    expect(door).toHaveTextContent('public on GitHub');
+
+    fireEvent.click(door);
+    expect(open).toHaveBeenCalledOnce();
   });
 });
 

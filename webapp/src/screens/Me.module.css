@@ -123,6 +123,16 @@
   color: var(--muted);
 }
 
+/* A door that opens something over the page instead of leading away: a button dressed as the rows around it. */
+.action {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
 /* Signing out stands apart from the doors, at the foot. */
 .foot {
   padding-top: var(--space-2);
