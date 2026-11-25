@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-11-15
-source: the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
+updated: 2026-11-25
+source: a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
 paths:
   - .claude/**
   - .worktreeinclude
@@ -41,6 +41,10 @@ Checks and test stacks in detail: [testing](testing.md); releases and deploys: [
   gained meanwhile comes in. Plan where each master commit lands, resolve conflicts commit by commit (a change to code
   the branch replaced is ported into its replacement), build and test on a stack, then let a fresh agent check commit
   by commit that every master change is really in.
+- **A conflict in a `package-lock.json` is not resolved by hand**: take master's lockfile (`git checkout --theirs`),
+  run `npm install --package-lock-only` against the merged `package.json`, then `npm audit --omit=dev
+  --audit-level=high` as CI's audit job does, and `npm ci` before the checks. Both sides' dependency changes then stand
+  in one tree that npm resolved (a merge of master into the redesign branch, 2026-11-25).
 - **Replacing a whole file** (a `package.json`, a config): diff old against new for developer-facing scripts and
   settings. The rewrite dropped `start:public` from `webapp/package.json` that way, and no merge of master could bring
   it back, because the commit that added it predates the branch point.

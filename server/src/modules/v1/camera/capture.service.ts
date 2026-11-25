@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { CAPTURE_BUDGET_SECONDS } from '@fg2/shared-types/v1-schemas';
 import { withoutCredentials } from '@common/log-path';
+import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
 import { runFfmpeg, streamSlot } from './ffmpeg';
@@ -13,9 +17,11 @@ import { TerpCamDirectService } from './terpcam-direct.service';
  * is here.
  *
  * A Terp Cam is read off its video stream by this server, over a relay the
- * device it is paired at opens to the cloud. Every other camera is an address
- * ffmpeg opens, through the tunnel of a device in the tent where the stream only
- * exists on the tent's own network.
+ * device it is paired at opens to the cloud - or, where its device switched the
+ * camera's own RTSP stream on at pairing and says so (`webcam_rtsp=on`), off that
+ * stream, through the device's tunnel, like any other camera on the tent's
+ * network. Every other camera is an address ffmpeg opens, through the tunnel of a
+ * device in the tent where the stream only exists on the tent's own network.
  *
  * Either way a read has `CAPTURE_BUDGET_SECONDS` from the moment it is asked
  * for, its wait for a turn at ffmpeg included, and every step inside it is
@@ -82,11 +88,29 @@ export const stillArgs = (streamUrl: string, camera: Pick<CameraWithSecret, 'url
   '-',
 ];
 
+/**
+ * Where a Terp Cam serving its own stream is read on its device's network: the
+ * full-resolution main stream, logged in to with the password its device gave
+ * it. Null while the device has not reported where the camera answers. The
+ * address goes into a URL the tunnel connects to, so it is taken only as an
+ * IPv4 address.
+ */
+export const terpCamStreamUrl = (ip: string | null, secret: string | null): string | null => {
+  if (!ip || !/^(\d{1,3}\.){3}\d{1,3}$/.test(ip)) return null;
+  const url = new URL(`rtsp://${ip}:10554/tcp/av0_0`);
+  if (secret) {
+    url.username = 'admin';
+    url.password = secret;
+  }
+  return url.toString();
+};
+
 @Injectable()
 export class CaptureService {
   constructor(
     private readonly tunnel: TunnelService,
     private readonly terpCamDirect: TerpCamDirectService,
+    @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
   ) {}
 
   /**
@@ -94,13 +118,26 @@ export class CaptureService {
    * smaller picture to fall back on, and a poll left without one is better than
    * a downgraded one in the timelapse.
    */
-  public readStill(camera: CameraWithSecret): Promise<Buffer> {
+  public async readStill(camera: CameraWithSecret): Promise<Buffer> {
     const deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000;
     if (camera.kind === 'rtsp') return streamSlot(() => this.readFromStream(camera, deadline));
+    if (camera.kind === 'terpcam_controller' && camera.deviceId && (await this.streamsItself(camera.deviceId))) {
+      const url = terpCamStreamUrl(camera.ip, camera.secret);
+      if (!url) throw new Error('the device has not yet found its camera on its network');
+      return streamSlot(() => this.readFromStream({ ...camera, url, transport: 'tcp', tunnel: true }, deadline));
+    }
     if (!this.terpCamDirect.canReach(camera)) {
-      return Promise.reject(new Error('this camera answers to no device that could bridge it to this server'));
+      throw new Error('this camera answers to no device that could bridge it to this server');
     }
     return this.terpCamDirect.captureStill(camera, deadline);
+  }
+
+  /** Whether the device reads its Terp Cam off the camera's own stream rather than over the relay. */
+  private async streamsItself(deviceId: string): Promise<boolean> {
+    const device = await this.devices
+      .findOne({ id: deviceId }, { 'state.hardware.webcam_rtsp': 1 })
+      .lean<{ state?: { hardware?: Record<string, string> } }>();
+    return device?.state?.hardware?.webcam_rtsp === 'on';
   }
 
   private async readFromStream(camera: CameraWithSecret, deadline: number): Promise<Buffer> {
