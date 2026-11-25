@@ -48,6 +48,19 @@ const FFMPEG_CORRUPT_FRAME_PATTERN =
  */
 export class CorruptFrameError extends Error {}
 
+/**
+ * A Terp Cam serving its own stream whose device has not reported where on its
+ * network the camera answers - right after pairing, while the device sweeps its
+ * LAN for it, or after the camera moved. Nothing was asked of the camera, so it
+ * does not count towards the backoff either: the device says so when it has
+ * found it, and then the camera is read at once.
+ */
+export class CameraNotFoundYetError extends Error {
+  constructor() {
+    super('the device has not yet found its camera on its network');
+  }
+}
+
 // A single still needs no stream analysis as long as ffmpeg can read the frame
 // size straight from the camera's parameter sets, so the probe budget is kept
 // minimal: raising it makes ffmpeg analyse until it can also estimate the frame
@@ -122,7 +135,7 @@ export class CaptureService {
     if (camera.kind === 'rtsp') return streamSlot(() => this.readFromStream(camera, deadline));
     if (camera.kind === 'terpcam_controller' && camera.deviceId && (await this.streamsItself(camera.deviceId))) {
       const url = terpCamStreamUrl(camera.ip, camera.secret);
-      if (!url) throw new Error('the device has not yet found its camera on its network');
+      if (!url) throw new CameraNotFoundYetError();
       return streamSlot(() => this.readFromStream({ ...camera, url, transport: 'tcp', tunnel: true }, deadline));
     }
     if (!this.terpCamDirect.canReach(camera)) {
