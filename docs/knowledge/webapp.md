@@ -54,9 +54,13 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
 - The build-time configuration is read in `src/api/config.ts`. `VITE_API_URL` is compiled in: `scripts/set-env.mjs`
   (pre-hook of every start, dev, build and test:live script) writes `webapp/.env.local` from the root `.env`'s
   `API_URL_EXTERNAL`, and leaves a `.env.local` alone whose generated first line was deleted. The image turns the
-  build args `API_URL_EXTERNAL`, `CUSTOM_LINKS_HTML` (an install's own links under the sign-in form, as HTML) and
-  `PRIVACY_URL` (empty: sign-up links the app's own `/privacy`) into `VITE_API_URL`, `VITE_CUSTOM_LINKS_HTML` and
-  `VITE_PRIVACY_URL`.
+  build args `API_URL_EXTERNAL`, `CUSTOM_LINKS_HTML` (an install's own links under the sign-in form, as HTML),
+  `PRIVACY_URL` (empty: sign-up links the app's own `/privacy`) and `CUSTOM_SCRIPT_TAG` into `VITE_API_URL`,
+  `VITE_CUSTOM_LINKS_HTML`, `VITE_PRIVACY_URL` and `VITE_CUSTOM_SCRIPT_TAG`.
+- `CUSTOM_SCRIPT_TAG` is markup a plugin in `vite.config.ts` writes before `</body>` of `index.html`, not something
+  React renders: a third-party snippet is a `<script src>` that must be parsed with the page, and a script set via
+  `innerHTML` never runs. terpcontrol.cloud's dev and prod use it for the BugDrop feedback widget (see "Feedback
+  widget" below).
 - `vitest.config.ts` and `vitest.live.config.ts` spread `shared` from `vite.config.ts` (the `__APP_VERSION__` define
   and the `@` alias): a new define or alias goes there, or the tests compile differently from the app -
   `npm run test:live`, which CI does not run, once broke that way.
@@ -188,6 +192,20 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   other changing values out of it. So a refresh keeps a media token with more than a day left (`MEDIA_MARGIN_MS`);
   swapping it on every refresh re-fetched every picture every ~4.5 min, 90 frames per Timeline replay. A sign-in
   never takes over another account's media token.
+
+## Feedback widget
+
+- terpcontrol.cloud (dev and prod) shows [BugDrop](https://bugdrop.dev/)'s feedback button through `CUSTOM_SCRIPT_TAG`
+  in the host's env file; a self-hosted install without the variable shows nothing. Each report becomes an issue in
+  `terpcontrol/terpcontrol.cloud`, created by the BugDrop GitHub App installed on that repository alone.
+- The hosted service cannot be told which labels to set: every issue gets `bugdrop` plus `bug`, `enhancement` or
+  `question` by the category picked. `bugdrop` is the label that marks user feedback - filter on it. Custom labels
+  (`data-category-labels`) only work on a self-hosted BugDrop worker.
+- The repository is public, so a report, its screenshot (committed to the `bugdrop-screenshots` branch) and anything
+  the screenshot shows are public too. The app holds Contents write on the repository for those screenshots;
+  branch protection must leave `bugdrop-screenshots` writable or screenshots are dropped silently.
+- The tag pins a widget version (`widget.v<x.y.z>.js`); raise it deliberately. The hosted service limits a visitor to
+  10 reports per 15 minutes and the repository to 50 per hour.
 
 ## PWA, install, push
 

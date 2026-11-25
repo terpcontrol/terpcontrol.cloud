@@ -34,7 +34,7 @@ STATE=/tmp/fw_state_${TAG}
 if [ -z "${API_URL_EXTERNAL:-}" ] || [ -z "${AUTOMATION_TOKEN:-}" ]; then
   if [ -f .env ]; then
     # shellcheck disable=SC2046
-    export $(grep -v '^#' .env | grep -v CUSTOM_LINKS_HTML | xargs)
+    export $(grep -v '^#' .env | grep -v -e CUSTOM_LINKS_HTML -e CUSTOM_SCRIPT_TAG | xargs)
   fi
 fi
 : "${API_URL_EXTERNAL:?must be set}"

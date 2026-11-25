@@ -97,6 +97,7 @@ services:
         DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:24-alpine}
         CUSTOM_LINKS_HTML: ${CUSTOM_LINKS_HTML:-}
         PRIVACY_URL: ${PRIVACY_URL:-}
+        CUSTOM_SCRIPT_TAG: ${CUSTOM_SCRIPT_TAG:-}
     restart: always
     ports:
       - ${WEBAPP_PORT_EXTERNAL}:80
