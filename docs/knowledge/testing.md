@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
-updated: 2026-11-25
-source: a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+updated: 2026-11-26
+source: a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -178,6 +178,11 @@ hardware, the development devices and copies of production data are in
   project being the `com.docker.compose.project` label on its containers. A plain `docker compose up --build -d
   webapp` there rebuilds the main stack's image and replaces its container: on 2026-10-23 the replacement could not
   bind its port and the main stack's webapp stayed down until it was rebuilt from the main checkout.
+- **A `.env` copied from the main checkout names both projects**: set `COMPOSE_PROJECT_NAME` to the stack's own name
+  together with `DOCKER_COMPOSE_NAME`, before anything is started. On 2026-11-25 a stack for comparing master,
+  started from a scratch worktree with such a copy, was built, moved to new ports and seeded with demo data as the
+  main stack itself; the main stack had to be rebuilt from the main checkout, and the demo places stayed in its
+  database.
 - **After a server or contract change, rebuild the stack's server** (`docker compose up --build -d server`, about a
   minute) before a live probe, a screenshot or an agent drives the app. The image bakes the source in: a container
   from before the change answers 404 on every new route, and screens read fields it has never heard of.
