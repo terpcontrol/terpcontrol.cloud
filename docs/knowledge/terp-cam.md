@@ -1,7 +1,7 @@
 ---
-summary: Cameras in this software - Terp Cam pairing on a device, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-10-08
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08)
+summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
+updated: 2026-11-25
+source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -62,6 +62,27 @@ way and what the code has to respect. Internal notes on the camera exist.
   camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing. Best
   effort: `forgetTerpCam` erases every camera key (Chris, 2026-09-30) and reports the `webcam_*` keys as `none` either
   way - also with no `webcam_did` stored, since keys left by an interrupted pairing crashed the next one (PR #123).
+
+## A Terp Cam read off its own stream (`webcam_rtsp=on`)
+- The current cameras speak no P2P a device or the cloud can use on their own, but serve their main stream (H.265,
+  2304x1296) over RTSP on the LAN once it is switched on. That switch is a CGI the camera takes only on its setup
+  AP, so pairing sends it there, before `set_wifi.cgi`; once on the home Wi-Fi the camera serves the stream and
+  nothing else - no CGI, no snapshot. Which camera is which is decided by behaviour, not by its id: the stream
+  answering an RTSP `OPTIONS` on the setup AP within 5 s is what makes it a streaming camera; anything else pairs the
+  P2P way, so the older cameras are untouched. Wire details: [device-protocol 9.3](../device-protocol.md#93-the-cameras-own-stream).
+- One password for both: the generated one becomes the stream's (`ExPwd`) and the admin login's, is stored as
+  `webcam_pwd` and is what the server logs in with. `terpCamNeedsSecuring` is then false and the P2P securing never runs.
+- Because the stream says nothing about whose camera it is, the device tells its camera by MAC: read off its ARP
+  table on the setup AP at pairing (`webcam_mac` in NVS) and compared on every address it finds later. On the
+  development camera the setup AP's MAC and the home-Wi-Fi MAC were the same. Without a stored MAC a sweep adopts a
+  stream only when it is the only one on the network.
+- The device keeps the address current (`terpCamTickStream`: a check every 5 min, then a sweep of its /24 at three
+  addresses per idle pass); the server only reads `webcam_ip`. A camera the device has not found yet fails its reads
+  with "the device has not yet found its camera on its network".
+- Through the tunnel the read takes as long as the keyframe takes to cross MQTT; the keyframe is the first thing
+  ffmpeg keeps (`-skip_frame nokey`), and the P-frames before it are dropped unread by the decoder.
+- Disconnecting can switch the stream off only where the camera's setup AP is in reach; a camera on the home Wi-Fi
+  takes no command and has to be reset by hand.
 
 ## Finding the camera on the LAN
 - `realdeviceid` (`webcam_did`) is the identity; `webcam_uid` and `webcam_ip` are hints. Discovery asks the cached
@@ -231,8 +252,9 @@ way and what the code has to respect. Internal notes on the camera exist.
 ## Limits and failure modes
 - Firmware older than PR #124 ignores the relay `url` and gets no stills; the cloud no longer sends `cam_capture`.
   Refusal holds, test captures and reads in flight live in server memory; a restart clears them.
-- Supported are cameras that answer the LAN search and send H.264 on the main stream; one with another P2P scheme
-  (seen with H.265 cameras on newer camera firmware) never delivers - supporting it is a change of its own.
+- The relay supports cameras that answer the LAN search and send H.264 on the main stream; the H.265 cameras with
+  another P2P scheme are read off their own stream instead (above). A camera of that kind paired before the stream
+  path existed still reports `webcam_rtsp=off` and has to be paired again.
 - "capture attempt N failed (camera did not accept the session ...); retrying on a fresh session" is mostly noise
   (about one capture in nine on dev; the retry worked, no still was lost).
 - "the controller did not open the relay in time" can mean the device is online but cannot find its camera

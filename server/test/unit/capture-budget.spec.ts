@@ -27,7 +27,7 @@ const taking = (ms: number, stderr: string) => async (): Promise<Run> => {
 
 beforeEach(() => {
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
-  service = new CaptureService({} as never, {} as never);
+  service = new CaptureService({} as never, {} as never, {} as never);
   run = jest.fn<RunFfmpeg>();
   (service as unknown as { runFfmpegStill: RunFfmpeg }).runFfmpegStill = run;
 });

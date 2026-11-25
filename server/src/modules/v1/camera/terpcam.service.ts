@@ -4,9 +4,10 @@ import { decodeSlot, runFfmpeg } from './ffmpeg';
 /**
  * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
  *
- * The shipped webcam is a VStarcam OEM that, once on the home wifi, only speaks a
- * proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are kept
- * internally). Neither the device it is paired at nor the camera hands over a
+ * The webcam read this way is a VStarcam OEM that, once on the home wifi, only
+ * speaks a proprietary P2P transport (no LAN RTSP/HTTP; the protocol notes are
+ * kept internally). One that serves its own RTSP stream is read off that instead
+ * (`CaptureService`). Neither the device it is paired at nor the camera hands over a
  * picture: the device has no decoder and little RAM, and the camera's own
  * `snapshot.cgi` is pinned far below what its video stream carries. So the
  * server takes a keyframe off that stream, over the device's relay, and it is
