@@ -19,11 +19,11 @@ import {
 import { TunnelModule } from '@modules/tunnel/tunnel.module';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraModule } from '@modules/v1/camera/camera.module';
+import { CameraReportsService } from '@modules/v1/camera/camera-reports.service';
 import { LIGHT_STATE_READER } from '@modules/v1/camera/light-state';
 import { SERIES_READER } from '@modules/v1/camera/series-reader';
 import { StillDaylightService } from '@modules/v1/camera/still-daylight.service';
 import { RELAY_REQUEST } from '@modules/v1/camera/relay-request';
-import { TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
@@ -50,7 +50,7 @@ const PORTS: ExistingProvider[] = [
   // that decides from a device being there whether it is told to update.
   { provide: DEVICE_SAMPLE_SINK, useExisting: DataService },
   { provide: DEVICE_METRIC_SINK, useExisting: AlarmEngineService },
-  { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: TerpCamDirectService },
+  { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: CameraReportsService },
   { provide: DEVICE_TUNNEL_SINK, useExisting: TunnelService },
   { provide: DEVICE_PRESENCE_SINK, useExisting: FirmwareRolloutService },
   // A device written into germination, or told what germination does about

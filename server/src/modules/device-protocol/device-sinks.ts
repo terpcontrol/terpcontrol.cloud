@@ -58,9 +58,10 @@ export interface DeviceTunnelSink {
 export const DEVICE_TUNNEL_SINK = 'device-protocol:tunnel';
 
 /**
- * That a device has said something about its camera - paired another, secured
- * it with a new password, learned its P2P id. Provided by the camera pipeline,
- * which may be holding off a camera that refused it and should try again.
+ * That a device has said something about its camera - paired another, found it
+ * on its network, secured it with a new password, learned its P2P id. Provided
+ * by the camera pipeline, which may be holding off a camera that refused it or
+ * was not found yet, and reads it at once instead.
  */
 export interface DeviceCameraReportSink {
   cameraReported(deviceId: string): void;

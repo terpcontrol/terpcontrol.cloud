@@ -1,7 +1,7 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
 updated: 2026-11-25
-source: Chris (decisions, PR reviews 2026-08..10); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
+source: Chris (decisions, PR reviews 2026-08..10; the reset on a camera report 2026-11-25); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
 paths:
   - firmware/src/terpcam.*
   - server/src/modules/v1/camera/**
@@ -173,6 +173,15 @@ way and what the code has to respect. Internal notes on the camera exist.
   other RTSP reads (90 s each), inside the reader's budget. `p-limit` stays at ^3.1.0 (4+ is ESM-only).
 - A missed dial-in is an ordinary failed attempt (Chris, 2026-09-30, PR #119): the former 15-min hold made a slow
   link, a busy device or a server restart look like firmware without the relay.
+- A newly paired camera is read on its interval from the moment its device reports it (Chris, 2026-11-25): every
+  `webcam_*` report the protocol lists ([device-protocol 6.2](../device-protocol.md#62-hardware-info)) resets the
+  backoff of that device's Terp Cam - only that camera, not streams tunnelled through the device (Chris). Before,
+  a streaming Terp Cam got its row on `webcam_did` but its `webcam_ip` only once the device had swept its LAN; every
+  read in between failed and doubled the backoff towards 120 min, and the address arriving reset nothing, so a
+  freshly paired camera stayed without stills for up to two hours. Re-pairing the same camera revives its row id,
+  and with it the poller's old failure count - the reset covers that too.
+- "Not found yet" (`CameraNotFoundYetError`) never grows the backoff and writes no diary entry; a read that was in
+  flight when a report reset the camera does not grow it either (`round` in the poller's state).
 
 ## Camera records (`cameras.schema.ts`, `hardware-report.service.ts`)
 - The device is the source of truth for a Terp Cam, and a report reaches only rows of the reporting device's owner:
