@@ -155,7 +155,7 @@ describe('maintenance on Start', () => {
     draw(30);
 
     // The page has drawn the rest of what it offers by then.
-    expect(await screen.findByRole('link', { name: 'Temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature / })).toBeInTheDocument();
     await expect(screen.findByRole('button', { name: /^Maintenance/ }, { timeout: 400 })).rejects.toThrow();
   });
 
@@ -164,7 +164,7 @@ describe('maintenance on Start', () => {
     answer.devices = [fridge({}, 'plug')];
     draw();
 
-    expect(await screen.findByRole('link', { name: 'Temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature / })).toBeInTheDocument();
     await expect(screen.findByRole('button', { name: /^Maintenance/ }, { timeout: 400 })).rejects.toThrow();
   });
 

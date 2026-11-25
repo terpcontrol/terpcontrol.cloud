@@ -661,11 +661,11 @@ describe('what the builder makes of it', () => {
 
   /**
    * Guessed at 0.55 of its size a letter, a caption's "…" came about a fifth before its bar ended. It is measured by
-   * Albert Sans's own advance widths, and cut only where the next letter would run past the bar.
+   * Inter's own advance widths, and cut only where the next letter would run past the bar.
    */
   it('runs a caption to its bar´s end by the face´s own widths before it cuts it', () => {
-    // H and i as the face sets them: 705 and 258 thousandths of the size.
-    expect(textWidth('Hi', 100)).toBeCloseTo(96.3);
+    // H and i as the face sets them: 743 and 242 thousandths of the size.
+    expect(textWidth('Hi', 100)).toBeCloseTo(98.5);
     const text = 'Erste Trichome milchig, die Blätter an der Spitze werden gelb und die Buds wachsen.';
     for (const [room, size] of [
       [575, 28],

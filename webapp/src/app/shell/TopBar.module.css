@@ -7,8 +7,12 @@
   gap: var(--space-1);
   min-height: calc(var(--topbar-height) + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) max(var(--space-2), env(safe-area-inset-right)) 0 max(var(--space-4), env(safe-area-inset-left));
-  /* Solid: the page scrolls under it, and nothing of it may show through. */
-  background: var(--bg);
+  /* Solid: the page scrolls under it, and nothing of it may show through. It
+     carries the page's glow as the page's own top does, so the two meet
+     without a seam. */
+  background:
+    var(--glow) no-repeat,
+    var(--bg);
 }
 
 /* Wider than a phone, the bar's ends line up with the column under it rather
@@ -66,7 +70,7 @@
   color: var(--ink);
 }
 
-/* Something is open: a dot on the bell's shoulder, ringed in the bar's own ground. */
+/* Something is open: a red dot on the bell's shoulder, ringed in the bar's own ground. */
 .dot {
   position: absolute;
   top: 9px;
@@ -74,11 +78,11 @@
   width: 9px;
   height: 9px;
   border-radius: var(--radius-pill);
-  background: var(--warning);
+  background: var(--alarm);
   box-shadow: 0 0 0 2px var(--bg);
 }
 
-/* Only work that is due, no alarm: marked all the same, in the brand's blue rather than the warning's amber. */
+/* Only work that is due, no alarm: marked all the same, in the brand's blue rather than the alarm's red. */
 .dot[data-kind='tasks'] {
   background: var(--brand);
 }

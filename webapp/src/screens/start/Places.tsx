@@ -8,19 +8,21 @@ import { useDiaryLayer } from '@/api/layers';
 import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, type PlaceCard as Place } from '@/app/places';
-import { ageAttribute, livenessWords, sinceLabel } from '@/ui/age';
+import { ageAttribute, livenessWords, sinceLabel, valueAge } from '@/ui/age';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
+import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import { clock, useZone } from '@/ui/zone';
 import type { Translate } from '@/i18n/i18n';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { AddPlace } from './AddPlace';
 import { judgedAt, livenessOf } from './attention';
 import { useCardStatus } from './card-status';
-import { toneOf, type Status } from './place';
-import { readingFacts, readingsOf } from './readings';
+import { Figures, type Figure } from './Figures';
+import { toneOf, valueOf, type Status } from './place';
+import { readingsOf } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
 import { growDay } from '@/screens/grow/progress';
@@ -162,10 +164,13 @@ const pillOf = (t: Translate, status: Status): string | null => {
 };
 
 /**
- * One place among several: its name and whether it wants looking at, the
- * status sentence of its own Start where it does, what it reads in one line,
- * and what grows there - beside the camera's newest picture where there is
- * one. It says what the place's Start says, from the same arithmetic.
+ * One place among several, as master's Home card drew it: its name and
+ * whether it wants looking at, the readings as big figures with their names -
+ * temperature, humidity, and VPD and CO₂ where the place measures them -, the
+ * status sentence of its own Start where it asks for somebody, the lamps in one
+ * line, and what grows there; the camera's newest picture small beside the
+ * name. A card that asks for somebody has an edge in the colour of what it
+ * asks. It says what the place's Start says, from the same arithmetic.
  */
 function PlaceCard({
   card,
@@ -191,7 +196,24 @@ function PlaceCard({
   const asks = tone === 'warn' || tone === 'alarm';
   const offline = status.kind === 'offline';
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? [] : lit, hold: null, now, zone });
-  const figures = readingFacts(t, readings);
+  const co2 = valueOf(values, 'co2');
+  const figures: Figure[] = [
+    ...readings.filter(reading => reading.key !== 'light'),
+    ...(co2
+      ? [
+          {
+            key: 'co2' as const,
+            label: t('home.metric.co2'),
+            figure: figureWithUnit(co2.value!, 'co2'),
+            number: figure(co2.value!, 'co2'),
+            unit: UNIT.co2 ?? null,
+            tone: 'quiet' as const,
+            age: valueAge(co2, now),
+          },
+        ]
+      : []),
+  ];
+  const lamps = readings.flatMap(reading => (reading.key === 'light' ? [reading.said ?? reading.figure] : []));
   const pill = pillOf(t, status);
   // The pill says "offline", "veraltet" or "Wartung"; the line beside it says since or until when, or how old the
   // values are, and not the word a second time.
@@ -215,48 +237,53 @@ function PlaceCard({
     diary && card.grow
       ? others.length > 0
         ? [namesInLeadOrder(targetsOf({ spaces: [card] }, grows), card.spaceId, lead).join(', ')]
-        : [card.grow.name, growDay(t, card.grow), card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null]
+        : [
+            <span key="name" className={styles.placeGrowName}>
+              {unbroken(card.grow.name)}
+            </span>,
+            growDay(t, card.grow),
+            card.grow.stage ? t(`home.stage.${card.grow.stage}`) : null,
+          ]
       : [];
 
   return (
-    <Link to={placePath(card.spaceId)} className={styles.place} data-asks={asks || undefined}>
-      {still ? <img className={styles.still} src={still} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" /> : null}
-      <span className={styles.placeText}>
-        <span className={styles.placeHead}>
-          <span className={styles.placeName}>{card.name}</span>
-          {pill ? (
-            <span className={styles.pill} data-tone={tone}>
-              {pill}
-            </span>
-          ) : null}
-        </span>
-        {/* What stands open is red where one of it is critical, as on the place's page. */}
-        {status.kind === 'good' || status.kind === 'none' ? null : (
-          <span className={styles.placeStatus} data-tone={tone}>
-            <Facts
-              facts={[
-                ...factsOf(said ?? '').map(unbroken),
-                behind ? (
-                  <span
-                    key="open"
-                    className={styles.open}
-                    data-tone={'critical' in status && status.critical && status.kind !== 'alert' ? 'alarm' : undefined}
-                  >
-                    {unbroken(behind)}
-                  </span>
-                ) : null,
-              ]}
-            />
-          </span>
-        )}
-        {figures.length > 0 ? (
-          <span className={styles.placeFigures} {...ageAttribute(livenessOf(card, judged) === 'offline' ? 'offline' : 'live')}>
-            <Facts facts={figures} />
+    <Link to={placePath(card.spaceId)} className={styles.place} data-asks={asks ? tone : undefined}>
+      <span className={styles.placeHead}>
+        {still ? <img className={styles.still} src={still} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" /> : null}
+        <span className={styles.placeName}>{card.name}</span>
+        {pill ? (
+          <span className={styles.pill} data-tone={tone}>
+            {pill}
           </span>
         ) : null}
-        {grow.length > 0 ? <Facts className={styles.placeGrow} facts={grow} /> : null}
-        {due > 0 ? <span className={styles.placeDue}>{t('start.card.due', { count: due })}</span> : null}
       </span>
+      {figures.length > 0 ? (
+        <span className={styles.placeFigures} {...ageAttribute(livenessOf(card, judged) === 'offline' ? 'offline' : 'live')}>
+          <Figures figures={figures} />
+        </span>
+      ) : null}
+      {/* What stands open is red where one of it is critical, as on the place's page. */}
+      {status.kind === 'good' || status.kind === 'none' ? null : (
+        <span className={styles.placeStatus} data-tone={tone}>
+          <Facts
+            facts={[
+              ...factsOf(said ?? '').map(unbroken),
+              behind ? (
+                <span
+                  key="open"
+                  className={styles.open}
+                  data-tone={'critical' in status && status.critical && status.kind !== 'alert' ? 'alarm' : undefined}
+                >
+                  {unbroken(behind)}
+                </span>
+              ) : null,
+            ]}
+          />
+        </span>
+      )}
+      {lamps.length > 0 ? <Facts className={styles.placeLine} facts={lamps} /> : null}
+      {grow.length > 0 ? <Facts className={styles.placeGrow} facts={grow} /> : null}
+      {due > 0 ? <span className={styles.placeDue}>{t('start.card.due', { count: due })}</span> : null}
     </Link>
   );
 }
@@ -269,10 +296,8 @@ function LooseGrowCard({ card }: { card: HomeSpaceCard }) {
 
   return (
     <Link to={`/grows/${grow.growId}`} className={styles.place}>
-      <span className={styles.placeText}>
-        <span className={styles.placeName}>{grow.name}</span>
-        <Facts className={styles.placeGrow} facts={[t('grow.noFixedPlace'), growDay(t, grow), grow.stage ? t(`home.stage.${grow.stage}`) : null]} />
-      </span>
+      <span className={styles.placeName}>{grow.name}</span>
+      <Facts className={styles.placeGrow} facts={[t('grow.noFixedPlace'), growDay(t, grow), grow.stage ? t(`home.stage.${grow.stage}`) : null]} />
     </Link>
   );
 }

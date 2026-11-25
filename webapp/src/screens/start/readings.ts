@@ -8,7 +8,7 @@ import type { Held } from '@/screens/devices/HandHold';
 import { valueAge } from '@/ui/age';
 import { type DarkSpell, darkSpellOf } from '@/ui/climate-hardware';
 import { decimalFigure } from '@/ui/figures';
-import { figure, figureWithUnit } from '@/ui/units';
+import { figure, figureWithUnit, UNIT } from '@/ui/units';
 import {
   halfNowOf,
   judgedOf,
@@ -23,20 +23,22 @@ import {
 } from './place';
 
 /**
- * What a place reads now, as Start draws it: temperature, humidity, VPD and
- * the lamp - in the camera's picture where there is one, as four tiles where
- * there is none, and as one line on a place's card. One list, so the three
- * never state a different figure for the same tent.
+ * What a place reads now, as Start draws it: temperature, humidity and VPD as
+ * big figures, the lamp in the line under them - on a place's own Start and on
+ * its card among several. One list, so the two never state a different figure
+ * for the same tent.
  */
 export interface Reading {
   key: 'temperature' | 'humidity' | 'vpd' | 'light';
   label: string;
+  /** The figure with its unit, "25,1 °C", as a sentence or a line states it. */
   figure: string;
-  /** Under a tile's figure: the verdict, or for the lamp when it switches next. */
+  /** The figure alone and its unit, which a big figure sets smaller beside it; the unit is null for a lamp. */
+  number: string;
+  unit: string | null;
+  /** The verdict, said to a screen reader with the figure; for the lamp when it switches next. */
   note: string | null;
   tone: 'good' | 'off' | 'quiet';
-  /** Whether the note is a verdict against a band, which the first tile to carry one explains. */
-  judged: boolean;
   age: ValueState;
   /** The panel of Verlauf the reading is drawn on; null for one that has none of its own. */
   focus: string | null;
@@ -48,6 +50,8 @@ export interface Reading {
   despite?: DarkSpell | null;
   /** For the lamp: the device whose light it is, which tells two lamps of a place apart. */
   deviceId?: string;
+  /** For the lamp: what the line under the figures says of it, "Licht aus bis 07:00", "Licht 80 % · an bis 20:00". */
+  said?: string;
 }
 
 /** A lamp of the place as it last reported (`useLamp`): what its light output runs at, and whether it is held by hand. */
@@ -100,9 +104,10 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
       key: metric,
       label: t(`home.metric.${metric}`),
       figure: figureWithUnit(value.value!, metric),
+      number: figure(value.value!, metric),
+      unit: UNIT[metric] ?? null,
       note: verdictSaid(t, verdict, metric, now, zone),
       tone: toneOf(verdict),
-      judged: verdict?.kind === 'in' || verdict?.kind === 'high' || verdict?.kind === 'low',
       age: valueAge(value, now),
       focus: metric === 'vpd' ? null : metric,
     });
@@ -118,34 +123,51 @@ export const readingsOf = (t: Translate, { values, setpoints, device, lit, hold,
     // Held by hand, the lamp switches when the hold ends and not by its schedule.
     const byHand = held && age === 'live' ? heldWords(t, held, now, zone) : null;
     const despite = dark && on && age === 'live' ? litInTheDark(t, dark, lamp.device, held, now, zone) : null;
-    readings.push({
+    const label = lampName(t, lamp.device, lamps);
+    const shown = on ? `${decimalFigure(Math.round(level.percent), 0)} %` : t('start.light.off');
+    // When a lamp that keeps to its schedule switches next.
+    const window = byHand || despite || age !== 'live' || dark ? null : lightNote(t, lamp, on, now, zone);
+    const note =
+      despite ??
+      byHand ??
+      (age !== 'live'
+        ? verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)
+        : dark
+          ? // The figure says "Aus": the note says why, once.
+            t(`start.light.darkWhy.${dark}`)
+          : window);
+    const reading: Reading = {
       key: 'light',
-      label: lampName(t, lamp.device, lamps),
-      figure: on ? `${decimalFigure(Math.round(level.percent), 0)} %` : t('start.light.off'),
-      note:
-        despite ??
-        byHand ??
-        (age !== 'live'
-          ? verdictSaid(t, { kind: 'last', at: level.measuredAt }, 'temperature', now, zone)
-          : dark
-            ? // The figure says "Aus": the note says why, once.
-              t(`start.light.darkWhy.${dark}`)
-            : lightNote(t, lamp, on, now, zone)),
+      label,
+      figure: shown,
+      number: shown,
+      unit: null,
+      note,
       tone: 'quiet',
-      judged: false,
       age,
       focus: 'light',
       lit: on,
       held: byHand,
       despite: despite !== null ? dark : null,
       deviceId: lamp.device.id,
-    });
+    };
+    // "Licht aus bis 07:00" and "Licht aus · Keimung" read as one phrase; a level and what goes with it as two.
+    reading.said = byHand
+      ? `${label} ${byHand}`
+      : despite
+        ? `${t('start.card.light', { lamp: label, level: shown })} · ${despite}`
+        : !on && dark && age === 'live'
+          ? `${label} ${t(`start.light.dark.${dark}`)}`
+          : !on && window
+            ? `${label} ${window}`
+            : [readingFacts(t, [reading])[0], note].filter(Boolean).join(' · ');
+    readings.push(reading);
   }
 
   return readings;
 };
 
-/** The readings as a place's card states them, fact by fact: "24,3 °C", "66 %", "Licht 80 %". */
+/** The readings as facts of a line, "24,3 °C", "66 %", "Licht 80 %": what the line under the figures starts a lamp with. */
 export const readingFacts = (t: Translate, readings: Reading[]): string[] =>
   readings
     .filter(reading => reading.key !== 'vpd')

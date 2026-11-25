@@ -33,7 +33,9 @@ html:has([data-scrim]) {
 
 body {
   margin: 0;
-  background: var(--bg);
+  background:
+    var(--glow) no-repeat,
+    var(--bg);
   color: var(--ink);
   font-family: var(--font-text);
   font-size: var(--text-md);
@@ -52,16 +54,19 @@ p {
 }
 
 /* The names a person gave things - a page, a place, a grow - are headings in
-   the one face, ranked by size and a lighter weight: a title light and closed
-   up, a name regular, both in the heading ink. A page's title is the one size
-   a screen does not choose for itself, so the forty screens that never set one
-   still get the same title. `.name` is a name that is not a heading - a grow's
-   in a list, a week's on its card - at the name size. */
+   the one face, ranked by weight and size the way the site ranks its own: a
+   title the one heavy thing on a screen, a name a step lighter, both closed up
+   and in the heading ink. A page's title is the one size a screen does not
+   choose for itself, so the forty screens that never set one still get the
+   same title. The optical-size axis follows the size on its own. `.name` is a
+   name that is not a heading - a grow's in a list, a week's on its card - at
+   the name size. */
 h1,
 h2,
 .display,
 .name {
   font-weight: var(--weight-title);
+  font-optical-sizing: auto;
   letter-spacing: var(--tracking-title);
   line-height: var(--line-tight);
   color: var(--heading);
@@ -89,9 +94,10 @@ h2,
   font-size: var(--text-name);
 }
 
-/* The look has three weights and none is bold: what an element would set
-   heavier by itself - a `b`, a `strong`, a table's head, a heading under an
-   `h2` - is the medium. */
+/* Nothing but a title and a name is set heavier than the medium: what an
+   element would set bold by itself - a `b`, a `strong`, a table's head, a
+   heading under an `h2` - is the medium, where a button's words and a figure
+   stand too. */
 b,
 strong,
 th,
@@ -129,28 +135,31 @@ input[type='number']::-webkit-inner-spin-button {
 /* Digits of one width, for figures that stand under one another or change in
    place: a table's column, an axis, a list's time column, a stepper's value, a
    countdown. Nothing else takes it - a sentence, a date, a chip, a title and a
-   figure standing alone are set in the face's own digits, because a "1" centred
-   on a zero's width leaves a hole on either side ("60, 1 %").
+   figure standing alone are set in the face's own digits, which are spaced as
+   letters are: a tabular "1" stands in a zero's width and reads loose in a
+   date or a large figure.
 
    One width comes from the face `--font-figure` names first, which holds the
-   ten digits and nothing else, never from `font-variant-numeric`: the face has
-   no tabular figures of its own. */
+   ten digits and nothing else, never from `font-variant-numeric`: Inter's
+   tabular feature widens the hyphen, the stops, the colon, the brackets and the
+   space as well - "long-press" came out "long - press". */
 .mono {
   font-family: var(--font-figure);
 }
 
-/* A big figure is the sans at a lighter weight rather than a second face. */
+/* A big figure is the sans at the medium rather than a second face: larger rather than bolder. */
 .figure {
   font-weight: var(--weight-figure);
 }
 
-/* A section label: small, regular and in the label colour, in sentence case.
-   It is the kicker over a block and the name over a field, and it never
-   competes with the figures or the names under it. */
+/* A section label: small, at the medium and in the label colour, in sentence
+   case - nothing in the app is set in capitals. It is the kicker over a block
+   and the name over a field, and it never competes with the figures or the
+   names under it. */
 .label {
   font-family: var(--font-text);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-regular);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
   color: var(--label);
 }
@@ -253,9 +262,9 @@ button:disabled {
   cursor: default;
 }
 
-/* Every icon is drawn with a fine line, as the type is light. */
+/* Every icon is drawn a step finer than lucide's own line, as the type is a step lighter than the site's. */
 svg.lucide {
-  stroke-width: 1.5;
+  stroke-width: 1.75;
 }
 
 :focus-visible {

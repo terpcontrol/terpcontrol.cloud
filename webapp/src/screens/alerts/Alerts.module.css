@@ -1,5 +1,5 @@
 /* Meldungen: what is open as cards, what is due, what is over as rows. */
-/* The mute and what it does, beside the title or together under it: a pill a finger high, and while it holds, until when under the head. */
+/* The mute and what it does, beside the title or together under it: a button a finger high, and while it holds, until when under the head. */
 .muting {
   display: flex;
   flex: none;
@@ -90,7 +90,7 @@
   color: var(--warning);
 }
 
-/* What can be done with an alert: one row of pills a finger high, the ⋯ at its end so that its list opens inside the card. */
+/* What can be done with an alert: one row of buttons a finger high, the ⋯ at its end so that its list opens inside the card. */
 .actions > div {
   margin-left: auto;
 }
@@ -103,7 +103,7 @@
   padding: 0 14px;
   background: var(--card);
   border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--brand);
   font-family: var(--font-text);
   font-size: var(--text-sm);

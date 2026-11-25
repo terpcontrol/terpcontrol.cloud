@@ -141,7 +141,7 @@
   height: var(--control-height);
   background: var(--card-2);
   border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--ink);
 }
 

@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-11-26
-source: a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+source: control.test.tsx broken by a dev server's .env.local too (the redesign session, 2026-11-26); a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -58,7 +58,8 @@ hardware, the development devices and copies of production data are in
 ## Webapp suites
 - `npm test` (vitest, jsdom) needs only the checkout. `npm run test:live` runs `test/live/` against a running stack;
   CI does not run it.
-- **`webapp/.env.local` breaks `test/me.test.tsx`**, which expects the fallback API `http://localhost:5081`: vitest
+- **`webapp/.env.local` breaks `test/me.test.tsx`**, which expects the fallback API `http://localhost:5081`, and twelve
+  clock tests of `test/control.test.tsx` ("40 min" read as "0 s"; the redesign session, 2026-11-26): vitest
   reads the file, and `npm start` writes it from `API_URL_EXTERNAL`. Run `VITE_API_URL=http://localhost:5081 npm test`
   (the environment wins over the file) or delete it. A hand-written `.env.local` survives `npm start` since #133.
 - `shared-types/` needs its own `node_modules` (`npm --prefix shared-types ci --omit=dev`), or the contract's values

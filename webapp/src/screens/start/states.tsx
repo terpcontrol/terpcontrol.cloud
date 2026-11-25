@@ -29,9 +29,8 @@ export function StartWaiting() {
       </div>
       <div className={`${ui.stack3} ${styles.columns}`}>
         <div className={`${ui.stack3} ${styles.column}`}>
-          <span className={`${styles.wait} ${styles.waitPicture}`} />
-          <span className={styles.wait} style={{ width: 150, height: 18 }} />
-          <span className={styles.wait} style={{ height: 6 }} />
+          <span className={`${styles.wait} ${styles.waitFigures}`} />
+          <span className={`${styles.wait} ${styles.waitRow}`} />
         </div>
         <div className={`${ui.stack3} ${styles.column}`}>
           {card}

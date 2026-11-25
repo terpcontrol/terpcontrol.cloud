@@ -11,8 +11,10 @@ const sheets = (dir: string): string[] =>
   });
 
 /**
- * The look has three weights - light, regular, medium - and nothing bold (ADR 0002, "The look"). A weight is named by
- * its token, never written as a figure, and an element a browser sets heavier by itself is brought to the medium.
+ * The look ranks by weight from the title down - title, a name, the medium for figures and what is stressed, regular
+ * text (ADR 0002, "The look: Marke fein"). A weight is named by its token, never written as a figure, so the ranks
+ * are set in one place; an element a browser sets bold by itself is brought to the medium; and nothing is set in
+ * capitals.
  */
 describe('the weights', () => {
   it('are only ever the three tokens', () => {
@@ -36,5 +38,11 @@ describe('the weights', () => {
     const rule = /((?:[a-z0-9]+,\s*)+[a-z0-9]+)\s*\{\s*font-weight:\s*var\(--weight-medium\);\s*\}/.exec(global);
 
     expect(rule?.[1].split(/,\s*/)).toEqual(expect.arrayContaining(['b', 'strong', 'th', 'h3', 'h4', 'optgroup']));
+  });
+
+  it('never set anything in capitals', () => {
+    const capitals = sheets(SOURCE).filter(path => /text-transform:\s*uppercase/.test(readFileSync(path, 'utf8')));
+
+    expect(capitals).toEqual([]);
   });
 });

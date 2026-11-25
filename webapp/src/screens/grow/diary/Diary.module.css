@@ -46,9 +46,6 @@
 
 .dayTitle {
   font-size: var(--text-lg);
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
-  color: var(--ink);
 }
 
 .dayClimate {

@@ -5,12 +5,11 @@ import { Link } from 'react-router';
 import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
-import { useLatestStills, useLatestStillTimes } from '@/api/cameras';
 import { serverNow } from '@/api/clock';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useHomeShape } from '@/api/home';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { controlPath, devicePath, editPath, GROW, membersPath, timelinePath, usePageOfPlace } from '@/app/places';
 import { usePlaceGrow } from '@/log/underneath';
@@ -30,7 +29,6 @@ import { useMayManage, useVisiting } from '@/ui/session-access';
 import { targetWithUnit } from '@/ui/units';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
-import { useWideWindow } from '@/ui/wide-window';
 import { clock, useZone } from '@/ui/zone';
 import { pendingByPath, savedWords } from '@/screens/control/climate/figures';
 import { leadOf, leadValuesOf } from '@/screens/control/lead';
@@ -43,29 +41,16 @@ import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
 import { AddPlace } from './AddPlace';
 import { comingOf, judgedAt, judgedBy, livenessThrough, measuredAtOf } from './attention';
-import { DayCurves } from './DayCurves';
+import { DayCurve, type CurveMetric } from './DayCurve';
+import { Figures } from './Figures';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
 import { growPutOff } from './loaded';
-import { GrowHead, PhaseLine } from './Phase';
-import { OwnPhoto, Picture } from './Picture';
-import {
-  contradictedModeOf,
-  controlOffOf,
-  openWords,
-  ownPhotoOf,
-  shownStill,
-  statusOf,
-  statusText,
-  toneOf,
-  type HumidifierHold,
-  type Status,
-} from './place';
+import { CameraRow, GrowRow } from './Rows';
+import { contradictedModeOf, controlOffOf, openWords, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
 import { Menu, MenuLink } from '@/ui/Menu';
-import { curvePath, darkOf, extrasOf, readingFacts, readingsOf, type Extra, type Reading } from './readings';
-import { ReadingTiles } from './ReadingTiles';
-import { usePlace, useHumidifierHold, useLamp, usePlaceAlerts } from './reads';
-import { growDay } from '@/screens/grow/progress';
+import { curvePath, darkOf, extrasOf, readingsOf, type Extra } from './readings';
+import { useLastDay, usePlace, useHumidifierHold, useLamp, usePlaceAlerts } from './reads';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
 import { Today } from './Today';
@@ -108,8 +93,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const now = useNow();
   const zone = useZone();
   const { user } = useSession();
-  const wide = useWideWindow();
-  const called = useCameraCalled();
   const spaceId = overview.spaceId;
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
   const here = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice).items;
@@ -131,8 +114,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // Support reading a customer's place is shown the customer's grow where one stands there, whatever its own account keeps.
   const layer = useDiaryLayer() && (me.data !== undefined || demo);
   const diary = visiting ? overview.grows.length > 0 : layer;
-  // A second grow started where one already runs: both are shown, the one the place leads with under the picture - the
-  // one Eintrag over it aims at - and the other as its card.
+  // A second grow started where one already runs: both are shown, the one the place leads with first - the
+  // one Eintrag over it aims at - and the other as a row of its own.
   const lead = usePlaceGrow(spaceId);
   const grow = diary ? (overview.grows.find(one => one.growId === lead) ?? overview.grows[0] ?? null) : null;
   const also = diary ? overview.grows.filter(one => one !== grow) : [];
@@ -184,10 +167,21 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day.
   const heldLamp = lit.find(one => one.held) ?? null;
   const readings = readingsOf(t, { values, setpoints, device, lit, hold: humidifierHold, now, zone });
+  const figures = readings.filter(reading => reading.key !== 'light');
   // A lead with no figures yet leaves the place without any: a socket's CO₂ is no reading of the place's.
   const extras = offline || unread ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
+  // Under the figures, one line: each lamp, then what only some places measure - each the way to its curve.
+  const line = [
+    ...readings.flatMap(reading =>
+      reading.key === 'light' ? [{ key: `light-${reading.deviceId}`, text: reading.said ?? reading.figure, focus: 'light' }] : [],
+    ),
+    ...extras,
+  ];
   const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
-  const ownMedia = kept ? (ownPhotoOf(overview.entries, kept.growId)?.mediaIds[0] ?? kept.coverMediaId) : null;
+  // A late device is said by the pill alone; a silent one's figures say as of when they are.
+  const stand = offline && measuredAt ? t('start.picture.stand', { time: clock(measuredAt, zone), age: ageLabel(measuredAt, now) }) : null;
+  // The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported.
+  const day = useLastDay(spaceId, device?.id ?? null, hasDevice && !byHand && !unread && figures.length > 0);
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
   // Offered once the account and the place have been read, to whoever may start a grow here and has not said no - in a
@@ -204,17 +198,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
     !growPutOff(spaceId, now);
   const offerDevice = byHand && mayManage && me.data !== undefined && me.data.preferences.deviceOfferDeclined !== true;
   const sentence = <StatusSentence status={status} overview={overview} camera={camera} mayManage={mayManage} device={device} parks={parks} />;
-  // Two lamps beside the climate's three figures do not fit the picture's bar on a phone: the lamps stand in the line under it.
-  const lampsUnder = camera !== null && readings.filter(reading => reading.key === 'light').length > 1;
-  const underPicture = [
-    ...(lampsUnder
-      ? readings.flatMap(reading =>
-          reading.key === 'light' ? [{ key: `light-${reading.deviceId}`, text: readingFacts(t, [reading])[0], focus: 'light' }] : [],
-        )
-      : []),
-    ...extras,
-  ];
-  const further = underPicture.length > 0 ? <Extras spaceId={spaceId} extras={underPicture} /> : null;
   // Somebody let in who may not manage the place has nothing behind the menu; who else is here is a tap on whose place it is.
   const menu = !demo && !visiting && mayManage;
 
@@ -228,7 +211,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         {back ? <BackLink to="/" label={t('shell.tabs.home')} /> : null}
         {/* One name per place: the head is the place's, also where it holds nothing but a grow, and the menu renames what it shows. */}
         <h1 id={`${spaceId}-name`}>{overview.name}</h1>
-        {wide ? sentence : null}
+        {sentence}
         <div className={styles.headEnd}>
           {hasDevice ? (
             <LivenessPill
@@ -287,24 +270,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
 
       <div className={`${ui.stack3} ${styles.columns}`}>
         <div className={`${ui.stack3} ${styles.column}`}>
-          {camera ? (
-            <CameraHead
-              camera={camera}
-              name={overview.name}
-              label={grow ? grow.name : called(camera.name)}
-              day={grow ? growDay(t, grow) : null}
-              readings={lampsUnder ? readings.filter(reading => reading.key !== 'light') : readings}
-              curveOf={reading => curvePath(spaceId, reading)}
-              age={offline ? 'offline' : liveness === 'stale' ? 'stale' : 'live'}
-              // A late device is said by the pill alone; a silent one's figures say as of when they are.
-              stand={offline && measuredAt ? t('start.picture.stand', { time: clock(measuredAt, zone), age: ageLabel(measuredAt, now) }) : null}
-            />
-          ) : null}
-          {kept && ownMedia ? <OwnPhoto grow={kept} entries={overview.entries} named /> : null}
-          {grow && !camera && !(kept && ownMedia) ? <GrowHead grow={grow} to={GROW} /> : null}
-          {/* What only some places measure stands directly under what carries the four readings: the picture, or the tiles. */}
-          {camera ? further : null}
-          {wide ? null : sentence}
           {/* A work mode the status already says is not said again under it. */}
           {status.kind === 'mode' ? null : <ModeLine device={device} spaceId={spaceId} mayManage={mayManage} humidifierHold={humidifierHold} />}
           {heldLamp?.held ? (
@@ -322,14 +287,29 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               ) : null}
             </p>
           ) : null}
-          {camera || readings.length === 0 ? null : <ReadingTiles spaceId={spaceId} readings={readings} />}
-          {camera ? null : further}
-          {grow && (camera || (kept && ownMedia)) ? <PhaseLine grow={grow} to={GROW} /> : null}
-          {also.map(one => (
-            <GrowHead key={one.growId} grow={one} to={`/grows/${one.growId}`} />
-          ))}
-          {/* The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported. */}
-          {wide && hasDevice && !byHand && !unread ? <DayCurves spaceId={spaceId} targets={targets} lead={device?.id ?? null} /> : null}
+          {figures.length > 0 || line.length > 0 ? (
+            <div className={`${ui.panel} ${styles.readings}`}>
+              {figures.length > 0 ? (
+                <Figures
+                  figures={figures}
+                  curveOf={reading => curvePath(spaceId, reading)}
+                  under={reading => (day ? <DayCurve timeline={day} targets={targets} metric={reading.key as CurveMetric} /> : null)}
+                />
+              ) : null}
+              {stand ? <p className={styles.stand}>{stand}</p> : null}
+              {line.length > 0 ? <Extras spaceId={spaceId} extras={line} /> : null}
+            </div>
+          ) : null}
+          {/* The grow and the camera: rows that lead on, each with a small picture where there is one. */}
+          {grow || also.length > 0 || camera ? (
+            <div className={ui.group}>
+              {grow ? <GrowRow grow={grow} to={GROW} entries={kept ? overview.entries : null} /> : null}
+              {also.map(one => (
+                <GrowRow key={one.growId} grow={one} to={`/grows/${one.growId}`} />
+              ))}
+              {camera ? <CameraRow camera={camera} name={overview.name} offline={offline} /> : null}
+            </div>
+          ) : null}
         </div>
 
         <div className={`${ui.stack3} ${styles.column}`}>
@@ -379,69 +359,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
 }
 
 /**
- * The newest picture taken in the light, as the head of the place: named by
- * what grows there, dated top right - or said to be the last lit one while the
- * lamp is off, and the last there is while nothing is heard. The readings in
- * its foot each lead to their curve; figures that have stopped coming step
- * back and say as of when they are.
- */
-function CameraHead({
-  camera,
-  name,
-  label,
-  day,
-  readings,
-  curveOf,
-  age,
-  stand,
-}: {
-  camera: OverviewCamera;
-  name: string;
-  label: string;
-  day: string | null;
-  readings: Reading[];
-  curveOf: (reading: Reading) => string;
-  age: 'live' | 'stale' | 'offline';
-  stand: string | null;
-}) {
-  const { t } = useTranslation();
-  const now = useNow();
-  const zone = useZone();
-  const called = useCameraCalled();
-  const offline = age === 'offline';
-  // While nothing is heard the head is the last picture there is, not the newest taken in the light: dated as
-  // Steuerung dates it, one picture carries one time.
-  const still = offline ? null : shownStill(camera);
-  // Before the first picture of the day the strip is empty, and the camera's newest frame is yesterday's.
-  const newest = still === null && camera.lastStillAt ? [camera.cameraId] : [];
-  const latest = useLatestStills(newest);
-  const latestAt = useLatestStillTimes(newest);
-  const mediaId = still?.mediaId ?? latest.get(camera.cameraId) ?? null;
-  const takenAt = still?.capturedAt ?? latestAt.get(camera.cameraId) ?? camera.lastStillAt;
-  const time = takenAt ? sinceLabel(takenAt, now, zone) : null;
-
-  return (
-    <Picture
-      to={`/cameras/${camera.cameraId}`}
-      src={mediaId ? mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) : null}
-      alt={t('home.card.stillAlt', { name })}
-      opens={t('start.picture.open', { name: called(camera.name) })}
-      name={label}
-      day={day}
-      right={time ? t(offline ? 'camera.picture.last' : still?.dark ? 'camera.picture.lightOff' : 'start.picture.takenAt', { time }) : null}
-      warns={offline}
-      readings={readings}
-      curveOf={curveOf}
-      age={age}
-      stand={stand}
-      empty={t('start.camera.none')}
-    />
-  );
-}
-
-/**
- * What only some places measure, in one line - and under a picture the lamps of
- * a place with two: each reading the way to its own curve, a finger high.
+ * The line under the figures: each lamp, and what only some places measure -
+ * each the way to its own curve, a finger high.
  */
 function Extras({ spaceId, extras }: { spaceId: string; extras: (Omit<Extra, 'key'> & { key: string })[] }) {
   return (
@@ -465,7 +384,7 @@ const CAMERA_QUIET_MS = 30 * 60_000;
  * alarm, Steuerung for a place whose regulation is off or unset. A place a
  * camera alone watches says whether the camera delivers, because that is the
  * one thing there that can stop working; a diary kept by hand says nothing.
- * Silence is said by the box above the picture instead, and a device still
+ * Silence is said by the box over the figures instead, and a device still
  * waiting for its first values by the pill.
  */
 function StatusSentence({

@@ -533,7 +533,7 @@
   padding: 0 var(--space-4);
   background: transparent;
   border: var(--rule-width) solid var(--alarm);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--alarm);
   font: inherit;
   font-weight: var(--weight-medium);
@@ -579,7 +579,7 @@
 }
 
 /* What a head offers besides its title - "Timeline ›", "+ Grow", "‹ back to
-   the plan": one small link, in the muted ink at a semibold weight, never
+   the plan": one small link, in the muted ink at the medium, never
    underlined. A link that goes somewhere carries the trailing chevron; one
    that makes something leads with its "+". It is the same whether it sits on
    a section's rule, beside a page's subhead or in the line under a form. */
@@ -651,7 +651,8 @@
 }
 
 /* One answer out of two or three, as one control: a track, the chosen
-   option filled with the brand, in sentence case at a chip's height. Every
+   option filled with the brand blue (in dark mode the navy choice with its
+   pale ring), in sentence case at a chip's height. Every
    such choice in the app is this one - a screen composes it and adds only its
    own layout, such as a track that runs the width of its card. */
 .segments {
@@ -1100,7 +1101,7 @@
 }
 
 .cardHeading {
-  font-size: var(--text-sm);
+  font-size: var(--text-label);
   font-weight: var(--weight-medium);
   letter-spacing: 0;
   color: var(--label);
@@ -1135,13 +1136,13 @@
   opacity: 0.45;
 }
 
-/* The small outlined button in the brand colour: a card's one action. */
+/* The small outlined button in the brand colour: a card's one action, at a control's radius like every button. */
 .pill {
   min-height: var(--control-height);
   padding: 0 14px;
   background: var(--card);
   border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--brand);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);

@@ -25,11 +25,12 @@
   display: none;
 }
 
-/* From the rail's width a menu that has words for itself is a pill saying them. */
+/* From the rail's width a menu that has words for itself is a button saying them. */
 @media (min-width: 900px) {
   .button[data-words] {
     width: auto;
     padding: 0 14px;
+    border-radius: var(--radius-sm);
     background: var(--card);
     border: var(--rule-width) solid var(--rule-strong);
     color: var(--brand);

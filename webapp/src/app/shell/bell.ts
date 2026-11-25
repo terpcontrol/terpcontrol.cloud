@@ -4,7 +4,7 @@ import { useOfferedUpdates } from '@/screens/devices/firmware-builds';
 import { useDue } from '@/screens/start/due';
 import { useNow } from '@/ui/useNow';
 
-/** What the bell carries, and whether it is something open (amber) or only work that is due (the brand's blue). */
+/** What the bell carries, and whether it is something open (the alarm's red) or only work that is due (quieter). */
 interface Bell {
   text: string;
   key: string;

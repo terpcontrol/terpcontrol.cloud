@@ -1,6 +1,6 @@
 ---
 summary: The mechanics behind every time, date, figure and translated word in the web app - the server's clock, the account's time zone, the shared date formats, the age helpers, i18next setup, device-message keys, the figure writers, help topics - and the source-reading tests that enforce them
-updated: 2026-11-13
+updated: 2026-11-26
 source: which language a browser shows, after the walk of Ich (the redesign session of 2026-11-13, not Chris); React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; the light limit's own pause reason gone with its slider (the redesign session of 2026-11-12); one loader for a catalogue (the same session, 2026-11-12)
 paths:
   - webapp/src/**
@@ -135,7 +135,7 @@ its line.
 - Machine output stays on `toFixed` and plain strings: CSV cells, SVG path coordinates, the `yyyy-MM-dd` a date
   field speaks, ids, firmware versions.
 - `test/figures.test.ts` allows `.toFixed(` only in `ui/units.ts`, `ui/figures.ts` and the machine files
-  (`charts/series.ts`, `screens/start/DayCurves.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
+  (`charts/series.ts`, `screens/start/DayCurve.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
   files.
 
 ## Help topics

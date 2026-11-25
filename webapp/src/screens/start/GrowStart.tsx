@@ -8,8 +8,7 @@ import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { AddPlace } from './AddPlace';
 import { Latest } from './Latest';
 import { DeviceOffer } from './Offers';
-import { PhaseLine } from './Phase';
-import { OwnPhoto } from './Picture';
+import { GrowRow } from './Rows';
 import { Today } from './Today';
 import styles from './Start.module.css';
 import ui from '@/ui/ui.module.css';
@@ -17,8 +16,8 @@ import { useGrowPlants } from '@/api/grows';
 
 /**
  * Start of an account whose one grow stands in no place: a diary kept by
- * hand, drawn as a place without hardware is - the grow's name, its newest
- * photo, phase and week, what is due and what was written last - from the
+ * hand, drawn as a place without hardware is - the grow's name, a row with its
+ * newest photo, phase and week, what is due and what was written last - from the
  * home's own card, since there is no place to read.
  */
 export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; answer: HomeAnswer; failedAt: number | null }) {
@@ -35,8 +34,9 @@ export function GrowStart({ card, answer, failedAt }: { card: HomeSpaceCard; ans
       </div>
       <RefreshFailed failedAt={failedAt} now={now} />
       <NotifyNotice later />
-      <OwnPhoto grow={grow} entries={card.entries} />
-      <PhaseLine grow={grow} to={GROW} />
+      <div className={ui.group}>
+        <GrowRow grow={grow} to={GROW} entries={card.entries} />
+      </div>
       <Today now={now} />
       <Latest
         entries={card.entries}

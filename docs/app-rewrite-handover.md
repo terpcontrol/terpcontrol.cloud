@@ -58,8 +58,8 @@ built by Opus agents (his instruction). From three directions he chose (2026-11-
 Inter and master's palette with a lighter hierarchy - only a page's title and a name heavy, figures, chips, buttons
 and tags at 500, section labels in sentence case -, the **desktop rail navy as on master** rather than the light rail
 the direction proposed, and a **Start between master's calm Home and the fuller drafts: a small camera picture and
-small curves**, the readings as figures. That replaces "Nebel" in
-[ADR 0002](adr/0002-app-rewrite-frontend-stack.md) once it is built.
+small curves**, the readings as figures. It is built and replaces "Nebel" in
+[ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein).
 
 ### What was built
 
@@ -127,29 +127,11 @@ small curves**, the readings as figures. That replaces "Nebel" in
   to 73,717 (`webapp/test` 44,477), and the one after the fourth to 74,340 (`webapp/test` 45,378). What stays apart, each with its reason, is in the list of open points below
   ("Left by the clearing-up round"); what exists once is listed in
   [webapp.md](knowledge/webapp.md).
-- **The look "Nebel" is chosen and built** (Chris, 2026-11-13: the type was bold
-  everywhere and nothing fine, the colours neither soft nor in tune; from three proposals he chose "Nebel", and
-  decided the same day that the one primary action keeps the brand green where the proposal had made it navy).
-  [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-nebel) says what it is and
-  changes together with `webapp/src/theme/tokens.css`. What the redesign session worked out for it, open to
-  Chris:
-  - Albert Sans in three weights and no bold - light for titles and figures, regular, medium for what is
-    stressed; the two heavier weight tokens go. Section labels are small and in sentence case; nothing is in
-    capitals. Icons are drawn at a stroke of 1.5.
-  - Albert Sans has no tabular figures, so `webapp/scripts/tabular-digits.py` cuts digits of one width out of it
-    as three small static faces, the way Inter's were cut.
-  - Surfaces are one warm hue, ink and whatever is chosen one navy, and the signals (temperature, humidity, CO₂,
-    warning, alarm) share one lightness and differ by hue; each value is worked out in OKLCH and written in
-    hex. The humidity colour is a step darker than on the pictures Chris saw, because as text on the inset
-    surface it came to 4.25:1; it is 4.56:1 now.
-  - The soft greens ("in band", live, a grow's progress) sit on the brand green's hue, so they and the primary
-    action's green are one family. A progress bar takes the soft green; only an action is filled with the brand's.
-  - The lamp has a colour of its own (`--lamp`, a soft straw) on a timeline lane and a lit day; it had borrowed
-    the warning's.
-  - Radii 12 / 18 / 24 px; a card's shadow low and wide in the paper's hue; the page's glow is gone.
-  - The server's film overlays and share-link cards are set in Albert Sans at 400 and 500 on the dark ground
-    (`server/scripts/install-fonts.mjs` unpacks `@fontsource/albert-sans`); no film was rendered with it yet.
-  - With the face, "×" for a typed "x" is gone everywhere: Albert Sans has no contextual alternates.
+- **The look is "Marke fein"** (Chris, 2026-11-26), built after the pull request was opened. It replaced "Nebel",
+  which Chris had chosen on 2026-11-13 from three proposals (warm paper, Albert Sans light, nothing bold) and found
+  less good than master's look once he saw both side by side.
+  [ADR 0002's section on the look](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein) says what it is,
+  why, and what was kept from Nebel; it changes together with `webapp/src/theme/tokens.css`.
 
 ### Decided by the redesign session, not yet confirmed by Chris
 
@@ -174,7 +156,7 @@ line's pictures and plants, the failed state and the toast's tab order (`ui`, +2
   not-found page (§3, §9, §12).
 - The digits of one width only where figures stand under one another or change in place; nothing falls to the
   browser's bold; the lamp's straw darker in light and its own in dark
-  ([ADR 0002, "The look"](adr/0002-app-rewrite-frontend-stack.md#the-look-nebel), app-ux §9).
+  ([ADR 0002, "The look"](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein), app-ux §9).
 - A line's pictures are reached from the line, and drawn in it on a share link; a line about some plants names
   them; regulation off is a line of the day; "von allein" once per run; an alarm over says so; a folded card says
   how much of it was an alarm (§2, the day cards).

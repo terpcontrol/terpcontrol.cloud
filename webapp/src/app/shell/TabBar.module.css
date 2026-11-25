@@ -5,7 +5,8 @@
   display: flex;
   align-items: center;
   height: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
-  padding: 6px var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom));
+  /* 60 px inside it: the Eintrag circle and its name, which stand inside the bar rather than raised over it. */
+  padding: 2px var(--space-2) calc(2px + env(safe-area-inset-bottom));
   /* Solid: the page scrolls under it, and nothing of it may show through. */
   background: var(--card);
   border-top: var(--rule-solid);
@@ -19,13 +20,15 @@
   }
 }
 
-/* As many equal shares as the account has items: three for a device alone, five with the diary. */
+/* As many equal shares as the account has items: three for a device alone, five with the diary. Each stands on
+   the bar's foot, so every name - Eintrag's under its taller circle too - is on one line. */
 .tab {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  align-self: stretch;
   gap: 3px;
   min-width: 0;
   min-height: 52px;
@@ -34,18 +37,21 @@
   border: 0;
   color: var(--muted);
   font-size: var(--text-2xs);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-regular);
   line-height: var(--line-tight);
 }
 
+/* Where you are: the brand's colour, and the weight of a name. */
 .active {
   color: var(--bar-current);
+  font-weight: var(--weight-heading);
 }
 
-/* Eintrag: the one green thing in the bar, a filled circle over its own name. */
+/* Eintrag: the one green thing in the bar, a filled circle inside it over its own name. */
 .log {
   gap: 2px;
-  color: var(--green-ink);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
 }
 
 .circle {

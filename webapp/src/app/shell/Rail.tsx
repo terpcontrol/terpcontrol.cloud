@@ -1,3 +1,4 @@
+import { Bell, UserRound } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
@@ -47,7 +48,7 @@ export function Rail() {
     return () => window.removeEventListener('keydown', onKey);
   }, [logs, openSheet, underneath]);
 
-  const footClass = ({ isActive }: { isActive: boolean }) => [styles.item, styles.foot, isActive ? styles.active : ''].filter(Boolean).join(' ');
+  const footClass = ({ isActive }: { isActive: boolean }) => [styles.item, isActive ? styles.active : ''].filter(Boolean).join(' ');
   const item = (tab: (typeof all)[number]) => (
     <Link
       key={tab.path}
@@ -55,7 +56,7 @@ export function Rail() {
       className={[styles.item, isOn(tab) ? styles.active : ''].filter(Boolean).join(' ')}
       aria-current={isOn(tab) ? 'page' : undefined}
     >
-      <tab.Icon size={20} strokeWidth={2} aria-hidden />
+      <tab.Icon size={20} aria-hidden />
       {t(tab.labelKey)}
     </Link>
   );
@@ -82,6 +83,7 @@ export function Rail() {
         <div className={styles.spacer} />
 
         <NavLink to="/alerts" className={footClass} aria-label={bell ? t(bell.key, { count: bell.count }) : undefined}>
+          <Bell size={20} aria-hidden />
           <span className={styles.grow}>{t('shell.alerts')}</span>
           {bell ? (
             <span className={styles.count} data-kind={bell.kind}>
@@ -90,6 +92,7 @@ export function Rail() {
           ) : null}
         </NavLink>
         <NavLink to="/me" className={footClass}>
+          <UserRound size={20} aria-hidden />
           {t('shell.account')}
         </NavLink>
       </div>

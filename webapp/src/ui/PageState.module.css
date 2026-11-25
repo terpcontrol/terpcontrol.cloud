@@ -11,10 +11,10 @@
   align-self: flex-start;
   min-height: 48px;
   padding: 0 18px;
-  border: var(--rule-width) solid var(--selected-edge);
-  border-radius: var(--radius);
-  background: var(--selected);
-  color: var(--on-selected);
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--brand);
   font-weight: var(--weight-medium);
 }
 

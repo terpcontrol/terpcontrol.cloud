@@ -5000,7 +5000,6 @@
     "harvestIn_one": "Harvest in about {{count}} week",
     "harvestIn_other": "Harvest in about {{count}} weeks",
     "allCut": "Every plant harvested",
-    "day": "Last 24 h",
     "curve": "{{metric}} over the last 24 hours, between {{low}} and {{high}}",
     "waiting": "Home is loading",
     "addPlace": "Add a place",
@@ -5045,9 +5044,7 @@
     "picture": {
       "takenAt": "Picture from {{time}}",
       "stand": "As of {{time}} · {{age}} ago",
-      "open": "Open {{name}}",
       "photoAlt": "The newest photo of {{name}}",
-      "openGrow": "Open the grow",
       "yours": "your photo from {{day}}",
       "photo": "photo from {{day}}"
     },
@@ -5181,8 +5178,7 @@
     "reading": {
       "open": "open the Timeline"
     },
-    "noRoom": "In no room",
-    "curveSpan": "{{low}}–{{high}}"
+    "noRoom": "In no room"
   },
   "liveness": {
     "ago": "{{age}} ago",

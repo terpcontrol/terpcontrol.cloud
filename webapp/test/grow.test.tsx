@@ -19,7 +19,7 @@ import { GrowHead } from '@/screens/grow/GrowPage';
 import { Pictures } from '@/screens/grow/pictures/Pictures';
 import { Report } from '@/screens/grow/Report';
 import { AlsoHere } from '@/screens/space/AlsoHere';
-import { PhaseLine } from '@/screens/start/Phase';
+import { GrowRow } from '@/screens/start/Rows';
 import { drawAt, json, reading } from './harness';
 import { growOf } from './place-wire';
 import { ON_THE_DEMO, SIGNED_IN } from './session';
@@ -568,7 +568,7 @@ describe('the head of a grow´s page', () => {
   });
 
   /** Start said "Blüte · Woche 1" over a tent where one plant of two was still in Veg: the same words as the head. */
-  it('names a split on Start´s phase line as the head does', () => {
+  it('names a split on Start´s grow row as the head does', () => {
     const card = growOf({
       stageWeek: 1,
       stageGroups: [
@@ -576,9 +576,9 @@ describe('the head of a grow´s page', () => {
         { stage: 'vegetative', plantCount: 1 },
       ],
     });
-    draw(<PhaseLine grow={card} to="/grow" />);
+    draw(<GrowRow grow={card} to="/grow" />);
 
-    expect(screen.getByRole('link')).toHaveTextContent(/^Flower · 1 of 2 plants/);
+    expect(screen.getByRole('link')).toHaveTextContent(/Flower · 1 of 2 plants/);
     expect(screen.getByRole('link')).not.toHaveTextContent(/week 1/i);
   });
 

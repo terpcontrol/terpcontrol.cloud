@@ -1,6 +1,6 @@
 ---
 summary: Cameras in this software - Terp Cam pairing on a device, a Terp Cam read off its own RTSP stream, the cloud's P2P client behind the device relay, RTSP cameras, polling, stills, timelapses, camera records, limits, failure modes and env variables; read before changing camera code
-updated: 2026-11-25
+updated: 2026-11-26
 source: a film's day from the grow's origin (the redesign session's fix round of 2026-11-16); a Terp Cam judged from its controller's return, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); one picture time for a silent place (the redesign session's fix round of 2026-11-15); a film's caption by the nearest line and measured widths, a film of too few pictures refused at the request, the rest of today filmed from the camera page, a public card drawn over its newest picture (the fourth whole-app walk's fix round, 2026-11-14); a stream test's details, the film's caption, curve and type by the frame, the dark film's refusal worded (the third whole-app walk's fix round, 2026-11-14); a claimed controller's Terp Cam made at the claim, a film of the dark refused at the request, a late device said once on the camera page, the overlay's curve under its readings (the redesign session's fix round of 2026-11-14); a stream's address tested by a route that makes no camera (Chris, 2026-11-14); a paired camera called Terp Cam (Chris, 2026-11-13); a stream address checked before anything is added, a test that adds nothing, a guest without a place of his own (the redesign session of 2026-11-13, after the whole-app walk's third report); the test button on a device that is not live (the redesign session of 2026-11-13); the camera page's reads (the redesign session of 2026-11-12); its day in the address, the film asked for and the settings' one Save, after that session's critic's walk (2026-11-12); Chris (decisions, PR reviews 2026-08..10; the reset on a camera report 2026-11-25); PRs #10-#140 and their sessions; commits since 2026-01; codebase cleanup (2026-10-08); checked against the code 2026-10-08; an HTTP snapshot read with the server image's ffmpeg (2026-10-08); the stream path measured on a development camera on the LAN and through the tunnel (2026-11-25)
 paths:
   - firmware/src/terpcam.*
@@ -219,7 +219,7 @@ way and what the code has to respect. Internal notes on the camera exist.
   luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, Start
   and grow cards) query `lit != false`; a day takes the lit still nearest midday (`diary/diary-pictures.ts`). A
   place that is silent shows the last picture there is instead, dated by its capture as Steuerung dates it, so one
-  picture carries one time (`CameraHead`, `screens/start/PlaceStart.tsx`).
+  picture carries one time (`CameraRow`, `screens/start/Rows.tsx`).
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
   192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable
@@ -264,7 +264,7 @@ way and what the code has to respect. Internal notes on the camera exist.
   (9:16) film reads as a landscape one does; a frame's caption is the diary line nearest it within half an hour
   (`captionAt`; the first in that hour hid a line written ten minutes after another), and over the climate box it
   widens past the box as far as its words need, up to the frame's margins, and is cut only there. Its width is
-  reckoned from Albert Sans's own advance widths (`ADVANCES`, read from the face's `hmtx`; an unmeasured character
+  reckoned from Inter's own advance widths (`ADVANCES`, read from the face's `hmtx`; an unmeasured character
   counts as a wide letter, a CJK one as a whole size): guessed at 0.55 of the size a letter, the "…" came a fifth
   before the bar's end. A film's day badge counts the grow's day as every screen and the share card do - from its
   origin, the earliest of its start and its phases (`growOriginOf`), on the owner's calendar (`growDayAt` in the

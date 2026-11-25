@@ -24,9 +24,12 @@
 }
 
 /* "Ort bearbeiten" and "Ort entfernen": a head with the page's one action, the
-   fields, then what stands here and who is let in, each under its small title. */
+   fields, then what stands here and who is let in, each under its small title.
+   A name reads as it was typed: Inter's contextual alternates make "120x120"
+   a "120×120" in running text. */
 .editing {
   gap: var(--space-4);
+  font-variant-ligatures: no-contextual;
 }
 
 /* A word of a name longer than its line breaks with a hyphen, as on Start. */
@@ -64,12 +67,12 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* The page's one action stands in its head, a pill, and never wraps its word. */
+/* The page's one action stands in its head and never wraps its word. */
 .save {
   flex: none;
   height: var(--control-height);
   margin-left: auto;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
 }
 
 /* Below 360 px "Ort bearbeiten" keeps one line beside Speichern: the button closes up and the title, the one a
@@ -108,7 +111,7 @@
   padding: var(--space-2) var(--space-4);
   background: var(--card);
   border: var(--rule-width) solid var(--alarm);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--alarm);
   font-weight: var(--weight-medium);
   text-align: center;

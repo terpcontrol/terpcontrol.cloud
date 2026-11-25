@@ -27,7 +27,7 @@
   padding: 0 var(--space-4);
   background: var(--card);
   border: var(--rule-width) solid var(--rule-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font-weight: var(--weight-medium);
   white-space: nowrap;

@@ -5010,7 +5010,6 @@
     "harvestIn_one": "Ernte in etwa {{count}} Woche",
     "harvestIn_other": "Ernte in etwa {{count}} Wochen",
     "allCut": "Alle Pflanzen geerntet",
-    "day": "Letzte 24 Std",
     "curve": "{{metric}} der letzten 24 Stunden, zwischen {{low}} und {{high}}",
     "waiting": "Start lädt",
     "addPlace": "Ort hinzufügen",
@@ -5055,9 +5054,7 @@
     "picture": {
       "takenAt": "Bild von {{time}}",
       "stand": "Stand {{time}} · vor {{age}}",
-      "open": "{{name}} öffnen",
       "photoAlt": "Das neueste Foto von {{name}}",
-      "openGrow": "Grow öffnen",
       "yours": "dein Foto von {{day}}",
       "photo": "Foto von {{day}}"
     },
@@ -5191,8 +5188,7 @@
     "reading": {
       "open": "Verlauf öffnen"
     },
-    "noRoom": "Ohne Raum",
-    "curveSpan": "{{low}}–{{high}}"
+    "noRoom": "Ohne Raum"
   },
   "liveness": {
     "ago": "vor {{age}}",

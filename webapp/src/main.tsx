@@ -1,5 +1,6 @@
-// Albert Sans with its weight axis: the app sets titles and figures light, text regular and what is stressed medium.
-import '@fontsource-variable/albert-sans/wght.css';
+// Inter with its optical-size axis, so a 12 px caption gets the open text cut
+// and a 32 px title the tighter display one without anybody asking.
+import '@fontsource-variable/inter/opsz.css';
 import './theme/tokens.css';
 import './styles/global.css';
 // The shared shapes before any screen's own styles: where both speak of an element, the screen's rule is the later one and wins.

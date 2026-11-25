@@ -1,10 +1,11 @@
 import type { DateTime } from 'luxon';
-import type { Device, OpenAlert, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, OpenAlert, SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
 import { useOpenAlerts } from '@/api/alerts';
 import { useDeviceLive, useLiveReads } from '@/api/devices';
 import { itemsOf } from '@/api/pages';
 import { failingSince } from '@/api/read';
 import { useSpaceLive, useSpaceOverview } from '@/api/spaces';
+import { useTimeline } from '@/api/timeline';
 import { useHumidifier } from '@/screens/control/germination/germination-choices';
 import { useHeldLight } from '@/screens/control/held-light';
 import { useLightHolds } from '@/screens/devices/lights';
@@ -80,3 +81,17 @@ export const useLamp = (device: Device | null, here: Device[], now: DateTime) =>
 
 /** A place's open alerts for its status (`placeAlerts`), each about the device the account's own list of alerts - Meldungen's - names. */
 export const usePlaceAlerts = (listed: OpenAlert[], here: Device[], now: DateTime) => placeAlerts(listed, itemsOf(useOpenAlerts().data), here, now);
+
+/** The same read Verlauf opens on, so the page behind a figure is already in hand. */
+const LAST_DAY = { range: '24h' as const };
+
+/**
+ * The last day of the place, for the small curves under its figures. They are
+ * the lead's, as the figures are: a day drawn from another device of the place
+ * is no day of it, and a place waiting for its lead's first figures has none.
+ */
+export const useLastDay = (spaceId: string, lead: string | null, wanted: boolean): SpaceTimeline | null => {
+  const timeline = useTimeline(wanted ? spaceId : null, LAST_DAY).data;
+  if (!wanted || !timeline || (lead !== null && timeline.deviceId && timeline.deviceId !== lead)) return null;
+  return timeline;
+};

@@ -177,8 +177,8 @@ describe('Start of a place whose controller fell silent beside a socket that rep
     // What it last said is said in the past; nothing says in the present that the place holds no targets.
     expect(screen.queryByText(/Control off: the device holds no targets/)).not.toBeInTheDocument();
     if (!running) expect(screen.getByText(/Control was off when it last reported/)).toBeInTheDocument();
-    // The picture steps back and says it is the last there is.
-    const picture = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!.parentElement!;
+    // The camera's picture steps back and its row says it is the last there is.
+    const picture = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!;
     expect(picture).toHaveAttribute('data-age', 'offline');
     expect(picture).toHaveTextContent(/last picture from/);
   });
@@ -249,46 +249,47 @@ describe('Start of a place whose controller was never heard beside a socket that
 describe('Start of one place with a camera and a grow', () => {
   beforeEach(() => onePlace(overviewOf({ cameras: [camera()], grows: [growOf()] }), true));
 
-  it('leads with the newest picture, the grow and its day on it and the readings in it, and opens the camera', async () => {
+  /** "kleines Bild, kleine Kurven" (Chris, 2026-11-26): the figures first, the grow and the camera as rows under them. */
+  it('reads the figures first, then the grow and the camera as rows, the camera with its small picture, and opens it', async () => {
     draw();
 
-    const toCamera = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!;
+    const figures = (await screen.findByRole('link', { name: /^Temperature 25.1 °C/ })).closest('div')!.parentElement!;
+    expect(figures).toHaveTextContent(/25.1 °CTemperature.*61 %Humidity.*1.03 kPaVPD/);
+    const toCamera = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!;
     expect(toCamera).toHaveAttribute('href', '/cameras/cam-1');
-    expect(toCamera).toHaveTextContent(/Open Terp Cam$/);
-    const picture = toCamera.parentElement!;
-    // The grow waits for the account's answer, and so do the hours: they are the account's.
-    await waitFor(() => expect(picture).toHaveTextContent('Spring run · Day 29'));
-    await waitFor(() => expect(picture).toHaveTextContent(`Picture from ${hhmm(ago(5))}`));
-    for (const figure of ['25.1 °C', '61 %', '1.03 kPa']) expect(within(picture).getByText(figure)).toBeInTheDocument();
-    expect(await within(picture).findByText('65 %')).toBeInTheDocument();
-    // The readings stand in the picture, so no tile repeats them.
-    expect(screen.queryByRole('link', { name: 'Temperature' })).not.toBeInTheDocument();
+    // The hours wait for the account's answer: they are the account's.
+    await waitFor(() => expect(toCamera).toHaveTextContent(`Terp CamPicture from ${hhmm(ago(5))}`));
+    // The grow waits for the account's answer too.
+    const toGrow = (await screen.findByText('Spring run')).closest('a')!;
+    expect(toGrow).toHaveAttribute('href', '/grow');
+    expect(toGrow).toHaveTextContent('Day 29 · Flower · week 3');
+    // Figures, then the grow, then the camera.
+    expect(figures.compareDocumentPosition(toGrow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toGrow.compareDocumentPosition(toCamera) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('opens each reading´s curve from the picture: its panel of Verlauf', async () => {
+  it('opens each reading´s curve from its figure: its panel of Verlauf', async () => {
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
-    // Said as a sentence that names the reading and carries the verdict the picture does not draw.
-    expect(within(picture).getByRole('link', { name: 'Temperature 25.1 °C, on target, open the Timeline' })).toHaveAttribute(
+    // Said as a sentence that names the reading and carries the verdict the figure does not draw.
+    expect(await screen.findByRole('link', { name: 'Temperature 25.1 °C, on target, open the Timeline' })).toHaveAttribute(
       'href',
       '/timeline?space=space-1&focus=temperature',
     );
-    expect(within(picture).getByRole('link', { name: /^Humidity 61 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=humidity');
-    expect(within(picture).getByRole('link', { name: 'VPD 1.03 kPa, open the Timeline' })).toHaveAttribute(
-      'href',
-      '/timeline?space=space-1&focus=vpd',
-    );
-    expect(await within(picture).findByRole('link', { name: /^Light 65 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
+    expect(screen.getByRole('link', { name: /^Humidity 61 %/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=humidity');
+    expect(screen.getByRole('link', { name: 'VPD 1.03 kPa, open the Timeline' })).toHaveAttribute('href', '/timeline?space=space-1&focus=vpd');
+    // VPD explains itself beside its name.
+    expect(screen.getByRole('link', { name: /^VPD/ }).parentElement!).toContainElement(screen.getByRole('button', { name: /VPD/ }));
+    // The lamp stands in the line under the figures, with when it switches next.
+    expect(await screen.findByRole('link', { name: /^Light 65\s% · on until/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
   });
 
-  it('keeps the day of the grow on the picture´s label whatever the name leaves room for', async () => {
+  it('names the grow in its row, its day under it, whatever the name´s length', async () => {
     onePlace(overviewOf({ cameras: [camera()], grows: [growOf({ name: 'Amnesia Haze and Gelato 41, second run' })] }), true);
     draw();
 
-    // The name is the part that gives way; the day stands in a part of its own that does not.
-    const day = await screen.findByText('· Day 29');
-    expect(day.previousElementSibling).toHaveTextContent('Amnesia Haze and Gelato 41, second run');
+    const row = (await screen.findByText('Amnesia Haze and Gelato 41, second run')).closest('a')!;
+    expect(row).toHaveTextContent(/second runDay 29/);
   });
 
   it('names the place with how fresh its readings are, and says in one sentence that all is well', async () => {
@@ -636,15 +637,15 @@ describe('Start of one place with a camera and a grow', () => {
     expect(await screen.findByText('Plan: Flower, paused – resume under Control')).toBeInTheDocument();
   });
 
-  it('draws the last day as two small curves that lead to Verlauf', async () => {
+  it('draws the last day small under each figure, which leads to its curve', async () => {
     draw();
 
-    const curves = (await screen.findByText('Last 24 h')).closest('a')!;
-    expect(curves).toHaveAttribute('href', '/timeline?space=space-1');
     // The lowest and the highest sample of the day, as Verlauf's head says them - not the lowest and highest mean.
-    expect(within(curves).getByRole('img', { name: /^Temperature over the last 24 hours, between 20.6 °C and 25.2 °C$/ })).toBeInTheDocument();
-    expect(curves).toHaveTextContent('20.6–25.2 °C');
-    expect(within(curves).getByRole('img', { name: /^Humidity over the last 24 hours/ })).toBeInTheDocument();
+    const curve = await screen.findByRole('img', { name: /^Temperature over the last 24 hours, between 20.6 °C and 25.2 °C$/ });
+    expect(curve.parentElement).toContainElement(screen.getByRole('link', { name: /^Temperature 25.1 °C/ }));
+    expect(screen.getByRole('img', { name: /^Humidity over the last 24 hours/ })).toBeInTheDocument();
+    // No card of its own: the curves are the figures'.
+    expect(screen.queryByText('Last 24 h')).not.toBeInTheDocument();
   });
 
   /** A second grow started where one runs pushed the first off Start, and its task stopped saying whose it is. */
@@ -658,8 +659,8 @@ describe('Start of one place with a camera and a grow', () => {
     server.tasks = [due('task-1', 'water', 'Water', { type: 'grow', id: 'grow-1' })];
     draw();
 
-    // The newer stands under the picture; the one that ran here first is a card of its own, leading to its page.
-    expect(await screen.findByRole('link', { name: /^Spring run · Day 29/ })).toHaveAttribute('href', '/grows/grow-1');
+    // The newer leads, the one that ran here first is a row of its own under it, leading to its page.
+    expect(await screen.findByRole('link', { name: /^Spring run\s*Day 29/ })).toHaveAttribute('href', '/grows/grow-1');
     const today = (await screen.findByRole('heading', { name: 'Today' })).closest('section')!;
     await waitFor(() => expect(within(today).getByRole('listitem')).toHaveTextContent(/^WaterSpring run · due since/));
   });
@@ -676,11 +677,15 @@ describe('Start of one place with a camera and a grow', () => {
     server.grows = [standing('space-1', { id: 'grow-2', name: 'Gelato', ...here(20) }), standing('space-1', here(28 * 24))];
     draw();
 
-    expect(await screen.findByRole('link', { name: /^Gelato · Day 1/ })).toHaveAttribute('href', '/grows/grow-2');
-    expect(screen.queryByRole('link', { name: /^Spring run · Day 29/ })).not.toBeInTheDocument();
+    const second = await screen.findByRole('link', { name: /^Gelato\s*Day 1/ });
+    expect(second).toHaveAttribute('href', '/grows/grow-2');
+    // The one there longest is the place's grow, the one Grow opens on, and comes first.
+    const spring = screen.getByRole('link', { name: /^Spring run\s*Day 29/ });
+    expect(spring).toHaveAttribute('href', '/grow');
+    expect(spring.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('keeps what only some places measure in one line under the picture, each the way to its own curve', async () => {
+  it('keeps what only some places measure in the line under the figures, each the way to its own curve', async () => {
     const more = [
       { metric: 'leafTemperature', value: 24.2, measuredAt: ago(0.3), state: 'live' },
       { metric: 'lux', value: 34000, measuredAt: ago(0.3), state: 'live' },
@@ -694,9 +699,10 @@ describe('Start of one place with a camera and a grow', () => {
     expect(await screen.findByRole('link', { name: /lx$/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=lux');
     // PPFD has a panel of its own; opening the lux curve under "PPFD 510" showed "34 000 lx".
     expect(screen.getByRole('link', { name: 'PPFD 510' })).toHaveAttribute('href', '/timeline?space=space-1&focus=ppfd');
-    // The line stands directly under the picture, before the phase and what is due.
+    // The line stands in the figures' card, under them, after the lamp.
     const line = screen.getByRole('link', { name: 'PPFD 510' }).parentElement!.parentElement!;
-    expect(line.previousElementSibling).toContainElement(screen.getByRole('img', { name: 'Fridge 1: the newest picture' }));
+    expect(line.previousElementSibling).toContainElement(screen.getByRole('link', { name: /^Temperature 25.1 °C/ }));
+    expect(line.firstElementChild).toHaveTextContent(/^Light 65 %/);
   });
 
   it('leaves the light figures out of that line while the lamp is dark', async () => {
@@ -709,19 +715,21 @@ describe('Start of one place with a camera and a grow', () => {
     draw();
 
     expect(await screen.findByRole('link', { name: /^CO₂ 880\sppm$/ })).toBeInTheDocument();
+    // A dark lamp stands in the line as off, the way to its curve.
+    expect(await screen.findByRole('link', { name: /^Light off/ })).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
     expect(screen.queryByRole('link', { name: /lx$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^PPFD/ })).not.toBeInTheDocument();
   });
 
-  /** A late device is said once, by the pill's word and its age: not again on the picture, nor in a sentence. */
-  it('steps figures that have stopped coming back in the picture, and says they are late once, by the pill', async () => {
+  /** A late device is said once, by the pill's word and its age: not again under the figures, nor in a sentence. */
+  it('steps figures that have stopped coming back, and says they are late once, by the pill', async () => {
     onePlace(overviewOf({ values: values(5).map(value => ({ ...value, state: 'stale' as const })), cameras: [camera(1)], grows: [growOf()] }), true);
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
-    expect(picture).toHaveAttribute('data-age', 'stale');
+    const figure = (await screen.findByRole('link', { name: /^Temperature 25.1 °C/ })).closest('div')!;
+    expect(figure).toHaveAttribute('data-age', 'stale');
     await waitFor(() => expect(document.querySelector('[data-liveness="stale"]')).toHaveTextContent('5 min ago'));
-    expect(picture).not.toHaveTextContent(/As of/);
+    expect(figure.parentElement!.parentElement).not.toHaveTextContent(/As of/);
     expect(screen.queryByText(/reporting late|late values|is late/i)).not.toBeInTheDocument();
     expect(document.body.textContent?.match(/5\smin\sago/g)).toHaveLength(1);
   });
@@ -730,7 +738,7 @@ describe('Start of one place with a camera and a grow', () => {
     onePlace(overviewOf({ grows: [growOf()], cameras: [{ ...camera(), litStill: { mediaId: 'lit-1', capturedAt: ago(200) } }] }), true);
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
+    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!;
     await waitFor(() => expect(picture).toHaveTextContent(`Light off · picture from ${hhmm(ago(200))}`));
     expect(screen.getByRole('img', { name: 'Fridge 1: the newest picture' })).toHaveAttribute('src', '/media/lit-1');
   });
@@ -772,20 +780,22 @@ describe('Start of a place that only regulates', () => {
     expect(row).not.toHaveTextContent(/Targets|By day/);
   });
 
-  it('draws the readings as tiles, each the way to its curve, with the verdict under the figure', async () => {
+  it('draws the readings as big figures, each the way to its curve, and the lamp in the line under them', async () => {
     draw();
 
-    const temperature = (await screen.findByRole('link', { name: 'Temperature' })).closest('div')!;
-    expect(screen.getByRole('link', { name: 'Temperature' })).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
-    expect(temperature).toHaveTextContent('Temperature25.1 °Con target');
-    expect(screen.getByRole('link', { name: 'Humidity' }).closest('div')).toHaveTextContent('Humidity61 %on target');
+    const temperature = await screen.findByRole('link', { name: 'Temperature 25.1 °C, on target, open the Timeline' });
+    expect(temperature).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
+    expect(temperature.closest('div')).toHaveTextContent(/^25.1 °CTemperature/);
+    expect(screen.getByRole('link', { name: /^Humidity 61 %, on target/ }).closest('div')).toHaveTextContent(/^61 %Humidity/);
     // VPD leads to its own panel of Verlauf like every reading, and explains itself beside its name.
-    const vpd = screen.getByRole('link', { name: 'VPD' });
+    const vpd = screen.getByRole('link', { name: /^VPD 1.03 kPa/ });
     expect(vpd).toHaveAttribute('href', '/timeline?space=space-1&focus=vpd');
-    expect(vpd.closest('div')).toHaveTextContent('1.03 kPa');
     expect(within(vpd.closest('div')!).getByRole('button', { name: /VPD/ })).toBeInTheDocument();
     // The lamp says how bright it is and when it switches next, by the account's clock.
-    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('Light65 %on until 18:00');
+    expect(await screen.findByRole('link', { name: /^Light 65\s% · on until 18:00$/ })).toHaveAttribute(
+      'href',
+      '/timeline?space=space-1&focus=light',
+    );
     // No grow, no diary: nothing about either but the one card that offers it.
     expect(screen.queryByRole('heading', { name: 'Today' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Whole diary ›' })).not.toBeInTheDocument();
@@ -807,11 +817,9 @@ describe('Start of a place that only regulates', () => {
     onePlace(overviewOf({ deviceIds: ['device-1', 'lamp-1'] }));
     draw();
 
-    expect((await screen.findByRole('link', { name: 'Light · Fridge module' })).closest('div')).toHaveTextContent(
-      'Light · Fridge module65 %on until 18:00',
-    );
-    expect(screen.getByRole('link', { name: 'Light · Lamp module' }).closest('div')).toHaveTextContent(/^Light · Lamp module65 %on until \d\d:00$/);
-    expect(screen.queryByRole('link', { name: 'Light' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Light · Fridge module 65\s% · on until 18:00$/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Light · Lamp module 65\s% · on until \d\d:00$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Light 65/ })).not.toBeInTheDocument();
     // A place's card among several says them as facts of one line.
     const t = i18next.t.bind(i18next);
     const level = { percent: 65, measuredAt: ago(0.2), state: 'live' as const };
@@ -847,6 +855,11 @@ describe('Start of a place that only regulates', () => {
       ['Light · Lamp module', '65 %', 'despite germination · its brightness was set since'],
     ]);
     expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite germination']);
+    // The line under Start's figures says the dark once, and of a lamp that burns how bright it is and why.
+    expect(readings.map(one => one.said)).toEqual([
+      'Light · Fridge module off · germination',
+      'Light · Lamp module 65 % · despite germination · its brightness was set since',
+    ]);
     // Not yet handed the dark, it says that instead.
     const coming = readingsOf(t, {
       values: [],
@@ -897,8 +910,8 @@ describe('Start of a place that only regulates', () => {
     expect(readingFacts(t, readings)).toEqual(['Light · Fridge module off', 'Light · Lamp module 65 % despite drying']);
   });
 
-  /** Five figures in the bar ran "TemperatureHumidity" together at 390 and took two rows over the picture at 320. */
-  it('stands two lamps in the line under a camera´s picture, each the way to its curve', async () => {
+  /** Five figures in a picture's bar ran "TemperatureHumidity" together at 390: lamps stand in the line, never among the figures. */
+  it('stands two lamps in the line under the figures, each the way to its curve', async () => {
     const lamp = fridge({
       id: 'lamp-1',
       type: 'light',
@@ -911,12 +924,11 @@ describe('Start of a place that only regulates', () => {
     draw();
 
     // Each fact of the line keeps to one line (`unbroken`), with no-break spaces.
-    const under = await screen.findByRole('link', { name: /^Light\s·\sLamp\smodule\s65\s%$/ });
+    const under = await screen.findByRole('link', { name: /^Light\s·\sLamp\smodule\s65\s%/ });
     expect(under).toHaveAttribute('href', '/timeline?space=space-1&focus=light');
-    expect(screen.getByRole('link', { name: /^Light\s·\sFridge\smodule\s65\s%$/ })).toBeInTheDocument();
-    const picture = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!.parentElement!;
-    expect(within(picture).queryByRole('link', { name: /^Light/ })).not.toBeInTheDocument();
-    expect(within(picture).getByRole('link', { name: /^Temperature 25.1 °C/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Light\s·\sFridge\smodule\s65\s%/ })).toBeInTheDocument();
+    const figures = screen.getByRole('link', { name: /^Temperature 25.1 °C/ }).closest('div')!.parentElement!;
+    expect(within(figures).queryByRole('link', { name: /^Light/ })).not.toBeInTheDocument();
   });
 
   /**
@@ -924,14 +936,18 @@ describe('Start of a place that only regulates', () => {
    * it read as a tent keeping its day, and the tile promised a switch at an
    * hour the hold would pass.
    */
-  it('says a lamp held by hand in its tile and under the sentence, with the way to where it is handed back', async () => {
+  it('says a lamp held by hand in the line and under the sentence, with the way to where it is handed back', async () => {
     localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: new Date(Date.now() + 65 * 60_000).toISOString() }));
     server.live = { ...server.live, outputs: { light: { value: 0, measuredAt: ago(0.3), state: 'live' } } } as never;
     draw();
 
-    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('LightOffheld off until 12:05');
+    expect(await screen.findByRole('link', { name: 'Light held off until 12:05' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All on target.');
-    const line = screen.getByText('Light held off until 12:05').closest('p')!;
+    // Said in the line under the figures and again under the sentence, where it is changed.
+    const line = screen
+      .getAllByText('Light held off until 12:05')
+      .map(one => one.closest('p'))
+      .find(Boolean)!;
     expect(within(line).getByRole('link', { name: 'Change ›' })).toHaveAttribute('href', '/control/outputs?space=space-1');
   });
 
@@ -939,7 +955,7 @@ describe('Start of a place that only regulates', () => {
     localStorage.setItem('terp.lightHold.device-1', JSON.stringify({ state: 'off', until: new Date(Date.now() - 60_000).toISOString() }));
     draw();
 
-    expect((await screen.findByRole('link', { name: 'Light' })).closest('div')).toHaveTextContent('Light65 %on until 18:00');
+    expect(await screen.findByRole('link', { name: /^Light 65\s% · on until 18:00$/ })).toBeInTheDocument();
     expect(screen.queryByText(/held off/)).not.toBeInTheDocument();
   });
 
@@ -950,7 +966,9 @@ describe('Start of a place that only regulates', () => {
     // The figure is bound to its unit, so the sentence never breaks between the two.
     const sentence = await screen.findByRole('link', { name: 'Temperature 3.0\u00a0°C too high just now' });
     expect(sentence).toHaveAttribute('href', '/timeline?space=space-1&focus=temperature');
-    expect(screen.getByRole('link', { name: 'Temperature' }).closest('div')).toHaveTextContent('3.0 °C too high');
+    // The figure takes the warning's ink and says the verdict to whoever cannot see it.
+    const figure = screen.getByRole('link', { name: /^Temperature 28.0 °C, 3.0\s°C too high/ }).closest('div')!;
+    expect(figure).toHaveAttribute('data-tone', 'off');
   });
 
   it('says an open alarm, and leads to Meldungen', async () => {
@@ -1100,7 +1118,7 @@ describe('Start of a place that only regulates', () => {
     server.me = meOf(false, { preferences: { diary: 'off' } });
     draw();
 
-    expect(await screen.findByRole('link', { name: 'Temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature / })).toBeInTheDocument();
     await waitFor(() => expect(server.calls).toContain('GET /spaces'));
     expect(screen.queryByRole('heading', { name: /What grows/ })).not.toBeInTheDocument();
   });
@@ -1124,7 +1142,7 @@ describe('Start of a place that only regulates', () => {
     server.spaces = [spaceWhere('own', { presetPrompt: 'never' })];
     draw();
 
-    expect(await screen.findByRole('link', { name: 'Temperature' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature / })).toBeInTheDocument();
     await waitFor(() => expect(server.calls).toContain('GET /spaces'));
     expect(screen.queryByRole('heading', { name: /What grows/ })).not.toBeInTheDocument();
   });
@@ -1182,9 +1200,9 @@ describe('Start of a place that only regulates', () => {
     );
     draw();
 
-    expect(await screen.findByText('25.1 °C')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^Temperature 25.1 °C/ })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('All on target.');
-    expect(screen.queryByText('31.5 °C')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Temperature 31.5 °C/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Mother controller/)).not.toBeInTheDocument();
   });
 });
@@ -1294,9 +1312,9 @@ describe('the states of Start', () => {
     const box = (await screen.findByRole('heading', { name: `The device has not reported since ${hhmm(ago(42))}.` })).closest('section')!;
     expect(screen.getByText('offline')).toBeInTheDocument();
     expect(screen.getByText('· for 42 min')).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: 'Temperature' }).closest('div')).toHaveTextContent(`25.1 °Clast value ${hhmm(ago(42))}`),
-    );
+    const figure = await screen.findByRole('link', { name: `Temperature 25.1 °C, last value ${hhmm(ago(42))}, open the Timeline` });
+    expect(figure.closest('div')).toHaveAttribute('data-age', 'offline');
+    expect(figure.closest('div')!.parentElement!.parentElement).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
     // The box says it; no second sentence does, and nothing claims "on target" about a tent nobody has heard from.
     expect(screen.queryByText('All on target.')).not.toBeInTheDocument();
     expect(screen.queryByText('on target')).not.toBeInTheDocument();
@@ -1323,10 +1341,11 @@ describe('the states of Start', () => {
     onePlace(overviewOf({ values: values(42), cameras: [camera(43)], grows: [growOf()] }), true);
     draw();
 
-    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!.parentElement!;
+    const picture = (await screen.findByRole('img', { name: 'Fridge 1: the newest picture' })).closest('a')!;
     expect(picture).toHaveAttribute('data-age', 'offline');
     await waitFor(() => expect(picture).toHaveTextContent(`last picture from ${hhmm(ago(43))}`));
-    expect(picture).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
+    const figures = screen.getByRole('link', { name: /^Temperature 25.1 °C/ }).closest('div')!.parentElement!.parentElement!;
+    expect(figures).toHaveTextContent(`As of ${hhmm(ago(42))} · 42 min ago`);
   });
 
   /** The place showed the lit picture as "letztes Bild von 13:28" while Steuerung dated the camera's newest 13:29. */
@@ -1338,7 +1357,7 @@ describe('the states of Start', () => {
 
     const shown = await screen.findByRole('img', { name: 'Fridge 1: the newest picture' });
     await waitFor(() => expect(shown).toHaveAttribute('src', '/media/dark-1'));
-    expect(shown.closest('a')!.parentElement!).toHaveTextContent(`last picture from ${hhmm(ago(43))}`);
+    expect(shown.closest('a')!).toHaveTextContent(`last picture from ${hhmm(ago(43))}`);
   });
 
   it('says a device that has sent no value yet is waiting for its first ones, and not that it is offline', async () => {
@@ -1631,7 +1650,7 @@ describe('the states of Start', () => {
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
   });
 
-  it('heads a diary kept by hand with the place´s name too, the grow on its newest photo, and offers a device under it', async () => {
+  it('heads a diary kept by hand with the place´s name too, the grow´s row with its newest photo, and offers a device under it', async () => {
     onePlace(
       overviewOf({
         name: 'Balcony',
@@ -1661,10 +1680,7 @@ describe('the states of Start', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Balcony' })).toBeInTheDocument();
     const toGrow = (await screen.findByRole('img', { name: 'The newest photo of Balcony autos' })).closest('a')!;
     expect(toGrow).toHaveAttribute('href', '/grow');
-    const photo = toGrow.parentElement!;
-    expect(photo).toHaveTextContent('Balcony autos · Day 29');
-    expect(photo).toHaveTextContent('your photo from yesterday');
-    expect(screen.getByText('Flower · week 3')).toBeInTheDocument();
+    expect(toGrow).toHaveTextContent('Balcony autosDay 29 · Flower · week 3 · your photo from yesterday');
     // Nothing measures here, so nothing is judged and nothing is steered.
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByText(/^Targets/)).not.toBeInTheDocument();
@@ -1835,13 +1851,18 @@ describe('Start with several places', () => {
     expect(cards.map(card => card.getAttribute('href'))).toEqual(['/spaces/space-2', '/spaces/space-1']);
     expect(within(room).getByRole('link')).toBe(cards[0]);
 
-    // The one that asks says what is wrong in the sentence of its own Start; the one that is fine says only that.
-    // It also says that something is due there, which "Today" lists further down a phone's page.
+    // As master's Home card: the readings as big figures with their names - CO₂ where the place measures it -, the one
+    // that asks says what is wrong in the sentence of its own Start, the one that is fine says only that; the lamp in
+    // a line, the grow under it, and that something is due there, which "Today" lists further down a phone's page.
     await waitFor(() =>
-      expect(cards[0]).toHaveTextContent('Tent 2off targetHumidity 12 % too high25.1 °C · 72 % · Light 65 %Autumn cuttings · Day 9 · Veg1 task due'),
+      expect(cards[0]).toHaveTextContent(
+        /^Tent 2off target25.1 °CTemperature72 %Humidity1.03 kPaVPD880 ppmCO₂Humidity 12 % too highLight 65 % · on until \d\d:\d\dAutumn cuttings · Day 9 · Veg1 task due$/,
+      ),
     );
+    // The figure off its target is drawn so.
+    expect(within(cards[0]).getByText('72').closest('[data-tone]')).toHaveAttribute('data-tone', 'off');
     expect(within(cards[0]).getByRole('img', { name: 'Tent 2: the newest picture' })).toHaveAttribute('src', '/media/still-2');
-    expect(cards[1]).toHaveTextContent('Fridge 1on target25.1 °C · 61 % · Light 65 %');
+    expect(cards[1]).toHaveTextContent(/^Fridge 1on target25.1 °CTemperature61 %Humidity1.03 kPaVPD880 ppmCO₂Light 65 %/);
     expect(cards[1]).not.toHaveTextContent('due');
     // A place in no room that follows a room´s cards is set off from them by saying so.
     expect(screen.getByRole('region', { name: 'In no room' })).toContainElement(cards[1]);
@@ -1910,7 +1931,7 @@ describe('Start with several places', () => {
     await waitFor(() => expect(pill('space-1')).toHaveTextContent(/^Maintenance$/));
     expect(pill('space-2')).toHaveTextContent(/^stale$/);
     // How old its values are, as the place's own page says beside "stale".
-    expect(screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')).toHaveTextContent(/stale5\smin\sago/);
+    expect(screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')).toHaveTextContent(/stale.*5\smin\sago/);
     expect(screen.queryByText('check')).not.toBeInTheDocument();
     // The line beside the pill says until when, and not "Maintenance" a second time.
     const card = screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;
@@ -1925,7 +1946,8 @@ describe('Start with several places', () => {
 
     // Asked for again on every look: the card is drawn anew once the rooms are known.
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-1')!;
-    await waitFor(() => expect(card()).toHaveTextContent(`Fridge 1offlinesince ${hhmm(ago(30))}25.1 °C · 61 %`));
+    await waitFor(() => expect(card()).toHaveTextContent(new RegExp(`^Fridge 1offline25.1 °CTemperature61 %Humidity.*since ${hhmm(ago(30))}`)));
+    expect(card().querySelector('[data-tone="off"], [data-tone="good"]:not(span)')).toBeNull();
   });
 
   it('opens a grow that stands in no place at the grow, because there is no place to open', async () => {
@@ -2012,5 +2034,7 @@ describe('Start with several places', () => {
 
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')!;
     await waitFor(() => expect(within(card()).getByText('1 alert open')).toHaveAttribute('data-tone', 'alarm'));
+    // The card asks for somebody, and its edge says in which colour.
+    expect(card()).toHaveAttribute('data-asks');
   });
 });
