@@ -49,10 +49,11 @@ const CAMERA_SECRET_KEYS = ['webcam_pwd', 'webcam_url'];
 
 /**
  * What a device says about its camera that may change whether the cloud gets in:
- * a different camera, the password it was just secured with, the P2P id it has
+ * a different camera, where on its network it has found it, whether it is read
+ * off its own stream, the password it was just secured with, the P2P id it has
  * just read off it - or the same again after a reboot.
  */
-const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_uid', 'webcam_pwd'];
+const CAMERA_REPORT_KEYS = ['webcam_did', 'webcam_ip', 'webcam_rtsp', 'webcam_uid', 'webcam_pwd'];
 
 interface HardwareInfo {
   key: string;

@@ -581,13 +581,15 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
 | `webcam_did` | the camera the device pairs is reconciled into a row of `cameras`; `none` also resets the device's `cameraSecret` |
 | `webcam_pwd` | the camera's `secret`, which the cloud logs in with over the relay; an empty value means "the default". Kept on the device row as well, because pairing reports it before the id that makes the camera row |
-| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, kept for the record; the relay finds the camera itself |
+| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`; the relay finds the camera itself, a camera read off its own stream is read at `ip` |
 | `webcam_url` | none: dropped unread |
 | `webcam_rtsp` | none beyond storage; `on` in `devices.state.hardware` makes every read of the device's Terp Cam an RTSP read through its tunnel ([9.3](#93-the-cameras-own-stream)) |
 
-`webcam_did`, `webcam_uid` and `webcam_pwd` also end a hold the cloud keeps on a camera that turned it away: a
-different camera, or one that refused the password, is left alone for 30 minutes unless the device says
-something new about it ([9](#9-the-still-cycle)).
+`webcam_did`, `webcam_ip`, `webcam_rtsp`, `webcam_uid` and `webcam_pwd` start the device's Terp Cam over, after
+the report is written (`CameraReportsService`): they end the hold the cloud keeps on a camera that turned it away -
+a different camera, or one that refused the password, is left alone for 30 minutes unless the device says something
+new about it - and the poller's backoff of that camera, so it is read in the next pass and every interval from then
+on ([9](#9-the-still-cycle)). Streams tunnelled through the same device keep theirs.
 
 The reconciliation requires `/^[A-Za-z0-9_-]{4,32}$/` of the reported id. A device that reports one is given the
 camera row it already has, or a new one whose entitlement runs twelve months from that first pairing
@@ -1070,7 +1072,9 @@ camera at most every `stillIntervalSeconds`, with a failure backoff of `min(inte
 skips one whose previous read is still in flight, and where the camera says so, a device in maintenance or with
 `workmode: off` (`maintenanceOff`) and a light that is out (`nightOff`). A Terp Cam, and a stream tunnelled through
 a device, is skipped while its device is offline: each try could only wait out its timeouts. That is decided before
-the schedule, so an offline spell does not grow the backoff.
+the schedule, so an offline spell does not grow the backoff. Nor does a streaming Terp Cam whose device has not
+reported its `webcam_ip` yet (`CameraNotFoundYetError`): nothing was asked of the camera, the device logs
+`message-terp-cam-not-found` itself, and the read is retried every interval without a diary entry.
 
 One read, of either kind, has `CAPTURE_BUDGET_SECONDS = 180` (`shared-types/src/v1/capture.ts`) from the moment it
 is asked for, its wait for a turn at ffmpeg included; every step inside it gets what is left of that where it is
@@ -1275,7 +1279,7 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | One read of a camera, every attempt included (cloud side) | 3 min | `shared-types/src/v1/capture.ts` |
 | Relay length / silence (device side) | 2 min / 30 s | `terpcam.cpp:932-933` |
 | Hold on a camera that refused the cloud | 30 min, or until the device reports it again | `terpcam-direct.service.ts` |
-| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |
+| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min, reset by a camera report | `camera-poller.service.ts` |
 | Upgrade instruction | first after 30 s, doubling to at most 24 h | `firmware-rollout.service.ts` |
 | Maintenance repeated on `fetch` | while at least 60 s of the window are left | `device-ingest.service.ts` |
 | Schedule clock check | once a minute | `schedule-clock.service.ts` |

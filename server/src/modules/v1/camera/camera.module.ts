@@ -4,6 +4,7 @@ import { V1CommonModule } from '@common/v1/v1.module';
 import { TunnelModule } from '@modules/tunnel/tunnel.module';
 import { AdminCamerasController } from './admin-cameras.controller';
 import { CameraPollerService } from './camera-poller.service';
+import { CameraReportsService } from './camera-reports.service';
 import { CamerasController } from './cameras.controller';
 import { CamerasService } from './cameras.service';
 import { CaptureService } from './capture.service';
@@ -32,7 +33,7 @@ import { TimelapseService } from './timelapse.service';
  * which is the one thing `nightOff` needs and is not this module's to know, and
  * `SERIES_READER`, which is what the composer draws its climate curve from and
  * reads the light of a past night off. Two go the other way:
- * `TerpCamDirectService`, told by the protocol module when a device reports
+ * `CameraReportsService`, told by the protocol module when a device reports
  * something about its camera, and `StillDaylightService`, which tells the
  * series store when the night was where a plug has no lamp to say so.
  */
@@ -42,6 +43,7 @@ import { TimelapseService } from './timelapse.service';
   providers: [
     CamerasService,
     CameraPollerService,
+    CameraReportsService,
     CaptureService,
     EntitlementService,
     MediaService,
@@ -54,6 +56,6 @@ import { TimelapseService } from './timelapse.service';
     TimelapseContextService,
     TimelapseService,
   ],
-  exports: [MediaService, MediaDeliveryService, StillDaylightService, TerpCamDirectService],
+  exports: [CameraReportsService, MediaService, MediaDeliveryService, StillDaylightService, TerpCamDirectService],
 })
 export class CameraModule {}
