@@ -1,7 +1,8 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Rail } from '@/app/shell/Rail';
 import { TabBar } from '@/app/shell/TabBar';
+import { TopBar } from '@/app/shell/TopBar';
 import { LogProvider } from '@/log/LogProvider';
 import { drawAt, json } from './harness';
 import { translate } from './translations';
@@ -71,5 +72,55 @@ describe('the navigation', () => {
     expect(screen.queryByRole('button', { name: /Log/ })).not.toBeInTheDocument();
     for (const name of ['Home', 'Timeline', 'Control', 'Device']) expect(screen.getByRole('link', { name })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Tasks' })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The install's feedback widget (BugDrop on terpcontrol.cloud) is offered beside the alerts on every page the shell
+ * draws, in the top bar on a phone and on the rail beside a wide screen - and nowhere on an install that loads none.
+ */
+describe('the feedback button', () => {
+  beforeAll(() => translate());
+
+  beforeEach(() => vi.stubGlobal('fetch', fetchStub));
+
+  afterEach(() => {
+    delete window.BugDrop;
+    vi.unstubAllGlobals();
+  });
+
+  it('is not there where the install loads no feedback widget', async () => {
+    draw(
+      <>
+        <TopBar />
+        <Rail />
+      </>,
+    );
+    await waitFor(() => expect(fetchStub).toHaveBeenCalled());
+
+    expect(screen.queryByRole('button', { name: /feedback/i })).not.toBeInTheDocument();
+  });
+
+  it('appears once the widget is ready, says a report is public, and opens the form', async () => {
+    const open = vi.fn();
+    draw(<TopBar />);
+
+    // The widget is a plain script that may finish after the page has drawn; it says so on `window`.
+    act(() => {
+      window.BugDrop = { open };
+      window.dispatchEvent(new Event('bugdrop:ready'));
+    });
+    const button = await screen.findByRole('button', { name: 'Send feedback - it becomes a public issue on GitHub' });
+
+    fireEvent.click(button);
+    expect(open).toHaveBeenCalledOnce();
+  });
+
+  it('stands on the rail above the alerts', async () => {
+    window.BugDrop = { open: vi.fn() };
+    draw(<Rail />);
+
+    const button = await screen.findByRole('button', { name: 'Feedback' });
+    expect(button.compareDocumentPosition(screen.getByRole('link', { name: 'Alerts' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

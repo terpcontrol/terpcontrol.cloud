@@ -582,6 +582,8 @@
     "navigation": "Hauptnavigation",
     "alerts": "Meldungen",
     "account": "Ich",
+    "feedback": "Feedback",
+    "feedbackHint": "Feedback senden - es wird ein öffentliches Issue auf GitHub",
     "signInFailed": "Anmeldung nicht möglich. Bitte E-Mail und Passwort prüfen.",
     "signInTooMany": "Zu viele Anmeldeversuche. Bitte einen Moment warten und es erneut versuchen.",
     "tabs": {
@@ -935,10 +937,6 @@
         "title": "Gerät oder Kamera hinzufügen",
         "line": "Ein Controller misst und regelt das Klima, eine Kamera macht Bilder fürs Tagebuch"
       }
-    },
-    "feedback": {
-      "title": "Feedback senden",
-      "line": "Fehler, Idee, Frage · öffentlich auf GitHub"
     },
     "privacy": {
       "title": "Privatsphäre",

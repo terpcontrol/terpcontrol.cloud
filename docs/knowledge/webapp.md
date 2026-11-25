@@ -205,8 +205,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   the screenshot shows are public too. The app holds Contents write on the repository for those screenshots;
   branch protection must leave `bugdrop-screenshots` writable or screenshots are dropped silently.
 - The widget's own floating button is off (`data-button='false'` in the tag): by default it sat over the tab bar and
-  the sheets' buttons, and Chris found it in the way. The app opens the form instead from a "Send feedback" row on Me
-  (`src/app/feedback.ts`, `BugDrop.open()`), drawn only once `window.BugDrop` exists - it may arrive after React
+  the sheets' buttons, and Chris found it in the way. He wants it as a small button beside the alerts bell, on every
+  page: the top bar on a phone, the rail above Alerts on a wide screen (a row on Me was tried first and was too far
+  out of reach). It calls `BugDrop.open()` (`src/app/feedback.ts`) and is drawn only once `window.BugDrop` exists - it may arrive after React
   drew, announced by `bugdrop:ready` on `window` (not `document`: the event does not bubble). So an install whose tag
   loads no BugDrop has no such row; another widget needs its own hook there.
 - The tag pins a widget version (`widget.v<x.y.z>.js`); raise it deliberately. The hosted service limits a visitor to

@@ -582,6 +582,8 @@
     "navigation": "Main navigation",
     "alerts": "Alerts",
     "account": "Me",
+    "feedback": "Feedback",
+    "feedbackHint": "Send feedback - it becomes a public issue on GitHub",
     "signInFailed": "Could not sign in. Please check your e-mail and password.",
     "signInTooMany": "Too many sign-in attempts. Please wait a moment and try again.",
     "tabs": {
@@ -927,10 +929,6 @@
         "title": "Add a device or a camera",
         "line": "A controller measures and steers the climate, a camera takes pictures for the diary"
       }
-    },
-    "feedback": {
-      "title": "Send feedback",
-      "line": "a bug, an idea, a question · public on GitHub"
     },
     "privacy": {
       "title": "Privacy",

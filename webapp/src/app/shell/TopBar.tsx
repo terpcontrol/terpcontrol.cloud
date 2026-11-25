@@ -1,15 +1,16 @@
-import { Bell } from 'lucide-react';
+import { Bell, MessageSquareText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/api/session';
+import { useFeedback } from '@/app/feedback';
 import { useBell } from './bell';
 import { Logo } from '@/ui/Logo';
 import { initials } from '@/ui/handle';
 import styles from './TopBar.module.css';
 
 /**
- * The phone's header: the logo, the alerts bell,
- * and the avatar that opens Me. The bell carries the open count, or nothing at
+ * The phone's header: the logo, the feedback button where the install loads a
+ * feedback widget, the alerts bell, and the avatar that opens Me. The bell carries the open count, or nothing at
  * all when none is open, so it reads as quiet rather than as a zero; the link
  * says the count too, for anybody who cannot see the badge.
  */
@@ -17,6 +18,7 @@ export function TopBar() {
   const { t } = useTranslation();
   const { user } = useSession();
   const bell = useBell();
+  const feedback = useFeedback();
 
   return (
     <header className={styles.bar} data-print="omit">
@@ -29,6 +31,11 @@ export function TopBar() {
             place, device and camera already carries a pill that says how
             fresh it is. The rail beside a wide screen keeps it. */}
       </div>
+      {feedback ? (
+        <button type="button" className={styles.action} onClick={feedback} aria-label={t('shell.feedbackHint')} title={t('shell.feedbackHint')}>
+          <MessageSquareText size={20} strokeWidth={1.75} aria-hidden />
+        </button>
+      ) : null}
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={20} strokeWidth={1.75} aria-hidden />
         {bell ? (
