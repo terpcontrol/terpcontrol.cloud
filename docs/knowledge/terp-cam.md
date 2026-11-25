@@ -83,9 +83,10 @@ way and what the code has to respect. Internal notes on the camera exist.
   with "the device has not yet found its camera on its network".
 - Through the tunnel the read takes as long as the keyframe takes to cross MQTT; the keyframe is the first thing
   ffmpeg keeps (`-skip_frame nokey`), and the P-frames before it are dropped unread by the decoder.
-- Disconnecting resets the camera over its setup AP, because on the home Wi-Fi it takes no command: a power cycle
-  puts it back there (measured on a development camera, 2026-11-25), so the device asks for one and waits up to
-  3 minutes for the AP. Without it the user is told to reset the camera by hand.
+- Disconnecting resets the camera over its setup AP, because on the home Wi-Fi it takes no command. A power cycle
+  does not get it there: a camera paired this way rejoined the home Wi-Fi after one (development fridge and camera,
+  2026-11-25). Its reset button does, so the device asks for it and waits up to 4 minutes for the AP; skipped, the
+  user is told to reset the camera by hand.
 
 ## Finding the camera on the LAN
 - `realdeviceid` (`webcam_did`) is the identity; `webcam_uid` and `webcam_ip` are hints. Discovery asks the cached
