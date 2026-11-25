@@ -58,7 +58,9 @@ RUN python3 -V
 
 # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands
 
-RUN quietly pio platform install espressif32 \
+# Pinned, as in firmware/platformio.ini: the devices run arduino-esp32 2.x (platform 7.1.3), and an unpinned
+# install takes whatever is newest - platform 8 brings arduino-esp32 3, which the firmware does not build on.
+RUN quietly pio platform install espressif32@7.1.3 \
  && chmod 777 /root/.platformio/platforms/espressif32/platform.py \
  && sed -i 's/~2/>=1/g' /root/.platformio/platforms/espressif32/platform.py
 
