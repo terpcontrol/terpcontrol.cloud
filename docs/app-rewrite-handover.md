@@ -59,7 +59,9 @@ Inter and master's palette with a lighter hierarchy - only a page's title and a 
 and tags at 500, section labels in sentence case -, the **desktop rail navy as on master** rather than the light rail
 the direction proposed, and a **Start between master's calm Home and the fuller drafts: a small camera picture and
 small curves**, the readings as figures. It is built and replaces "Nebel" in
-[ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein).
+[ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein). Two Opus agents built it on disjoint files (the look, and
+Start); the designer then walked the built app as its one critic, majors and minors as in the run before, and an
+Opus round fixes the majors.
 
 ### What was built
 
