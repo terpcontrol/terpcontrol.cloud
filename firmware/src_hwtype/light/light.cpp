@@ -304,6 +304,10 @@ void LightController::saveAndUploadSettings() {
       });
     });
 
+    menu->addOption("Terp Cam", ICON_SETTINGS, [ui, this](){
+      showTerpCamUi(ui, &cloud);
+    });
+
     menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
     });
@@ -404,7 +408,10 @@ void LightController::saveAndUploadSettings() {
       // else if(command["action"] && command["action"] == std::string("stoptest")) {
       //   testmode_duration = 0;
       // }
+      wifiHandleTerpCamCommand(command);
     });
+
+    wifiInitTerpCamCloudReporting(&cloud);
   }
 
   template<class T> inline void loadIfAvaliable(T& val, DynamicJsonDocument doc) {

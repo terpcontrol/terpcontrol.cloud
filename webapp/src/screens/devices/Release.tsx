@@ -7,6 +7,7 @@ import { Sheet } from '@/ui/Sheet';
 import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { deviceTitle, standingWith } from '@/ui/naming';
+import { camCoupled } from '@/screens/claim/steps';
 import sheet from './Maintenance.module.css';
 
 /**
@@ -71,8 +72,16 @@ export function ReleaseSheet({ deviceId, onClose, onReleased }: { deviceId: stri
         ) : (
           <>
             <p>{t('release.what', { name })}</p>
-            {/* Only a fridge module and a controller run a plan or carry a camera; the others take their alarms alone. */}
-            <p>{t(device.type === 'fridge' || device.type === 'controller' ? 'release.goes' : 'release.goesAlarms')}</p>
+            {/* Only a fridge module and a controller run a plan; the others take their alarms, and the camera paired at them if there is one. */}
+            <p>
+              {t(
+                device.type === 'fridge' || device.type === 'controller'
+                  ? 'release.goes'
+                  : camCoupled(device)
+                    ? 'release.goesAlarmsAndCam'
+                    : 'release.goesAlarms',
+              )}
+            </p>
             <p className={ui.note}>{place ? t('release.stays', { place }) : t('release.staysNowhere')}</p>
           </>
         )}

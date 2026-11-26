@@ -2521,11 +2521,12 @@
           "controller": "Am Controller",
           "fan": "Am Lüfter",
           "plug": "Am Plantalytix Socket",
+          "light": "Am Lampenmodul",
           "device": "Am Gerät"
         },
         "noDevice": {
           "label": "Noch kein Gerät",
-          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter oder Plantalytix Socket –, und dieses Konto hat noch keins. Füge zuerst eins hinzu, dann führt dich dieser Reiter durch das Koppeln.",
+          "text": "Eine Terp Cam wird am Display eines Terp-Control-Geräts gekoppelt – Kühlschrankmodul, Controller, Lüfter, Lampenmodul oder Plantalytix Socket –, und dieses Konto hat noch keins. Füge zuerst eins hinzu, dann führt dich dieser Reiter durch das Koppeln.",
           "claim": "Gerät hinzufügen"
         }
       },
@@ -4675,6 +4676,7 @@
     "what": "„{{name}}“ verschwindet aus deinem Konto. Wer das Gerät danach in der Hand hat, fügt es mit dem Code auf seinem Display zum eigenen Konto hinzu.",
     "goes": "Mit dem Gerät gehen sein Grow-Plan, seine Alarme und die Kamera, die über das Gerät verbunden ist.",
     "goesAlarms": "Mit dem Gerät gehen seine Alarme.",
+    "goesAlarmsAndCam": "Mit dem Gerät gehen seine Alarme und die Kamera, die über das Gerät verbunden ist.",
     "stays": "Der Ort {{place}} und sein Tagebuch bleiben. Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es hinzufügt.",
     "staysNowhere": "Am Gerät selbst ändert sich nichts: Es regelt mit seinen letzten Einstellungen weiter, bis jemand anderes es hinzufügt.",
     "next": "Weiter",

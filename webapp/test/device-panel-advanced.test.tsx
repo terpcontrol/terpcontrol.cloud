@@ -240,6 +240,20 @@ describe('giving a device up', () => {
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
   });
 
+  /** An AIR, a lamp module and a Plantalytix Socket carry a camera too, but no grow plan. */
+  it.each([
+    ['with', { webcam_did: 'TCAM-000123-ABCDE' }, 'Its alarms and the camera connected through it go with the device.'],
+    ['without', {}, 'Its alarms go with the device.'],
+  ])('says what goes with a fan %s a paired camera', async (_with, hardware, goes) => {
+    const fan = controller({ id: 'sim-fan-1', name: 'fan', type: 'fan', classId: 'class-fan' });
+    answer({ ...fan, state: { ...fan.state, hardware } } as Device);
+    drawDevicePages('/devices/sim-fan-1');
+    fireEvent.click(await screen.findByRole('button', { name: 'Give the device up' }));
+
+    const first = await screen.findByRole('dialog', { name: /^Give .* up$/ });
+    expect(within(first).getByText(goes)).toBeInTheDocument();
+  });
+
   it('is not offered to somebody who manages a device they do not own', async () => {
     const theirs = controller({ ownerId: 'user-2' });
     answer(theirs, [], CAPABILITIES, 'manage');
