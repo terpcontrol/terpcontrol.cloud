@@ -94,6 +94,16 @@
     font-weight: var(--weight-medium);
   }
 
+  /* An item that opens something over the page instead of leading to one. */
+  .button {
+    width: 100%;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
   .item:hover {
     background: var(--navy-hover);
     color: var(--ink);

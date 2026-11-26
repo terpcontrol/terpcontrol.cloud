@@ -1,7 +1,8 @@
-import { Bell, UserRound } from 'lucide-react';
+import { Bell, MessageSquareText, UserRound } from 'lucide-react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink } from 'react-router';
+import { useFeedback } from '@/app/feedback';
 import { useLog } from '@/log/log-context';
 import { useOpeningUnderneath } from '@/log/underneath';
 import { Logo } from '@/ui/Logo';
@@ -26,6 +27,7 @@ export function Rail() {
   const { openSheet } = useLog();
   const underneath = useOpeningUnderneath();
   const bell = useBell();
+  const feedback = useFeedback();
   const all = useTabs();
   const isOn = useIsOn();
 
@@ -81,6 +83,15 @@ export function Rail() {
         ) : null}
 
         <div className={styles.spacer} />
+
+        {/* The install's feedback widget, beside the alerts on every page the rail is on. It opens over the page
+            rather than leading anywhere, so it is a button; its hint says that a report is public. */}
+        {feedback ? (
+          <button type="button" className={`${styles.item} ${styles.button}`} onClick={feedback} title={t('shell.feedbackHint')}>
+            <MessageSquareText size={20} aria-hidden />
+            <span className={styles.grow}>{t('shell.feedback')}</span>
+          </button>
+        ) : null}
 
         <NavLink to="/alerts" className={footClass} aria-label={bell ? t(bell.key, { count: bell.count }) : undefined}>
           <Bell size={20} aria-hidden />
