@@ -82,6 +82,8 @@ let sensed: Metric[] = ['temperature', 'humidity', 'co2'];
  * as a plug or a fan.
  */
 let lastReading: DeviceLive['metrics'] = {};
+/** A device's own last reading where it is not `lastReading`. */
+let readingsOf: Record<string, DeviceLive['metrics']> = {};
 /** The devices a live reading was asked of, in order. */
 let liveAsked: string[] = [];
 
@@ -132,7 +134,7 @@ const fakeData = {
   },
   live: async (deviceId: string) => {
     liveAsked.push(deviceId);
-    return { metrics: reports[deviceId] ? lastReading : {}, outputs: {}, isDay: null, lightOn: null };
+    return { metrics: readingsOf[deviceId] ?? (reports[deviceId] ? lastReading : {}), outputs: {}, isDay: null, lightOn: null };
   },
   /** The device's last word before the window and its first after, a second at a time and a week at most each way. */
   samplesAround: async (deviceId: string, window: { startsAt: Date; endsAt: Date }, stood: { startsAt: Date; endsAt: Date }) => {
@@ -377,6 +379,7 @@ beforeEach(async () => {
   quietUntil = null;
   sampleEverySeconds = 0;
   lastReading = {};
+  readingsOf = {};
   around = [];
   timeline = build();
   await world();
@@ -647,6 +650,33 @@ describe('the stacked panels', () => {
     expect(page.deviceId).toBe(CONTROLLER);
     expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
     expect(new Set(page.panels[2].points.map(point => point.value))).toEqual(new Set([1114]));
+  });
+
+  it("reads the socket's CO2 into the controller's reading, where its curve is drawn, and keeps the controller's instant", async () => {
+    sensed = ['temperature', 'humidity'];
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const said = (value: number, secondsAgo: number) => ({
+      value,
+      measuredAt: new Date(NOW.getTime() - secondsAgo * 1000).toISOString(),
+      state: 'live' as const,
+    });
+    readingsOf = { [CONTROLLER]: { temperature: said(24.8, 60) }, [PLUG]: { co2: said(1114, 10), temperature: said(30, 10) } };
+    const page = await readAs(session(OWNER));
+
+    // The CO2 head and the cursor's card read the socket the curve is of; its temperature stays its own.
+    expect(page.reading!.values.map(value => [value.metric, value.value])).toEqual([
+      ['temperature', 24.8],
+      ['co2', 1114],
+    ]);
+    expect(page.reading!.measuredAt).toBe(said(0, 60).measuredAt);
+  });
+
+  it("leaves the controller's own CO2 in its reading where it measures CO2 itself", async () => {
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const said = (value: number) => ({ value, measuredAt: new Date(NOW.getTime() - 60_000).toISOString(), state: 'live' as const });
+    readingsOf = { [CONTROLLER]: { temperature: said(24.8), co2: said(820) }, [PLUG]: { co2: said(1114) } };
+
+    expect((await readAs(session(OWNER))).reading!.values.find(value => value.metric === 'co2')!.value).toBe(820);
   });
 
   it('rounds a window to what the sensor can say rather than to what the mean came to', async () => {

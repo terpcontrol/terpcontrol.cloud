@@ -161,11 +161,11 @@ const drawn = (data: SpaceTimeline, keys: string[] | null = null, over: Partial<
 beforeAll(() => translate());
 
 describe('what is drawn', () => {
-  it('opens on temperature, humidity and VPD, with the strips and the diary, and leaves the rest to a tick', () => {
+  it('opens on temperature, humidity, VPD and CO2, with the strips and the diary, and leaves the rest to a tick', () => {
     const { shown } = drawn(answer());
 
     expect(shown).toMatchObject<Partial<Shown>>({
-      metrics: ['temperature', 'humidity', 'vpd'],
+      metrics: ['temperature', 'humidity', 'vpd', 'co2'],
       light: true,
       outputs: true,
       diary: true,
@@ -173,8 +173,13 @@ describe('what is drawn', () => {
     });
   });
 
+  it('opens on CO2 only where the place measures it', () => {
+    const tent = answer({ panels: answer().panels.filter(panel => panel.metric !== 'co2') });
+    expect(shownOf(null, offeredOf(tent, []), null).metrics).toEqual(['temperature', 'humidity', 'vpd']);
+  });
+
   it('always draws the reading a link was about', () => {
-    expect(shownOf(null, offeredOf(answer(), []), 'co2').metrics).toEqual(['temperature', 'humidity', 'vpd', 'co2']);
+    expect(shownOf(['temperature'], offeredOf(answer(), []), 'co2').metrics).toEqual(['temperature', 'co2']);
     expect(shownOf(['temperature'], offeredOf(answer(), []), 'light').light).toBe(true);
   });
 
@@ -273,7 +278,7 @@ describe('a panel', () => {
 
   it('says beside a deficit`s low and high what they are of beyond three days: means over five minutes', () => {
     const week = answer({ startsAt: at(-144), endsAt: at(24) });
-    expect(drawn(week).panels.map(panel => panel.curves[0].of)).toEqual([undefined, undefined, 'of 5-min means']);
+    expect(drawn(week).panels.map(panel => panel.curves[0].of)).toEqual([undefined, undefined, 'of 5-min means', undefined]);
     // Inside three days they are of samples, as temperature's and humidity's are on every range.
     expect(drawn(answer()).panels[2].curves[0].of).toBeUndefined();
   });
@@ -329,9 +334,9 @@ describe('a panel', () => {
     const { panels } = drawn(answer(), null, { one: true });
 
     expect(panels).toHaveLength(1);
-    expect(panels[0].curves.map(curve => curve.key)).toEqual(['temperature', 'humidity', 'vpd']);
+    expect(panels[0].curves.map(curve => curve.key)).toEqual(['temperature', 'humidity', 'vpd', 'co2']);
     expect(panels[0].plot.bands).toEqual([]);
-    expect(new Set(panels[0].plot.lines.map(line => line.scale.high)).size).toBe(3);
+    expect(new Set(panels[0].plot.lines.map(line => line.scale.high)).size).toBe(4);
   });
 
   it('breaks a VPD line at the half that was not asked for', () => {
@@ -365,6 +370,7 @@ describe('the strips', () => {
       ['temperature', ['Heater']],
       ['humidity', ['Dehumidifier']],
       ['vpd', []],
+      ['co2', []],
     ]);
     expect(rest.map(strip => strip.output)).toEqual(['light', 'fan']);
   });

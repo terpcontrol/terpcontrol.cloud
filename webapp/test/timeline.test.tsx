@@ -339,7 +339,7 @@ describe('Verlauf as it opens', () => {
     await settled();
   });
 
-  it('draws a panel each for temperature, humidity and VPD, with the low, the high and the reading at the cursor', async () => {
+  it('draws a panel each for temperature, humidity, VPD and CO₂, with the low, the high and the reading at the cursor', async () => {
     draw();
     await settled();
 
@@ -351,8 +351,8 @@ describe('Verlauf as it opens', () => {
     expect(within(panel('Humidity')).getByText('58.0 %')).toBeInTheDocument();
     expect(panel('VPD')).toHaveTextContent('Low 1.40 · High 1.40');
     expect(panel('VPD')).toBeInTheDocument();
-    // CO₂ is measured and waits for its tick.
-    expect(screen.queryByRole('region', { name: 'CO₂' })).not.toBeInTheDocument();
+    // CO₂ is measured here, so it is among the first curves rather than behind a tick.
+    expect(panel('CO₂')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /Humidity between 54.2 and 71.5 %/ })).toBeInTheDocument();
     // A panel's heading is its name alone: the (i) beside it is a button of its own, not read as part of the heading.
     expect(within(panel('VPD')).getByRole('heading', { level: 2 })).toHaveAccessibleName('VPD');
@@ -417,7 +417,7 @@ describe('Verlauf as it opens', () => {
     expect(lane('heater', panel('Temperature'))).toHaveTextContent('Heater · on 0 % of the time');
     expect(lane('dehumidifier', panel('Humidity'))).toHaveTextContent('Dehumidifier · on 2 % of the time');
     // Lit through the whole window: "on since" would name the window's first minute as a switch.
-    expect(lane('light', panel('VPD'))).toHaveTextContent('Light · on throughout · 65 %');
+    expect(lane('light', panel('CO₂'))).toHaveTextContent('Light · on throughout · 65 %');
   });
 
   it('gives the lamp a card of its own on a phone, with when it burned and how bright', async () => {
@@ -427,7 +427,7 @@ describe('Verlauf as it opens', () => {
 
     const card = screen.getByRole('heading', { name: 'Light' }).closest('section')!;
     expect(lane('light', card)).toHaveTextContent('Light · on throughout · 65 %');
-    expect(lane('light', panel('VPD'))).toBeNull();
+    expect(lane('light', panel('CO₂'))).toBeNull();
   });
 
   it('reads the cursor in a card that stays put: the newest picture, now, a figure per curve, each output', async () => {
@@ -683,7 +683,8 @@ describe('what the place reads now', () => {
     await waitFor(() => expect(within(panel('Temperature')).getByText('26.7 °C')).toBeInTheDocument());
     const card = screen.getByRole('region', { name: 'Cursor' });
     expect(card).toHaveTextContent(/Cursor · now, \d\d:\d\d/);
-    expect(card).toHaveTextContent('26.7 °C · 61.4 % · 1.52 kPa');
+    // A reading without CO₂ under a CO₂ curve names its dash, and so every figure beside it.
+    expect(card).toHaveTextContent('Temperature 26.7 °C · Humidity 61.4 % · VPD 1.52 kPa · CO₂ —');
     // The outputs are that reading's too: the lamp at 40 %, not the 65 % the window's mean came to.
     // An output the reading did not hear is a dash - not a window's mean under the reading's stamp.
     expect(card).toHaveTextContent('Light 40 % · Heater — · Dehumidifier on');
@@ -725,7 +726,7 @@ describe('what the place reads now', () => {
       const card = screen.getByRole('region', { name: 'Cursor' });
       await waitFor(() => expect(card).toHaveTextContent(/Cursor · last reading · /));
       expect(card).not.toHaveTextContent('now');
-      expect(card).toHaveTextContent('20.5 °C · 55.9 % · 1.03 kPa');
+      expect(card).toHaveTextContent('Temperature 20.5 °C · Humidity 55.9 % · VPD 1.03 kPa · CO₂ —');
       expect(card).toHaveTextContent('Light off · Heater 46 % · Dehumidifier off');
       expect(within(panel('Temperature')).getByText('20.5 °C')).toBeInTheDocument();
       expect(within(panel('Humidity')).getByText('55.9 %')).toBeInTheDocument();
@@ -1097,7 +1098,7 @@ describe('the cursor', () => {
     expect(card).not.toHaveTextContent('—');
     // What the rows say at rest lies unseen under them and holds their height.
     const rows = [...card.querySelectorAll('[data-rest]')].map(row => row.getAttribute('data-rest')!.replace(/\u00a0/g, ' '));
-    expect(rows).toEqual(['25.2 °C · 58.0 % · 1.40 kPa', 'Light 65 % · Heater off · Dehumidifier off']);
+    expect(rows).toEqual(['25.2 °C · 58.0 % · 1.40 kPa · 820 ppm', 'Light 65 % · Heater off · Dehumidifier off']);
     // So does a head's figure: a dash is narrower than a reading, and the head must not wrap another way for it.
     expect(within(panel('Temperature')).getByText('—').parentElement).toHaveAttribute('data-rest', '25.2\u00a0°C');
   });
@@ -1308,15 +1309,19 @@ describe('the sheet "Adjust"', () => {
   });
 
   it('ticks a curve the place has into the picture and the address, and remembers it for the next visit', async () => {
+    const { panels } = answerTo(new URLSearchParams());
+    server.over = { panels: [...panels, { ...panels[0], metric: 'leafTemperature' }] };
     const sheet = await adjust();
-    expect(within(sheet).getByRole('checkbox', { name: 'CO₂' })).not.toBeChecked();
-    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'CO₂' }));
-
+    // CO₂ is among the first curves where the place measures it; the leaf waits for its tick.
     expect(within(sheet).getByRole('checkbox', { name: 'CO₂' })).toBeChecked();
+    expect(within(sheet).getByRole('checkbox', { name: 'Leaf temperature' })).not.toBeChecked();
+    fireEvent.click(within(sheet).getByRole('checkbox', { name: 'Leaf temperature' }));
+
+    expect(within(sheet).getByRole('checkbox', { name: 'Leaf temperature' })).toBeChecked();
     // The page behind the open sheet is out of the tree, and drawn all the same.
-    expect(await screen.findByRole('region', { name: 'CO₂', hidden: true })).toBeInTheDocument();
-    expect(address().searchParams.get('show')).toBe('temperature,humidity,vpd,light,outputs,diary,machine,co2');
-    expect(JSON.parse(localStorage.getItem('terp.curves')!)).toContain('co2');
+    expect(await screen.findByRole('region', { name: 'Leaf temperature', hidden: true })).toBeInTheDocument();
+    expect(address().searchParams.get('show')).toBe('temperature,humidity,vpd,co2,light,outputs,diary,machine,leafTemperature');
+    expect(JSON.parse(localStorage.getItem('terp.curves')!)).toContain('leafTemperature');
     // What the place does not measure is not offered at all.
     expect(within(sheet).queryByRole('checkbox', { name: 'PPFD' })).not.toBeInTheDocument();
   });
@@ -1325,7 +1330,7 @@ describe('the sheet "Adjust"', () => {
     const sheet = await adjust();
     fireEvent.click(within(sheet).getByRole('checkbox', { name: 'All curves in one picture' }));
 
-    const one = await screen.findByRole('region', { name: 'Temperature, Humidity, VPD', hidden: true });
+    const one = await screen.findByRole('region', { name: 'Temperature, Humidity, VPD, CO₂', hidden: true });
     expect(one).toHaveTextContent('Temperature 25.2 °C');
     expect(one).toHaveTextContent('VPD 1.40 kPa');
     expect(address().searchParams.get('one')).toBe('1');
@@ -1383,10 +1388,10 @@ describe('the sheet "Adjust"', () => {
     expect(told[0].undo).not.toBeNull();
     expect(server.views[0]).toMatchObject({
       name: 'Nights',
-      definition: { metrics: ['temperature', 'humidity', 'vpd'], span: { kind: 'last', forSeconds: 86400 }, layout: 'stacked' },
+      definition: { metrics: ['temperature', 'humidity', 'vpd', 'co2'], span: { kind: 'last', forSeconds: 86400 }, layout: 'stacked' },
     });
     fireEvent.click(await screen.findByRole('button', { name: 'Nights' }));
-    await waitFor(() => expect(address().searchParams.get('show')).toBe('temperature,humidity,vpd,light,outputs,diary,machine'));
+    await waitFor(() => expect(address().searchParams.get('show')).toBe('temperature,humidity,vpd,co2,light,outputs,diary,machine'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
