@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
 updated: 2026-11-26
-source: master merged beside an agent at work, in a worktree of its own (the redesign session, 2026-11-26); a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
+source: graphical work on Fable (Chris, 2026-11-26); master merged beside an agent at work, in a worktree of its own (the redesign session, 2026-11-26); a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
 paths:
   - .claude/**
   - .worktreeinclude
@@ -109,6 +109,10 @@ A round is one pass of building or fixing with its checks, ending in a short rep
 - **A simple task may go to a smaller model** (Chris, 2026-11-12: "feel free to choose Opus for simple tasks").
   A sub-agent whose task is mechanical - restoring test data, a lookup, saving notes, a check that only runs
   commands - can be started on Opus; a round's builder and its critic stay on the session's model.
+- **Graphical work goes to a designer sub-agent on Fable** (Chris, 2026-11-26: "Nutze für die grafischen Arbeiten
+  einen Fable Subagent"; the look's redraft the day before ran the same way): mock-ups, design drafts and the
+  screenshots a proposal is shown with are made by an agent started with `model: "fable"`, not by the session, and
+  shown to Chris before anything is built. Who builds what he picks he says each time (the look: Opus agents).
 - **A rule is sourced to the person who said it, and to nobody else** (2026-11-12: a builder wrote the session's
   own decisions on a critic's findings into `docs/` as "Chris, 2026-11-12", because its brief said they had been
   told to him). What a session decides for itself is sourced as that session and marked as waiting for Chris's
