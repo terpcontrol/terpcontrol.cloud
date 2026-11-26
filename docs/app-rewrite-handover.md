@@ -74,7 +74,10 @@ tiles back on the place page** - one per reading with the big figure, Ø 1 Std, 
 **two tile columns on the phone**, the **big camera picture with the grow under it**, and on the Start cards for
 several places **master's Ø 1 Std and hardware line**. He added: leaf temperature is only very rarely measured, so
 the page is designed for the usual case without the leaf tile - four tiles (temperature, humidity, CO₂, light) or
-three without CO₂ - and must look full there, not like a page with a gap. The rest of the drawing (the right column's order, an alarms
+three without CO₂ - and must look full there, not like a page with a gap. The designer's grid for it, one rule for
+five to two tiles: three tiles a row from a 630 px tile column, two from 330 px, one below; rows fill evenly, the
+fuller first, and every row fills the width; a tile 300 px or wider takes master's wide layout (text left, curve
+right). Four tiles are thus 2 + 2 wide on a desktop and 2 + 2 on a phone. The rest of the drawing (the right column's order, an alarms
 card on the place page, sentence-case headings, what of master's cockpit stays out) is the designer's and goes to
 "Open for Chris".
 
