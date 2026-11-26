@@ -539,10 +539,15 @@ a.status {
   font-size: var(--text-sm);
 }
 
-/* At 320 px the table gives way: its gaps close up, and "jetzt" goes under the half it marks where the row is short. */
-@media (max-width: 359px) {
+/* On a phone narrower than 375 px the table gives way rather than "jetzt": its gaps close up, and at 320 a column's
+   head breaks where the language hyphenates it ("Luft-feuchte"), so the tag keeps its line beside the half it marks. */
+@media (max-width: 374px) {
   .targets {
     column-gap: var(--space-2);
+  }
+
+  .targetsHead {
+    hyphens: auto;
   }
 }
 
@@ -558,10 +563,10 @@ a.status {
 
 .targetsLabel {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 2px var(--space-2);
+  gap: var(--space-2);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .targetsValue {
@@ -588,7 +593,7 @@ a.status {
   color: var(--ink);
 }
 
-/* The half in force: "jetzt" in green, "laut Zeitplan" quiet for a device not heard from. */
+/* The half in force, "jetzt", in green. */
 .now {
   padding: 1px 7px;
   border-radius: var(--radius-pill);
@@ -597,11 +602,6 @@ a.status {
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
   white-space: nowrap;
-}
-
-.now[data-by='schedule'] {
-  background: var(--card-2);
-  color: var(--muted);
 }
 
 /* An alarm a line: its name at the left, where it trips in ink at the right. */

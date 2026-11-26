@@ -5099,7 +5099,10 @@
       "awaitingClimate": "{{climate}} wird gesetzt, sobald das Gerät seine Einstellungen schickt.",
       "roundTheClock": "Rund um die Uhr",
       "now": "jetzt",
-      "bySchedule": "laut Zeitplan"
+      "bySchedule": {
+        "day": "Laut Zeitplan gelten gerade die Zielwerte für den Tag.",
+        "night": "Laut Zeitplan gelten gerade die Zielwerte für die Nacht."
+      }
     },
     "grow": {
       "title": "{{name}}: Was wächst hier?",

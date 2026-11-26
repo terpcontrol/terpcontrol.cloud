@@ -49,7 +49,10 @@ export function DayCurve({
   const stretches = stretchesOf(panel, timeline.nights, from, to, timeline.transitions);
   const values = points.map(point => point.value as number);
   const edges = stretches.flatMap(stretch => [stretch.target.band.low, stretch.target.band.high]);
-  const pad = Math.max((Math.max(...values, ...edges) - Math.min(...values, ...edges)) * 0.1, 0.2);
+  // Air of a quarter of a band round the plot: a young record held inside its one band drew that band edge to edge,
+  // a green block with the line a stroke in it, and a band reads as a band only with plot above and below it.
+  const band = Math.max(0, ...stretches.map(stretch => stretch.target.band.high - stretch.target.band.low));
+  const pad = Math.max((Math.max(...values, ...edges) - Math.min(...values, ...edges)) * 0.1, band / 4, 0.2);
   const low = Math.min(...values, ...edges) - pad;
   const high = Math.max(...values, ...edges) + pad;
   const x = (time: number) => ((time - from) / (to - from)) * WIDTH;

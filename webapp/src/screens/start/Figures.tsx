@@ -16,7 +16,13 @@ export type Figure = Pick<Reading, 'key' | 'label' | 'number' | 'unit' | 'tone' 
  * the way to the place. A figure off its target takes the warning's ink; one
  * that has stopped coming steps back.
  */
-export function Figures({ figures }: { figures: Figure[] }) {
+export function Figures({
+  figures,
+  meansComing = false,
+}: {
+  figures: Figure[];
+  /** The means are on their way: their line's room is kept. */ meansComing?: boolean;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -31,6 +37,10 @@ export function Figures({ figures }: { figures: Figure[] }) {
           {figure.mean ? (
             <span className={styles.figureMean}>
               <Spoken said={t('spoken.hourMean', { value: figure.mean.said })}>{`${t('start.tile.hourMean')} ${figure.mean.number}`}</Spoken>
+            </span>
+          ) : meansComing ? (
+            <span className={styles.figureMean} aria-hidden>
+              {'\u00a0'}
             </span>
           ) : null}
         </span>

@@ -1,11 +1,14 @@
 import { ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Device, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
+import { useAlarmRulesOf } from '@/api/alarm-rules';
 import { serverNow } from '@/api/clock';
+import { useHourMeans } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
 import { noLongerThere } from '@/api/problem';
 import { useHomeShape } from '@/api/home';
@@ -99,7 +102,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const { user } = useSession();
   const spaceId = overview.spaceId;
   const hasDevice = overview.deviceIds === null || overview.deviceIds.length > 0;
-  const here = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice).items;
+  const placeDevices = usePlaceDevices(spaceId, overview.deviceIds ?? [], hasDevice);
+  const here = placeDevices.items;
   // A place is one climate: its lead device's - the controller, heard or not - whose figures alone are the place's.
   const device = leadOf(here, overview.climates);
   const lamp = useLamp(device, here, now);
@@ -178,7 +182,14 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
   // The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported.
   const curves = readings.some(reading => reading.key !== 'light' && reading.key !== 'vpd') || valueOf(measured, 'leafTemperature') !== null;
-  const day = useLastDay(spaceId, device?.id ?? null, hasDevice && !byHand && !unread && curves);
+  const curvesWanted = hasDevice && !byHand && !unread && curves;
+  const { day, pending: dayPending } = useLastDay(spaceId, device?.id ?? null, curvesWanted);
+  // The last hour and the alarms are asked for with the page's own reads, not by the parts that show them once it is
+  // drawn: read a round trip later, they landed under the reader - and one that failed left the page half built through
+  // its retries.
+  const meansWanted = !offline && readings.some(reading => reading.key !== 'light' && reading.key !== 'vpd');
+  const means = useHourMeans(device?.id ?? null, meansWanted);
+  const rules = useAlarmRulesOf(hasDevice ? here.map(one => one.id) : []);
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
   // Offered once the account and the place have been read, to whoever may start a grow here and has not said no - in a
@@ -200,6 +211,18 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
 
   // Looking at a place here is what makes it the one Grow, Verlauf and Steuerung open on.
   usePageOfPlace(spaceId);
+
+  // The tiles are decided by three answers - the place, its devices and each lamp's own report -, and the page is drawn
+  // once they, the day, the hour's means and the alarms are in: a tile set that grew as they landed turned a row of
+  // three into two rows of two under the reader, and an output's "läuft seit 2 Std" from the day broke its foot onto a
+  // second line. A read that fails lets the page draw, its part's room kept.
+  // Once drawn the page stays: a device added later brings its reads into the room kept for them, not the waiting shape.
+  // Nor does a page that cannot reach the server wait for them: it shows what it last knew.
+  const settling =
+    hasDevice && failedAt === null && (placeDevices.isPending || lamp.pending || rules.isPending || (meansWanted && means.isPending) || dayPending);
+  const [drawn, setDrawn] = useState(false);
+  if (!settling && !drawn) setDrawn(true);
+  if (settling && !drawn) return <StartWaiting />;
 
   return (
     <section className={`${ui.stack3} ${styles.page}`} aria-labelledby={`${spaceId}-name`} data-single={byHand || undefined}>
@@ -294,6 +317,9 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             live={lamp.live}
             lamps={lamp.lit}
             day={day}
+            dayComing={dayPending}
+            means={means.data}
+            meansWanted={meansWanted}
             hold={humidifierHold}
             now={now}
             offline={offline}
@@ -313,6 +339,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               ))}
             </div>
           ) : null}
+          {/* Where the grow will stand once one is started: under the tiles, not at the foot of the other column. */}
+          {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} byHand={!hasDevice} /> : null}
         </div>
 
         <div className={`${ui.stack3} ${styles.column}`}>
@@ -331,7 +359,7 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               now={now}
             />
           ) : null}
-          {hasDevice ? <Alarms spaceId={spaceId} devices={here} mayManage={mayManage} /> : null}
+          {hasDevice ? <Alarms spaceId={spaceId} devices={here} rules={rules} mayManage={mayManage} /> : null}
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           {/* While maintenance pauses the alarms, the control that runs it is the one warning here: that none would reach
               anybody waits until they can fire again. */}
@@ -354,7 +382,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
           />
           {/* Offered only where it can do what it says: a device that is silent or has yet to speak would not hear it, and a plug parks nothing. */}
           {parks ? <MaintenanceControl devices={here} now={now} /> : null}
-          {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} byHand={!hasDevice} /> : null}
           {offerDevice ? <DeviceOffer /> : null}
           {demo || visiting ? null : <AddPlace />}
         </div>

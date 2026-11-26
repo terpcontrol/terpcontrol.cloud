@@ -61,7 +61,7 @@ export const useHumidifierHold = (device: Device | null): HumidifierHold | null 
 export const useLamp = (device: Device | null, here: Device[], now: DateTime) => {
   const live = useDeviceLive(device?.id ?? null).data;
   const lamps = [...(device ? [device] : []), ...here.filter(one => one.type === 'light' && one.id !== device?.id)];
-  const { levels } = useLiveReads(lamps.map(one => one.id));
+  const { levels, isPending } = useLiveReads(lamps.map(one => one.id));
   const reported = lamps.filter(one => levels.get(one.id));
   // The first lamp's hold is read with its light sockets; a lamp module's is the one this browser sent it.
   const first = useHeldLight(reported[0] ?? null, now);
@@ -76,7 +76,8 @@ export const useLamp = (device: Device | null, here: Device[], now: DateTime) =>
     held: index === 0 ? first : (holds.get(one.id) ?? null),
   }));
 
-  return { live, lit };
+  // Which lamps reported is known once each read has answered: until then a lamp's tile is neither there nor not.
+  return { live, lit, pending: isPending };
 };
 
 /** A place's open alerts for its status (`placeAlerts`), each about the device the account's own list of alerts - Meldungen's - names. */
@@ -90,8 +91,10 @@ const LAST_DAY = { range: '24h' as const };
  * the lead's, as the figures are: a day drawn from another device of the place
  * is no day of it, and a place waiting for its lead's first figures has none.
  */
-export const useLastDay = (spaceId: string, lead: string | null, wanted: boolean): SpaceTimeline | null => {
-  const timeline = useTimeline(wanted ? spaceId : null, LAST_DAY).data;
-  if (!wanted || !timeline || (lead !== null && timeline.deviceId && timeline.deviceId !== lead)) return null;
-  return timeline;
+export const useLastDay = (spaceId: string, lead: string | null, wanted: boolean): { day: SpaceTimeline | null; pending: boolean } => {
+  const read = useTimeline(wanted ? spaceId : null, LAST_DAY);
+  const timeline = read.data;
+  const day = !wanted || !timeline || (lead !== null && timeline.deviceId && timeline.deviceId !== lead) ? null : timeline;
+  // Still on its way for the first time - not failed, which leaves the curves' room empty rather than the page waiting.
+  return { day, pending: wanted && read.isPending };
 };

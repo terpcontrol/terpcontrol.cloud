@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device } from '@fg2/shared-types/v1';
 import { restsInGermination, watchNow } from '@fg2/shared-types/v1-schemas/climate-presets.js';
-import { useAlarmRulesOf } from '@/api/alarm-rules';
+import type { useAlarmRulesOf } from '@/api/alarm-rules';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { durationLabel } from '@/ui/age';
@@ -41,12 +41,22 @@ const lineOf = (t: Translate, rule: AlarmRule, device: Device | undefined): { na
  * switched on with where it trips, three at most and then how many more, and
  * "Ändern ›" to Steuerung's alarms for whoever may change them. Each device
  * keeps its own offline rule, and two of them are one promise to the grower,
- * so a line is said once. Drawn once the rules are read: an unread list is no
- * "Noch kein Alarm".
+ * so a line is said once. The page draws it once the rules are read; a read
+ * that failed leaves no card, since an unread list is no "Noch kein Alarm".
  */
-export function Alarms({ spaceId, devices, mayManage }: { spaceId: string; devices: Device[]; mayManage: boolean }) {
+export function Alarms({
+  spaceId,
+  devices,
+  rules,
+  mayManage,
+}: {
+  spaceId: string;
+  devices: Device[];
+  /** The devices' rules, which the page reads with its own first answers (`useAlarmRulesOf`). */
+  rules: ReturnType<typeof useAlarmRulesOf>;
+  mayManage: boolean;
+}) {
   const { t } = useTranslation();
-  const rules = useAlarmRulesOf(devices.map(device => device.id));
   if (rules.counts.size === 0) return null;
   const lines = [...rules.rules.values()]
     .filter(rule => rule.enabled)

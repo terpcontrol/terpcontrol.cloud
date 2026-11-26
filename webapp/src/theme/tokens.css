@@ -117,6 +117,10 @@
      warning's edge, never the amber a warning is written in - a lamp that is
      on is not a warning. */
   --lamp: #e8b53d;
+  /* The hours a lamp's day bar leaves unlit: the inset surface, and in dark the
+     strong hairline - the inset navy was a shade off the card there and the
+     dark hours all but vanished. */
+  --day-track: var(--card-2);
 
   /* The ground a warning or an alarm stands on and the edge round it, written
      out rather than mixed: the amber mixed into these surfaces came out
@@ -392,6 +396,7 @@
 
     --output: #8fb0ea;
     --lamp: #f2c35a;
+    --day-track: var(--rule-strong);
     /* Amber or red laid over navy at any strength turns olive or mauve, so a
        warning in dark mode stands on the lifted navy and its edge says the rest. */
     --warning-wash: var(--card-2);
@@ -463,6 +468,7 @@
 
     --output: #8fb0ea;
     --lamp: #f2c35a;
+    --day-track: var(--rule-strong);
     /* Amber or red laid over navy at any strength turns olive or mauve, so a
        warning in dark mode stands on the lifted navy and its edge says the rest. */
     --warning-wash: var(--card-2);

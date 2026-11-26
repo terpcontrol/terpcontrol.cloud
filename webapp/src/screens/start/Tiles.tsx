@@ -1,11 +1,10 @@
 import { ChevronRight, Droplets, Leaf, Sun, Thermometer, Wind, type LucideIcon } from 'lucide-react';
 import type { DateTime } from 'luxon';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { CardSetpoint, CardValue, Device, DeviceLive, OverviewTargets, SpaceTimeline, ValueState } from '@fg2/shared-types/v1';
 import type { Steered } from '@fg2/shared-types/v1-schemas/steering.js';
-import { useHourMeans } from '@/api/devices';
 import { timelinePath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
 import { ageAttribute, ageLabel, valueAge } from '@/ui/age';
@@ -52,6 +51,11 @@ interface TilesProps {
   lamps: readonly Lamp[];
   /** The last day of the lead (`useLastDay`), which every curve and output's run is read from. */
   day: SpaceTimeline | null;
+  /** The day is asked for and not in yet: its curves' and its caption's room is kept. */
+  dayComing: boolean;
+  /** The last hour's mean of each reading (`useHourMeans`); undefined while they are on their way, whose line's room is kept. */
+  means: Partial<Record<Steered, number>> | undefined;
+  meansWanted: boolean;
   hold: HumidifierHold | null;
   now: DateTime;
   offline: boolean;
@@ -67,10 +71,9 @@ interface TilesProps {
  * (`Tiles.module.css`), and each tile lays itself out by its own width.
  */
 export function Tiles(props: TilesProps) {
-  const { readings, values, device, offline, now } = props;
+  const { readings, values, device, offline, now, means, meansWanted } = props;
   const climate = readings.filter((reading): reading is Reading & { key: Steered } => reading.key !== 'vpd' && reading.key !== 'light');
   const lights = readings.filter(reading => reading.key === 'light');
-  const means = useHourMeans(device?.id ?? null, !offline && climate.length > 0).data;
   const humidifiers = useHumidifiers(device);
   const leaf = valueOf(values, 'leafTemperature') ?? valueOf(values, 'lux');
   // What "im Ziel" means is said on the first tile judged in band, and what a curve shows on the first curve.
@@ -87,6 +90,7 @@ export function Tiles(props: TilesProps) {
             reading={reading}
             vpd={reading.key === 'humidity' ? (readings.find(one => one.key === 'vpd') ?? null) : null}
             mean={means?.[reading.key] ?? null}
+            meanComing={meansWanted && means === undefined}
             outputs={[...outputsFor(device, props.live, props.day?.outputs, reading.key), ...humidifierOutputs(humidifiers, reading.key)]}
             explainBand={explainBand === reading.key}
             explainCurve={index === 0}
@@ -137,10 +141,13 @@ function Tile({
   side: ReactNode;
   foot: ReactNode;
 }) {
+  const named = useId();
+
   return (
-    <article className={styles.tile} data-tile={tile} data-tone={tone}>
+    // Named by its reading, as the one link in it is, for a reader that lists a page's parts.
+    <article className={styles.tile} data-tile={tile} data-tone={tone} aria-labelledby={named}>
       <div className={styles.inner}>
-        <Link to={to} className={styles.name}>
+        <Link to={to} className={styles.name} id={named}>
           <Icon size={15} strokeWidth={1.75} aria-hidden />
           {name}
           <ChevronRight size={13} strokeWidth={2} className={styles.chevron} aria-hidden />
@@ -176,12 +183,14 @@ function ClimateTile({
   reading,
   vpd,
   mean,
+  meanComing,
   outputs,
   setpoints,
   targets,
   device,
   live,
   day,
+  dayComing,
   hold,
   now,
   offline,
@@ -191,6 +200,8 @@ function ClimateTile({
   reading: Reading & { key: Steered };
   vpd: Reading | null;
   mean: number | null;
+  /** The hour's means are asked for and not in yet: the line's room is kept, so nothing under it moves when they land. */
+  meanComing: boolean;
   outputs: OutputState[];
   explainBand: boolean;
   explainCurve: boolean;
@@ -214,6 +225,7 @@ function ClimateTile({
   // The day's caption on the first curve: "24 Std", or since when for a record younger than a day.
   const young = explainCurve && day ? youngFrom(day, metric) : null;
   const caption = explainCurve && day ? (young ? t('start.tile.since', { time: clock(young, zone) }) : t('start.tile.day')) : null;
+  const room = <span aria-hidden>{'\u00a0'}</span>;
 
   return (
     <Tile
@@ -244,6 +256,8 @@ function ClimateTile({
             <p className={styles.line} aria-hidden>
               {t('start.tile.hourMean')} <span className={styles.ink}>{meanSaid}</span>
             </p>
+          ) : meanComing ? (
+            <p className={styles.line}>{room}</p>
           ) : null}
           {/* The target and the verdict break between them where they do not fit one line: an ellipsis cut "6,5 °C zu ho…". */}
           <Facts
@@ -270,6 +284,8 @@ function ClimateTile({
             <span className={styles.caption}>
               <Term topic="dayCurve">{caption}</Term>
             </span>
+          ) : explainCurve && dayComing ? (
+            <span className={styles.caption}>{room}</span>
           ) : null}
         </>
       }

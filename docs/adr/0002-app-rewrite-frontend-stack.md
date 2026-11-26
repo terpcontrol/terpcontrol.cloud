@@ -268,6 +268,7 @@ primary), the temperature orange on the inset surface, 4.95:1, and the dark mode
 | `--alarm-wash` / `--alarm-edge` | `#fdecef` / `#eba2ae` | `--card-2` / `#ff8b9a` | an alarm's ground and edge |
 | `--output` | `#4870c0` | `#8fb0ea` | what an output did: lanes, output lines |
 | `--lamp` | `#e8b53d` | `#f2c35a` | the lamp's light on a lane and a lit day |
+| `--day-track` | `--card-2` | `--rule-strong` | the unlit hours of a lamp's day bar (in dark the inset navy all but vanished; the design's walk of 2026-11-26) |
 
 Rules that hold from the looks before: **no signal is mixed into a surface** - amber or red laid into white or
 navy came out beige, khaki and mauve - so a warning's ground and edge are written out, and in dark mode a warning

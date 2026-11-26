@@ -5089,7 +5089,10 @@
       "awaitingClimate": "{{climate}} is set as soon as the device sends its settings.",
       "roundTheClock": "Round the clock",
       "now": "now",
-      "bySchedule": "by the schedule"
+      "bySchedule": {
+        "day": "By the schedule the day's targets apply now.",
+        "night": "By the schedule the night's targets apply now."
+      }
     },
     "grow": {
       "title": "{{name}}: What grows here?",

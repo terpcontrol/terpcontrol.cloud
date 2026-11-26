@@ -219,7 +219,8 @@ function PlaceCard({
   // A mean of old values and a state nobody reports would mislead: a silent place, and one still waiting, show neither.
   const heard = !offline && status.kind !== 'waiting';
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? [] : lit, hold: null, now, zone });
-  const means = useHourMeans(device?.id ?? null, heard && readings.length > 0).data;
+  const meansWanted = heard && readings.length > 0;
+  const means = useHourMeans(device?.id ?? null, meansWanted).data;
   const figures: Figure[] = readings
     .filter((reading): reading is Reading & { key: Metric } => reading.key !== 'light')
     .map(reading => {
@@ -276,7 +277,7 @@ function PlaceCard({
       </span>
       {figures.length > 0 ? (
         <span className={styles.placeFigures} {...ageAttribute(livenessOf(card, judged) === 'offline' ? 'offline' : 'live')}>
-          <Figures figures={figures} />
+          <Figures figures={figures} meansComing={meansWanted && means === undefined} />
         </span>
       ) : null}
       {/* What stands open is red where one of it is critical, as on the place's page. */}

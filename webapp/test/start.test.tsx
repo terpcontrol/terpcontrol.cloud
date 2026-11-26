@@ -5,8 +5,9 @@ import i18next from 'i18next';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router';
-import type { SpaceOverview } from '@fg2/shared-types/v1';
+import type { SpaceOverview, SpaceTimeline } from '@fg2/shared-types/v1';
 import { session } from '@/api/session';
+import { DayCurve } from '@/screens/start/DayCurve';
 import { readingFacts, readingsOf } from '@/screens/start/readings';
 import { Start, StartOfPlace } from '@/screens/start/Start';
 import { drawAt, reading } from './harness';
@@ -366,6 +367,93 @@ describe('Start of one place with a camera and a grow', () => {
   it('leaves the two ways into a grow side by side room for their words', () => {
     const sheet = readFileSync(resolve(__dirname, '../src/screens/start/Start.module.css'), 'utf8');
     expect(/\.pair > :is\(button, a\) \{([^}]*)\}/.exec(sheet)?.[1]).toMatch(/padding-inline: var\(--space-2\)/);
+  });
+
+  /**
+   * The curve is what one presses to see the curve, and it lay over the tile's stretched link: a press on it did
+   * nothing (the design's walk of 2026-11-26). jsdom has no hit testing, so the press is the stylesheet's to let through
+   * and the page's to leave nothing pressable in the curve's box; a browser walk presses it.
+   */
+  it('lets a press on the curve through to the tile´s one link', async () => {
+    draw();
+
+    const tile = await tileOf('Temperature');
+    const curve = await within(tile).findByRole('img', { name: /^Temperature over the last 24 hours/ });
+    const side = curve.closest('[class*="side"]')!;
+    expect(tile).toContainElement(side as HTMLElement);
+    expect(within(side as HTMLElement).queryAllByRole('link')).toHaveLength(0);
+    expect(within(side as HTMLElement).queryAllByRole('button')).toHaveLength(0);
+    const sheet = readFileSync(resolve(__dirname, '../src/screens/start/Tiles.module.css'), 'utf8');
+    expect(/\n\.side \{([^}]*)\}/.exec(sheet)?.[1]).toMatch(/pointer-events: none/);
+    // A tile is named by its reading for a reader that lists a page's parts.
+    expect(screen.getByRole('article', { name: 'Temperature' })).toBe(tile);
+  });
+
+  /**
+   * The tiles re-formed as the reads landed - three, then a lamp's fourth; the hour's means, the alarms and the curves
+   * after them (the design's walk of 2026-11-26). The page waits in its shape until the set and what fills it are in.
+   */
+  it('waits in its shape until the lamp has said whether it is there, then draws every tile at once', async () => {
+    let answer = () => {};
+    const held = new Promise<void>(resolve => (answer = resolve));
+    const wire = fetchStub.getMockImplementation()!;
+    fetchStub.mockImplementation(async (input, init) => {
+      if (new URL(String(input), 'http://localhost').pathname === '/v1/devices/device-1/live') await held;
+      return wire(input, init);
+    });
+    server.means = { temperature: 24.96 };
+    try {
+      draw();
+
+      expect(await screen.findByLabelText('Home is loading')).toBeInTheDocument();
+      // Everything else of the place is in: only the lamp's own report is outstanding.
+      await waitFor(() => expect(server.calls).toEqual(expect.arrayContaining(['GET /devices/device-1/series', 'GET /spaces/space-1/timeline'])));
+      expect(screen.queryByRole('article')).not.toBeInTheDocument();
+      answer();
+      const tiles = (await tileOf('Temperature')).parentElement!;
+      // Drawn whole: the lamp's tile, the hour's mean, the curves and the alarms come with the first draw.
+      expect([...tiles.querySelectorAll('article')].map(one => one.dataset.tile)).toEqual(['temperature', 'humidity', 'co2', 'light']);
+      expect(await tileOf('Temperature')).toHaveTextContent('1 h avg 25.0 °C');
+      expect(within(tiles).getAllByRole('img', { name: /over the last 24 hours/ })).not.toHaveLength(0);
+      expect(screen.getByRole('heading', { name: 'Alarms' })).toBeInTheDocument();
+    } finally {
+      fetchStub.mockImplementation(wire);
+    }
+  });
+
+  /** A record of two hours held inside its one band drew that band edge to edge: a green block (the design's walk, 2026-11-26). */
+  it('keeps air above and below the band of a young record´s curve', () => {
+    const points = Array.from({ length: 12 }, (_, index) => ({ measuredAt: ago(120 - index * 10), value: 25 + (index % 2) * 0.2 }));
+    const timeline = {
+      startsAt: ago(24 * 60),
+      endsAt: ago(0),
+      panels: [{ metric: 'temperature', points, targets: [] }],
+      nights: [],
+      transitions: [],
+    } as unknown as SpaceTimeline;
+    const targets = {
+      day: [{ metric: 'temperature' as const, value: 25, band: 1 }],
+      night: [{ metric: 'temperature' as const, value: 25, band: 1 }],
+    };
+    const { container } = drawAt(<DayCurve timeline={timeline} targets={targets} metric="temperature" label="Temperature" />);
+
+    const band = container.querySelector('svg rect[class*="band"]')!;
+    const top = Number(band.getAttribute('y'));
+    const bottom = top + Number(band.getAttribute('height'));
+    // Of a plot 48 high: a quarter of the band's height above and below it, beyond the 4 the line keeps anyway.
+    expect(top).toBeGreaterThan(8);
+    expect(bottom).toBeLessThan(40);
+  });
+
+  /** The offer stood at the foot of the other column, the tiles alone on the left (the design's walk of 2026-11-26). */
+  it('offers the grow under the tiles, where the grow will stand once it is started', async () => {
+    onePlace(overviewOf(), true);
+    draw();
+
+    const offer = await screen.findByRole('heading', { name: 'What grows here?' });
+    const tiles = (await tileOf('Temperature')).parentElement!;
+    expect(tiles.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(offer.compareDocumentPosition(screen.getByRole('heading', { name: 'Targets' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   /**
@@ -1421,8 +1509,10 @@ describe('the states of Start', () => {
     const card = (await screen.findByRole('heading', { name: 'Targets' })).closest('section')!;
     expect(within(card).getByRole('link', { name: 'Change ›: Targets' })).toHaveAttribute('href', '/control?space=space-1');
     expect(card).toHaveTextContent('Works now too. It reaches the device as soon as it is back online.');
-    // The half the schedule puts it in, not the device's word.
-    expect(within(card).getByText('by the schedule')).toBeInTheDocument();
+    // The half the schedule puts it in, not the device's word - said under the table, not as a tag that took its row a line
+    // deeper.
+    expect(card).toHaveTextContent("By the schedule the day's targets apply now.");
+    expect(within(card).getByRole('table')).not.toHaveTextContent(/now|schedule/);
     expect(screen.queryByRole('button', { name: /^Maintenance/ })).not.toBeInTheDocument();
   });
 

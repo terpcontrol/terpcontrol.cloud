@@ -182,11 +182,7 @@ export function Targets({
           <div key={row.label} role="row" className={styles.targetsRow}>
             <span role="rowheader" className={styles.targetsLabel}>
               {row.label}
-              {row.half && row.half === holding ? (
-                <span className={styles.now} data-by={offline ? 'schedule' : undefined}>
-                  {t(offline ? 'start.targets.bySchedule' : 'start.targets.now')}
-                </span>
-              ) : null}
+              {row.half && row.half === holding && !offline ? <span className={styles.now}>{t('start.targets.now')}</span> : null}
             </span>
             {columns.map(metric => {
               const value = row.figures[metric];
@@ -259,6 +255,8 @@ export function Targets({
       {/* Where nothing but a light is set, the light was said in the table or alone above. */}
       {!rows && !alone && light ? <p className={styles.cardText}>{`${t('start.targets.light')} ${light.text}`}</p> : null}
       {planLine ? <p className={styles.cardText}>{`${t('planLine.plan')} ${planLine}`}</p> : null}
+      {/* A device not heard from holds what its schedule puts it in, which is said in words: a tag beside "Tag" took the row a line deeper. */}
+      {offline && rows?.some(row => row.half === holding) ? <p className={styles.cardText}>{t(`start.targets.bySchedule.${holding}`)}</p> : null}
       {offline && mayManage ? <p className={styles.cardText}>{t('start.targets.offlineNote')}</p> : null}
       {guest ? <p className={styles.cardText}>{t('start.targets.whoChanges', { name })}</p> : null}
     </section>
