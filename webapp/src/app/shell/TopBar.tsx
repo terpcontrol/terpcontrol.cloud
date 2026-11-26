@@ -1,6 +1,7 @@
-import { Bell, UserRound } from 'lucide-react';
+import { Bell, MessageSquareText, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { useFeedback } from '@/app/feedback';
 import { Logo } from '@/ui/Logo';
 import { useBell } from './bell';
 import { PlaceChoice } from './PlaceChoice';
@@ -8,13 +9,14 @@ import styles from './TopBar.module.css';
 
 /**
  * The phone's header: the logo's mark, the chosen place on the pages that are
- * about it, the bell and the way to Ich. The bell carries a dot while something is open and
- * nothing at all while nothing is, so it reads as quiet rather than as a
+ * about it, the feedback button where the install loads a feedback widget, the bell and the way to Ich. The bell
+ * carries a dot while something is open and nothing at all while nothing is, so it reads as quiet rather than as a
  * zero; the link says the count, for anybody who cannot see the dot.
  */
 export function TopBar() {
   const { t } = useTranslation();
   const bell = useBell();
+  const feedback = useFeedback();
 
   return (
     <header className={styles.bar} data-print="omit">
@@ -22,6 +24,11 @@ export function TopBar() {
         <Logo />
       </Link>
       <PlaceChoice />
+      {feedback ? (
+        <button type="button" className={styles.action} onClick={feedback} aria-label={t('shell.feedbackHint')} title={t('shell.feedbackHint')}>
+          <MessageSquareText size={22} strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
       <Link to="/alerts" className={styles.action} aria-label={bell ? t(bell.key, { count: bell.count }) : t('shell.alerts')}>
         <Bell size={22} strokeWidth={2} aria-hidden />
         {bell ? <span className={styles.dot} data-kind={bell.kind} aria-hidden /> : null}

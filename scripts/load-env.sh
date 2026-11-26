@@ -27,13 +27,13 @@ terpcontrol_resolve_env_file() {
 }
 
 # Export every variable defined in $ENV_FILE. Comment lines are skipped, and
-# CUSTOM_LINKS_HTML is excluded because its value can contain spaces/quotes that
+# CUSTOM_LINKS_HTML and CUSTOM_SCRIPT_TAG are excluded because their values can contain spaces/quotes that
 # break the `xargs` round-trip used to turn the file into export arguments.
 terpcontrol_load_env() {
     [ -n "${ENV_FILE:-}" ] || terpcontrol_resolve_env_file
     if [ -f "$ENV_FILE" ]; then
         # shellcheck disable=SC2046
-        export $(grep -v '^#' "$ENV_FILE" | grep -v CUSTOM_LINKS_HTML | xargs)
+        export $(grep -v '^#' "$ENV_FILE" | grep -v -e CUSTOM_LINKS_HTML -e CUSTOM_SCRIPT_TAG | xargs)
     fi
 }
 
