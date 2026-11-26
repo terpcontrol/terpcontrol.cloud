@@ -45,7 +45,7 @@ export function EmptyStart() {
       <Door title={t('start.empty.demo')} note={t('start.empty.demoNote')} onClick={() => setDemo('asking')} />
       {demo === 'asking' ? (
         <div className={styles.pair}>
-          <button type="button" className={styles.go} data-tone="brand" onClick={() => void open()}>
+          <button type="button" className={styles.go} onClick={() => void open()}>
             {t('home.demo.confirm')}
           </button>
           <button type="button" className={ui.wide} onClick={() => setDemo('idle')}>

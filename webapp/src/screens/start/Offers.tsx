@@ -93,7 +93,7 @@ export function DeviceOffer() {
         {t('start.device.title')}
       </h2>
       <div className={styles.pair}>
-        <Link to="/claim" className={styles.go} data-tone="brand">
+        <Link to="/claim" className={styles.go}>
           {t('home.addDevice.title')}
         </Link>
         <button

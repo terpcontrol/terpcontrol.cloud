@@ -5163,6 +5163,9 @@
       "more": "+{{count}}",
       "open_one": "{{count}} Meldung offen",
       "open_other": "{{count}} Meldungen offen",
+      "openCritical_one": "{{count}} kritische Meldung offen",
+      "openCritical_other": "{{count}} kritische Meldungen offen",
+      "openSomeCritical": "{{more}} Meldungen offen, {{critical}} kritisch",
       "mode": {
         "drying": "Das Gerät trocknet, der Grow ist in der Phase {{stage}}",
         "germination": "Das Gerät keimt im Dunkeln, der Grow ist in der Phase {{stage}}"

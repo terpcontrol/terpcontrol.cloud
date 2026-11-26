@@ -246,11 +246,12 @@
   box-shadow: 0 0 0 1px var(--brand);
 }
 
+/* A card's and a curve's name are names: a step under the page's title, as on master. */
 .cardTitle,
 .panelHead h2 {
   margin: 0;
   font-size: var(--text-md);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-heading);
 }
 
 /* ----------------------------------------------------------- cursor card */
@@ -394,10 +395,13 @@
   gap: 0 var(--space-2);
 }
 
+/* By the last baseline: the range's row of facts gives no first baseline of its words, and "Tief · Hoch" stood 6 px
+   above the name and the figure beside it. */
 .panelLabel {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  align-items: last baseline;
   gap: 0 var(--space-2);
   min-width: 0;
 }

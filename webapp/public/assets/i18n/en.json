@@ -5153,6 +5153,9 @@
       "more": "+{{count}}",
       "open_one": "{{count}} alert open",
       "open_other": "{{count}} alerts open",
+      "openCritical_one": "{{count}} critical alert open",
+      "openCritical_other": "{{count}} critical alerts open",
+      "openSomeCritical": "{{more}} alerts open, {{critical}} critical",
       "mode": {
         "drying": "The device is drying, the grow is in the {{stage}} phase",
         "germination": "The device is germinating in the dark, the grow is in the {{stage}} phase"

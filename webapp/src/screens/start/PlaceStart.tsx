@@ -418,7 +418,7 @@ function StatusSentence({
   const behind = openWords(t, status);
   let text: string;
   // A silent place's sentence is what stands open there, in the colour of the worst of it: the red of silence is the box's.
-  let tone: ReturnType<typeof toneOf> = silent ? (status.critical ? 'alarm' : 'warn') : toneOf(status);
+  let tone: ReturnType<typeof toneOf> = silent ? (status.critical > 0 ? 'alarm' : 'warn') : toneOf(status);
   let to: string | null;
   if (status.kind === 'none') {
     if (!camera) return null;
@@ -454,7 +454,7 @@ function StatusSentence({
 
   // What stands open behind a status that is not an alert's own is said in words, in the alarm's colour where one of
   // it is critical; behind an alert's sentence "+2" goes in that sentence's colour.
-  const critical = 'critical' in status && status.critical && status.kind !== 'alert';
+  const critical = 'critical' in status && status.critical > 0 && status.kind !== 'alert';
   const words = (
     <Facts
       facts={[

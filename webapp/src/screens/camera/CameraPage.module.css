@@ -144,7 +144,9 @@
   min-width: 0;
 }
 
-.labels > :last-child {
+/* Side by side where both fit, the time at the right; where they do not, each takes a line of its own at the left
+   rather than the second standing staggered under the first. A time alone keeps the right. */
+.labels > :only-child {
   margin-left: auto;
 }
 

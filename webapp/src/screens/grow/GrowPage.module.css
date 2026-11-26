@@ -42,7 +42,12 @@
   gap: var(--space-2);
 }
 
-/* On a phone the way to every grow stands left, the menu at the row's other end. */
+/* On a phone the way to every grow stands left, the menu at the row's other end - a row of its own, a step clear of
+   the name under it. */
+.actions {
+  margin-bottom: var(--space-2);
+}
+
 .actions > a.pill {
   margin-right: auto;
 }
@@ -193,6 +198,7 @@
   .actions {
     flex: none;
     order: 1;
+    margin-bottom: 0;
   }
 
   .facts {

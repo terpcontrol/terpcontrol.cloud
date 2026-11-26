@@ -130,6 +130,8 @@
      rule a plot is read across. A canvas reads these, so they are written in
      the syntax every chart parser knows. */
   --band: rgba(80, 160, 48, 0.14);
+  /* The band under a small curve, which has no axis to share the weight with. */
+  --band-small: var(--band);
   --night: rgba(31, 58, 110, 0.07);
   /* The nights of a long range - a grow's thirty and more - at half that: at
      full strength they drew a barcode of stripes the curves had to be read
@@ -213,6 +215,9 @@
   --tracking-caption: 0.01em;
   /* Headings close up, as the site's do. */
   --tracking-title: -0.02em;
+  /* A big figure closes up half as far, as master's figures did: at a title's
+     tracking "1,09" pinched at its comma. */
+  --tracking-figure: -0.01em;
 
   /* Shape: the site's radii - a card, a control, the option inside a
      segmented track, a large panel - and the pill a badge or a chosen chip
@@ -356,6 +361,8 @@
     /* A yellower green, and more of it: the brand green at 14% over navy came
        out a slate teal beside the humidity line. */
     --band: rgba(150, 235, 30, 0.22);
+    /* At a small curve's size the dark band at full strength drew two green blocks the line hid in. */
+    --band-small: rgba(150, 235, 30, 0.11);
     --night: rgba(4, 10, 26, 0.3);
     --night-long: rgba(4, 10, 26, 0.15);
     --grid: rgba(184, 212, 255, 0.1);
@@ -425,6 +432,8 @@
     /* A yellower green, and more of it: the brand green at 14% over navy came
        out a slate teal beside the humidity line. */
     --band: rgba(150, 235, 30, 0.22);
+    /* At a small curve's size the dark band at full strength drew two green blocks the line hid in. */
+    --band-small: rgba(150, 235, 30, 0.11);
     --night: rgba(4, 10, 26, 0.3);
     --night-long: rgba(4, 10, 26, 0.15);
     --grid: rgba(184, 212, 255, 0.1);

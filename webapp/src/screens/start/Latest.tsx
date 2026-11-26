@@ -89,7 +89,7 @@ export function Latest({
   if (lines.length === 0) return null;
 
   return (
-    <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-latest">
+    <section className={`${ui.panel} ${styles.latest}`} aria-labelledby="start-latest">
       <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-latest">
         {t('start.latest.title')}
       </h2>

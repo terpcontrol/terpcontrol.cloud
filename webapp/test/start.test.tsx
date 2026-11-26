@@ -1541,11 +1541,12 @@ describe('the states of Start', () => {
     );
     draw();
 
-    const said = await screen.findByText(reading('3 alerts open'));
+    const said = await screen.findByText(reading('3 alerts open, 1 critical'));
     expect(said).toHaveAttribute('data-tone', 'alarm');
     const sentence = said.closest('[data-tone="quiet"]')!;
-    // Maintenance itself is the control's to say, further down: the sentence says what stands open behind it.
-    expect(sentence).toHaveTextContent(/^3 alerts open$/);
+    // Maintenance itself is the control's to say, further down: the sentence says what stands open behind it, and that
+    // the red it is drawn in is a critical one's.
+    expect(sentence).toHaveTextContent(/^3 alerts open, 1 critical$/);
     expect(sentence).not.toHaveTextContent('+3');
     // What stands open is what the sentence leads to; the window is ended at its own control.
     expect(sentence).toHaveAttribute('href', '/alerts');
@@ -1861,7 +1862,8 @@ describe('Start with several places', () => {
     );
     // The figure off its target is drawn so.
     expect(within(cards[0]).getByText('72').closest('[data-tone]')).toHaveAttribute('data-tone', 'off');
-    expect(within(cards[0]).getByRole('img', { name: 'Tent 2: the newest picture' })).toHaveAttribute('src', '/media/still-2');
+    // No picture on a card: it pushed the name out of line with the others', and the place's own Start has the camera.
+    expect(within(cards[0]).queryByRole('img')).not.toBeInTheDocument();
     expect(cards[1]).toHaveTextContent(/^Fridge 1on target25.1 °CTemperature61 %Humidity1.03 kPaVPD880 ppmCO₂Light 65 %/);
     expect(cards[1]).not.toHaveTextContent('due');
     // A place in no room that follows a room´s cards is set off from them by saying so.
@@ -1889,7 +1891,8 @@ describe('Start with several places', () => {
     server.tasks.push({ ...due('step-1', 'custom', 'Late flower', { type: 'space', id: 'space-2' }, 10), source: 'plan_step' });
     draw();
 
-    await waitFor(() => expect(screen.getByRole('link', { name: /^Tent 2: the newest picture/ })).toHaveTextContent('2 tasks due'));
+    const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2');
+    await waitFor(() => expect(card()).toHaveTextContent('2 tasks due'));
   });
 
   it('leads the address of a room, which has no Start of its own, to Start', async () => {
@@ -2013,9 +2016,11 @@ describe('Start with several places', () => {
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')!;
     await waitFor(() => expect(card()).toHaveTextContent(/^Tent 2offline/));
     expect(card()).not.toHaveTextContent(/Control off/);
+    // The pill says the state in its own grey, as the place's page does; how loud the card is, is the alerts' to say.
+    expect(within(card()).getByText('offline')).toHaveAttribute('data-tone', 'quiet');
   });
 
-  /** "1 alert open" behind another status is red where the alert is critical, as on the place's own Start. */
+  /** What stands open behind another status is red where an alert is critical, and says so, as on the place's own Start. */
   it('draws what stands open behind a card´s status in the alarm´s colour where one of it is critical', async () => {
     server.devices = [fridge(), fridge({ id: 'device-2', type: 'controller', spaceId: 'space-2', control: { running: false } } as never)];
     server.home = homeOf(
@@ -2033,7 +2038,7 @@ describe('Start with several places', () => {
     draw();
 
     const card = () => screen.getAllByRole('link').find(link => link.getAttribute('href') === '/spaces/space-2')!;
-    await waitFor(() => expect(within(card()).getByText('1 alert open')).toHaveAttribute('data-tone', 'alarm'));
+    await waitFor(() => expect(within(card()).getByText('1 critical alert open')).toHaveAttribute('data-tone', 'alarm'));
     // The card asks for somebody, and its edge says in which colour.
     expect(card()).toHaveAttribute('data-asks');
   });

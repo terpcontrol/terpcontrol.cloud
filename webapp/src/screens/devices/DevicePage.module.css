@@ -14,17 +14,17 @@
   color: var(--warning);
 }
 
-/* The place under the title is a 36 px target in its own box - a finger finds it, and a measure of the link says so -
-   reaching above and below its line without making the line taller. */
+/* The place under the title is a link like every other - the brand's ink at the medium - and a 36 px target in its own
+   box - a finger finds it, and a measure of the link says so -, reaching above and below its line without making the
+   line taller. */
 .facts a {
   position: relative;
   display: inline-block;
   min-width: var(--action-height);
   padding-block: calc((var(--action-height) - 1lh) / 2);
   margin-block: calc((var(--action-height) - 1lh) / -2);
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  color: var(--brand);
+  font-weight: var(--weight-medium);
 }
 
 /* A finger high and wide without making the line taller: the row of facts cuts what leaves its box, so it takes

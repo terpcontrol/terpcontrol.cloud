@@ -76,18 +76,24 @@ describe('the sentence a place says', () => {
     // The silence of the device the place is judged by is said by the pill and the box, and counted as Meldungen and the
     // bell count it: "4 Meldungen offen" beside "Meldungen 4".
     expect(statusOf({ ...silent, leadId: 'device-2' }, now)).toMatchObject({ kind: 'offline', more: 4 });
-    // The catalogue's sentences are not this suite's business: a key stands for its sentence, the count for itself.
+    // The catalogue's sentences are not this suite's business: a key stands for its sentence, its figures for themselves.
     // After an alert's own sentence the rest is "+3"; after any other status it is said in words, never a lone "+4".
-    const t = ((key: string, said?: { count?: number }) => (said?.count === undefined ? key : `${key}:${said.count}`)) as never;
+    const t = ((key: string, said?: Record<string, unknown>) => (said === undefined ? key : `${key}:${Object.values(said).join('/')}`)) as never;
     expect(statusText(t, status, now, 'UTC')).toMatch(/ · start\.status\.more:3$/);
     const off = statusOf({ ...place, controlOff: true, openAlerts: placeAlerts(listed, inbox as never, here, now) }, now);
-    expect(off).toMatchObject({ kind: 'controlOff', more: 4, critical: true });
-    expect(statusText(t, off, now, 'UTC')).toBe('start.status.controlOff · start.status.open:4');
+    expect(off).toMatchObject({ kind: 'controlOff', more: 4, critical: 3 });
+    // Which of them are critical is said, since it is what draws the words in the alarm's red.
+    expect(statusText(t, off, now, 'UTC')).toBe('start.status.controlOff · start.status.openSomeCritical:4/3');
     expect(statusText(t, off, now, 'UTC', false)).toBe('start.status.controlOff');
     expect(statusText(t, statusOf({ ...place, controlOff: true }, now), now, 'UTC')).toBe('start.status.controlOff');
-    // Whether one of what is open is critical: the warning about mould alone is not.
+    // How many of what is open are critical: the warning about mould alone is none, and said as open alone.
     const mild = placeAlerts([listed[0]], inbox as never, here, now);
-    expect(statusOf({ ...place, controlOff: true, openAlerts: mild }, now)).toMatchObject({ more: 1, critical: false });
+    const calm = statusOf({ ...place, controlOff: true, openAlerts: mild }, now);
+    expect(calm).toMatchObject({ more: 1, critical: 0 });
+    expect(statusText(t, calm, now, 'UTC')).toBe('start.status.controlOff · start.status.open:1');
+    // All of them critical, they are said so whole.
+    const grave = statusOf({ ...place, controlOff: true, openAlerts: placeAlerts([listed[3]], inbox as never, here, now) }, now);
+    expect(statusText(t, grave, now, 'UTC')).toBe('start.status.controlOff · start.status.openCritical:1');
 
     // Without the account's list - the demo - no device is known: the place's own silence is the pill's to say, and no other is named.
     expect(statusOf({ ...place, openAlerts: placeAlerts(listed, undefined, here, now) }, now)).toMatchObject({
@@ -142,6 +148,14 @@ describe('the sentence a place says', () => {
 
   it('draws maintenance quietly: the control that runs it is the one warning on the page', () => {
     expect(toneOf(statusOf({ ...place, quiet }, now))).toBe('quiet');
+  });
+
+  /** A silent fridge in red beside a tent in alarm in amber read as offline louder than an alarm, with nothing to say why. */
+  it('draws a silent place as loudly as the worst alert open there, and in amber where none is critical', () => {
+    const silent = { ...place, values: values(30) };
+    expect(toneOf(statusOf({ ...silent, openAlerts: [alert] }, now))).toBe('alarm');
+    expect(toneOf(statusOf({ ...silent, openAlerts: [{ ...alert, severity: 'warning' as const }] }, now))).toBe('warn');
+    expect(toneOf(statusOf(silent, now))).toBe('warn');
   });
 
   it('counts a reading that is written as on the edge as in target, so the sentence does not flip on rounding', () => {

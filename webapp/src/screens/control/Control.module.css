@@ -511,6 +511,11 @@
   overflow-wrap: anywhere;
 }
 
+/* At the foot of a card its reach runs into the card's padding, so its words do not end the card on a gap of their own. */
+.device:not([data-short]) > .all:last-child {
+  margin-bottom: -10px;
+}
+
 /* A camera's newest picture in its row, drawn beside the rail only. */
 .thumb {
   display: grid;

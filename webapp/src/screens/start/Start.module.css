@@ -1,8 +1,7 @@
 /* Start: one place's page, the cards of several, and what stands there before
    anything does. A phone's column first, and the same one column beside the
    rail until two fit: from 1100px a place is its figures, grow and camera left
-   and its cards right, and a list of places the cards left and what is due
-   right. */
+   and its cards right, and the cards of several places pair up. */
 
 .page {
   width: 100%;
@@ -33,8 +32,9 @@
 }
 
 /* On a phone the name and the menu share the first row, and the sentence and
-   the pill the second: the sentence takes what the pill leaves it and wraps
-   inside it, and the pill goes under a sentence too long to leave it room. */
+   the pill the second while the sentence fits beside the pill on one line; a
+   longer one takes the row and the pill goes under it, rather than the
+   sentence standing three lines deep in what the pill leaves it. */
 .headEnd {
   display: contents;
 }
@@ -56,7 +56,7 @@
 }
 
 .head .statusFrame {
-  flex: 1 1 11rem;
+  flex: 1 1 auto;
   order: 3;
 }
 
@@ -142,7 +142,8 @@
     width: 360px;
   }
 
-  /* A column with nothing in it - the demo's list has nothing due and nothing to add - gives its room back. */
+  /* A column with nothing in it - a place read by support with nothing written and nothing standing there - gives
+     its room back. */
   .page:not([data-single]) .column:last-child:empty {
     display: none;
   }
@@ -309,7 +310,7 @@ a.status {
 .figureValue {
   font-size: var(--text-figure);
   font-weight: var(--weight-figure);
-  letter-spacing: var(--tracking-title);
+  letter-spacing: var(--tracking-figure);
   line-height: var(--line-tight);
   white-space: nowrap;
 }
@@ -363,10 +364,12 @@ a.status {
   z-index: 1;
 }
 
-/* The last day, small: no axis and no figures, so the figure over it is read first. */
+/* The last day, small: no axis and no figures, so the figure over it is read first. No wider than it is drawn - a
+   desktop's share stretched its line and its noise sideways - and narrower where the share is. */
 .curve {
   display: block;
   width: 100%;
+  max-width: 140px;
   height: 26px;
   margin-top: var(--space-1);
   overflow: visible;
@@ -377,7 +380,7 @@ a.status {
 }
 
 .curveBand {
-  fill: var(--band);
+  fill: var(--band-small);
 }
 
 .curveLine {
@@ -544,13 +547,23 @@ a.status {
   flex-basis: 100%;
 }
 
+/* "Zuletzt": each line is a finger high, and the first one's reach runs up under the label rather than standing a gap
+   below it, so the label heads its lines as closely as a card's title does. */
+.latest > ul {
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.latest > ul:last-child {
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
 /* A finger high, and drawn into the card's own padding so its words do not stand in a gap of their own. */
 .more {
   display: inline-flex;
   align-self: flex-start;
   align-items: center;
   min-height: var(--control-height);
-  margin: calc(-1 * var(--space-2)) 0 -10px;
+  margin: calc(-1 * var(--space-3)) 0 -10px;
   color: var(--brand);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
@@ -634,12 +647,6 @@ a.status {
   font-weight: var(--weight-medium);
 }
 
-.go[data-tone='brand'] {
-  background: var(--selected);
-  box-shadow: inset 0 0 0 var(--rule-width) var(--selected-edge);
-  color: var(--on-selected);
-}
-
 .add {
   align-self: center;
   min-height: var(--control-height);
@@ -673,10 +680,60 @@ a.status {
 
 /* --- several places: a card each, under the room it stands in --- */
 
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cards:empty {
+  display: none;
+}
+
 /* A room's heading opens a group of its own: more room above it than between two cards. */
-.places > .room:not(:first-child),
-.places > .room + .place {
+.list > :is(.room, .cards) + :is(.room, .cards) {
   margin-top: var(--space-2);
+}
+
+/* "+ Ort hinzufügen" under the cards on a phone, the width of the column. */
+.addPlace {
+  display: grid;
+}
+
+/* Beside the rail the cards pair up as master's Home did - a room's lone card keeps its half, so every room's cards
+   stand in one grid - and "+ Ort hinzufügen" is a quiet button in the title's row. */
+@media (min-width: 1100px) {
+  .page.list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .list > * {
+    grid-column: 1 / -1;
+  }
+
+  .list > .head {
+    grid-column: 1;
+  }
+
+  .list > .addPlace {
+    grid-row: 1;
+    grid-column: 2;
+    align-self: center;
+  }
+
+  .addPlace > button {
+    min-height: var(--control-height);
+    border-radius: var(--radius-sm);
+    color: var(--brand);
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: var(--space-4);
+  }
 }
 
 .place {
@@ -709,18 +766,6 @@ a.status {
   align-items: center;
   gap: var(--space-2) var(--space-3);
   min-height: 28px;
-}
-
-/* The camera's newest picture, small beside the name: the figures stay what is read first. */
-.still {
-  flex: none;
-  width: 56px;
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-sm);
-  /* A bright picture keeps an edge against the card. */
-  outline: var(--rule-solid);
-  outline-offset: calc(-1 * var(--rule-width));
-  object-fit: cover;
 }
 
 .placeName {
@@ -765,14 +810,14 @@ a.status {
   color: var(--alarm);
 }
 
-/* Maintenance is somebody's choice: said, in the quiet surface's ink. */
+/* Maintenance is somebody's choice, and offline a state whose loudness is the alerts': said, in the quiet surface's
+   ink, as the place's own pill says it. */
 .pill[data-tone='quiet'] {
   background: var(--card-2);
   color: var(--muted);
 }
 
-/* On a card the figures are a step smaller on a phone and stand without the hairlines, so four of them fit one row -
-   and a fourth that does not, at 320 px, starts the next without a rule in front of it. */
+/* On a card the figures are a step smaller on a phone and stand without the hairlines, so four of them fit one row. */
 .placeFigures .figureValue {
   font-size: var(--text-xl);
 }
@@ -784,6 +829,13 @@ a.status {
 .placeFigures .figure + .figure {
   padding-left: 0;
   border-left: 0;
+}
+
+/* Four that do not fit one row stand two by two rather than leaving the fourth alone on a second. */
+@media (max-width: 359px) {
+  .placeFigures .figures:has(> :nth-child(4)) > .figure {
+    flex-basis: 40%;
+  }
 }
 
 @media (min-width: 900px) {
@@ -817,12 +869,18 @@ a.status {
   color: var(--muted);
 }
 
-/* What grows there, under a hairline: the grow's name in ink, the rest muted. */
+/* What grows there, under a hairline: the grow's name in ink, the rest muted. Straight under the name - a place
+   that measures nothing - a hairline would rule off nothing. */
 .placeGrow {
   padding-top: var(--space-2);
   border-top: var(--rule-solid);
   font-size: var(--text-sm);
   color: var(--muted);
+}
+
+.placeHead + .placeGrow {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .placeGrowName {
@@ -835,11 +893,6 @@ a.status {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--brand);
-}
-
-/* The cards keep a phone's width also where the column beside them is gone. */
-.places {
-  max-width: var(--column-width);
 }
 
 /* --- waiting: the shape of a place, grey --- */

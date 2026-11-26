@@ -334,10 +334,10 @@ export type Status =
   | { kind: 'changing'; metrics: Steered[]; until: string }
   | { kind: 'good' };
 
-/** What stands open behind a status that does not name it: how many alerts, and whether one of them is critical. */
+/** What stands open behind a status that does not name it: how many alerts, and how many of them are critical. */
 interface Unnamed {
   more: number;
-  critical: boolean;
+  critical: number;
 }
 
 /** A work mode of the device's own - drying, germinating in the dark - and the phase of the grow it contradicts. */
@@ -414,7 +414,7 @@ export const statusOf = (place: StatusInput, now: DateTime): Status => {
   const liveness: Liveness = livenessOf(place, now);
   // The first in Meldungen's order (`worstFirst`), so Start names what the inbox leads with.
   const open = worstFirst(place.openAlerts.filter(one => !isSilence(one) || (one.device !== undefined && one.deviceId !== place.leadId)));
-  const unnamed = (behind: PlaceAlert[]): Unnamed => ({ more: behind.length, critical: behind.some(one => one.severity === 'critical') });
+  const unnamed = (behind: PlaceAlert[]): Unnamed => ({ more: behind.length, critical: behind.filter(one => one.severity === 'critical').length });
   const alerted: Status | null = open.length > 0 ? { kind: 'alert', alert: open[0], ...unnamed(open.slice(1)) } : null;
   // Behind any other status the count is Meldungen's and the bell's: every alert open here, the place's own silence too.
   const all = unnamed(place.openAlerts);
@@ -480,8 +480,9 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
       return 'good';
     case 'alert':
       return status.alert.severity === 'critical' ? 'alarm' : 'warn';
+    // Silence asks for somebody as loudly as the worst alert open here, which its sentence names: offline alone is no alarm.
     case 'offline':
-      return 'alarm';
+      return status.critical > 0 ? 'alarm' : 'warn';
     case 'off':
     case 'stale':
     case 'controlOff':
@@ -497,11 +498,17 @@ export const toneOf = (status: Status): 'good' | 'warn' | 'alarm' | 'quiet' => {
  * What stands open behind a status that is not an alert's own sentence, in
  * words: "3 Meldungen offen". After an alert's sentence "+2" says the rest,
  * which reads as more of the same; after "Wartung bis 18:31" a lone "+3" was a
- * riddle. Null where nothing stands open behind it.
+ * riddle. The words say which of them are critical, since that is what draws
+ * them in the alarm's red: a silent fridge read louder than a tent in alarm
+ * with nothing to say why. Null where nothing stands open behind it.
  */
 export const openWords = (t: Translate, status: Status): string | null => {
   if (!('more' in status) || status.more === 0) return null;
-  return status.kind === 'alert' ? t('start.status.more', { count: status.more }) : t('start.status.open', { count: status.more });
+  if (status.kind === 'alert') return t('start.status.more', { count: status.more });
+  if (status.critical === 0) return t('start.status.open', { count: status.more });
+  return status.critical === status.more
+    ? t('start.status.openCritical', { count: status.more })
+    : t('start.status.openSomeCritical', { more: status.more, critical: status.critical });
 };
 
 /**

@@ -239,6 +239,16 @@ a.dayClimate::after,
     flex: 1 0 auto;
   }
 
+  /* Beside each other the climate and today's share stand a gap apart rather than a line, so neither needs the
+     phone's clearance, and the climate keeps the title's baseline. */
+  a.dayClimate {
+    align-self: baseline;
+  }
+
+  .dayShare:has(button) {
+    margin-top: 0;
+  }
+
   .dayLines,
   .nothing {
     grid-column: auto;

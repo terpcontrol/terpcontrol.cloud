@@ -8,8 +8,11 @@ import { at, stretchesOf } from '@/screens/timeline/window';
 import { judgedPanel } from './place';
 import styles from './Start.module.css';
 
-const WIDTH = 120;
-const HEIGHT = 28;
+/** The size it is drawn at, at most (`.curve`): narrower on a phone's share, and never stretched wider. */
+const WIDTH = 140;
+const HEIGHT = 26;
+/** Air above and below the line: a reading held outside its band all day ran along the plot's edge and read as a rule. */
+const INSET = 4;
 /** An hour without a sample is a gap in the line; a missed sample is not. */
 const GAP_MS = HOUR_MS;
 
@@ -41,7 +44,7 @@ export function DayCurve({ timeline, targets, metric }: { timeline: SpaceTimelin
   const low = Math.min(...values, ...edges) - pad;
   const high = Math.max(...values, ...edges) + pad;
   const x = (time: number) => ((time - from) / (to - from)) * WIDTH;
-  const y = (value: number) => HEIGHT - ((value - low) / (high - low)) * HEIGHT;
+  const y = (value: number) => HEIGHT - INSET - ((value - low) / (high - low)) * (HEIGHT - 2 * INSET);
   const path = points
     .map((point, index) => {
       const time = at(point.measuredAt);

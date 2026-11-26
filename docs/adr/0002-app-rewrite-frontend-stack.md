@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
 updated: 2026-11-26
-source: Chris (2026-11-25 master's look preferred to "Nebel"; 2026-11-26 "Marke fein" chosen from three drafted directions, with the navy rail and a Start between calm and full); the look's build session of 2026-11-26 (its values, Inter's digit rule, the control radius, the overlays' weights); giving a device up and removing a socket confirmed in the danger style, a switch's own target (the third whole-app walk's fix round, 2026-11-14); one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+source: Chris (2026-11-25 master's look preferred to "Nebel"; 2026-11-26 "Marke fein" chosen from three drafted directions, with the navy rail and a Start between calm and full); the look's build session of 2026-11-26 (its values, Inter's digit rule, the control radius, the overlays' weights); its fix round after the critic's walk, 2026-11-26 (a figure's tracking, the rail's focus ring and count, the small curve's band); giving a device up and removing a socket confirmed in the danger style, a switch's own target (the third whole-app walk's fix round, 2026-11-14); one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -211,7 +211,8 @@ figure that stands alone gains nothing by the width. In running text Inter's con
 650, closed up by -0.02 em, in `--heading` (the dark brand blue in light mode, white in dark); a thing's name and
 a section's heading (`h2`, `.name`, a day's or a sheet's title) 600 at -0.01 em in the same ink, as is the current
 tab of a page's tabs, of the rail and of the phone's bar; figures 500, two pixels larger than the brand look set
-them at 600; a button's, a chip's, a tag's and a link's words, a value in a row and a section label 500
+them at 600, closed up half as far as a title, -0.01 em (`--tracking-figure`, as master's figures were: at the
+title's -0.02 em "1,09" pinched at its comma); a button's, a chip's, a tag's and a link's words, a value in a row and a section label 500
 (`--weight-medium`); text 400, as is an idle tab. What a browser sets bold by itself - `b`, `strong`, `th`, `h3`,
 `h4`, `optgroup` - is brought to the medium in `global.css`, and a weight is only ever one of the five tokens
 (`--weight-regular / medium / figure / title / heading`; `test/weights.test.ts`). In a region dimmed by age the
@@ -256,12 +257,12 @@ primary), the temperature orange on the inset surface, 4.95:1, and the dark mode
 | `--green-ink` | `#35701f` | `#c2eca0` | green text |
 | `--green-wash` | `#eaf4e4` | `#244a45` | behind a green word: live, a stage, the current step |
 | `--green-fill` / `--on-green` | `#3e8024` / `#ffffff` | the same | the primary action's fill and its words |
-| `--alarm-fill` / `--on-alarm` | `#b8213d` / `#ffffff` | the same | the yes to a step that cannot be taken back (6.3:1) |
+| `--alarm-fill` / `--on-alarm` | `#b8213d` / `#ffffff` | the same | the yes to a step that cannot be taken back (6.3:1), the rail's count of what is open |
 | `--temperature` | `#b93f0b` | `#ffa166` | orange |
 | `--humidity` | `#08737f` | `#5fd4cf` | teal |
 | `--co2` | `#8a3aa8` | `#dca5f5` | violet |
 | `--warning` | `#855800` | `#f2c35a` | amber, for what is actually wrong |
-| `--alarm` | `#b8213d` | `#ff8b9a` | crimson; the count of what is open, on the bell and in the rail |
+| `--alarm` | `#b8213d` | `#ff8b9a` | crimson; what is open - the bell's dot, a critical line, an alarm's words |
 | `--warning-wash` / `--warning-edge` | `#fff6db` / `#e8b53d` | `--card-2` / `#f2c35a` | a warning's ground and edge |
 | `--alarm-wash` / `--alarm-edge` | `#fdecef` / `#eba2ae` | `--card-2` / `#ff8b9a` | an alarm's ground and edge |
 | `--output` | `#4870c0` | `#8fb0ea` | what an output did: lanes, output lines |
@@ -284,7 +285,9 @@ The primary fill is the site's `#3e8024` in both modes. **The desktop rail is na
 spotlight's stops `#2d4b95` → `#1f3a6e` → `#14264a` run top to bottom (`--navy`), with white text, `#cdd7ec` for
 the idle items (5.7:1 on the lightest stop), a white pane at 14 % behind the current item and its icon in the pale
 green, the place group a box at 5 % white with a hairline at 10 %, the place chip a pane of white with a 16 %
-edge, Eintrag the green full width, and Meldungen's count in the alarm's colour. Captions over photographs sit on
+edge, Eintrag the green full width, and Meldungen's count the alarm's crimson under white (`--alarm-fill`; the dark
+mode's alarm ink as a fill was a pink badge). The focus ring on the rail is white (`--navy-ink`): the brand blue is
+the navy's own top stop, and a ring in it came to 1.2:1 there. Captions over photographs sit on
 smoked navy (`--overlay`) in both modes, because the picture does not change with the theme; a button over a
 photograph is solid (`--overlay-solid`). The toast is the dark brand blue in light mode and a raised navy in dark.
 The sign-in and sign-up cards stand on the site's spotlight (`--spotlight`) in both modes.
@@ -307,6 +310,8 @@ in `--brand`, hand-written readings in ink, outputs in `--output`, the lamp in `
 (the brand green at 14 %; on navy a yellower green at 22 %, which the brand green turned slate teal beside the
 humidity line), the nights `--night` as a faint wash of the dark blue (black-navy in dark mode), halved over a
 long range so a month of nights does not read as a barcode, and three faint rules across each plot in `--grid`.
+Start's small 24-hour curves take `--band-small`, which in dark mode is half the band's strength: at that size the
+full band drew two green blocks the line hid in.
 A series chip and the pinned reading's stroke are the legend. The server's timelapse overlays and share-link
 cards use the dark palette's ink, muted ink, navy plate and signal colours, in Inter - a reading at 500, the day
 counter and a card's title at 600. An overlay writes its figures as the app does for the owner - the owner's

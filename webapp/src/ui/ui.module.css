@@ -132,7 +132,9 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 25%, transparent);
 }
 
-.live:is([data-liveness='stale'], [data-liveness='offline']) {
+/* Late is amber; offline keeps the quiet grey above - the colour of what asks for somebody is the box's and the
+   alerts', so a silent place is never louder for being silent. */
+.live[data-liveness='stale'] {
   background: var(--warning-wash);
   color: var(--warning);
 }
@@ -305,7 +307,7 @@
   gap: 3px;
   font-size: 20px;
   font-weight: var(--weight-figure);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--tracking-figure);
   line-height: var(--line-tight);
 }
 

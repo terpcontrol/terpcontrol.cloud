@@ -22,6 +22,11 @@
     color: var(--ink);
   }
 
+  /* The focus ring in the rail's own ink: the brand blue is the navy's own top stop and could not be seen on it. */
+  .rail :focus-visible {
+    outline-color: var(--navy-ink);
+  }
+
   /* The navy runs the page's whole height, and what is on it stays with the
      screen: a window's height of the gradient, ending in the colour the
      column below it is. */
@@ -131,7 +136,8 @@
     flex: 1;
   }
 
-  /* The open count, at the end of the Meldungen row: the alarm's colour. */
+  /* The open count, at the end of the Meldungen row: the alarm's crimson under white in both modes, as the yes to a
+     step that cannot be taken back is - the dark mode's alarm ink as a fill was a pink badge. */
   .count {
     display: inline-grid;
     place-items: center;
@@ -139,8 +145,8 @@
     height: 20px;
     padding: 0 6px;
     border-radius: var(--radius-pill);
-    background: var(--alarm);
-    color: var(--on-signal);
+    background: var(--alarm-fill);
+    color: var(--on-alarm);
     font-size: var(--text-xs);
     font-weight: var(--weight-medium);
     line-height: 1;

@@ -5,7 +5,7 @@ import type { Device, HomeAnswer, HomeSpaceCard, Space } from '@fg2/shared-types
 import { useDevices } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
-import { mediaUrl, THUMBNAIL_WIDTH, useSession } from '@/api/session';
+import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, type PlaceCard as Place } from '@/app/places';
 import { ageAttribute, livenessWords, sinceLabel, valueAge } from '@/ui/age';
@@ -41,8 +41,9 @@ import ui from '@/ui/ui.module.css';
  * them. A card opens that place's Start, which makes it the chosen place, and
  * says itself when something is due there - on a phone "Heute" stands under
  * the cards, and nobody should have to scroll to learn that a tent wants
- * watering. Where two columns fit, the cards stand left and "Heute" right. A
- * grow standing in no place is a card too, and opens at the grow.
+ * watering. Where the rail stands beside the page, the cards of a room pair up
+ * and "Heute" follows them as on a phone. A grow standing in no place is a
+ * card too, and opens at the grow.
  */
 export function Places({
   places,
@@ -78,59 +79,75 @@ export function Places({
     <PlaceCard key={one.spaceId} card={one} devices={devices} now={now} judged={judged} diary={diary} due={dueIn(one.spaceId)} />
   );
 
+  // Places in no room stand together; the first of them after a room's cards says it stands in none, or it would read as
+  // one more of that room's. A room, and a place somebody else shares, is a section of its own.
+  const runs = groups.reduce<Run[]>((all, group, index) => {
+    const guest = foreign(group.cards[0]);
+    const last = all.at(-1);
+    if (!group.room && !guest && last && !last.room && !last.guest) {
+      last.cards.push(...group.cards);
+      return all;
+    }
+    const afterRoom = index > 0 && groups[index - 1].room !== null;
+    return [
+      ...all,
+      { key: group.room?.id ?? group.cards[0].spaceId, room: group.room?.name ?? null, guest, apart: afterRoom, cards: [...group.cards] },
+    ];
+  }, []);
+
   return (
-    <section className={`${ui.stack3} ${styles.page}`}>
+    <section className={`${ui.stack3} ${styles.page} ${styles.list}`}>
       {demo ? <DemoBanner /> : null}
       <div className={styles.head}>
         <h1>{t('shell.tabs.home')}</h1>
       </div>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      <div className={`${ui.stack3} ${styles.columns}`}>
-        <div className={`${ui.stack3} ${styles.column} ${styles.places}`}>
-          {groups.map((group, index) => {
-            const guest = foreign(group.cards[0]);
-            if (group.room || guest) {
-              return (
-                <section
-                  key={group.room?.id ?? group.cards[0].spaceId}
-                  className={`${ui.stack3} ${styles.room}`}
-                  aria-label={group.room?.name ?? group.cards[0].name}
-                >
-                  {guest ? (
-                    <GuestLine space={guest} people={answer.people} room={group.room?.name} />
-                  ) : (
-                    <h2 className={ui.cardHeading}>{group.room?.name}</h2>
-                  )}
-                  {group.cards.map(card)}
-                </section>
-              );
-            }
-            // A place in no room that follows a room's cards would read as one more of them, so it is said to stand in none.
-            const afterRoom = index > 0 && groups[index - 1].room !== null;
-            return afterRoom ? (
-              <section key={group.cards[0].spaceId} className={`${ui.stack3} ${styles.room}`} aria-label={t('start.noRoom')}>
-                <h2 className={ui.cardHeading}>{t('start.noRoom')}</h2>
-                {card(group.cards[0])}
-              </section>
-            ) : (
-              card(group.cards[0])
-            );
-          })}
+      {runs.map(run => {
+        const cards = (
+          <div key={run.key} className={styles.cards}>
+            {run.cards.map(card)}
+          </div>
+        );
+        if (!run.room && !run.guest && !run.apart) return cards;
+        const named = run.room ?? (run.guest ? run.cards[0].name : t('start.noRoom'));
+        return (
+          <section key={run.key} className={`${ui.stack3} ${styles.room}`} aria-label={named}>
+            {run.guest ? <GuestLine space={run.guest} people={answer.people} room={run.room} /> : <h2 className={ui.cardHeading}>{named}</h2>}
+            {cards}
+          </section>
+        );
+      })}
+      {loose.length > 0 ? (
+        <div className={styles.cards}>
           {loose.map(one => (
             <LooseGrowCard key={one.grow?.growId} card={one} />
           ))}
         </div>
+      ) : null}
 
-        <div className={`${ui.stack3} ${styles.column}`}>
-          {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
-          <NotifyNotice later />
-          <Today now={now} />
-          {demo ? null : <AddPlace wide />}
-        </div>
+      <div className={styles.cards}>
+        {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
+        <NotifyNotice later />
+        <Today now={now} />
       </div>
+      {/* Under the cards on a phone, in the title's row where the rail stands beside the page. */}
+      {demo ? null : (
+        <div className={styles.addPlace}>
+          <AddPlace wide />
+        </div>
+      )}
     </section>
   );
+}
+
+/** A run of cards under one heading, or under none. `apart` is a run of places in no room that follows a room's. */
+interface Run {
+  key: string;
+  room: string | null;
+  guest: Space | null;
+  apart: boolean;
+  cards: Place[];
 }
 
 /**
@@ -168,9 +185,11 @@ const pillOf = (t: Translate, status: Status): string | null => {
  * whether it wants looking at, the readings as big figures with their names -
  * temperature, humidity, and VPD and CO₂ where the place measures them -, the
  * status sentence of its own Start where it asks for somebody, the lamps in one
- * line, and what grows there; the camera's newest picture small beside the
- * name. A card that asks for somebody has an edge in the colour of what it
- * asks. It says what the place's Start says, from the same arithmetic.
+ * line, and what grows there. A card that asks for somebody has an edge in the
+ * colour of what it asks; the pill says the device's state in its own colour,
+ * so "offline" is the grey it is on the place's page, and the edge and the
+ * sentence take the worst alert open there. It says what the place's Start
+ * says, from the same arithmetic.
  */
 function PlaceCard({
   card,
@@ -227,7 +246,6 @@ function PlaceCard({
         : status.kind === 'maintenance' && status.quiet.parked
           ? t('start.status.maintenanceUntil', { until: clock(status.quiet.until, zone) })
           : words;
-  const still = card.latestStill ? mediaUrl(card.latestStill.mediaId, THUMBNAIL_WIDTH.still) : null;
   // A place that holds two grows names both, in the order every page leads with them: the card's answer carries the
   // newer one alone.
   const grows = useGrows(diary && card.grow !== null).data?.items;
@@ -249,10 +267,9 @@ function PlaceCard({
   return (
     <Link to={placePath(card.spaceId)} className={styles.place} data-asks={asks ? tone : undefined}>
       <span className={styles.placeHead}>
-        {still ? <img className={styles.still} src={still} alt={t('home.card.stillAlt', { name: card.name })} loading="lazy" /> : null}
         <span className={styles.placeName}>{card.name}</span>
         {pill ? (
-          <span className={styles.pill} data-tone={tone}>
+          <span className={styles.pill} data-tone={offline ? 'quiet' : tone}>
             {pill}
           </span>
         ) : null}
@@ -272,7 +289,7 @@ function PlaceCard({
                 <span
                   key="open"
                   className={styles.open}
-                  data-tone={'critical' in status && status.critical && status.kind !== 'alert' ? 'alarm' : undefined}
+                  data-tone={'critical' in status && status.critical > 0 && status.kind !== 'alert' ? 'alarm' : undefined}
                 >
                   {unbroken(behind)}
                 </span>

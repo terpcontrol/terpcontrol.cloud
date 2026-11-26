@@ -21,14 +21,16 @@
   font-size: var(--text-sm);
 }
 
-/* Where a row is too narrow for its words and the mark beside them, the mark takes the next line, and a long word
-   breaks rather than running under it. */
+/* Where a row is too narrow for its words and the mark beside them, the mark takes the next line - straight under
+   the words, as part of the line, not a row's padding apart from them -, and a long word breaks rather than running
+   under it. The row's air is the body's, so the words carry none of their own. */
 .body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 var(--space-2);
+  gap: var(--space-1) var(--space-2);
   min-width: 0;
+  padding-block: var(--first-line);
 }
 
 .stamp {
@@ -51,7 +53,6 @@ button.stamp {
 .text {
   flex: 1 1 16ch;
   min-width: 0;
-  padding-block: var(--first-line);
   overflow-wrap: anywhere;
   color: var(--ink);
 }
@@ -78,10 +79,19 @@ button.text {
   text-align: left;
 }
 
-/* The whole height of the row is the way into a line that leads somewhere. */
+/* The whole height of the row is the way into a line that leads somewhere: the words reach up and down into the
+   body's air. */
 button.text,
 a.text {
+  position: relative;
   display: block;
+}
+
+button.text::after,
+a.text::after {
+  position: absolute;
+  inset: calc(-1 * var(--first-line)) 0;
+  content: '';
 }
 
 /* What a line says under its words: the reading an alarm tripped on. */
@@ -92,10 +102,12 @@ a.text {
   color: var(--muted);
 }
 
-/* The pictures a line carries, counted: the way to them, a finger high like the words beside it. */
+/* The pictures a line carries, counted: the way to them, a finger high like the words beside it, reaching into the
+   body's air rather than adding to it. */
 .pictures {
   flex: none;
   min-height: var(--control-height);
+  margin-block: calc(-1 * var(--first-line));
   padding: 0;
   background: none;
   border: 0;
