@@ -1,7 +1,7 @@
 ---
 summary: How the software is tested day to day and what bites - the server and webapp suites, checks that lie, flakes and their causes, clock-dependent tests, the simulator beyond CLAUDE.md, own test stacks, Docker trouble, browser checks, testing on an older base
 updated: 2026-11-26
-source: control.test.tsx broken by a dev server's .env.local too (the redesign session, 2026-11-26); a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
+source: a day's film refused just after the UTC midnight (CI, 2026-11-26); control.test.tsx broken by a dev server's .env.local too (the redesign session, 2026-11-26); a comparison stack that took the main stack's project name (the redesign session, 2026-11-25); a camera read by the poller in a check for no ffmpeg call (CI, 2026-11-25); a toast drawn outside act tabbed too early (the redesign session's CI fix of 2026-11-16); a window laid from today's noon (the redesign session's fix round of 2026-11-16); the unstable server unit suite found and made stable, a Verlauf test that read the hour (the redesign session's fix round after the tenth whole-app walk, 2026-11-15); a claimed controller's Terp Cam that only the built server never made (the redesign session, 2026-11-14); printing, readings rewritten in flight and the warm-up flake (the redesign session's final fix round, 2026-11-13); Chris (instructions 2026-09-16..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-06..2026-10 (#48-#144); the rewrite handover's rules (2026-09); codebase cleanup (2026-10-08); checked against the code 2026-10-08; a worktree compose run that hit the main stack (2026-10-23); a Docker engine found stopped (2026-11-12); two zod releases under one type check (2026-11-12)
 paths:
   - server/test/**
   - server/jest.*.config.js
@@ -91,6 +91,9 @@ hardware, the development devices and copies of production data are in
   the image would.
 
 ## Flakes we have had
+- *`v1-composer.spec.ts` refuses today's film with "too_few_pictures" just after midnight:* without an owner's zone
+  "today" is the UTC day, and a day's film keeps one picture every 57.6 s; at 00:18 UTC the day held too few
+  (CI, 2026-11-26). A test of an open day gives the owner a fixed-offset zone whose clock stands at noon.
 - *`cameras.spec.ts` finds an ffmpeg call where a refused address should have made none:* the poller reads the
   cameras earlier tests added whenever it likes - since a camera report starts it over (#182) more often - so a call
   for another camera can land between `resetFfmpeg()` and the check. Assert that no call names the address under test

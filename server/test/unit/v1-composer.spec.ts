@@ -334,6 +334,11 @@ describe('asking twice', () => {
    * the camera has gone on films the rest.
    */
   it('films today again once the camera has gone on, and not while it is current', async () => {
+    // Today is the owner's day, and a day's film keeps one picture a minute: just after the owner's midnight it held
+    // too few to be filmed (CI at 00:18 UTC, 2026-11-26). An owner whose clock stands near noon has a day hours old.
+    const offset = ((47 - new Date().getUTCHours()) % 24) - 11; // -11 to +12 hours, the owner's clock at noon
+    const timezone = offset === 0 ? 'Etc/UTC' : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
+    await db.users.create({ id: OWNER, email: 'owner@example.com', passwordHash: 'x', handle: 'owner', preferences: { timezone } });
     const now = Date.now();
     const still = (minutesAgo: number) => ({
       id: `still-${minutesAgo}`,
