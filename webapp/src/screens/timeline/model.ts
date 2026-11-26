@@ -27,8 +27,13 @@ import { alarmsOf, at, spans, stretchesOf } from './window';
  * the view and hands the rest here.
  */
 
-/** The curves a page opens on where nobody chose: what a grower reads first. */
-const FIRST_READ: Metric[] = ['temperature', 'humidity', 'vpd'];
+/**
+ * The curves a page opens on where nobody chose: what a grower reads first. CO₂ is among them wherever the place
+ * measures it - nobody fits a sensor and doses a cylinder to find the curve behind a tick; the old charts drew it,
+ * and on the first deploy of the rewrite a tent with a dosing socket read as one whose CO₂ had gone. The leaf and
+ * the light stay a tick away.
+ */
+const FIRST_READ: Metric[] = ['temperature', 'humidity', 'vpd', 'co2'];
 
 const COLOUR: Partial<Record<Metric, ChartToken>> = {
   temperature: 'temperature',
