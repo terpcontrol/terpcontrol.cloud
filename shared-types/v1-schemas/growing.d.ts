@@ -48,6 +48,8 @@ export declare const space: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
     }>;
     name: z.ZodString;
     roomId: z.ZodNullable<z.ZodString>;
@@ -107,7 +109,12 @@ export declare const invite: z.ZodObject<{
     }, z.core.$strip>;
     createdAt: z.ZodISODateTime;
 }, z.core.$strip>;
-/** Who put the grow into this phase. `preset` and `plan` are what the "auto" tag is drawn from. */
+/**
+ * Who put the grow into this phase: a person (`human`, with a climate or
+ * without), or the plan by itself, which is what "von allein" is drawn from.
+ * `preset` is no longer written - a phase somebody set with a climate preset is
+ * theirs - and a phase stored with it before is a person's (migration 031).
+ */
 export declare const phaseSource: z.ZodEnum<{
     plan: "plan";
     human: "human";
@@ -396,7 +403,7 @@ export declare const plant: z.ZodObject<{
 /**
  * One person following one grow. `PUT /follows/{growId}` and its `DELETE` carry
  * no body - the grow is in the path and a follow has nothing else to say - and
- * the `PUT` answers this. What the home screen draws for a followed grow is a
+ * the `PUT` answers this. What the list of followed grows draws for one is a
  * read model of the diary half rather than a fatter follow, because a follower
  * sees a public grow and only what its public page shows.
  */
@@ -519,6 +526,7 @@ export declare const growSummary: z.ZodObject<{
     preset: z.ZodNullable<z.ZodString>;
     phaseDay: z.ZodNullable<z.ZodNumber>;
     weekNumber: z.ZodNullable<z.ZodNumber>;
+    zone: z.ZodString;
     stageWeek: z.ZodNullable<z.ZodNumber>;
     isAuto: z.ZodBoolean;
     groups: z.ZodArray<z.ZodObject<{
@@ -661,6 +669,7 @@ export declare const growListItem: z.ZodObject<{
         preset: z.ZodNullable<z.ZodString>;
         phaseDay: z.ZodNullable<z.ZodNumber>;
         weekNumber: z.ZodNullable<z.ZodNumber>;
+        zone: z.ZodString;
         stageWeek: z.ZodNullable<z.ZodNumber>;
         isAuto: z.ZodBoolean;
         groups: z.ZodArray<z.ZodObject<{
@@ -686,6 +695,10 @@ export declare const growListItem: z.ZodObject<{
  * `POST /spaces`. A space is little more than a name and a kind; the room it
  * hangs in and the two settings have defaults, so the sheet that creates one
  * asks for two fields.
+ *
+ * A room is a field of the place and never made by itself: `roomId` names one
+ * that exists, `roomName` the owner's room of that name, which the server makes
+ * where there is none. `kind: room` is refused.
  */
 export declare const spaceCreate: z.ZodObject<{
     name: z.ZodString;
@@ -698,17 +711,20 @@ export declare const spaceCreate: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
     }>;
     presetPrompt: z.ZodOptional<z.ZodEnum<{
         never: "never";
         ask: "ask";
     }>>;
     roomId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    roomName: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
- * is not among them - archiving is a route of its own, so that ending a space's
- * life is never something a settings form does in passing.
+ * is not among them - a place ends by `DELETE /spaces/{id}`, so that ending a
+ * space's life is never something a settings form does in passing.
  */
 export declare const spaceUpdate: z.ZodObject<{
     name: z.ZodOptional<z.ZodString>;
@@ -721,12 +737,15 @@ export declare const spaceUpdate: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
     }>>;
     presetPrompt: z.ZodOptional<z.ZodOptional<z.ZodEnum<{
         never: "never";
         ask: "ask";
     }>>>;
     roomId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
+    roomName: z.ZodOptional<z.ZodOptional<z.ZodString>>;
 }, z.core.$strip>;
 /**
  * What a client may do about the grow when a preset is applied to a space that
@@ -872,6 +891,8 @@ export declare const invitePreview: z.ZodObject<{
         fridge: "fridge";
         room: "room";
         balcony: "balcony";
+        dry_box: "dry_box";
+        greenhouse: "greenhouse";
     }>>;
     role: z.ZodNullable<z.ZodEnum<{
         can_log: "can_log";
@@ -879,6 +900,7 @@ export declare const invitePreview: z.ZodObject<{
     }>>;
     invitedByHandle: z.ZodNullable<z.ZodString>;
     expiresAt: z.ZodNullable<z.ZodISODateTime>;
+    hasCamera: z.ZodBoolean;
 }, z.core.$strip>;
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a
@@ -913,6 +935,8 @@ export declare const inviteAcceptance: z.ZodObject<{
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
+            dry_box: "dry_box";
+            greenhouse: "greenhouse";
         }>;
         name: z.ZodString;
         roomId: z.ZodNullable<z.ZodString>;
@@ -1322,6 +1346,8 @@ export declare const spacePage: z.ZodObject<{
             fridge: "fridge";
             room: "room";
             balcony: "balcony";
+            dry_box: "dry_box";
+            greenhouse: "greenhouse";
         }>;
         name: z.ZodString;
         roomId: z.ZodNullable<z.ZodString>;
@@ -1520,6 +1546,7 @@ export declare const growPage: z.ZodObject<{
             preset: z.ZodNullable<z.ZodString>;
             phaseDay: z.ZodNullable<z.ZodNumber>;
             weekNumber: z.ZodNullable<z.ZodNumber>;
+            zone: z.ZodString;
             stageWeek: z.ZodNullable<z.ZodNumber>;
             isAuto: z.ZodBoolean;
             groups: z.ZodArray<z.ZodObject<{

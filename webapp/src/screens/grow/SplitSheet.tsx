@@ -4,15 +4,19 @@ import { useTranslation } from 'react-i18next';
 import type { GrowListItem, GrowthStage, Plant, Space } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useSplit } from '@/api/lifecycle';
+import { placesFor } from '@/app/places';
+import { useLog } from '@/log/log-context';
+import { PlaceChoices } from '@/ui/PlaceChoices';
 import { Sheet } from '@/ui/Sheet';
 import { instantOf } from '@/ui/age';
 import { Refused } from '@/ui/PageState';
-import { presetsOf } from '@/ui/presets';
+import { keptPreset, presetsOf } from '@/ui/presets';
 import { Block, Choice, Choices, WhenField } from '@/ui/SheetParts';
 import { STAGES } from '@/ui/stages';
 import ui from '@/ui/ui.module.css';
+import { StageClimates } from './ClimatePick';
+import { placeName } from './placement';
 import { PlantPicker } from './PlantPicker';
-import { growPlaces } from './placement';
 import styles from './Lifecycle.module.css';
 
 /**
@@ -54,8 +58,8 @@ export function SplitSheet({
 }) {
   const { t } = useTranslation();
   const split = useSplit(grow.id);
+  const { tell } = useLog();
 
-  const open = growPlaces(spaces);
   const [chosen, setChosen] = useState<string[]>(preselect ?? []);
   const [stage, setStage] = useState<GrowthStage | null>(null);
   const [preset, setPreset] = useState<string | null>(null);
@@ -79,11 +83,11 @@ export function SplitSheet({
   return (
     <Sheet title={t('grow.lifecycle.split.title', { name: grow.name })} onClose={onClose}>
       <div className={ui.sheetBody}>
-        <p className={`mono ${styles.now}`}>{t('grow.lifecycle.split.what')}</p>
+        <p className={styles.now}>{t('grow.lifecycle.split.what')}</p>
 
         <Block
           label={t('grow.lifecycle.split.whichGoTheirOwnWay')}
-          aside={chosen.length > 0 ? <span className="mono">{t('grow.lifecycle.split.staying', { count: staying })}</span> : undefined}
+          aside={chosen.length > 0 ? t('grow.lifecycle.split.staying', { count: staying }) : undefined}
         >
           <PlantPicker
             plants={plants}
@@ -105,7 +109,7 @@ export function SplitSheet({
                 chosen={stage === one}
                 onChoose={() => {
                   setStage(one);
-                  setPreset(current => (presetsOf(one).includes(current ?? '') ? current : null));
+                  setPreset(current => keptPreset(one, current));
                 }}
               >
                 {t(`home.stage.${one}`)}
@@ -113,34 +117,20 @@ export function SplitSheet({
             ))}
           </Choices>
 
-          {stage !== null && presetsOf(stage).length > 0 ? (
-            <Choices label={t('grow.lifecycle.phase.presetLabel')}>
-              <Choice chosen={preset === null} onChoose={() => setPreset(null)}>
-                {t('grow.lifecycle.phase.noPreset')}
-              </Choice>
-              {presetsOf(stage).map(one => (
-                <Choice key={one} chosen={preset === one} onChoose={() => setPreset(one)}>
-                  {t(`grow.presetName.${one}`, { defaultValue: one })}
-                </Choice>
-              ))}
-            </Choices>
-          ) : null}
+          {/* Named as the correction names it: the phase's row and its climate's can carry the same word. */}
+          {stage && presetsOf(stage).length > 0 ? <span className="label">{t('grow.lifecycle.phase.presetLabel')}</span> : null}
+          {stage ? <StageClimates label={t('grow.lifecycle.phase.presetLabel')} stage={stage} chosen={preset} onPick={setPreset} keep /> : null}
         </Block>
 
         <Block label={t('grow.lifecycle.split.theirPlace')}>
-          <Choices label={t('grow.lifecycle.split.theirPlace')}>
-            <Choice chosen={spaceId === undefined} onChoose={() => setSpaceId(undefined)}>
-              {t('grow.lifecycle.split.keepPlace')}
-            </Choice>
-            {open.map(space => (
-              <Choice key={space.id} chosen={spaceId === space.id} onChoose={() => setSpaceId(space.id)}>
-                {space.name}
-              </Choice>
-            ))}
-            <Choice chosen={spaceId === null} onChoose={() => setSpaceId(null)}>
-              {t('grow.noFixedPlace')}
-            </Choice>
-          </Choices>
+          <PlaceChoices
+            label={t('grow.lifecycle.split.theirPlace')}
+            places={placesFor(spaces)}
+            nowhere
+            chosen={spaceId}
+            keep={t('grow.lifecycle.split.keepPlace')}
+            onChoose={setSpaceId}
+          />
         </Block>
 
         <WhenField label={t('grow.lifecycle.when')} at={at} onChange={setAt} />
@@ -166,7 +156,14 @@ export function SplitSheet({
                 preset: stage === null ? undefined : preset,
                 spaceId,
               },
-              { onSuccess: () => onClose() },
+              {
+                onSuccess: () => {
+                  onClose();
+                  // What holds for the plants that went their own way; phase and place are two writes, so there is no one way back.
+                  const what = [stage ? t(`home.stage.${stage}`) : null, spaceId === undefined ? null : placeName(t, spaces, spaceId)];
+                  tell({ label: [t('grow.told.split', { count: chosen.length }), ...what].filter(Boolean).join(' · '), undo: null });
+                },
+              },
             );
           }}
         >

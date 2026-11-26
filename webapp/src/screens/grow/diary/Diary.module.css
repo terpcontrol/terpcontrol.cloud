@@ -1,0 +1,290 @@
+/* The diary: a card per day, the days before folded into their weeks. One
+   column beside the rail until two fit: from 1200px the newest pictures stand
+   beside the days. */
+
+.days,
+.week {
+  min-width: 0;
+}
+
+/* --- one day --- */
+
+.day {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px var(--space-3);
+  padding: 14px var(--space-4);
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  /* Brought into view by a link that names the day, it stands clear of the phone's header. */
+  scroll-margin-top: calc(var(--topbar-height) + env(safe-area-inset-top) + var(--space-3));
+}
+
+.dayPicture {
+  display: block;
+  width: 112px;
+  height: 84px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* The title, the climate and the share, beside the picture - or across the card where the day has none. */
+.dayHead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.day > .dayHead:first-child {
+  grid-column: 1 / -1;
+}
+
+.dayTitle {
+  font-size: var(--text-lg);
+}
+
+.dayClimate {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The way to the day's curves is a finger high round its middle where it is tapped, at every width and without its
+   line growing: it reaches over the title and the share. A share that is itself tapped - today's, for its
+   explanation - stands a finger clear of it and reaches as far. */
+a.dayClimate,
+.dayShare button {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+}
+
+a.dayClimate::after,
+.dayShare button::after {
+  position: absolute;
+  inset: -12px 0;
+  content: '';
+}
+
+.dayShare:has(button) {
+  margin-top: 21px;
+}
+
+.dayShare {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+.dayShare[data-good] {
+  color: var(--green-ink);
+}
+
+.shareShort {
+  display: none;
+}
+
+.dayLines {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1 / -1;
+}
+
+.nothing {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.more {
+  align-self: flex-start;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* --- a row that opens or plays (`ui.rowCard`): the days of a week, a week's film --- */
+
+.film {
+  gap: var(--space-3);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+}
+
+.rowLine {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.filmPlay {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+}
+
+.filmPlayer {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius);
+  background: var(--card-2);
+}
+
+/* --- beside the days, from the rail's width --- */
+
+.aside {
+  display: none;
+}
+
+.recentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.recentHead a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.recentGrid button {
+  height: 72px;
+  padding: 0;
+  overflow: hidden;
+  background: var(--card-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* On the narrowest phones the picture gives the words their room. */
+@media (max-width: 359px) {
+  .dayPicture {
+    width: 88px;
+    height: 66px;
+  }
+}
+
+@media (min-width: 900px) {
+  /* The picture down the card's side, the title with the climate and the share on one line, the lines under it. */
+  .day {
+    grid-template-rows: auto 1fr;
+    gap: 6px var(--space-4);
+    padding: 14px;
+  }
+
+  .dayPicture {
+    grid-row: 1 / span 2;
+    width: 176px;
+    height: 124px;
+  }
+
+  /* The climate and the share move under the title as wholes where the card is too narrow for one line. */
+  .dayHead {
+    flex-flow: row wrap;
+    align-items: baseline;
+    gap: 0 var(--space-3);
+  }
+
+  .dayTitle {
+    flex: 1 0 auto;
+  }
+
+  /* Beside each other the climate and today's share stand a gap apart rather than a line, so neither needs the
+     phone's clearance, and the climate keeps the title's baseline. */
+  a.dayClimate {
+    align-self: baseline;
+  }
+
+  .dayShare:has(button) {
+    margin-top: 0;
+  }
+
+  .dayLines,
+  .nothing {
+    grid-column: auto;
+  }
+
+  .day > .dayHead:first-child ~ .dayLines,
+  .day > .dayHead:first-child ~ .nothing {
+    grid-column: 1 / -1;
+  }
+
+  .shareLong {
+    display: none;
+  }
+
+  .shareShort {
+    display: inline;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1200px) {
+  .diary {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-5);
+  }
+
+  .days {
+    flex: 1 1 0;
+  }
+
+  .aside {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: var(--space-3);
+    width: 340px;
+  }
+}

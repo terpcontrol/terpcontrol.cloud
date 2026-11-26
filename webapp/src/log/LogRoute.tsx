@@ -8,8 +8,11 @@ import { TILE_KINDS, useLog } from './log-context';
  * notification, a bookmark, a screen that hands the sheet a tile to open.
  *
  * The sheet is not a screen - it belongs over the one you were on - so this
- * route opens it and immediately gives the address back, either to where the
- * link was followed from or, when there is no such place, to the home.
+ * route gives the address back, either to where the link was followed from
+ * or, when there is no such place, to the home, and opens the sheet once it
+ * has: a sheet stands on a history entry of its own (`ui/sheet-back.ts`), and
+ * one taken while the step back was still on its way would be the entry
+ * stepped back from.
  */
 
 export function LogRoute() {
@@ -21,16 +24,20 @@ export function LogRoute() {
   const opened = useRef(false);
 
   useLayoutEffect(() => {
-    if (opened.current) return;
-    opened.current = true;
+    if (!opened.current) {
+      opened.current = true;
+      // Followed from inside the app, the screen behind is one step back; opened
+      // cold, there is nothing behind it and the home is where a sheet belongs.
+      void (arrival === 'PUSH' ? navigate(-1) : navigate('/', { replace: true }));
+    }
 
-    // The address is as open as any other; what may be written through it is not.
-    const kind = TILE_KINDS.find(tile => tile === search.get('kind')) ?? null;
-    if (mayLog) openSheet({ growId: search.get('grow'), spaceId: search.get('space'), kind });
-
-    // Followed from inside the app, the screen behind is one step back; opened
-    // cold, there is nothing behind it and the home is where a sheet belongs.
-    void (arrival === 'PUSH' ? navigate(-1) : navigate('/', { replace: true }));
+    return () => {
+      // Only once the address is another: a strict render runs this once before anything has moved.
+      if (window.location.pathname.endsWith('/log')) return;
+      // The address is as open as any other; what may be written through it is not.
+      const kind = TILE_KINDS.find(tile => tile === search.get('kind')) ?? null;
+      if (mayLog) openSheet({ growId: search.get('grow'), spaceId: search.get('space'), kind });
+    };
   }, [arrival, mayLog, navigate, openSheet, search]);
 
   return null;

@@ -1,3 +1,5 @@
+import { stoodIn } from '@common/v1/device-placements';
+import { Span } from '@common/v1/range';
 import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createReadStream, createWriteStream } from 'node:fs';
@@ -11,6 +13,7 @@ import type { DeviceSeries, ExportAccepted, ExportScope, Metric, OutputMetric } 
 import { metric as metricShape, outputMetric } from '@fg2/shared-types/v1-schemas';
 import { BackgroundWork } from '@common/background-work';
 import { AccessService, subjectRef } from '@common/v1/access.service';
+import { zoneOfOwner } from '@common/v1/owner-zone';
 import { AccessContext, SubjectType } from '@common/v1/access.types';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -29,7 +32,7 @@ import { StoredUser } from '@database/schemas/v1/users.schema';
 import { DataService } from '@modules/data/data.service';
 import { MediaService } from '@modules/v1/camera/media.service';
 import { logger } from '@utils/logger';
-import { READING_KINDS } from '../diary/diary-entries';
+import { READING_KINDS, linesOfGrow } from '../diary/diary-entries';
 import { spacesDuring } from './grow-places';
 import {
   DIARY_COLUMNS,
@@ -304,11 +307,12 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       names?.people ?? this.handles(),
     ]);
     const labels: Names = new Map(plants.map(plant => [plant.id, plant.label]));
+    const zone = await zoneOfOwner(this.users, grow.ownerId);
 
-    await zip.add(`${prefix}grow.csv`, grow.startedAt, growCsv(grow, spaces), true);
+    await zip.add(`${prefix}grow.csv`, grow.startedAt, growCsv(grow, spaces, zone), true);
     await zip.add(`${prefix}plants.csv`, grow.startedAt, plantsCsv(plants), true);
-    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf({ growId }, grow, people, labels)), true);
-    await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels), true);
+    await zip.add(`${prefix}diary.csv`, grow.startedAt, Readable.from(this.diaryOf(linesOfGrow(grow), grow, people, labels, zone)), true);
+    await zip.add(`${prefix}measurements.csv`, grow.startedAt, await this.measurementsOf(grow, labels, zone), true);
     await zip.add(`${prefix}climate.csv`, grow.startedAt, Readable.from(this.climateOf(grow)), true);
     await this.writePictures(zip, prefix, grow, directory);
   }
@@ -394,7 +398,7 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
       growId: null,
       $or: [{ spaceId: { $in: spaceIds } }, { deviceId: { $in: deviceIds } }],
     };
-    await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map())), true);
+    await zip.add('diary.csv', user.createdAt, Readable.from(this.diaryOf(elsewhere, null, people, new Map(), null)), true);
 
     await this.writeOwnPictures(zip, user, elsewhere, directory);
     await this.writeFilms(zip, cameras, directory, user.createdAt);
@@ -489,7 +493,8 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    */
   private async writeDeviceClimate(zip: ZipWriter, device: StoredDevice): Promise<void> {
     const from = device.state?.claimedAt ?? device.createdAt;
-    await zip.add(`climate/${device.id}.csv`, from, Readable.from(this.climateBetween([device.id], from, new Date())), true);
+    const whole = { startsAt: from, endsAt: new Date() };
+    await zip.add(`climate/${device.id}.csv`, from, Readable.from(this.climateBetween([{ deviceId: device.id, stay: whole }], whole)), true);
   }
 
   /**
@@ -506,7 +511,13 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    * tent is hundreds of thousands of lines - a device writes one whenever it has
    * something to say - so it is never held whole in memory on either side.
    */
-  private async *diaryOf(filter: Record<string, unknown>, grow: GrowDocument | null, people: Names, plants: Names): AsyncGenerator<Buffer> {
+  private async *diaryOf(
+    filter: Record<string, unknown>,
+    grow: GrowDocument | null,
+    people: Names,
+    plants: Names,
+    zone: string | null,
+  ): AsyncGenerator<Buffer> {
     yield csvHeader(DIARY_COLUMNS);
 
     let block: EntryDocument[] = [];
@@ -514,21 +525,21 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
     for (let entry = await cursor.next(); entry != null; entry = await cursor.next()) {
       block.push(entry);
       if (block.length >= 500) {
-        yield csvRows(diaryRows(block, grow, people, plants));
+        yield csvRows(diaryRows(block, grow, people, plants, zone));
         block = [];
       }
     }
 
-    if (block.length > 0) yield csvRows(diaryRows(block, grow, people, plants));
+    if (block.length > 0) yield csvRows(diaryRows(block, grow, people, plants, zone));
   }
 
-  private async measurementsOf(grow: GrowDocument, plants: Names): Promise<Buffer> {
+  private async measurementsOf(grow: GrowDocument, plants: Names, zone: string | null): Promise<Buffer> {
     const entries = await this.entries
       .find({ growId: grow.id, kind: { $in: READING_KINDS } })
       .sort({ occurredAt: 1, id: 1 })
       .lean<EntryDocument[]>();
 
-    return measurementsCsv(entries, grow.measurements, grow, plants);
+    return measurementsCsv(entries, grow.measurements, grow, plants, zone);
   }
 
   /**
@@ -539,37 +550,38 @@ export class ExportService implements OnModuleInit, OnApplicationShutdown {
    */
   private async *climateOf(grow: GrowDocument): AsyncGenerator<Buffer> {
     const endsAt = grow.endedAt ?? new Date();
+    const whole = { startsAt: grow.startedAt, endsAt };
     const spaceIds = spacesDuring(grow, grow.startedAt, endsAt).filter((id): id is string => id !== null);
-    const devices = spaceIds.length
-      ? await this.devices
-          .find({ spaceId: { $in: spaceIds } }, { id: 1 })
-          .sort({ createdAt: 1, id: 1 })
-          .lean<StoredDevice[]>()
-      : [];
+    // Every device that stood there while the grow did, each for its days there.
+    const stood = await stoodIn(this.devices, spaceIds, whole, {});
 
     yield* this.climateBetween(
-      devices.map(device => device.id),
-      grow.startedAt,
-      endsAt,
+      stood.map(one => ({ deviceId: one.device.id, stay: one.stay })),
+      whole,
     );
   }
 
-  /** The same file for whatever devices and whatever stretch of time the caller means, which is a grow's place or a device's whole life. */
-  private async *climateBetween(deviceIds: readonly string[], startsAt: Date, endsAt: Date): AsyncGenerator<Buffer> {
+  /**
+   * The same file for whatever devices and whatever stretch of time the caller
+   * means - a grow's places or a device's whole life - each device over the
+   * part of the stretch named for it.
+   */
+  private async *climateBetween(devices: readonly { deviceId: string; stay: Span }[], { startsAt, endsAt }: Span): AsyncGenerator<Buffer> {
     yield csvHeader(climateColumns(EXPORTED_METRICS, EXPORTED_OUTPUTS));
-    if (deviceIds.length === 0) return;
+    if (devices.length === 0) return;
 
     for (let from = startsAt.getTime(); from < endsAt.getTime(); from += CLIMATE_CHUNK_MS) {
       const window = { startsAt: new Date(from), endsAt: new Date(Math.min(from + CLIMATE_CHUNK_MS, endsAt.getTime())) };
       const series: DeviceSeries[] = await Promise.all(
-        deviceIds.map(deviceId =>
-          this.data.series(deviceId, {
-            ...window,
-            stepSeconds: CLIMATE_STEP_SECONDS,
-            metrics: EXPORTED_METRICS,
-            outputs: EXPORTED_OUTPUTS,
-          }),
-        ),
+        devices.flatMap(({ deviceId, stay }) => {
+          const part = {
+            startsAt: new Date(Math.max(window.startsAt.getTime(), stay.startsAt.getTime())),
+            endsAt: new Date(Math.min(window.endsAt.getTime(), stay.endsAt.getTime())),
+          };
+          return part.endsAt > part.startsAt
+            ? [this.data.series(deviceId, { ...part, stepSeconds: CLIMATE_STEP_SECONDS, metrics: EXPORTED_METRICS, outputs: EXPORTED_OUTPUTS })]
+            : [];
+        }),
       );
 
       const rows = climateRows(series, EXPORTED_METRICS, EXPORTED_OUTPUTS).filter(row => row.slice(2).some(value => value !== null));

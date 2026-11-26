@@ -2,20 +2,24 @@ import { CameraOff, Clock } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import type { SharedResolution } from '@fg2/shared-types/v1';
-import { sharedPicture, useSharedLink, useSharedWeeks } from '@/api/public';
+import type { SharedCurves, SharedResolution } from '@fg2/shared-types/v1';
+import { sharedPicture, useSharedLink, useSharedWeeks, type Picture } from '@/api/public';
 import { ageLabel } from '@/ui/age';
+import { unbroken } from '@/ui/fact-text';
+import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay } from '@/ui/zone';
+import { SharedTimeline } from '../timeline/Timeline';
 import { Diary } from './Diary';
 import { PublicShell, PublicUnread } from './PublicShell';
 import { SharedSpace } from './SharedSpace';
-import { windowIsCurrent } from './window';
+import { linkBounds, windowIsCurrent } from './window';
 import styles from './Public.module.css';
 
 /**
  * `/shared/{token}`: a diary or a tent, read through a key somebody was handed;
- * a tent with its Timeline.
+ * a tent with its Timeline, and a diary for a stretch of days with the curves
+ * of where it stood then.
  *
  * The token is the reader's whole proof and the server never hands back the
  * link behind it - not who made it, not how often it has been opened - so this
@@ -39,15 +43,45 @@ export function SharedRoute() {
   const banner = <WindowBanner resolution={link.data} now={now} />;
   const picture = sharedPicture(token);
 
+  // An older server answers no curves.
+  const curves = subject.type === 'grow' ? (subject.curves ?? []) : [];
+
   return subject.type === 'grow' ? (
     <PublicShell title={subject.grow.name}>
-      <Diary page={subject.grow} picture={picture} now={now} banner={banner} earlier={earlier} />
+      <Diary
+        page={subject.grow}
+        picture={picture}
+        now={now}
+        banner={banner}
+        earlier={earlier}
+        curves={curves.length > 0 ? <LinkCurves token={token} curves={curves} picture={picture} /> : null}
+      />
     </PublicShell>
   ) : (
     <PublicShell title={subject.space.name}>
-      <SharedSpace space={subject.space} token={token} picture={picture} now={now} banner={banner} />
+      <SharedSpace space={subject.space} token={token} picture={picture} now={now} banner={banner} range={link.data.range} />
     </PublicShell>
   );
+}
+
+/**
+ * The curves of the places a diary stood in during the stretch the link carries, as a link onto a place shows its
+ * own: Verlauf read through the link and held inside the grow's stay in each place within that stretch, which is
+ * what was showing where the link was made.
+ */
+function LinkCurves({ token, curves, picture }: { token: string; curves: SharedCurves[]; picture: Picture }) {
+  const { t } = useTranslation();
+
+  return curves.map(place => (
+    <section key={place.spaceId} className={ui.stack2}>
+      <SharedTimeline
+        spaceId={place.spaceId}
+        shared={{ token, picture }}
+        title={<h2>{t('publicPage.timelineOf', { name: place.name })}</h2>}
+        bounds={linkBounds(place.range)}
+      />
+    </section>
+  ));
 }
 
 /**
@@ -61,30 +95,32 @@ function WindowBanner({ resolution, now }: { resolution: SharedResolution; now: 
   const { startsAt, endsAt } = resolution.range;
   const current = windowIsCurrent(endsAt, now);
   const day = (at: string) => calendarDay(at, null);
+  // A grow that has ended is read to its end, not "bis jetzt": nothing more comes.
+  const ended = resolution.subject.type === 'grow' && resolution.subject.grow.endedAt !== null;
 
   const window =
     startsAt === null
       ? endsAt === null || current
-        ? t('publicPage.window.all')
+        ? t(ended ? 'publicPage.window.whole' : 'publicPage.window.all')
         : t('publicPage.window.until', { to: day(endsAt) })
       : endsAt === null || current
-        ? t('publicPage.window.since', { from: day(startsAt) })
+        ? t(ended ? 'publicPage.window.sinceToEnd' : 'publicPage.window.since', { from: day(startsAt) })
         : t('publicPage.window.between', { from: day(startsAt), to: day(endsAt) });
 
   return (
     <aside className={styles.banner} data-age={current ? undefined : 'stale'}>
-      <p className={`mono ${styles.bannerLine}`}>
+      <p className={styles.bannerLine}>
         <Clock size={13} strokeWidth={1.75} aria-hidden />
         {window}
-        {endsAt !== null && !current ? ` · ${t('publicPage.asOf', { age: ageLabel(endsAt, now) })}` : ''}
+        {endsAt !== null && !current ? ` · ${unbroken(t('publicPage.asOf', { age: ageLabel(endsAt, now) }))}` : ''}
       </p>
       {resolution.includeCameras ? null : (
-        <p className={`mono ${styles.bannerLine}`}>
+        <p className={styles.bannerLine}>
           <CameraOff size={13} strokeWidth={1.75} aria-hidden />
           {t('publicPage.noCameras')}
         </p>
       )}
-      {resolution.expiresAt ? <p className={`mono ${styles.bannerLine}`}>{t('publicPage.expires', { date: day(resolution.expiresAt) })}</p> : null}
+      {resolution.expiresAt ? <p className={styles.bannerLine}>{t('publicPage.expires', { date: day(resolution.expiresAt) })}</p> : null}
     </aside>
   );
 }

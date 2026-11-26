@@ -121,8 +121,8 @@ export const withFlowerWeeks = (grid: readonly SchemeWeek[], count: number): Sch
  *
  * A week's stage and the flip week are two statements about the same day, and a
  * grid whose bloom column starts somewhere its stages do not say "flowering"
- * contradicts itself wherever it is read - the week cards, the feed sheet, the
- * charts' phase band. So moving the flip restages the grid rather than leaving
+ * contradicts itself wherever it is read - the diary's weeks, the feed sheet,
+ * Verlauf's phase band. So moving the flip restages the grid rather than leaving
  * the two to disagree; what came before the flip keeps whatever it was, since
  * germinating and rooting are distinctions the flip knows nothing about.
  *

@@ -18,6 +18,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-2) var(--space-3);
+  /* A finger high by itself, into the notice's own padding and gap: the (i) and "Later" reach nothing under them. */
+  min-height: var(--control-height);
+  margin-block: calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
 }
 
 .title {
@@ -27,7 +30,7 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-tight);
   color: var(--ink);
 }
@@ -38,9 +41,6 @@
 }
 
 .offer {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   min-width: 0;
 }
 
@@ -51,13 +51,34 @@
   gap: var(--space-2) var(--space-4);
 }
 
+/* A finger high, with the room for its words on one line at 320 px - and on two rather than out of its card where a
+   card or a face leaves less. */
 .button {
-  height: var(--action-height);
+  height: auto;
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-3);
+  line-height: var(--line-tight);
+  white-space: normal;
 }
 
 .later {
   flex: none;
   font-size: var(--text-sm);
+}
+
+/* A finger high where they are tapped, without the notice growing by it: each reaches into the air of its own row. */
+.later,
+.address a,
+.done a,
+.reached a {
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  justify-content: center;
+  margin-block: -12px;
+}
+
+.address a {
+  margin-block: -14px;
 }
 
 @media (max-width: 599px) {
@@ -108,7 +129,7 @@
 }
 
 /*
- * Over a cockpit's readings: two rows rather than three, and the frame and its
+ * At the head of Start's cards: two rows rather than three, and the frame and its
  * gaps drawn tighter. The tap and the address it writes to share a row - the
  * address wraps beside the button rather than under it - so the first screen
  * keeps a tile it would otherwise give up to the notice.
@@ -116,6 +137,10 @@
 .notice[data-compact] {
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3);
+}
+
+.notice[data-compact] .head {
+  margin-block: calc(-1 * var(--space-2)) calc(-1 * var(--space-1));
 }
 
 .offer[data-compact] {
@@ -130,7 +155,6 @@
 }
 
 .offer[data-compact] .button {
-  height: 32px;
   font-size: var(--text-sm);
 }
 

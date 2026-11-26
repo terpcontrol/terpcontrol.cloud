@@ -37,4 +37,14 @@ describe('folding repeated lines', () => {
     expect(foldRepeats([line('b', '2026-09-24T21:18:00Z', watered), line('a', '2026-09-24T21:10:00Z', watered)])).toHaveLength(2);
     expect(foldRepeats([line('b', '2026-09-24T21:18:00Z'), line('a', '2026-09-24T21:10:00Z', { deviceId: 'tent' })])).toHaveLength(2);
   });
+
+  // Admin read ten "Einstellungen geändert" in a row: a brief list draws a save without what it moved, so they read alike.
+  it('folds saves that moved other figures where the list draws them briefly, and only there', () => {
+    const saved = (id: string, figures: string) =>
+      line(id, '2026-09-24T21:10:00Z', { message: { key: 'message-device-configuration-updated', params: [figures, '', 'controller'] } });
+    const saves = [saved('b', 'day.temperature: 24 → 25'), saved('a', 'lights.limit: 80 → 100')];
+
+    expect(foldRepeats(saves, true).map(({ entry, count }) => [entry.id, count])).toEqual([['b', 2]]);
+    expect(foldRepeats(saves)).toHaveLength(2);
+  });
 });

@@ -9,16 +9,19 @@ import { noLongerThere } from '@/api/problem';
 import { useRead } from '@/api/read';
 import { useSpaceOverview } from '@/api/spaces';
 import { placePath, timelinePath } from '@/app/places';
+import type { i18n as I18n } from 'i18next';
 import type { Translate } from '@/i18n/i18n';
-import { ageLabel, deviceLiveness } from '@/ui/age';
-import { EntryRow } from '@/ui/EntryRow';
-import { foldRepeats } from '@/ui/entries';
+import { settingWords } from '@/i18n/configuration-change';
+import { ageLabel, deviceLiveness, sinceLabel } from '@/ui/age';
+import { sensorFactorsOf } from '@/ui/climate-hardware';
+import { EntryWords } from '@/ui/EntryWords';
+import { foldRepeats, warningOf } from '@/ui/entries';
+import { Line, Lines } from '@/ui/Lines';
 import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import { AdminHead, AdminNotLoaded, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { serverNow } from '@/api/clock';
-import { offsetOf, wallClock } from '@/ui/wall-clock';
+import { calendarDay, useZone } from '@/ui/zone';
 import { flatten } from './fleet-rows';
 import { buildLabel, typeName } from '@/ui/naming';
 import styles from './Admin.module.css';
@@ -34,19 +37,20 @@ import styles from './Admin.module.css';
  * does something odd" can be answered from what the fridge was told.
  */
 export function DeviceDiagnosis() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { deviceId = '' } = useParams();
   const now = useNow();
+  const zone = useZone();
   const device = useRead(deviceQuery(deviceId));
   const lines = useDeviceEntries(deviceId);
   const people = useAdminUsers();
   useFollowCursor(people);
 
-  const head = <AdminHead title={t('admin.diagnosis.title')} crumb={deviceId} />;
+  const head = <AdminHead title={t('admin.diagnosis.title')} of={deviceId} readAt={device.dataUpdatedAt} />;
 
   if (device.isPending) return <AdminNotLoaded head={head} />;
   if (!device.data) {
-    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} retry={() => void device.refetch()} />;
+    return noLongerThere(device.error) ? <NoLongerHere what="device" /> : <AdminNotLoaded head={head} read={device} />;
   }
 
   const one = device.data;
@@ -54,16 +58,16 @@ export function DeviceDiagnosis() {
   const seen = one.state.lastSeenAt;
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {head}
 
       <div className={styles.facts}>
-        <Fact label={t('admin.diagnosis.device')} value={<span className="mono">{one.id}</span>} />
+        <Fact label={t('admin.diagnosis.device')} value={one.id} />
         <Fact label={t('admin.diagnosis.type')} value={typeName(one.type, t)} />
-        <Fact label={t('admin.diagnosis.serial')} value={<span className="mono">{one.serialNumber ?? '—'}</span>} />
+        <Fact label={t('admin.diagnosis.serial')} value={one.serialNumber ?? '—'} />
         <Fact
           label={t('admin.diagnosis.owner')}
-          value={owner ? `@${owner.handle} · ${owner.email}` : one.ownerId ? <span className="mono">{one.ownerId}</span> : t('admin.fleet.unclaimed')}
+          value={owner ? `@${owner.handle} · ${owner.email}` : (one.ownerId ?? unclaimedWords(t, one, zone))}
         />
         {/* The customer reads every time in their own zone; on the phone with them, support has to know which. */}
         {owner ? <Fact label={t('admin.diagnosis.zone')} value={owner.preferences.timezone ?? t('admin.diagnosis.noZone')} /> : null}
@@ -76,15 +80,12 @@ export function DeviceDiagnosis() {
       </div>
 
       {one.spaceId ? (
-        <div className={styles.row}>
+        <div className={ui.wrapRow}>
           <Link className={ui.button} to={timelinePath(one.spaceId)}>
             {t('admin.diagnosis.timeline')}
           </Link>
-          <Link className={ui.button} to={`/charts?space=${encodeURIComponent(one.spaceId)}`}>
-            {t('admin.diagnosis.charts')}
-          </Link>
           <Link className={ui.button} to={placePath(one.spaceId)}>
-            {t('admin.diagnosis.cockpit')}
+            {t('admin.diagnosis.open')}
           </Link>
         </div>
       ) : null}
@@ -93,14 +94,26 @@ export function DeviceDiagnosis() {
         <section className={styles.tableCard}>
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.settings')}</h2>
           {one.configuration ? (
-            <Settings rows={withClockTimes(t, flatten(one.configuration), owner?.preferences.timezone ?? null)} />
+            <Settings rows={inWords(i18n, one, flatten(one.configuration), owner?.preferences.timezone ?? null)} />
           ) : (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noSettings')}</p>
           )}
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.factors')}</h2>
-          <Settings rows={flatten({ ...one.settings, control: one.control })} />
+          <Settings
+            rows={inWords(
+              i18n,
+              one,
+              flatten({
+                ...factorsOf(one),
+                control: one.control,
+                // Beside a darkened lamp's `limit = 0`, the brightness it gets back.
+                ...(typeof one.state.limitBeforeDark === 'number' ? { limitBeforeDark: one.state.limitBeforeDark } : {}),
+              }),
+              owner?.preferences.timezone ?? null,
+            )}
+          />
           <h2 className={styles.sectionTitle}>{t('admin.diagnosis.hardware')}</h2>
-          <Settings rows={flatten(one.state.hardware)} />
+          <Settings rows={asStored(flatten(one.state.hardware))} />
         </section>
 
         <section className={styles.tableCard}>
@@ -108,15 +121,20 @@ export function DeviceDiagnosis() {
           {lines.isPending ? (
             <Waiting lines={3} />
           ) : !lines.data ? (
-            <LoadFailed retry={() => void lines.refetch()} />
+            <LoadFailed read={lines} />
           ) : lines.data.items.length === 0 ? (
             <p className={`${ui.note} ${styles.cardNote}`}>{t('admin.diagnosis.noLines')}</p>
           ) : (
-            <ul className={styles.lines}>
-              {foldRepeats(lines.data.items).map(({ entry, count, since }) => (
-                <EntryRow key={entry.id} entry={entry} people={[]} now={now} byline={false} brief repeats={count > 1 ? { count, since } : null} />
-              ))}
-            </ul>
+            <div className={styles.cardNote}>
+              <Lines>
+                {/* Each line as the diary says it, stamped with its hour: support reads when, not only on which day. */}
+                {foldRepeats(lines.data.items, true).map(({ entry, count, since }) => (
+                  <Line key={entry.id} stamp={sinceLabel(entry.occurredAt, now, zone)} severity={warningOf(entry)}>
+                    <EntryWords entry={entry} people={[]} now={now} zone={zone} byline={false} brief repeats={count > 1 ? { count, since } : null} />
+                  </Line>
+                ))}
+              </Lines>
+            </div>
           )}
         </section>
       </div>
@@ -138,7 +156,7 @@ function Place({ spaceId }: { spaceId: string }) {
   const { t } = useTranslation();
   const overview = useSpaceOverview(spaceId);
 
-  return <Fact label={t('admin.diagnosis.place')} value={overview.data?.name ?? <span className="mono">{spaceId}</span>} />;
+  return <Fact label={t('admin.diagnosis.place')} value={overview.data?.name ?? spaceId} />;
 }
 
 /** The build it reports, by the version it was stamped with where this install has a record of it. */
@@ -148,38 +166,66 @@ function Build({ device }: { device: Device }) {
   const build = itemsOf(firmwares.data).find(one => one.id === device.state.firmwareId);
 
   return (
-    <span className="mono">
+    <span>
       {buildLabel(build) ?? device.state.firmwareId ?? '—'} · {t(`devices.channel.${device.firmware.channel}`)}
     </span>
   );
 }
 
-/** Where a document keeps a time of day, as seconds past midnight UTC: a controller's and a fridge's, a lamp's own, a fan's CO2 window. */
-const CLOCK_PATHS = ['daynight.day', 'daynight.night', 'day', 'night', 'co2inject.day', 'co2inject.night'];
+/**
+ * Who has a device nobody owns: nobody ever added it, or since when nobody has - its owner gave it up, or deleted
+ * their account with it - so support does not take hardware that had a home for hardware that never had one.
+ */
+const unclaimedWords = (t: Translate, device: Device, zone: string | null): string => {
+  const released = device.state.released;
+  return released ? t(`admin.diagnosis.released.${released.by}`, { date: calendarDay(released.at, zone) }) : t('admin.fleet.unclaimed');
+};
+
+/** A row of a settings table: what it is called, what it is set to, and - where those are the app's words - where the firmware keeps it. */
+interface SettingRow {
+  name: string;
+  value: string;
+  stored?: string;
+}
+
+const asStored = (rows: [string, string][]): SettingRow[] => rows.map(([name, value]) => ({ name, value }));
+
+/** The figures the cloud keeps beside the document that this device has a use for: a fan's leaf offsets are none. */
+const factorsOf = (device: Device): Partial<Device['settings']> =>
+  Object.fromEntries(sensorFactorsOf(device).map(name => [name, device.settings[name]]));
 
 /**
- * The seconds a time of day is kept as, with the clock times they are beside
- * them: UTC, which is what the device runs on, and the customer's own, which is
- * what the customer reads in the app - "21600" alone had support doing
- * arithmetic on the phone with somebody whose lamp comes on at eight.
+ * The document - and what the cloud keeps beside it - in the words the app's own screens and diary use for each
+ * figure it sets (`settingWords`), each with where it is stored; a figure the app does not set as it is stored. A
+ * time of day is said on both clocks: UTC, which is what the device runs on, and the customer's own, which is what
+ * the customer reads in the app - "21600" alone had support doing arithmetic on the phone with somebody whose lamp
+ * comes on at eight.
  */
-const withClockTimes = (t: Translate, rows: [string, string][], zone: string | null): [string, string][] =>
-  rows.map(([path, value]) => {
-    const seconds = Number(value);
-    if (!CLOCK_PATHS.includes(path) || value === '' || !Number.isFinite(seconds)) return [path, value];
-    const utc = wallClock(seconds, 0);
-    const there = zone ? wallClock(seconds, offsetOf(serverNow(), zone)) : null;
-
-    return [path, `${value} · ${there ? t('admin.diagnosis.clockTimeThere', { utc, there }) : t('admin.diagnosis.clockTime', { utc })}`];
+const inWords = (i18n: I18n, device: Device, stored: [string, string][], zone: string | null): SettingRow[] => {
+  const context = { type: device.type, mode: typeof device.configuration?.workmode === 'string' ? device.configuration.workmode : null };
+  return stored.map(([path, raw]) => {
+    const said = settingWords(i18n, path, raw, { ...context, zone: 'UTC' });
+    if (!said) return { name: path, value: raw };
+    const there = said.clock && zone ? settingWords(i18n, path, raw, { ...context, zone })?.value : null;
+    const value = !said.clock
+      ? said.value
+      : there
+        ? i18n.t('admin.diagnosis.clockTimeThere', { utc: said.value, there })
+        : i18n.t('admin.diagnosis.clockTime', { utc: said.value });
+    return { name: said.name, value, stored: `${path} = ${raw}` };
   });
+};
 
-function Settings({ rows }: { rows: [string, string][] }) {
+function Settings({ rows }: { rows: SettingRow[] }) {
   return (
     <table className={styles.settings}>
       <tbody>
-        {rows.map(([path, value]) => (
-          <tr key={path}>
-            <td>{path}</td>
+        {rows.map(({ name, value, stored }) => (
+          <tr key={stored ?? name}>
+            <td>
+              {name}
+              {stored ? <span className={styles.stored}>{stored}</span> : null}
+            </td>
             <td>{value}</td>
           </tr>
         ))}

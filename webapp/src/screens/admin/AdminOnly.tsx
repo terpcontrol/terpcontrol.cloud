@@ -2,13 +2,14 @@ import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useSession } from '@/api/session';
+import { PageHead } from '@/ui/PageHead';
 import ui from '@/ui/ui.module.css';
-import { ADMIN_MIN_WIDTH, useWideWindow } from './wide-window';
+import { ADMIN_MIN_WIDTH, useWideWindow } from '@/ui/wide-window';
 import styles from './Admin.module.css';
 
 /**
- * The door to the four fleet screens, which are for whoever runs this install
- * and for nobody else.
+ * The door to the screens behind Ich › Verwaltung, which are for whoever runs
+ * this install and for nobody else.
  *
  * Two things are refused here, and each of them is said rather than shown as an
  * empty page. An account that is not an administrator is told plainly that
@@ -17,7 +18,8 @@ import styles from './Admin.module.css';
  * A window too narrow for them is told the same way: the fleet table is a dozen
  * columns wide and the rollout controls state their figures beside each other,
  * so there is no phone layout of this and pretending otherwise would only make
- * an unreadable one.
+ * an unreadable one. It says so under the heading the row on Ich carries,
+ * with the way back there.
  */
 export function AdminOnly({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -26,7 +28,7 @@ export function AdminOnly({ children }: { children: ReactNode }) {
 
   if (!user?.isAdmin) {
     return (
-      <section className={styles.refusal}>
+      <section className={`${ui.stack3} ${styles.refusal}`}>
         <h1>{t('admin.refused.title')}</h1>
         <p className={ui.note}>{t('admin.refused.line')}</p>
         <Link className={ui.button} to="/">
@@ -38,12 +40,12 @@ export function AdminOnly({ children }: { children: ReactNode }) {
 
   if (!wide) {
     return (
-      <section className={styles.refusal}>
-        <h1>{t('admin.narrow.title')}</h1>
+      <section className={`${ui.stack3} ${styles.refusal}`}>
+        <PageHead back={{ to: '/me', label: t('me.backHere') }} title={t('admin.section')} />
         {/* The width is the one the gate checks, so the sentence cannot drift from it. */}
         <p className={ui.note}>{t('admin.narrow.line', { width: ADMIN_MIN_WIDTH })}</p>
-        <Link className={ui.button} to="/">
-          {t('admin.refused.home')}
+        <Link className={ui.button} to="/me">
+          {t('me.backHere')}
         </Link>
       </section>
     );

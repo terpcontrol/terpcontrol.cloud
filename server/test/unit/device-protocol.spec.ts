@@ -328,6 +328,19 @@ describe('what a device logs', () => {
     expect(until?.getTime()).toBeGreaterThanOrEqual(before + 30 * 60 * 1000);
   });
 
+  /** The window was told for whole minutes, rounded down: taken from the device's echo, "bis 09:46" became "bis 09:45". */
+  it('keeps the end it handed out when the device says the window back in whole minutes', async () => {
+    const handed = new Date(Date.now() + 14 * 60_000 + 45_000);
+    await device({ state: { maintenanceUntil: handed } as never });
+
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated-remote:14' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBe(handed.getTime());
+
+    // A window the device itself opened for longer moves the end.
+    await messageOn('log', { severity: 0, message: 'message-maintenance-mode-activated:20' });
+    expect((await stored())?.state.maintenanceUntil?.getTime()).toBeGreaterThan(handed.getTime() + 5 * 60_000);
+  });
+
   it('keeps a hardware report out of the diary and in the device', async () => {
     await device();
 
@@ -396,19 +409,21 @@ describe('the hardware report', () => {
     await report('webcam_did=ABCD1234');
 
     const camera = await db.cameras.findOne({ deviceId: DEVICE }).lean();
-    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Tent', ownerId: OWNER });
+    expect(camera).toMatchObject({ kind: 'terpcam_controller', did: 'ABCD1234', spaceId: 'space-1', name: 'Terp Cam', ownerId: OWNER });
     expect(camera?.entitlement.grant).toBe('included');
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('names the camera after the controller it hangs on, and after the cam itself where nobody has named that', async () => {
-    // A claim stores the device's type where no name was given, and copying
-    // that onto the camera would head a camera row with a translation key.
+  it('names a camera it pairs "Terp Cam", whatever the device is called, and leaves a name given before alone', async () => {
     await device({ spaceId: 'space-1', name: 'controller' });
 
     await report('webcam_did=TCAM00A41C');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam');
 
-    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Terp Cam · 00A41C');
+    // Paired again after being renamed: the row comes back with the name it carries.
+    await db.cameras.updateOne({ deviceId: DEVICE }, { $set: { name: 'Zeltkamera' } });
+    await report('webcam_did=TCAM00B52D');
+    expect((await db.cameras.findOne({ deviceId: DEVICE }).lean())?.name).toBe('Zeltkamera');
   });
 
   it('retires the camera when the device says it has none, and gives it back its year when it is paired again', async () => {
@@ -699,6 +714,66 @@ describe('what the cloud tells a device', () => {
       { deviceId: DEVICE, targets: targets({ day: { temperature: 25, humidity: 60 } }) },
       { deviceId: DEVICE, targets: targets({ day: { temperature: 25, humidity: 55 }, co2: 900 }) },
     ]);
+  });
+
+  /**
+   * Steuerung names the preset the device was put on. A figure moved without one - by hand, by a plan step that
+   * names none - makes the figures the grower's own, and the name goes; a write that moves none leaves it.
+   */
+  it('keeps the climate preset a device was put on until a figure is moved without one', async () => {
+    await device({
+      type: 'controller',
+      configuration: { workmode: 'small', day: { temperature: 24, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+    });
+    const configuration = new DeviceConfigurationService(db.devices, db.users, db.targetChanges, publisher, new EntryWriterService(db.entries));
+    const applied = async () => (await stored())?.appliedClimate ?? null;
+    const veg = { stage: 'vegetative', preset: null } as const;
+
+    await configuration.replace(
+      DEVICE,
+      { workmode: 'small', day: { temperature: 26, humidity: 60 }, daynight: { day: 21600, night: 64800 } },
+      OWNER,
+      undefined,
+      undefined,
+      undefined,
+      veg,
+    );
+    expect(await applied()).toEqual(veg);
+
+    // Regulation switched, the clock kept, the same figure written again: nothing a preset sets has moved.
+    await configuration.configure(DEVICE, { control: false }, OWNER);
+    await configuration.keepOnClock(DEVICE);
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } });
+    expect(await applied()).toEqual(veg);
+
+    // A plan step that names no preset and moves a figure: the figures are the plan's, not the preset's.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 27 } });
+    expect(await applied()).toBeNull();
+
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, {
+      stage: 'flowering',
+      preset: 'late_flowering',
+    });
+    expect(await applied()).toEqual({ stage: 'flowering', preset: 'late_flowering' });
+
+    // A plan step with a stage and no preset clears the name though it moves nothing: its stage only decides the mode.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 24 } }, 'flowering', undefined, null);
+    expect(await applied()).toBeNull();
+    expect((await stored())?.configuration).toMatchObject({ day: { temperature: 24 } });
+
+    // A preset applied to the place names it again; the name a hand edit cleared comes back with an undo that names it.
+    await configuration.applyConfiguration(DEVICE, { day: { temperature: 26 } }, 'vegetative', undefined, veg);
+    expect(await applied()).toEqual(veg);
+    const named = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...named, day: { temperature: 28, humidity: 60 } }, OWNER);
+    expect(await applied()).toBeNull();
+    await configuration.replace(DEVICE, named, OWNER, undefined, undefined, undefined, veg);
+    expect(await applied()).toEqual(veg);
+
+    // The light's hours saved by hand are a figure a preset sets too.
+    const now = (await stored())?.configuration as Record<string, unknown>;
+    await configuration.replace(DEVICE, { ...now, daynight: { day: 25200, night: 64800 } }, OWNER);
+    expect(await applied()).toBeNull();
   });
 
   it('replaces what is not a section on both sides rather than merging into it', async () => {

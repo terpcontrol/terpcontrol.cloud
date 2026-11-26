@@ -6,8 +6,11 @@ import { useUpdateGrow } from '@/api/grows';
 import { useShape } from '@/app/shell/shape';
 import { useCreateShareLink, useDeleteShareLink, useRevokeShareLink, useShareLinks, useUpdateShareLink } from '@/api/sharing';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { isDead, linkAddress } from '@/screens/me/sharing/links';
+import { LinkAddress } from '@/screens/space/members/InviteTerms';
 import { ageLabel } from '@/ui/age';
 import { appUrl } from '@/ui/clipboard';
 import { CopyButton } from '@/ui/CopyButton';
@@ -19,6 +22,8 @@ import { Switch } from '@/ui/Switch';
 import { useNow } from '@/ui/useNow';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
+// A link is a row and its editor a box as the grow's other sheets draw theirs.
+import lifecycle from './Lifecycle.module.css';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -54,9 +59,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   return (
     <Sheet title={t('sharing.title', { name: grow.name })} onClose={onClose}>
       <div className={styles.body}>
-        <section className={styles.block}>
-          <div className={styles.switchRow}>
-            <div className={styles.switchText}>
+        <section className={ui.stack3}>
+          <div className={ui.rowTop}>
+            <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.publicPage')}
                 <Help topic="publicPage" />
@@ -75,8 +80,8 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
 
           {/* The camera's pictures are the most private thing a public page carries, so whether it does is said and switched here, as a link's is. */}
           {isPublic && cameras ? (
-            <div className={styles.switchRow}>
-              <div className={styles.switchText}>
+            <div className={ui.rowTop}>
+              <div className={ui.textColumn}>
                 <span>{t('sharing.cameras')}</span>
                 <span className={ui.note}>{t('sharing.publicCamerasNote')}</span>
               </div>
@@ -90,8 +95,8 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           ) : null}
 
           {isPublic ? (
-            <div className={styles.addressRow}>
-              <code className={`mono ${styles.address}`}>{appUrl(`/g/${grow.slug}`)}</code>
+            <div className={ui.row2}>
+              <LinkAddress address={appUrl(`/g/${grow.slug}`)} className={styles.address} />
               <CopyButton value={appUrl(`/g/${grow.slug}`)} label={t('sharing.copyAddress')} />
             </div>
           ) : null}
@@ -99,9 +104,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {update.error ? <Refused error={update.error} /> : null}
         </section>
 
-        <section className={styles.block}>
-          <div className={styles.switchRow}>
-            <div className={styles.switchText}>
+        <section className={ui.stack3}>
+          <div className={ui.rowTop}>
+            <div className={ui.textColumn}>
               <span className={styles.blockTitle}>
                 {t('sharing.links')}
                 <Help topic="linkActions" />
@@ -143,9 +148,9 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
           {links.isPending ? <p className={ui.note}>{t('home.waiting')}</p> : null}
           {!links.isPending && mine.length === 0 && !drafting ? <p className={ui.note}>{t('sharing.noLinks')}</p> : null}
 
-          <ul className={styles.links}>
+          <ul className={ui.list}>
             {mine.map(link => (
-              <LinkRow key={link.id} link={link} now={now} />
+              <LinkRow key={link.id} link={link} name={grow.name} now={now} />
             ))}
           </ul>
         </section>
@@ -154,11 +159,17 @@ export function ShareSheet({ grow, onClose }: { grow: GrowListItem; onClose: () 
   );
 }
 
-/** One link: where it points, what it lets through, how often it has been opened, and what can still be done to it. */
-function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
+/**
+ * One link: where it points, what it lets through, how often it has been opened, and what can still be done to it.
+ * Revoking it and forgetting it answer with a toast, as the list of every link does.
+ */
+function LinkRow({ link, name, now }: { link: ShareLink; name: string; now: DateTime }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const zone = useZone();
   const [changing, setChanging] = useState(false);
+  // Revoking is asked first: nothing starts a link again (Chris, 2026-11-14).
+  const [revoking, setRevoking] = useState(false);
   const update = useUpdateShareLink();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
@@ -167,13 +178,13 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
   const dead = isDead(link, now);
 
   return (
-    <li className={styles.link} data-dead={dead}>
-      <div className={styles.addressRow}>
-        <code className={`mono ${styles.address}`}>{address}</code>
+    <li className={`${lifecycle.row} ${styles.link}`} data-dead={dead}>
+      <div className={ui.row2}>
+        <LinkAddress address={address} className={styles.address} />
         {dead ? null : <CopyButton value={address} label={t('sharing.copyLink')} />}
       </div>
 
-      <p className={`mono ${styles.linkMeta}`}>{describe(t, link, now, zone)}</p>
+      <p className={styles.linkMeta}>{describe(t, link, now, zone)}</p>
 
       {changing ? (
         <Editor
@@ -201,20 +212,39 @@ function LinkRow({ link, now }: { link: ShareLink; now: DateTime }) {
             )
           }
         />
+      ) : revoking ? (
+        <Asking
+          note={t('sharing.revokeAsk')}
+          yes={t('sharing.revoke')}
+          danger
+          busy={revoke.isPending}
+          onYes={() =>
+            revoke.mutate(link.id, {
+              onSuccess: () => tell({ label: t('me.shareLinks.revokedNow', { name }), undo: null }),
+              onSettled: () => setRevoking(false),
+            })
+          }
+          onCancel={() => setRevoking(false)}
+        />
       ) : (
-        <div className={styles.linkActions}>
+        <div className={ui.wrap}>
           {dead ? null : (
             <button type="button" className={ui.chip} onClick={() => setChanging(true)}>
               {t('sharing.change')}
             </button>
           )}
           {link.revokedAt === null ? (
-            <button type="button" className={ui.chip} disabled={revoke.isPending} onClick={() => revoke.mutate(link.id)}>
+            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={revoke.isPending} onClick={() => setRevoking(true)}>
               {t('sharing.revoke')}
             </button>
           ) : null}
           {dead ? (
-            <button type="button" className={`${ui.chip} ${ui.danger}`} disabled={remove.isPending} onClick={() => remove.mutate(link.id)}>
+            <button
+              type="button"
+              className={`${ui.chip} ${ui.danger}`}
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(link.id, { onSuccess: () => tell({ label: t('me.shareLinks.forgotten', { name }), undo: null }) })}
+            >
               {t('sharing.forget')}
             </button>
           ) : null}
@@ -265,7 +295,7 @@ function Editor({
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft(current => ({ ...current, [key]: value }));
 
   return (
-    <div className={styles.editor}>
+    <div className={lifecycle.editor}>
       <div className={styles.fields}>
         <Field label={t('sharing.from')} value={draft.from} hint={t('sharing.fromStart')} help="shareWindow" onChange={value => set('from', value)} />
         <Field label={t('sharing.to')} value={draft.to} hint={t('sharing.toOpen')} onChange={value => set('to', value)} />
@@ -273,8 +303,8 @@ function Editor({
       </div>
 
       {cameras ? (
-        <div className={styles.switchRow}>
-          <div className={styles.switchText}>
+        <div className={ui.rowTop}>
+          <div className={ui.textColumn}>
             <span>{t('sharing.cameras')}</span>
             <span className={ui.note}>{t('sharing.camerasNote')}</span>
           </div>
@@ -284,7 +314,7 @@ function Editor({
 
       {error ? <Refused error={error} /> : null}
 
-      <div className={styles.linkActions}>
+      <div className={ui.wrap}>
         <button type="button" className={`${ui.button} ${ui.primary}`} disabled={busy} onClick={() => onSubmit(draft)}>
           {busy ? t('sharing.saving') : submitLabel}
         </button>
@@ -313,7 +343,7 @@ function Field({
   const id = useId();
 
   return (
-    <label className={styles.field} htmlFor={id}>
+    <label className={`${ui.stack1} ${styles.field}`} htmlFor={id}>
       <span className="label">
         {label}
         {help ? <Help topic={help} /> : null}
@@ -327,7 +357,7 @@ function Field({
         aria-label={help ? label : undefined}
         onChange={event => onChange(event.target.value)}
       />
-      <span className={`mono ${styles.hint}`}>{value ? '' : hint}</span>
+      <span className={styles.hint}>{value ? '' : hint}</span>
     </label>
   );
 }

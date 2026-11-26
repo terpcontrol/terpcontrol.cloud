@@ -7,7 +7,7 @@ import type { Translate } from '@/i18n/i18n';
 import { clockOf, dayOf, momentAt } from '@/ui/days';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
-import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, nowThere, useZone, zonedAt } from '@/ui/zone';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, nowThere, useZone, zonedAt } from '@/ui/zone';
 import styles from './Moment.module.css';
 
 /**
@@ -17,13 +17,44 @@ import styles from './Moment.module.css';
  * than behind a long press: "heute · 14:32" is what a line left alone says, and
  * a tap on it - or on the pencil beside it - opens a small pop-up with the day
  * and the time. The line is about something that has happened, so nothing after
- * now is accepted; changing only the day keeps the time that was there.
+ * now is accepted; changing only the day keeps the time that was there. A
+ * moment the pop-up refuses is answered there - with another, with now, or by
+ * closing it - before anything else on the sheet is: a tap beside it does not
+ * put the question away.
  *
- * `fixed` shows the moment without offering to change it, for the one line
- * whose effect starts when it is saved: maintenance parks the hardware now,
- * whatever day it would be dated to.
+ * `row` is the same control where the moment is asked before the kind of
+ * line: a row across the sheet, the question and its answer left and "Ändern"
+ * right.
  */
-export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at: Date) => void; fixed?: boolean }) {
+/** Where the grow a line is about began, and how its start is moved there by somebody who may. */
+export interface MomentBegins {
+  at: Date;
+  move: ((to: Date) => Promise<unknown>) | null;
+}
+
+export function Moment({
+  at,
+  onChange,
+  row = false,
+  begins = null,
+  onRefused,
+}: {
+  at: Date | null;
+  onChange: (at: Date) => void;
+  row?: boolean;
+  /**
+   * For a line about a grow: where the date the grow began on begins, before
+   * which a line has no day to stand under - and how the grow's start is moved
+   * there, for somebody who may.
+   */
+  begins?: MomentBegins | null;
+  /**
+   * Told while the pop-up stands open on a moment it refuses - one still to
+   * come, one before the grow began: the sheet around it does not save then,
+   * since its line would be filed under a moment nobody chose.
+   */
+  onRefused?: (refused: boolean) => void;
+}) {
   const { t } = useTranslation();
   const now = useNow();
   const zone = useZone();
@@ -36,10 +67,19 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
   const [place, setPlace] = useState<CSSProperties>({ visibility: 'hidden' });
   const [day, setDay] = useState('');
   const [time, setTime] = useState('');
+  const [moving, setMoving] = useState<'busy' | 'refused' | null>(null);
 
   // A line nobody dated is "now", and stays now while the sheet is open.
   const shown = at ?? now.toJSDate();
-  const label = fixed ? t('log.now') : momentLabel(t, shown, now, zone);
+  const label = momentLabel(t, shown, now, zone);
+  const today = dayOf(serverNow().toJSDate(), zone);
+  const chosen = momentAt(day, time, zone);
+  const ahead = chosen !== null && chosen.getTime() > serverNow().toMillis();
+  const before = chosen !== null && begins !== null && chosen < begins.at;
+  /** What the pop-up says beside its fields, which is what makes it taller. */
+  const notices = `${ahead}${before}${moving}`;
+  const refused = open && (ahead || before);
+  useEffect(() => onRefused?.(refused), [refused, onRefused]);
 
   // Placed against the window rather than inside the sheet, whose edge would
   // cut it off: under the moment where the sheet has room for it, over it
@@ -53,27 +93,28 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
       if (!button || !sheet) return;
       const floor = sheet.getBoundingClientRect().bottom - parseFloat(getComputedStyle(sheet).paddingBottom);
       const below = button.bottom + GAP + height <= floor;
+      // Never past the window's edge either way: what it says about a grow's start makes it taller than a short screen has room for under the moment.
+      const lowest = document.documentElement.clientHeight - GAP - height;
       setPlace({
         right: Math.max(GAP, document.documentElement.clientWidth - button.right),
-        top: below ? button.bottom + GAP : Math.max(GAP, button.top - GAP - height),
+        top: Math.max(GAP, Math.min(below ? button.bottom + GAP : button.top - GAP - height, lowest)),
       });
     };
     placeIt();
     window.addEventListener('resize', placeIt);
     return () => window.removeEventListener('resize', placeIt);
-  }, [open]);
+    // Placed again when what it says changes its height.
+  }, [open, notices]);
 
   useEffect(() => {
     if (!open) return;
     first.current?.focus();
     const away = (event: PointerEvent) => {
-      if (!frame.current?.contains(event.target as Node)) setOpen(false);
+      if (!refused && !frame.current?.contains(event.target as Node)) setOpen(false);
     };
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
-
-  if (fixed) return <span className={`mono ${styles.fixed}`}>{label}</span>;
+  }, [open, refused]);
 
   const close = () => {
     setOpen(false);
@@ -84,13 +125,21 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
     close();
   };
 
-  const today = dayOf(serverNow().toJSDate(), zone);
-  const chosen = momentAt(day, time, zone);
-  const ahead = chosen !== null && chosen.getTime() > serverNow().toMillis();
+  const moveStart = () => {
+    if (!chosen || !begins?.move) return;
+    setMoving('busy');
+    begins.move(chosen).then(
+      () => {
+        setMoving(null);
+        take(chosen);
+      },
+      () => setMoving('refused'),
+    );
+  };
 
   return (
     <div
-      className={styles.moment}
+      className={row ? styles.row : styles.moment}
       ref={frame}
       onKeyDown={event => {
         // Escape puts the pop-up away and leaves the sheet under it open.
@@ -99,10 +148,16 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
         close();
       }}
     >
+      {row ? (
+        <span className={styles.asked}>
+          {t('log.moment.title')}
+          <span className={styles.answer}>{label}</span>
+        </span>
+      ) : null}
       <button
         ref={toggle}
         type="button"
-        className={`mono ${styles.button}`}
+        className={row ? `${ui.pill} ${styles.change}` : styles.button}
         aria-expanded={open}
         aria-controls={id}
         aria-label={t('log.moment.change', { when: label })}
@@ -114,26 +169,32 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
           setOpen(true);
         }}
       >
-        {label}
-        <Pencil size={13} strokeWidth={2} aria-hidden />
+        {row ? (
+          t('log.moment.edit')
+        ) : (
+          <>
+            {label}
+            <Pencil size={13} strokeWidth={2} aria-hidden />
+          </>
+        )}
       </button>
       {open ? (
         <div ref={popover} className={styles.popover} style={place} id={id} role="group" aria-label={t('log.moment.title')}>
-          <label className={styles.field}>
+          <label className={ui.stack1}>
             <span className="label">{t('log.moment.day')}</span>
             <input
               ref={first}
-              className={`mono ${ui.input}`}
+              className={ui.input}
               type="date"
               max={today}
               value={day}
               onChange={event => event.target.value && setDay(event.target.value)}
             />
           </label>
-          <label className={styles.field}>
+          <label className={ui.stack1}>
             <span className="label">{t('log.moment.time')}</span>
             <input
-              className={`mono ${ui.input}`}
+              className={ui.input}
               type="time"
               max={day === today ? clockOf(serverNow().toJSDate(), zone) : undefined}
               value={time}
@@ -145,11 +206,34 @@ export function Moment({ at, onChange, fixed }: { at: Date | null; onChange: (at
               {t('log.moment.ahead')}
             </p>
           ) : null}
+          {before && begins ? (
+            <>
+              {/* A line about a grow stands under one of its days, and there is none before the first. */}
+              <p className={ui.note} role="status">
+                {t('log.moment.before', { date: zonedAt(begins.at.getTime(), zone).toFormat(DAY) })}
+              </p>
+              {begins.move ? (
+                <button type="button" className={`${ui.button} ${styles.move}`} disabled={moving === 'busy'} onClick={moveStart}>
+                  {t('log.moment.moveStart', { date: zonedAt(chosen.getTime(), zone).toFormat(DAY) })}
+                </button>
+              ) : null}
+              {moving === 'refused' ? (
+                <p className={ui.problem} role="alert">
+                  {t('log.moment.moveRefused')}
+                </p>
+              ) : null}
+            </>
+          ) : null}
           <div className={styles.actions}>
             <button type="button" className={ui.button} onClick={() => take(serverNow().toJSDate())}>
               {t('log.moment.now')}
             </button>
-            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={chosen === null || ahead} onClick={() => chosen && take(chosen)}>
+            <button
+              type="button"
+              className={`${ui.button} ${ui.primary}`}
+              disabled={chosen === null || ahead || before}
+              onClick={() => chosen && take(chosen)}
+            >
               {t('log.moment.apply')}
             </button>
           </div>

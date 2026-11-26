@@ -3,7 +3,8 @@ import { DateTime } from 'luxon';
 import type { MetricValue, ValueState } from '@fg2/shared-types/v1';
 import { valueStateOfAge } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { serverNow } from '@/api/clock';
-import { CLOCK, DATED_CLOCK, nowThere, zoned } from './zone';
+import type { Translate } from '@/i18n/i18n';
+import { CLOCK, DATED_CLOCK, DATED_CLOCK_WITH_YEAR, DAY, DAY_IN_YEAR, nowThere, zoned } from './zone';
 
 /**
  * Every value on a screen carries its age: this puts that age into words, says
@@ -12,7 +13,7 @@ import { CLOCK, DATED_CLOCK, nowThere, zoned } from './zone';
  * is the server's (`useNow`, `serverNow`), never the browser's clock.
  */
 
-export type DurationUnit = 's' | 'min' | 'h' | 'd';
+type DurationUnit = 's' | 'min' | 'h' | 'd';
 
 const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd' };
 
@@ -21,14 +22,21 @@ const SYMBOL: Record<DurationUnit, string> = { s: 's', min: 'min', h: 'h', d: 'd
  * German. It is the catalogue's word, so an age and a grow day use one symbol;
  * where no catalogue is loaded, as in a unit test, the English one stands.
  */
-export const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
+const unitSymbol = (unit: DurationUnit): string => (i18next.exists(`units.${unit}`) ? i18next.t(`units.${unit}`) : SYMBOL[unit]);
 
 /** A figure and its unit of time: "4 min", "3 T". */
 export const durationFigure = (figure: number | string, unit: DurationUnit): string => `${figure} ${unitSymbol(unit)}`;
 
-/** "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. */
+/**
+ * "20 s", "4 min", "2 h", "3 d" - short, so it fits beside the figure it belongs to. Its figure and unit are bound
+ * by a space that does not break: an age ends the sentence it is said in ("Stand vor 1 T"), and at a line's end
+ * its unit stood alone on the next line.
+ */
 export const ageLabel = (measuredAt: string | null, now: DateTime = serverNow()): string =>
-  measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000) : '—';
+  measuredAt ? spanLabel((now.toMillis() - DateTime.fromISO(measuredAt).toMillis()) / 1000).replace(' ', '\u00a0') : '—';
+
+/** Whether an instant was a moment ago, which an "as of" says as "gerade eben" rather than "vor 0 s". */
+export const isJustNow = (instant: string, now: DateTime): boolean => now.toMillis() - DateTime.fromISO(instant).toMillis() < 10_000;
 
 /**
  * The same words for a span somebody hands us in seconds rather than as an
@@ -41,6 +49,29 @@ export const spanLabel = (seconds: number): string => {
   if (whole < 3600) return durationFigure(Math.floor(whole / 60), 'min');
   if (whole < 86_400) return durationFigure(Math.floor(whole / 3600), 'h');
   return durationFigure(Math.floor(whole / 86_400), 'd');
+};
+
+/**
+ * A span in one family of words on a line: whole days written out with the hours beyond them, then hours, then
+ * minutes - "6 Tage 8 Std", "22 Std", "40 Min" - so a plan's step of a few minutes is not said to have an hour left.
+ * With `minutes` an hour keeps its minutes, "4 Std 39 Min", as a length that is over is said: "4 Std" was most of an
+ * hour short. `round` is an age's floor or a countdown's ceiling.
+ */
+export const timeWords = (t: Translate, seconds: number, round: (figure: number) => number, minutes = false): string => {
+  if (seconds >= 86_400) {
+    const hours = round(seconds / 3600);
+    return [t('planLine.days', { count: Math.floor(hours / 24) }), hours % 24 > 0 ? t('planLine.hours', { count: hours % 24 }) : null]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (seconds >= 3600 && minutes) {
+    const whole = round(seconds / 60);
+    return [t('planLine.hours', { count: Math.floor(whole / 60) }), whole % 60 > 0 ? t('planLine.minutes', { count: whole % 60 }) : null]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (seconds >= 3600) return t('planLine.hours', { count: round(seconds / 3600) });
+  return t('planLine.minutes', { count: Math.max(1, round(seconds / 60)) });
 };
 
 /** "30 s", "15 min", "6 h", "24 h": a length somebody chooses, in the coarsest unit the number is whole in. */
@@ -108,11 +139,26 @@ export const silentSince = (alert: { startedAt: string; value: number | null }):
 /**
  * The hour of an instant, where the account is: "10:19" today, and with its
  * day on any other, because a bare hour from yesterday reads as one still to
- * come and a mute that ends tomorrow as one already past.
+ * come and a mute that ends tomorrow as one already past - and with its year
+ * where that is not this one.
  */
 export const sinceLabel = (instant: string, now: DateTime, zone: string | null): string => {
   const at = zoned(instant, zone);
-  return at.hasSame(nowThere(now, zone), 'day') ? at.toFormat(CLOCK) : at.toFormat(DATED_CLOCK);
+  const today = nowThere(now, zone);
+  return at.toFormat(at.hasSame(today, 'day') ? CLOCK : at.hasSame(today, 'year') ? DATED_CLOCK : DATED_CLOCK_WITH_YEAR);
+};
+
+/**
+ * When a line of a summary happened, in one short word: the hour today,
+ * "gestern", the weekday while that weekday means one day, the date beyond -
+ * with its year where the line is from an earlier one.
+ */
+export const dayStamp = (instant: string, now: DateTime, zone: string | null): string => {
+  const at = zoned(instant, zone);
+  const days = Math.floor(nowThere(now, zone).startOf('day').diff(at.startOf('day'), 'days').days);
+  if (days <= 0) return at.toFormat(CLOCK);
+  if (days === 1) return i18next.t('age.yesterday');
+  return at.toFormat(days < 7 ? 'cccc' : at.hasSame(nowThere(now, zone), 'year') ? DAY_IN_YEAR : DAY);
 };
 
 /**
@@ -126,6 +172,16 @@ export const offlineLabel = (since: string | null, now: DateTime, zone: string |
   const words = since ? i18next.t('offline.since', { time: sinceLabel(since, now, zone) }) : i18next.t('offline.never');
   return start ? words.charAt(0).toLocaleUpperCase() + words.slice(1) : words;
 };
+
+/**
+ * How a place or a device is heard, in the two halves every surface says it with: the state's word, and how long -
+ * "vor 20 s" of the newest thing said, "seit 42 Min" of a silence. The pill draws them, a device's card says them
+ * as facts of its line.
+ */
+export const livenessWords = (liveness: ValueState, at: string | null, now: DateTime): [string, string | null] => [
+  i18next.t(`home.reading.${liveness}`),
+  at ? i18next.t(liveness === 'offline' ? 'liveness.since' : 'liveness.ago', { age: ageLabel(at, now) }) : null,
+];
 
 /** How much of a hold is left, which is a countdown and is rounded as one. */
 export const leftLabel = (until: string, now: DateTime): string => countdownLabel((DateTime.fromISO(until).toMillis() - now.toMillis()) / 1000);

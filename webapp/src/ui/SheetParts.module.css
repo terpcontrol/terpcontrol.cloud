@@ -1,10 +1,21 @@
 /* The shared insides of a recording sheet: the chips, the day, and the label
    over a block. Layout only - every colour is a token. */
 
-.choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+/* A choice is pressed with a finger, and one that carries a name longer than its row breaks inside it. */
+.choices > button {
+  height: auto;
+  min-height: var(--control-height);
+  max-width: 100%;
+  padding-block: var(--space-1);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* The handle to type is printed as it is written: in the label's capitals it would be another name. */
+span.asWritten {
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .when {
@@ -26,7 +37,6 @@
   background: none;
   color: var(--ink);
   font-size: var(--text-md);
-  font-family: var(--font-figure);
 }
 
 /* The browser draws the picker glyph itself, in whichever mode `color-scheme`
@@ -34,19 +44,6 @@
 .whenInput::-webkit-calendar-picker-indicator {
   opacity: 0.6;
   cursor: pointer;
-}
-
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.blockHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
 
 .blockAside {

@@ -3,12 +3,23 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FastifyReply } from 'fastify';
 import sharp from 'sharp';
-import { TimelapseCreate } from '@fg2/shared-types/v1';
+import { SeriesPoint, TimelapseCreate } from '@fg2/shared-types/v1';
 import { CamerasController } from '@modules/v1/camera/cameras.controller';
 import { CamerasService } from '@modules/v1/camera/cameras.service';
 import { EntitlementService } from '@modules/v1/camera/entitlement.service';
 import { MediaService } from '@modules/v1/camera/media.service';
-import { OverlayFrame, composeFrame, overlayLayer, sizeFor, wasDark } from '@modules/v1/camera/timelapse-overlays';
+import {
+  OverlayFrame,
+  captionAt,
+  composeFrame,
+  curveStrokes,
+  fitted,
+  overlayLayer,
+  readingIn,
+  sizeFor,
+  textWidth,
+  wasDark,
+} from '@modules/v1/camera/timelapse-overlays';
 import { TimelapseContextService } from '@modules/v1/camera/timelapse-context.service';
 import { TimelapseService, whyNoFilm } from '@modules/v1/camera/timelapse.service';
 import { session } from './support/callers';
@@ -47,6 +58,8 @@ const db = useV1TestDatabase();
 let controller: CamerasController;
 let media: MediaService;
 let status: number;
+/** The light output the render would read over the span: on, off, or never measured. */
+let light: SeriesPoint[] = [];
 
 /** The reply only ever has its status set; the body is what the route answers. */
 const reply = (): FastifyReply =>
@@ -68,16 +81,32 @@ const compose = (body: TimelapseCreate, cameraId = CAMERA) => controller.request
 const build = (): void => {
   const entitlement = new EntitlementService(PREMIUM);
   const cameras = new CamerasService(db.cameras, db.devices, db.memberships, entitlement, db.users, db.alerts);
-  media = new MediaService(db.media, db.grows, null as never);
+  media = new MediaService(db.media, db.grows, null as never, db.entries);
   const access = accessOn(db);
   const poller = { settingsChanged: () => undefined, forget: () => undefined };
   // The builder is asked to take the queue now rather than on its hourly pass;
   // what it then renders is the builder's own test.
-  const builder = new TimelapseService(cameras, media, entitlement, {} as never);
+  const context = { contextFor: async () => ({ temperature: [], humidity: [], light, captions: [], growOrigin: null }) };
+  const builder = new TimelapseService(cameras, media, entitlement, context as never);
   builder.renderQueued = () => undefined;
 
-  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never);
+  controller = new CamerasController(cameras, media, poller as never, builder, access, {} as never, db.spaces);
 };
+
+/** Pictures of a camera every `everyMs` between two instants, as the poller stores them. */
+const pictures = (cameraId: string, from: number, to: number, everyMs: number) =>
+  db.media.insertMany(
+    Array.from({ length: Math.floor((to - from) / everyMs) + 1 }, (_, index) => ({
+      id: `picture-${cameraId}-${from + index * everyMs}`,
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: 1,
+      cameraId,
+      capturedAt: new Date(from + index * everyMs),
+    })),
+  );
+
+const HOUR_MS = 3600_000;
 
 const world = async (entitledUntil: Date | null): Promise<void> => {
   await db.spaces.create([
@@ -90,11 +119,50 @@ const world = async (entitledUntil: Date | null): Promise<void> => {
     { id: BESIDE, ownerId: OWNER, kind: 'rtsp', spaceId: TENT, name: 'Cam 2', entitlement: { validUntil: null, grant: null } },
     { id: ELSEWHERE, ownerId: OWNER, kind: 'rtsp', spaceId: BALCONY, name: 'Cam 3', entitlement: { validUntil: null, grant: null } },
   ]);
+  // Enough pictures for a film of the phase, half past every hour, and of the last two days every four minutes: a span
+  // with too few is refused before anything is queued.
+  await pictures(CAMERA, Date.parse(PHASE.startsAt) + HOUR_MS / 2, Date.parse(PHASE.endsAt), HOUR_MS);
+  await pictures(CAMERA, Date.now() - 48 * HOUR_MS, Date.now() - 1000, 4 * 60_000);
 };
 
 beforeEach(async () => {
   await db.reset();
   status = 0;
+  light = [];
+});
+
+/**
+ * A camera looking into a place that has ended would be on no screen. A new
+ * one is refused there and so is one moved there; a camera a place that was
+ * put away still holds keeps its settings changeable, since nothing is put
+ * anywhere by that.
+ */
+describe('where a camera may be put', () => {
+  const stream = { kind: 'rtsp' as const, name: 'Cam 4', url: 'rtsp://10.0.0.5:554/stream1' };
+  const refused = async (act: Promise<unknown>) =>
+    (
+      await act.then(
+        () => null,
+        error => error as { problem?: { status: number; code: string } },
+      )
+    )?.problem;
+
+  it('puts none into a place that has ended, new or moved, and leaves one standing there to be changed', async () => {
+    build();
+    await world(null);
+    expect((await controller.create(session(OWNER), { ...stream, spaceId: BALCONY })).spaceId).toBe(BALCONY);
+    await db.spaces.updateOne({ id: BALCONY }, { $set: { archivedAt: new Date() } });
+    const ended = { status: 409, code: 'space_archived' };
+
+    expect(await refused(controller.create(session(OWNER), { ...stream, spaceId: BALCONY }))).toMatchObject(ended);
+    expect(await refused(controller.update(session(OWNER), CAMERA, { spaceId: BALCONY }))).toMatchObject(ended);
+    expect((await db.cameras.findOne({ id: CAMERA }).lean())?.spaceId).toBe(TENT);
+
+    expect((await controller.update(session(OWNER), ELSEWHERE, { spaceId: BALCONY, name: 'Still on the balcony' })).name).toBe(
+      'Still on the balcony',
+    );
+    expect((await controller.update(session(OWNER), ELSEWHERE, { spaceId: TENT })).spaceId).toBe(TENT);
+  });
 });
 
 describe('what a film costs', () => {
@@ -106,7 +174,7 @@ describe('what a film costs', () => {
 
     // Somebody handed SD without a word would think that is what HD looks like.
     await expect(compose({ ...PHASE, quality: 'hd' })).rejects.toThrow(/part of Premium/);
-    expect(await db.media.countDocuments()).toBe(0);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
   });
 
   it('refuses a film of a whole grow to a camera without entitlement', async () => {
@@ -170,6 +238,36 @@ describe('what is asked of a render', () => {
     expect(answer.media.render).toMatchObject({ includeLightsOff: false, aspect: '16_9' });
   });
 
+  /** Asked at night, the day's film was said to be on its way and then failed: the render's own rule is asked first. */
+  it('refuses at once a span whose every picture was taken in the dark, unless those pictures are asked for', async () => {
+    const hours = Array.from({ length: 30 }, (_, hour) => new Date(Date.parse(PHASE.startsAt) + hour * 3600_000));
+    await db.media.create(
+      hours.map((capturedAt, index) => ({ id: `still-${index}`, kind: 'still', mime: 'image/jpeg', bytes: 1, cameraId: CAMERA, capturedAt })),
+    );
+    light = hours.map(at => ({ measuredAt: at.toISOString(), value: 0 }));
+
+    await expect(compose(PHASE)).rejects.toThrow(/taken with the light off/);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
+
+    expect((await compose({ ...PHASE, includeLightsOff: true })).queued).toBe(true);
+    light = hours.map((at, index) => ({ measuredAt: at.toISOString(), value: index % 2 === 0 ? 0 : 100 }));
+    expect((await compose({ ...PHASE, aspect: '1_1' })).queued).toBe(true);
+  });
+
+  /** A day film with too few pictures was said to be on its way and failed 8 ms later: refused at once, as the dark one is. */
+  it('refuses at once a span with too few pictures for a film, lights-off frames or not', async () => {
+    const few = { window: 'custom' as const, startsAt: '2026-07-01T00:00:00.000Z', endsAt: '2026-07-02T00:00:00.000Z' };
+    await pictures(CAMERA, Date.parse(few.startsAt), Date.parse(few.startsAt) + 4 * HOUR_MS, HOUR_MS);
+
+    const refused = await compose(few).then(
+      () => null,
+      error => (error as { problem?: { status: number; code: string } }).problem,
+    );
+    expect(refused).toMatchObject({ status: 422, code: 'too_few_pictures' });
+    await expect(compose({ ...few, includeLightsOff: true })).rejects.toThrow(/too few for a film/);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(0);
+  });
+
   it('needs both ends of a span it cannot work out for itself', async () => {
     await expect(compose({ window: 'phase' })).rejects.toThrow(/needs both ends/);
     await expect(compose({ window: 'custom', startsAt: PHASE.endsAt, endsAt: PHASE.startsAt })).rejects.toThrow(/ends after it begins/);
@@ -196,7 +294,7 @@ describe('asking twice', () => {
     expect(status).toBe(200);
     expect(again.queued).toBe(false);
     expect(again.media.id).toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   it('answers the film the other tap made when two of them race for it', async () => {
@@ -216,7 +314,7 @@ describe('asking twice', () => {
     expect(status).toBe(200);
     expect(raced.queued).toBe(false);
     expect(raced.media.id).toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   it('replaces it when the same span is composed differently', async () => {
@@ -225,7 +323,7 @@ describe('asking twice', () => {
 
     expect(reel.queued).toBe(true);
     expect(reel.media.id).not.toBe(first.media.id);
-    expect(await db.media.countDocuments()).toBe(1);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(1);
   });
 
   /**
@@ -236,6 +334,11 @@ describe('asking twice', () => {
    * the camera has gone on films the rest.
    */
   it('films today again once the camera has gone on, and not while it is current', async () => {
+    // Today is the owner's day, and a day's film keeps one picture a minute: just after the owner's midnight it held
+    // too few to be filmed (CI at 00:18 UTC, 2026-11-26). An owner whose clock stands near noon has a day hours old.
+    const offset = ((47 - new Date().getUTCHours()) % 24) - 11; // -11 to +12 hours, the owner's clock at noon
+    const timezone = offset === 0 ? 'Etc/UTC' : `Etc/GMT${offset > 0 ? '-' : '+'}${Math.abs(offset)}`;
+    await db.users.create({ id: OWNER, email: 'owner@example.com', passwordHash: 'x', handle: 'owner', preferences: { timezone } });
     const now = Date.now();
     const still = (minutesAgo: number) => ({
       id: `still-${minutesAgo}`,
@@ -284,7 +387,7 @@ describe('asking twice', () => {
     const composed = await compose({ window: 'day', overlays: { dayCounter: true } });
     expect(composed.queued).toBe(true);
     expect(composed.media.window).toBe('custom');
-    expect(await db.media.countDocuments()).toBe(2);
+    expect(await db.media.countDocuments({ kind: 'timelapse' })).toBe(2);
   });
 });
 
@@ -307,6 +410,29 @@ describe('a film of a whole grow', () => {
     await context.attachGrowFilm({ spaceId: BALCONY }, { startsAt: startedAt, endsAt: new Date('2026-09-01T00:00:00.000Z') }, 'film-2');
 
     expect((await db.grows.findOne({ id: 'grow-1' }).lean())?.filmMediaId).toBe('film-1');
+  });
+
+  /** A grow given its first phase a month after it started read "Tag 1" in its film, and "Tag 31" on every screen. */
+  it('counts the days from where every screen counts them: the earliest of the grow’s start and its phases', async () => {
+    const startedAt = new Date('2026-08-01T00:00:00.000Z');
+    const phase = (stage: string, at: string) => ({ id: `phase-${stage}`, stage, startedAt: new Date(at), plantIds: null, source: 'human' });
+    await db.grows.create({
+      id: 'grow-1',
+      ownerId: OWNER,
+      name: 'Autumn',
+      type: 'photoperiod',
+      slug: 'autumn',
+      startedAt,
+      phases: [phase('flowering', '2026-08-31T00:00:00.000Z'), phase('seedling', '2026-07-29T00:00:00.000Z')],
+      placements: [{ id: 'placement-1', spaceId: TENT, startedAt, endedAt: null, plantIds: null }],
+    });
+    const context = new TimelapseContextService(db.grows, db.entries, db.devices, null);
+    const span = { startsAt: new Date('2026-08-30T00:00:00.000Z'), endsAt: new Date('2026-09-01T00:00:00.000Z') };
+    const wants = { dayCounter: true, climate: false, captions: false, light: false };
+
+    expect((await context.contextFor({ spaceId: TENT, deviceId: null }, span, wants)).growOrigin).toEqual(new Date('2026-07-29T00:00:00.000Z'));
+    await db.grows.updateOne({ id: 'grow-1' }, { $pull: { phases: { stage: 'seedling' } } });
+    expect((await context.contextFor({ spaceId: TENT, deviceId: null }, span, wants)).growOrigin).toEqual(startedAt);
   });
 });
 
@@ -350,7 +476,7 @@ describe('what the builder makes of it', () => {
   it('draws two cameras side by side with the overlays on top, at the size of the film', async () => {
     const size = sizeFor('9_16', 'sd');
     const context = {
-      growStartedAt: new Date('2026-08-01T00:00:00.000Z'),
+      growOrigin: new Date('2026-08-01T00:00:00.000Z'),
       temperature: [
         { measuredAt: '2026-08-20T00:00:00.000Z', value: 24.5 },
         { measuredAt: '2026-08-20T12:00:00.000Z', value: 27.5 },
@@ -391,7 +517,7 @@ describe('what the builder makes of it', () => {
       { measuredAt: '2026-08-20T12:00:00.000Z', value: 24.5 },
       { measuredAt: '2026-08-20T18:00:00.000Z', value: 27.5 },
     ];
-    const context = { growStartedAt: null, temperature: readings, humidity: readings, light: [], captions: [] };
+    const context = { growOrigin: null, temperature: readings, humidity: readings, light: [], captions: [] };
 
     const layer = overlayLayer(
       { at: new Date('2026-08-20T18:00:00.000Z'), width: 1080, height: 1920 },
@@ -405,7 +531,7 @@ describe('what the builder makes of it', () => {
   });
 
   it('counts the days in the language the owner uses the app in', () => {
-    const context = { growStartedAt: new Date('2026-08-01T00:00:00.000Z'), temperature: [], humidity: [], light: [], captions: [] };
+    const context = { growOrigin: new Date('2026-08-01T00:00:00.000Z'), temperature: [], humidity: [], light: [], captions: [] };
     const frame = { at: new Date('2026-08-04T12:00:00.000Z'), width: 1280, height: 720 };
     const only = { dayCounter: true, climate: false, entries: false };
 
@@ -413,8 +539,199 @@ describe('what the builder makes of it', () => {
     expect(overlayLayer(frame, only, context)).toContain('>Day 4</text>');
   });
 
+  it('changes the day at the owner’s midnight, as the screens do, and draws none before the grow began', () => {
+    // Begun at 22:00 in Berlin: the next morning is day 2, though not 24 hours have passed.
+    const context = {
+      growOrigin: new Date('2026-08-01T20:00:00.000Z'),
+      zone: 'Europe/Berlin',
+      temperature: [],
+      humidity: [],
+      light: [],
+      captions: [],
+    };
+    const only = { dayCounter: true, climate: false, entries: false };
+
+    expect(overlayLayer({ at: new Date('2026-08-02T06:00:00.000Z'), width: 1280, height: 720 }, only, context)).toContain('>Day 2</text>');
+    expect(overlayLayer({ at: new Date('2026-08-01T19:00:00.000Z'), width: 1280, height: 720 }, only, context)).toBeNull();
+  });
+
+  /** A German owner's film said "25.6°C" beside "Tag 29": the figures are the app's, in the owner's language. */
+  it('writes the climate´s figures as the app writes them for the owner: its decimals, its decimal mark, a space before the unit', () => {
+    const readings = (values: number[]) => values.map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const context = { growOrigin: null, temperature: readings([24.04, 25.63]), humidity: readings([58.4, 59.2]), light: [], captions: [] };
+    const frame = { at: new Date('2026-08-20T01:00:00.000Z'), width: 1280, height: 720 };
+    const climate = { dayCounter: false, climate: true, entries: false };
+
+    expect(overlayLayer(frame, climate, { ...context, language: 'de' })).toMatch(/>25,6 °C<\/text>[\s\S]*>59 %<\/text>/);
+    expect(overlayLayer(frame, climate, { ...context, language: 'en' })).toMatch(/>25\.6 °C<\/text>/);
+    expect(readingIn(-0.04, 1, '°C', 'de')).toBe('0,0 °C');
+  });
+
+  /** The curve poked four pixels out of its box at the right: drawn inside it now, joined round. */
+  it('keeps the curves and the cursor inside the climate box, and the caption over it as wide as the box', () => {
+    // A steep last step, which a mitred join drew past the box's edge.
+    const steep = [20, 20, 20, 30, 20].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const context = {
+      growOrigin: null,
+      temperature: steep,
+      humidity: steep,
+      light: [],
+      captions: [{ at: new Date('2026-08-20T04:00:00.000Z'), text: 'topped' }],
+    };
+    const frame = { at: new Date('2026-08-20T04:00:00.000Z'), width: 1280, height: 720 };
+    const layer = overlayLayer(frame, { dayCounter: false, climate: true, entries: true }, context)!;
+
+    const rects = [...layer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({ left: Number(found[1]), width: Number(found[2]) }));
+    const [caption, box] = rects;
+    expect(caption).toEqual(box);
+    const xs = [...layer.matchAll(/<path d="([^"]*)"/g)].flatMap(found => [...found[1].matchAll(/[ML]([\d.]+) /g)].map(point => Number(point[1])));
+    const cursor = Number(/<line x1="([\d.]+)"/.exec(layer)![1]);
+    for (const x of [...xs, cursor]) {
+      expect(x).toBeGreaterThanOrEqual(box.left + 2);
+      expect(x).toBeLessThanOrEqual(box.left + box.width - 2);
+    }
+    // Nor up through the readings: a spike ran across "20,9 °C". Every point and the cursor stand below their row.
+    const ys = [...layer.matchAll(/<path d="([^"]*)"/g)].flatMap(found =>
+      [...found[1].matchAll(/[ML][\d.]+ ([\d.]+)/g)].map(point => Number(point[1])),
+    );
+    const cursorTop = Number(/<line x1="[\d.]+" y1="([\d.]+)"/.exec(layer)![1]);
+    const readingsRow = Math.max(...[...layer.matchAll(/<text x="\d+" y="(\d+)"[^>]*>[\d,.]+ (?:°C|%)</g)].map(found => Number(found[1])));
+    expect(ys.length).toBeGreaterThan(0);
+    expect(readingsRow).toBeGreaterThan(0);
+    for (const y of [...ys, cursorTop]) expect(y).toBeGreaterThan(readingsRow);
+    expect(layer).toContain('stroke-linejoin="round"');
+  });
+
+  /** A portrait film cut "Erste Trichome milchig." to "Erste Tricho…" in a box of 62 % of its 720 px. */
+  it('gives a caption the width it needs, up to the frame´s margins, on a portrait film as on a landscape one', () => {
+    const readings = [20, 21].map((value, index) => ({ measuredAt: `2026-08-20T0${index}:00:00.000Z`, value }));
+    const caption = (text: string) => ({
+      growOrigin: null,
+      temperature: readings,
+      humidity: readings,
+      light: [],
+      captions: [{ at: new Date('2026-08-20T01:00:00.000Z'), text }],
+    });
+    const portrait = { at: new Date('2026-08-20T01:00:00.000Z'), ...sizeFor('9_16', 'sd') };
+    const both = { dayCounter: false, climate: true, entries: true };
+
+    const said = overlayLayer(portrait, both, caption('Erste Trichome milchig.'))!;
+    expect(said).toContain('>Erste Trichome milchig.</text>');
+    const [box, plate] = [...said.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({
+      left: Number(found[1]),
+      width: Number(found[2]),
+    }));
+    expect(plate).toEqual(box);
+
+    // A line wider than the climate box widens its plate, and one longer than the frame is cut at its margin.
+    const longer = overlayLayer(portrait, both, caption('Erste Trichome milchig, Spitzen gelb.'))!;
+    const [, wider] = [...longer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({
+      left: Number(found[1]),
+      width: Number(found[2]),
+    }));
+    expect(longer).toContain('>Erste Trichome milchig, Spitzen gelb.</text>');
+    expect(wider.width).toBeGreaterThan(box.width);
+    expect(wider.left).toBeGreaterThan(0);
+    expect(wider.left + wider.width).toBeLessThan(portrait.width);
+    const long = overlayLayer(portrait, both, caption('Erste Trichome milchig, die Blätter an der Spitze werden gelb und die Buds wachsen.'))!;
+    const [, widest] = [...long.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => Number(found[2]));
+    expect(long).toMatch(/…<\/text>/);
+    expect(widest).toBeGreaterThan(portrait.width * 0.9);
+  });
+
+  /**
+   * Lines at 17:09 and 17:22 in a film of 17:07 to 17:40: every frame took the first line within half an hour of it,
+   * and the second never stood on one.
+   */
+  it('captions a frame with the diary line nearest it', () => {
+    const at = (clock: string) => new Date(`2026-11-13T${clock}:00.000Z`);
+    const captions = [
+      { at: at('17:09'), text: 'Erste Trichome milchig.' },
+      { at: at('17:22'), text: 'Spitzen gelb.' },
+    ];
+
+    expect(captionAt(at('17:12'), captions)?.text).toBe('Erste Trichome milchig.');
+    expect(captionAt(at('17:20'), captions)?.text).toBe('Spitzen gelb.');
+    expect(captionAt(at('17:40'), captions)?.text).toBe('Spitzen gelb.');
+    expect(captionAt(at('18:00'), captions)).toBeNull();
+    const frame = { at: at('17:30'), width: 1280, height: 720 };
+    expect(
+      overlayLayer(
+        frame,
+        { dayCounter: false, climate: false, entries: true },
+        { growOrigin: null, temperature: [], humidity: [], light: [], captions },
+      ),
+    ).toContain('>Spitzen gelb.</text>');
+  });
+
+  /**
+   * Guessed at 0.55 of its size a letter, a caption's "…" came about a fifth before its bar ended. It is measured by
+   * Inter's own advance widths, and cut only where the next letter would run past the bar.
+   */
+  it('runs a caption to its bar´s end by the face´s own widths before it cuts it', () => {
+    // H and i as the face sets them: 743 and 242 thousandths of the size.
+    expect(textWidth('Hi', 100)).toBeCloseTo(98.5);
+    const text = 'Erste Trichome milchig, die Blätter an der Spitze werden gelb und die Buds wachsen.';
+    for (const [room, size] of [
+      [575, 28],
+      [900, 28],
+      [640, 41],
+    ]) {
+      const cut = fitted(text, room, size);
+      expect(cut.endsWith('…')).toBe(true);
+      expect(textWidth(cut, size)).toBeLessThanOrEqual(room);
+      // Not a letter's width left over: the next one would not have fitted.
+      expect(room - textWidth(cut, size)).toBeLessThan(size);
+    }
+    expect(fitted('Spitzen gelb.', 575, 28)).toBe('Spitzen gelb.');
+  });
+
+  /** A film across seven hours offline drew a straight slope from the last reading to the first after it. */
+  it('breaks a curve where the device was silent, as Verlauf does, and joins one that only skipped a window', () => {
+    const at = (minutes: number) => new Date(Date.parse('2026-08-20T00:00:00.000Z') + minutes * 60_000).toISOString();
+    const points = [
+      ...[0, 5, 10, 15].map(minutes => ({ measuredAt: at(minutes), value: 24 })),
+      // One window without a reading is no silence.
+      { measuredAt: at(20), value: null },
+      ...[25, 30].map(minutes => ({ measuredAt: at(minutes), value: 25 })),
+      // Seven hours of nothing.
+      ...Array.from({ length: 84 }, (_, index) => ({ measuredAt: at(35 + index * 5), value: null })),
+      ...[455, 460, 465].map(minutes => ({ measuredAt: at(minutes), value: 22 })),
+    ];
+
+    const strokes = curveStrokes(points, Date.parse(at(0)), Date.parse(at(465)));
+    expect(strokes.filter(point => point.starts).map(point => point.at)).toEqual([Date.parse(at(0)), Date.parse(at(455))]);
+
+    const layer = overlayLayer(
+      { at: new Date(at(200)), width: 1280, height: 720 },
+      { dayCounter: false, climate: true, entries: false },
+      { growOrigin: null, temperature: points, humidity: [], light: [], captions: [] },
+    )!;
+    expect([.../<path d="([^"]*)"/.exec(layer)![1].matchAll(/M/g)]).toHaveLength(2);
+  });
+
+  /** A 16:9 film drew its curve in the middle of its box, 127 and 107 px in from its ends, where the span had no reading. */
+  it('draws the readings across the box´s width where the span opens before and closes after them', () => {
+    const at = (minutes: number) => new Date(Date.parse('2026-08-20T17:00:00.000Z') + minutes * 60_000).toISOString();
+    const points = Array.from({ length: 36 }, (_, minute) => ({
+      measuredAt: at(minute),
+      value: minute < 6 || minute > 30 ? null : 20 + (minute % 3),
+    }));
+    const frame = { at: new Date(at(18)), width: 1280, height: 720 };
+    const layer = overlayLayer(
+      frame,
+      { dayCounter: false, climate: true, entries: false },
+      { growOrigin: null, temperature: points, humidity: [], light: [], captions: [] },
+    )!;
+
+    const [box] = [...layer.matchAll(/<rect x="(\d+)" y="\d+" width="(\d+)"/g)].map(found => ({ left: Number(found[1]), width: Number(found[2]) }));
+    const xs = [.../<path d="([^"]*)"/.exec(layer)![1].matchAll(/[ML]([\d.]+) /g)].map(point => Number(point[1]));
+    expect(Math.min(...xs) - box.left).toBeLessThan(20);
+    expect(box.left + box.width - Math.max(...xs)).toBeLessThan(20);
+  });
+
   it('draws nothing where every overlay that was asked for has nothing to say', () => {
-    const empty = { growStartedAt: null, temperature: [], humidity: [], light: [], captions: [] };
+    const empty = { growOrigin: null, temperature: [], humidity: [], light: [], captions: [] };
 
     expect(overlayLayer({ at: new Date(), width: 1280, height: 720 }, { dayCounter: true, climate: true, entries: true }, empty)).toBeNull();
   });

@@ -237,11 +237,15 @@ class SessionStore {
     return result.user;
   }
 
-  /** Ends the session on the server too, so a stolen refresh token buys nothing; forgetting it locally comes first. */
-  public async logOut(): Promise<void> {
-    const { sessionId, tokens } = this.state;
+  /**
+   * Ends the session on the server too, so a stolen refresh token buys nothing; forgetting it locally comes first.
+   * The demo's session is everybody's and may write nothing - not even its own end - so it is only forgotten here,
+   * and so is one the server has `ended` itself, with its account: there is nobody left to tell.
+   */
+  public async logOut(ended = false): Promise<void> {
+    const { sessionId, tokens, user } = this.state;
     this.forget();
-    if (sessionId && tokens) {
+    if (!ended && sessionId && tokens && user?.isDemo !== true) {
       await fetch(v1(`/sessions/${sessionId}`), { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.userToken}` } }).catch(
         () => undefined,
       );
@@ -386,4 +390,4 @@ export const mediaUrl = (mediaId: string, width?: number): string | null => {
 };
 
 /** The widths the small pictures are asked for at: twice what they are drawn at, for a phone's screen. */
-export const THUMBNAIL_WIDTH = { cover: 96, dayTile: 200, still: 240, strip: 320, frame: 720 } as const;
+export const THUMBNAIL_WIDTH = { cover: 96, still: 240, frame: 720 } as const;

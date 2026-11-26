@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { MediaQuality, TimelapseCreate } from '@fg2/shared-types/v1';
+import { MediaQuality, SeriesPoint, TimelapseCreate } from '@fg2/shared-types/v1';
 import { RENDER_FAILURE_TEXT } from '@fg2/shared-types/v1-schemas';
 import { logger } from '@utils/logger';
 import { BackgroundWork } from '@common/background-work';
@@ -66,7 +66,7 @@ const STILL_RETENTION_DAYS = 3 * 365;
 const DEFAULT_FRAME_RATE = 25;
 
 /** Half a second of film. Fewer frames than this is a flicker, not a timelapse. */
-const MINIMUM_FRAMES = DEFAULT_FRAME_RATE / 2;
+const MINIMUM_FRAMES = Math.ceil(DEFAULT_FRAME_RATE / 2);
 
 const DAY_FRAME_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -107,6 +107,9 @@ interface EncodeOptions extends Omit<FfmpegOptions, 'watermark'> {
   } | null;
 }
 
+/** The pictures a diary holds on to, asked for at most once by the sweeps of one pass. */
+type Held = () => Promise<Set<string>>;
+
 /** What an `sd` render is scaled to. `hd` keeps the frames at the size the camera delivered them. */
 const SD_WIDTH = 1280;
 
@@ -145,6 +148,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     await this.drainTheQueue();
 
     const shouldThin = Date.now() - this.lastThinningRun >= THIN_INTERVAL_MS;
+    const held = this.heldOnce();
 
     for (const camera of await this.cameras.all()) {
       // As in the poller: a pass walks every camera and runs ffmpeg as it
@@ -160,8 +164,8 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
 
       // A camera that is gone keeps its pictures, so they are still thinned
       // and still swept: what stops is only the making of new films.
-      await this.sweep(camera);
-      if (shouldThin) await this.thin(camera);
+      await this.sweep(camera, held);
+      if (shouldThin) await this.thin(camera, held);
     }
 
     if (shouldThin) this.lastThinningRun = Date.now();
@@ -286,6 +290,23 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
       return { film: existing, queued: false };
     }
 
+    // A span that leaves the film nothing - too few pictures, or every one taken in the dark - is said now, by the
+    // render's own rule, rather than by a render that fails after somebody was told it was being made.
+    const light = render.includeLightsOff
+      ? null
+      : (await this.context.contextFor(camera, span, { dayCounter: false, climate: false, captions: false, light: true })).light;
+    const { all, frames } = await this.framesFor(camera.id, span, render.framesPerSecond, light);
+    const nothing = frames.length >= MINIMUM_FRAMES ? null : whyNoFilm(all.length, frames.length);
+    if (nothing === RENDER_FAILURE_TEXT.allDark) {
+      throw unprocessable(
+        'all_dark',
+        'Every picture in that span was taken with the light off. To keep them, request the film with the lights-off frames.',
+      );
+    }
+    if (nothing !== null) {
+      throw unprocessable('too_few_pictures', `That span holds fewer than ${MINIMUM_FRAMES} pictures, which is too few for a film.`);
+    }
+
     if (existing) await this.media.delete(existing.id);
 
     // Two taps on the same button are two requests, and the second may reach
@@ -371,8 +392,6 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const endsAt = job.endsAt ?? new Date();
     const span = { startsAt: job.capturedAt, endsAt };
     const open = endsAt.getTime() > Date.now();
-    // Enough frames for a film of a sensible length, however long the span is.
-    const frameInterval = Math.max(Math.round((endsAt.getTime() - job.capturedAt.getTime()) / (render.framesPerSecond * 60)), 1000);
 
     try {
       const quality = job.quality ?? 'sd';
@@ -386,11 +405,17 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
           // that keeps them asks for nothing.
           light: !render.includeLightsOff,
         })),
-        language: overlays.dayCounter ? await this.cameras.languageOf(camera) : undefined,
+        // The day counter's word and the climate's figures are written as the owner reads the app.
+        language: overlays.dayCounter || overlays.climate ? await this.cameras.languageOf(camera) : undefined,
+        zone: overlays.dayCounter ? await this.cameras.zoneOf(camera) : null,
       };
 
-      const all = await this.framesOf(camera.id, span.startsAt, endsAt, frameInterval);
-      const frames = render.includeLightsOff ? all : all.filter(frame => !wasDark(frame.capturedAt, context.light));
+      const { all, frames, frameInterval } = await this.framesFor(
+        camera.id,
+        span,
+        render.framesPerSecond,
+        render.includeLightsOff ? null : context.light,
+      );
       const beside = render.secondCameraId ? await this.framesOf(render.secondCameraId, span.startsAt, endsAt, 0) : [];
 
       const built = await this.encode(
@@ -438,6 +463,22 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // -------------------------------------------------------------------------
   // Frames and ffmpeg
   // -------------------------------------------------------------------------
+
+  /**
+   * The frames a film of a span is made of: enough for a film of a sensible length however long the span is, and
+   * those taken in the dark left out where the light it was read with (`light`) is given.
+   */
+  private async framesFor(
+    cameraId: string,
+    span: Span,
+    framesPerSecond: number,
+    light: SeriesPoint[] | null,
+  ): Promise<{ all: MediaPosition[]; frames: MediaPosition[]; frameInterval: number }> {
+    const frameInterval = Math.max(Math.round((span.endsAt.getTime() - span.startsAt.getTime()) / (framesPerSecond * 60)), 1000);
+    const all = await this.framesOf(cameraId, span.startsAt, span.endsAt, frameInterval);
+
+    return { all, frames: light === null ? all : all.filter(frame => !wasDark(frame.capturedAt, light)), frameInterval };
+  }
 
   /** The stills of a span, no closer together than `minIntervalMs`, oldest first. */
   private async framesOf(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<MediaPosition[]> {
@@ -553,7 +594,7 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="56">
       <rect width="100%" height="100%" rx="10" fill="${PANEL}" fill-opacity="0.55"/>
       <text x="180" y="28" text-anchor="middle" dominant-baseline="central"
-            font-family="${TEXT_FAMILY}" font-size="26" font-weight="600" fill="${INK}">terpcontrol.com</text>
+            font-family="${TEXT_FAMILY}" font-size="26" font-weight="500" fill="${INK}">terpcontrol.com</text>
     </svg>`;
 
     await writeFile(path, await sharp(Buffer.from(svg)).png().toBuffer());
@@ -564,22 +605,32 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
   // Thinning and retention
   // -------------------------------------------------------------------------
 
-  private async thin(camera: CameraDocument): Promise<void> {
+  /**
+   * The pictures no sweep takes because a diary holds on to them
+   * (`MediaService.heldByDiaries`): read once for all the cameras of a pass,
+   * and only when a sweep has something to remove.
+   */
+  private heldOnce(): Held {
+    let held: Promise<Set<string>> | null = null;
+    return () => (held ??= this.media.heldByDiaries());
+  }
+
+  private async thin(camera: CameraDocument, held: Held = this.heldOnce()): Promise<void> {
     const now = Date.now();
 
     for (let tier = 0; tier < THINNING_TIERS.length; tier++) {
       const { afterMs, minIntervalMs } = THINNING_TIERS[tier];
       const coarser = THINNING_TIERS[tier + 1];
-      await this.thinRange(camera.id, new Date(coarser ? now - coarser.afterMs : 0), new Date(now - afterMs), minIntervalMs);
+      await this.thinRange(camera.id, new Date(coarser ? now - coarser.afterMs : 0), new Date(now - afterMs), minIntervalMs, held);
     }
   }
 
-  private thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number): Promise<void> {
+  private thinRange(cameraId: string, from: Date, before: Date, minIntervalMs: number, held: Held): Promise<void> {
     const kept = spacedBy(minIntervalMs);
     return this.removeInBatches(
       this.media.positions({ cameraId, kind: 'still', from, before }),
       still => !kept(still),
-      ids => this.removeThinned(ids),
+      ids => this.removeThinned(ids, held),
     );
   }
 
@@ -595,11 +646,11 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * somebody already has should be thinned at all is a decision for the release
    * that drops `legacy_*`; until then it is left alone.
    */
-  private async removeThinned(ids: string[]): Promise<void> {
+  private async removeThinned(ids: string[], held: Held): Promise<void> {
     if (ids.length === 0) return;
 
-    const held = await this.media.carriedOverAndStillHeld(ids);
-    await this.media.deleteMany(ids.filter(id => !held.has(id)));
+    const [carried, inDiaries] = await Promise.all([this.media.carriedOverAndStillHeld(ids), held()]);
+    await this.media.deleteMany(ids.filter(id => !carried.has(id) && !inDiaries.has(id)));
   }
 
   /**
@@ -609,21 +660,22 @@ export class TimelapseService implements OnModuleInit, OnApplicationShutdown {
    * said how many days - so an install that says nothing keeps every picture
    * exactly as long as it did before there was a tier at all.
    */
-  private async sweep(camera: CameraDocument): Promise<void> {
+  private async sweep(camera: CameraDocument, held: Held = this.heldOnce()): Promise<void> {
     const free = this.entitlement.isEntitled(camera) ? null : this.entitlement.freeTier();
 
     const stillDays = free?.stillDays ? Math.min(free.stillDays, STILL_RETENTION_DAYS) : STILL_RETENTION_DAYS;
-    await this.deleteBefore(camera.id, 'still', stillDays);
+    // A still a diary holds on to is the diary's, however old the camera's own history may get.
+    await this.deleteBefore(camera.id, 'still', stillDays, async ids => {
+      if (ids.length === 0) return;
+      const inDiaries = await held();
+      await this.media.deleteMany(ids.filter(id => !inDiaries.has(id)));
+    });
 
-    if (free?.timelapseDays) await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays);
+    if (free?.timelapseDays) await this.deleteBefore(camera.id, 'timelapse', free.timelapseDays, ids => this.media.deleteMany(ids));
   }
 
-  private deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number): Promise<void> {
-    return this.removeInBatches(
-      this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) }),
-      () => true,
-      ids => this.media.deleteMany(ids),
-    );
+  private deleteBefore(cameraId: string, kind: 'still' | 'timelapse', days: number, remove: (ids: string[]) => Promise<void>): Promise<void> {
+    return this.removeInBatches(this.media.positions({ cameraId, kind, before: new Date(Date.now() - days * MS_IN_A_DAY) }), () => true, remove);
   }
 
   /** The rows `doomed` picks, handed to `remove` a batch at a time. */

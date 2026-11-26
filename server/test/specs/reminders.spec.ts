@@ -82,6 +82,30 @@ describe('writing a reminder', () => {
     expect(written.defaults).toEqual({ kind: 'feed', litres: 4 });
   });
 
+  /**
+   * What a reminder prefills is what its tick writes into the diary. Values
+   * of a kind no entry has would be refused by every tick, and the task would
+   * stay due for good - so the reminder is refused, and so is a change to one.
+   */
+  it('refuses to prefill with values no entry takes, and names the field', async () => {
+    const refused = await owner.client
+      .post('/v1/reminders')
+      .send(aReminder({ kind: 'chore', defaults: { kind: 'chore' } }))
+      .expect(422);
+
+    expect(refused.body).toMatchObject({ code: 'defaults_not_entry_values', errors: [{ field: 'defaults', code: 'invalid' }] });
+
+    const kept = await create(owner, aReminder({ kind: 'chore', defaults: { kind: 'note' } }));
+    expect(
+      (
+        await owner.client
+          .patch(`/v1/reminders/${kept.id}`)
+          .send({ defaults: { kind: 'chore' } })
+          .expect(422)
+      ).body.code,
+    ).toBe('defaults_not_entry_values');
+  });
+
   it('refuses a reminder that is both a rhythm and a date, and one that is neither', async () => {
     const both = await owner.client
       .post('/v1/reminders')
@@ -161,6 +185,125 @@ describe('changing and ending one', () => {
     await owner.client.get(`/v1/reminders?spaceId=${tent}`).expect(200);
     const lines = await owner.client.get(`/v1/entries?spaceId=${tent}`).expect(200);
     expect(lines.body.items.some((entry: { taskId: string }) => entry.taskId === task.id)).toBe(true);
+  });
+});
+
+/**
+ * A place's reminders end with the place. The page that removes a place counts
+ * them beforehand by `GET /reminders?spaceId=`; afterwards none is left on the
+ * list of everything kept, where it would name no place anybody can open.
+ */
+describe('a place that ends', () => {
+  it('takes its reminders with it, and leaves a grow´s alone', async () => {
+    const mine = await createAccount('reminders-ender');
+    const place = (await mine.client.post('/v1/spaces').send({ kind: 'tent', name: 'Ends soon' }).expect(201)).body;
+    const stays = (await mine.client.post('/v1/spaces').send({ kind: 'tent', name: 'Stays' }).expect(201)).body;
+    const grow = (
+      await mine.client.post('/v1/grows').send({ name: 'Keeps its rhythm', type: 'photoperiod', spaceId: stays.id, plants: [] }).expect(201)
+    ).body;
+    const about = (subject: { type: string; id: string }) => ({ subject, kind: 'chore', label: unique('Chore'), everyDays: 7, onceAt: null });
+    await create(mine, about({ type: 'space', id: place.id }));
+    await create(mine, about({ type: 'space', id: place.id }));
+    const ofTheGrow = await create(mine, about({ type: 'grow', id: grow.id }));
+    const nextDoor = await create(mine, about({ type: 'space', id: stays.id }));
+
+    expect((await mine.client.get(`/v1/reminders?spaceId=${place.id}`).expect(200)).body.items).toHaveLength(2);
+
+    await mine.client.delete(`/v1/spaces/${place.id}`).expect(204);
+
+    const left = (await mine.client.get('/v1/reminders').expect(200)).body.items.map((one: { id: string }) => one.id);
+    expect(left.sort()).toEqual([ofTheGrow.id, nextDoor.id].sort());
+    expect((await mine.client.get(`/v1/reminders?spaceId=${place.id}`).expect(200)).body.items).toEqual([]);
+  });
+});
+
+/**
+ * A grow's reminders end with it, as a place's do: "Gelato düngen" stood under Rhythmen after the harvest that ended
+ * Gelato, with a sheet that offered no grow to keep it for and a save the server took.
+ */
+describe('a grow that ends', () => {
+  const growIn = async (session: Session, name: string) =>
+    (
+      await session.client
+        .post('/v1/grows')
+        .send({ name, type: 'photoperiod', spaceId: tent, plants: [{ strain: 'Gelato', count: 1 }] })
+        .expect(201)
+    ).body;
+  const about = (growId: string) => aReminder({ subject: { type: 'grow', id: growId }, kind: 'feed' });
+  const listed = async () => (await owner.client.get('/v1/reminders').expect(200)).body.items.map((one: { id: string }) => one.id);
+
+  it('rests its reminders when its last plant is harvested, and leaves the place´s alone', async () => {
+    const grow = await growIn(owner, unique('Harvested'));
+    const ofTheGrow = await create(owner, about(grow.id));
+    const ofThePlace = await create(owner, aReminder());
+
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45 }).expect(201);
+
+    expect(await listed()).not.toContain(ofTheGrow.id);
+    expect(await listed()).toContain(ofThePlace.id);
+    expect((await owner.client.get(`/v1/reminders?growId=${grow.id}`).expect(200)).body.items).toEqual([]);
+    // Resting, it is no reminder anybody may change.
+    const refused = await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(409);
+    expect(refused.body.code).toBe('grow_ended');
+  });
+
+  /** An ended grow's reminders rest, and come back when it is reopened (Chris, 2026-11-14), due as they were. */
+  it('rests them when its end is set by hand, and has them back, due on their rhythm, when it is reopened', async () => {
+    const grow = await growIn(owner, unique('Ended by hand'));
+    const ofTheGrow = await create(owner, { ...about(grow.id), everyDays: 1 });
+    const dueOf = async (): Promise<string | null> =>
+      (await tasksOf(owner)).find((task: { sourceId: string }) => task.sourceId === ofTheGrow.id)?.dueAt ?? null;
+    const dueBefore = await dueOf();
+    expect(dueBefore).not.toBeNull();
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: new Date().toISOString() }).expect(200);
+    expect(await listed()).not.toContain(ofTheGrow.id);
+    expect(await dueOf()).toBeNull();
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
+    expect(await listed()).toContain(ofTheGrow.id);
+    // A day's rhythm comes due a day on, counted from the reopening rather than overdue for the rest.
+    const dueAfter = await dueOf();
+    expect(dueAfter).not.toBeNull();
+    expect(Date.parse(dueAfter!) - Date.parse(dueBefore!)).toBeGreaterThanOrEqual(0);
+    expect(Date.parse(dueAfter!) - Date.now()).toBeGreaterThan(23 * 60 * 60 * 1000);
+    await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(200);
+  });
+
+  /** Ending a grow took today's watering off "Erledigt" with its reminder: the work was done all the same. */
+  it('keeps what was ticked off today listed as done once the grow ends, and nothing of it waiting', async () => {
+    const grow = await growIn(owner, unique('Watered, then ended'));
+    const ofTheGrow = await create(owner, { ...about(grow.id), everyDays: null, onceAt: new Date(Date.now() - DAY_MS).toISOString() });
+    const line = await owner.client.post(`/v1/tasks/${ofTheGrow.id}/completions`).send({}).expect(201);
+
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45 }).expect(201);
+
+    expect((await tasksOf(owner, '?done=true')).find((one: { id: string }) => one.id === ofTheGrow.id)).toMatchObject({
+      done: true,
+      subject: { type: 'grow', id: grow.id },
+      completion: { entryId: line.body.id },
+    });
+    expect((await tasksOf(owner)).map((one: { sourceId: string }) => one.sourceId)).not.toContain(ofTheGrow.id);
+  });
+
+  it('takes them along when it is deleted', async () => {
+    const grow = await growIn(owner, unique('Deleted'));
+    const ofTheGrow = await create(owner, about(grow.id));
+
+    await owner.client.delete(`/v1/grows/${grow.id}`).expect(204);
+    await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(404);
+  });
+
+  it('refuses to change one of a grow that has ended, as it refuses to make one', async () => {
+    const grow = await growIn(owner, unique('Ended under it'));
+    const ofTheGrow = await create(owner, about(grow.id));
+    // A grow that ended before its reminders rested with it: what migration step 032 rests.
+    await setRow('grows', { id: grow.id }, { endedAt: new Date() });
+
+    const refused = await owner.client.patch(`/v1/reminders/${ofTheGrow.id}`).send({ everyDays: 2 }).expect(409);
+    expect(refused.body.code).toBe('grow_ended');
+    // Taking it off is still allowed.
+    await owner.client.delete(`/v1/reminders/${ofTheGrow.id}`).expect(204);
   });
 });
 
@@ -285,7 +428,7 @@ describe('the tasks a reminder derives', () => {
     });
   });
 
-  it('lists the week ahead, where the home card shows only the next two days', async () => {
+  it('lists the week ahead', async () => {
     const reminder = await create(
       owner,
       aReminder({ everyDays: null, onceAt: new Date(Date.now() + 5 * DAY_MS).toISOString(), label: unique('Friday') }),
@@ -293,10 +436,6 @@ describe('the tasks a reminder derives', () => {
 
     // Five days out sorts behind everything this spec has put on the list, so the page is asked for whole.
     expect((await tasksOf(owner, '?limit=200')).map((one: { id: string }) => one.id)).toContain(reminder.id);
-
-    const cards = (await owner.client.get('/v1/home').expect(200)).body.spaces;
-    const card = cards.find((one: { spaceId: string }) => one.spaceId === tent);
-    expect(card.dueTasks.map((one: { id: string }) => one.id)).not.toContain(reminder.id);
   });
 
   it('refuses to tick the same task off twice', async () => {

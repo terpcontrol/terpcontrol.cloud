@@ -271,7 +271,7 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
     await this.alerts.deleteMany({ deviceId: { $in: deviceIds } });
     tally.entries += await this.deleteEntries({ deviceId: { $in: deviceIds } });
 
-    for (const id of deviceIds) await this.devices.releaseClaim(id);
+    for (const id of deviceIds) await this.devices.releaseClaim(id, 'account_deleted');
     tally.devices += deviceIds.length;
   }
 
@@ -332,7 +332,10 @@ export class AccountDeletionService implements OnModuleInit, OnApplicationShutdo
       // What other people had standing in these places. Their things are not
       // this account's to delete, so they are only taken out of the room: their
       // owner sees them unplaced, which is what has happened to them.
-      await this.deviceRows.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
+      // Through the one writer of where a device stands, so its stay here is closed and stays on its record:
+      // a device with nothing on its record would be read back, by its next place, to before it left this one.
+      const theirs: string[] = await this.deviceRows.distinct('id', { spaceId: { $in: spaceIds } });
+      for (const id of theirs) await this.devices.place(id, null);
       await this.cameras.updateMany({ spaceId: { $in: spaceIds } }, { $set: { spaceId: null } });
       // A placement is ended rather than emptied: `endedAt` is already what the
       // model means by "no longer standing there", while a placement with no

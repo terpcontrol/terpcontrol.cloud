@@ -2,13 +2,25 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import { AdminDeviceCreate, Device, DeviceClaimCreate, DeviceClaimResult, DeviceUpdate, SpaceKind } from '@fg2/shared-types/v1';
+import {
+  AdminDeviceCreate,
+  Device,
+  DeviceClaimCreate,
+  DeviceClaimResult,
+  DeviceControl,
+  DeviceRelease,
+  DeviceUpdate,
+  SpaceKind,
+} from '@fg2/shared-types/v1';
+import { OWN_CLIMATE_TYPES, nameKey, numbered } from '@fg2/shared-types/v1-schemas';
 import { AccessContext } from '@common/v1/access.types';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { startedNow } from '@common/v1/firmware-instruction';
-import { conflict, notFound } from '@common/v1/problem';
-import { withSpacesInside } from '@common/v1/rooms';
+import { movedTo } from '@common/v1/device-placements';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { freeNameFor } from '@common/v1/space-names';
+import { refuseEnded, withSpacesInside } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
@@ -22,7 +34,8 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { demoDevice } from '@utils/demo';
 import { logger } from '@utils/logger';
 import { HardwareReportService } from '@modules/device-protocol/hardware-report.service';
-import { controlOf } from '@modules/device-protocol/work-modes';
+import { controlOf, spellEndsOn } from '@modules/device-protocol/work-modes';
+import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from '../plan/device-configuration.port';
 import { DEVICE_PLACEMENT, DevicePlacement } from './placement.port';
 import { accountOf } from '../caller';
 
@@ -39,9 +52,13 @@ import { accountOf } from '../caller';
 /**
  * What kind of place a device of this type stands in, which is as close as the
  * hardware gets to saying: a fridge controller is in a fridge and a tent
- * controller in a tent. Anything else is in something, but nothing says what.
+ * controller in a tent. Anything else is in something, but nothing says what -
+ * so a claim makes it a tent, which is what the place it names "Zelt" is.
  */
 const SPACE_KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
+
+/** What a place a claim makes is called where the claim brings no name: English, as the server has no catalogue. */
+const UNNAMED: Readonly<Partial<Record<SpaceKind, string>>> = { tent: 'Tent', fridge: 'Fridge' };
 
 @Injectable()
 export class DevicesService {
@@ -56,7 +73,8 @@ export class DevicesService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     private readonly access: AccessService,
     @Optional() @Inject(DEVICE_PLACEMENT) private readonly placement: DevicePlacement | null = null,
-    @Optional() private readonly hardwareReport: HardwareReportService | null = null,
+    @Optional() @Inject(HardwareReportService) private readonly hardwareReport: HardwareReportService | null = null,
+    @Optional() @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter | null = null,
   ) {}
 
   public async require(id: string): Promise<StoredDevice> {
@@ -95,8 +113,16 @@ export class DevicesService {
 
   /** Only what a client may write. What the device is, who owns it and everything under `state` are not patched. */
   public async update(id: string, body: DeviceUpdate): Promise<StoredDevice> {
-    const before = await this.devices.findOne({ id }, { firmware: 1, state: 1, spaceId: 1 }).lean<StoredDevice | null>();
-    const changes = Object.fromEntries(Object.entries(body).filter(([, value]) => value !== undefined));
+    const before = await this.devices
+      .findOne({ id }, { firmware: 1, state: 1, spaceId: 1, ownerId: 1, name: 1, type: 1 })
+      .lean<StoredDevice | null>();
+    if (body.spaceId && before && body.spaceId !== before.spaceId) {
+      await this.requireAPlaceOf(before.ownerId, body.spaceId);
+      await this.refuseSecondClimate(before, body.spaceId);
+    }
+    if (before) await this.refuseTakenName(before, body);
+    // Where it stands is the placement writer's, below.
+    const changes = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && key !== 'spaceId'));
     // Pinning a build by hand is telling a device to install one, exactly as
     // the rollout's own pass is, so it starts the same clock. Without this the
     // clock was started in one place only - the sweep over the three release
@@ -106,8 +132,9 @@ export class DevicesService {
     // once closed. The stamp is a fresh attempt, so an older verdict about the
     // build it used to owe is cleared with it.
     if (before && told(before, body)) Object.assign(changes, startedNow());
-    const changed = await this.devices.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<StoredDevice>();
-    if (!changed) throw notFound('device_not_found', 'There is no device with that id.');
+    const written = await this.devices.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<StoredDevice>();
+    if (!written) throw notFound('device_not_found', 'There is no device with that id.');
+    const changed = body.spaceId === undefined ? written : await this.place(id, body.spaceId);
 
     // A camera the controller answers for stands wherever the controller does.
     if (body.spaceId !== undefined) await this.cameras.updateMany({ deviceId: id, removedAt: null }, { $set: { spaceId: changed.spaceId } });
@@ -115,6 +142,111 @@ export class DevicesService {
     if (changed.isDemo && before?.spaceId !== changed.spaceId) await this.demoMoved(before?.spaceId ?? null, changed.spaceId);
 
     return changed;
+  }
+
+  /**
+   * Two devices standing in one place carry different names, as an account's
+   * places do: a toast, an alarm and Steuerung name a device, and "Abluft" twice
+   * says nothing. Compared as a person reads them (`nameKey`). A device known
+   * only by its type is named by the app, which tells two of a kind apart, and
+   * takes no part; nor does a duplicate stored before this, until it is renamed
+   * or moved.
+   */
+  private async refuseTakenName(before: StoredDevice, body: DeviceUpdate): Promise<void> {
+    const name = body.name === undefined ? before.name : body.name;
+    const spaceId = body.spaceId === undefined ? before.spaceId : body.spaceId;
+    const changed = (body.name !== undefined && body.name !== before.name) || (body.spaceId !== undefined && body.spaceId !== before.spaceId);
+    if (!changed || !spaceId || !name || name === before.type) return;
+
+    const taken = (await this.namesIn(spaceId, before.id)).get(nameKey(name));
+    if (!taken) return;
+
+    throw conflict('name_taken', `Another device here is already called "${taken}".`, [
+      {
+        field: body.name !== undefined && body.name !== before.name ? 'name' : 'spaceId',
+        code: 'taken',
+        detail: 'Names are unique among the devices of one place.',
+      },
+    ]);
+  }
+
+  /** The names the other devices of a place carry, by the key a person reads them by; one named by its type has none. */
+  private async namesIn(spaceId: string, exceptId: string): Promise<Map<string, string>> {
+    const here = await this.devices.find({ spaceId, id: { $ne: exceptId } }, { name: 1, type: 1 }).lean<Pick<StoredDevice, 'name' | 'type'>[]>();
+
+    return new Map(here.flatMap(other => (other.name && other.name !== other.type ? [[nameKey(other.name), other.name] as const] : [])));
+  }
+
+  /**
+   * The one writer of where a device stands: `spaceId` and the placement that
+   * says since when, in one update, so the two cannot say two things. `null`
+   * takes it out of every place.
+   *
+   * An open alert stands where its device stands, so it moves with it: the
+   * inbox, Start and Verlauf read an alert by the place it names, and whoever
+   * sees that place sees the alert. One that is over keeps where it happened.
+   */
+  public async place(id: string, spaceId: string | null, at: Date = new Date()): Promise<StoredDevice> {
+    const device = await this.devices.findOne({ id }, { placements: 1, spaceId: 1 }).lean<Pick<StoredDevice, 'placements' | 'spaceId'> | null>();
+    const placed = await this.devices
+      .findOneAndUpdate({ id }, { $set: { spaceId, placements: movedTo(device?.placements ?? [], spaceId, at) } }, { new: true })
+      .lean<StoredDevice>();
+    if (!placed) throw notFound('device_not_found', 'There is no device with that id.');
+    await this.alerts.updateMany({ deviceId: id, resolvedAt: null }, { $set: { spaceId } });
+    // A lamp module goes dark in a place that germinates or dries, and gets its light back in one that does not; a
+    // climate device that leaves or comes takes its dark along.
+    if (device?.spaceId !== spaceId) {
+      if (device?.spaceId) await this.configuration?.lampsFollow(device.spaceId);
+      await this.configuration?.lampsFollow(spaceId, [id]);
+    }
+
+    return placed;
+  }
+
+  /**
+   * Where a device may be put: in a place of the account it belongs to that
+   * has not ended, and never in a room. A member who may manage a host's place
+   * manages what stands in it; hardware of their own standing there would be
+   * read, moved and ended with a place that is not theirs - the host's "Ort
+   * entfernen" would decide about a device the host does not own, and the
+   * member's device would vanish from every list of their own places. A room
+   * is a field of its places and holds nothing itself.
+   */
+  private async requireAPlaceOf(ownerId: string | null, spaceId: string): Promise<void> {
+    const space = await this.spaces.findOne({ id: spaceId }, { kind: 1, ownerId: 1, archivedAt: 1 }).lean<SpaceDocument | null>();
+    if (space?.kind === 'room') {
+      throw conflict('room_by_itself', 'A room is a field of the places standing in it.', [
+        { field: 'spaceId', code: 'not_allowed', detail: 'A device stands in a place, and the place in a room.' },
+      ]);
+    }
+    if (space && space.ownerId !== ownerId) {
+      throw conflict('place_of_another_account', 'A device stands only in a place of the account it belongs to.', [
+        {
+          field: 'spaceId',
+          code: 'not_allowed',
+          detail: 'Put it in a place of its owner, or let its owner give it up so that the other account can add it.',
+        },
+      ]);
+    }
+    if (space) refuseEnded(space);
+  }
+
+  /**
+   * A place has one climate, and so one controller or fridge module (Chris, 2026-11-14): Steuerung writes its targets
+   * to the lead, maintenance pauses the lead, the place shows the lead's figures - a second one stood there written
+   * to by nothing, paused by no maintenance, raising its own alarms under the first one's figures. Fans, sockets and
+   * lights still join a place with one. A place that holds two from before keeps working: its lead is the first.
+   */
+  private async refuseSecondClimate(device: Pick<StoredDevice, 'id' | 'type'>, spaceId: string): Promise<void> {
+    if (!OWN_CLIMATE_TYPES.includes(device.type)) return;
+    const held = await this.devices
+      .findOne({ spaceId, id: { $ne: device.id }, type: { $in: OWN_CLIMATE_TYPES } }, { name: 1, type: 1 })
+      .lean<Pick<StoredDevice, 'name' | 'type'> | null>();
+    if (!held) return;
+
+    throw conflict('place_holds_a_climate', 'A place has one climate, and a controller or fridge module already holds this one.', [
+      { field: 'spaceId', code: 'climate_held', detail: `${held.name ?? held.type} stands there. Give this device a place of its own.` },
+    ]);
   }
 
   /**
@@ -149,10 +281,16 @@ export class DevicesService {
    * The code the display shows is the whole proof, and it names the device, so
    * nothing else identifies one. A device that belongs to no space has no card
    * to appear on, so a claim always ends in one: naming a space puts it there,
-   * and naming none makes one.
+   * and naming none makes one. `joinSpaceId` names one only for a device that
+   * holds no climate of its own: the client cannot know the type before the claim.
    */
   public async claim(ctx: AccessContext, body: DeviceClaimCreate): Promise<DeviceClaimResult> {
     const ownerId = accountOf(ctx, 'A device belongs to somebody, and this session is nobody.');
+    if (body.spaceId && body.joinSpaceId) {
+      throw unprocessable('two_places', 'Name the place by `spaceId` or by `joinSpaceId`, not both.', [
+        { field: 'joinSpaceId', code: 'exclusive', detail: 'Leave `spaceId` out where `joinSpaceId` is given.' },
+      ]);
+    }
 
     const claimCode = await this.claimCodes.findOne({ code: body.code.trim().toUpperCase() }).lean<StoredClaimCode>();
     if (!claimCode) throw notFound('claim_code_unknown', 'No device is showing that code. Read it off the display again.');
@@ -162,31 +300,41 @@ export class DevicesService {
     // somebody does when a half-finished claim was interrupted, so it is worth
     // its own refusal: "belongs to somebody" reads as broken hardware when the
     // somebody is the person holding it.
-    if (device.ownerId === ownerId) throw conflict('device_already_yours', 'You have already added this device. It is on your Devices list.');
+    if (device.ownerId === ownerId) throw conflict('device_already_yours', 'You have already added this device. It is under Control.');
     if (device.ownerId !== null) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
     const given = body.name ?? device.name ?? null;
-    const name = given ?? device.type;
+    const named = body.spaceId ?? (OWN_CLIMATE_TYPES.includes(device.type) ? undefined : body.joinSpaceId);
     // Putting a device into a space that exists is managing that space.
-    if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    if (named) await this.access.require(ctx, subjectRef('space', named), 'manage');
+    // The claimer is about to own the device, and a device stands only in a place of its owner.
+    if (named) await this.requireAPlaceOf(ownerId, named);
+    if (named) await this.refuseSecondClimate(device, named);
+    // A claim is never refused for a name: a second "Abluft" in the place is "Abluft 2".
+    const name =
+      given === null ? device.type : named && given !== device.type ? numbered(given, new Set((await this.namesIn(named, device.id)).keys())) : given;
 
     // The device is taken first, and taken atomically: two people reading one
     // display cannot both end up owning it, and nothing is created for a claim
     // that lost the race.
     const claimed = await this.devices
-      .findOneAndUpdate({ id: device.id, ownerId: null }, { $set: { ownerId, name, 'state.claimedAt': new Date() } }, { new: true })
+      .findOneAndUpdate(
+        { id: device.id, ownerId: null },
+        { $set: { ownerId, name, 'state.claimedAt': new Date(), 'state.released': null } },
+        { new: true },
+      )
       .lean<StoredDevice>();
     if (!claimed) throw conflict('device_claimed', 'That device already belongs to somebody.');
 
     // The code is spent; the display shows a fresh one when the device is asked.
     await this.claimCodes.deleteOne({ id: claimCode.id });
 
-    // A device that belongs to no space has no card to appear on, so a claim
-    // always ends in one: naming none makes one.
-    const made = body.spaceId ? null : await this.spaces.create(this.spaceFor(ownerId, claimed, given));
-    const spaceId = body.spaceId ?? made?.id ?? null;
+    // The type is the server's to know: the claim brought a word for each kind of place it may make.
+    const said = body.spaceNames?.[claimed.type === 'fridge' ? 'fridge' : 'tent']?.trim() || given;
+    const made = named ? null : await this.spaces.create(await this.spaceFor(ownerId, claimed, said));
+    const spaceId = named ?? made?.id ?? null;
 
-    await this.devices.updateOne({ id: device.id }, { $set: { spaceId } });
+    const { placements } = await this.place(device.id, spaceId);
     // A report that arrived between the two writes above made the camera row
     // before the device had anywhere to stand, so the place is put right here.
     // The row is this owner's already - a camera is made for the owner of the
@@ -198,12 +346,12 @@ export class DevicesService {
     // makes one only for a device somebody owns, and the device does not say
     // its camera again until it restarts. So the claim makes it from what was
     // reported, and the camera is read from the first pass after the claim.
-    await this.cameraOf({ ...claimed, spaceId });
+    await this.cameraOf({ ...claimed, spaceId, placements });
     // A space made for the claim has nothing standing in it yet; one that was
     // named may be a tent in the middle of a grow.
-    if (body.spaceId) await this.stoodIn(device.id, body.spaceId);
+    if (named) await this.stoodIn(device.id, named);
 
-    return { device: this.serialise({ ...claimed, spaceId }, ctx.isDemo), spaceCreated: made !== null };
+    return { device: this.serialise({ ...claimed, spaceId, placements }, ctx.isDemo), spaceCreated: made !== null };
   }
 
   private async cameraOf(device: StoredDevice): Promise<void> {
@@ -228,10 +376,34 @@ export class DevicesService {
    * The alerts it and its camera raised go too. Nothing watches the device for
    * the previous owner any more, so an open one would stay open on their bell
    * for good, and a closed one would turn up on the next owner's device page.
+   *
+   * Where it stood stays on the record, closed: the readings it took there are
+   * still in the store, and the grows of the account that gives it up keep
+   * their curves. The next owner's places begin with a placement of their own.
+   * When and how it was let go is kept until the next claim (`by`): an account
+   * deleted with it is not somebody giving one device up.
    */
-  public async releaseClaim(id: string): Promise<void> {
+  public async releaseClaim(id: string, by: DeviceRelease = 'given_up'): Promise<void> {
+    await this.place(id, null);
+    const held = await this.devices.findOne({ id }, { ownerId: 1, name: 1 }).lean<Pick<StoredDevice, 'ownerId' | 'name'> | null>();
     const released = await this.devices
-      .findOneAndUpdate({ id }, { $set: { ownerId: null, spaceId: null, name: null, isDemo: false, scheduleClock: null, 'state.claimedAt': null } })
+      .findOneAndUpdate(
+        { id },
+        {
+          $set: {
+            ownerId: null,
+            spaceId: null,
+            name: null,
+            isDemo: false,
+            scheduleClock: null,
+            'state.claimedAt': null,
+            // The places it stood in go on calling it what its holder did (`calledIn`) - unless that account is
+            // being deleted, whose places go with it and whose name for the device is nobody's to keep.
+            'state.released':
+              by === 'account_deleted' ? { at: new Date(), by } : { at: new Date(), by, ownerId: held?.ownerId ?? null, name: held?.name ?? null },
+          },
+        },
+      )
       .lean<StoredDevice>();
     if (!released) throw notFound('device_not_found', 'There is no device with that id.');
 
@@ -271,18 +443,19 @@ export class DevicesService {
    * device to stand in.
    *
    * A place is not a piece of hardware, so its name is never the hardware's
-   * type: "controller" would head the first card of a grower's home, in lower
-   * case and in English whatever language they read. A claim that brings no
-   * name leaves the tail of the id the device has printed on it, which belongs
-   * to no language and to no second device, and stands there until the person
-   * who plugged the device in says what the place is called.
+   * type or id: the claim says what to call it (`spaceNames`, in the claimer's
+   * language), else it is called what the device was named, else the word for
+   * what it is - never a scrap of an id on the first card of a grower's home.
    */
-  private spaceFor(ownerId: string, device: StoredDevice, name: string | null): SpaceDocument {
+  private async spaceFor(ownerId: string, device: StoredDevice, name: string | null): Promise<SpaceDocument> {
+    const kind = SPACE_KIND[device.type] ?? 'tent';
+
     return {
       id: uuidv4(),
       ownerId,
-      kind: SPACE_KIND[device.type] ?? 'other',
-      name: name ?? device.id.slice(-6).toUpperCase(),
+      kind,
+      // A claim is never refused for a name: a second "Zelt" is "Zelt 2".
+      name: await freeNameFor(this.spaces, ownerId, kind, name ?? UNNAMED[kind] ?? 'Place'),
       roomId: null,
       presetPrompt: 'ask',
       retention: { climateDays: null },
@@ -310,18 +483,28 @@ export class DevicesService {
         vpdLeafOffsetNight: device.settings.vpdLeafOffsetNight,
         ppfdLuxFactor: device.settings.ppfdLuxFactor,
       },
-      control: controlOf(
-        device.type,
-        device.configuration,
-        device.baseWorkmode,
-        device.beforeDrying,
-        device.beforeGermination ?? null,
-        device.germinationChoices ?? null,
+      control: withApplied(
+        controlOf(
+          device.type,
+          device.configuration,
+          device.baseWorkmode,
+          device.beforeDrying,
+          device.beforeGermination ?? null,
+          device.germinationChoices ?? null,
+        ),
+        device,
       ),
       isDemo: device.isDemo,
       state: {
         lastSeenAt: device.state.lastSeenAt?.toISOString() ?? null,
         claimedAt: device.state.claimedAt?.toISOString() ?? null,
+        released: device.state.released ? { at: device.state.released.at.toISOString(), by: device.state.released.by } : null,
+        // Put on as its first settings arrive, and only where it still stands: the climate is the place's.
+        awaitedClimate:
+          device.awaitedClimate && device.awaitedClimate.spaceId === device.spaceId
+            ? { stage: device.awaitedClimate.stage, preset: device.awaitedClimate.preset }
+            : null,
+        limitBeforeDark: device.limitBeforeDark ?? null,
         firmwareId: device.state.firmwareId,
         updateStartedAt: device.state.updateStartedAt?.toISOString() ?? null,
         updateEndedAt: device.state.updateEndedAt?.toISOString() ?? null,
@@ -348,3 +531,7 @@ export class DevicesService {
  */
 const told = (before: Pick<StoredDevice, 'firmware' | 'state'>, body: DeviceUpdate): boolean =>
   body.firmware !== undefined && body.firmware.targetId !== before.firmware.targetId && body.firmware.targetId !== before.state.firmwareId;
+
+/** A device's control with the climate preset it was last put on, which Steuerung names it by. */
+const withApplied = (control: DeviceControl | null, device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell'>): DeviceControl | null =>
+  control && { ...control, preset: device.appliedClimate ?? null, ...spellEndsOn(control, device) };

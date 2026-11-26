@@ -8,11 +8,9 @@ import { TimeInput } from '../TimeInput';
 import styles from './DayNight.module.css';
 
 /**
- * A press that is held steps again and again, the way a thermostat's buttons
- * do: once on the press, then after a pause every tenth of a second until the
- * finger comes off. The click a press ends in is the one step a short press
- * makes, so a press that has been repeating swallows it rather than stepping
- * once more.
+ * A press that is held steps again and again, as a thermostat's buttons do:
+ * once on the press, then after a pause every tenth of a second. The click a
+ * repeating press ends in is swallowed rather than stepping once more.
  */
 function useRepeat(step: () => void) {
   const latest = useRef(step);
@@ -69,22 +67,33 @@ interface StepperProps {
   /** The two buttons, as a screen reader reads them out. */
   less: string;
   more: string;
-  /** The figure differs from what the device holds, which is drawn so a save is seen to send it. */
+  /** The figure differs from what is stored, which is drawn so a save is seen to send it. */
   changed?: boolean;
+  /** Stored, and not yet with a device that is not heard: the amber of everything it has not been handed. */
+  pending?: boolean;
+  /** Writes a whole figure with its decimals too - "25,0" - where it stands beside others of its reading. */
+  padded?: boolean;
   disabled?: boolean;
-  onChange: (value: number) => void;
+  /** Hands on every figure as it is typed rather than once the field is left: a sheet whose save waits for a tap. */
+  live?: boolean;
+  /** The id of the sentence that says why the figure is refused, where one stands. */
+  describedBy?: string;
+  /**
+   * The figure as it was typed - outside the range too, never brought into it - or NaN for text that is no
+   * figure, which the field keeps. Whoever holds the figure says why it is refused and does not send it. A live
+   * field hands each figure on `typing`, and the last once more as it is left: "2" on the way to "26" is refused
+   * only if the field is left at it.
+   */
+  onChange: (value: number, typing?: boolean) => void;
 }
 
 /**
  * One target, set in place: − and + either side of the figure, the figure
- * itself typed into where that is quicker. A thumb sets a temperature to the
- * half degree with a tap or two rather than chasing it along a slider a
- * hundred pixels wide, and the two halves of a table fit side by side on a
- * phone.
- *
- * The field keeps what is being typed until it is left, because "3" on the way
- * to "31" is not a temperature to snap to; the arrow keys step like the
- * buttons do.
+ * itself typed into where that is quicker. The field keeps what is being
+ * typed until it is left, because "3" on the way to "31" is not a temperature
+ * to snap to; the arrow keys step as the buttons do. A typed figure is handed
+ * on as typed, outside the range too: refusing it is the holder's, and a
+ * figure brought into the range by itself was a figure nobody typed.
  */
 export function Stepper({
   name,
@@ -98,36 +107,49 @@ export function Stepper({
   less,
   more,
   changed = false,
+  pending = false,
+  padded = false,
   disabled = false,
+  live = false,
+  describedBy,
   onChange,
 }: StepperProps) {
   const [typing, setTyping] = useState<string | null>(null);
   const [announced, setAnnounced] = useState('');
-  const textOf = (figure: number) => {
-    const written = decimalFigure(figure, Number.isInteger(figure) ? 0 : decimals);
-    return spokenUnit ? `${written} ${spokenUnit}` : written;
-  };
-  const written = decimalFigure(value, Number.isInteger(value) ? 0 : decimals);
+  const writtenOf = (figure: number) => decimalFigure(figure, Number.isInteger(figure) && !padded ? 0 : decimals);
+  const textOf = (figure: number) => (spokenUnit ? `${writtenOf(figure)} ${spokenUnit}` : writtenOf(figure));
+  const readable = Number.isFinite(value);
+  const written = readable ? writtenOf(value) : '';
+  const invalid = !readable || value < min || value > max;
 
   const scale = 10 ** decimals;
-  const clamp = (next: number) => Math.min(max, Math.max(min, Math.round(next * scale) / scale));
+  const rounded = (next: number) => Math.round(next * scale) / scale;
+  const clamp = (next: number) => Math.min(max, Math.max(min, rounded(next)));
   const by = (direction: 1 | -1) => () => {
-    // On the grid the step makes, so a figure typed off it lands back on it.
-    const steps = direction > 0 ? Math.floor(value / step + 1e-9) + 1 : Math.ceil(value / step - 1e-9) - 1;
+    setTyping(null);
+    // On the grid the step makes, so a figure typed off it lands back on it; a step from outside the range lands inside it.
+    const from = readable ? value : direction > 0 ? min - step : max + step;
+    const steps = direction > 0 ? Math.floor(from / step + 1e-9) + 1 : Math.ceil(from / step - 1e-9) - 1;
     const next = clamp(steps * step);
     if (next !== value) onChange(next);
     return next;
+  };
+  /** What the text says as a figure: rounded to the field's decimals, NaN where it is none. */
+  const figureOf = (text: string) => {
+    const typed = typedFigure(text);
+    return typed === null ? Number.NaN : rounded(typed);
   };
   // Focus stays on the button, so the figure it set is said through a live region.
   const press = (direction: 1 | -1) => () => setAnnounced(`${name} ${textOf(by(direction)())}`);
   const down = useRepeat(press(-1));
   const up = useRepeat(press(1));
 
+  // Left with text that is no figure, the field keeps it, so what is refused is what stands there.
   const commit = () => {
     if (typing === null) return;
-    const typed = typedFigure(typing);
-    if (typed !== null) onChange(clamp(typed));
-    setTyping(null);
+    const typed = figureOf(typing);
+    if (live || !Object.is(typed, value)) onChange(typed, false);
+    if (Number.isFinite(typed)) setTyping(null);
   };
 
   const keys = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -140,9 +162,16 @@ export function Stepper({
   };
 
   return (
-    <span className={styles.stepper} data-changed={changed || undefined}>
+    <span className={styles.stepper} data-changed={changed || undefined} data-pending={(pending && !changed) || undefined}>
       {/* At the end of its range a button says so rather than being disabled, which would drop the focus. */}
-      <button type="button" className={styles.stepButton} aria-label={less} disabled={disabled} aria-disabled={value <= min || undefined} {...down}>
+      <button
+        type="button"
+        className={styles.stepButton}
+        aria-label={less}
+        disabled={disabled}
+        aria-disabled={(readable && value <= min) || undefined}
+        {...down}
+      >
         <Minus size={16} strokeWidth={2} aria-hidden />
       </button>
       <span className={styles.stepFigure}>
@@ -152,21 +181,33 @@ export function Stepper({
           inputMode="decimal"
           role="spinbutton"
           aria-label={name}
-          aria-valuenow={value}
+          aria-valuenow={readable ? value : undefined}
           aria-valuemin={min}
           aria-valuemax={max}
-          aria-valuetext={textOf(value)}
+          aria-valuetext={readable ? textOf(value) : undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? describedBy : undefined}
           value={typing ?? written}
           disabled={disabled}
-          size={Math.max(2, written.length)}
+          size={Math.max(2, (typing ?? written).length)}
           onFocus={event => event.currentTarget.select()}
-          onChange={event => setTyping(event.target.value)}
+          onChange={event => {
+            setTyping(event.target.value);
+            if (live) onChange(figureOf(event.target.value), true);
+          }}
           onBlur={commit}
           onKeyDown={keys}
         />
         {unit ? <span className={styles.stepUnit}>{unit}</span> : null}
       </span>
-      <button type="button" className={styles.stepButton} aria-label={more} disabled={disabled} aria-disabled={value >= max || undefined} {...up}>
+      <button
+        type="button"
+        className={styles.stepButton}
+        aria-label={more}
+        disabled={disabled}
+        aria-disabled={(readable && value >= max) || undefined}
+        {...up}
+      >
         <Plus size={16} strokeWidth={2} aria-hidden />
       </button>
       <span className={ui.visuallyHidden} aria-live="polite">
@@ -193,9 +234,8 @@ const HALF_HOUR = 30 * 60;
 
 /**
  * A time of day, set the same way: the buttons move it by half an hour along
- * the account's wall clock, landing on the half hour, and the field in the
- * middle is the browser's own time field - a wheel on a phone - for a time
- * that is easier typed.
+ * the account's wall clock, and the field in the middle is the browser's own
+ * time field - a wheel on a phone.
  */
 export function ClockStepper({ name, seconds, offset, less, more, changed = false, disabled = false, onChange }: ClockStepperProps) {
   const local = roundTheClock(seconds + offset);

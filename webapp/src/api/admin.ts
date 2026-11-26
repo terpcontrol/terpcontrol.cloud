@@ -102,7 +102,7 @@ export const useAdminCameras = () =>
 
 /**
  * Every device on the install, whoever owns it. It is the same serialiser the
- * Devices tab reads, so a row here carries exactly what a row there does - the
+ * Devices page reads, so a row here carries exactly what a row there does - the
  * owner's id among it, which is why the user page is read beside this one to
  * turn an id into the handle the board draws.
  */

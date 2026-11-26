@@ -1,22 +1,27 @@
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import type { GrowListItem, ShareLink, Space } from '@fg2/shared-types/v1';
 import { useMe } from '@/api/account';
+import { useCameras } from '@/api/cameras';
 import { useEveryGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
 import { useDeleteShareLink, useRevokeShareLink, useShareLinks } from '@/api/sharing';
 import { useEverySpace } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { useLog } from '@/log/log-context';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { ageLabel } from '@/ui/age';
 import { CopyButton } from '@/ui/CopyButton';
-import { LoadFailed, Refused, RefreshFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { useZone } from '@/ui/zone';
-import { dayLabel, isDead, lifetimeDays, linkAddress } from './links';
+import { LinkAddress } from '@/screens/space/members/InviteTerms';
+import { dayLabel, isDead, linkAddress, picturesPossible } from './links';
 import { NewLinkSheet } from './NewLinkSheet';
 import { MePage } from '../parts';
 import { SectionHead } from './SectionHead';
@@ -42,7 +47,7 @@ export function ShareLinks() {
   const { user } = useSession();
 
   return (
-    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')}>
+    <MePage title={t('me.shareLinks.title')} demo={t('me.shareLinks.demo')} grows>
       <Links userId={user?.id ?? null} />
     </MePage>
   );
@@ -70,6 +75,9 @@ type Subject = { known: 'named'; name: string; isPublic: boolean | null } | { kn
  */
 type Stripping = { known: true; hideWeights: boolean; hideCounts: boolean } | { known: false; word: string };
 
+/** What a link onto a place where nothing grows hides of a grow: nothing, because it shows none. */
+const NOTHING_TO_HIDE: Stripping = { known: true, hideWeights: false, hideCounts: false };
+
 function Links({ userId }: { userId: string | null }) {
   const { t, i18n } = useTranslation();
   const now = useNow();
@@ -77,13 +85,21 @@ function Links({ userId }: { userId: string | null }) {
   const links = useShareLinks();
   const grows = useEveryGrow();
   const spaces = useEverySpace();
+  const cameras = useCameras();
   const me = useMe();
   const mayManage = useMayManage();
-  const [drafting, setDrafting] = useState(false);
+  // A place's edit page asks for a link onto that place (`?place=`): the sheet opens on it, first among the choices.
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('place');
+  const [drafting, setDrafting] = useState(asked !== null);
+  const draftDone = () => {
+    setDrafting(false);
+    if (asked !== null) setParams({}, { replace: true });
+  };
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (links.isPending) return <Waiting lines={4} />;
-  if (!links.data) return <LoadFailed retry={() => void links.refetch()} />;
+  if (!links.data) return <LoadFailed read={links} />;
 
   /** The word for a list that has not been read: it is loading, or it failed, or the cursor outran the cap - never that what it holds is not there. */
   const unread = (list: { isPending: boolean }): Subject => ({ known: 'unread', word: list.isPending ? t('home.waiting') : t('shell.loadFailed') });
@@ -121,9 +137,18 @@ function Links({ userId }: { userId: string | null }) {
 
   const describe = (link: ShareLink) => {
     const subject = subjectOf(link);
+    // Whether it carries pictures is said only where it could: until the cameras are read, as it was made.
+    const pictures = !cameras.data || picturesPossible(cameras.data.items, link.subject);
+    // A place's link shows plants and harvests only of a grow standing there: without one, it hides none of them.
+    const growing =
+      link.subject.type === 'grow' ||
+      !grows.data ||
+      grows.data.items.some(grow => grow.endedAt === null && grow.placements.some(one => one.spaceId === link.subject.id && one.endedAt === null));
     return {
       title: titleOf(t, link, subject),
-      parts: isDead(link, now) ? deadParts(t, link, now, i18n.language, zone) : grantParts(t, link, subject, privacy, now, i18n.language, zone),
+      parts: isDead(link, now)
+        ? deadParts(t, link, now, i18n.language, zone)
+        : grantParts(t, link, subject, growing ? privacy : NOTHING_TO_HIDE, pictures, now, i18n.language, zone),
     };
   };
 
@@ -132,8 +157,9 @@ function Links({ userId }: { userId: string | null }) {
       <RefreshFailed failedAt={links.isError ? links.dataUpdatedAt : null} now={now} />
 
       <SectionHead label={t('me.shareLinks.active')} count={active.length} />
+      {/* "Noch keine Links vergeben" stood above the link just revoked: none is handed out only where none ever was. */}
       {active.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.none')}</p>
+        <NothingHere>{t(dead.length > 0 ? 'me.shareLinks.noneActive' : 'me.shareLinks.none')}</NothingHere>
       ) : (
         <ul className={ui.group} aria-label={t('me.shareLinks.active')}>
           {active.map(link => (
@@ -163,7 +189,7 @@ function Links({ userId }: { userId: string | null }) {
           no card, once both lists have actually answered. Two accounts in five
           of the restored database own neither a tent nor a grow. */}
       {nothingToShare ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.shareLinks.noSubjects')}</p>
+        <NothingHere>{t('me.shareLinks.noSubjects')}</NothingHere>
       ) : (
         <button
           type="button"
@@ -175,8 +201,24 @@ function Links({ userId }: { userId: string | null }) {
         </button>
       )}
 
-      {drafting ? <NewLinkSheet grows={own(grows.data?.items)} spaces={own(spaces.data?.items)} onClose={() => setDrafting(false)} /> : null}
-      {opened ? <LinkSheet link={opened} {...describe(opened)} dead={isDead(opened, now)} onClose={() => setOpenId(null)} /> : null}
+      {drafting && grows.data && spaces.data ? (
+        <NewLinkSheet
+          grows={own(grows.data.items)}
+          spaces={own(spaces.data.items)}
+          chosen={asked ? { type: 'space', id: asked } : null}
+          first={asked ? 'space' : 'grow'}
+          onClose={draftDone}
+        />
+      ) : null}
+      {opened ? (
+        <LinkSheet
+          link={opened}
+          {...describe(opened)}
+          name={nameOf(t, subjectOf(opened))}
+          dead={isDead(opened, now)}
+          onClose={() => setOpenId(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -204,10 +246,10 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
   const { t } = useTranslation();
 
   return (
-    <li className={`${ui.card} ${styles.card}`} data-dead={dead ? '' : undefined}>
+    <li className={`${ui.card} ${ui.row3} ${styles.card}`} data-dead={dead ? '' : undefined}>
       <button type="button" className={styles.cardText} onClick={onOpen}>
         <span className={styles.cardTitle}>{title}</span>
-        <span className={`mono ${styles.cardLine}`}>
+        <span className={styles.cardLine}>
           <Line parts={parts} />
         </span>
       </button>
@@ -222,46 +264,68 @@ function LinkCard({ link, title, parts, dead, onOpen }: { link: ShareLink; title
 
 /**
  * The link's own sheet: its address in full, and the one thing that can still
- * be done to it. A live link is revoked, which keeps its card and dates it; a
- * link that has already stopped is forgotten, which takes the card away. The
- * address of a dead one is not shown, because it leads nowhere and an address
- * on a screen is an address somebody copies.
+ * be done to it. A live link is revoked, which keeps its card and dates it -
+ * asked first, since nothing starts it again (Chris, 2026-11-14), by the bare
+ * question: what revoking does stands in the paragraph above it -, and answered
+ * with a toast; a link that has already stopped is forgotten, which takes the
+ * card away. The address of a dead one is not shown, because it leads nowhere
+ * and an address on a screen is an address somebody copies.
  */
-function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; title: string; parts: Part[]; dead: boolean; onClose: () => void }) {
+function LinkSheet({
+  link,
+  title,
+  name,
+  parts,
+  dead,
+  onClose,
+}: {
+  link: ShareLink;
+  title: string;
+  /** What the link is onto, as the toast names it. */
+  name: string;
+  parts: Part[];
+  dead: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const revoke = useRevokeShareLink();
   const remove = useDeleteShareLink();
+  const end = dead ? remove : revoke;
+  const [asking, setAsking] = useState(false);
   const address = linkAddress(link);
+  const ended = () =>
+    end.mutate(link.id, {
+      onSuccess: () => {
+        onClose();
+        tell({ label: t(dead ? 'me.shareLinks.forgotten' : 'me.shareLinks.revokedNow', { name }), undo: null });
+      },
+    });
 
   return (
     <Sheet
       title={title}
       onClose={onClose}
       actions={
-        <div className={styles.actions}>
-          {dead ? (
-            <button
-              type="button"
-              className={`${ui.button} ${ui.danger}`}
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(link.id, { onSuccess: onClose })}
-            >
-              {t('sharing.forget')}
+        asking ? (
+          <Asking
+            note={t('me.shareLinks.revokeAsk')}
+            yes={t('sharing.revoke')}
+            danger
+            busy={end.isPending}
+            onYes={ended}
+            onCancel={() => setAsking(false)}
+          />
+        ) : (
+          <div className={styles.actions}>
+            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={end.isPending} onClick={dead ? ended : () => setAsking(true)}>
+              {t(dead ? 'sharing.forget' : 'sharing.revoke')}
             </button>
-          ) : (
-            <button
-              type="button"
-              className={`${ui.button} ${ui.danger}`}
-              disabled={revoke.isPending}
-              onClick={() => revoke.mutate(link.id, { onSuccess: onClose })}
-            >
-              {t('sharing.revoke')}
+            <button type="button" className={ui.button} onClick={onClose}>
+              {t('sharing.cancel')}
             </button>
-          )}
-          <button type="button" className={ui.button} onClick={onClose}>
-            {t('sharing.cancel')}
-          </button>
-        </div>
+          </div>
+        )
       }
     >
       <div className={styles.sheetBody}>
@@ -269,28 +333,27 @@ function LinkSheet({ link, title, parts, dead, onClose }: { link: ShareLink; tit
           <div>
             <span className="label">{t('me.shareLinks.address')}</span>
             <div className={styles.addressRow}>
-              <code className={`mono ${styles.address}`}>{address}</code>
+              <LinkAddress address={address} className={styles.address} />
               <CopyButton value={address} label={t('sharing.copyLink')} />
             </div>
           </div>
         )}
-        <p className={`mono ${styles.cardLine}`}>
+        <p className={styles.cardLine}>
           <Line parts={parts} />
         </p>
         <p className={styles.sentence}>{t(dead ? 'me.shareLinks.forgetNote' : 'me.shareLinks.revokeNote')}</p>
-        <Refused error={revoke.error ?? remove.error} />
+        <Refused error={end.error} />
       </div>
     </Sheet>
   );
 }
 
-/** "Tent 1 · timeline · for 7 days": what it is about, of which kind, and for how long it was made. */
-const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => {
-  const days = link.kind === 'view' ? lifetimeDays(link) : null;
-  const name = subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
+/** What a link is onto, as a sentence names it. */
+const nameOf = (t: Translate, subject: Subject): string =>
+  subject.known === 'named' ? subject.name : subject.known === 'gone' ? t('me.shareLinks.gone') : subject.word;
 
-  return [name, t(`me.shareLinks.kind.${link.kind}`), days === null ? null : t('me.shareLinks.lasting', { count: days })].filter(Boolean).join(' · ');
-};
+/** "Tent 1 · timeline": what it is about, and of which kind. How long it lasts is the line's, by the day it ends. */
+const titleOf = (t: Translate, link: ShareLink, subject: Subject): string => [nameOf(t, subject), t(`me.shareLinks.kind.${link.kind}`)].join(' · ');
 
 /** The link's window, in the words the grow's share sheet uses, where it has one. */
 const windowOf = (t: Translate, link: ShareLink, now: DateTime, locale: string, zone: string | null): string | null => {
@@ -326,6 +389,7 @@ const grantParts = (
   link: ShareLink,
   subject: Subject,
   privacy: Stripping,
+  pictures: boolean,
   now: DateTime,
   locale: string,
   zone: string | null,
@@ -348,7 +412,7 @@ const grantParts = (
     });
   }
 
-  parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
+  if (pictures) parts.push({ text: t(link.includeCameras ? 'me.shareLinks.camsOn' : 'me.shareLinks.camsOff') });
   if (!privacy.known) {
     parts.push({ text: privacy.word });
   } else {

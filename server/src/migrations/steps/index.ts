@@ -24,6 +24,16 @@ import { darkGermination } from './022-dark-germination';
 import { fridgeCo2Sensor } from './023-fridge-co2-sensor';
 import { orphanedAlerts } from './024-orphaned-alerts';
 import { demoPlaces } from './025-demo-places';
+import { devicePlacements } from './026-device-placements';
+import { emptyRooms } from './027-empty-rooms';
+import { uniquePlaceNames } from './028-unique-place-names';
+import { remindersOfEndedPlaces } from './029-reminders-of-ended-places';
+import { openAlertsWhereTheDeviceStands } from './030-open-alerts-where-the-device-stands';
+import { handSetPhases } from './031-hand-set-phases';
+import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-grows';
+import { oneClimateAPlace } from './033-one-climate-a-place-with-its-past';
+import { fansWithoutALamp } from './034-fans-without-a-lamp';
+import { lampsDarkWhereItIsDark } from './035-lamps-dark-where-it-is-dark';
 
 /**
  * In order, and the order matters in eight places:
@@ -47,7 +57,11 @@ import { demoPlaces } from './025-demo-places';
  *   and the cycle each device runs is added to the record that step 018 opened;
  * - germination is renamed where it meant the seedling climate over the plans,
  *   templates, grows and diary lines in the new shape, reading the dark mode a
- *   step carries after the work modes have cleared `small` and `full` away.
+ *   step carries after the work modes have cleared `small` and `full` away;
+ * - the rooms nothing is left in are ended before the names are made unique,
+ *   so that an ended room takes no name from one that stays.
+ * - the reminders of ended places go after the empty rooms have ended, so that
+ *   a room ended by that step loses its own too.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -78,4 +92,14 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   fridgeCo2Sensor,
   orphanedAlerts,
   demoPlaces,
+  devicePlacements,
+  emptyRooms,
+  uniquePlaceNames,
+  remindersOfEndedPlaces,
+  openAlertsWhereTheDeviceStands,
+  handSetPhases,
+  restingRemindersOfEndedGrows,
+  oneClimateAPlace,
+  fansWithoutALamp,
+  lampsDarkWhereItIsDark,
 ];

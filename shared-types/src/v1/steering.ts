@@ -9,7 +9,7 @@ type Metric = z.infer<typeof metric>;
  *
  * Stated here because every screen that judges a tent has to agree: the live
  * card, the verdict over the last day, the bands under the timeline's curves and
- * the cockpit's tiles. Each kept its own copy of these lists, and the copies
+ * Start's tiles. Each kept its own copy of these lists, and the copies
  * drifted - at night the card called a tent's CO2 "in band" against a target
  * the panel two taps away said it did not have. No schema, so a client imports
  * this module on its own without pulling zod in.

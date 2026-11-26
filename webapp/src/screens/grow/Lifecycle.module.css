@@ -1,16 +1,6 @@
-/* The row of actions on the grow page and the insides of the four sheets they
-   open. The sheet itself, the chips, the cards and the buttons are the app's
-   own, so nothing here restates a surface, a radius or a colour. */
-
-/* Its chips join the row of the grow page's header they are drawn into, and
-   wrap with the rest of it rather than as a block of their own. */
-.actions {
-  display: contents;
-}
-
-.action {
-  color: var(--ink);
-}
+/* The insides of the sheets behind a grow's menu. The sheet itself, the chips,
+   the cards and the buttons are the app's own, so nothing here restates a
+   surface, a radius or a colour. */
 
 /* What the server last said the grow reads as, over the questions about it. */
 .now {
@@ -20,15 +10,6 @@
 
 .submit {
   width: 100%;
-}
-
-.rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .row {
@@ -51,28 +32,27 @@
   color: var(--muted);
 }
 
-.rowHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
+.rowTitle {
+  font-weight: var(--weight-medium);
 }
 
-.rowTitle {
-  font-weight: var(--weight-semibold);
+/* A row's name keeps its line where it fits: what stands beside it goes under it, at the right, rather than breaking
+   "Haze 3, Haze 4" after "Haze". */
+.row :has(> .rowMeta) {
+  flex-wrap: wrap;
 }
 
 .rowMeta {
   flex-shrink: 0;
+  margin-left: auto;
   font-size: var(--text-xs);
   color: var(--muted);
   text-align: right;
 }
 
-.rowActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+/* What a row offers - put it right, take it back - is a target a finger finds: a chip's 30 px is a label's. */
+.rowActions > button {
+  height: var(--action-height);
 }
 
 /* The correction or the withdrawal, opened inside the row it is about. */
@@ -88,13 +68,6 @@
 /* What a change will move, said before it moves. Sentences rather than bullets:
    a list marker in front of each would read as options to choose between. */
 .effect {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
   color: var(--ink);
 }
 
@@ -104,12 +77,6 @@
   border-color: var(--warning);
   font-size: var(--text-sm);
   color: var(--ink);
-}
-
-.weights {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
 }
 
 .weight {
@@ -136,4 +103,9 @@
 
 .weightInput:focus {
   outline: none;
+}
+
+/* A finger tall, as every choice in a sheet is. */
+.kinds > button {
+  height: var(--control-height);
 }

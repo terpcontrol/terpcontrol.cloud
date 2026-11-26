@@ -1,28 +1,34 @@
 import { useTranslation } from 'react-i18next';
-import { FieldNumber } from '@/ui/advanced/Fields';
+import { useSettings } from '@/screens/control/climate/saved';
+import { NumberSetting, SettingsBlock } from '@/screens/control/devices/Settings';
+import { figureSaid, pendingOf } from '@/screens/control/devices/setting-words';
 import { advancedItem, type DeviceContext } from '@/ui/advanced/item';
 import { LightRamps } from './Tuning.advanced';
 
 /**
  * What a LIGHT does beyond its times and its brightness, which are under
- * Steuerung: how many minutes it fades in after it comes on and out before it
- * goes off, and the temperature at the lamp it starts dimming at to protect
- * itself. The firmware's defaults are sensible, which is why these are here.
+ * Steuerung: how many minutes it fades in and out, and the temperature at the
+ * lamp it starts dimming at to protect itself.
  */
 
 function Overheat({ device, mayManage }: DeviceContext) {
   const { t } = useTranslation();
+  const settings = useSettings(device);
+  const unit = t('targets.unit.temperature');
+  const limit = { name: 'overheatAt', label: t('lightOverheat.label'), say: figureSaid(unit) };
 
   return (
-    <FieldNumber
-      device={device}
-      name="overheatAt"
-      label={t('lightOverheat.label')}
-      help="advanced.lightOverheat"
-      unit={t('targets.unit.temperature')}
-      note={t('lightOverheat.note')}
-      disabled={!mayManage}
-    />
+    <SettingsBlock pending={pendingOf(device, settings, [limit])}>
+      <NumberSetting
+        device={device}
+        settings={settings}
+        mayManage={mayManage}
+        name={limit.name}
+        label={limit.label}
+        help="advanced.lightOverheat"
+        unit={unit}
+      />
+    </SettingsBlock>
   );
 }
 

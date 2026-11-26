@@ -1,7 +1,7 @@
 ---
-summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-10-14
-source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores, disk space; read it before an upgrade, a restore or a repair by hand
+updated: 2026-11-26
+source: compacting the production and staging databases, 2026-11-26; the eighth whole-app walk's lists built - step 035 (the redesign session's fix round of 2026-11-15); step 033 changed to hold a second climate's past and repair its first version, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); step 034 (the redesign session's fix round of 2026-11-15, after the sixth whole-app walk); step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -11,7 +11,7 @@ paths:
   - up.sh
   - scripts/mongodb.sh
 ---
-# Data operations: upgrades, migrations, old data, backups
+# Data operations: upgrades, migrations, old data, backups, disk space
 
 Where the data lives and the rules for code are in [data.md](data.md). The migration was decided in
 [ADR 0001](../adr/0001-app-rewrite-data-model.md#migration); its runner, steps, commands and refusals are explained in
@@ -50,10 +50,75 @@ Pi) are in the [MongoDB upgrade runbook](../runbooks/mongodb-upgrade.md).
   be reachable when a database with dryers is migrated.
 - **Some steps run live code:** `011-entries` the device-message parser (`common/v1/device-messages.ts`), `017` the
   credential filter of `common/log-path.ts`, `018` and `021` `targetsOf`, `019` and `021` the class rules, work modes
-  and plan steps of the server, `020` the Influx delete predicate, `002` and `021` modules of `shared-types`.
+  and plan steps of the server, `020` the Influx delete predicate, `002`, `021` and `028` modules of `shared-types` (`028`: `nameKey` and `numbered` of `place-names.ts`).
   Changing one changes what that step writes on every install not yet migrated, while migrated ones keep the old
   result: a refactor there leaves each step's output as it was (the step specs and a dry run on a copy show it), and
   a new meaning for migrated data is a new step.
+- **Steps on the new collections** (`026-device-placements`, `027-empty-rooms`, `028-unique-place-names`; the
+  redesign session of 2026-11-12, ADR 0001 "Places, rooms and where a device stood"): they read `devices` and
+  `spaces` in the new shape, move nothing aside and reject nothing. Each finds its work by what is still wrong - a
+  device without `placements`, a room that has not ended and holds no place, two names that collide - so a second run
+  changes nothing and a run killed half-way continues. A database from the old cloud has no rooms, so 027 finds none
+  there; 028 renames only the places of one owner that were named after devices sharing a name (step 004 numbers
+  the places it names itself). 026 dates a placement from `state.claimedAt`, which step 005 leaves null for every
+  device carried over, and then from the device's `createdAt`: a carried-over device has stood in its place since it
+  registered, which is what every read assumed before. On a restored copy of a migrated database (2026-11-12,
+  by the runbook, on a stack of its own) the three steps took 10 ms of a run of under 0.1 s: every device with a
+  place got one open placement, the unclaimed ones an empty list, no room was found, one place was renamed, and
+  the second run and the boot after it said "nothing to do". Two more of the same kind follow (the redesign
+  session of 2026-11-13; run in unit tests, not yet on a restored copy): `029-reminders-of-ended-places` deletes
+  the reminders about a place or room that has ended - ending a place left them behind until then, so any
+  database that ran the rewrite can hold some (the session's test stack held four) - and
+  `030-open-alerts-where-the-device-stands` gives every open alert the place its device stands in now (both since
+  verified on a copy of production data, see the handover). `031-hand-set-phases` (Chris, 2026-11-13; unit tests
+  only) gives every phase stored as `preset` to a person - its `setBy` where one was stored, else the grow's owner -
+  with its diary line, since the data cannot tell a phase set on the grow page from a preset applied under
+  Steuerung and only a plan writes `plan`; counted as `phases.givenToTheirPerson` and `entries.givenToTheirPerson`.
+  `032-resting-reminders-of-ended-grows` (the redesign session of 2026-11-14, after Chris's answer; unit tests only)
+  rests the reminders of a grow that has ended - `restingSince` its end, off every list until the grow is reopened -
+  and deletes those of a grow that is gone, counted as `reminders.restingWithAGrow` and `reminders.goneWithAGrow`:
+  ending or deleting a grow left them under Rhythmen until then, so any database that ran the rewrite can hold some.
+  A deleting version named `032-reminders-of-ended-grows` ran on the session's own test stack and never shipped; a
+  record holding that name is answered by no step, and the resting step runs on the next boot.
+  `033-one-climate-a-place-with-its-past` (Chris, 2026-11-14, after the fifth walk's fix round; changed after the
+  seventh walk; unit tests, and its repair run on a copy of the session's stack) splits the places that hold two
+  controllers or fridge modules - a place holds one climate, and the server refuses a second since. The lead stays
+  (of them the first that holds targets, else the first, by `createdAt` and id); each other one moves into a new place
+  named after it - else after the old place - and numbered where the owner has that name, of the old place's kind,
+  room, owner, preset question and retention, with the old place's memberships copied role and all (invitations and
+  share links stay with the old place). **The new place holds the device's whole stay**: it was a climate of its own
+  all along, so its open placement keeps its start and only changes its place (a first placement still reaching back
+  past its start), and the alerts it and its Terp Cam raised over that stay, an open one wherever it began, and the
+  lines it, its alarms and its plan wrote there (`system`, `alarm`, `plan`, never a person's) go along - the lines out
+  of the old place's grow (`growId: null`). Grows, a person's lines, phase lines, reminders and stream cameras stay.
+  Counted as `spaces.madeForASecondClimate`, `devices.movedToAPlaceOfTheirOwn`, `memberships.copiedToTheNewPlace`,
+  `cameras.movedWithTheirDevice`, `alerts.movedWithTheirDevice` and `entries.movedWithTheirDevice`. Ids are derived
+  from the device and the membership, so a killed run makes no second place; ended places and rooms are left.
+  Its first version, `033-one-climate-a-place`, began the new place's stay at the step's instant, so a split place
+  said nothing had been measured there while its tiles and alerts showed the device's last reading; it ran only on
+  the session's stack. The step under its new name runs once more there and **repairs** what that version did: a
+  placement in a place the step made (the id is derived from the device) that begins when that place was made,
+  straight after one that ended then, becomes one stay from where the first began, and what the device left in the
+  old place goes along as above - counted as `devices.givenTheirPastInTheirPlace`. A repaired stay no longer begins
+  when its place was made, so a second run finds nothing; on the stack's copy it gave 9 devices their past, moved 2
+  alerts and 22 lines, and a second run found nothing. A record of the old name is answered by no step.
+  `034-fans-without-a-lamp` (the redesign session of 2026-11-15, after the sixth whole-app walk; unit tests only)
+  takes `configuration.lights` and `configuration.daynight` out of every AIR fan's document, counted as
+  `devices.fanLampSectionsRemoved`: a climate written to a place merged a preset's lamp limit and light window into
+  any document that stated targets, a fan's too, until the server wrote a section only where a document carries it.
+  Any database where a grow was started with a stage, a preset applied or a plan run in a place holding a fan can
+  hold some; a fan's own upload never carries them, so a second run finds none.
+  `035-lamps-dark-where-it-is-dark` (the redesign session's fix round after the eighth whole-app walk, 2026-11-15;
+  unit tests only) puts every lamp module to nothing that stands where a controller or fridge module germinates or
+  dries and that no spell has darkened yet (`configuration.limit` over 0, no `limitBeforeDark`), keeping its
+  brightness in `limitBeforeDark` - what `lampsFollow` does as a spell begins, done once for places that were already
+  germinating or drying when lamps were first kept dark (ADR 0007). Counted as `devices.lampsDarkened`; a lamp
+  somebody lit since its spell darkened it keeps that brightness. The lamp is handed the stored document at its next
+  `fetch`, which the release's recreated broker makes every device send; a second run finds every such lamp at
+  nothing.
+  Its reads are empty over "the last 24 hours" for a
+  reason that is not the migration: a backup's readings end on the day it was taken, so a place's curves are checked
+  there with `?at=` on that day, and a grow's diary on its older pages.
 - **Duration:** the real run on a copy of the hosted database took 1.5 to 2 minutes (93-115 s for the 17 steps of
   2026-09-23) once the command built its indexes first and `011-entries` thinned the repeated sensor lines, nearly all
   of it `011-entries`. A dry run writes nothing and under-reports (6x before the thinning).
@@ -118,3 +183,14 @@ the [backup-and-restore runbook](../runbooks/backup-and-restore.md); what they r
 - A restored copy reaches real people from its first boot: mail, Web Push and Telegram where its `.env` configures
   them, the webhooks stored in the data always - see
   [test against a production backup](../runbooks/test-against-a-production-backup.md).
+
+## Disk space
+
+- **Deleted documents do not give their space back.** WiredTiger keeps it in the collection's file and reuses it only
+  for that collection. Where new documents are smaller than the deleted ones, it is never reused: the pre-rewrite
+  `images` collection kept ~18 GB after its pixels had moved to GridFS and old pictures were deleted (file 33 GB,
+  data 9.8 GB); `legacy_images` kept 4.6 GB after the migration had emptied it.
+- `db.getSiblingDB(<db>).runCommand({compact: "<collection>"})` gives it back; `stats().freeStorageSize` shows what is
+  there. Since MongoDB 4.4 it does not block reads and writes; the 18 GB took 42 s (2026-11-26). It frees less than
+  `freeStorageSize` when the free blocks lie between used ones (`imagedata.chunks`: 1.7 GB free, 0 freed). The
+  dumps are logical, so a compact does not shrink a backup.

@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
@@ -56,11 +56,24 @@ const followContract = (): Plugin => ({
   },
 });
 
+/**
+ * An install's own markup at the end of every page - a feedback widget, analytics - from `VITE_CUSTOM_SCRIPT_TAG`
+ * (the image's build arg `CUSTOM_SCRIPT_TAG`). It goes into `index.html` itself rather than through React, because
+ * such a snippet is a plain `<script src>` that expects to be parsed with the page; markup set as `innerHTML` never
+ * runs its scripts. Whoever builds the image writes it, as with `CUSTOM_LINKS_HTML`; empty adds nothing.
+ */
+const customScriptTag = (tag: string): Plugin => ({
+  name: 'custom-script-tag',
+  transformIndexHtml: html => (tag.trim() ? html.replace('</body>', `  ${tag.trim()}\n  </body>`) : html),
+});
+
 export default defineConfig(({ mode }) => ({
   ...shared,
   plugins: [
     react(),
     followContract(),
+    // `loadEnv` because Vite has not yet read `.env*` into `process.env` while the config is being evaluated.
+    customScriptTag(loadEnv(mode, process.cwd(), 'VITE_').VITE_CUSTOM_SCRIPT_TAG ?? ''),
     VitePWA({
       registerType: 'autoUpdate',
       // `public/manifest.webmanifest` is the manifest, linked from index.html.
@@ -109,6 +122,7 @@ export default defineConfig(({ mode }) => ({
       '@fg2/shared-types/v1-schemas/plan-clock.js',
       '@fg2/shared-types/v1-schemas/steering.js',
       '@fg2/shared-types/v1-schemas/pages.js',
+      '@fg2/shared-types/v1-schemas/place-names.js',
       '@fg2/shared-types/v1-schemas/entitlement.js',
       '@fg2/shared-types/v1-schemas/firmware-channels.js',
     ],

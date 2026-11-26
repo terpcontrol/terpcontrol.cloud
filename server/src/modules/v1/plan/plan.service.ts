@@ -210,9 +210,9 @@ export class PlanService implements ScheduleFollower {
       case 'pause':
         return this.pause(plan, transition.reason, now);
       case 'resume':
-        return this.resume(plan, now, by);
+        return this.resume(plan, now, by, transition.growId);
       case 'goto':
-        return this.goTo(plan, transition.stepId, now, by);
+        return this.goTo(plan, transition.stepId, now, by, transition.growId);
     }
   }
 
@@ -227,11 +227,11 @@ export class PlanService implements ScheduleFollower {
    * The step is named by its id rather than its place, so a list edited on
    * another screen in the meantime cannot move the plan onto the wrong one.
    */
-  private async goTo(plan: StoredPlan, stepId: string, now: Date, by: string | null): Promise<StoredPlan> {
+  private async goTo(plan: StoredPlan, stepId: string, now: Date, by: string | null, growId?: string): Promise<StoredPlan> {
     const index = plan.steps.findIndex(step => step.id === stepId);
     if (index < 0) throw conflict('plan_step_gone', 'This plan has no such step any more.');
 
-    return this.progress.activate(plan, index, now, 'goto', by);
+    return this.progress.activate(plan, index, now, 'goto', by, growId);
   }
 
   /** The answer the step was waiting for. It is the step's end, so the plan moves on as it would have on its own. */
@@ -311,7 +311,7 @@ export class PlanService implements ScheduleFollower {
    * on running the hand-set targets - or, in germination, the hand-made choices
    * about the humidity - under a plan that said it was running.
    */
-  private async resume(plan: StoredPlan, now: Date, by: string | null): Promise<StoredPlan> {
+  private async resume(plan: StoredPlan, now: Date, by: string | null, growId?: string): Promise<StoredPlan> {
     if (plan.state.status === 'running') throw conflict('plan_already_running', 'This plan is already running.');
     if (plan.steps.length === 0) throw conflict('plan_has_no_steps', 'A plan without steps has nothing to run.');
 
@@ -320,6 +320,6 @@ export class PlanService implements ScheduleFollower {
     }
 
     const index = plan.state.activeStepIndex < plan.steps.length ? plan.state.activeStepIndex : 0;
-    return this.progress.activate(plan, index, now, 'resume', by);
+    return this.progress.activate(plan, index, now, 'resume', by, growId);
   }
 }

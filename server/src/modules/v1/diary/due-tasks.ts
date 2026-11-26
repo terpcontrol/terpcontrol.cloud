@@ -1,11 +1,14 @@
 import { FilterQuery, Model } from 'mongoose';
-import type { DueTask } from '@fg2/shared-types/v1';
+import type { Task } from '@fg2/shared-types/v1';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { reminderIdOf } from './task-ids';
 
+/** An occurrence of a reminder that is due: what the task list, an entry that closes it and the announcement read. */
+export type DueTask = Pick<Task, 'id' | 'kind' | 'label' | 'dueAt' | 'subject' | 'assigneeId'>;
+
 /**
- * The tasks a reminder puts on a card, worked out at read time.
+ * The tasks a reminder puts on the task list, worked out at read time.
  *
  * Tasks are never stored. A reminder that happens once is one task, and its id
  * is the reminder's; a rhythm is a task per occurrence, whose id names the
@@ -16,7 +19,7 @@ import { reminderIdOf } from './task-ids';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How far ahead a card looks. Anything overdue is due; tomorrow is close enough to prepare for. */
+/** How far ahead a reminder is due by default. Anything overdue is due; tomorrow is close enough to prepare for. */
 const DUE_HORIZON_MS = 2 * DAY_MS;
 
 /** How far ahead the task list looks: its board has a column for the rest of the week. */
@@ -29,8 +32,15 @@ const occurrencePrefix = (reminderId: string): string => `${reminderId}:`;
 export const reminderOfTask = (reminders: readonly ReminderDocument[], taskId: string): ReminderDocument | undefined =>
   reminders.find(reminder => reminder.id === reminderIdOf(taskId));
 
-/** The reminders about any of these spaces or grows. */
-export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[]): FilterQuery<ReminderDocument> => ({
+/** A reminder that is not resting with its ended grow (`restingSince`): what comes due and what is listed. */
+export const AWAKE: FilterQuery<ReminderDocument> = { restingSince: null };
+
+/**
+ * The reminders about any of these spaces or grows, but those resting with their ended grow - unless `resting` asks
+ * for them too: what was ticked off today is listed as done though its grow ended since.
+ */
+export const remindersAbout = (spaceIds: readonly string[], growIds: readonly string[], resting = false): FilterQuery<ReminderDocument> => ({
+  ...(resting ? {} : AWAKE),
   $or: [
     { 'subject.type': 'space', 'subject.id': { $in: spaceIds } },
     { 'subject.type': 'grow', 'subject.id': { $in: growIds } },
@@ -102,7 +112,10 @@ export const dueTasksOf = (
     const last = completions
       .filter(entry => entry.taskId?.startsWith(occurrencePrefix(reminder.id)))
       .reduce<Date | null>((newest, entry) => (newest && newest > entry.occurredAt ? newest : entry.occurredAt), null);
-    let dueAt = new Date((last ?? reminder.createdAt).getTime() + reminder.everyDays * DAY_MS);
+    // A rhythm whose grow was reopened counts on from then, not from a tick before its rest.
+    const counted = last ?? reminder.createdAt;
+    const from = reminder.resumedAt && reminder.resumedAt > counted ? reminder.resumedAt : counted;
+    let dueAt = new Date(from.getTime() + reminder.everyDays * DAY_MS);
     // An occurrence that is done is never offered again. Counted from the
     // newest tick that cannot happen, short of a tick backdated to the very
     // millisecond of an earlier one; were it to, the rhythm steps on rather

@@ -14,7 +14,7 @@ const TARGET_CHANGES = 'targetChanges';
  * targets. One that is not moved for a month would keep a running grow's band
  * on the snapshot its phase took when it began - which is what the tent is
  * judged against nowhere else - for that whole month. Opened here, the record
- * agrees with the cockpit from this instant on; what came before it is drawn as
+ * agrees with Start from this instant on; what came before it is drawn as
  * it always was.
  *
  * A device whose record has begun already is left alone, so a run made to

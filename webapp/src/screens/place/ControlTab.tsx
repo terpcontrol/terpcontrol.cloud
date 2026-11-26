@@ -1,62 +1,81 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
-import { useCurrentPlace } from '@/app/places';
+import { useParams, useSearchParams } from 'react-router';
+import { CONTROL_PAGES, controlPath, useCurrentPlace } from '@/app/places';
 import { useSession } from '@/api/session';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { PageHead } from '@/ui/PageHead';
+import { LoadFailed, NoLongerHere, NothingHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { Control } from '../control/Control';
-import { PlaceHeading, VisitingTitle } from './PlaceHeading';
-import heading from './PlaceHeading.module.css';
+import { PlaceEnded, Visited } from './PlaceTitle';
 import styles from './Place.module.css';
 
 /**
- * Steuerung, the tab: what one place is held at and what watches over it. It
- * opens on the place a link names, else the one last looked at, else the only
- * one; with more than one place its title is the switcher. The pages below it
- * - the alarm rules, the plan - keep the place in the address too, so an alert
- * can link to the rule it came from.
+ * Steuerung, the bar's item: what the chosen place is held at, what watches
+ * over it and what stands in it. A link that names a place chooses it, and the
+ * pages below - the alarm rules, the plan, the outputs, the work mode - keep
+ * it in the address, so an alert can link to the rule it came from.
  */
 export function ControlTab() {
   const { t } = useTranslation();
   const { user } = useSession();
   const { page = null } = useParams();
-  const { home, places, here, visiting, choose } = useCurrentPlace();
+  const [params] = useSearchParams();
+  const { home, places, here, visiting, ended, stray } = useCurrentPlace(true);
+  // While the places are read, and where they cannot be, a page keeps its own name: a page under Steuerung its way back too.
+  const sub = CONTROL_PAGES.find(one => one === page) ?? null;
+  // Steuerung's two columns take the page's width; a page below it is one column, in the middle as every page is.
+  const frame = `${ui.stack3} ${ui.page} ${sub ? styles.reading : styles.steering}`;
+  const space = params.get('space');
+  const under = (body: ReactNode) => (
+    <section className={frame}>
+      <PageHead title={t(`control.page.${sub}`)} back={{ to: space ? controlPath(space) : '/control', label: t('control.back') }} />
+      {body}
+    </section>
+  );
 
-  if (home.isPending) return <Waiting lines={4} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  if (home.isPending || ended === undefined) return sub ? under(<Waiting lines={4} />) : <Waiting lines={4} title={t('shell.tabs.control')} />;
+  if (!home.data) return sub ? under(<LoadFailed read={home} values />) : <LoadFailed title={t('shell.tabs.control')} read={home} values />;
+  if (stray) return <NoLongerHere what="space" />;
 
   // Support, reading a customer's place: the place the address names, read only,
   // rather than "nothing to steer here" over a place that steers plenty.
   if (visiting) {
     return (
-      <section className={`${styles.page} ${styles.reading}`}>
-        <VisitingTitle title={t('shell.tabs.control')} spaceId={visiting} />
-        <Control spaceId={visiting} sub={page} />
+      <Visited spaceId={visiting}>
+        <section className={frame}>
+          <Control spaceId={visiting} sub={page} />
+        </section>
+      </Visited>
+    );
+  }
+
+  if (ended) {
+    return (
+      <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
+        <PlaceEnded title={t('shell.tabs.control')} name={ended.name} spaceId={ended.id} />
       </section>
     );
   }
 
   if (!here) {
     return (
-      <section className={`${styles.page} ${styles.reading}`}>
-        <h1 className={heading.title}>{t('shell.tabs.control')}</h1>
-        <p className={`${ui.cardDashed} ${ui.note}`}>
-          {user?.isDemo === true ? (
-            t('place.control.demoNothing')
-          ) : (
-            <>
-              {t('place.control.nothing')} <Link to="/claim">{t('space.control.noControllerAdd')}</Link>
-            </>
-          )}
-        </p>
+      <section className={`${ui.stack3} ${ui.page} ${styles.steering}`}>
+        <h1>{t('shell.tabs.control')}</h1>
+        {user?.isDemo === true ? (
+          <p className={`${ui.cardDashed} ${ui.note}`}>{t('place.control.demoNothing')}</p>
+        ) : (
+          <NothingHere to="/claim" where={t('space.control.noControllerAdd')}>
+            {t('place.control.nothing')}
+          </NothingHere>
+        )}
       </section>
     );
   }
 
   return (
-    <section className={`${styles.page} ${styles.reading}`}>
-      <PlaceHeading title={t('shell.tabs.control')} places={places} here={here} onChoose={choose} />
-      <Control key={here.spaceId} spaceId={here.spaceId} sub={page} />
+    <section className={frame}>
+      <Control key={here.spaceId} spaceId={here.spaceId} sub={page} here={here} several={places.length > 1} />
     </section>
   );
 }

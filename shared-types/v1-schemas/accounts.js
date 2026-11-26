@@ -27,7 +27,7 @@ exports.userPrivacy = (0, common_js_1.named)('UserPrivacy', zod_1.z.object({
  */
 exports.layoutSeen = (0, common_js_1.named)('LayoutSeen', zod_1.z.object({
     diary: zod_1.z.boolean().describe('Whether the diary was there: the Log button in the navigation and the grow block on a place.'),
-    places: zod_1.z.boolean().describe('Whether Start listed several places rather than being the cockpit of the only one.'),
+    places: zod_1.z.boolean().describe('Whether Start listed several places rather than being the page of the only one.'),
 }));
 /**
  * Display and scheduling. `units` is presentation only; `timezone` is an IANA
@@ -462,6 +462,6 @@ exports.pushPayload = (0, common_js_1.named)('PushPayload', zod_1.z.object({
     severity: common_js_1.severity,
     // A week's film is watched on the page of the camera that shot it, and the
     // film's own id says nothing about which camera that is. Without this the
-    // worker has nowhere to send a tap but the home screen.
+    // worker has nowhere to send a tap but Start.
     cameraId: (0, common_js_1.id)().nullable().describe('Where the subject is looked at, for a subject its own id cannot address.'),
 }));

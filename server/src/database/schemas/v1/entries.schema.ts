@@ -54,7 +54,7 @@ export const entriesSchema = new Schema<EntryDocument>(
   { collection: 'entries', versionKey: false },
 );
 
-// A grow's timeline, newest first: the diary, the week cards and the public page
+// A grow's timeline, newest first: the diary and the public page
 // all read it, which makes this the busiest index in the database.
 entriesSchema.index({ growId: 1, occurredAt: -1 });
 // The same timeline for a space, and for one device's own log.

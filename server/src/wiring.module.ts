@@ -14,20 +14,21 @@ import {
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
+  DEVICE_SETTINGS_SINK,
   DEVICE_TUNNEL_SINK,
 } from '@modules/device-protocol/device-sinks';
 import { TunnelModule } from '@modules/tunnel/tunnel.module';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraModule } from '@modules/v1/camera/camera.module';
+import { CameraReportsService } from '@modules/v1/camera/camera-reports.service';
 import { LIGHT_STATE_READER } from '@modules/v1/camera/light-state';
 import { SERIES_READER } from '@modules/v1/camera/series-reader';
 import { StillDaylightService } from '@modules/v1/camera/still-daylight.service';
 import { RELAY_REQUEST } from '@modules/v1/camera/relay-request';
-import { TerpCamDirectService } from '@modules/v1/camera/terpcam-direct.service';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
-import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { ALARM_ROUTING } from '@modules/alarm/alarm.types';
 import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
@@ -50,7 +51,7 @@ const PORTS: ExistingProvider[] = [
   // that decides from a device being there whether it is told to update.
   { provide: DEVICE_SAMPLE_SINK, useExisting: DataService },
   { provide: DEVICE_METRIC_SINK, useExisting: AlarmEngineService },
-  { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: TerpCamDirectService },
+  { provide: DEVICE_CAMERA_REPORT_SINK, useExisting: CameraReportsService },
   { provide: DEVICE_TUNNEL_SINK, useExisting: TunnelService },
   { provide: DEVICE_PRESENCE_SINK, useExisting: FirmwareRolloutService },
   // A device written into germination, or told what germination does about
@@ -79,6 +80,9 @@ const PORTS: ExistingProvider[] = [
   // A grow entering a phase with a preset puts the tent it stands in on that
   // climate, which is the space slice's table and the space slice's write.
   { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+  // And a device that had no settings to write that climate into is put on it as they arrive, which the protocol
+  // module only knows to tell.
+  { provide: DEVICE_SETTINGS_SINK, useExisting: ClimatePresetsService },
   // And the same phase moves the thresholds the stage binds, which are rules
   // the alarms own and the phase writer only knows the stage of.
   { provide: STAGE_ALARMS, useExisting: StageAlarmsService },
@@ -93,9 +97,6 @@ const PORTS: ExistingProvider[] = [
   // plan knows it is standing still, and who keeps the tent and what each of
   // them asked to be told on is the notifications part's to answer.
   { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
-  // And an alarm belongs in the diary of whatever is growing where it
-  // happened, which the phase writer answers from the grows' placements.
-  { provide: GROW_IN_SPACE, useExisting: PhaseWriterService },
 ];
 
 /**

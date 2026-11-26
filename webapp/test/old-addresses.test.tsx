@@ -49,10 +49,10 @@ const draw = (at: string) =>
 
 describe('an old device page', () => {
   it.each([
-    ['charts', '/charts?space=space-9'],
+    ['charts', '/timeline?space=space-9'],
     ['diary', '/timeline?space=space-9'],
     ['settings', '/control?space=space-9'],
-    ['testmode', '/devices?space=space-9'],
+    ['testmode', '/control?space=space-9'],
     ['', '/spaces/space-9'],
   ])('/%s lands on %s', async (page, landing) => {
     draw(`/device/sim-fridge-1/${page}`);
@@ -66,32 +66,38 @@ describe('an old device page', () => {
     );
     const landed = new URL((await screen.findByText(/Landed on/)).textContent!.replace('Landed on ', ''), 'http://app');
 
-    expect(landed.pathname).toBe('/charts');
+    // The curves it ticked - the outputs as the strips they are now, the log as the diary's lines - over its week,
+    // at its step. The picture stands in the cursor's card and a window that ends now follows it, so neither is asked.
+    expect(landed.pathname).toBe('/timeline');
     expect(Object.fromEntries(landed.searchParams)).toEqual({
       space: 'space-9',
       range: '7d',
-      show: 'temperature,out.light,out.fanInternal',
-      msgs: '1',
-      cam: '1',
+      show: 'temperature,light,outputs,diary,machine',
       vpd: 'night',
-      live: '1',
       step: '900',
     });
   });
 
-  it('opens a stretch the old page was dated to: two dates as the zoom, one as where the timespan started', async () => {
+  it('opens a width the chips do not name as that width up to now', async () => {
+    draw('/device/sim-fridge-1/charts?timespan=6h');
+    expect(await screen.findByText('Landed on /timeline?space=space-9&last=21600')).toBeInTheDocument();
+  });
+
+  it('opens a stretch the old page was dated to: two dates as the window, one as where the timespan started', async () => {
     draw('/device/sim-fridge-1/charts?timespan=1d&date=2026-09-20T10:00:00.000Z&dateEnd=2026-09-21T16:00:00.000Z');
-    expect(await screen.findByText(/zoom=2026-09-20T10%3A00%3A00.000Z%7E2026-09-21T16%3A00%3A00.000Z/)).toBeInTheDocument();
+    const zoomed = new URL((await screen.findByText(/Landed on/)).textContent!.replace('Landed on ', ''), 'http://app');
+    expect(Object.fromEntries(zoomed.searchParams)).toEqual({ space: 'space-9', from: '2026-09-20T10:00:00.000Z', to: '2026-09-21T16:00:00.000Z' });
   });
 
   it('ends a window the old page dated by its start where that timespan ran out', async () => {
     draw('/device/sim-fridge-1/charts?timespan=1d&date=2026-09-20T10:00:00.000Z');
-    expect(await screen.findByText('Landed on /charts?space=space-9&range=24h&at=2026-09-21T10%3A00%3A00.000Z')).toBeInTheDocument();
+    const dated = new URL((await screen.findByText(/Landed on/)).textContent!.replace('Landed on ', ''), 'http://app');
+    expect(Object.fromEntries(dated.searchParams)).toEqual({ space: 'space-9', from: '2026-09-20T10:00:00.000Z', to: '2026-09-21T10:00:00.000Z' });
   });
 
-  it('lands on the device list for a device the account cannot see', async () => {
+  it('lands on Steuerung for a device the account cannot see', async () => {
     draw('/device/somebody-elses/charts');
-    expect(await screen.findByText('Landed on /devices')).toBeInTheDocument();
+    expect(await screen.findByText('Landed on /control')).toBeInTheDocument();
   });
 });
 
@@ -99,7 +105,7 @@ describe('the old app’s own pages inside the session', () => {
   it.each([
     ['list', '/'],
     ['account', '/me/account'],
-    ['shares', '/me/share-links'],
+    ['shares', '/grows/share-links'],
   ])('/%s is sent on to %s', (path, to) => {
     const route = screens.find(one => one.path === path);
     expect(route?.element).toMatchObject({ props: { to, replace: true } });

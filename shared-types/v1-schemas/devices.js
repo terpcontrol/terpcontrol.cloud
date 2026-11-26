@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.socketSetCommand = exports.socketCredentials = exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.lightHold = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceControl = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
-exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = void 0;
-exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = void 0;
+exports.socketOverrideCommand = exports.maintenanceCommand = exports.rebootCommand = exports.socketPage = exports.lightHold = exports.deviceCapabilities = exports.socket = exports.socketTimer = exports.socketOverride = exports.socketOverrideState = exports.socketState = exports.deviceClaimResult = exports.deviceClaimCreate = exports.claimCode = exports.firmwareBinaryUpload = exports.firmwareBinary = exports.firmwareUpdate = exports.firmwareCreate = exports.deviceFirmwarePage = exports.deviceFirmware = exports.firmwarePage = exports.firmware = exports.deviceClassUpdate = exports.deviceClassCreate = exports.deviceClassPage = exports.deviceClass = exports.deviceClassRollout = exports.deviceClassFirmwareIds = exports.provisionedDevice = exports.adminDeviceProvision = exports.adminDeviceCreate = exports.deviceConfigurationReading = exports.co2FanCoupling = exports.deviceConfigurationPatch = exports.timerWindow = exports.deviceConfigurationEnvelope = exports.deviceUpdate = exports.deviceSettingsWritten = exports.devicePage = exports.device = exports.deviceState = exports.deviceRelease = exports.deviceControl = exports.appliedClimate = exports.dryingReturn = exports.operatingMode = exports.deviceSettings = exports.deviceFirmwareTarget = exports.deviceConfiguration = exports.firmwareChannel = void 0;
+exports.fleetFirmwareStats = exports.deviceSeries = exports.seriesQuery = exports.outputSeries = exports.metricSeries = exports.deviceLive = exports.pendingSettings = exports.pendingSetting = exports.setpoints = exports.setpointsTransition = exports.alertPage = exports.alert = exports.alertWatched = exports.alarmSilence = exports.alarmRuleUpdate = exports.alarmRuleCreate = exports.alarmRulePage = exports.alarmRule = exports.alarmRuleState = exports.alarmWatch = exports.outputRunningWatch = exports.outputLevelWatch = exports.readingWatch = exports.alarmDelivery = exports.alarmDeliveryCustom = exports.alarmDeliveryChannel = exports.alarmWebhook = exports.alarmDeliveryMode = exports.alarmOrigin = exports.planTransition = exports.planTemplateUpdate = exports.planTemplateCreate = exports.planTemplatePage = exports.planTemplate = exports.planReplace = exports.planStepInput = exports.plan = exports.planState = exports.planNotify = exports.planNotifyMode = exports.planStep = exports.stepDuration = exports.durationUnit = exports.socketTestCreate = exports.socketOverrideUpdate = exports.socketUpdate = exports.deviceCommandResult = exports.deviceCommand = exports.socketSetCommand = exports.socketCredentials = void 0;
+exports.adminLogPage = exports.adminLogLine = exports.adminLogLevel = exports.adminStats = exports.adminAlarmWatch = exports.adminRetentionRun = exports.adminRenderStats = exports.adminContentStats = exports.adminCameraStats = exports.adminDeviceStats = exports.adminUserStats = exports.fleet = exports.fleetClass = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 const configuration_fields_js_1 = require("./configuration-fields.js");
@@ -64,6 +64,11 @@ exports.dryingReturn = (0, common_js_1.named)('DryingReturn', zod_1.z.object({
     co2: zod_1.z.number().nullable(),
     lightLimit: zod_1.z.number().nullable(),
 }));
+/** A climate preset as it was applied: the stage, and the preset on top of it where one was named. */
+exports.appliedClimate = (0, common_js_1.named)('AppliedClimate', zod_1.z.object({
+    stage: common_js_1.growthStage,
+    preset: zod_1.z.string().nullable(),
+}));
 exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
     running: zod_1.z.boolean().describe('Whether the device regulates at all. False is `workmode: off`, which is also how a device leaves the factory.'),
     drying: zod_1.z.boolean().describe('Held in the drying work mode by a drying phase: no day and night, no light, no CO2; it dehumidifies and heats.'),
@@ -76,10 +81,37 @@ exports.deviceControl = (0, common_js_1.named)('DeviceControl', zod_1.z.object({
         .optional()
         .describe("While germinating: the night's figures from before - germination holds the night's temperature round the clock and brings a humidity of its own for a humidifier to hold, and both are written in the night's place - which going back to another mode puts back. Only `nightTemperature` and `nightHumidity` are stated. Absent where nothing was kept."),
     germinationChoices: common_js_1.germinationChoices.describe('What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.'),
+    preset: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe("The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept."),
+    endsOn: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe("While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell."),
 }));
+/** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
+exports.deviceRelease = (0, common_js_1.named)('DeviceRelease', zod_1.z.enum(['given_up', 'account_deleted']));
 exports.deviceState = (0, common_js_1.named)('DeviceState', zod_1.z.object({
     lastSeenAt: (0, common_js_1.instant)().nullable().describe('Last sample or status; what `offline` is decided from.'),
     claimedAt: (0, common_js_1.instant)().nullable(),
+    released: zod_1.z
+        .object({
+        at: (0, common_js_1.instant)(),
+        by: exports.deviceRelease,
+    })
+        .nullable()
+        .optional()
+        .describe('When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.'),
+    awaitedClimate: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe('The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.'),
+    limitBeforeDark: zod_1.z
+        .number()
+        .nullable()
+        .optional()
+        .describe('A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.'),
     firmwareId: (0, common_js_1.id)().nullable().describe('What the device reports it is running, which is the build uuid.'),
     updateStartedAt: (0, common_js_1.instant)().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: (0, common_js_1.instant)().nullable(),
@@ -175,6 +207,18 @@ exports.deviceConfigurationEnvelope = (0, common_js_1.named)('DeviceConfiguratio
         .partial()
         .optional()
         .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+    preset: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe('The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.'),
+    bands: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe("The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save."),
+    bandsBefore: exports.appliedClimate
+        .nullable()
+        .optional()
+        .describe("Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request."),
 }));
 /**
  * One window of a smart socket's timer, as the firmware keeps it: switched on
@@ -325,6 +369,14 @@ exports.claimCode = (0, common_js_1.named)('ClaimCode', zod_1.z.object({ id: (0,
 exports.deviceClaimCreate = (0, common_js_1.named)('DeviceClaimCreate', exports.claimCode.pick({ code: true }).extend({
     name: zod_1.z.string().optional().describe('Absent names the device after its type.'),
     spaceId: (0, common_js_1.id)().optional(),
+    spaceNames: zod_1.z
+        .object({ tent: zod_1.z.string(), fridge: zod_1.z.string() })
+        .partial()
+        .optional()
+        .describe('What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.'),
+    joinSpaceId: (0, common_js_1.id)()
+        .optional()
+        .describe('Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.'),
 }));
 /**
  * What a claim answers. The device carries the space it now sits in, so the one
@@ -574,6 +626,10 @@ exports.plan = (0, common_js_1.named)('Plan', zod_1.z.object({
     createdAt: (0, common_js_1.instant)(),
     deviceId: (0, common_js_1.id)(),
     templateId: (0, common_js_1.id)().nullable().describe('What it was started from; null once it no longer matters.'),
+    growId: (0, common_js_1.id)()
+        .nullable()
+        .optional()
+        .describe("The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started."),
     name: zod_1.z.string(),
     steps: zod_1.z.array(exports.planStep),
     loop: zod_1.z.boolean().describe('Start again at the first step instead of completing.'),
@@ -625,6 +681,13 @@ exports.planTemplateCreate = (0, common_js_1.named)('PlanTemplateCreate', export
 /** `PATCH /plan-templates/{id}`: the same fields, each only if it changes. */
 exports.planTemplateUpdate = (0, common_js_1.named)('PlanTemplateUpdate', exports.planTemplateCreate.partial());
 /**
+ * The grow a plan at rest is started for, whose phases its steps set while it stands where the device stands: the
+ * place's lead grow, which the plan screen names before the tap. Not read for a plan that is running or paused.
+ */
+const startedFor = (0, common_js_1.id)()
+    .optional()
+    .describe("For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.");
+/**
  * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
  * plan from the start of the step it names, whether it was running, paused or
  * at rest: going back a step, or starting a plan in the middle of a grow.
@@ -634,8 +697,8 @@ exports.planTransition = (0, common_js_1.named)('PlanTransition', zod_1.z.discri
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['skip']) }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['extend']), by: exports.stepDuration }),
     zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['pause']), reason: zod_1.z.string().nullable() }),
-    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['resume']) }),
-    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['goto']), stepId: (0, common_js_1.id)().describe('The step the plan runs from, by its id.') }),
+    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['resume']), growId: startedFor }),
+    zod_1.z.object({ kind: common_js_1.planTransitionKind.extract(['goto']), stepId: (0, common_js_1.id)().describe('The step the plan runs from, by its id.'), growId: startedFor }),
 ]));
 /* ------------------------------------------------------------------- alarms */
 /**
@@ -737,7 +800,23 @@ exports.alarmRule = (0, common_js_1.named)('AlarmRule', zod_1.z.object({
     silencedUntil: (0, common_js_1.instant)().nullable(),
     state: exports.alarmRuleState,
 }));
-exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.page)(exports.alarmRule));
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
+exports.alarmRulePage = (0, common_js_1.named)('AlarmRulePage', (0, common_js_1.page)(exports.alarmRule).extend({
+    counts: zod_1.z
+        .object({
+        total: zod_1.z.number().int(),
+        enabled: zod_1.z.number().int(),
+        triggered: zod_1.z.number().int().describe('Enabled rules whose watch is out of bounds now.'),
+    })
+        .describe('Over every rule of the device, whichever page this is.'),
+    germination: common_js_1.germinationChoices
+        .nullable()
+        .optional()
+        .describe("While the place the device stands in germinates: what was chosen there about the humidity, which the stage's \"too humid\" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server."),
+}));
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came
  * from is the server's to say - a rule written here is `human` by definition -
@@ -791,7 +870,16 @@ exports.alert = (0, common_js_1.named)('Alert', zod_1.z.object({
     ruleId: (0, common_js_1.id)().nullable().describe('null for an alert the health loop raised without a rule.'),
     deviceId: (0, common_js_1.id)().nullable(),
     cameraId: (0, common_js_1.id)().nullable(),
-    spaceId: (0, common_js_1.id)().nullable(),
+    spaceId: (0, common_js_1.id)()
+        .nullable()
+        .describe('The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.'),
+    spaceName: zod_1.z
+        .string()
+        .nullable()
+        .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
+    startedIn: (0, common_js_1.id)()
+        .nullable()
+        .describe('The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.'),
     kind: common_js_1.alertKind,
     severity: common_js_1.severity,
     startedAt: (0, common_js_1.instant)(),
@@ -848,6 +936,26 @@ exports.setpoints = (0, common_js_1.named)('Setpoints', zod_1.z.object({
         .optional()
         .describe('Set while the device is changing from one half to the other and the climate is given time to follow; null otherwise.'),
 }));
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+exports.pendingSetting = (0, common_js_1.named)('PendingSetting', zod_1.z.object({
+    field: zod_1.z
+        .string()
+        .describe("The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`."),
+    held: zod_1.z
+        .union([zod_1.z.number(), zod_1.z.string()])
+        .nullable()
+        .describe('What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.'),
+    savedAt: (0, common_js_1.instant)().describe('When the value the cloud holds now was stored.'),
+}));
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+exports.pendingSettings = (0, common_js_1.named)('PendingSettings', zod_1.z.object({
+    since: (0, common_js_1.instant)().describe('When the device was last heard.'),
+    settings: zod_1.z.array(exports.pendingSetting),
+}));
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -864,6 +972,9 @@ exports.deviceLive = (0, common_js_1.named)('DeviceLive', zod_1.z.object({
     metrics: zod_1.z.partialRecord(common_js_1.metric, common_js_1.metricValue),
     outputs: zod_1.z.partialRecord(common_js_1.outputMetric, common_js_1.metricValue).describe('The newest value of each output the device has reported driving.'),
     setpoints: exports.setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
+    pending: exports.pendingSettings
+        .nullable()
+        .describe('Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.'),
 }));
 exports.metricSeries = (0, common_js_1.named)('MetricSeries', zod_1.z.object({ metric: common_js_1.metric, points: zod_1.z.array(common_js_1.seriesPoint) }));
 exports.outputSeries = (0, common_js_1.named)('OutputSeries', zod_1.z.object({ output: common_js_1.outputMetric, points: zod_1.z.array(common_js_1.seriesPoint) }));

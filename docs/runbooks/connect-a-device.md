@@ -1,6 +1,6 @@
 ---
 summary: Getting a device onto a server - WiFi setup, "change server" from the display or a phone, claiming it, moving an old Plantalytix module over - and what each refusal means
-updated: 2026-10-08
+updated: 2026-11-12
 source: PR #75 (2026-08-25, phone setup); commit 7f85cc22 (2026-10-04, steps for old modules in the app); firmware/src/wifi.cpp, firmware/src/fridgecloud.cpp, firmware/html/index.html, the server's device registration and the webapp's claim screen as of 2026-10-08
 paths:
   - firmware/src/wifi.cpp
@@ -63,5 +63,5 @@ It still talks to the old cloud and shows no code here until it is moved over. W
 it needs a newer firmware first: [UPGRADING-FIRMWARE.md](../../UPGRADING-FIRMWARE.md). Then **change server** with
 this install's address - the field starts as `http://`, so for `https` delete the `://` before typing the `s` - and
 the join password, wait for the update and the restart, and **connect to portal** for the code. The app shows these
-steps folded under the code field of the claim's first step and of an empty Start
-(`webapp/src/screens/claim/LegacyMove.tsx`).
+steps folded under the code field of the claim's first step (`webapp/src/screens/claim/LegacyMove.tsx`), which is
+where an empty Start's "Gerät hinzufügen" leads.

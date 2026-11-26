@@ -1,22 +1,23 @@
+import { queryOptions } from '@tanstack/react-query';
 import { useRead, useReadPages } from './read';
 import type {
-  Entry,
   EntryPage,
   GrowCreate,
+  GrowDiaryPage,
   GrowListItem,
   GrowPage,
   GrowReport,
   GrowSeries,
   GrowSeriesRange,
   GrowUpdate,
-  GrowWeekCardPage,
   MyGrowCard,
   Plant,
+  PlantCreate,
   PlantPage,
   PlantUpdate,
 } from '@fg2/shared-types/v1';
-import { DIARY_KINDS } from '@/ui/entries';
 import { api } from './client';
+import { ApiError } from './problem';
 import { growChanged } from './lifecycle';
 import { readEvery } from './pages';
 import { invalidate, useWrite } from './write';
@@ -25,11 +26,11 @@ import { invalidate, useWrite } from './write';
 const PLANT_ENTRIES = 50;
 
 /**
- * The grow page's four reads. The grow itself carries its summary - the day
+ * The grow page's reads. The grow itself carries its summary - the day
  * counter, the phase, the "auto" tag - worked out by the server, so nothing
- * here counts days. The weeks are paged, newest first, because every card costs
- * the server a time-series read; the page asks for the next screenful only when
- * somebody scrolls to it.
+ * here counts days. The diary is paged, newest first, because every week of it
+ * costs the server a read of its time series; the page asks for the weeks
+ * before only when somebody asks to see them.
  *
  * The first two are the Log sheet's as well, where there may be no grow at all:
  * a sheet pointed at a tent asks for nothing rather than for a grow called null.
@@ -42,41 +43,31 @@ export const useGrow = (growId: string | null) =>
     enabled: growId !== null,
   });
 
-export const useGrowPlants = (growId: string | null) =>
-  useRead({
+/** A grow's plants: read by the pages, and asked again where a line was refused for a plant deleted meanwhile. */
+export const growPlantsQuery = (growId: string | null) =>
+  queryOptions({
     queryKey: ['grow', growId, 'plants'],
     queryFn: ({ signal }) => api.get<PlantPage>(`/grows/${growId}/plants`, undefined, signal),
-    enabled: growId !== null,
   });
 
-export const useGrowWeeks = (growId: string) =>
-  useReadPages({
-    queryKey: ['grow', growId, 'weeks'],
-    queryFn: ({ pageParam, signal }) => api.get<GrowWeekCardPage>(`/grows/${growId}/weeks`, { cursor: pageParam }, signal),
-    initialPageParam: null as string | null,
-    getNextPageParam: last => last.nextCursor,
-  });
+export const useGrowPlants = (growId: string | null) => useRead({ ...growPlantsQuery(growId), enabled: growId !== null });
+
+/** How many weeks "Frühere Wochen" asks for: two months, which is what somebody looking back wants in one step. */
+export const EARLIER_WEEKS = 8;
 
 /**
- * The rest of a week's diary, asked for only when somebody asks to see it.
- *
- * A week card carries the first ten of its lines and says how many more there
- * are; on a busy week - an alarm that resolved itself nine times in a minute -
- * that leaves the grower's own note off the card. The line that said so named
- * the timeline, which cannot be pointed at a grow that has ended or moved out,
- * so 135 lines of one finished grow were drawn on no screen at all.
- *
- * It is the same route and the same kinds the card's own count is over, bounded
- * by the week's own window, so what arrives is exactly what the card said was
- * missing. The cursor is followed to its end because a week is a handful of
- * rows and half of them would otherwise be a second "there is more".
+ * The diary, a card per day, a few weeks at a time. A line written, moved or taken back reads it again with
+ * everything under the grow's key. Not read while no grow is named: a page that learns of the grow a moment
+ * later stays the page it was.
  */
-export const useWeekEntries = (growId: string, week: { startsAt: string; endsAt: string } | null) =>
-  useRead({
-    queryKey: ['entries', 'week', growId, week?.startsAt ?? null],
-    queryFn: ({ signal }) =>
-      readEvery<Entry>('/entries', signal, { growId, startsAt: week!.startsAt, endsAt: week!.endsAt, kinds: DIARY_KINDS.join(',') }),
-    enabled: week !== null,
+export const useGrowDiary = (growId: string | null) =>
+  useReadPages({
+    queryKey: ['grow', growId, 'diary'],
+    enabled: growId !== null,
+    queryFn: ({ pageParam, signal }) =>
+      api.get<GrowDiaryPage>(`/grows/${growId}/diary`, { cursor: pageParam, limit: pageParam ? EARLIER_WEEKS : undefined }, signal),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.nextCursor,
   });
 
 export const useGrowReport = (growId: string) =>
@@ -88,9 +79,9 @@ export const useGrowReport = (growId: string) =>
 /**
  * Changing the grow itself: its name, its end, what it shares and how it is
  * fed. The answer is the grow, so it is put in place rather than read again; a
- * new scheme also changes the doses every week card states, and a new
- * visibility the list of grows that says which are public, so those are read
- * again with it.
+ * new visibility also changes the list of grows that says which are public, and
+ * a new cover the cards every grow is listed by, so those are read again with
+ * it.
  */
 export const useUpdateGrow = (growId: string) =>
   useWrite(
@@ -98,8 +89,12 @@ export const useUpdateGrow = (growId: string) =>
     (client, grow, body) => {
       client.setQueryData(['grow', growId], grow);
       void invalidate(client, ['home']);
-      if (body.scheme !== undefined) void invalidate(client, ['grow', growId, 'weeks']);
-      if (body.visibility !== undefined) void invalidate(client, ['grows']);
+      // The list carries the start too: a twin of a place is ordered by it, and its day counted from it.
+      if (body.visibility !== undefined || body.startedAt !== undefined) void invalidate(client, ['grows']);
+      // An end or a reopen moves the grow's last day and its reminders: its diary and report are read again - a diary
+      // read before a reopen ended on the day the grow had ended -, with the lists that tell a running grow from an
+      // ended one and the tasks its reminders come back to.
+      if (body.endedAt !== undefined) void invalidate(client, ['grow', growId], ['grows'], ['space'], ['tasks'], ['reminders']);
     },
   );
 
@@ -109,11 +104,32 @@ export const useUpdateGrow = (growId: string) =>
  * about a tent a preset was applied to with no grow in it. One page is every
  * grow anybody has, so there is no cursor to follow.
  */
-export const useGrows = () =>
+export const useGrows = (enabled = true) =>
   useRead({
     queryKey: ['grows', 'all'],
     queryFn: ({ signal }) => api.get<GrowPage>('/grows', { limit: 100 }, signal),
+    enabled,
   });
+
+/**
+ * A grow an address names, looked up among the account's grows before it is asked by itself: one deleted since is
+ * absent from the list, and asking for it by id was a request answered 404. `gone` once nothing holds it - the whole
+ * list read without it, or a 404 -, and `unread` where it could not be asked at all: a failing read is no deletion.
+ */
+export const useNamedGrow = (growId: string | null): { grow: GrowListItem | undefined; pending: boolean; gone: boolean; unread: boolean } => {
+  const listed = useGrows(growId !== null);
+  const found = listed.data?.items.find(one => one.id === growId);
+  // Beyond the list's one page, or where the list could not be read, a grow is asked by itself.
+  const beyond = growId !== null && found === undefined && (listed.isError || (listed.data !== undefined && listed.data.nextCursor !== null));
+  const asked = useGrow(beyond ? growId : null);
+  const missing = asked.error instanceof ApiError && asked.error.status === 404;
+  return {
+    grow: found ?? asked.data,
+    pending: growId !== null && (listed.isPending || (beyond && asked.isPending)),
+    gone: growId !== null && found === undefined && ((listed.data !== undefined && !beyond) || missing),
+    unread: beyond && asked.isError && !missing,
+  };
+};
 
 /**
  * Every grow, to the last page of them, for the screens that look a name up
@@ -159,9 +175,9 @@ export const useSpaceGrows = (spaceId: string | null) =>
  * Every grow that has ever stood in one tent, newest first, which is a
  * different question from what stands there now.
  *
- * The Charts view is the one screen that asks it: laying two runs of a tent
- * over each other is a thing to do with the run that finished, and the list of
- * what is growing there this minute holds exactly one of them.
+ * Grow asks it where nothing grows in the chosen place: the run that finished
+ * there is what it then leads to, and the list of what is growing there this
+ * minute does not hold it.
  */
 export const useGrowsEverIn = (spaceId: string | null) =>
   useRead({
@@ -183,10 +199,9 @@ export const useGrowsEverIn = (spaceId: string | null) =>
 export const useCreateGrow = () =>
   useWrite(
     (body: GrowCreate) => api.post<GrowListItem>('/grows', body),
-    (client, grow) => {
-      client.setQueryData(['grow', grow.id], grow);
-      growChanged(client);
-    },
+    // The answer is not kept as the grow: it has no phase yet, and a page opened the moment the phase is written
+    // would draw "no phase yet" from it before reading the grow that has one.
+    growChanged,
   );
 
 /**
@@ -195,9 +210,8 @@ export const useCreateGrow = () =>
  * to delete a definition: whether anything has ever been written under its key.
  *
  * Which keys are wanted is said in the request, because a series asked for and
- * thrown away is a read of the store nobody looks at. It is kept apart from the
- * Charts view's series, whose last answer stands in for a failed read and has to
- * be one that asked for the climate.
+ * thrown away is a read of the store nobody looks at. Verlauf draws the charted
+ * ones beside its curves and reads the climate elsewhere.
  */
 export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRange, measurements: string[]) => {
   const keys = [...measurements].sort();
@@ -213,12 +227,14 @@ export const useMeasurementSeries = (growId: string | null, range: GrowSeriesRan
  * Everything written about one plant alone. A plant's page shows these apart
  * from the grow's own lines, because a line about the whole grow applies to
  * this plant as well and a list that mixed the two would say the plant was
- * watered by itself.
+ * watered by itself. `enabled` once the plant is known to be the grow's: a deleted one's address asked and was
+ * answered 404.
  */
-export const usePlantEntries = (plantId: string) =>
+export const usePlantEntries = (plantId: string, enabled = true) =>
   useRead({
     queryKey: ['entries', 'plant', plantId],
     queryFn: ({ signal }) => api.get<EntryPage>('/entries', { plantId, limit: PLANT_ENTRIES }, signal),
+    enabled,
   });
 
 /**
@@ -231,3 +247,15 @@ export const useUpdatePlant = (growId: string) =>
     ({ plantId, body }: { plantId: string; body: PlantUpdate }) => api.patch<Plant>(`/plants/${plantId}`, body),
     client => void invalidate(client, ['grow', growId, 'plants'], ['home']),
   );
+
+/**
+ * A plant put in after the start - what replaces a dead one, a cutting that came later - and a plant taken out
+ * again, which the server also takes out of every phase and placement that named it. Either changes what the
+ * grow's summary counts, so everything that draws the grow is read again. A grow goes with its plants and its
+ * share links.
+ */
+export const useAddPlant = (growId: string) => useWrite((body: PlantCreate) => api.post<Plant>(`/grows/${growId}/plants`, body), growChanged);
+
+export const useRemovePlant = () => useWrite((plantId: string) => api.delete(`/plants/${plantId}`), growChanged);
+
+export const useRemoveGrow = () => useWrite((growId: string) => api.delete(`/grows/${growId}`), growChanged);

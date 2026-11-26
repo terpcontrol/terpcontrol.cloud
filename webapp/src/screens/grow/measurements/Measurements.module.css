@@ -2,20 +2,6 @@
    and the sheet one card opens. Layout only - every colour, size and radius is
    a token. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
-}
-
-.head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .growName {
   margin-left: auto;
   color: var(--muted);
@@ -40,9 +26,42 @@
    where these are eight lines of one setting. */
 .card {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+}
+
+/* A measurement's curve over the grow, on a row of its own under its name and switch. */
+.curve {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.scale,
+.axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font-family: var(--font-figure);
+  font-size: var(--text-2xs);
+  color: var(--muted);
+}
+
+.scale {
+  flex-direction: column;
+}
+
+.curve figcaption {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 /* The card's own text is the way into the sheet, so the whole of it is the
@@ -66,7 +85,7 @@
 
 .name {
   font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .unit {
@@ -80,21 +99,21 @@
   font-size: var(--text-xs);
 }
 
-.templates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+/* A template is a finger high where it is tapped, by the air round it: the chip keeps its size and its row stands
+   that much clear of the next. */
+.templates > button {
+  position: relative;
+  margin-block: var(--space-1);
+}
+
+.templates > button::after {
+  position: absolute;
+  inset: -8px 0;
+  content: '';
 }
 
 .chipUnit {
   color: var(--label);
-}
-
-/* The sheet behind a card. */
-.sheetBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
 }
 
 .band {
@@ -139,11 +158,6 @@
   gap: var(--space-2);
   padding-top: var(--space-2);
   border-top: var(--rule-solid);
-}
-
-.actions {
-  display: flex;
-  gap: var(--space-3);
 }
 
 @media (min-width: 900px) {

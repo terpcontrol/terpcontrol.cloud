@@ -21,7 +21,7 @@ describe('device messages against the shipped catalogue', () => {
   });
 
   it('reads a key with no parameter', () => {
-    expect(resolveDeviceMessage(i18n, { key: 'message-co2-low', params: [] }, 'title')).toBe('Low CO2');
+    expect(resolveDeviceMessage(i18n, { key: 'message-co2-low', params: [] }, 'title')).toBe('Low CO₂');
   });
 
   it('prefers the wording written for that exact parameter', () => {
@@ -120,13 +120,13 @@ describe('device messages against the shipped catalogue', () => {
       resolveDeviceMessage(i18n, { key: 'message-firmware-update-complete-with-ids', params: [] }, 'title'),
     );
     expect(resolveDeviceMessage(i18n, message, 'title')).toBe('Firmware update complete');
-    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed");
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe('Your device’s firmware update was completed');
   });
 
   it('names the builds of an update with the arrow, and an unknown one in words', () => {
     const message = { key: 'message-firmware-update-complete-with-ids', params: ['unknown -> 0.0.0'] };
 
-    expect(resolveDeviceMessage(i18n, message, 'text')).toBe("Your device's firmware update was completed: an unknown build → 0.0.0");
+    expect(resolveDeviceMessage(i18n, message, 'text')).toBe('Your device’s firmware update was completed: an unknown build → 0.0.0');
   });
 
   it('says a whole picture is missing without reciting the telemetry in the headline', () => {
@@ -154,7 +154,7 @@ describe('device messages against the shipped catalogue', () => {
     const plants = { source: 'device' as const, text: null, message: { key: 'message-diary-plant-log', params: [] } };
     const sensor = { source: 'device' as const, text: null, message: { key: 'message-ext-sensor-fail', params: [] } };
 
-    expect(entryHeadline(i18n, plants)).toBe('Plant log entry');
+    expect(entryHeadline(i18n, plants)).toBe('Plant entry');
     expect(entryDetail(i18n, plants)).toBeNull();
     // Its two halves differ by a word, so only being named keeps it quiet.
     expect(entryDetail(i18n, sensor)).toBeNull();
@@ -207,13 +207,13 @@ describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', ()
     const lines = 'day.fixed_speed: 100 → 80\nmin_speed: 10 → 20\nmode: 0 → 1\nnight.max_speed: 100 → 60';
 
     expect(said('en', lines)).toBe(
-      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nThe fan runs: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
+      'Speed by day: 100 % → 80 %\nLowest speed: 10 % → 20 %\nFan mode: fixed → by temperature\nHighest speed at night: 100 % → 60 %',
     );
     expect(said('de', lines)).toBe(
       'Drehzahl tagsüber: 100 % → 80 %\nMindestdrehzahl: 10 % → 20 %\nLüfter läuft: fest → nach Temperatur\nHöchstdrehzahl nachts: 100 % → 60 %',
     );
     // A mode a newer firmware adds keeps its code.
-    expect(said('en', 'mode: 3 → 7')).toBe('The fan runs: by both → 7');
+    expect(said('en', 'mode: 3 → 7')).toBe('Fan mode: by both → 7');
   });
 
   it('says the windows a socket slows a fan in, which move with the clocks', () => {
@@ -297,7 +297,7 @@ describe('a LIGHT´s, an AIR fan´s and a smart socket´s settings, changed', ()
         'Off when too hot: off → on\nOff when too hot · Off above: 30 °C → 32 °C\nLeast times · On at least: 0 s → 60 s\nOff when too cold · On again once this much warmer: 1 °C → 1.5 °C',
       );
       expect(line('de', [protections, 'heater', 'plug'])).toContain(
-        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn so viel wärmer: 1 °C → 1,5 °C',
+        'Aus bei Übertemperatur: aus → an\nAus bei Übertemperatur · Aus über: 30 °C → 32 °C\nMindestzeiten · Mindestens an: 0 s → 60 s\nAus bei Untertemperatur · Wieder an, wenn um so viel wärmer: 1 °C → 1,5 °C',
       );
     });
 

@@ -52,6 +52,15 @@ export const useActivateAccount = () => useMutation({ mutationFn: (body: UserAct
  */
 export const useRequestReset = () => useMutation({ mutationFn: (body: PasswordResetCreate) => api.post<void>('/password-resets', body) });
 
+/** Whether a code from a recovery mail can still set a password; it spends nothing (`reset_unknown` where it cannot). */
+const checkReset = (token: string) => api.get<void>(`/password-resets/${encodeURIComponent(token)}`);
+
+export const useCheckReset = () => useMutation({ mutationFn: checkReset });
+
+/** The same asked of a link as it opens, so a spent one is said before a new password is chosen for it. */
+export const useResetValid = (token: string, enabled: boolean) =>
+  useRead({ queryKey: ['password-reset', token], queryFn: () => checkReset(token).then(() => true), enabled, retry: false });
+
 export const useRedeemReset = () =>
   useMutation({
     mutationFn: ({ token, ...body }: PasswordResetRedemption & { token: string }) =>
@@ -143,11 +152,12 @@ export const useTelegramLink = () => useMutation({ mutationFn: () => api.post<Te
 /**
  * Leaving for good. The route answers when the deletion has finished rather
  * than when it started, so what comes back is a server that has already
- * forgotten this account - which is why the session ends here rather than on
- * the screen. Ending it empties the cache too: every query still held is a
- * question nobody will answer.
+ * forgotten this account and its sessions - which is why the session is only
+ * forgotten, here rather than on the screen, and the server is not asked to
+ * end what it no longer knows. Forgetting it empties the cache too: every
+ * query still held is a question nobody will answer.
  */
-export const useDeleteAccount = () => useMutation({ mutationFn: () => api.delete('/me'), onSuccess: () => session.logOut() });
+export const useDeleteAccount = () => useMutation({ mutationFn: () => api.delete('/me'), onSuccess: () => session.logOut(true) });
 
 /**
  * A new password. The current one travels with it, because a stolen session

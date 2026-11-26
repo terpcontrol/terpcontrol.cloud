@@ -4,8 +4,8 @@ import { ApiError, readProblem } from './problem';
 import { session } from './session';
 
 /**
- * One way to call the API: the bearer token is attached here, a 401 is retried
- * once behind a fresh token, and a failure is always an `ApiError` carrying the
+ * One way to call the API: the bearer token is attached here, a 401 about the
+ * token is retried once behind a fresh one, and a failure is always an `ApiError` carrying the
  * problem document. Callers name a route and a type from the contract; nothing
  * in this file knows a shape.
  */
@@ -19,8 +19,8 @@ export type Query = Record<string, string | number | boolean | readonly (string 
 /**
  * A server that accepts the connection and never answers would otherwise hold
  * a screen in "refreshing" forever, and a screen that never hears back can
- * never say that its values are old. Long enough for the week cards, which
- * cost the server a time-series read per week.
+ * never say that its values are old. Long enough for a grow's diary, which
+ * costs the server a time-series read per week.
  */
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -65,13 +65,18 @@ const send = async (path: string, options: RequestOptions, token: string | null)
   return response;
 };
 
+/** The 401 that answers what was typed rather than the token it came with: behind a fresh token it would be the same answer. */
+const TYPED_WRONG = 'current_password_wrong';
+
 const authorized = async (path: string, options: RequestOptions): Promise<Response> => {
   let response = await send(path, options, await session.validToken());
 
   // The token can die between the check and the call - the server's clock decides, not ours.
   if (response.status === 401) {
-    const refreshed = await session.refresh(session.snapshot().tokens?.refreshToken);
-    if (refreshed) response = await send(path, options, refreshed.userToken);
+    const problem = await readProblem(response);
+    const refreshed = problem.code === TYPED_WRONG ? null : await session.refresh(session.snapshot().tokens?.refreshToken);
+    if (!refreshed) throw new ApiError(problem);
+    response = await send(path, options, refreshed.userToken);
   }
 
   if (!response.ok) throw new ApiError(await readProblem(response));

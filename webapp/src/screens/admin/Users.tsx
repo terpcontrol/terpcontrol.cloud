@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type InputHTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AdminUserUpdate, User } from '@fg2/shared-types/v1';
 import { useAdminUsers, useCreateUser, useDeleteUser, useUpdateUser } from '@/api/admin';
@@ -7,12 +7,14 @@ import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
 import { matchesHandle, typedHandle } from '@/ui/handle';
 import { Refused } from '@/ui/PageState';
-import { AdminHead, AdminNotLoaded } from './parts';
+import { AdminHead, AdminNotLoaded, OutOfTheRow } from './parts';
 import { HandleField } from '@/ui/SheetParts';
+import { Help } from '@/ui/Help';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { NoMatch } from './NoMatch';
 import styles from './Admin.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * The accounts on this install, as the one person who may see them sees them.
@@ -46,11 +48,11 @@ export function Users() {
 
   useFollowCursor(people);
 
-  const header = <AdminHead title={t('admin.users.title')} crumb={t('admin.users.title')} />;
+  const header = <AdminHead title={t('admin.users.title')} />;
 
   if (people.isPending) return <AdminNotLoaded head={header} />;
 
-  if (!people.data) return <AdminNotLoaded head={header} retry={() => void people.refetch()} />;
+  if (!people.data) return <AdminNotLoaded head={header} read={people} />;
 
   const all = itemsOf(people.data);
   const needle = typedHandle(search).toLowerCase();
@@ -63,18 +65,18 @@ export function Users() {
   const wholeListLoaded = !people.hasNextPage;
 
   return (
-    <section className={styles.page}>
-      <AdminHead title={t('admin.users.title')}>
-        <span className={`mono ${styles.counts}`}>
+    <section className={ui.stack4}>
+      <AdminHead title={t('admin.users.title')} readAt={people.dataUpdatedAt}>
+        <span className={styles.counts}>
           {[
             t('admin.count.accounts', { count: all.length }),
             t('admin.count.admins', { count: all.filter(one => one.isAdmin).length }),
             t('admin.count.notActivated', { count: all.filter(one => !one.isActive).length }),
           ].join(' · ')}
         </span>
-        <span className={styles.chips}>
+        <span className={ui.wrapRow}>
           <input
-            className={`mono ${ui.input} ${styles.search}`}
+            className={`${ui.input} ${styles.search}`}
             type="search"
             autoComplete="off"
             aria-label={t('admin.users.search')}
@@ -82,20 +84,21 @@ export function Users() {
             value={search}
             onChange={event => setSearch(event.target.value)}
           />
-          <button type="button" className={ui.chip} onClick={() => setMaking(true)}>
+          <button type="button" className={`${ui.chip} ${styles.action}`} onClick={() => setMaking(true)}>
             {t('admin.users.create')}
           </button>
         </span>
       </AdminHead>
-
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.privacy')}</p>
 
       <div className={styles.tableCard}>
         <table className={styles.table} data-empty={shown.length === 0 ? '' : undefined}>
           <thead>
             <tr>
               <th>{t('admin.users.column.handle')}</th>
-              <th>{t('admin.users.column.address')}</th>
+              <th>
+                {t('admin.users.column.address')}
+                <Help topic="adminAddresses" />
+              </th>
               <th>{t('admin.users.column.state')}</th>
               <th>{t('admin.users.column.created')}</th>
               <th>{t('admin.users.column.actions')}</th>
@@ -123,8 +126,8 @@ export function Users() {
         </table>
       </div>
 
-      <div className={styles.row}>
-        <span className={`mono ${styles.consequence}`}>{t('admin.users.showing', { shown: shown.length, loaded: all.length })}</span>
+      <div className={ui.wrapRow}>
+        <span className={styles.consequence}>{t('admin.users.showing', { shown: shown.length, loaded: all.length })}</span>
         {people.hasNextPage ? (
           <button type="button" className={ui.chip} onClick={() => void people.fetchNextPage()} disabled={people.isFetchingNextPage}>
             {t('admin.fleet.loadMore')}
@@ -160,7 +163,7 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
           know and buying nothing. */}
       <td className="mono">{calendarDay(account.createdAt, zone)}</td>
       <td>
-        <span className={styles.actions}>
+        <span className={`${ui.wrap} ${styles.actions}`}>
           <button type="button" className={ui.chip} onClick={() => setOpen('change')}>
             {t('admin.users.change')}
           </button>
@@ -168,10 +171,22 @@ function AccountRow({ account, isMe, lastAdmin }: { account: User; isMe: boolean
             {t('admin.users.delete')}
           </button>
         </span>
-        {open === 'change' ? <ChangeSheet account={account} isMe={isMe} lastAdmin={lastAdmin} onClose={() => setOpen(null)} /> : null}
-        {open === 'delete' ? <DeleteSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
+        <OutOfTheRow>
+          {open === 'change' ? <ChangeSheet account={account} isMe={isMe} lastAdmin={lastAdmin} onClose={() => setOpen(null)} /> : null}
+          {open === 'delete' ? <DeleteSheet account={account} isMe={isMe} onClose={() => setOpen(null)} /> : null}
+        </OutOfTheRow>
       </td>
     </tr>
+  );
+}
+
+/** A field of an account's sheet: nothing a browser remembered is filled into somebody else's account. */
+function Field({ label, onType, ...input }: { label: string; onType: (value: string) => void } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className={styles.field}>
+      <span className="label">{label}</span>
+      <input className={ui.input} autoComplete="off" {...input} onChange={event => onType(event.target.value)} />
+    </label>
   );
 }
 
@@ -201,30 +216,17 @@ function CreateSheet({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
-      <p className={styles.sheetBody}>{t('admin.users.createBody')}</p>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.address')}</span>
-        <input className={`mono ${ui.input}`} type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.handle')}</span>
-        <input className={`mono ${ui.input}`} autoComplete="off" value={handle} onChange={event => setHandle(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.password')}</span>
-        <input
-          className={`mono ${ui.input}`}
-          type="password"
-          autoComplete="new-password"
-          value={password}
-          onChange={event => setPassword(event.target.value)}
-        />
-      </label>
-      <label className={styles.row}>
-        <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
-        <span>{t('admin.users.makeAdmin')}</span>
-      </label>
-      <Refused error={create.error} />
+      <div className={styles.form}>
+        <p className={styles.sheetBody}>{t('admin.users.createBody')}</p>
+        <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+        <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+        <Field label={t('admin.users.password')} type="password" autoComplete="new-password" value={password} onType={setPassword} />
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isAdmin} onChange={event => setIsAdmin(event.target.checked)} />
+          <span>{t('admin.users.makeAdmin')}</span>
+        </label>
+        <Refused error={create.error} />
+      </div>
     </Sheet>
   );
 }
@@ -279,16 +281,7 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
         title={t('admin.users.confirmMineTitle')}
         aside={account.email}
         onClose={onClose}
-        actions={
-          <>
-            <button type="button" className={ui.button} disabled={change.isPending} onClick={() => setAsking(false)}>
-              {t('admin.users.confirmNo')}
-            </button>
-            <button type="button" className={`${ui.button} ${ui.danger}`} disabled={change.isPending} onClick={save}>
-              {t('admin.users.confirmMine')}
-            </button>
-          </>
-        }
+        actions={<Answer yes={t('admin.users.confirmMine')} danger disabled={change.isPending} onYes={save} onCancel={() => setAsking(false)} />}
       >
         {losing.map(line => (
           <p key={line} className={styles.sheetBody}>
@@ -316,48 +309,39 @@ function ChangeSheet({ account, isMe, lastAdmin, onClose }: { account: User; isM
         </button>
       }
     >
-      <p className={styles.sheetBody}>{isMe ? t('admin.users.changeMine') : t('admin.users.changeSomebody', { handle: account.handle })}</p>
+      <div className={styles.form}>
+        <p className={styles.sheetBody}>{isMe ? t('admin.users.changeMine') : t('admin.users.changeSomebody', { handle: account.handle })}</p>
 
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.address')}</span>
-        <input className={`mono ${ui.input}`} type="email" autoComplete="off" value={email} onChange={event => setEmail(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.column.handle')}</span>
-        <input className={`mono ${ui.input}`} autoComplete="off" value={handle} onChange={event => setHandle(event.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className="label">{t('admin.users.newPassword')}</span>
-        <input
-          className={`mono ${ui.input}`}
+        <Field label={t('admin.users.column.address')} type="email" value={email} onType={setEmail} />
+        <Field label={t('admin.users.column.handle')} value={handle} onType={setHandle} />
+        <Field
+          label={t('admin.users.newPassword')}
           type="password"
           autoComplete="new-password"
           placeholder={t('admin.users.unchanged')}
           value={password}
-          onChange={event => setPassword(event.target.value)}
+          onType={setPassword}
         />
-      </label>
-      <label className={styles.row}>
-        <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
-        <span>{t('admin.users.isActive')}</span>
-      </label>
-      <label className={styles.row}>
-        <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
-        <span>{t('admin.users.makeAdmin')}</span>
-      </label>
-      {lastAdmin ? <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.lastAdmin')}</p> : null}
-      {losing.map(line => (
-        <p key={line} className={`${ui.note} ${styles.consequence}`}>
-          {line}
-        </p>
-      ))}
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isActive} disabled={lastAdmin} onChange={event => setIsActive(event.target.checked)} />
+          <span>{t('admin.users.isActive')}</span>
+        </label>
+        <label className={`${ui.wrapRow} ${styles.check}`}>
+          <input type="checkbox" checked={isAdmin} disabled={lastAdmin} onChange={event => setIsAdmin(event.target.checked)} />
+          <span>{t('admin.users.makeAdmin')}</span>
+        </label>
+        {lastAdmin ? <p className={`${ui.note} ${styles.consequence}`}>{t('admin.users.lastAdmin')}</p> : null}
+        {losing.map(line => (
+          <p key={line} className={`${ui.note} ${styles.consequence}`}>
+            {line}
+          </p>
+        ))}
 
-      {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
-      {account.activationCode ? (
-        <p className={`mono ${styles.consequence}`}>{t('admin.users.activationCode', { code: account.activationCode })}</p>
-      ) : null}
+        {/* The code is serialised to an administrator alone, and handing it over is how such an account is activated. */}
+        {account.activationCode ? <p className={styles.consequence}>{t('admin.users.activationCode', { code: account.activationCode })}</p> : null}
 
-      <Refused error={change.error} />
+        <Refused error={change.error} />
+      </div>
     </Sheet>
   );
 }
@@ -387,14 +371,13 @@ function DeleteSheet({ account, isMe, onClose }: { account: User; isMe: boolean;
       aside={account.email}
       onClose={onClose}
       actions={
-        <button
-          type="button"
-          className={`${ui.button} ${ui.danger}`}
+        <Answer
+          yes={t('admin.users.deleteIt')}
+          danger
           disabled={!sure || remove.isPending}
-          onClick={() => remove.mutate(account.id, { onSuccess: onClose })}
-        >
-          {t('admin.users.deleteIt')}
-        </button>
+          onYes={() => remove.mutate(account.id, { onSuccess: onClose })}
+          onCancel={onClose}
+        />
       }
     >
       <p className={styles.sheetBody}>{t('admin.users.deleteBody', { handle: account.handle })}</p>

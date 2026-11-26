@@ -5,17 +5,17 @@ import { shareLinkOnGrow } from '../support/fixtures';
 import { A_PICTURE } from '../support/pictures';
 
 /**
- * The diary over HTTP: the timeline read and written, the week cards and the
- * report.
+ * The diary over HTTP: the timeline read and written, the diary by the day and
+ * the report.
  *
  * The unit suite has the arithmetic and the access matrix against a database.
  * What it cannot see is the measurement store, the picture store and the guards
  * a request passes on its way in, so what is checked here is the rest of the
- * way: that a week's day and night averages really come back through Flux and
- * are told apart by the light the device wrote rather than by a clock, that a
- * chapter is judged against the targets the phase recorded, that an uploaded
- * picture arrives and is stored as one, and that a stranger is told the grow is
- * not there.
+ * way: that a day's climate and a chapter's day and night averages really come
+ * back through Flux and are told apart by the light the device wrote rather
+ * than by a clock, that a chapter is judged against the targets the phase
+ * recorded, that an uploaded picture arrives and is stored as one, and that a
+ * stranger is told the grow is not there.
  */
 
 const MINUTES = 60_000;
@@ -79,35 +79,34 @@ beforeAll(async () => {
   await seedMeasurements(aWeek(device.deviceId, now));
 });
 
-describe('the week cards', () => {
-  it('counts the grow´s own weeks and days, newest first', async () => {
-    const page = (await owner.client.get(`/v1/grows/${growId}/weeks`).expect(200)).body;
+describe('the diary by the day', () => {
+  interface Day {
+    dayNumber: number;
+    climate: { temperature: number | null; humidity: number | null } | null;
+    events: { kind: string }[];
+  }
 
-    expect(page.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([3, 2, 1]);
+  it('is a card for every date the grow lived, newest first, in the weeks of its calendar', async () => {
+    const page = (await owner.client.get(`/v1/grows/${growId}/diary?limit=1`).expect(200)).body;
+
+    expect(page.items).toHaveLength(1);
     expect(page.items[0]).toMatchObject({ weekNumber: 3, dayFrom: 15, dayTo: 21, stage: 'flowering', stageWeek: 1 });
-    expect(page.items[0].days).toHaveLength(7);
+    expect(page.items[0].days.map((day: Day) => day.dayNumber)).toEqual([21, 20, 19, 18, 17, 16, 15]);
+    expect(page.nextCursor).not.toBeNull();
   });
 
-  it('tells the day and the night apart by the light the device wrote, through the store', async () => {
-    const page = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=1`).expect(200)).body;
-    const temperature = page.items[0].climate.find((one: { metric: string }) => one.metric === 'temperature');
+  it('says how a day was and what the lamp did, through the store', async () => {
+    const page = (await owner.client.get(`/v1/grows/${growId}/diary?limit=1`).expect(200)).body;
+    // Yesterday: a whole date of twelve hours at each target.
+    const yesterday: Day = page.items[0].days[1];
 
-    expect(temperature).toMatchObject({ dayAverage: DAY_TEMPERATURE, nightAverage: NIGHT_TEMPERATURE });
-    expect(page.items[0].lightHours).toBeCloseTo(12, 0);
-  });
-
-  it('pages, and names everyone its cards name', async () => {
-    const first = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=2`).expect(200)).body;
-    const second = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=2&cursor=${first.nextCursor}`).expect(200)).body;
-
-    expect(first.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([3, 2]);
-    expect(second.items.map((week: { weekNumber: number }) => week.weekNumber)).toEqual([1]);
-    expect(second.nextCursor).toBeNull();
-    expect(first.people).toEqual([{ id: owner.userId, handle: expect.any(String) }]);
+    expect(yesterday.climate?.temperature).toBeCloseTo((DAY_TEMPERATURE + NIGHT_TEMPERATURE) / 2, 0);
+    expect(yesterday.climate?.humidity).toBe(55);
+    expect(yesterday.events.some(event => event.kind === 'light')).toBe(true);
   });
 
   it('is not there for a stranger', async () => {
-    await stranger.client.get(`/v1/grows/${growId}/weeks`).expect(404);
+    await stranger.client.get(`/v1/grows/${growId}/diary`).expect(404);
   });
 });
 
@@ -122,15 +121,13 @@ describe('the report', () => {
     expect(report.phases[0].inBandPercent).toBe(100);
   });
 
-  it('states the photoperiod it measured, as the week cards of the same grow do', async () => {
+  it('states the photoperiod it measured', async () => {
     // The chapter's day and night averages are split by the lamp's switchings,
     // so the hours were read for every chapter and then dropped: the report
-    // said nothing about light while a week card of the same grow printed it.
+    // said nothing about light.
     const report = (await owner.client.get(`/v1/grows/${growId}/report`).expect(200)).body;
-    const weeks = (await owner.client.get(`/v1/grows/${growId}/weeks?limit=1`).expect(200)).body;
 
     expect(report.phases[0].lightHours).toBeCloseTo(12, 0);
-    expect(report.phases[0].lightHours).toBeCloseTo(weeks.items[0].lightHours, 0);
   });
 
   it('is not there for a stranger', async () => {
@@ -240,6 +237,73 @@ describe('writing the diary', () => {
 
     await owner.client.delete(`/v1/entries/${entry.id}`).expect(204);
     await owner.client.delete(`/v1/entries/${entry.id}`).expect(404);
+  });
+
+  /**
+   * A plant deleted after a line named it: the line still records it, and correcting the line's words or figures sent
+   * that plant again and was refused 404 - the line could never be put right. A plant it is newly about still has to
+   * be there.
+   */
+  it('corrects a line that names a plant deleted since, keeping what it recorded', async () => {
+    const plants: string[] = (await owner.client.get(`/v1/grows/${growId}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    const extra = (await owner.client.post(`/v1/grows/${growId}/plants`).send({ strain: 'Amnesia' }).expect(201)).body.id as string;
+    const readings = [
+      { key: 'ph', value: 6.2, plantId: plants[0] },
+      { key: 'ph', value: 5.9, plantId: extra },
+    ];
+    const measured = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'measurement', growId, plantIds: [plants[0], extra], values: { kind: 'measurement', readings } })
+        .expect(201)
+    ).body;
+    const watered = (
+      await owner.client
+        .post('/v1/entries')
+        .send({ kind: 'water', growId, plantIds: [plants[0], extra], values: { kind: 'water', litres: 1.5 } })
+        .expect(201)
+    ).body;
+    await owner.client.delete(`/v1/plants/${extra}`).expect(204);
+
+    const corrected = await owner.client
+      .patch(`/v1/entries/${measured.id}`)
+      .send({ growId, plantIds: [plants[0], extra], text: 'Second plant gone', values: { kind: 'measurement', readings } })
+      .expect(200);
+    expect(corrected.body).toMatchObject({ text: 'Second plant gone', plantIds: [plants[0], extra], values: { readings } });
+    await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ growId, plantIds: [plants[0], extra], values: { kind: 'water', litres: 2 } })
+      .expect(200);
+
+    // A gone plant is no new subject of a line.
+    const fresh = await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ plantIds: [plants[1], extra] })
+      .expect(200);
+    expect(fresh.body.plantIds).toEqual([plants[1], extra]);
+    const refused = await owner.client
+      .patch(`/v1/entries/${watered.id}`)
+      .send({ plantIds: ['no-such-plant'] })
+      .expect(404);
+    expect(refused.body.code).toBe('plant_not_found');
+  });
+
+  it('refuses a watering of no water or of more than a tent is given, and names the end it broke', async () => {
+    for (const [kind, litres, code] of [
+      ['water', 999, 'too_big'],
+      ['feed', 101, 'too_big'],
+      ['water', 0, 'too_small'],
+      ['water', -3, 'too_small'],
+    ] as const) {
+      const refused = await owner.client.post('/v1/entries').send({ kind, growId, values: { kind, litres } }).expect(400);
+      expect(refused.body.code).toBe('validation_failed');
+      expect(refused.body.errors).toEqual([expect.objectContaining({ field: 'values.litres', code })]);
+    }
+
+    await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'water', growId, values: { kind: 'water', litres: 100 } })
+      .expect(201);
   });
 
   it('is not there for a stranger, and not open to a demo session', async () => {

@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-10-22
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-26
+source: the bucket retention read on an install, 2026-11-26; a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -43,6 +43,19 @@ built by mongoose as it compiles. What boot seeds - device classes, the admin ac
 
 Pitfalls, each met at least once:
 
+- **Where a device stood** is `devices.placements[]` (`spaceId`, `startedAt`, `endedAt`; at most one open), and
+  `devices.spaceId` is the open one's place. One writer sets both in one update (`DevicesService.place`, with the
+  arithmetic in `movedTo`): never `$set` a device's `spaceId` anywhere else. A read about now asks `spaceId`, a read
+  about a stretch of time asks `stoodIn`/`stayOf`, which answer each device with the part of the stretch it stood
+  there - and a history read is asked for that part only, so no hour of a place is ever read from a device that
+  stood elsewhere. A device's first placement is read back past its `startedAt` (`beginsAt`): what it measured
+  before it was first put anywhere counts for its first place. A spec that puts a device in a place gives it the placement too (`standingIn`,
+  `test/unit/support/placed.ts`), or every read about the past finds the place empty (the redesign session of
+  2026-11-12).
+- **Names are unique without an index:** a place's name among its owner's places that have not ended, a room's among
+  its rooms, compared by `nameKey` (`common/v1/space-names.ts`: blanks and case make no second name). The comparison
+  is not a field, so nothing in MongoDB states it; every write of a name goes through `refuseTakenName`, or through
+  `freeNameFor` where the server names a place itself and must not refuse (a claim).
 - **Undeclared fields vanish:** strict mode drops on save what the schema does not declare, silently (a recipe step's
   name, `ppfdLuxFactor`). A persisted field goes into the schema as well as into the `shared-types` contract.
 - **Defaults do not backfill:** a lean read answers what the document holds, so a new field is missing on older
@@ -58,6 +71,9 @@ Pitfalls, each met at least once:
   checks that matter count rows (the migration preflight does).
 - **Mongoose never changes a built index:** new options under existing data need a step that drops the old index
   (`014-one-line-per-task`); the schema builds the new one at the next boot, and cannot while duplicates exist.
+- **A new index outside `users` and `devices` needs no migration step:** it is declared on the schema and built
+  at the next boot. `alerts` got `{ spaceId: 1, resolvedAt: -1, id: -1 }` that way (2026-11-13), for the read of
+  what is over by when it ended, beside `{ spaceId: 1, resolvedAt: 1, startedAt: -1 }` for what is open.
 - **Two `$or` in one object overwrite each other.** `afterCursor()` (`common/v1/pages.ts`) and the visibility filters
   both answer `$or`; spread into one query, page two of a list held what its filter excluded - other people's rows
   three times, firmware builds never offered to the device once. Combine with `{ $and: [visibility, filter, cursor] }`
@@ -116,8 +132,88 @@ Pitfalls, each met at least once:
 - **Written, not served:** the controller diagnostics `avg`, `p`, `i`, `d`, `rpm`, `day`, `sensor_type`.
 - **Reads** (`DataService`): a series is `aggregateWindow(mean)` over `status` and `status_daily`, empty windows kept -
   at most 1,000 windows unasked, an asked step honoured down to 5 s up to 5,000 windows, at most 50,000 points.
-  `/live` is one `last()` over 30 days. `history()` adds each output's switchings at a 5-minute grain, because a mean
-  turns a lamp into a duty cycle.
+  `/live` is one `last()` over 30 days. `history()` adds each output's switchings, because a mean turns a lamp
+  into a duty cycle: at a grain of five minutes at the most, and at the window's own step where that is finer
+  (`switchingGrainFor`), so a zoom shows the second a dehumidifier came on and a compressor's four-minute rest.
+  Within eight days (`LAMP_SAMPLED_SECONDS`: a week and the ten minutes before it, what a grow's diary reads in one
+  call) the lamp and an AIR's `day` are a read of their own at the device's rhythm, so a lamp's stretch is its
+  samples' on every zoom and one switch reads the same minute in both diaries of a place (the eleventh whole-app walk
+  found 23:25 in a long grow's week and 23:28 in a new one's): 25 ms over a day and 67 ms over three at a sample
+  every 5 s, beside the other reads, so about 150 ms over a week (estimated, not measured on a real store); longer
+  windows read them at five minutes.
+- **The first and last sample beside a silence** (`edgesQuery`, `edgesAround`, `edgesOf`; the redesign session of
+  2026-11-13 after the sixth walk; what it is for: [server-engines.md](server-engines.md#read-models)): for
+  each drawn window that stands beside a gap that may be a silence - a window stands empty in it and, a step
+  to either side of what the stamps say, it could be longer than the device's limit there
+  ([server-engines.md](server-engines.md#read-models)); the gap is then judged by these samples, not by the
+  stamps (after the eighth walk) - a `range |> first()` or `|> last()`
+  over one step and all of the device's fields - a selector keeps its sample's own instant, and the earliest
+  (latest) of the fields' rows is the device's. All of them are one script, a `union`. A device without a
+  silence is asked nothing - a slow one too, since the seventh walk: the windows it leaves empty between two
+  samples are no silences - and beyond 120 edges (`MAX_EDGES`) the grid's stamps stand. Against the store: 2 to 5 edges in 5 to 9 ms, on a week as on 120 days. The fifth walk's
+  version asked every drawn window of one field with two `aggregateWindow(timeSrc: "_time")`: 11 ms on a day
+  and 40 ms on 120 days for every device, and an output that began to report later took the edges of the
+  field beside it.
+- **An output's samples are counted per drawn window** (`countsQuery`, `figuresOf`; rule B of the redesign
+  session, 2026-11-13; what it is for: [server-engines.md](server-engines.md#read-models)): one
+  script with two `aggregateWindow(count)` beside the series' means - every sample of every output, and the
+  samples above zero of those driven at a level and of the valve. A switch writes 0 or 1, so the samples it
+  ran in are its mean times its count and it is left out of the second count: a filter on the value is what
+  the store does not push down (four months of five outputs counted in 53 ms, counted above zero in 227 ms).
+  The mean level is the series' own mean, off counting as the 0 it is. It replaces the read of the level
+  while running and the valve's dose (`levelsQuery`) and costs, on the long tent below, 8 ms for 6 over a
+  day, 15 for 14 over a week, 52 for 44 over a month and 183 for 158 over 120 days (medians of nine).
+  Checked point by point against the raw samples of three tents at a day, a week and a month: no window
+  differs. The store's windows are `[start, stop)`; the test double's are `(start, stop]`, which is why a
+  spec seeds its samples off the grid.
+- **The extremes of a window** (`extremesQuery`, asked with `SeriesRequest.extremes`, which only the Timeline
+  sets): `aggregateWindow(min)` and `(max)` over the stored fields of the metrics asked for, in one script beside
+  the mean, raw samples only - a day kept as its mean has none - and not at all at the five-second step, where a
+  window is one sample. A window either end of which is a sentinel has no extremes.
+- **A figure of VPD is a VPD that occurred, at every range** (the redesign session of 2026-11-12, after its
+  critic's two walks). It is never worked out from the means of the windows a chart draws, nor from the extremes
+  of its inputs: the coldest and the dampest sample of a window need not be the same one - a tent between 20.7
+  and 31.5 °C and 38 and 58.8 % read as -0.53 to 1.64 kPa, of which no sample was below 0.4 or above 1.1 - and
+  a window hours wide holds air of both halves of the day under one leaf offset, in a pattern that drifts
+  through the days: the same climate read 0.92 to 1.2 kPa in one month and 1.0 to 1.1 in another. Each reading
+  is worked out by itself (`workedOutBy`), judged day or night as a live reading is - by its own lamp level, a
+  fan's own flag, a plug's schedule or what the cameras saw at its time - and a point is the mean of its
+  readings, its low and high their lowest and highest, so a line cannot leave its own envelope. Up to three
+  days (`MAX_SAMPLED_SECONDS`) the readings are the samples, read raw (`samplesQuery`): on the tent below a day
+  costs 64 ms, a week would cost 476 ms and a month 2.2 s, and in Flux - a pivot and the deficit of every row
+  are not pushed down - five times that. Beyond three days they are means over five minutes, pushed down
+  (`grainsQuery`; `deficitGrainFor` widens the grain past four and a half months to keep the read within its
+  limit): 17 ms a week, 50 ms a month, 88 ms two months and 182 ms four, against 11, 26, 45 and 85 ms at
+  fifteen minutes - so five it is. The switchings are no longer
+  read for the deficit at all. A day kept as its mean has that mean to go by. PPFD is one reading times a
+  factor, so its extremes are the reading's.
+- **An excursion of the diary is dated by its samples** (`DataService.rawSamples`, through `samplesIn`; the fix round
+  after the fifth whole-app walk): the raw samples of temperature, humidity and CO₂ over two 10-minute stretches
+  per run outside the band - where it began and where it ended -, or over the whole of a run up to two hours (the
+  fix round after the sixth walk, to part it where it was back inside), sentinels dropped, one script for up to sixty
+  stretches and at most `MAX_EDGES` (240) a controller and week; a day whose samples were summarised away keeps its
+  5-minute windows' edges ([server-engines.md](server-engines.md)).
+- **A grain the lamp switched in is worked out from its own samples** (`switchedGrains`, `samplesInQuery`; the
+  redesign session of 2026-11-13 after the fourth walk). A grain is judged day or night as a whole, and that
+  one is neither: lit in six samples of ten it took the day's leaf offset for the air of all ten, and a
+  week's lowest deficit read 0.80 kPa where no sample of it was below 0.90. Of two neighbouring grains in
+  different halves the lit one is read sample by sample - the dark one is dark throughout; both where a
+  fan's flag or a plug's schedule says the half - and its figure is the mean of every sample's own deficit,
+  which is its lit and its dark part weighted by their readings. Only those grains: two a day, none where
+  the grain's leaf temperature was measured (the half decides the offset and nothing else), none above 1,500
+  of them. The read follows the grains', which say which they are, as unions of sixty stretches a script;
+  it costs about a millisecond a stretch however they are bundled - 15 ms on a week, 60 ms on a month and
+  232 ms on 120 days (238 grains, a sample every 5 s) after the grains' own 16, 49 and 202 ms. On the staged
+  tent of the walk the week reads 0.90 to 1.11 kPa, as the five-minute means of its raw samples do, and
+  every split grain equals the mean of its samples' deficits.
+- **Beyond three days every step is a whole number of grains** (`stepFor`, `timeline-window.ts`; the redesign
+  session of 2026-11-13 after the third walk): a point of 541 s held one grain or two and was off by up to
+  0.09 kPa from the mean of what it drew. An automatic step is rounded up to the grain and one asked finer is
+  widened to it, so the deficit is one computation on every such window.
+- **A reading's VPD uses a leaf temperature only if that reading carries one** - a sample's own, and a grain's
+  mean only where the grain held at least half as many leaf readings as air readings (`coveredGrains`; the
+  count is a second yield of `grainsQuery` and costs 4 ms on a month and 26 ms on 120 days, 149 to 175 ms) - and `live()` takes the leaf only where it was written with the newest temperature: a leaf sensor that
+  was taken out is still the newest of its field for a month and bent "now".
 - **Building Flux:** queries are strings, so only values passing `SAFE_NAME`/`FIELD_NAME` and instants from a `Date` are
   interpolated, never request input (Chris, 2026-08-25; [server.md](server.md#security-decisions)).
 - **One device per query, by tag equality.** `r["device_id"] == "<id>"` is pushed down to the index; `contains(value:
@@ -136,14 +232,18 @@ Pitfalls, each met at least once:
 | Job | When | What goes |
 | --- | --- | --- |
 | Climate retention (`modules/retention/`) | 03:00 server time; first pass 10 min after boot | Days older than the window (cut at UTC midnight) become one mean per field and day in `status_daily`, then their raw points go. Window: the space's `retention.climateDays`, else the owner's, else `RETENTION_CLIMATE_DAYS` (compose default 0: nothing is swept). 500 devices a pass, rotated by `devices.climateSweptAt`, 90 days of backlog each; last pass in `GET /admin/stats` (memory only). |
-| Still thinning (daily), picture sweep (hourly) | per camera, removed ones included | See GridFS. With `PREMIUM_ENFORCED` and `PREMIUM_FREE_RETENTION`, a camera without entitlement keeps stills `PREMIUM_FREE_STILL_DAYS` and films `PREMIUM_FREE_TIMELAPSE_DAYS`; off by default. |
+| Still thinning (daily), picture sweep (hourly) | per camera, removed ones included | See GridFS. Stills a diary line names or a grow shows as its cover are spared ([terp-cam.md](terp-cam.md), Stills). With `PREMIUM_ENFORCED` and `PREMIUM_FREE_RETENTION`, a camera without entitlement keeps stills `PREMIUM_FREE_STILL_DAYS` and films `PREMIUM_FREE_TIMELAPSE_DAYS`; off by default. |
 | Cleanup (`modules/cleanup/`) | daily; first run 5 min after boot | After 7 days' grace: entries whose grow, space and device are all gone; media whose camera, grow and space are all gone and that no entry, grow cover or film, or avatar names (every export, therefore); GridFS files without a media row. Successful `message-cam-capture` lines at any age. |
 | TTL indexes | MongoDB | `sessions`, `passwordResets`, `notificationLog` at `expiresAt`. |
 | Account deletion | in the request; resumed 5 s after boot and hourly | What the account owns. Device rows stay claimable and keep their readings; its lines in other people's records stay, authorless. |
 
+- **The bucket's own retention comes first.** The `INFLUXDB_BUCKET` bucket is created with a retention of its own
+  (`influx bucket list` shows it) and drops whole shard groups past it, raw points and
+  `status_daily` alike. A `RETENTION_CLIMATE_DAYS` at or above it summarises nothing that lasts; daily means kept for
+  longer need a longer bucket retention (`influx bucket update --retention`).
 - While `legacy_images` stands, thinning and the cleanup spare every picture it names (`migrations/way-back.ts`); the
   hourly picture sweep does not. Dropping `legacy_images` hands those pictures to both.
-- A summarised day keeps only means: switchings, output levels and CO2 valve counts read raw samples only.
+- A summarised day keeps only means: switchings and the counts of an output's samples read raw samples only.
 - A photo uploaded and never attached to an entry stays while its grow or space exists - the cleanup takes only what
   nothing reaches - although the upload route's comment says the daily sweep removes it.
 
@@ -163,6 +263,10 @@ at a time and re-queues a build left in `rendering`.
   has nowhere to.
 - **Written by hand** (`export-zip.ts`: streamed entries, data descriptors, Zip64; no zip library in `server/`). An
   alarm's custom webhook is exported as `custom · webhook` only.
-- **No placement history:** a device row knows only where it stands now, so a grow's climate (export, series, week
-  cards) comes from the devices standing today in the spaces the grow stood in (`spacesDuring`,
-  `modules/v1/grow/grow-places.ts`); one moved out is not read for the days it was there.
+- **A device is exported for the days it stood there:** a grow's `climate.csv` takes every device that stood in the
+  spaces the grow stood in (`spacesDuring`, `modules/v1/grow/grow-places.ts`) while it stood there, each over its own
+  stay (`stoodIn`, `common/v1/device-placements.ts`; ADR 0001, "Places, rooms and where a device stood"). The rows
+  are in time order across the devices, and the figures are rounded as the page rounds them: a metric by
+  `METRIC_DECIMALS`, an output to a whole per cent of full output in its stored unit (`climateRows`,
+  `modules/v1/grow/export-csv.ts`; the redesign session of 2026-11-12 - a swap of two controllers had written one
+  device's twelve hours after the other's, and a minute's mean stood there with every digit it has).

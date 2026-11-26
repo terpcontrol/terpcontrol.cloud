@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-10-14
-source: written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-11-25
+source: a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -553,7 +553,8 @@ over it would serialise into truncated JSON and the server would drop the whole 
 | `webcam_ip` | where the camera last answered, or `none` | at boot, on discovery, on disconnect | `wifi.cpp:2876`, `terpcam.cpp:188`, `wifi.cpp:1400` |
 | `webcam_url` | a legacy stored RTSP URL, or `none` | at boot, on disconnect | `wifi.cpp:2885`, `:1401` |
 | `webcam_uid` | the camera's 20-byte P2P id, formatted, or `none` | at boot, on pairing, when learnt, on disconnect | `wifi.cpp:2881`, `:1376`, `terpcam.cpp:192`, `wifi.cpp:1399` |
-| `webcam_pwd` | the password the device set on the camera | at boot when one is stored, after each securing attempt | `wifi.cpp:2893-2896`, `terpcam.cpp:672` |
+| `webcam_pwd` | the password the device set on the camera | at boot when one is stored, after each securing attempt, on pairing a streaming camera | `wifi.cpp:2893-2896`, `terpcam.cpp:672`, `provisionTerpCam` |
+| `webcam_rtsp` | `on` when the camera is read off its own RTSP stream on the LAN ([9.3](#93-the-cameras-own-stream)), else `off` | at boot, on pairing, on disconnect | `wifiInitTerpCamCloudReporting`, `provisionTerpCam`, `forgetTerpCam` |
 
 The `socket_*` keys come from the controller and the fridge only — no other type calls
 `wifiInitAuxCloudReporting`. The `webcam_*` keys come from every type that pairs a Terp Cam: the controller and
@@ -562,7 +563,7 @@ the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting`
 has learnt a new value, and only while no relay is running, because the relay task never logs
 (`terpcam.cpp:1073`). Pairing secures the camera before it reports the new id, so `webcam_pwd` arrives before the
 `webcam_did` it belongs to (`wifi.cpp:1371-1376`). Disconnecting the camera in the menu forgets everything stored
-about it and reports `none` for all four keys (`forgetTerpCam`, `wifi.cpp:1384-1403`).
+about it and reports `none` for all four keys and `webcam_rtsp=off` (`forgetTerpCam`, `wifi.cpp:1384-1403`).
 
 The `none` sentinel matters. A device reports `webcam_did=none` and `sockets=none` rather than staying silent, because
 silence cannot clear a stale value: the cloud would keep whatever it last heard, and a camera unpaired while the
@@ -582,12 +583,15 @@ Server-side handling beyond storage (`hardware-report.service.ts`):
 | `socket_list<k>` | a row whose state left the one the last report gave stamps `devices.state.socketStateChangedAt.<slot>`, falling silent included; a row that had no state yet stamps nothing, so a build that starts reporting the column does not read as every socket having just moved |
 | `webcam_did` | the camera the device pairs is reconciled into a row of `cameras`; `none` also resets the device's `cameraSecret` |
 | `webcam_pwd` | the camera's `secret`, which the cloud logs in with over the relay; an empty value means "the default". Kept on the device row as well, because pairing reports it before the id that makes the camera row |
-| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`, kept for the record; the relay finds the camera itself |
+| `webcam_uid`, `webcam_ip` | the camera's `uid` and `ip`; the relay finds the camera itself, a camera read off its own stream is read at `ip` |
 | `webcam_url` | none: dropped unread |
+| `webcam_rtsp` | none beyond storage; `on` in `devices.state.hardware` makes every read of the device's Terp Cam an RTSP read through its tunnel ([9.3](#93-the-cameras-own-stream)) |
 
-`webcam_did`, `webcam_uid` and `webcam_pwd` also end a hold the cloud keeps on a camera that turned it away: a
-different camera, or one that refused the password, is left alone for 30 minutes unless the device says
-something new about it ([9](#9-the-still-cycle)).
+`webcam_did`, `webcam_ip`, `webcam_rtsp`, `webcam_uid` and `webcam_pwd` start the device's Terp Cam over, after
+the report is written (`CameraReportsService`): they end the hold the cloud keeps on a camera that turned it away -
+a different camera, or one that refused the password, is left alone for 30 minutes unless the device says something
+new about it - and the poller's backoff of that camera, so it is read in the next pass and every interval from then
+on ([9](#9-the-still-cycle)). Streams tunnelled through the same device keep theirs.
 
 The reconciliation requires `/^[A-Za-z0-9_-]{4,32}$/` of the reported id. A device that reports one is given the
 camera row it already has, or a new one whose entitlement runs twelve months from that first pairing
@@ -713,7 +717,9 @@ mode, the dehumidifier timings, the light ramps - which the cloud has never seen
 `device_sent_no_settings`, a climate preset passes the device by, and the app's screens write nothing to it
 (`awaitingClimate`, `webapp/src/ui/climate-hardware.ts`). Current firmware ends that state on its next connect
 ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)); an older build only when a setting is changed on the
-device itself.
+device itself. A climate preset applied to its place in the meantime is then written to it as any configuration
+is (`devices.awaitedClimate`, [server-engines.md](knowledge/server-engines.md#device-settings-and-plans)); nothing
+on the wire changes.
 
 | Direction | Payload | Where |
 | --- | --- | --- |
@@ -815,7 +821,10 @@ app shows the fan as uncoupled. It stays so until the plug's settings are saved 
 **light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
-refuses a plan for it with 422 `device_states_no_climate`.
+refuses a plan for it with 422 `device_states_no_climate`. The one exception is the dark of germination and drying
+(ADR 0007): while the place's climate device germinates or dries, the server writes `limit: 0`, keeps the brightness
+before (`limitBeforeDark` on the device row) and writes it back when that ends there or the light leaves the place -
+unless a brightness was set since.
 
 **cam**: `loadSettings` is empty (`cam.cpp:38-39`). A document is accepted and nothing is read from it, and the
 cam sends none ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
@@ -934,8 +943,11 @@ is controlling. It answers with `message-maintenance-mode-activated-remote:<minu
 device's own menu is logged as `message-maintenance-mode-activated:<minutes>`.
 
 The server keeps its own window, `devices.state.maintenanceUntil`: set before the command is published, so it
-survives a device that never heard it; set again from either log line when it arrives; and sent to the device again
-on its next `fetch` while a minute or more of it is left ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
+survives a device that never heard it; set again from either log line when it arrives - except where the line's
+whole minutes end up to a minute before the window already kept, which is the device saying back what it was told
+(set from such an echo, "bis 09:46" became "bis 09:45" a moment later; the fix round after the sixth whole-app
+walk) -; and sent to the device again on its next `fetch` while a minute or more of it is left
+([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
 The minutes the server sends are its seconds rounded, and on the repeat rounded down, so the device never holds
 past the end the screens name (`device-publisher.service.ts`, `device-ingest.service.ts`). Ending a window sends
 `durationMinutes: 0` and moves the server's end only where a window is open.
@@ -1074,7 +1086,9 @@ camera at most every `stillIntervalSeconds`, with a failure backoff of `min(inte
 skips one whose previous read is still in flight, and where the camera says so, a device in maintenance or with
 `workmode: off` (`maintenanceOff`) and a light that is out (`nightOff`). A Terp Cam, and a stream tunnelled through
 a device, is skipped while its device is offline: each try could only wait out its timeouts. That is decided before
-the schedule, so an offline spell does not grow the backoff.
+the schedule, so an offline spell does not grow the backoff. Nor does a streaming Terp Cam whose device has not
+reported its `webcam_ip` yet (`CameraNotFoundYetError`): nothing was asked of the camera, the device logs
+`message-terp-cam-not-found` itself, and the read is retried every interval without a diary entry.
 
 One read, of either kind, has `CAPTURE_BUDGET_SECONDS = 180` (`shared-types/src/v1/capture.ts`) from the moment it
 is asked for, its wait for a turn at ffmpeg included; every step inside it gets what is left of that where it is
@@ -1176,6 +1190,37 @@ carries it, with three slots (`TUNNEL_COUNT`, `fridgecloud.h:102`).
   (`ui.isIdle()`, 30 s after the last input).
 - Data for a connection the server does not know is answered with `disconnected`.
 
+### 9.3 The camera's own stream
+
+A camera that can serve its own RTSP stream on the LAN has it switched on at pairing, on its setup AP, and is then
+read like an RTSP camera behind the device: no relay, no P2P. The device reports `webcam_rtsp=on`, the password it
+set as `webcam_pwd` and the camera's address as `webcam_ip`; the server opens
+`rtsp://admin:<webcam_pwd>@<webcam_ip>:10554/tcp/av0_0` over TCP through the device's tunnel ([9.2](#92-the-tunnel))
+and takes the next keyframe of the full-resolution H.265 main stream (`terpCamStreamUrl`, `capture.service.ts`).
+Budget, ffmpeg lanes, poller and storage are the RTSP camera's; one tunnel connection per device at a time.
+
+1. **Pairing** (`enableTerpCamStream`, `provisionTerpCam`, `wifi.cpp`): on the setup AP the device sends
+   `set_users.cgi?pwd_change_realtime=1&ExUser=admin&ExPwd=<pw>&ExUserSwitch=1&` with the factory login, and counts the
+   camera as streaming once an RTSP `OPTIONS` on `192.168.168.1:10554` is answered `200` within 5 s. It reads the
+   camera's MAC from its ARP table, gives the admin login the same password
+   (`set_users.cgi?pwd_change_realtime=1&user3=admin&pwd3=<pw>&app_id=10000&`, best effort), and uses whichever
+   login `get_status.cgi` accepts for the rest of the pairing. A camera whose stream does not answer pairs the P2P
+   way ([9.1](#91-the-relay)).
+2. **Finding it** (`terpCamFindStream`, `terpCamTickStream`, `terpcam.cpp`): once back on its own Wi-Fi the device
+   sweeps its /24 for a stream on `10554` for up to 2 minutes; afterwards it checks the cached address every 5 minutes
+   from the idle loop and sweeps three addresses per pass when it no longer answers. Only a stream whose MAC is the
+   stored one counts; without a stored MAC, only a sweep that finds exactly one stream. A new address is reported as
+   `webcam_ip`; `message-terp-cam-not-found` and `message-terp-cam-found` are logged once per loss and recovery.
+3. **Disconnect** (`resetTerpCamOverAp`, `wifi.cpp`): on its home Wi-Fi the camera takes no command and keeps that
+   Wi-Fi across a power cycle; only its reset button puts it back on its setup AP `@IPC-<digits of its id>`. The
+   device scans for that AP once; when it is not there it asks the user to press the camera's reset button and looks
+   for the AP for up to 4 minutes. On it, and only when `get_status.cgi` names the paired camera, it switches the stream off
+   (`ExPwd=888888&ExUserSwitch=0`) and sends `restore_factory.cgi`; it then rejoins its own Wi-Fi. A camera paired
+   the P2P way gets the P2P reset first and the AP way when that finds nothing. One `message-cam-reset:ok` or
+   `:no-response` per disconnect.
+
+A device in this mode refuses `cam_relay`.
+
 ---
 
 ## 10 The OTA path
@@ -1248,7 +1293,7 @@ A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ign
 | One read of a camera, every attempt included (cloud side) | 3 min | `shared-types/src/v1/capture.ts` |
 | Relay length / silence (device side) | 2 min / 30 s | `terpcam.cpp:932-933` |
 | Hold on a camera that refused the cloud | 30 min, or until the device reports it again | `terpcam-direct.service.ts` |
-| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min | `camera-poller.service.ts` |
+| Still poll interval | the camera's own `stillIntervalSeconds`, backoff to 120 min, reset by a camera report | `camera-poller.service.ts` |
 | Upgrade instruction | first after 30 s, doubling to at most 24 h | `firmware-rollout.service.ts` |
 | Maintenance repeated on `fetch` | while at least 60 s of the window are left | `device-ingest.service.ts` |
 | Schedule clock check | once a minute | `schedule-clock.service.ts` |
@@ -1315,6 +1360,7 @@ pass spends at most 2 s on sockets, and the pre-OTA flush at most 20 s (`wifi.cp
 | `caps` | what it accepts beyond the frozen commands: `socket_override`, `socket_timer`, `light_override`; and `light_hold`, that it reports the hold on its own light output as `light_hold` |
 | `socket_pulse` | the failsafe seconds each role's socket is programmed with at pairing |
 | `webcam_did`, `webcam_uid`, `webcam_pwd`, `webcam_ip`, `webcam_url` | that a camera is paired, and how to reach it |
+| `webcam_rtsp` | that the camera is read off its own stream through the tunnel; absent or `off` keeps the relay |
 
 Note the difference between a key with the value `none` and a key that is absent. `sockets=none` and
 `webcam_did=none` mean "this build reports, and there is nothing"; the key missing altogether means "firmware too

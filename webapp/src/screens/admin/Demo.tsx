@@ -6,11 +6,11 @@ import { useGrows } from '@/api/grows';
 import { itemsOf, useFollowCursor } from '@/api/pages';
 import { useSpaces } from '@/api/spaces';
 import { ageLabel, deviceLiveness } from '@/ui/age';
-import { AdminHead, AdminNotLoaded, Liveness } from './parts';
+import { AdminHead, AdminNotLoaded, Label, Liveness } from './parts';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { cameraFreshness } from '../devices/cameras';
-import { typeName } from '@/ui/naming';
+import { deviceName } from '@/ui/naming';
 import styles from './Admin.module.css';
 
 /**
@@ -42,11 +42,11 @@ export function Demo() {
   useFollowCursor(devices);
   useFollowCursor(cameras);
 
-  const header = <AdminHead title={t('admin.demo.title')} crumb={t('admin.demo.title')} />;
+  const header = <AdminHead title={t('admin.demo.title')} readAt={devices.dataUpdatedAt} />;
 
   if (devices.isPending) return <AdminNotLoaded head={header} lines={3} />;
 
-  if (!devices.data) return <AdminNotLoaded head={header} retry={() => void devices.refetch()} />;
+  if (!devices.data) return <AdminNotLoaded head={header} read={devices} />;
 
   const shownDevices = itemsOf(devices.data).filter(device => device.isDemo);
   const shownSpaces = (spaces.data?.items ?? []).filter(space => space.isDemo);
@@ -54,10 +54,8 @@ export function Demo() {
   const shownGrows = (grows.data?.items ?? []).filter(grow => grow.isDemo);
 
   return (
-    <section className={styles.page}>
+    <section className={ui.stack4}>
       {header}
-
-      <p className={`${ui.note} ${styles.consequence}`}>{t('admin.demo.what')}</p>
 
       {shownDevices.length === 0 && shownSpaces.length === 0 && shownGrows.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('admin.demo.empty')}</p>
@@ -65,23 +63,23 @@ export function Demo() {
 
       <section className={styles.card}>
         <div className={styles.cardHead}>
-          <span className="label">{t('admin.demo.devices')}</span>
-          <span className={`mono ${styles.consequence}`}>{t('admin.demo.deviceCount', { devices: shownDevices.length })}</span>
+          <Label text={t('admin.demo.devices')} help="demoObjects" />
+          <span className={styles.consequence}>{t('admin.demo.deviceCount', { devices: shownDevices.length })}</span>
         </div>
         <ul className={styles.lines}>
           {shownDevices.map(device => {
             const liveness = deviceLiveness(device.state.lastSeenAt, now);
 
             return (
-              <li key={device.id} className={styles.row}>
+              <li key={device.id} className={ui.wrapRow}>
                 <span className="mono">{device.id}</span>
-                <span>{device.name ?? typeName(device.type, t)}</span>
+                <span>{deviceName(device, t)}</span>
                 <Liveness state={liveness}>
-                  {t(`home.liveness.${liveness}`)}
+                  {t(`home.reading.${liveness}`)}
                   {device.state.lastSeenAt ? ` · ${ageLabel(device.state.lastSeenAt, now)}` : ''}
                 </Liveness>
                 {device.spaceId ? (
-                  <Link className={ui.chip} to={placePath(device.spaceId)}>
+                  <Link className={`${ui.chip} ${styles.action}`} to={placePath(device.spaceId)}>
                     {t('admin.demo.open')}
                   </Link>
                 ) : null}
@@ -98,10 +96,8 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownSpaces.map(space => (
-            <li key={space.id} className={styles.row}>
-              <Link className="mono" to={placePath(space.id)}>
-                {space.name}
-              </Link>
+            <li key={space.id} className={ui.wrapRow}>
+              <Link to={placePath(space.id)}>{space.name}</Link>
               <span className={styles.consequence}>{t(`publicPage.spaceKind.${space.kind}`, { defaultValue: space.kind })}</span>
             </li>
           ))}
@@ -115,9 +111,9 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownGrows.map(grow => (
-            <li key={grow.id} className={styles.row}>
+            <li key={grow.id} className={ui.wrapRow}>
               <Link to={`/grows/${grow.id}`}>{grow.name}</Link>
-              <span className={`mono ${styles.consequence}`}>
+              <span className={styles.consequence}>
                 {grow.summary.dayNumber !== null ? t('home.card.dayN', { day: grow.summary.dayNumber }) : t('admin.demo.notStarted')}
                 {grow.visibility === 'public' ? ` · ${t('admin.demo.public')}` : ''}
               </span>
@@ -133,10 +129,8 @@ export function Demo() {
         </div>
         <ul className={styles.lines}>
           {shownCameras.map(camera => (
-            <li key={camera.id} className={styles.row}>
-              <Link className="mono" to={`/cameras/${camera.id}`}>
-                {camera.name}
-              </Link>
+            <li key={camera.id} className={ui.wrapRow}>
+              <Link to={`/cameras/${camera.id}`}>{camera.name}</Link>
               <Liveness state={cameraFreshness(camera, now)}>
                 {camera.state.lastStillAt ? t('devices.ago', { age: ageLabel(camera.state.lastStillAt, now) }) : t('devices.noStill')}
               </Liveness>

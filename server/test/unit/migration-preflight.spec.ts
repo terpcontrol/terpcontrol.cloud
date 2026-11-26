@@ -1,9 +1,9 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import type { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, mongo } from 'mongoose';
 import { MigrationRunner } from '@/migrations/migration-runner';
 import { PreflightFailure, formatPreflight, preflight } from '@/migrations/preflight';
 import { LEGACY_DEVICE_IDS, LEGACY_USER_IDS, LegacyDatabase, seedLegacyDatabase } from '../fixtures/legacy-database';
-import { stopMongod } from './support/mongod';
+import { MONGOD_HOOK_MS, startMongod, stopMongod } from './support/mongod';
 
 /**
  * What the migration refuses to start on, over the same database in today's
@@ -26,10 +26,10 @@ const db = (): mongo.Db => connection.db!;
 const collection = (name: string) => db().collection(name);
 
 beforeAll(async () => {
-  server = await MongoMemoryServer.create();
+  server = await startMongod();
   connection = mongoose.createConnection(server.getUri('preflight-spec'));
   await connection.asPromise();
-});
+}, MONGOD_HOOK_MS);
 
 afterAll(async () => {
   await connection?.dropDatabase();

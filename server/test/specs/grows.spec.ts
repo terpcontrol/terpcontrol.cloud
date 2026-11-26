@@ -1,5 +1,7 @@
-import { anonymous, createAccount, Session } from '../support/api';
+import { anonymous, createAccount, Session, unique } from '../support/api';
 import { claimCodeOf, registerDevice } from '../support/device';
+import { shareLinkOnGrow } from '../support/fixtures';
+import { A_PICTURE } from '../support/pictures';
 
 /**
  * A grow over HTTP: the new-grow sheet, the phase it enters, and the move that
@@ -64,10 +66,21 @@ describe('the new-grow sheet', () => {
     expect(plants.body.items.map((plant: { label: string }) => plant.label)).toEqual(['Amnesia 1', 'Amnesia 2', 'Gelato 1']);
   });
 
-  it('counts no day until the grow has entered a phase', async () => {
+  /** A grow started without a name stored the sheet's "Ohne Namen" as its plants' strain. */
+  it('keeps no strain for plants nobody named one for, and numbers them under the grow´s name', async () => {
+    const grow = await startAGrow({ name: 'Erster Grow', plants: [{ strain: '', count: 2 }] });
+
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    expect(plants.body.items.map((plant: { label: string; strain: string }) => [plant.label, plant.strain])).toEqual([
+      ['Erster Grow 1', ''],
+      ['Erster Grow 2', ''],
+    ]);
+  });
+
+  it('counts its days from its start before the grow has entered a phase, and names no stage', async () => {
     const grow = await startAGrow();
 
-    expect(grow.summary).toMatchObject({ dayNumber: null, stage: null, isAuto: false, groups: [] });
+    expect(grow.summary).toMatchObject({ dayNumber: 1, stage: null, isAuto: false, groups: [] });
   });
 
   it('refuses a body the contract does not describe', async () => {
@@ -204,6 +217,18 @@ describe('correcting what was written down', () => {
     const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
     expect(read.body.placements.map((row: { id: string }) => row.id)).not.toContain(moved.body.id);
     expect(await diaryOf(grow.id, 'move')).toEqual([]);
+    // The plant stands where it stood, with the rest of the grow, as one stay again.
+    expect(read.body.placements).toMatchObject([{ id: grow.placements[0].id, endedAt: null, plantIds: null }]);
+  });
+
+  it('takes the newest stay of a whole grow back to the stay before it', async () => {
+    const grow = await startAGrow();
+    const moved = await owner.client.post(`/v1/grows/${grow.id}/placements`).send({ spaceId: null }).expect(201);
+
+    await owner.client.delete(`/v1/grows/${grow.id}/placements/${moved.body.id}`).expect(204);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.placements).toMatchObject([{ id: grow.placements[0].id, spaceId: grow.placements[0].spaceId, endedAt: null }]);
   });
 });
 
@@ -242,6 +267,115 @@ describe('harvesting', () => {
       .send({ plantIds: [first] })
       .expect(409);
     expect(refused.body.code).toBe('plants_already_harvested');
+  });
+
+  /** A plant deleted after a harvest takes its harvest line along; one of several keeps the others, as typed. */
+  it('takes a deleted plant out of its harvest, and its own harvest out of the diary', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0]], wetWeightG: 60 })
+      .expect(201);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[1], plants[2]], wetWeightG: 200, dryWeightG: 41 })
+      .expect(201);
+
+    await owner.client.delete(`/v1/plants/${plants[0]}`).expect(204);
+    await owner.client.delete(`/v1/plants/${plants[1]}`).expect(204);
+
+    const lines = (await owner.client.get(`/v1/entries?growId=${grow.id}&kinds=harvest`).expect(200)).body.items;
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ plantIds: [plants[2]], values: { kind: 'harvest', wetWeightG: 200, dryWeightG: 41 } });
+  });
+
+  /**
+   * The harvest that ends a grow is dated to the instant the grow ended, where its last day ends: read up to that
+   * instant and not through it, the owner's diary and a link's left out the line that ended the grow.
+   */
+  it('ends the diary of the grow it ended, the owner´s and a link´s', async () => {
+    const grow = await startAGrow();
+    const cut = await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45, dryWeightG: 9 }).expect(201);
+    const token = unique('ended-by-harvest');
+    await shareLinkOnGrow(grow.id, token);
+
+    const linesOf = (page: { items: { days: { entries: { id: string }[] }[] }[] }) =>
+      page.items.flatMap(week => week.days.flatMap(day => day.entries.map(line => line.id)));
+    const own = (await owner.client.get(`/v1/grows/${grow.id}/diary`).expect(200)).body;
+    const linked = (await anonymous().get(`/v1/grows/${grow.id}/diary`).set('X-Share-Token', token).expect(200)).body;
+
+    expect(linesOf(own)).toContain(cut.body.entryId);
+    expect(linesOf(linked)).toContain(cut.body.entryId);
+  });
+
+  /**
+   * One yield everywhere, what was weighed: the amounts typed into the harvests' lines. A plant deleted from a harvest
+   * of two kept the line as typed, while the report added up the plants' shares and dropped the deleted one's.
+   */
+  it('states what was typed in on every page, after a plant weighed with others is deleted', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0], plants[1]], wetWeightG: 100, dryWeightG: 22 })
+      .expect(201);
+    await owner.client.delete(`/v1/plants/${plants[1]}`).expect(204);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 45, dryWeightG: 9 }).expect(201);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const card = (await owner.client.get('/v1/home/grows').expect(200)).body.items.find((one: { growId: string }) => one.growId === grow.id);
+
+    expect(report.harvest).toMatchObject({ wetWeightG: 145, dryWeightG: 31 });
+    expect(card.harvest).toMatchObject({ wetWeightG: 145, dryWeightG: 31 });
+  });
+
+  /**
+   * The dry weight comes days later, and a typo is put right: on the harvest's line, which every page reads, its
+   * plants taking their shares of it. Nothing in the app could add or correct a weight once the harvest was written.
+   */
+  it('takes a weight left empty days later, and a typo put right, on the harvest´s line', async () => {
+    const grow = await startAGrow();
+    const plants: string[] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map((plant: { id: string }) => plant.id);
+    const shared = await owner.client
+      .post(`/v1/grows/${grow.id}/harvests`)
+      .send({ plantIds: [plants[0], plants[1]], wetWeightG: 1000 })
+      .expect(201);
+    const last = await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 40 }).expect(201);
+
+    await owner.client
+      .patch(`/v1/entries/${shared.body.entryId}`)
+      .send({ values: { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 } })
+      .expect(200);
+    await owner.client
+      .patch(`/v1/entries/${last.body.entryId}`)
+      .send({ values: { kind: 'harvest', wetWeightG: 40, dryWeightG: 9 } })
+      .expect(200);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const lines = (await owner.client.get(`/v1/entries?growId=${grow.id}&kinds=harvest`).expect(200)).body.items;
+    const weighed = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map(
+      (plant: { harvest: { wetWeightG: number; dryWeightG: number } }) => [plant.harvest.wetWeightG, plant.harvest.dryWeightG],
+    );
+    expect(report.harvest).toMatchObject({ wetWeightG: 140, dryWeightG: 31 });
+    expect(lines.map((line: { values: unknown }) => line.values)).toEqual(
+      expect.arrayContaining([
+        { kind: 'harvest', wetWeightG: 100, dryWeightG: 22 },
+        { kind: 'harvest', wetWeightG: 40, dryWeightG: 9 },
+      ]),
+    );
+    expect(weighed).toEqual([
+      [50, 11],
+      [50, 11],
+      [40, 9],
+    ]);
+
+    // No harvest is written through the diary: its weights are a harvest's line's alone.
+    const refused = await owner.client
+      .post('/v1/entries')
+      .send({ kind: 'harvest', growId: grow.id, values: { kind: 'harvest', wetWeightG: 1, dryWeightG: null } })
+      .expect(400);
+    expect(refused.body.code).toBe('validation_failed');
   });
 
   /**
@@ -298,6 +432,78 @@ describe('splitting a grow', () => {
       { spaceId: tent, plantIds: plants.body.items.slice(1).map((plant: { id: string }) => plant.id) },
       { spaceId: null, plantIds: [drying] },
     ]);
+  });
+
+  /** The Bericht of a grow two of whose plants went into flowering said only "Veg": a split is a chapter of its own. */
+  it('tells a phase only some of the plants entered as a chapter of the report, beside the grow´s own', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'vegetative' }).expect(201);
+    const plants = await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200);
+    const split = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [plants.body.items[0].id], stage: 'flowering' })
+      .expect(201);
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    expect(report.phases.map((chapter: { stage: string; phaseId: string }) => [chapter.stage, chapter.phaseId === split.body.phase.id])).toEqual([
+      ['flowering', true],
+      ['vegetative', false],
+    ]);
+    expect(report.phases[0]).toMatchObject({ endedAt: null, dayTo: null, spaceIds: [tent] });
+  });
+
+  /** With the drying plant cut, the grow read "Trocknung" over the plant still flowering, and Eintrag offered Reifung next. */
+  it('names the grow by the stage of the plants still standing once a split´s plants are harvested', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+    const drying = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items
+      .slice(0, 2)
+      .map((plant: { id: string }) => plant.id);
+    await owner.client.post(`/v1/grows/${grow.id}/splits`).send({ plantIds: drying, stage: 'drying' }).expect(201);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ plantIds: drying, wetWeightG: 95 }).expect(201);
+
+    const read = await owner.client.get(`/v1/grows/${grow.id}`).expect(200);
+    expect(read.body.endedAt).toBeNull();
+    expect(read.body.summary.stage).toBe('flowering');
+    // Start's card counts the split by the plant still standing, so no "1 von 3 Pflanzen" is said of the one left.
+    const card = (await owner.client.get(`/v1/spaces/${tent}/overview`).expect(200)).body.grows.find(
+      (one: { growId: string }) => one.growId === grow.id,
+    );
+    expect(card).toMatchObject({ stage: 'flowering', plantCount: 3, standingCount: 1 });
+    expect(card.stageGroups).toEqual(
+      expect.arrayContaining([
+        { stage: 'flowering', plantCount: 1 },
+        { stage: 'drying', plantCount: 0 },
+      ]),
+    );
+  });
+
+  /** A split chapter counted the other plants' waterings and took the other plant's photo as its cover. */
+  it('counts in a split´s chapter only the lines about its plants and the whole grow, and takes its cover from them', async () => {
+    const grow = await startAGrow();
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'flowering' }).expect(201);
+    const [drying, flowering] = (await owner.client.get(`/v1/grows/${grow.id}/plants`).expect(200)).body.items.map(
+      (plant: { id: string }) => plant.id,
+    );
+    const split = await owner.client
+      .post(`/v1/grows/${grow.id}/splits`)
+      .send({ plantIds: [drying], stage: 'drying' })
+      .expect(201);
+    const write = (body: Record<string, unknown>) =>
+      owner.client
+        .post('/v1/entries')
+        .send({ growId: grow.id, ...body })
+        .expect(201);
+    await write({ kind: 'water', plantIds: [flowering], values: { kind: 'water', litres: 0.3 } });
+    await write({ kind: 'water', values: { kind: 'water', litres: 1 } });
+    const picture = (
+      await owner.client.post('/v1/media').field('kind', 'photo').field('growId', grow.id).attach('file', A_PICTURE, 'other.png').expect(201)
+    ).body;
+    await write({ kind: 'photo', plantIds: [flowering], mediaIds: [picture.id], values: { kind: 'photo' } });
+
+    const report = (await owner.client.get(`/v1/grows/${grow.id}/report`).expect(200)).body;
+    const chapter = report.phases.find((one: { phaseId: string }) => one.phaseId === split.body.phase.id);
+    expect(chapter).toMatchObject({ waterCount: 1, coverMediaId: null });
   });
 
   it('refuses a split that gives the plants neither a phase nor a place', async () => {
@@ -410,6 +616,34 @@ describe('ending a grow', () => {
     expect(moved.body.endedAt).toBe(endedAt);
   });
 
+  /**
+   * An ended grow can be reopened (Chris, 2026-11-14): it runs on where it stood. One whose place was removed with
+   * it - "Ort entfernen" with "Grow beenden" - stood in a place nobody can open any more, and runs on at no fixed place.
+   */
+  it('reopens where it stood, and at no fixed place where its place was removed with it', async () => {
+    const { grow, endedAt } = await anEndedGrow();
+    const reopened = (await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200)).body;
+    expect(reopened.endedAt).toBeNull();
+    expect(reopened.placements.filter((placement: { endedAt: string | null }) => placement.endedAt === null)).toMatchObject([{ spaceId: tent }]);
+
+    const place = (
+      await owner.client
+        .post('/v1/spaces')
+        .send({ kind: 'tent', name: unique('Removed with its grow') })
+        .expect(201)
+    ).body.id;
+    const gone = await startAGrow({ spaceId: place, startedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() });
+    await owner.client.patch(`/v1/grows/${gone.id}`).send({ endedAt }).expect(200);
+    await owner.client.delete(`/v1/spaces/${place}`).expect(204);
+
+    const open = (await owner.client.patch(`/v1/grows/${gone.id}`).send({ endedAt: null }).expect(200)).body.placements.filter(
+      (placement: { endedAt: string | null }) => placement.endedAt === null,
+    );
+    expect(open).toEqual([expect.objectContaining({ spaceId: null, startedAt: endedAt, plantIds: null })]);
+    // Running again, it takes what happens to it.
+    await owner.client.post(`/v1/grows/${gone.id}/placements`).send({ spaceId: tent }).expect(201);
+  });
+
   it('cannot end before it began, nor start or end in the future', async () => {
     const grow = await startAGrow({ startedAt: new Date(Date.now() - 5 * 86_400_000).toISOString() });
     const tenDaysAgo = new Date(Date.now() - 10 * 86_400_000).toISOString();
@@ -430,6 +664,19 @@ describe('ending a grow', () => {
 
     await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
     await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'drying' }).expect(201);
+  });
+
+  // Ended by its last harvest and reopened, a grow has nothing left to cut: it is ended by hand, as the harvest sheet offers.
+  it('ends again by hand once reopened after its last harvest', async () => {
+    const grow = await startAGrow({ startedAt: new Date(Date.now() - 10 * 86_400_000).toISOString() });
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({ wetWeightG: 100 }).expect(201);
+    expect((await owner.client.get(`/v1/grows/${grow.id}`).expect(200)).body.endedAt).not.toBeNull();
+
+    await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt: null }).expect(200);
+    const endedAt = new Date().toISOString();
+    const ended = (await owner.client.patch(`/v1/grows/${grow.id}`).send({ endedAt }).expect(200)).body;
+    expect(ended.endedAt).toBe(endedAt);
+    await owner.client.post(`/v1/grows/${grow.id}/harvests`).send({}).expect(409);
   });
 
   it('takes its plants with it when it is deleted', async () => {

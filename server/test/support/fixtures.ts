@@ -135,6 +135,33 @@ export const storeCameraStill = (cameraId: string, data: Buffer, capturedAt: Dat
   });
 
 /**
+ * Pictures a camera took at these instants, as rows only: enough for a film to be asked for, which counts the
+ * pictures of its span before it queues anything. No bytes stand behind them, so a render of them makes no film.
+ */
+export const seedStillRows = (cameraId: string, instants: Date[]): Promise<void> =>
+  withDatabase(async database => {
+    await database.collection('media').insertMany(
+      instants.map(capturedAt => ({
+        id: randomUUID(),
+        createdAt: new Date(),
+        kind: 'still',
+        mime: 'image/jpeg',
+        bytes: 1,
+        cameraId,
+        growId: null,
+        spaceId: null,
+        uploadedBy: null,
+        capturedAt,
+        endsAt: null,
+        window: null,
+        quality: null,
+        lengthSeconds: null,
+        render: null,
+      })),
+    );
+  });
+
+/**
  * A row in a collection a spec cannot reach through the API: one with no routes
  * yet - the chart views and the feeding schemes - one the server writes for
  * itself, like the notification log, and one whose state a route cannot put

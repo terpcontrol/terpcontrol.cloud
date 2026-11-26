@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { ApiError } from '@/api/problem';
+import { ApiError, readProblem } from '@/api/problem';
 import { refusalText } from '@/ui/refusal';
 import { translate } from './translations';
 
@@ -37,5 +37,15 @@ describe('a refusal', () => {
   it("says a request that reached nothing as that, or as the caller's own words", () => {
     expect(refusalText(new TypeError('Failed to fetch'))).toBe(i18next.t('shell.unreachable'));
     expect(refusalText(new TypeError('Failed to fetch'), 'Could not ask')).toBe('Could not ask');
+  });
+});
+
+describe('a refusal as it comes off the wire', () => {
+  it('always carries its list of fields, also where the server sent none', async () => {
+    const bare = new Response(JSON.stringify({ status: 409, code: 'space_archived', title: 'Conflict', detail: 'That space has ended.' }), {
+      status: 409,
+    });
+
+    expect(await readProblem(bare)).toEqual({ status: 409, code: 'space_archived', title: 'Conflict', detail: 'That space has ended.', errors: [] });
   });
 });

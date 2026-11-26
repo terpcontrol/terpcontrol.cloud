@@ -1,9 +1,12 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { GrowListItem, Me, ShareLink, ShareLinkCreate, Space } from '@fg2/shared-types/v1';
+import { NewLinkSheet } from '@/screens/me/sharing/NewLinkSheet';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
+import type { Told } from '@/log/log-context';
 import { drawAt, json, NOT_FOUND } from './harness';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -41,13 +44,23 @@ const daysFromNow = (days: number) => NOW.plus({ days }).set({ hour: 12, minute:
 const dayOf = (at: string) => DateTime.fromISO(at).toFormat('d LLL');
 
 const grows = [
-  { id: 'grow-1', ownerId: 'user-1', name: 'Spring run #3', slug: 'spring-run-3', visibility: 'public' },
-  { id: 'grow-2', ownerId: 'user-1', name: 'Balcony tomatoes', slug: 'balcony-tomatoes', visibility: 'private' },
-  { id: 'grow-9', ownerId: 'user-mia', name: "Mia's grow", slug: 'mias-grow', visibility: 'public' },
+  {
+    id: 'grow-1',
+    ownerId: 'user-1',
+    name: 'Spring run #3',
+    slug: 'spring-run-3',
+    visibility: 'public',
+    endedAt: null,
+    placements: [{ spaceId: 'space-1', endedAt: null }],
+  },
+  { id: 'grow-2', ownerId: 'user-1', name: 'Balcony tomatoes', slug: 'balcony-tomatoes', visibility: 'private', endedAt: null, placements: [] },
+  { id: 'grow-9', ownerId: 'user-mia', name: "Mia's grow", slug: 'mias-grow', visibility: 'public', endedAt: null, placements: [] },
 ] as GrowListItem[];
 
 const spaces = [
   { id: 'space-1', ownerId: 'user-1', name: 'Tent 1', kind: 'tent' },
+  // A room groups places and is no subject of a link.
+  { id: 'room-1', ownerId: 'user-1', name: 'Workshop', kind: 'room' },
   { id: 'space-9', ownerId: 'user-mia', name: "Mia's tent", kind: 'tent' },
 ] as Space[];
 
@@ -153,7 +166,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 }) as unknown as typeof fetch;
 
-const draw = () => drawAt(<ShareLinks />, { at: '/me/share-links' });
+let told: Told[] = [];
+
+const draw = (at = '/me/share-links') =>
+  drawAt(
+    <Toast told={told}>
+      <ShareLinks />
+    </Toast>,
+    { at },
+  );
 
 const drawLoaded = async () => {
   draw();
@@ -162,11 +183,15 @@ const drawLoaded = async () => {
   await waitFor(() => expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument());
 };
 
-const card = (title: string) => screen.getByRole('button', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).closest('li')!;
+const card = (title: string, list?: string) =>
+  (list ? within(screen.getByRole('list', { name: list })) : screen)
+    .getByRole('button', { name: new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) })
+    .closest('li')!;
 
 beforeAll(() => translate());
 
 beforeEach(() => {
+  told = [];
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
   server.links = [publicPage, weekView, revoked, expired];
@@ -196,7 +221,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [link({ subject: { type: 'space', id: 'space-9' } })];
     await drawLoaded();
 
-    expect(card("Mia's tent · timeline")).toBeInTheDocument();
+    expect(card("Mia's tent · Timeline")).toBeInTheDocument();
     expect(server.asked.filter(asked => asked.startsWith('/spaces')).length).toBeGreaterThan(1);
   });
 
@@ -207,7 +232,7 @@ describe('a subject the first page does not hold', () => {
 
     await screen.findByText('Active');
     expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
-    await waitFor(() => expect(card("Mia's tent · timeline")).toBeInTheDocument());
+    await waitFor(() => expect(card("Mia's tent · Timeline")).toBeInTheDocument());
   });
 
   it('says the name could not be read when that list fails, rather than that the link has gone', async () => {
@@ -215,7 +240,7 @@ describe('a subject the first page does not hold', () => {
     server.links = [link({})];
     draw();
 
-    await waitFor(() => expect(card('Could not load. Try again. · timeline')).toBeInTheDocument());
+    await waitFor(() => expect(card('Could not load. · Timeline')).toBeInTheDocument());
     expect(screen.queryByText(/no longer here/)).not.toBeInTheDocument();
   });
 
@@ -224,16 +249,16 @@ describe('a subject the first page does not hold', () => {
     server.links = [orphanPage];
     draw();
 
-    const gone = await waitFor(() => card('Could not load. Try again. · public page'));
+    const gone = await waitFor(() => card('Could not load. · public page'));
     expect(gone).not.toHaveTextContent('grow now private');
-    expect(gone).not.toHaveTextContent("the grow's permanent link");
+    expect(gone).not.toHaveTextContent('the grow’s permanent link');
   });
 
   it('still calls a link gone once both lists have been read to their end without it', async () => {
     server.links = [link({ subject: { type: 'space', id: 'space-404' } })];
     draw();
 
-    await waitFor(() => expect(card('no longer here · timeline')).toBeInTheDocument());
+    await waitFor(() => expect(card('no longer here · Timeline')).toBeInTheDocument());
   });
 });
 
@@ -246,19 +271,31 @@ describe('the active list', () => {
     expect(screen.getByText('Active').nextElementSibling).toHaveTextContent('2');
 
     const page = card('Spring run #3 · public page');
-    expect(page).toHaveTextContent("the grow's permanent link · cams on · weights hidden · 41 opens · last 2 h ago");
+    expect(page).toHaveTextContent('the grow’s permanent link · camera pictures on · weights hidden · opened 41 times · last 2 h ago');
     expect(page).not.toHaveAttribute('data-dead');
 
-    const week = card('Tent 1 · timeline · for 7 days');
-    expect(week).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · cams on · weights hidden · 6 opens · last 5 min ago`);
+    // How long it lasts is said once, by the day it ends: "for 7 days" in the title said it again.
+    const week = card('Tent 1 · Timeline', 'Active');
+    expect(within(week).getByRole('button', { name: /^Tent 1 · Timeline/ }).firstElementChild).toHaveTextContent(/^Tent 1 · Timeline$/);
+    expect(week).toHaveTextContent(
+      `read-only view · expires ${dayOf(weekView.expiresAt!)} · camera pictures on · weights hidden · opened 6 times · last 5 min ago`,
+    );
+    // A date is one word to a line.
+    expect(week.textContent).toContain(`expires ${dayOf(weekView.expiresAt!).replace(' ', '\u00a0')}`);
     expect(within(week).getByRole('button', { name: 'Copy the link' })).toBeInTheDocument();
+  });
+
+  it('leads back to all grows, which is where it is reached from, rather than to Me', async () => {
+    await drawLoaded();
+
+    expect(screen.getByRole('link', { name: 'Back to all grows' })).toHaveAttribute('href', '/grows');
   });
 
   it('says a link nobody has opened has not been opened, rather than counting a zero', async () => {
     server.links = [link({ includeCameras: false })];
     await drawLoaded();
 
-    expect(card('Tent 1 · timeline')).toHaveTextContent('read-only view · permanent · cams off · weights hidden · not opened yet');
+    expect(card('Tent 1 · Timeline')).toHaveTextContent('read-only view · permanent · camera pictures off · weights hidden · not opened yet');
   });
 
   it('warns on a public-page link whose grow has gone private, because the server still answers it', async () => {
@@ -273,7 +310,7 @@ describe('the active list', () => {
 
     expect(
       screen.getByText(
-        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the cams or not. Followers see the public page; a link never grants writing.',
+        'Two kinds: the public page of a grow (permanent until you make the grow private) and a read-only view of a place or a time range with an expiry. Both can include the camera pictures or not. Followers see the public page; a link never grants writing.',
       ),
     ).toBeInTheDocument();
   });
@@ -287,7 +324,10 @@ describe('links that have stopped', () => {
     expect(within(dead).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByText('Expired or revoked').nextElementSibling).toHaveTextContent('2');
 
-    const gone = card('Tent 1 · timeline · for 14 days');
+    const gone = within(dead)
+      .getAllByRole('listitem')
+      .find(row => row.textContent?.includes('expired'))!;
+    expect(within(gone).getByRole('button')).toHaveAccessibleName(/^Tent 1 · Timeline/);
     expect(gone).toHaveAttribute('data-dead');
     expect(gone).toHaveTextContent(`expired ${dayOf(expired.expiresAt!)} · not opened yet`);
     expect(within(gone).queryByRole('button', { name: 'Copy the link' })).not.toBeInTheDocument();
@@ -295,7 +335,7 @@ describe('links that have stopped', () => {
     const taken = within(dead)
       .getAllByRole('listitem')
       .find(row => row.textContent?.includes('revoked'))!;
-    expect(taken).toHaveTextContent(`revoked ${dayOf(revoked.revokedAt!)} · 2 opens`);
+    expect(taken).toHaveTextContent(`revoked ${dayOf(revoked.revokedAt!)} · opened 2 times`);
     expect(taken).not.toHaveTextContent('expires');
   });
 
@@ -314,23 +354,58 @@ describe('links that have stopped', () => {
     expect(screen.getByText('Active').nextElementSibling).toHaveTextContent('0');
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
+
+  it('says none is active, not that none was handed out, above the links that stopped', async () => {
+    server.links = [revoked];
+    await drawLoaded();
+
+    expect(screen.getByText('None is active right now')).toBeInTheDocument();
+    expect(screen.queryByText('No links handed out yet')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Expired or revoked' })).getAllByRole('listitem')).toHaveLength(1);
+  });
 });
 
 describe('a link’s own sheet', () => {
-  it('shows the address of a live link and revokes it where it stands', async () => {
+  it('shows the address of a live link and revokes it where it stands, once it was asked', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: /^Tent 1 · timeline · for 7 days/ }));
+    fireEvent.click(within(screen.getByRole('list', { name: 'Active' })).getByRole('button', { name: /^Tent 1 · Timeline/ }));
 
-    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · timeline · for 7 days' });
+    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · Timeline' });
     expect(within(sheet).getByText(/\/shared\/tok-week$/)).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Forget' })).not.toBeInTheDocument();
     // What it will do, to whom, and that there is no way back to a live link.
-    expect(within(sheet).getByText(/it cannot be started again - sharing once more takes a new link/)).toBeInTheDocument();
+    expect(within(sheet).getByText(/it cannot be started again – sharing once more takes a new link/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
+    // Nothing starts a link again, so revoking is asked first, with the one danger yes and "Cancel" beside it.
+    expect(within(sheet).getByText(/^Revoke the link now\?/)).toHaveFocus();
+    expect(server.revoked).toEqual([]);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }));
+    expect(within(sheet).queryByText(/^Revoke the link now\?/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
+    const yes = within(sheet).getByRole('button', { name: 'Revoke' });
+    expect(yes.className).toMatch(/dangerFilled/);
+    fireEvent.click(yes);
     await waitFor(() => expect(server.revoked).toEqual(['link-week']));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(server.forgotten).toEqual([]);
+    // Every write answers: the link that stopped, by what it was onto.
+    expect(told).toMatchObject([{ label: 'Link revoked · Tent 1', undo: null }]);
+  });
+
+  /**
+   * The question asks, and the paragraph above it says what revoking does: the question had said it all again. The
+   * address is the app's face, as an invite link's is, broken only after a slash.
+   */
+  it('asks the bare question under the paragraph that explains, and sets the address to break only after a slash', async () => {
+    await drawLoaded();
+    fireEvent.click(within(screen.getByRole('list', { name: 'Active' })).getByRole('button', { name: /^Tent 1 · Timeline/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Tent 1 · Timeline' });
+
+    const address = within(sheet).getByText(/tok-week$/, { selector: 'code' });
+    expect(address.querySelectorAll('wbr').length).toBeGreaterThan(1);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Revoke' }));
+    expect(within(sheet).getByText('Revoke the link now?')).toBeInTheDocument();
   });
 
   it('offers a dead link neither its address nor Revoke, only Forget', async () => {
@@ -362,7 +437,7 @@ describe('copying', () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\/shared\/tok-page$/));
 
     writeText.mockRejectedValueOnce(new Error('refused'));
-    fireEvent.click(within(card('Tent 1 · timeline · for 7 days')).getByRole('button', { name: 'Copy the link' }));
+    fireEvent.click(within(card('Tent 1 · Timeline', 'Active')).getByRole('button', { name: 'Copy the link' }));
     await screen.findByText('Copy it by hand');
   });
 });
@@ -396,11 +471,21 @@ describe('an account with nothing of its own', () => {
 describe('the new-link sheet', () => {
   const open = async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or place · cams · expiry' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ New link · grow or place · camera pictures · expiry' }));
     return screen.getByRole('dialog', { name: 'New link' });
   };
 
-  it('offers only what this account owns, and starts on a read-only view for a week', async () => {
+  /** "Freigabelink erstellen ›" on a place's edit page led to the list, whose sheet then chose a grow. */
+  it('opens on the place a place´s page asked for, offered first and chosen', async () => {
+    draw('/me/share-links?place=space-1');
+
+    const sheet = await screen.findByRole('dialog', { name: 'New link' });
+    const subjects = within(sheet).getByRole('group', { name: 'Grow or place' });
+    expect(within(subjects).getAllByRole('button')[0]).toHaveTextContent('Tent 1');
+    expect(within(subjects).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('offers only what this account owns, grows and places and no room, and starts on a read-only view for a week', async () => {
     const sheet = await open();
 
     const subjects = within(sheet).getByRole('group', { name: 'Grow or place' });
@@ -429,6 +514,47 @@ describe('the new-link sheet', () => {
     expect(body).toMatchObject({ kind: 'view', subject: { type: 'space', id: 'space-1' }, includeCameras: true });
     expect(Math.abs(DateTime.fromISO(body.expiresAt!).diff(NOW.plus({ days: 30 }), 'minutes').minutes)).toBeLessThan(1);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // Made, it answers: the sheet is gone and the card may be far down the list.
+    expect(told).toEqual([{ label: 'Link created · Tent 1', undo: null }]);
+  });
+
+  /** A link onto a place with no grow listed "weights hidden · plant counts hidden" - of plants it shows none of. */
+  it('says nothing a link hides of a grow on the card of a link onto a place where nothing grows', async () => {
+    const standing = grows[0].placements;
+    grows[0].placements = [];
+    onTestFinished(() => void (grows[0].placements = standing));
+    server.links = [weekView];
+    await drawLoaded();
+
+    await waitFor(() => expect(server.asked.some(path => path.startsWith('/grows'))).toBe(true));
+    await waitFor(() =>
+      expect(card('Tent 1 · Timeline', 'Active')).toHaveTextContent(
+        `read-only view · expires ${dayOf(weekView.expiresAt!)} · camera pictures on · opened 6 times`,
+      ),
+    );
+  });
+
+  /** "camera pictures off" stood on the card of a link onto a place no camera has ever stood in. */
+  it('says nothing of camera pictures on the card of a link onto a place without a camera', async () => {
+    server.cameras = [];
+    server.links = [weekView];
+    await drawLoaded();
+
+    await waitFor(() => expect(server.asked).toContain('/cameras'));
+    await waitFor(() => expect(card('Tent 1 · Timeline', 'Active')).not.toHaveTextContent('camera pictures'));
+    expect(card('Tent 1 · Timeline', 'Active')).toHaveTextContent(`read-only view · expires ${dayOf(weekView.expiresAt!)} · weights hidden`);
+  });
+
+  /** A place where nothing grows has no diary for its link to carry: it was told "the diary and its photos". */
+  it('tells a place where nothing grows what its link carries without the camera', async () => {
+    const running = grows[0].placements;
+    grows[0].placements = [];
+    onTestFinished(() => void (grows[0].placements = running));
+    const sheet = await open();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
+    expect(await within(sheet).findByText('Without this the link carries the place’s curves, but no still from it.')).toBeInTheDocument();
+    expect(within(sheet).queryByText(/the diary and its photos/)).not.toBeInTheDocument();
   });
 
   it('offers camera pictures only where a camera stands, and switches them from the words too', async () => {
@@ -445,7 +571,7 @@ describe('the new-link sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Balcony tomatoes' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Public page' }));
     expect(within(sheet).getByText(/Balcony tomatoes is private/)).toBeInTheDocument();
-    expect(within(sheet).getByRole('link', { name: 'Public grows and profile' })).toHaveAttribute('href', '/me/public');
+    expect(within(sheet).getByRole('link', { name: 'Privacy and profile' })).toHaveAttribute('href', '/me/privacy');
     expect(within(sheet).getByRole('button', { name: 'Create link' })).toBeDisabled();
     expect(within(sheet).queryByRole('button', { name: '7 days' })).not.toBeInTheDocument();
 
@@ -465,6 +591,57 @@ describe('the new-link sheet', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Tent 1' }));
     expect(within(sheet).getByRole('button', { name: 'Public page' })).toBeDisabled();
     expect(within(sheet).getByRole('button', { name: 'Read-only view' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+/** Opened from Verlauf: the window on screen is named, and the place - whose curves they are - is offered first. */
+describe('the new-link sheet from Verlauf', () => {
+  const window = { startsAt: daysFromNow(-1), endsAt: NOW.toUTC().toISO()!, label: 'Yesterday 12:00 to today 12:00' };
+  const openFrom = (fixed: boolean) =>
+    drawAt(
+      <Toast told={told}>
+        <NewLinkSheet
+          grows={[grows[0]]}
+          spaces={spaces.filter(space => space.ownerId === 'user-1')}
+          window={{ ...window, fixed }}
+          first="space"
+          onClose={() => undefined}
+        />
+      </Toast>,
+    );
+
+  it('chooses the place, names the window and holds the link to it once somebody chose that window', async () => {
+    openFrom(true);
+    const sheet = screen.getByRole('dialog', { name: 'New link' });
+
+    expect(
+      within(within(sheet).getByRole('group', { name: 'Grow or place' }))
+        .getAllByRole('button')
+        .map(button => button.textContent),
+    ).toEqual(['Tent 1', 'Spring run #3']);
+    expect(within(sheet).getByRole('button', { name: 'Tent 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByRole('button', { name: window.label })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByText('The link shows this time span only: its curves and its entries.')).toBeInTheDocument();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Create link' }));
+    await waitFor(() => expect(server.created).toHaveLength(1));
+    expect(server.created[0]).toMatchObject({
+      subject: { type: 'space', id: 'space-1' },
+      range: { startsAt: window.startsAt, endsAt: window.endsAt },
+    });
+  });
+
+  it('names a window that ends now as well, and leaves the link unbounded until it is chosen', () => {
+    openFrom(false);
+    const sheet = screen.getByRole('dialog', { name: 'New link' });
+
+    expect(within(sheet).getByRole('button', { name: window.label })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(sheet).getByRole('button', { name: 'No limit' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(sheet).getByText('The link shows the place as it is now, and everything before.')).toBeInTheDocument();
+
+    // A grow without a limit is its diary as it goes on.
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Spring run #3' }));
+    expect(within(sheet).getByText('The link shows the grow’s diary as it goes on.')).toBeInTheDocument();
   });
 });
 

@@ -97,6 +97,15 @@ export const dryingReturn = named(
   }),
 );
 
+/** A climate preset as it was applied: the stage, and the preset on top of it where one was named. */
+export const appliedClimate = named(
+  'AppliedClimate',
+  z.object({
+    stage: growthStage,
+    preset: z.string().nullable(),
+  }),
+);
+
 export const deviceControl = named(
   'DeviceControl',
   z.object({
@@ -117,14 +126,52 @@ export const deviceControl = named(
     germinationChoices: germinationChoices.describe(
       'What germination does about the humidity on this device: what was chosen for this germination, or what holds where nothing was (`GERMINATION_CHOICES`). Acted on only while the device germinates, and back to the defaults when germination ends.',
     ),
+    preset: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "The climate preset the device was last put on - saved with its targets, a phase's climate, a preset applied to its place, a plan step that names one - which is what names one on Steuerung, never figures that happen to match one. A plan step that names none, and a figure a preset sets changed by hand, clear it. Null, or absent from an older server, where none was applied since it is kept.",
+      ),
+    endsOn: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "While germinating or drying: the climate ending the spell by itself (`mode: standard`, `drying: false`) puts the device on, its name and the place's alarm thresholds with it - the one it came from, or `seedling` for a germination where none had a name, whose figures it then writes. Null for a drying spell where none had a name: its figures come back and the stage's thresholds go until a climate is written. Absent outside a spell.",
+      ),
   }),
 );
+
+/** How a device's owner let it go: gave it up (`DELETE /devices/{id}/claim`), or deleted their account with it. */
+export const deviceRelease = named('DeviceRelease', z.enum(['given_up', 'account_deleted']));
 
 export const deviceState = named(
   'DeviceState',
   z.object({
     lastSeenAt: instant().nullable().describe('Last sample or status; what `offline` is decided from.'),
     claimedAt: instant().nullable(),
+    released: z
+      .object({
+        at: instant(),
+        by: deviceRelease,
+      })
+      .nullable()
+      .optional()
+      .describe(
+        'When its last owner let it go, and how, while nobody has claimed it since: what tells a device given up from one nobody ever added. Null for a device that is claimed or never was, or absent from an older server; a claim clears it, so nobody who claims a device learns what became of the one before.',
+      ),
+    awaitedClimate: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        'The climate preset its place was put on before the device sent its first settings, which it is put on as they arrive. Null where none waits - also once the device stands elsewhere, since the climate was the place’s -, or absent from an older server.',
+      ),
+    limitBeforeDark: z
+      .number()
+      .nullable()
+      .optional()
+      .describe(
+        'A lamp module its place keeps dark - germinating or drying (ADR 0007) -: the brightness it had before, which it gets back when the spell ends unless somebody sets one since. Set while it is darkened, also where somebody has lit it since; null where no spell has darkened it, or absent from an older server.',
+      ),
     firmwareId: id().nullable().describe('What the device reports it is running, which is the build uuid.'),
     updateStartedAt: instant().nullable().describe('When the device was last told which build to install, however it was told.'),
     updateEndedAt: instant().nullable(),
@@ -239,6 +286,24 @@ export const deviceConfigurationEnvelope = named(
       .partial()
       .optional()
       .describe('What germination does about the humidity, where the save says so. A choice left out stands as it was.'),
+    preset: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        'The climate preset the targets saved are, where one was applied with them - or the one they are again, where a save is taken back; null where they were named by none. Left out, a figure a preset sets that moves clears the name, and a save that moves none leaves it.',
+      ),
+    bands: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "The climate the place's alarm thresholds go back to, null for none: what taking back a save that moved them sends, its `bandsBefore`. It decides them over `preset`. Left out, they follow `preset` as for any save.",
+      ),
+    bandsBefore: appliedClimate
+      .nullable()
+      .optional()
+      .describe(
+        "Answered where the save moved the place's alarm thresholds: the climate they followed before it, null where they followed none. Not read on a request.",
+      ),
   }),
 );
 
@@ -454,6 +519,18 @@ export const deviceClaimCreate = named(
   claimCode.pick({ code: true }).extend({
     name: z.string().optional().describe('Absent names the device after its type.'),
     spaceId: id().optional(),
+    spaceNames: z
+      .object({ tent: z.string(), fridge: z.string() })
+      .partial()
+      .optional()
+      .describe(
+        'What to call the place this claim makes, where it makes one: the words in the language the claimer reads, which the server does not know - `fridge` for the place of a fridge module, `tent` for any other, since the type is not known before the code is read. Numbered where the account has a place of that name ("Zelt 2"); ignored where the device joins a place that exists.',
+      ),
+    joinSpaceId: id()
+      .optional()
+      .describe(
+        'Where the device hangs if it is one that holds no climate of its own - a fan, a smart socket, a lamp: it joins that place, and no place is made. A controller or a fridge module is given its own place all the same. Named by a client that cannot know the type before the code is read; not together with `spaceId`.',
+      ),
   }),
 );
 
@@ -786,6 +863,12 @@ export const plan = named(
     createdAt: instant(),
     deviceId: id(),
     templateId: id().nullable().describe('What it was started from; null once it no longer matters.'),
+    growId: id()
+      .nullable()
+      .optional()
+      .describe(
+        "The grow whose phase its steps set: the one standing where the device stands when it was started, kept while it stands there - a grow begun beside it later is not moved. Null where none stood, or before it was first started.",
+      ),
     name: z.string(),
     steps: z.array(planStep),
     loop: z.boolean().describe('Start again at the first step instead of completing.'),
@@ -857,6 +940,16 @@ export const planTemplateCreate = named(
 export const planTemplateUpdate = named('PlanTemplateUpdate', planTemplateCreate.partial());
 
 /**
+ * The grow a plan at rest is started for, whose phases its steps set while it stands where the device stands: the
+ * place's lead grow, which the plan screen names before the tap. Not read for a plan that is running or paused.
+ */
+const startedFor = id()
+  .optional()
+  .describe(
+    "For a plan at rest: the grow its steps move while it stands where the device stands - the one the screen named. Left out, or not standing there, the grow standing there longest.",
+  );
+
+/**
  * What `POST /devices/{id}/plan/transitions` asks of a plan. `goto` runs the
  * plan from the start of the step it names, whether it was running, paused or
  * at rest: going back a step, or starting a plan in the middle of a grow.
@@ -868,8 +961,8 @@ export const planTransition = named(
     z.object({ kind: planTransitionKind.extract(['skip']) }),
     z.object({ kind: planTransitionKind.extract(['extend']), by: stepDuration }),
     z.object({ kind: planTransitionKind.extract(['pause']), reason: z.string().nullable() }),
-    z.object({ kind: planTransitionKind.extract(['resume']) }),
-    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.') }),
+    z.object({ kind: planTransitionKind.extract(['resume']), growId: startedFor }),
+    z.object({ kind: planTransitionKind.extract(['goto']), stepId: id().describe('The step the plan runs from, by its id.'), growId: startedFor }),
   ]),
 );
 
@@ -1010,7 +1103,28 @@ export const alarmRule = named(
   }),
 );
 
-export const alarmRulePage = named('AlarmRulePage', page(alarmRule));
+/**
+ * A device's rules, a page at a time, with what the whole list comes to: a screen that says "7 Regeln · alle ruhig"
+ * counts every rule, not the first page of them.
+ */
+export const alarmRulePage = named(
+  'AlarmRulePage',
+  page(alarmRule).extend({
+    counts: z
+      .object({
+        total: z.number().int(),
+        enabled: z.number().int(),
+        triggered: z.number().int().describe('Enabled rules whose watch is out of bounds now.'),
+      })
+      .describe('Over every rule of the device, whichever page this is.'),
+    germination: germinationChoices
+      .nullable()
+      .optional()
+      .describe(
+        "While the place the device stands in germinates: what was chosen there about the humidity, which the stage's \"too humid\" of this device goes by - its own controller's, or for a lamp module, a fan or a socket the controller's of its place (a fan alone, the germination climate it was put on). Null where nothing germinates, or absent from an older server.",
+      ),
+  }),
+);
 
 /**
  * `POST /devices/{id}/alarm-rules`. The device is the path. Where a rule came
@@ -1074,7 +1188,20 @@ export const alert = named(
     ruleId: id().nullable().describe('null for an alert the health loop raised without a rule.'),
     deviceId: id().nullable(),
     cameraId: id().nullable(),
-    spaceId: id().nullable(),
+    spaceId: id()
+      .nullable()
+      .describe(
+        'The place it stands in: an open alert stands where its device or camera stands now and moves with it, one that is over keeps the place it happened in. Null where that is no place.',
+      ),
+    spaceName: z
+      .string()
+      .nullable()
+      .describe('What that place is called now, an ended place included, so that no reader has to show an id; null where `spaceId` is.'),
+    startedIn: id()
+      .nullable()
+      .describe(
+        'The place its device stood in when it began, whose Verlauf shows that instant: `spaceId` but for an open alert that has moved with its device since. Null where that is no place.',
+      ),
     kind: alertKind,
     severity: severity,
     startedAt: instant(),
@@ -1149,6 +1276,36 @@ export const setpoints = named(
   }),
 );
 
+/** One setting the cloud stored while its device was silent, and what the device still holds for it. */
+export const pendingSetting = named(
+  'PendingSetting',
+  z.object({
+    field: z
+      .string()
+      .describe("The setting by its dotted path in the device's document: `day.temperature`, `daynight.day`, `workmode`, `lights.limit`."),
+    held: z
+      .union([z.number(), z.string()])
+      .nullable()
+      .describe(
+        'What the device was last handed for it: a figure, or anything else as the diary line of a change writes it (a work mode by its word, `true`, a list as JSON). null where the document stated none.',
+      ),
+    savedAt: instant().describe('When the value the cloud holds now was stored.'),
+  }),
+);
+
+/**
+ * What a silent device has not been handed. A device acknowledges nothing, so
+ * this is never what it runs: it was last heard at `since`, what it holds is
+ * what the cloud had stored by then, and each setting here was stored after.
+ */
+export const pendingSettings = named(
+  'PendingSettings',
+  z.object({
+    since: instant().describe('When the device was last heard.'),
+    settings: z.array(pendingSetting),
+  }),
+);
+
 /**
  * One device's newest reading of everything it measures: one `last()` per
  * device.
@@ -1167,6 +1324,11 @@ export const deviceLive = named(
     metrics: z.partialRecord(metric, metricValue),
     outputs: z.partialRecord(outputMetric, metricValue).describe('The newest value of each output the device has reported driving.'),
     setpoints: setpoints.nullable().describe('null for a device that holds no targets, such as a plug.'),
+    pending: pendingSettings
+      .nullable()
+      .describe(
+        'Set only while the device counts as offline and a setting stored since it was last heard differs from what it held then; one changed and changed back is not in it.',
+      ),
   }),
 );
 

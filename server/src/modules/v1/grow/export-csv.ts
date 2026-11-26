@@ -12,8 +12,10 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
+import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import { MediaTally } from '@modules/v1/camera/media.service';
 import { readingsIn } from '../diary/diary-entries';
+import { rounded } from '../timeline/timeline-series';
 
 /**
  * What an export's CSVs say.
@@ -79,10 +81,16 @@ export const DIARY_COLUMNS = [
   'entryId',
 ];
 
-export const diaryRows = (entries: readonly EntryDocument[], grow: GrowDocument | null, people: Names, plants: Names): unknown[][] =>
+export const diaryRows = (
+  entries: readonly EntryDocument[],
+  grow: GrowDocument | null,
+  people: Names,
+  plants: Names,
+  zone: string | null,
+): unknown[][] =>
   entries.map(entry => [
     entry.occurredAt,
-    grow ? growDayAt(growOriginOf(grow), entry.occurredAt) : null,
+    grow ? growDayAt(growOriginOf(grow), entry.occurredAt, zone) : null,
     entry.kind,
     entry.source,
     entry.authorId ? (people.get(entry.authorId) ?? entry.authorId) : null,
@@ -109,6 +117,7 @@ export const measurementsCsv = (
   definitions: readonly MeasurementDefinition[],
   grow: GrowDocument,
   plants: Names,
+  zone: string | null,
 ): Buffer => {
   const known = new Map(definitions.map(definition => [definition.key, definition]));
   const origin = growOriginOf(grow);
@@ -118,7 +127,7 @@ export const measurementsCsv = (
     entries.flatMap(entry =>
       readingsIn(entry).map(reading => [
         entry.occurredAt,
-        growDayAt(origin, entry.occurredAt),
+        growDayAt(origin, entry.occurredAt, zone),
         reading.key,
         known.get(reading.key)?.name ?? null,
         known.get(reading.key)?.unit ?? null,
@@ -140,6 +149,12 @@ export const measurementsCsv = (
  * construction and an instant a device said nothing at is an empty cell rather
  * than a missing row. A whole grow is read a stretch at a time, so this answers
  * rows rather than a file and the caller writes them as they come.
+ *
+ * The rows of a stretch are in the order of their instants, whichever device
+ * they are of: where one controller replaced another, the file runs from the
+ * one into the other and not through each in turn. A figure is written to the
+ * digits the app writes it with - a mean of a minute is otherwise seventeen
+ * digits of which one is a measurement.
  */
 export const climateColumns = (metrics: readonly Metric[], outputs: readonly OutputMetric[]): string[] => [
   'measuredAt',
@@ -148,15 +163,33 @@ export const climateColumns = (metrics: readonly Metric[], outputs: readonly Out
   ...outputs.map(output => `out_${output}`),
 ];
 
-export const climateRows = (series: readonly DeviceSeries[], metrics: readonly Metric[], outputs: readonly OutputMetric[]): unknown[][] =>
-  series.flatMap(one =>
-    (one.metrics[0]?.points ?? one.outputs[0]?.points ?? []).map((point, index) => [
-      point.measuredAt,
-      one.deviceId,
-      ...metrics.map(metric => one.metrics.find(row => row.metric === metric)?.points[index]?.value ?? null),
-      ...outputs.map(output => one.outputs.find(row => row.output === output)?.points[index]?.value ?? null),
-    ]),
-  );
+export const climateRows = (series: readonly DeviceSeries[], metrics: readonly Metric[], outputs: readonly OutputMetric[]): unknown[][] => {
+  const figure = (value: number | null | undefined, write: (value: number) => number): number | null => (value == null ? null : write(value));
+
+  return series
+    .flatMap(one =>
+      (one.metrics[0]?.points ?? one.outputs[0]?.points ?? []).map((point, index) => [
+        point.measuredAt,
+        one.deviceId,
+        ...metrics.map(metric => figure(one.metrics.find(row => row.metric === metric)?.points[index]?.value, value => rounded(value, metric))),
+        ...outputs.map(output => figure(one.outputs.find(row => row.output === output)?.points[index]?.value, value => outputFigure(value, output))),
+      ]),
+    )
+    .sort((one, other) => Date.parse(one[0] as string) - Date.parse(other[0] as string));
+};
+
+/**
+ * An output in the unit it is stored in, to the whole per cent of full output
+ * a strip's level is said in (`levelOf`, `timeline-series.ts`): 0.46 of a
+ * heater, 60 of a lamp. A switch is the share of the minute it was on, to the
+ * same hundredth.
+ */
+const outputFigure = (value: number, output: OutputMetric): number => {
+  const level = OUTPUT_LEVEL[output];
+  const scale = level?.unit === 'percent' ? level.scale : 100;
+
+  return Math.round(value * scale) / scale;
+};
 
 /** The plants of a grow, with the weights they came off at - which nobody but their owner ever exports. */
 export const plantsCsv = (plants: readonly PlantDocument[]): Buffer =>
@@ -175,7 +208,7 @@ export const plantsCsv = (plants: readonly PlantDocument[]): Buffer =>
   );
 
 /** What a grow was: its phases, where it stood, what it was fed. One file, three blocks, because three files of four rows is worse. */
-export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
+export const growCsv = (grow: GrowDocument, spaces: Names, zone: string | null): Buffer => {
   const origin = growOriginOf(grow);
 
   return csvOf(
@@ -185,7 +218,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.phases.map(phase => [
         phase.plantIds === null ? 'phase' : 'phase (some plants)',
         phase.startedAt,
-        growDayAt(origin, phase.startedAt),
+        growDayAt(origin, phase.startedAt, zone),
         null,
         [phase.stage, phase.preset, `by ${phase.source}`].filter(Boolean).join(' · '),
         phase.id,
@@ -193,7 +226,7 @@ export const growCsv = (grow: GrowDocument, spaces: Names): Buffer => {
       ...grow.placements.map(placement => [
         'placement',
         placement.startedAt,
-        growDayAt(origin, placement.startedAt),
+        growDayAt(origin, placement.startedAt, zone),
         placement.endedAt,
         placement.spaceId ? (spaces.get(placement.spaceId) ?? placement.spaceId) : 'nowhere in particular',
         placement.id,

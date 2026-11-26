@@ -35,7 +35,7 @@ describe('putting the app on the home screen', () => {
     onIphone();
     draw(<InstallRow />, '/me/appearance#install');
 
-    expect(screen.getByText(/Full-screen from its own icon - and on an iPhone/)).toBeInTheDocument();
+    expect(screen.getByText(/Full-screen from its own icon – and on an iPhone/)).toBeInTheDocument();
     expect(screen.getByText(/tap the share icon/)).toBeInTheDocument();
     expect(screen.getByText(/switch push notifications on under Me › Notifications/)).toBeInTheDocument();
   });

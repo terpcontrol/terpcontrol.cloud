@@ -6,19 +6,13 @@ import { useWriteSettled } from './write';
 const listChanged = (client: QueryClient) => client.invalidateQueries({ queryKey: ['devices'], exact: true });
 
 /**
- * A command to the device itself rather than to one of its sockets. The answer
- * is a receipt - the instant it went out and whether anybody was listening - and
- * never a claim that the device did what it was told. The device list is read
- * again afterwards because what a command changes, such as how long maintenance
- * holds, is reported in the device's own state.
+ * A command to the devices themselves rather than to one of their sockets, to
+ * every device named at once. The answer is a receipt per device, in the order
+ * they were named - the instant it went out and whether anybody was listening -
+ * and never a claim that a device did what it was told. The device list is
+ * read again afterwards because what a command changes, such as how long
+ * maintenance holds, is reported in the device's own state.
  */
-export const useDeviceCommand = () =>
-  useWriteSettled(
-    ({ deviceId, command }: { deviceId: string; command: DeviceCommand }) => api.post<DeviceCommandResult>(`/devices/${deviceId}/commands`, command),
-    listChanged,
-  );
-
-/** One command to every device of a place at once: one receipt per device, in the order they were named. */
 export const useDevicesCommand = () =>
   useWriteSettled(
     ({ deviceIds, command }: { deviceIds: string[]; command: DeviceCommand }) =>

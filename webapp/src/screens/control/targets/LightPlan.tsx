@@ -1,9 +1,12 @@
-import { CalendarRange, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Device } from '@fg2/shared-types/v1';
 import { utcSecondsOf } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { Help } from '@/ui/Help';
+import ui from '@/ui/ui.module.css';
+import { rangeRefusal } from '../climate/range';
 import { halfOf, phaseOf, rampsFor, rampsOf, type Field, type Half, type NowHolding, type Ramps, type Shape } from './day-night';
 import { scheduleTitle, windowWords } from './schedule-words';
 import { ClockStepper, Stepper } from './Stepper';
@@ -31,60 +34,37 @@ interface LightPlanProps {
   owned: ReadonlySet<Field>;
   /** The light schedule a running plan puts back within the hour, where it is not the one that runs. */
   planSets?: { name: string; schedule: LightSchedule } | null;
+  /** The longest day the lamp can be told, in hours: a stand-alone LIGHT keeps two times of day and has no word for a day that never ends. */
+  longest?: number;
+  /** The id the refusal of a typed length stands under, and where the sheet hears of it - and of a length still being typed. */
+  refusedId?: string;
+  onRefused?: (why: string | null, typing: boolean) => void;
 }
 
 /**
- * The light plan, over the table it decides between: what it is in one line,
- * the day it makes drawn from midnight to midnight with the ramps and now
- * marked, one line on what holds at this moment and until when, and the two
- * figures it is set by - when the light comes on, and for how long. The night
- * is not set anywhere: it is what the day leaves, and is said as such.
+ * The light plan as its sheet edits it: what it is in one line, the day it
+ * makes drawn from midnight to midnight with the ramps and now marked, what
+ * holds at this moment and until when, and the two figures it is set by -
+ * when the light comes on, and for how long. The night is what the day leaves.
  *
- * Everything that says "now" is about what the device runs. A schedule being
- * edited is drawn beside it as a draft, and where saving it would turn the day
- * into night on the spot - or light the lamp in the middle of one - that is
- * said before the save rather than found out after it.
- *
- * Drying and germination have no light to plan: the lamp stays off round the
- * clock, which is what the block says, with the plan that comes back after.
+ * Everything that says "now" is about what the device runs. The schedule
+ * being edited is drawn beside it as a draft, and where saving it would turn
+ * the day into night on the spot - or light the lamp in the middle of one -
+ * that is said before the save.
  */
 export function LightPlan(props: LightPlanProps) {
-  const { device, shape, baseline, offset } = props;
+  const { device, draft, baseline, set, readOnly, now, offset, planSets = null, longest = 24, refusedId, onRefused } = props;
   const { t } = useTranslation();
-  const regime = shape.regime;
-
-  if (regime === 'off') return null;
-
-  if (regime === 'drying' || regime === 'germination') {
-    return (
-      <div className={styles.section} aria-label={t('targets.plan.label')} role="group">
-        <p className={styles.planTitle} data-dark>
-          <Moon size={16} strokeWidth={2} aria-hidden />
-          <span>{t(`targets.plan.${regime}`)}</span>
-        </p>
-        <p className={styles.note}>{t(`targets.plan.${regime}Line`, { window: scheduleTitle(t, baseline, offset) })}</p>
-      </div>
-    );
-  }
-
-  if (regime === 'sensor') {
-    return (
-      <div className={styles.section} aria-label={t('targets.plan.label')} role="group">
-        <p className={styles.planTitle}>
-          <Sun size={16} strokeWidth={2} aria-hidden />
-          <span>{t('targets.plan.sensor')}</span>
-        </p>
-        <NowLine {...props} />
-      </div>
-    );
-  }
-
-  return <Schedule {...props} key={device.id} />;
-}
-
-function Schedule(props: LightPlanProps) {
-  const { device, draft, baseline, set, readOnly, now, offset, owned, planSets = null } = props;
-  const { t } = useTranslation();
+  // A length typed outside what the lamp can be told stands in the field, refused once the field is left, and never
+  // in the draft: the plan goes on drawing the last length that was accepted, not the "3" on the way to a "30".
+  const [typedHours, setTypedHours] = useState<number | null>(null);
+  const [typingHours, setTypingHours] = useState(false);
+  const [accepted, setAccepted] = useState(draft.lightHours);
+  const hoursName = t('targets.aria.lightHours');
+  const hoursRange = { min: 0, max: longest, decimals: 1, unit: t('targets.unit.hours') };
+  // A refusal names the field as its label reads.
+  const hoursRefusal = (value: number) => rangeRefusal(t, t('targets.plan.hours'), value, hoursRange);
+  const hoursRefused = typedHours === null || typingHours ? null : hoursRefusal(typedHours);
   const changed = draft.lightsOn !== baseline.lightsOn || draft.lightHours !== baseline.lightHours;
   const words = windowWords(draft, offset);
   const ramps = rampsFor(device, device.configuration, baseline);
@@ -94,12 +74,9 @@ function Schedule(props: LightPlanProps) {
     ? t(words.always ? 'targets.plan.alwaysDark' : 'targets.plan.windowDark', { on: words.on, off: words.off, hours: words.hours })
     : scheduleTitle(t, draft, offset);
   // A tent controller's firmware loses the morning ramp of a window that runs
-  // past midnight UTC: its lamp comes on at once, as the bar draws it.
+  // past midnight UTC: its lamp comes on at once, as the bar draws it. The
+  // grower is told of the hour as theirs, never as UTC.
   const hardStart = rampsOf(device.configuration).up > 0 && rampsFor(device, device.configuration, draft).up === 0 && !words.always && !words.never;
-  const mark = (field: Field) =>
-    owned.has(field) ? (
-      <CalendarRange size={13} strokeWidth={2} className={styles.planMark} role="img" aria-label={t('targets.table.planMark')} />
-    ) : null;
 
   return (
     <div className={styles.section} role="group" aria-label={t('targets.plan.label')}>
@@ -111,7 +88,7 @@ function Schedule(props: LightPlanProps) {
         </span>
         {changed ? <span className={styles.draftTag}>{t('targets.plan.draft')}</span> : null}
       </p>
-      {changed ? <p className={`mono ${styles.was}`}>{t('targets.plan.was', { window: scheduleTitle(t, baseline, offset) })}</p> : null}
+      {changed ? <p className={styles.was}>{t('targets.plan.was', { window: scheduleTitle(t, baseline, offset) })}</p> : null}
 
       <Bar
         schedule={baseline}
@@ -138,10 +115,9 @@ function Schedule(props: LightPlanProps) {
         {/* Light round the clock, or none, has no time it comes on: the hour is
             kept for the day a photoperiod is set again, and said under the plan. */}
         {words.always || words.never ? null : (
-          <div className={styles.field} data-keep>
+          <div className={`${ui.stack1} ${styles.field}`}>
             <span className={styles.fieldLabel}>
               {t('targets.plan.lightsOn')}
-              {mark('lightsOn')}
               <Help topic="lightsOn" />
             </span>
             <ClockStepper
@@ -156,40 +132,52 @@ function Schedule(props: LightPlanProps) {
             />
           </div>
         )}
-        <div className={styles.field} data-keep>
-          <span className={styles.fieldLabel}>
-            {t('targets.plan.hours')}
-            {mark('lightHours')}
-          </span>
+        <div className={`${ui.stack1} ${styles.field}`}>
+          <span className={styles.fieldLabel}>{t('targets.plan.hours')}</span>
           <Stepper
-            name={t('targets.aria.lightHours')}
-            value={draft.lightHours}
+            name={hoursName}
+            value={typedHours ?? draft.lightHours}
             min={0}
-            max={24}
+            max={longest}
             step={1}
             decimals={1}
             unit={t('targets.unit.hours')}
             less={t('targets.stepLess', { name: t('targets.aria.lightHours') })}
             more={t('targets.stepMore', { name: t('targets.aria.lightHours') })}
-            changed={draft.lightHours !== baseline.lightHours}
+            changed={typedHours !== null || draft.lightHours !== baseline.lightHours}
             disabled={readOnly}
-            onChange={lightHours => set({ ...draft, lightHours })}
+            live
+            describedBy={refusedId}
+            onChange={(lightHours, typing = false) => {
+              const refused = hoursRefusal(lightHours);
+              setTypedHours(refused ? lightHours : null);
+              setTypingHours(typing);
+              onRefused?.(typing ? null : refused, typing);
+              if (!refused && !typing) setAccepted(lightHours);
+              set({ ...draft, lightHours: refused ? accepted : lightHours });
+            }}
           />
         </div>
       </div>
+      {hoursRefused ? (
+        <p className={ui.problem} id={refusedId} role="status">
+          {hoursRefused}
+        </p>
+      ) : null}
 
       {words.always ? (
-        <p className={styles.note}>
-          {t('targets.plan.alwaysLine')} {t('targets.plan.keepsHour', { time: words.on })}
-        </p>
+        <p className={styles.note}>{t('targets.plan.alwaysLine', { time: words.on })}</p>
       ) : words.never ? (
-        <p className={styles.note}>
-          {t('targets.plan.neverLine')} {t('targets.plan.keepsHour', { time: words.on })}
-        </p>
+        <p className={styles.note}>{t('targets.plan.neverLine', { time: words.on })}</p>
       ) : (
         <p className={styles.note}>{t('targets.plan.night', { from: words.off, to: words.on, hours: words.nightHours })}</p>
       )}
-      {hardStart ? <p className={styles.note}>{t('targets.plan.hardStart', { time: words.on })}</p> : null}
+      {hardStart ? (
+        <p className={styles.note}>
+          {t('targets.plan.hardStart', { time: words.on })}
+          <Help topic="lightHardStart" />
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -202,21 +190,19 @@ function NowLine({ storedShape, baseline, offset, holding, offline }: LightPlanP
   const by = holding.by;
   const words = windowWords(baseline, offset);
   const regime = storedShape.regime;
-  if (regime !== 'cycle' && regime !== 'always' && regime !== 'never' && regime !== 'sensor') return null;
+  if (regime !== 'cycle' && regime !== 'always' && regime !== 'never') return null;
 
   const line =
     offline !== null
       ? t('targets.plan.now.offline', { offline, half: t(`targets.plan.half.${half}`) })
-      : regime === 'sensor'
-        ? t(`targets.plan.now.sensor.${half}`)
-        : regime === 'always'
-          ? t('targets.plan.now.always')
-          : regime === 'never'
-            ? t('targets.plan.now.never')
-            : holding.glide
-              ? t(`targets.plan.now.glide.${holding.glide.to}`, { time: holding.glide.until })
-              : // A lamp at 0 % switches nothing: what changes at those times is the half.
-                t(`targets.plan.now.${half}${baseline.lightLimit <= 0 ? 'Dark' : ''}`, { time: half === 'day' ? words.off : words.on });
+      : regime === 'always'
+        ? t('targets.plan.now.always')
+        : regime === 'never'
+          ? t('targets.plan.now.never')
+          : holding.glide
+            ? t(`targets.plan.now.glide.${holding.glide.to}`, { time: holding.glide.until })
+            : // A lamp at 0 % switches nothing: what changes at those times is the half.
+              t(`targets.plan.now.${half}${baseline.lightLimit <= 0 ? 'Dark' : ''}`, { time: half === 'day' ? words.off : words.on });
 
   return (
     <p className={styles.nowLine} data-by={offline !== null ? 'schedule' : by} role="status">
@@ -277,10 +263,9 @@ const piecesOf = (startMinutes: number, minutes: number): Piece[] => {
 
 /**
  * Today from midnight to midnight on the account's clock: lit while the light
- * is on, fading in and out over the dimming ramps, with now marked. A window
- * that runs past midnight is two pieces, one at each end; 24 hours is the
- * whole bar, without a ramp. A draft is a thin outlined track
- * under it, so what is being typed is never drawn as what runs.
+ * is on, fading over the dimming ramps, with now marked. A window that runs
+ * past midnight is two pieces; 24 hours is the whole bar, without a ramp. A
+ * draft is a thin outlined track under it, never drawn as what runs.
  */
 function Bar({
   schedule,

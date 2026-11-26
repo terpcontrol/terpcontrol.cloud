@@ -1,13 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Route, Routes } from 'react-router';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { AccessNeed, Entry, GrowListItem, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import { LogProvider } from '@/log/LogProvider';
 import { MeasureSheet } from '@/screens/grow/measurements/MeasureSheet';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
-import { drawAt } from './harness';
+import { drawAt, reading } from './harness';
 import { spaceWhere, THE_HOST, YOU } from './session';
 import { translate } from './translations';
 
@@ -20,6 +20,9 @@ import { translate } from './translations';
  * Every request is the app's own client, mocked at that one seam, so what is
  * asserted is what would go on the wire.
  */
+// A chart is a canvas, which jsdom has not got; what it draws is held by Verlauf's model.
+vi.mock('@/charts/Chart', () => ({ Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} /> }));
+
 vi.mock('@/api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
@@ -80,14 +83,9 @@ const series = {
   range: 'grow',
   startsAt: at(35),
   endsAt: at(0),
-  stepSeconds: 0,
   originAt: at(35),
   dayFrom: 1,
   dayTo: 35,
-  deviceIds: [],
-  climate: [],
-  outputs: [],
-  nights: [],
   measurements: [
     {
       key: 'height',
@@ -197,8 +195,20 @@ describe('what a grow measures', () => {
     expect(rows[0]).toHaveTextContent('per plant');
     expect(rows[1]).toHaveTextContent('per grow · target 1.4–1.8');
     // A target that is not a band at all stays words beside the figure.
-    expect(rows[2]).toHaveTextContent('aim under the input EC plus a fifth');
+    expect(rows[2]).toHaveTextContent('aim for less than the input EC plus a fifth');
     expect(within(rows[2]).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('draws the curve of each measurement switched on, over the grow, with what it ran between and what was read last', async () => {
+    await drawScreen();
+
+    const rows = within(screen.getByRole('list', { name: 'Yours' })).getAllByRole('listitem');
+    // Height is switched on and was measured three times: its curve stands on this page, place or no place.
+    expect(await within(rows[0]).findByRole('img', { name: 'Height over the grow: 3 readings between 52 and 58 cm' })).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent('52 to 58 · last 54 cm');
+    // Switched on and never measured, and switched off: no curve to draw.
+    expect(within(rows[1]).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(rows[2]).queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('adds a template in one tap, sending the list it already had with the new row on the end', async () => {
@@ -216,6 +226,13 @@ describe('what a grow measures', () => {
         { key: 'pot_size', name: 'Pot size', unit: 'L', perPlant: true, targetMin: null, targetMax: null, chart: false },
       ],
     });
+
+    // One tap wrote it, so the answer says so and offers the list as it stood.
+    expect(await screen.findByText('Pot size is measured now')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.patch).mock.calls[1][1]).toEqual({ measurements: [height, ec, runoff] });
+    expect(await screen.findByText(reading('Undone · Pot size is no longer measured'))).toBeInTheDocument();
   });
 
   it('will not offer a template the grow already measures', async () => {
@@ -228,7 +245,7 @@ describe('what a grow measures', () => {
   it('takes a measurement off the chart with the switch, and changes nothing else about it', async () => {
     await drawScreen();
 
-    fireEvent.click(screen.getByRole('switch', { name: 'EC · input on the chart' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'EC · input as a curve' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, { ...ec, chart: false }, runoff] });
@@ -276,8 +293,8 @@ describe('what a grow measures', () => {
 
     expect(screen.queryByRole('group', { name: 'Templates' })).not.toBeInTheDocument();
     // The switch still says what is drawn; it simply cannot be moved.
-    expect(screen.getByRole('switch', { name: 'Height on the chart' })).toBeDisabled();
-    expect(screen.getByRole('switch', { name: 'Height on the chart' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Height as a curve' })).toBeDisabled();
+    expect(screen.getByRole('switch', { name: 'Height as a curve' })).toHaveAttribute('aria-checked', 'true');
   });
 });
 
@@ -326,7 +343,7 @@ describe('changing one measurement', () => {
     const sheet = screen.getByRole('dialog');
     expect(within(sheet).getByRole('button', { name: 'per plant' })).toBeDisabled();
     expect(within(sheet).getByText('Chosen once, and this one has readings.')).toBeInTheDocument();
-    expect(within(sheet).getByText('3 readings are written under this one, so it stays. Turn it off the chart instead.')).toBeInTheDocument();
+    expect(within(sheet).getByText('3 readings are written under this one, so it stays. Turn its curve off instead.')).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
@@ -339,6 +356,8 @@ describe('changing one measurement', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, ec] });
+    expect(await screen.findByText('Runoff EC is no longer measured')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
   });
 
   it('keeps the key when the name changes, so every reading already written stays named', async () => {
@@ -350,6 +369,9 @@ describe('changing one measurement', () => {
 
     await waitFor(() => expect(api.patch).toHaveBeenCalled());
     expect(sent()[1]).toEqual({ measurements: [height, { ...ec, name: 'EC in' }, runoff] });
+    expect(await screen.findByText('Measurement “EC in” saved')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText(reading('Undone · Measurement “EC · input” as before the change'))).toBeInTheDocument();
   });
 });
 
@@ -363,7 +385,7 @@ describe('the Measure sheet', () => {
     await openMeasure();
 
     // What was measured last time, and for the plant beside it.
-    expect(screen.getByText(/last 58 cm/)).toHaveTextContent('Amnesia 2 was 54');
+    expect(screen.getByText(reading(/^last 58 cm · .* · Amnesia 2 was 54$/))).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '6' }));
     fireEvent.click(screen.getByRole('button', { name: '2' }));
@@ -376,6 +398,8 @@ describe('the Measure sheet', () => {
     expect(vi.mocked(api.post).mock.calls[0][1]).toEqual({
       kind: 'measurement',
       growId: 'grow-1',
+      // Dated when it was written, so a line that only gets through later is still of that moment.
+      occurredAt: expect.any(String),
       values: { kind: 'measurement', readings: [{ key: 'height', value: 62, plantId: 'plant-1' }] },
     });
   });
@@ -422,6 +446,19 @@ describe('the Measure sheet', () => {
 
     fireEvent.keyDown(document, { key: 'Backspace' });
     expect(screen.getByRole('status')).toHaveTextContent('82.');
+  });
+
+  /** The key said "," and the figure said "1.85": a German reader sees the comma the key carries, in the field and on its chip. */
+  it('writes what is typed with the reader´s decimal mark, in the figure and on the chip', async () => {
+    await translate(['en', 'de'], 'de');
+    onTestFinished(() => translate());
+    draw(<MeasureSheet target={target} onClose={() => {}} />);
+    await screen.findByRole('button', { name: /Height/ });
+
+    for (const key of ['1', ',', '8', '5']) fireEvent.click(screen.getByRole('button', { name: key }));
+    expect(screen.getByRole('status')).toHaveTextContent('1,85');
+    expect(screen.getByRole('button', { name: /Height/ })).toHaveTextContent('1,85');
+    expect(screen.getByRole('status')).not.toHaveTextContent('1.85');
   });
 
   it('says a reading belongs to a grow where there is none, and offers to start one', async () => {

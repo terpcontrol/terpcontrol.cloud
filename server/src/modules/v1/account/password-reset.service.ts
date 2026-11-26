@@ -57,17 +57,30 @@ export class PasswordResetService {
   }
 
   /**
+   * Asked before a new password is chosen, so a code typed wrong is refused while it can still be put right, and a
+   * link used or run out is said before anybody thinks of a password for it. Spends nothing.
+   */
+  public async check(token: string): Promise<void> {
+    await this.outstanding(token);
+  }
+
+  /**
    * The token is spent here: the row goes, so a link that has been used once
    * refuses the second time even inside its hour.
    */
   public async redeem(token: string, password: string): Promise<void> {
-    const reset = await this.resets.findOne({ tokenHash: digest(token) }).lean();
-    if (!reset || reset.expiresAt.getTime() <= Date.now()) {
-      throw notFound('reset_unknown', 'That recovery link has been used already, or it has run out.');
-    }
+    const reset = await this.outstanding(token);
 
     await this.accounts.setPassword(reset.userId, password);
     await this.retire(reset.userId);
+  }
+
+  private async outstanding(token: string): Promise<StoredPasswordReset> {
+    const reset = await this.resets.findOne({ tokenHash: digest(token) }).lean<StoredPasswordReset>();
+    if (!reset || reset.expiresAt.getTime() <= Date.now()) {
+      throw notFound('reset_unknown', 'That recovery link has been used already, or it has run out.');
+    }
+    return reset;
   }
 
   public async retire(userId: string): Promise<void> {

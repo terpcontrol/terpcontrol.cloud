@@ -1,51 +1,48 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { Device, DeviceClaimCreate, DeviceClaimResult, Space, SpaceUpdate } from '@fg2/shared-types/v1';
+import type { DeviceClaimCreate, DeviceClaimResult } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { deviceQuery } from './devices';
+import { ApiError } from './problem';
 import { invalidate, useWrite } from './write';
 
 /**
- * Claiming a device with the code on its display, and the two reads the steps
- * that follow a claim are answered from.
+ * Claiming a device with the code on its display, in one write: the claim
+ * says where the device goes - the place the flow was opened from, or the one
+ * a fan, a socket or a lamp joins (`joinSpaceId`) - and the server makes a
+ * place only for a device that holds a climate, or in an account without one.
  *
- * A claim ends in a space whichever way it is made, so it changes the device
- * list, the places and the home cards at once, and all three are read again
- * rather than patched here: what the claim answers is the device as it stood at
- * that instant, and the space it made is not in the answer at all.
+ * It changes the device list, the places, the home cards and the cameras - the
+ * server makes the Terp Cam a controller paired before it was anybody's - at
+ * once, and all are read again rather than patched: the answer is the device as
+ * it stood at that instant, and what it made is not in the answer at all.
  */
-const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home']);
-
-const deviceClaimed = (client: QueryClient, device: Device): void => {
-  client.setQueryData(['devices', device.id], device);
-  claimChanged(client);
-};
+const claimChanged = (client: QueryClient): void => void invalidate(client, ['devices'], ['spaces'], ['home'], ['cameras']);
 
 export const useClaimDevice = () =>
   useWrite(
     (body: DeviceClaimCreate) => api.post<DeviceClaimResult>('/devices/claims', body),
     // The answer is the device, so the steps after the claim have it before
     // the first read comes back and never stand empty on a claim that worked.
-    (client, result) => deviceClaimed(client, result.device),
+    (client, result) => {
+      client.setQueryData(['devices', result.device.id], result.device);
+      claimChanged(client);
+    },
   );
 
 /**
- * How often the device just claimed is read again.
- *
- * Faster than the device list's own beat, because this is the one screen where
- * somebody is standing in front of the hardware waiting for it to say something:
- * a controller that has just been given Wi-Fi reports within a few seconds, and
- * half a minute of "not heard from yet" reads as a box that does not work.
+ * How often the device just claimed is read again: faster than the device
+ * list's own beat, because somebody is standing in front of the hardware. A
+ * controller just given Wi-Fi reports within seconds, and half a minute of
+ * "not heard from yet" reads as a box that does not work.
  */
 const CLAIM_REFRESH_MS = 10_000;
 
 /**
  * The claimed device on its own, so that its firmware, its age and its camera
- * are the device's own words.
- *
- * The beat stops once the server has refused the read: an id carried in the
- * address may be stale or somebody else's, and asking again every ten seconds
- * would not make it any more readable.
+ * are the device's own words. The beat stops once the server has refused the
+ * read: an id in the address may be stale or somebody else's, and asking
+ * again would not make it readable.
  */
 export const useClaimedDevice = (deviceId: string | null) =>
   useRead({
@@ -55,53 +52,14 @@ export const useClaimedDevice = (deviceId: string | null) =>
   });
 
 /**
- * Naming the place a claim has just made.
- *
- * It is the same write the second step's rename makes, with the space named in
- * the call rather than in the hook, because at the instant a claim answers
- * there is no space on the screen to bind one to. The word is the app's to
- * choose and not the server's: a name has to be in the language the grower
- * reads, and the server has no language.
+ * Ending a place the flow made that the device does not stand in after all: a
+ * second controller hung beside the first, a new place the move into was
+ * refused. It holds nothing, so no empty "Zelt 2" is left on Start. A place
+ * already gone is what was asked for: an address can name it for longer.
  */
-export const useNameNewPlace = () =>
-  useWrite(({ spaceId, name }: { spaceId: string; name: string }) => api.patch<Space>(`/spaces/${spaceId}`, { name }), claimChanged);
+const gone = (error: unknown) => (error instanceof ApiError && error.status === 404 ? undefined : Promise.reject(error));
 
-/**
- * The name and the kind of the place the device stands in.
- *
- * A claim already made a space and gave it a name to be corrected, so
- * onboarding corrects that one rather than making a second: a grower who types
- * "Flower tent" here wants the tent renamed, not two tents with one controller
- * between them.
- */
-export const useRenameSpace = (spaceId: string | null) =>
-  useWrite(
-    (body: SpaceUpdate) => api.patch<Space>(`/spaces/${spaceId}`, body),
-    client => {
-      claimChanged(client);
-      void invalidate(client, ['space', spaceId]);
-    },
-  );
-
-/**
- * Moving the device into a place the account already has.
- *
- * It is the narrower of the two ways to say it: the route puts one device in
- * one space and answers nothing else, so a correction made here cannot carry a
- * name or a firmware channel with it by accident. Hardware that was plugged in
- * before anybody decided where it stands is the ordinary reason - a claim has
- * to end in some space, and the one it invents is a guess.
- */
-export const usePlaceDevice = (deviceId: string | null) =>
-  useWrite((spaceId: string) => api.put<Device>(`/spaces/${spaceId}/devices/${deviceId}`), deviceClaimed);
-
-/**
- * Archiving the place a claim invented, once the device has been moved out of
- * it. It is a tombstone rather than a deletion, so nothing that ever named the
- * space loses its name; what it buys is a list that does not grow an empty
- * "Tent 1" every time somebody corrects where a controller stands.
- */
-export const useArchiveSpace = () => useWrite((spaceId: string) => api.put<Space>(`/spaces/${spaceId}/archive`), claimChanged);
+export const useEndInvented = () => useWrite((spaceId: string) => api.delete(`/spaces/${spaceId}`).catch(gone), claimChanged);
 
 /**
  * What a QR code on the box says. It may carry the code alone or a link that

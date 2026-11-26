@@ -4,7 +4,7 @@ import type { Device, Plan, PlanNotify } from '@fg2/shared-types/v1';
 import { usePlanTemplates, useSavePlanTemplate } from '@/api/plans';
 import { useSession } from '@/api/session';
 import { Sheet } from '@/ui/Sheet';
-import { Waiting } from '@/ui/PageState';
+import { NothingHere, Waiting } from '@/ui/PageState';
 import { Block } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
@@ -97,13 +97,13 @@ export function StartFromTemplateSheet({
 
         {ready ? (
           <Block label={t('readyPlans.label')} help="readyPlans">
-            <ul className={styles.templates}>
+            <ul className={ui.list}>
               {READY_PLANS.map(plan => (
                 <li key={plan.id}>
                   <button type="button" className={`${ui.card} ${styles.template}`} onClick={() => onChosen(readyDraft(t, plan, notify))}>
                     <span className={styles.templateName}>{t(`growPresets.plans.${plan.id}.name`)}</span>
                     <span className={styles.templateWhat}>{t(`growPresets.plans.${plan.id}.description`)}</span>
-                    <span className={`mono ${styles.templateNote}`}>
+                    <span className={styles.templateNote}>
                       {[t('space.control.template.steps', { count: plan.steps.length }), t('readyPlans.weeks', { count: weeksOf(plan) })].join(' · ')}
                     </span>
                   </button>
@@ -114,12 +114,10 @@ export function StartFromTemplateSheet({
         ) : null}
 
         {templates.isPending ? <Waiting lines={2} /> : null}
-        {!templates.isPending && items.length === 0 && !ready ? (
-          <p className={`${ui.cardDashed} ${ui.note}`}>{t('space.control.template.none')}</p>
-        ) : null}
+        {!templates.isPending && items.length === 0 && !ready ? <NothingHere>{t('space.control.template.none')}</NothingHere> : null}
         {ready && items.length > 0 ? <span className="label">{t('readyPlans.saved')}</span> : null}
 
-        <ul className={styles.templates}>
+        <ul className={ui.list}>
           {items.map(template => (
             <li key={template.id}>
               <button
@@ -128,7 +126,7 @@ export function StartFromTemplateSheet({
                 onClick={() => onChosen(draftFromTemplate(template.steps, template.name, template.id, notify))}
               >
                 <span className={styles.templateName}>{template.name}</span>
-                <span className={`mono ${styles.templateNote}`}>
+                <span className={styles.templateNote}>
                   {[
                     t('space.control.template.steps', { count: template.steps.length }),
                     template.ownerId === user?.id ? t('space.control.template.yours') : t('space.control.template.published'),

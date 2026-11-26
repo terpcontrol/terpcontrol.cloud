@@ -32,7 +32,7 @@ export const layoutSeen = named(
   'LayoutSeen',
   z.object({
     diary: z.boolean().describe('Whether the diary was there: the Log button in the navigation and the grow block on a place.'),
-    places: z.boolean().describe('Whether Start listed several places rather than being the cockpit of the only one.'),
+    places: z.boolean().describe('Whether Start listed several places rather than being the page of the only one.'),
   }),
 );
 
@@ -604,7 +604,7 @@ export const pushPayload = named(
     severity: severity,
     // A week's film is watched on the page of the camera that shot it, and the
     // film's own id says nothing about which camera that is. Without this the
-    // worker has nowhere to send a tap but the home screen.
+    // worker has nowhere to send a tap but Start.
     cameraId: id().nullable().describe('Where the subject is looked at, for a subject its own id cannot address.'),
   }),
 );

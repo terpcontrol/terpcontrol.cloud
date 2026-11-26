@@ -10,23 +10,23 @@
 //
 //   node scripts/install-fonts.mjs /app/fonts
 //
-// Only the weights the server draws with are unpacked - Inter at 400, 600 and
-// 700 - in the latin and latin-ext subsets, so a German caption keeps its
+// Only the weights the server draws with are unpacked - Inter at 400, 500 and
+// 600 - in the latin and latin-ext subsets, so a German caption keeps its
 // umlauts in the same face.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
-const FACES = [{ pkg: '@fontsource/inter', family: 'Inter', file: 'inter', weights: [400, 600, 700] }];
+const FACES = [{ pkg: '@fontsource/inter', family: 'Inter', file: 'inter', weights: [400, 500, 600] }];
 
 // A static instance names its family after its weight where the weight is not
-// one of the four a legacy family can hold: the 600 files call themselves
-// "Inter SemiBold", so an SVG asking for "Inter" at weight 600 was never
-// matched with them. The configuration
+// one of the four a legacy family can hold: the 500 and 600 files call
+// themselves "Inter Medium" and "Inter SemiBold", so an SVG asking for "Inter"
+// at weight 600 was never matched with them. The configuration
 // files each such face under its family's own name as it is scanned; the
 // weight it carries is what tells the instances apart.
-const WEIGHT_NAMES = { 600: 'SemiBold' };
+const WEIGHT_NAMES = { 500: 'Medium', 600: 'SemiBold' };
 const SUBSETS = ['latin', 'latin-ext'];
 
 const target = resolve(process.argv[2] ?? 'fonts');

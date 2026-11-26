@@ -51,7 +51,8 @@ export class PresetApplicationsService {
   ) {}
 
   public async apply(ctx: AccessContext, spaceId: string, body: PresetApplicationCreate): Promise<PresetApplication> {
-    const space = await this.spaces.require(spaceId);
+    // An ended place takes no climate either: nothing stands there to be put on it.
+    const space = await this.spaces.requireStanding(spaceId);
     const preset = body.preset ?? null;
     const decision = body.decision ?? null;
     const appliedAt = new Date();
@@ -72,20 +73,16 @@ export class PresetApplicationsService {
             growId,
             stage: body.stage,
             preset,
-            source: 'preset',
-            // A preset wrote the phase, so nobody picked the stage: that is what
-            // the "auto" tag on the grow card is drawn from.
-            setBy: null,
+            // Somebody applied the preset, so the phase is theirs: "von allein"
+            // is what a plan did by itself.
+            source: 'human',
+            setBy: ctx.userId,
             plantIds: null,
             deviceId: controller?.deviceId ?? null,
             spaceId,
             targets: controller?.targets ?? null,
             startedAt: appliedAt,
           });
-
-    // The grow already stood in the stage, and the climate was written all the
-    // same: its alarms follow the climate, as they would with a phase appended.
-    if (growId !== null && phase === null && applied.length > 0) await this.phases.restateSpace(spaceId);
 
     // No grow here, nothing said about it, and a space that has not been told to
     // stop asking. The climate has been written either way, so somebody who

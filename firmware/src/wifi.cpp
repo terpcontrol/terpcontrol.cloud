@@ -190,9 +190,10 @@ static const std::array<std::string, 2> SMART_SOCKET_SSID_PREFIXES = {
 // TCP 81 at 192.168.168.1 (creds admin/888888). Provisioning mirrors
 // provisionSmartSocket: join the AP, drive set_wifi.cgi to move it onto the home
 // network, and remember its P2P device id (DID). Once on the home wifi the camera
-// firewalls down to the proprietary P2P transport, so we key on the DID (not a
-// LAN IP or RTSP url) — the server pulls stills over P2P. The protocol notes
-// are kept internally.
+// firewalls down to the proprietary P2P transport, or - where pairing switched it
+// on - to its own RTSP stream, so we key on the DID; the server pulls stills over
+// the relay or the stream (enableTerpCamStream). The protocol notes are kept
+// internally.
 static const std::string TERP_CAM_SSID_PREFIX = "terpcam-";      // legacy placeholder
 static const std::string TERP_CAM_AP_PREFIX = "@IPC-";           // real VStarcam setup AP
 static const char* TERP_CAM_AP_BASE = "http://192.168.168.1:81"; // CGI server in AP mode
@@ -1291,6 +1292,93 @@ static int parseCamWifiAuthtype(const std::string& body, const std::string& ssid
   return 4;
 }
 
+// Where the camera's CGI server answers on its setup AP.
+static const IPAddress TERP_CAM_AP_IP(192, 168, 168, 1);
+
+// Switch the camera's own RTSP stream on, under `password`, while it is still
+// on its setup AP: that is the one place it takes the command, with the factory
+// login, and once on the home Wi-Fi it accepts no command at all - its stream
+// is all it serves there. A camera that has no such stream ignores the command,
+// and pairing goes on the P2P way. On success the camera's admin login is given
+// the same password (the stream's account is a separate one), `mac` is the
+// camera's MAC as this device sees it - how its stream is told from another
+// camera's later - and `auth` is the login the rest of the pairing uses.
+static bool enableTerpCamStream(const std::string& password, std::string& mac, std::string& auth) {
+  const std::string set_users = std::string(TERP_CAM_AP_BASE) + "/set_users.cgi?" + TERP_CAM_AUTH + "&pwd_change_realtime=1&";
+  httpGet((set_users + "ExUser=admin&ExPwd=" + password + "&ExUserSwitch=1&").c_str());
+  bool streams = false;
+  for(int i = 0; i < 10 && !streams; i++) {
+    delayWithWatchdog(500);
+    streams = fg::terpCamStreamAnswers(TERP_CAM_AP_IP, 1000);
+  }
+  if(!streams) return false;
+  mac = fg::terpCamMacOf(TERP_CAM_AP_IP);
+
+  // Best effort: whether the camera took it shows only in a service it closes
+  // once it is on the home Wi-Fi. Where its CGI server checks the login, the
+  // rest of the pairing has to use the new one; where it does not, either works.
+  httpGet((set_users + "user3=admin&pwd3=" + password + "&app_id=10000&").c_str());
+  const std::string new_auth = "loginuse=admin&loginpas=" + password;
+  std::string status;
+  const bool accepted = httpGet((std::string(TERP_CAM_AP_BASE) + "/get_status.cgi?" + new_auth).c_str(), &status) &&
+                        status.find("realdeviceid") != std::string::npos;
+  auth = accepted ? new_auth : TERP_CAM_AUTH;
+  Serial.printf("[cam] stream on, MAC %s, setup login %s\n", mac.c_str(), accepted ? "new" : "default");
+  return true;
+}
+
+// The setup AP a camera opens: `@IPC-` and the digits of its printed id.
+static std::string terpCamApSsid(const std::string& did) {
+  std::string digits;
+  for(char c : did) {
+    if(isdigit((unsigned char)c)) digits += c;
+  }
+  return digits.empty() ? std::string() : TERP_CAM_AP_PREFIX + digits;
+}
+
+// Reset the camera over its setup AP: switch its stream off (undoing
+// enableTerpCamStream) and restore its factory settings, so it is left as it
+// came. On the home Wi-Fi a streaming camera takes no command at all, and one
+// the P2P reset cannot reach is no better off. A power cycle does not help - it
+// rejoins the home Wi-Fi - but its reset button puts it back on its setup AP, so
+// this looks for that AP for up to `wait_ms`; zero means one scan. Only the
+// camera that names itself `did` there is reset. Leaves the device on its home
+// Wi-Fi either way.
+static bool resetTerpCamOverAp(const std::string& did, uint32_t wait_ms) {
+  const std::string ssid = terpCamApSsid(did);
+  if(ssid.empty()) return false;
+  bool visible = false;
+  const uint32_t until = millis() + wait_ms;
+  for(;;) {
+    for(const auto& network : scanWifiNetworks()) visible = visible || network == ssid;
+    if(visible || (int32_t)(until - millis()) <= 0) break;
+    delayWithWatchdog(3000);
+  }
+  if(!visible || !connectToWifi(ssid, "")) {
+    if(!WiFi.isConnected()) connectToWifi(primary_ssid, primary_password);
+    return false;
+  }
+  std::string status;
+  // It only answers once it has finished booting into the AP.
+  for(int i = 0; i < 10 && status.empty(); i++) {
+    if(!httpGet((std::string(TERP_CAM_AP_BASE) + "/get_status.cgi?" + TERP_CAM_AUTH).c_str(), &status)) status.clear();
+    if(status.empty()) delayWithWatchdog(2000);
+  }
+  bool ok = false;
+  if(sanitizeSettingString(parseCamVar(status, "realdeviceid")) == did) {
+    const std::string pwd = sanitizeSettingString(fg::settings().getStr(fg::TERP_CAM_PWD_NVS_KEY));
+    for(const std::string& auth : { std::string(TERP_CAM_AUTH), "loginuse=admin&loginpas=" + pwd }) {
+      if(ok) break;
+      ok = httpGet((std::string(TERP_CAM_AP_BASE) + "/set_users.cgi?" + auth +
+                    "&pwd_change_realtime=1&ExUser=admin&ExPwd=" + fg::TERP_CAM_DEFAULT_PASSWORD + "&ExUserSwitch=0&").c_str());
+      // The camera reboots on it, often before it answers.
+      if(ok) httpGet((std::string(TERP_CAM_AP_BASE) + "/restore_factory.cgi?" + auth + "&").c_str());
+    }
+  }
+  connectToWifi(primary_ssid, primary_password);
+  return ok;
+}
+
 // Provision the Terp Cam (a VStarcam OEM) camera onto the home wifi (caller must already be
 // joined to the camera AP). Reads the camera's P2P DID, drives set_wifi.cgi, then
 // returns to the home network. Mirrors provisionSmartSocket. On success `did` holds
@@ -1339,12 +1427,18 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   // the one this replaces, a neighbour's - for this one.
   const std::string uid = fg::terpCamCanonicalUid(parseCamVar(status_body, "deviceid"));
 
+  emit_status("cam stream...");
+  const std::string password = fg::terpCamGeneratePassword();
+  std::string mac;
+  std::string auth = TERP_CAM_AUTH;
+  const bool streams = enableTerpCamStream(password, mac, auth);
+
   emit_status("scan cam wifi...");
-  std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + TERP_CAM_AUTH;
+  std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + auth;
   httpGet(scan_url.c_str());
   delayWithWatchdog(3000);
   std::string scan_body;
-  std::string scan_result_url = std::string(TERP_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + TERP_CAM_AUTH;
+  std::string scan_result_url = std::string(TERP_CAM_AP_BASE) + "/get_wifi_scan_result.cgi?" + auth;
   httpGet(scan_result_url.c_str(), &scan_body);
   int authtype = parseCamWifiAuthtype(scan_body, home_ssid_clean);
 
@@ -1352,7 +1446,7 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   // set_wifi.cgi applies immediately and drops the AP, so this GET usually times
   // out — that is the success signal, not a failure. The PSK param is wpa_psk
   // (underscore); the WPA mode goes in authtype (encrypt is WEP-only).
-  std::string set_url = std::string(TERP_CAM_AP_BASE) + "/set_wifi.cgi?" + TERP_CAM_AUTH
+  std::string set_url = std::string(TERP_CAM_AP_BASE) + "/set_wifi.cgi?" + auth
                       + "&enable=1&ssid=" + urlEncode(home_ssid_clean)
                       + "&channel=0&mode=0&authtype=" + std::to_string(authtype)
                       + "&encrypt=0&keyformat=0&defkey=0"
@@ -1366,17 +1460,39 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   }
 
   fg::settings().setStr(TERP_CAM_DID_NVS_KEY, did.c_str());
-  fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
   fg::settings().erase(TERP_CAM_IP_NVS_KEY);        // where the previous camera answered
   if(uid.empty()) fg::settings().erase(TERP_CAM_UID_NVS_KEY);  // discovery reads it instead
   else fg::settings().setStr(TERP_CAM_UID_NVS_KEY, uid.c_str());
+  if(streams) {
+    fg::settings().setStr(fg::TERP_CAM_PWD_NVS_KEY, password.c_str());
+    fg::settings().setStr(fg::TERP_CAM_STREAM_NVS_KEY, "1");
+    if(mac.empty()) fg::settings().erase(fg::TERP_CAM_MAC_NVS_KEY);
+    else fg::settings().setStr(fg::TERP_CAM_MAC_NVS_KEY, mac.c_str());
+  }
+  else {
+    fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // a freshly paired camera has the default
+    fg::settings().erase(fg::TERP_CAM_STREAM_NVS_KEY);
+    fg::settings().erase(fg::TERP_CAM_MAC_NVS_KEY);
+  }
   fg::settings().commit();
 
-  // Replace the manufacturer's published password now that the camera is on the
-  // network. Not while it was still on its setup AP: it does not apply the
-  // change until it is provisioned, and over P2P it takes effect at once.
-  emit_status("secure cam...");
-  emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? "cam secured" : "cam kept default pw");
+  if(streams) {
+    // The password goes before the id it belongs to, as the P2P way reports it.
+    if(smart_socket_cloud_handle != nullptr) {
+      smart_socket_cloud_handle->log("hardware-info:webcam_pwd=" + password, 0);
+      smart_socket_cloud_handle->log("hardware-info:webcam_rtsp=on", 0);
+    }
+    emit_status("find cam...");
+    emit_status(fg::terpCamFindStream(smart_socket_cloud_handle, 120000) ? "cam found" : "cam not found yet");
+  }
+  else {
+    // Replace the manufacturer's published password now that the camera is on the
+    // network. Not while it was still on its setup AP: it does not apply the
+    // change until it is provisioned, and over P2P it takes effect at once.
+    if(smart_socket_cloud_handle != nullptr) smart_socket_cloud_handle->log("hardware-info:webcam_rtsp=off", 0);
+    emit_status("secure cam...");
+    emit_status(fg::terpCamSecure(smart_socket_cloud_handle) ? "cam secured" : "cam kept default pw");
+  }
   if(smart_socket_cloud_handle != nullptr) {
     smart_socket_cloud_handle->log("message-terp-cam-connected", 0);
     smart_socket_cloud_handle->log(std::string("hardware-info:webcam_did=") + did, 0);
@@ -1395,6 +1511,8 @@ static void forgetTerpCam() {
   fg::settings().erase(TERP_CAM_IP_NVS_KEY);    // and where it used to answer
   fg::settings().erase(TERP_CAM_UID_NVS_KEY);   // and who it was on the wire
   fg::settings().erase(fg::TERP_CAM_PWD_NVS_KEY);   // reset restores the default
+  fg::settings().erase(fg::TERP_CAM_STREAM_NVS_KEY);
+  fg::settings().erase(fg::TERP_CAM_MAC_NVS_KEY);
   fg::settings().erase(TERP_CAM_URL_NVS_KEY);   // clear legacy slot too
   fg::settings().commit();
 
@@ -1406,6 +1524,7 @@ static void forgetTerpCam() {
     smart_socket_cloud_handle->log("hardware-info:webcam_uid=none", 0);
     smart_socket_cloud_handle->log("hardware-info:webcam_ip=none", 0);
     smart_socket_cloud_handle->log("hardware-info:webcam_url=none", 0);
+    smart_socket_cloud_handle->log("hardware-info:webcam_rtsp=off", 0);
   }
 }
 
@@ -1521,20 +1640,45 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       // can be paired again. Without this it stays joined to a network it is no
       // longer paired with, and the only way back is the physical reset button.
       //
-      // Best effort on purpose: a camera that is powered off or out of range
-      // must not make disconnecting impossible, so the module forgets it either
-      // way. The reset is also what makes the *next* pairing work — after it the
-      // camera answers `loginpas=888888` again.
+      // Over the LAN where the camera takes it (P2P), else over its setup AP,
+      // where its reset button puts it - which the user is asked to press when
+      // it is not there yet. Best effort on purpose: a camera that is powered off or
+      // out of range must not make disconnecting impossible, so the module
+      // forgets it either way.
+      const std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
       ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
-      const bool reset_ok = fg::terpCamFactoryReset(smart_socket_cloud_handle);
+      ui_handle->loop();
+      // The P2P reset logs its own outcome; the one over the AP is logged once, at the end.
+      const bool reset_over_lan = !fg::terpCamStreams() && fg::terpCamFactoryReset(smart_socket_cloud_handle);
+      const bool reset_ok = reset_over_lan || resetTerpCamOverAp(did, 0);
       ui_handle->pop();
 
-      forgetTerpCam();
+      auto finish = [reset_over_lan](bool ok) {
+        if(!reset_over_lan && smart_socket_cloud_handle != nullptr) {
+          smart_socket_cloud_handle->log(ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", ok ? 0 : 1);
+        }
+        forgetTerpCam();
+        ui_handle->push<TextDisplay>(ok ? "cam disconnected\nand reset"
+                                        : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
+                                     1, []() { ui_handle->pop(); });
+      };
+      if(reset_ok) {
+        finish(true);
+        return;
+      }
 
-      ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
-                                            : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
-                                   1, []() {
+      // The title is one line. A reset camera takes up to about 3 minutes to open its AP.
+      std::vector<std::string> wait_options = {"skip", "pressed"};
+      ui_handle->push<fg::SelectInput>("press cam reset", 1, wait_options, [did, finish](uint32_t choice) {
         ui_handle->pop();
+        bool ok = false;
+        if(choice == 1) {
+          ui_handle->push<TextDisplay>("waiting for\ncam...", 0, [](){});
+          ui_handle->loop();
+          ok = resetTerpCamOverAp(did, 240000);
+          ui_handle->pop();
+        }
+        finish(ok);
       });
     });
   });
@@ -2600,6 +2744,10 @@ static void tickAuxDeviceSearch() {
   if(server_active || !healthy) {
     return;
   }
+  // A camera that serves its own stream is looked after on its own timer.
+  if(fg::terpCamTickStream(smart_socket_cloud_handle)) {
+    return;
+  }
   if((int32_t)(socket_search_allowed_tick - xTaskGetTickCount()) > 0) {
     return;
   }
@@ -2931,6 +3079,9 @@ void wifiInitTerpCamCloudReporting(fg::Fridgecloud* cloud) {
     if(!cam_pwd.empty() && cam_pwd.size() < 64) {
       cloud->log("hardware-info:webcam_pwd=" + cam_pwd, 0);
     }
+    // Whether the cloud reads the camera off its own stream, through this
+    // device's tunnel, at webcam_ip - or over the P2P relay.
+    cloud->log(std::string("hardware-info:webcam_rtsp=") + (fg::terpCamStreams() ? "on" : "off"), 0);
   }
 }
 

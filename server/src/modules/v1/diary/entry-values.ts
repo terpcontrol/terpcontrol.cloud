@@ -1,4 +1,4 @@
-import type { EntryDose, EntryValues, EntryValuesDraft } from '@fg2/shared-types/v1';
+import type { EntryDose, EntryValues, EntryValuesDraft, HarvestEntryValues } from '@fg2/shared-types/v1';
 import { dosesFor, growOriginOf, growWeekAt, schemeWeekOf } from '@fg2/shared-types/v1-schemas';
 import { badRequest } from '@common/v1/problem';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -25,25 +25,31 @@ interface Planned {
  * Sunday is resolved at last Sunday's week and not at this one's. A grow with no
  * scheme plans nothing, which is a perfectly ordinary way to feed.
  */
-const plannedFeed = (grow: GrowDocument | null, litres: number | null, at: Date): Planned => {
+const plannedFeed = (grow: GrowDocument | null, litres: number | null, at: Date, zone: string | null): Planned => {
   if (!grow?.scheme) return { week: null, doses: [] };
 
-  const week = growWeekAt(growOriginOf(grow), at);
+  const week = growWeekAt(growOriginOf(grow), at, zone);
   return { week, doses: dosesFor(schemeWeekOf(grow.scheme.grid, week), litres, grow.scheme.strength) };
 };
 
 /**
  * What comes out is absolute and complete, and is never read through a grid
- * again: a scheme edited next month leaves every line already written alone.
+ * again: a scheme edited next month leaves every line already written alone. A
+ * harvest's weights come only as a correction of its line, and stand as typed.
  */
-export const resolveEntryValues = (draft: EntryValuesDraft, grow: GrowDocument | null, occurredAt: Date): EntryValues => {
+export const resolveEntryValues = (
+  draft: EntryValuesDraft | HarvestEntryValues,
+  grow: GrowDocument | null,
+  occurredAt: Date,
+  zone: string | null,
+): EntryValues => {
   switch (draft.kind) {
     case 'water':
       return { kind: 'water', litres: draft.litres ?? null, readings: draft.readings ?? [] };
 
     case 'feed': {
       const litres = draft.litres ?? null;
-      const planned = plannedFeed(grow, litres, occurredAt);
+      const planned = plannedFeed(grow, litres, occurredAt, zone);
 
       return {
         kind: 'feed',

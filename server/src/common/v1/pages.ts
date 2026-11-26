@@ -78,8 +78,11 @@ export const pageOf = <T>(rows: T[], limit: number, positionOf: (row: T) => Page
   return { items, nextCursor: hasMore && items.length > 0 ? encodeCursor(positionOf(items[items.length - 1])) : null };
 };
 
-/** The fields of a row that hold an instant, which is what a list can be sorted and continued by. */
-type InstantKey<T> = { [K in keyof T]-?: T[K] extends Date ? K : never }[keyof T] & string;
+/**
+ * The fields of a row that hold an instant, which is what a list can be sorted and continued by. One that may be
+ * null counts where the conditions hold the list to the rows that carry it: a cursor is built from the instant.
+ */
+type InstantKey<T> = { [K in keyof T]-?: NonNullable<T[K]> extends Date ? K : never }[keyof T] & string;
 
 /**
  * One page of a collection, sorted by `field` and then by `id`, holding the rows

@@ -58,11 +58,8 @@ RUN python3 -V
 
 # https://docs.platformio.org/en/latest/core/installation.html#piocore-install-shell-commands
 
-# Pinned: every build and every device runs on what this version brings, the
-# Arduino core 2.0.17 on ESP-IDF 4.4. A newer espressif32 brings Arduino core 3
-# on ESP-IDF 5, which this firmware does not compile against - an image built
-# on the unpinned latest broke the firmware without a change here. Moving up is
-# a firmware change of its own, verified on the devices.
+# Pinned, as in firmware/platformio.ini: the devices run arduino-esp32 2.x (platform 7.1.3), and an unpinned
+# install takes whatever is newest - platform 8 brings arduino-esp32 3, which the firmware does not build on.
 RUN quietly pio platform install espressif32@7.1.3 \
  && chmod 777 /root/.platformio/platforms/espressif32/platform.py \
  && sed -i 's/~2/>=1/g' /root/.platformio/platforms/espressif32/platform.py

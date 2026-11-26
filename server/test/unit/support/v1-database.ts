@@ -1,4 +1,3 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection, Model } from 'mongoose';
 import { MODEL_V1 } from '@database/models';
 import { StoredAlarmRule, alarmRulesSchema } from '@database/schemas/v1/alarm-rules.schema';
@@ -28,7 +27,7 @@ import { ShareLinkDocument, shareLinksSchema } from '@database/schemas/v1/share-
 import { SpaceDocument, spacesSchema } from '@database/schemas/v1/spaces.schema';
 import { StoredTargetChange, targetChangesSchema } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser, usersSchema } from '@database/schemas/v1/users.schema';
-import { stopMongod } from './mongod';
+import { MONGOD_HOOK_MS, startMongod, stopMongod } from './mongod';
 
 /**
  * A real MongoDB holding the `/v1` collections, for the services that decide by
@@ -70,11 +69,11 @@ export interface V1TestDatabase {
 }
 
 const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
-  const server = await MongoMemoryServer.create();
+  const server = await startMongod();
   const connection = mongoose.createConnection(server.getUri('v1-unit-spec'));
   await connection.asPromise();
 
-  return {
+  const database: V1TestDatabase = {
     connection,
     spaces: connection.model<SpaceDocument>(MODEL_V1.space, spacesSchema),
     grows: connection.model<GrowDocument>(MODEL_V1.grow, growsSchema),
@@ -112,6 +111,12 @@ const startV1TestDatabase = async (): Promise<V1TestDatabase> => {
       await stopMongod(server);
     },
   };
+
+  // A model builds its collection and indexes in the background as it is registered: some 150 table files, each synced
+  // to the drive, while the first test runs beside them. Waited for here, they are the start's time and not that test's
+  // - on a busy machine the first test outlasted its 30 s, and its writes went on into the next test's database.
+  await Promise.all(Object.values(connection.models).map(model => model.init()));
+  return database;
 };
 
 /**
@@ -124,7 +129,7 @@ export const useV1TestDatabase = (): V1TestDatabase => {
 
   beforeAll(async () => {
     Object.assign(db, await startV1TestDatabase());
-  });
+  }, MONGOD_HOOK_MS);
 
   // A start that failed has nothing to stop.
   afterAll(async () => {

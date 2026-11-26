@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet, type RouteObject } from 'react-router';
 import { AppShell } from './shell/AppShell';
+import { BARE } from './shell/bare';
 import { LinkEnded, OldDevice, OldLogin, OpenDemo } from './OldAddresses';
 import { RequireSession } from './RequireSession';
 import { RouteError } from './RouteError';
@@ -9,36 +10,36 @@ import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { Users as AdminUsers } from '@/screens/admin/Users';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
-import { Charts } from '@/screens/charts/Charts';
 import { Claim } from '@/screens/claim/Claim';
 import { Demo } from '@/screens/admin/Demo';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
-import { Devices } from '@/screens/devices/Devices';
+import { DevicePage, SocketPage } from '@/screens/devices/DevicePage';
 import { FirmwareScreen } from '@/screens/admin/Firmware';
 import { Fleet } from '@/screens/admin/Fleet';
+import { CurrentGrow } from '@/screens/grow/CurrentGrow';
 import { GrowPage } from '@/screens/grow/GrowPage';
-import { MyGrows } from '@/screens/grow/MyGrows';
-import { Home } from '@/screens/Home';
+import { Grows } from '@/screens/grow/Grows';
 import { JoinRoute } from '@/screens/join/JoinRoute';
 import { LogRoute } from '@/log/LogRoute';
 import { Me } from '@/screens/Me';
 import { About } from '@/screens/me/about/About';
 import { Account } from '@/screens/me/account/Account';
 import { Appearance } from '@/screens/me/appearance/Appearance';
+import { DiarySetting } from '@/screens/me/diary/DiarySetting';
 import { Privacy } from '@/screens/me/privacy/Privacy';
 import { Premium } from '@/screens/me/premium/Premium';
+import { SHARE_LINKS } from '@/app/places';
 import { Schemes } from '@/screens/me/schemes/Schemes';
 import { Following } from '@/screens/me/sharing/Following';
-import { PublicGrows } from '@/screens/me/sharing/PublicGrows';
 import { ShareLinks } from '@/screens/me/sharing/ShareLinks';
 import { Measurements } from '@/screens/grow/measurements/Measurements';
 import { NewGrowRoute } from '@/screens/grow/new/NewGrowRoute';
 import { NotFound } from '@/screens/NotFound';
 import { PlantPage } from '@/screens/grow/plant/PlantPage';
 import { ControlTab } from '@/screens/place/ControlTab';
-import { OldPlaceLink } from '@/screens/place/OldPlaceLink';
+import { EditPlace } from '@/screens/place/EditPlace';
 import { PlaceMembers } from '@/screens/place/PlaceMembers';
-import { PlacePage } from '@/screens/place/PlacePage';
+import { RemovePlace } from '@/screens/place/RemovePlace';
 import { Notifications } from '@/screens/notifications/Notifications';
 import { PublicGrowRoute } from '@/screens/public/PublicGrowRoute';
 import { PublicProfileRoute } from '@/screens/public/PublicProfileRoute';
@@ -47,6 +48,7 @@ import { SharedRoute } from '@/screens/public/SharedRoute';
 import { SignIn } from '@/screens/SignIn';
 import { PrivacyStatement } from '@/screens/PrivacyStatement';
 import { SignUp } from '@/screens/SignUp';
+import { Start, StartOfPlace } from '@/screens/start/Start';
 import { Tasks } from '@/screens/Tasks';
 import { Timeline } from '@/screens/Timeline';
 
@@ -55,25 +57,27 @@ export const SESSION_ROUTE = 'session';
 
 /** Every screen behind the session, in the shell: the table a test can lay under the shell on its own. */
 export const screens: RouteObject[] = [
-  { index: true, element: <Home /> },
+  { index: true, element: <Start /> },
   { path: 'timeline', element: <Timeline /> },
   { path: 'control/:page?', element: <ControlTab /> },
-  { path: 'charts', element: <Charts /> },
   { path: 'log', element: <LogRoute /> },
-  { path: 'devices', element: <Devices /> },
-  { path: 'claim', element: <Claim /> },
+  // No list of devices stands here - they are found under Steuerung - and without this the address would be read as somebody's handle.
+  { path: 'devices', element: <NotFound /> },
+  // The page "Graphen" went with Verlauf; its address is nothing now, said inside the app and not as a profile nobody has.
+  { path: 'charts', element: <NotFound /> },
+  { path: 'devices/:deviceId/sockets/:socket', element: <SocketPage /> },
+  { path: 'devices/:deviceId/:page?', element: <DevicePage /> },
+  // One task each, with one way on and one way out: drawn without the bar.
+  { path: 'claim', element: <Claim />, handle: BARE },
   { path: 'cameras/add', element: <AddCamera /> },
   { path: 'cameras/:cameraId', element: <CameraPage /> },
   { path: 'tasks', element: <Tasks /> },
   { path: 'me', element: <Me /> },
   { path: 'me/notifications', element: <Notifications /> },
   { path: 'me/privacy', element: <Privacy /> },
-  { path: 'me/public', element: <PublicGrows /> },
-  { path: 'me/following', element: <Following /> },
-  { path: 'me/share-links', element: <ShareLinks /> },
   { path: 'me/premium', element: <Premium /> },
-  { path: 'me/schemes', element: <Schemes /> },
   { path: 'me/appearance', element: <Appearance /> },
+  { path: 'me/diary', element: <DiarySetting /> },
   { path: 'me/account', element: <Account /> },
   { path: 'me/about', element: <About /> },
   {
@@ -92,21 +96,25 @@ export const screens: RouteObject[] = [
     ],
   },
   { path: 'alerts', element: <Alerts /> },
-  { path: 'grows', element: <MyGrows /> },
+  { path: 'grow/:tab?', element: <CurrentGrow /> },
+  { path: 'grows', element: <Grows /> },
   { path: 'grows/new', element: <NewGrowRoute /> },
-  // Where finished grows were listed before "My grows" held them all; bookmarks still point here.
-  { path: 'grows/archive', element: <Navigate to="/grows" replace /> },
+  // What belongs to growing without being a grow, behind the doors of "Alle Grows".
+  { path: 'grows/schemes', element: <Schemes /> },
+  { path: 'grows/share-links', element: <ShareLinks /> },
+  { path: 'grows/following', element: <Following /> },
   { path: 'grows/:growId/measurements', element: <Measurements /> },
   { path: 'grows/:growId/plants/:plantId', element: <PlantPage /> },
   { path: 'grows/:growId/:tab?', element: <GrowPage /> },
-  { path: 'spaces/:spaceId', element: <PlacePage /> },
+  { path: 'spaces/:spaceId', element: <StartOfPlace /> },
+  { path: 'spaces/:spaceId/edit', element: <EditPlace />, handle: BARE },
+  { path: 'spaces/:spaceId/remove', element: <RemovePlace />, handle: BARE },
   { path: 'spaces/:spaceId/members', element: <PlaceMembers /> },
-  { path: 'spaces/:spaceId/:tab/:sub?', element: <OldPlaceLink /> },
   { path: 'index.html', element: <Navigate to="/" replace /> },
   // The old app's own pages, where bookmarks still point.
   { path: 'list', element: <Navigate to="/" replace /> },
   { path: 'account', element: <Navigate to="/me/account" replace /> },
-  { path: 'shares', element: <Navigate to="/me/share-links" replace /> },
+  { path: 'shares', element: <Navigate to={SHARE_LINKS} replace /> },
   { path: 'diagnostics', element: <Navigate to="/admin/fleet" replace /> },
   { path: '*', element: <NotFound /> },
 ];

@@ -24,11 +24,14 @@ import type {
   SplitCreate,
   SplitResult,
 } from '@fg2/shared-types/v1';
+import { nameKey } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
+import { CLOCK_SKEW_MS, heldToNow } from '@common/v1/client-clock';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -36,13 +39,16 @@ import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
 import { MembershipDocument } from '@database/schemas/v1/memberships.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { targetsOf } from '../phase/phase-targets';
 import { PhaseWriterService } from '../phase/phase-writer.service';
 import { CLIMATE_PRESETS, ClimatePresets } from './climate-presets.port';
+import { zoneOfOwner, zonesOfOwners } from '@common/v1/owner-zone';
 import { NOTHING_HIDDEN, Redaction, serialiseGrow, serialisePhase, serialisePlacement, serialisePlant } from './grow-serialiser';
+import { round, shareOut } from './harvest-shares';
 import { grantRedaction, ownerRedactions } from './redactions';
 import { growsVisibleTo } from './visible-grows';
 import { accountOf } from '../caller';
@@ -54,8 +60,7 @@ import { accountOf } from '../caller';
  * A grow is not a device and does not need one - it is the story of a set of
  * plants, and the tent is only where they happen to be. So nothing here reaches
  * for hardware except in one place: entering a phase on a preset puts the
- * controllers of that space on the climate the preset asks for, which is what
- * makes a phase "auto".
+ * controllers of that space on the climate the preset asks for.
  */
 
 /** What a move says: where the plants go, when, and which of them. */
@@ -79,6 +84,7 @@ export class GrowsService {
     // the line with it: the rows are read here as well as written through the
     // writer below.
     @InjectModel(MODEL_V1.entry) private readonly entryRows: Model<EntryDocument>,
+    @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     private readonly access: AccessService,
     private readonly phases: PhaseWriterService,
     private readonly entries: EntryWriterService,
@@ -114,7 +120,12 @@ export class GrowsService {
   /** The grow with its plants, which the summary is worked out from. */
   public async read(id: string, hide: Redaction): Promise<GrowListItem> {
     const grow = await this.require(id);
-    return serialiseGrow(grow, await this.plantsOf(id), hide);
+    return serialiseGrow(grow, await this.plantsOf(id), hide, await this.zoneOf(grow));
+  }
+
+  /** The zone a grow's days are dates of: its owner's. */
+  public zoneOf(grow: Pick<GrowDocument, 'ownerId'>): Promise<string | null> {
+    return zoneOfOwner(this.users, grow.ownerId);
   }
 
   /**
@@ -140,11 +151,17 @@ export class GrowsService {
       page.items.map(grow => grow.ownerId),
     );
 
+    const zone = await zonesOfOwners(
+      this.users,
+      page.items.map(grow => grow.ownerId),
+    );
+
     return mapPage(page, grow =>
       serialiseGrow(
         grow,
         plants.filter(plant => plant.growId === grow.id),
         hide(grow.ownerId),
+        zone(grow.ownerId),
       ),
     );
   }
@@ -152,7 +169,9 @@ export class GrowsService {
   /**
    * The grows a caller may see at all, as one filter rather than a decision per
    * row: their own, and those standing in a space they are a member of. A demo
-   * session sees the demo ones.
+   * session sees the demo ones: a grow flagged for the tour, and one standing
+   * in a demo place now - which is what `access()` opens to it, so the list
+   * names every grow the tour can open and no other.
    *
    * An administrator is not widened here: every screen this filter feeds - the
    * grow list, the diary's subjects - is the person's own, and an install-wide
@@ -160,7 +179,10 @@ export class GrowsService {
    * grow through `access()`.
    */
   public async visibleTo(ctx: AccessContext): Promise<FilterQuery<GrowDocument>> {
-    if (ctx.isDemo || ctx.userId === null) return { isDemo: true };
+    if (ctx.isDemo || ctx.userId === null) {
+      const places = await this.spaces.find({ isDemo: true }, { id: 1 }).lean<Pick<SpaceDocument, 'id'>[]>();
+      return { $or: [{ isDemo: true }, { placements: { $elemMatch: { spaceId: { $in: places.map(place => place.id) }, endedAt: null } } }] };
+    }
 
     return growsVisibleTo(ctx.userId, this.memberships, this.spaces);
   }
@@ -222,25 +244,30 @@ export class GrowsService {
       isDemo: false,
     });
 
-    const plants = await this.sow(id, body.plants);
-    return serialiseGrow(grow.toObject<GrowDocument>(), plants, NOTHING_HIDDEN);
+    const plants = await this.sow(id, body.name, body.plants);
+    return serialiseGrow(grow.toObject<GrowDocument>(), plants, NOTHING_HIDDEN, await this.zoneOf(grow));
   }
 
-  /** "Amnesia × 8" is eight plants labelled "Amnesia 1" to "Amnesia 8". */
-  private async sow(growId: string, batches: GrowCreate['plants']): Promise<PlantDocument[]> {
+  /**
+   * "Amnesia × 8" is eight plants labelled "Amnesia 1" to "Amnesia 8". A batch nobody named a strain for keeps none
+   * and is numbered under the grow's name: a placeholder strain stored the sheet's "Ohne Namen" as a fact about the
+   * plants, in one language.
+   */
+  private async sow(growId: string, growName: string, batches: GrowCreate['plants']): Promise<PlantDocument[]> {
     const createdAt = new Date();
     const counted = new Map<string, number>();
 
     const plants = batches.flatMap(batch =>
       Array.from({ length: batch.count }, () => {
-        const number = (counted.get(batch.strain) ?? 0) + 1;
-        counted.set(batch.strain, number);
+        const stem = batch.strain.trim() || growName.trim();
+        const number = (counted.get(stem) ?? 0) + 1;
+        counted.set(stem, number);
 
         return {
           id: uuidv4(),
           growId,
-          strain: batch.strain,
-          label: `${batch.strain} ${number}`,
+          strain: batch.strain.trim(),
+          label: `${stem} ${number}`,
           status: 'active' as const,
           harvest: null,
           createdAt,
@@ -254,17 +281,71 @@ export class GrowsService {
 
   public async update(id: string, body: GrowUpdate, hide: Redaction): Promise<GrowListItem> {
     if (body.measurements !== undefined) await this.checkMeasurements(id, body.measurements);
-    if (body.startedAt !== undefined || body.endedAt !== undefined) requireSpan(await this.require(id), body);
+    const span = body.startedAt !== undefined || body.endedAt !== undefined ? requireSpan(await this.require(id), body) : null;
 
     const changes: Record<string, unknown> = {};
     for (const [field, value] of Object.entries(body)) {
-      if (value !== undefined) changes[field] = field === 'startedAt' || field === 'endedAt' ? instantOrNull(value) : value;
+      if (value !== undefined && field !== 'startedAt' && field !== 'endedAt') changes[field] = value;
+    }
+    if (span && body.startedAt !== undefined) Object.assign(changes, await this.moveStart(span.grow, span.startedAt));
+    if (span && body.endedAt !== undefined) changes.endedAt = span.endedAt;
+    if (span && span.endedAt === null && span.grow.endedAt !== null) {
+      const placements = (changes.placements as PlacementDocument[] | undefined) ?? span.grow.placements;
+      Object.assign(changes, { placements: await this.reopenedPlacements(placements, span.grow.endedAt) });
     }
 
     const changed = await this.grows.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<GrowDocument>();
     if (!changed) throw notFound('grow_not_found', 'There is no grow with that id.');
+    if (body.endedAt !== undefined) await this.restReminders(id, changed.endedAt);
 
-    return serialiseGrow(changed, await this.plantsOf(id), hide);
+    return serialiseGrow(changed, await this.plantsOf(id), hide, await this.zoneOf(changed));
+  }
+
+  /**
+   * A grow reopened (Chris, 2026-11-14) runs on where it stood when it ended - unless that place has been removed
+   * since, as "Ort entfernen" with "Grow beenden" does: an ended grow keeps the placement it ended in open as the
+   * record of where it stood last, and reopened there it would run in a place nobody can open. Such a placement is
+   * closed at the grow's end, and the plants it held stand at no fixed place from then on.
+   */
+  private async reopenedPlacements(placements: PlacementDocument[], endedAt: Date): Promise<PlacementDocument[]> {
+    const open = placements.filter(placement => placement.endedAt === null && placement.spaceId !== null);
+    const gone = new Set(
+      (
+        await this.spaces
+          .find({ id: { $in: open.map(placement => placement.spaceId) }, archivedAt: { $ne: null } }, { id: 1 })
+          .lean<SpaceDocument[]>()
+      ).map(space => space.id),
+    );
+    const left = open.filter(placement => gone.has(placement.spaceId!));
+    if (left.length === 0) return placements;
+
+    const plantIds = left.some(placement => placement.plantIds === null) ? null : [...new Set(left.flatMap(placement => placement.plantIds!))];
+    return [
+      ...placements.map(placement => (left.includes(placement) ? { ...placement, endedAt } : placement)),
+      { id: uuidv4(), spaceId: null, startedAt: endedAt, endedAt: null, plantIds },
+    ];
+  }
+
+  /**
+   * A grow's start moved, and what stood on it moved with it: the first phase
+   * and the placement a grow is made with begin at the instant the grow does,
+   * and a start put a week earlier would otherwise leave a week with no stage
+   * and no place - a diary whose days count from the new start under a report
+   * whose first chapter begins at the old one. The phase goes through its own
+   * correction, which takes its diary line along. A phase or a placement that
+   * began later than the grow is a fact of its own and stays.
+   */
+  private async moveStart(grow: GrowDocument, startedAt: Date): Promise<{ startedAt: Date; placements?: PlacementDocument[] }> {
+    const stood = (at: Date): boolean => at.getTime() === grow.startedAt.getTime();
+    if (stood(startedAt)) return { startedAt };
+
+    for (const phase of grow.phases.filter(one => stood(one.startedAt))) await this.phases.correctPhase(grow.id, phase.id, { startedAt });
+
+    const fits = (placement: PlacementDocument): boolean =>
+      stood(placement.startedAt) && (placement.endedAt === null || placement.endedAt > startedAt);
+    return grow.placements.some(fits)
+      ? { startedAt, placements: grow.placements.map(placement => (fits(placement) ? { ...placement, startedAt } : placement)) }
+      : { startedAt };
   }
 
   /**
@@ -335,6 +416,19 @@ export class GrowsService {
 
     await this.plants.deleteMany({ growId: id });
     await this.shareLinks.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
+    await this.reminders.deleteMany({ 'subject.type': 'grow', 'subject.id': id });
+  }
+
+  /**
+   * A grow's reminders rest while it is ended (Chris, 2026-11-14): a rhythm kept for plants that are no longer there
+   * would come due on no screen, and Rhythmen listed it with nothing left to change it by - so it leaves Aufgaben and
+   * fires nothing (`restingSince`). Reopened, the grow has them back, each rhythm counted on from that day
+   * (`resumedAt`) rather than overdue for the whole of the rest. A grow deleted takes them along.
+   */
+  private async restReminders(growId: string, endedAt: Date | null): Promise<void> {
+    const about = { 'subject.type': 'grow', 'subject.id': growId };
+    if (endedAt !== null) await this.reminders.updateMany({ ...about, restingSince: null }, { $set: { restingSince: endedAt } });
+    else await this.reminders.updateMany({ ...about, restingSince: { $ne: null } }, { $set: { restingSince: null, resumedAt: new Date() } });
   }
 
   /**
@@ -360,13 +454,12 @@ export class GrowsService {
   /** One plant, which is what replaces a dead one; a whole row of the sheet is created with the grow. */
   public async addPlant(growId: string, body: PlantCreate, hide: Redaction): Promise<Plant> {
     const standing = await this.plantsOf(growId);
-    const taken = standing.filter(plant => plant.strain === body.strain).length;
 
     const plant: PlantDocument = {
       id: uuidv4(),
       growId,
       strain: body.strain,
-      label: body.label ?? `${body.strain} ${taken + 1}`,
+      label: body.label ?? nextLabel(body.strain, standing),
       status: 'active',
       harvest: null,
       createdAt: new Date(),
@@ -382,10 +475,34 @@ export class GrowsService {
       if (value !== undefined) changes[field] = field === 'harvest' ? storedHarvestOf(body.harvest) : value;
     }
 
-    const changed = await this.plants.findOneAndUpdate({ id }, { $set: changes }, { new: true }).lean<PlantDocument>();
-    if (!changed) throw notFound('plant_not_found', 'There is no plant with that id.');
+    const before = await this.plants.findOneAndUpdate({ id }, { $set: changes }).lean<PlantDocument>();
+    if (!before) throw notFound('plant_not_found', 'There is no plant with that id.');
+    const changed: PlantDocument = { ...before, ...changes };
+    if (before.harvest && changed.harvest) await this.reweigh(before, changed.harvest);
 
     return serialisePlant(changed, hide);
+  }
+
+  /**
+   * A plant's weight corrected on the plant moves the harvest line that names it by as much: every page's yield is
+   * read from the lines (`harvestOf`), which keep what was typed for the plants a weight was shared over. A line that
+   * was typed without a weight takes the plant's.
+   */
+  private async reweigh(plant: PlantDocument, after: NonNullable<PlantDocument['harvest']>): Promise<void> {
+    const line = await this.entryRows.findOne({ growId: plant.growId, kind: 'harvest', plantIds: plant.id }).lean<EntryDocument>();
+    if (line?.values.kind !== 'harvest') return;
+
+    const moved = (typed: number | null, was: number | null, now: number | null): number | null =>
+      was === now ? typed : typed === null ? now : round(typed - (was ?? 0) + (now ?? 0));
+    await this.entryRows.updateOne(
+      { id: line.id },
+      {
+        $set: {
+          'values.wetWeightG': moved(line.values.wetWeightG, plant.harvest!.wetWeightG, after.wetWeightG),
+          'values.dryWeightG': moved(line.values.dryWeightG, plant.harvest!.dryWeightG, after.dryWeightG),
+        },
+      },
+    );
   }
 
   public async removePlant(id: string): Promise<void> {
@@ -393,6 +510,20 @@ export class GrowsService {
     if (!removed) throw notFound('plant_not_found', 'There is no plant with that id.');
 
     await this.forgetPlant(removed.growId, id);
+    await this.forgetHarvest(removed);
+  }
+
+  /**
+   * A plant that is gone takes its harvest out of the diary with it: a harvest
+   * of that plant alone goes, one of several keeps the others - and its typed
+   * amounts as they were, which is what the scale said (Chris, 2026-11-14).
+   * Left standing, the line said "Geerntet" of nobody, and nothing could
+   * correct it.
+   */
+  private async forgetHarvest(plant: PlantDocument): Promise<void> {
+    const where = { growId: plant.growId, kind: 'harvest', plantIds: plant.id };
+    await this.entryRows.deleteMany({ ...where, plantIds: [plant.id] });
+    await this.entryRows.updateMany(where, { $pull: { plantIds: plant.id } });
   }
 
   /**
@@ -427,17 +558,30 @@ export class GrowsService {
    * Entering a phase. Where the plants stand in a space with a controller and a
    * preset was asked for, the controller is put on it first: the phase then
    * carries what it runs, which is the only way a phase that is over can still
-   * draw its target band, and it is marked as set by the preset, which is the
-   * "auto" tag on the screen.
+   * draw its target band.
    *
    * `climate` asks for the same without a preset: the stage's own climate. A
    * grower moving into flower wants the light on twelve hours, and the stage
    * on its own - the plain "Flower" every climate list offers - was the one
    * climate the phase picker could not put the tent on.
+   *
+   * Asked for neither, the phase is a record and no device is written,
+   * whatever the stage: drying entered as a record once put the tent into
+   * drying and its light off under a chip that said the climate stays.
+   *
+   * The phase is the person's who asked for it, with a climate or without: the
+   * "auto" tag is for what a plan or a preset applied to the place did.
    */
   public async addPhase(growId: string, body: PhaseCreate, setBy: string | null, hide: Redaction): Promise<Phase> {
     const grow = await this.require(growId);
-    requireStillRunning(grow, body.startedAt ? new Date(body.startedAt) : new Date(), 'startedAt');
+    const asked = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
+    // The form that starts a grow writes the grow and then its first phase, both as "now", and each is held to this
+    // clock's now as it arrives: a moment apart. They are one instant - the start and the first phase move with each
+    // other by standing on it (`moveStart`, `startCarriedBy`) - so a first phase that follows its grow by no more
+    // than a clock may differ begins with the grow.
+    const startedAt =
+      grow.phases.length === 0 && asked >= grow.startedAt && asked.getTime() - grow.startedAt.getTime() <= CLOCK_SKEW_MS ? grow.startedAt : asked;
+    requireStillRunning(grow, startedAt, 'startedAt');
     const plantIds = await this.scopeOf(grow, body.plantIds ?? null);
 
     const phase = await this.enterPhase(
@@ -447,7 +591,7 @@ export class GrowsService {
         preset: body.preset ?? null,
         climate: body.climate === true,
         plantIds: body.plantIds ?? null,
-        startedAt: body.startedAt ? new Date(body.startedAt) : undefined,
+        startedAt,
         germinationChoices: body.germinationChoices,
       },
       spaceOf(grow, plantIds),
@@ -477,28 +621,29 @@ export class GrowsService {
     setBy: string | null,
   ): Promise<PhaseDocument> {
     const writesClimate = request.preset !== null || request.climate === true;
+    // The climate of the phase the grow already stands in begins no phase, so no line would say it was written: it is
+    // written down as Steuerung's save of the same figures is.
+    const stays = writesClimate && (await this.phases.standsInPhase(growId, request.stage, request.preset, request.plantIds));
     const applied =
       writesClimate && spaceId !== null
-        ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices)) ?? [])
+        ? ((await this.presets?.applyToSpace(spaceId, request.stage, request.preset, request.germinationChoices, stays ? setBy : undefined)) ?? [])
         : [];
-    // Without a climate the stage still decides whether the tent dries.
-    if (applied.length === 0 && spaceId !== null) await this.presets?.modeToSpace(spaceId, request.stage);
     const controller = applied.length > 0 ? applied[0] : await this.controllerIn(spaceId);
 
     const phase = await this.phases.setPhase({
       growId,
       stage: request.stage,
       preset: request.preset,
-      source: applied.length > 0 ? 'preset' : 'human',
-      // The contract names the person who picked the stage, and nobody picked
-      // one when a preset wrote the phase.
-      setBy: applied.length > 0 ? null : setBy,
+      source: 'human',
+      setBy,
       plantIds: request.plantIds,
       deviceId: controller?.deviceId ?? null,
       spaceId,
       targets: controller?.targets ?? null,
       startedAt: request.startedAt,
-      climateWritten: applied.length > 0,
+      // Asked for a place, a climate is written - now, or to a device as its first settings arrive - and the place's
+      // alarms follow it; a stage merely recorded leaves them as they are.
+      climateWritten: writesClimate && spaceId !== null,
     });
 
     // Putting a grow into the phase it already stands in changes nothing and is
@@ -538,10 +683,13 @@ export class GrowsService {
    */
   public async addPlacement(ctx: AccessContext, growId: string, body: PlacementCreate, authorId: string | null, hide: Redaction): Promise<Placement> {
     const grow = await this.require(growId);
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    const startedAt = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
     requireStillRunning(grow, startedAt, 'startedAt');
     await this.scopeOf(grow, body.plantIds ?? null);
     await this.requireSpaceFor(ctx, body.spaceId);
+    if (standsThereAlready(grow, body.spaceId, body.plantIds ?? null)) {
+      throw conflict('grow_already_there', 'The plants already stand in that place, and a move to where they stand moves nothing.');
+    }
 
     const placement = await this.movePlants(grow, { spaceId: body.spaceId, startedAt, plantIds: body.plantIds ?? null }, authorId);
 
@@ -568,9 +716,11 @@ export class GrowsService {
       plantIds: move.plantIds,
     };
 
+    const left = new Set<string | null>();
     const placements = grow.placements.flatMap<PlacementDocument>(existing => {
       const covered = existing.plantIds ?? everything;
       if (existing.endedAt !== null || !(takesEverything || covered.some(plantId => moving.has(plantId)))) return [existing];
+      left.add(existing.spaceId);
 
       const stayed = covered.filter(plantId => !moving.has(plantId));
       return [
@@ -581,6 +731,14 @@ export class GrowsService {
 
     await this.grows.updateOne({ id: grow.id }, { $set: { placements: [...placements, placement] } });
 
+    // The line says from where to where, by the names the places have now: the
+    // one left may be removed a moment later - a removal moves the grow first -
+    // and a removed place is in no list a reader could look its name up in.
+    // Plants gathered from two places, and a split that stays where it is, have
+    // no one place they came from.
+    const [origin] = left.size === 1 && !left.has(move.spaceId) ? [...left] : [];
+    const names = await this.namesOf([move.spaceId, ...left]);
+
     await this.entries.write({
       source: 'human',
       authorId,
@@ -588,10 +746,24 @@ export class GrowsService {
       spaceId: move.spaceId,
       plantIds: move.plantIds ?? [],
       occurredAt: move.startedAt,
-      values: { kind: 'move', placementId: placement.id, spaceId: move.spaceId },
+      values: {
+        kind: 'move',
+        placementId: placement.id,
+        spaceId: move.spaceId,
+        to: names(move.spaceId),
+        ...(origin === undefined ? {} : { from: names(origin) }),
+      },
     });
 
     return placement;
+  }
+
+  /** What each of these places is called, a removed one included; null for "no fixed place" and for a place that is not there. */
+  private async namesOf(spaceIds: (string | null)[]): Promise<(spaceId: string | null) => string | null> {
+    const ids = spaceIds.filter(spaceId => spaceId !== null);
+    const rows = ids.length > 0 ? await this.spaces.find({ id: { $in: ids } }, { id: 1, name: 1 }).lean<Pick<SpaceDocument, 'id' | 'name'>[]>() : [];
+
+    return spaceId => rows.find(row => row.id === spaceId)?.name ?? null;
   }
 
   /**
@@ -637,6 +809,8 @@ export class GrowsService {
           spaceId: corrected.spaceId,
           plantIds: corrected.plantIds ?? [],
           'values.spaceId': corrected.spaceId,
+          // And the place's name with it, where the place is what was corrected.
+          ...(body.spaceId === undefined ? {} : { 'values.to': (await this.namesOf([corrected.spaceId]))(corrected.spaceId) }),
         },
       },
     );
@@ -646,34 +820,43 @@ export class GrowsService {
 
   /**
    * A move that never happened. The line that announced it goes with it, because
-   * a diary entry naming a placement that is gone points at nothing.
+   * a diary entry naming a placement that is gone points at nothing - and the stay
+   * the move closed goes on as if it had not been made (`undoneMove`): the plants
+   * stand where they stood, for as long as the stay taken back lasted.
    *
-   * A grow always answers where it is - the overview, the week cards and
+   * A grow always answers where it is - the overview, the diary's days and
    * `access()` all read the open placements to say which spaces a grow is in -
-   * so the last open one is not removed. Saying "nowhere" is a move to a
-   * `spaceId` of null, which is a place a grow can be in rather than the absence
-   * of one.
+   * so the last open one is not removed where no stay before it takes over: the
+   * grow's first. Saying "nowhere" is a move to a `spaceId` of null, which is a
+   * place a grow can be in rather than the absence of one.
    */
   public async removePlacement(growId: string, placementId: string): Promise<void> {
     const grow = await this.require(growId);
-    if (!grow.placements.some(placement => placement.id === placementId)) {
-      throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
-    }
+    const gone = grow.placements.find(placement => placement.id === placementId);
+    if (!gone) throw notFound('placement_not_found', 'There is no placement of that grow with that id.');
 
     // A running grow has to answer where it is now; one that has ended answers
     // where it last stood, which any row left behind can say.
-    const kept = grow.placements.filter(placement => placement.id !== placementId);
+    const kept = undoneMove(grow.placements, gone, await this.scopeOf(grow, null));
     if (grow.endedAt === null ? !kept.some(placement => placement.endedAt === null) : kept.length === 0) {
-      throw conflict('grow_stands_nowhere', 'This is the only placement saying where the grow is. Move the grow instead of removing it.');
+      throw conflict(
+        'grow_stands_nowhere',
+        'This is where the grow first stood, and no stay before it can take over. Move the grow instead of removing it.',
+      );
     }
 
     await this.grows.updateOne({ id: growId }, { $set: { placements: kept } });
     await this.entryRows.deleteMany({ growId, kind: 'move', 'values.placementId': placementId });
   }
 
-  /** Putting plants into a space that exists is managing that space, which the guard on the route has not decided about. */
+  /**
+   * Putting plants into a space that exists is managing that space, which the guard on the route has not decided
+   * about - and a place that has ended takes no plants: a grow started in it or moved there would stand on no screen.
+   */
   private async requireSpaceFor(ctx: AccessContext, spaceId: string | null | undefined): Promise<void> {
-    if (spaceId) await this.access.require(ctx, subjectRef('space', spaceId), 'manage');
+    if (!spaceId) return;
+    await this.access.require(ctx, subjectRef('space', spaceId), 'manage');
+    await refuseEndedId(this.spaces, spaceId);
   }
 
   // -------------------------------------------------------------------------
@@ -705,7 +888,7 @@ export class GrowsService {
     }
     if (cut.length === 0) throw conflict('nothing_to_harvest', 'Every plant of this grow has already come down.');
 
-    const harvestedAt = body.harvestedAt ? new Date(body.harvestedAt) : new Date();
+    const harvestedAt = body.harvestedAt ? heldToNow(new Date(body.harvestedAt)) : new Date();
     requireStillRunning(grow, harvestedAt, 'harvestedAt');
     const wet = shareOut(body.wetWeightG ?? null, cut.length);
     const dry = shareOut(body.dryWeightG ?? null, cut.length);
@@ -735,6 +918,7 @@ export class GrowsService {
 
     if (standing.every(plant => plantIds.includes(plant.id) || plant.status !== 'active') && grow.endedAt === null) {
       await this.grows.updateOne({ id: growId }, { $set: { endedAt: harvestedAt } });
+      await this.restReminders(growId, harvestedAt);
     }
 
     return { plants: harvested.map(plant => serialisePlant(plant, hide)), entryId: entry.id };
@@ -760,7 +944,7 @@ export class GrowsService {
       ]);
     }
 
-    const startedAt = body.startedAt ? new Date(body.startedAt) : new Date();
+    const startedAt = body.startedAt ? heldToNow(new Date(body.startedAt)) : new Date();
     requireStillRunning(grow, startedAt, 'startedAt');
     await this.requireSpaceFor(ctx, body.spaceId);
 
@@ -822,11 +1006,6 @@ const slugify = (name: string): string =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
 
-const instantOrNull = (value: unknown): Date | null => (typeof value === 'string' ? new Date(value) : null);
-
-/** How far a client's clock may run ahead of this one before "now" from it is "later". */
-const CLOCK_SKEW_MS = 60_000;
-
 /**
  * Nothing can happen to a grow after it ended. A phase, a move, a split or a
  * harvest dated later than its end would be a story that goes on past its own
@@ -850,7 +1029,7 @@ const requireStillRunning = (grow: GrowDocument, at: Date, field: string): void 
 };
 
 const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
-  if (at.getTime() <= Date.now() + CLOCK_SKEW_MS) return at;
+  if (at.getTime() <= Date.now() + CLOCK_SKEW_MS) return heldToNow(at);
 
   throw badRequest(
     field === 'startedAt' ? 'started_in_the_future' : 'ended_in_the_future',
@@ -860,12 +1039,12 @@ const notInTheFuture = (at: Date, field: 'startedAt' | 'endedAt'): Date => {
 };
 
 /**
- * The span a correction leaves the grow with. The day counter, the week cards
+ * The span a correction leaves the grow with. The day counter, the diary's days
  * and the report all count from the start to the end, and an end before the
  * start is a grow of minus ten days - the placements and the share links
  * already refuse a span that runs backwards, and so does the grow they belong to.
  */
-const requireSpan = (grow: GrowDocument, body: GrowUpdate): void => {
+const requireSpan = (grow: GrowDocument, body: GrowUpdate): { grow: GrowDocument; startedAt: Date; endedAt: Date | null } => {
   const startedAt = body.startedAt ? notInTheFuture(new Date(body.startedAt), 'startedAt') : grow.startedAt;
   const endedAt = body.endedAt === undefined ? grow.endedAt : body.endedAt === null ? null : notInTheFuture(new Date(body.endedAt), 'endedAt');
 
@@ -874,24 +1053,9 @@ const requireSpan = (grow: GrowDocument, body: GrowUpdate): void => {
       { field: body.endedAt === undefined ? 'startedAt' : 'endedAt', code: 'before_start', detail: endedAt.toISOString() },
     ]);
   }
+
+  return { grow, startedAt, endedAt };
 };
-
-/**
- * The harvest sheet weighs what came down, while the model keeps a weight per
- * plant so that a staggered harvest adds up rather than being counted twice.
- * So the figure is shared out evenly over the plants it was weighed for, and the
- * last of them takes whatever rounding left over, which keeps the total exactly
- * what somebody typed in. A plant that really weighed something else is
- * corrected on the plant, which is what `PATCH /plants/{id}` is for.
- */
-const shareOut = (total: number | null, count: number): (number | null)[] => {
-  if (total === null || count === 0) return Array.from({ length: count }, () => null);
-
-  const each = round(total / count);
-  return Array.from({ length: count }, (_, index) => (index < count - 1 ? each : round(total - each * (count - 1))));
-};
-
-const round = (value: number): number => Math.round(value * 100) / 100;
 
 /**
  * A key is what a reading is filed under, so two definitions sharing one would
@@ -911,6 +1075,23 @@ const requireDistinctKeys = (definitions: MeasurementDefinition[]): void => {
 const storedHarvestOf = (harvest: PlantUpdate['harvest']): PlantDocument['harvest'] =>
   harvest ? { ...harvest, harvestedAt: new Date(harvest.harvestedAt) } : null;
 
+/**
+ * What a plant added without a name is called: its strain with the number after the highest one in use. Counting
+ * the strain's plants put a new one into a name still taken once one before it was deleted - two "OG Kush 3" in the
+ * harvest sheet and the diary. A name somebody gave by hand to another plant is passed over as well.
+ */
+const nextLabel = (strain: string, plants: readonly Pick<PlantDocument, 'label'>[]): string => {
+  const taken = new Set(plants.map(plant => nameKey(plant.label)));
+  const stem = nameKey(strain);
+  const used = plants.flatMap(plant => {
+    const counted = /^(.*\S)\s+(\d{1,6})$/u.exec(nameKey(plant.label));
+    return counted && counted[1] === stem ? [Number(counted[2])] : [];
+  });
+  let number = Math.max(0, ...used) + 1;
+  while (taken.has(nameKey(`${strain} ${number}`))) number += 1;
+  return `${strain} ${number}`;
+};
+
 /** Where the plants a request is about stand: the open placement that still covers them. */
 const spaceOf = (grow: GrowDocument, plantIds: string[]): string | null => {
   const open = grow.placements
@@ -919,4 +1100,52 @@ const spaceOf = (grow: GrowDocument, plantIds: string[]): string | null => {
 
   const covering = open.find(placement => placement.plantIds === null || placement.plantIds.some(plantId => plantIds.includes(plantId)));
   return covering?.spaceId ?? null;
+};
+
+/**
+ * Whether every plant a move names already stands where it is to go: each open stay covering one of them is there.
+ * Such a move ended the stay and began it again in the same place, and the diary said the grow had been put where it
+ * stood. A grow that has ended has no open stay, and a move written into its record is a repair.
+ */
+const standsThereAlready = (grow: GrowDocument, spaceId: string | null, plantIds: string[] | null): boolean => {
+  const covering = grow.placements.filter(
+    placement =>
+      placement.endedAt === null && (plantIds === null || placement.plantIds === null || placement.plantIds.some(id => plantIds.includes(id))),
+  );
+  return covering.length > 0 && covering.every(placement => placement.spaceId === spaceId);
+};
+
+/**
+ * The placements once a move is taken back. Each stay it closed - ended the instant it began, holding its plants -
+ * runs on to where the stay taken back ended, so the plants stand where they stood; where only some plants had
+ * moved, the row the move opened for those that stayed is folded back into it. A stay closed by hand at another
+ * instant, or one whose stayed plants have moved on since, is left as it is.
+ */
+const undoneMove = (placements: readonly PlacementDocument[], gone: PlacementDocument, everything: readonly string[]): PlacementDocument[] => {
+  const plantsOf = (one: PlacementDocument): string[] => one.plantIds ?? [...everything];
+  const moved = new Set(plantsOf(gone));
+  const rest = placements.filter(one => one.id !== gone.id);
+  const closed = rest.filter(
+    one => one.endedAt?.getTime() === gone.startedAt.getTime() && (gone.plantIds === null || plantsOf(one).some(id => moved.has(id))),
+  );
+  const reopened = closed.flatMap((before): { before: PlacementDocument; behind: PlacementDocument | null }[] => {
+    const stayed = plantsOf(before).filter(id => !moved.has(id));
+    if (stayed.length === 0) return [{ before, behind: null }];
+    // The plants that did not go stood on in a row of their own, which has to be standing still to be folded back.
+    const behind = rest.find(
+      one =>
+        one.endedAt === null &&
+        gone.endedAt === null &&
+        one.spaceId === before.spaceId &&
+        one.startedAt.getTime() === gone.startedAt.getTime() &&
+        one.plantIds !== null &&
+        one.plantIds.length === stayed.length &&
+        stayed.every(id => one.plantIds!.includes(id)),
+    );
+    return behind ? [{ before, behind }] : [];
+  });
+
+  return rest
+    .filter(one => !reopened.some(({ behind }) => behind === one))
+    .map(one => (reopened.some(({ before }) => before === one) ? { ...one, endedAt: gone.endedAt } : one));
 };

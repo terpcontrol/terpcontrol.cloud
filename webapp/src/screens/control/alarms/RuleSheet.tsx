@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { AlarmRule, Device, Me, Metric, OutputMetric, Severity } from '@fg2/shared-types/v1';
 import { useCreateAlarmRule, useRemoveAlarmRule, useUpdateAlarmRule } from '@/api/alarm-rules';
+import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
 import { Sheet } from '@/ui/Sheet';
 import { EmailAlarmsOffer } from '@/screens/notifications/NotifyNotice';
@@ -11,17 +12,19 @@ import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { WEBHOOK_METHODS } from '@/screens/notifications/settings';
 import { Asking } from '@/ui/Asking';
 import { Refused } from '@/ui/PageState';
-import advanced from '@/ui/advanced/Advanced.module.css';
+import { AdvancedFold } from '@/ui/advanced/AdvancedFold';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import {
+  boundsContradict,
   createBody,
   DEFAULT_WATCH,
   draftOf,
   emptyDraft,
   firstWatch,
   hasBound,
+  metricName,
   outputName,
   outputsOf,
   readingsOf,
@@ -36,6 +39,7 @@ import {
   withSeverity,
 } from './rules';
 import { isComplete, templateOf, WEBHOOK_TEMPLATES, type TemplateValues, type WebhookTemplate } from './webhook-templates';
+import control from '../Control.module.css';
 import styles from './Alarms.module.css';
 
 const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
@@ -49,9 +53,12 @@ const SEVERITIES: Severity[] = ['critical', 'warning', 'info'];
  * the stage wrote can be changed here too, and the sheet says what that is
  * worth - the next stage writes its thresholds again.
  *
- * What the sheet refuses itself is one thing only: a band with no edge, which
- * is a rule that could never trip. Everything else is the server's to refuse,
- * and its answer stays in the sheet under the button that asked.
+ * What the sheet refuses itself is a band with no edge, which is a rule that
+ * could never trip, and two edges that contradict each other, which is a rule
+ * that trips at every value - the second from the moment both are typed, with
+ * Speichern held until they agree. Everything else is the server's to refuse,
+ * and its answer stays in the sheet under the button that asked; its refusal of
+ * the same contradiction is said in the sheet's words.
  *
  * The rule the cloud keeps for every device is the one this sheet does not ask
  * its usual questions of: what it watches is the health loop rather than a
@@ -65,14 +72,15 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const update = useUpdateAlarmRule(device.id);
   const remove = useRemoveAlarmRule(device.id);
   const readings = readingsOf(device);
-  // A rule a stage wrote carries the server's English name; the field opens on
-  // the name the list shows it by, so "Zu warm" is not edited as "Too hot".
-  const [draft, setDraft] = useState<RuleDraft>(() =>
-    rule ? { ...draftOf(rule), name: rule.origin === 'preset' ? ruleTitle(t, rule) : rule.name } : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH),
-  );
+  // A rule a stage or one tap wrote carries an English name; the field opens on the name the list shows it by, so
+  // "Zu warm" is not edited as "Too hot". Left as it opened, the rule keeps the name it is stored under, which is what
+  // titles it in every reader's language.
+  const shown = rule ? ruleTitle(t, rule) : '';
+  const [draft, setDraft] = useState<RuleDraft>(() => (rule ? { ...draftOf(rule), name: shown } : emptyDraft(firstWatch(device) ?? DEFAULT_WATCH)));
   const [askingDelete, setAskingDelete] = useState(false);
   const [refusedBound, setRefusedBound] = useState(false);
   const noBound = refusedBound && !hasBound(draft);
+  const contradicts = boundsContradict(draft);
 
   const change = (over: Partial<RuleDraft>) => setDraft(current => ({ ...current, ...over }));
   const busy = create.isPending || update.isPending || remove.isPending;
@@ -97,22 +105,40 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
   const outputChips: OutputMetric[] = watchedOutput && !outputs.includes(watchedOutput) ? [...outputs, watchedOutput] : outputs;
 
   const save = () => {
+    if (contradicts) return;
     if (!hasBound(draft)) {
       setRefusedBound(true);
       return;
     }
     setRefusedBound(false);
-    if (rule) update.mutate({ ruleId: rule.id, body: updateBody(draft) }, { onSuccess: onClose });
+    const kept = rule && draft.name.trim() === shown ? { ...draft, name: rule.name } : draft;
+    if (rule) update.mutate({ ruleId: rule.id, body: updateBody(kept) }, { onSuccess: onClose });
     else create.mutate(createBody(draft), { onSuccess: onClose });
   };
 
+  const writeError = create.error ?? update.error;
   const actions = (
     <>
-      <Refused error={create.error ?? update.error ?? remove.error} />
+      {refusedContradiction(writeError) ? (
+        <p className={ui.problem} role="alert">
+          {t('alarms.sheet.contradicts')}
+        </p>
+      ) : (
+        <Refused error={writeError ?? remove.error} />
+      )}
 
-      <button type="button" className={`${ui.button} ${ui.primary} ${styles.submit}`} disabled={busy} onClick={save}>
-        {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
-      </button>
+      {/* While the rule's deletion is asked, the question is the sheet's one answer. */}
+      {askingDelete ? null : (
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary} ${styles.submit}`}
+          disabled={busy || contradicts}
+          aria-describedby={contradicts ? 'rule-contradicts' : undefined}
+          onClick={save}
+        >
+          {busy ? t('grow.lifecycle.saving') : t('alarms.sheet.save')}
+        </button>
+      )}
 
       {rule && rule.origin !== 'always' ? (
         askingDelete ? (
@@ -142,7 +168,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             server titles with it, which every screen then contradicts. The field
             goes, the way the watch and the bounds already do for this rule. */}
         {rule?.origin === 'always' ? null : (
-          <Block label={t('alarms.sheet.name')}>
+          <Block label={t('alarms.sheet.name')} help={rule?.origin === 'preset' ? 'presetRules' : undefined}>
             <input
               className={ui.input}
               value={draft.name}
@@ -151,7 +177,6 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
               autoComplete="off"
               onChange={event => change({ name: event.target.value })}
             />
-            {rule?.origin === 'preset' ? <p className={ui.note}>{t('alarms.sheet.presetNote')}</p> : null}
           </Block>
         )}
 
@@ -188,9 +213,21 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 
         {wantsBound(draft) ? (
           <Block label={t('alarms.sheet.bounds')}>
-            <div className={styles.bounds}>
-              <BoundField label={t('alarms.sheet.above')} unit={unit} value={draft.upper} missing={noBound} onChange={upper => change({ upper })} />
-              <BoundField label={t('alarms.sheet.below')} unit={unit} value={draft.lower} missing={noBound} onChange={lower => change({ lower })} />
+            <div className={ui.halves}>
+              <BoundField
+                label={t('alarms.sheet.above')}
+                unit={unit}
+                value={draft.upper}
+                refusedBy={noBound ? 'rule-no-bound' : contradicts ? 'rule-contradicts' : null}
+                onChange={upper => change({ upper })}
+              />
+              <BoundField
+                label={t('alarms.sheet.below')}
+                unit={unit}
+                value={draft.lower}
+                refusedBy={noBound ? 'rule-no-bound' : contradicts ? 'rule-contradicts' : null}
+                onChange={lower => change({ lower })}
+              />
             </div>
             {/* What the figure above means, for the outputs whose series has no
                 unit to say it. A percentage says it with the sign on the field
@@ -203,12 +240,16 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
                 {t('alarms.sheet.noBound')}
               </p>
             ) : null}
+            {contradicts ? (
+              <p className={ui.problem} role="alert" id="rule-contradicts">
+                {t('alarms.sheet.contradicts')}
+              </p>
+            ) : null}
           </Block>
         ) : null}
 
-        <Block label={t('alarms.sheet.for')}>
+        <Block label={t('alarms.sheet.for')} help="alarmFor">
           <Minutes label={t('alarms.sheet.for')} value={draft.forMinutes} onChange={forMinutes => change({ forMinutes })} />
-          <p className={ui.note}>{t(forNote(draft))}</p>
         </Block>
 
         <Block label={t('alarms.sheet.severity')} help="severity">
@@ -235,7 +276,7 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
             draft.severity === 'critical' ? (
               <EmailAlarmsOffer me={me} others={false} />
             ) : (
-              <Link to="/me/notifications" className={`mono ${ui.headLink}`}>
+              <Link to="/me/notifications" className={ui.headLink}>
                 {t('alarms.sheet.setUp')} ›
               </Link>
             )
@@ -265,13 +306,12 @@ export function RuleSheet({ device, rule, me, onClose }: { device: Device; rule:
 }
 
 /** How often the rule says itself again while it lasts. */
-function Repeat({ draft, onChange, help }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void; help?: 'alarmRepeat' }) {
+function Repeat({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
   const { t } = useTranslation();
 
   return (
-    <Block label={t('alarms.sheet.repeat')} help={help}>
+    <Block label={t('alarms.sheet.repeat')} help="alarmRepeat">
       <Minutes label={t('alarms.sheet.repeatEvery')} value={draft.repeatMinutes} onChange={repeatMinutes => onChange({ repeatMinutes })} />
-      <p className={ui.note}>{t(draft.tellBy === 'email' ? 'alarms.sheet.repeatNoteEmail' : 'alarms.sheet.repeatNote')}</p>
     </Block>
   );
 }
@@ -285,30 +325,17 @@ function Repeat({ draft, onChange, help }: { draft: RuleDraft; onChange: (over: 
  * never hidden behind a fold.
  */
 function RuleAdvanced({ draft, onChange }: { draft: RuleDraft; onChange: (over: Partial<RuleDraft>) => void }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(draft.severity !== 'critical' && draft.repeatMinutes > 0);
   const webhook = draft.tellBy === 'webhook';
   const quiet = draft.severity !== 'critical';
   if (!webhook && !quiet) return null;
 
   return (
-    <details className={advanced.section} open={open}>
-      <summary
-        className="label"
-        onClick={event => {
-          event.preventDefault();
-          setOpen(!open);
-        }}
-      >
-        {t('advanced.title')}
-      </summary>
-      {open ? (
-        <div className={ui.sheetBody}>
-          {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
-          {quiet ? <Repeat draft={draft} onChange={onChange} help="alarmRepeat" /> : null}
-        </div>
-      ) : null}
-    </details>
+    <AdvancedFold open={quiet && draft.repeatMinutes > 0}>
+      <div className={ui.sheetBody}>
+        {webhook ? <TemplateFields draft={draft} onChange={onChange} /> : null}
+        {quiet ? <Repeat draft={draft} onChange={onChange} /> : null}
+      </div>
+    </AdvancedFold>
   );
 }
 
@@ -345,10 +372,10 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
         ))}
       </Choices>
       {chosen ? (
-        <div className={styles.fields}>
+        <div className={control.fields}>
           <p className={ui.note}>{t(`webhookTargets.${chosen.id}.hint`)}</p>
           {chosen.fields.map(field => (
-            <label key={field.key} className={styles.templateField}>
+            <label key={field.key} className={ui.stack1}>
               <span className="label">{t(field.label)}</span>
               <input
                 className={ui.input}
@@ -387,13 +414,6 @@ function TemplateFields({ draft, onChange }: { draft: RuleDraft; onChange: (over
   );
 }
 
-/** What "for how long" means, which differs for an output that is only ever on, and for the ten minutes the health loop already waits. */
-const forNote = (draft: RuleDraft): string => {
-  if (watchesOffline(draft.watch)) return 'alarms.sheet.forOfflineNote';
-
-  return draft.watch.kind === 'output_running' ? 'alarms.sheet.forRunningNote' : 'alarms.sheet.forNote';
-};
-
 /**
  * Where a rule delivered by the account's settings would actually go. Nothing
  * is claimed before the account has answered - in the demo it never does - and
@@ -409,14 +429,6 @@ const routingNote = (t: Translate, draft: RuleDraft, me: Me | undefined): string
     ? t('alarms.sheet.routingNote', { channels: channelsLabel(t, channels) })
     : t('alarms.sheet.routingNone', { severity: t(`alarms.severity.${draft.severity}`) });
 };
-
-/**
- * What a reading is called, written out: the home card abbreviates to fit four
- * figures across, and a chip somebody is choosing what to watch from has room
- * for the whole word.
- */
-const metricName = (t: Translate, metric: Metric): string =>
-  t(`alarms.metric.${metric}`, { defaultValue: t(`home.metric.${metric}`, { defaultValue: metric }) });
 
 /** Whether an output is watched for how hard it runs or for running at all. */
 function OutputHow({
@@ -445,32 +457,32 @@ function BoundField({
   label,
   unit,
   value,
-  missing,
+  refusedBy,
   onChange,
 }: {
   label: string;
   unit: string;
   value: string;
-  /** Neither edge is set and a save was refused for it, which the line under the two says. */
-  missing: boolean;
+  /** The id of the line under the two that refuses them: no edge at all, or two that contradict each other. */
+  refusedBy: string | null;
   onChange: (value: string) => void;
 }) {
   return (
-    <label className={styles.figure}>
-      <span className={styles.figureLabel}>{label}</span>
+    <label className={control.figure}>
+      <span className={control.figureLabel}>{label}</span>
       <input
-        className={`mono ${styles.figureInput}`}
+        className={control.figureInput}
         type="number"
         inputMode="decimal"
         step="any"
         placeholder="—"
         aria-label={unit ? `${label} ${unit}` : label}
-        aria-invalid={missing || undefined}
-        aria-describedby={missing ? 'rule-no-bound' : undefined}
+        aria-invalid={refusedBy ? true : undefined}
+        aria-describedby={refusedBy ?? undefined}
         value={value}
         onChange={event => onChange(event.target.value)}
       />
-      {unit ? <span className={`mono ${styles.figureUnit}`}>{unit}</span> : null}
+      {unit ? <span className={control.figureUnit}>{unit}</span> : null}
     </label>
   );
 }
@@ -480,9 +492,9 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
   const { t } = useTranslation();
 
   return (
-    <div className={styles.duration}>
+    <div className={ui.row2}>
       <input
-        className={`${ui.input} ${styles.number}`}
+        className={`${ui.input} ${control.number}`}
         type="number"
         inputMode="decimal"
         min={0}
@@ -491,7 +503,7 @@ function Minutes({ label, value, onChange }: { label: string; value: number; onC
         aria-label={`${label} ${t('spoken.minutes')}`}
         onChange={event => onChange(Math.max(0, Number(event.target.value) || 0))}
       />
-      <span className={`mono ${styles.figureUnit}`}>{t('alarms.sheet.minutes')}</span>
+      <span className={control.figureUnit}>{t('alarms.sheet.minutes')}</span>
     </div>
   );
 }
@@ -501,7 +513,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
   const { t } = useTranslation();
 
   return (
-    <div className={styles.fields}>
+    <div className={control.fields}>
       <input
         className={ui.input}
         type="url"
@@ -523,7 +535,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-headers"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.headers}
         placeholder={t('alarms.sheet.headersHint')}
@@ -534,7 +546,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-triggered"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.triggeredPayload}
         placeholder={t('alarms.sheet.payloadHint')}
@@ -545,7 +557,7 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
       </label>
       <textarea
         id="rule-resolved"
-        className={`mono ${ui.input} ${styles.textarea}`}
+        className={`${ui.input} ${styles.textarea}`}
         rows={3}
         value={draft.resolvedPayload}
         placeholder={t('alarms.sheet.payloadHint')}
@@ -556,3 +568,12 @@ function WebhookFields({ draft, onChange }: { draft: RuleDraft; onChange: (over:
     </div>
   );
 }
+
+/**
+ * Whether the server refused the rule for edges that contradict each other: the sheet refuses them first, so this
+ * is what an older page leaves, and it is said in the sheet's own words.
+ */
+const refusedContradiction = (error: unknown): boolean =>
+  error instanceof ApiError &&
+  error.status === 422 &&
+  [error.problem.code, ...error.problem.errors.map(one => one.code)].some(code => /contradict|inverted|crossed/.test(code ?? ''));

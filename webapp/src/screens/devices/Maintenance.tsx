@@ -1,232 +1,164 @@
-import { RotateCcw, Wrench, type LucideIcon } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { DateTime } from 'luxon';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, DeviceCommandResult } from '@fg2/shared-types/v1';
+import type { Device } from '@fg2/shared-types/v1';
 import { serverNow } from '@/api/clock';
 import { useDevicesCommand } from '@/api/commands';
+import { useLog } from '@/log/log-context';
+import { Help } from '@/ui/Help';
+import { Refused } from '@/ui/PageState';
 import { Sheet } from '@/ui/Sheet';
-import { MAINTENANCE_MINUTES, maintenanceSpans, parkedLabel, parkedQuiet, parksAnything, parksLine, VISIT_MINUTES } from '@/ui/maintenance';
-import { Answered, Choice, Choices, SheetAnswer } from '@/ui/SheetParts';
+import { maintenanceQuiet, parkedQuiet, VISIT_MINUTES } from '@/ui/maintenance';
+import { Answered, SheetAnswer } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { deviceTitle } from '@/ui/naming';
 import styles from './Maintenance.module.css';
 
 /**
- * The two things a grower does to the hardware itself: a window of maintenance
- * - a quarter of an hour, half an hour or an hour - and a restart. Both reach
- * real hardware and neither can be taken back, so each is a button that opens
- * a question saying what is about to stop, and the question turns into the
- * receipt once it has been answered.
+ * Maintenance as one control, for whoever is about to open the tent: one tap
+ * on "Wartung · 15 Min" starts a quarter of an hour, with no sheet before it.
+ * While the window stands the same spot says until when and offers ending it
+ * and another quarter of an hour.
  *
- * Maintenance is sent as the device command and not written as a diary line:
- * it is the same window on the same hardware, but a grower who keeps no diary
- * should not find one started by pressing a button about the tent.
+ * It is the device command and no diary line, sent to every device it is
+ * given. The toast names the window as it now stands and puts it back as it
+ * stood; a device that was not there to hear it is named. `disabled` is a
+ * device known to be offline. A tap while the last is on its way sends
+ * nothing, and no button is disabled for it: the focus stays where the hand
+ * was.
+ *
+ * `standing` is the control where a window is only told and never begun -
+ * over a device's alarm rules: nothing while none stands, and both ends of the
+ * quiet named, because they differ - the hardware is let go when the window
+ * runs out, the alarms are held for the settling after it. `mayEnd` is whether
+ * the reader may end or extend it.
  */
-
-/** A button that says what it is, and under it what it does - the two lines a grower decides on. */
-export function TwoLines({ Icon, name, does, disabled, className, onClick }: TwoLinesProps) {
-  return (
-    <button type="button" className={`${ui.button} ${styles.button} ${className ?? ''}`} disabled={disabled} onClick={onClick}>
-      <Icon size={16} strokeWidth={1.75} aria-hidden />
-      <span className={styles.words}>
-        <span>{name}</span>
-        <span className={styles.subline}>{does}</span>
-      </span>
-    </button>
-  );
-}
-
-interface TwoLinesProps {
-  Icon: LucideIcon;
-  name: string;
-  does: string;
-  disabled?: boolean;
-  className?: string;
-  onClick: () => void;
-}
-
-/**
- * "Maintenance" and what that means under it, or, while the devices are
- * parked, until when. It opens the question, where the length is chosen; it
- * never sends.
- */
-export function MaintenanceButton({
+export function MaintenanceControl({
   devices,
   now,
-  disabled,
-  className,
+  id,
+  disabled = false,
+  standing = false,
+  mayEnd = true,
 }: {
   devices: Device[];
   now: DateTime;
+  id?: string;
   disabled?: boolean;
-  className?: string;
+  standing?: boolean;
+  mayEnd?: boolean;
 }) {
   const { t } = useTranslation();
   const zone = useZone();
-  const [asking, setAsking] = useState(false);
-  const running = parkedQuiet(devices, DateTime.max(now, serverNow()));
-
-  return (
-    <>
-      <TwoLines
-        Icon={Wrench}
-        name={running ? t('maintenance.running', { until: clock(running.until, zone) }) : t('maintenance.actionChoose')}
-        does={t(running ? 'maintenance.runningNote' : 'maintenance.actionNote')}
-        disabled={disabled}
-        className={className}
-        onClick={() => setAsking(true)}
-      />
-      {asking ? <MaintenanceSheet devices={devices} now={now} onClose={() => setAsking(false)} /> : null}
-    </>
-  );
-}
-
-/** "Restart", and what a restart costs under it. It opens the question; it never sends. */
-export function RebootButton({ device, name, disabled }: { device: Device; name: string; disabled?: boolean }) {
-  const { t } = useTranslation();
-  const [asking, setAsking] = useState(false);
-
-  return (
-    <>
-      <TwoLines
-        Icon={RotateCcw}
-        name={t('devices.reboot.action')}
-        does={t('devices.reboot.does')}
-        disabled={disabled}
-        onClick={() => setAsking(true)}
-      />
-      {asking ? <RebootSheet device={device} name={name} onClose={() => setAsking(false)} /> : null}
-    </>
-  );
-}
-
-/**
- * The question before a window opens, or - while one is open - what is held and
- * the way out of it. What stops is said of each device, because only a
- * controller and a fridge module park anything; the others only go quiet.
- */
-function MaintenanceSheet({ devices, now, onClose }: { devices: Device[]; now: DateTime; onClose: () => void }) {
-  const { t } = useTranslation();
-  const zone = useZone();
+  const { tell } = useLog();
   const send = useDevicesCommand();
-  const [minutes, setMinutes] = useState<number>(VISIT_MINUTES);
-  const spans = maintenanceSpans(minutes);
-  const running = parkedQuiet(devices, DateTime.max(now, serverNow()));
+  const at = DateTime.max(now, serverNow());
+  const running = parkedQuiet(devices, at);
+  const settling = standing && !running ? (devices.map(device => maintenanceQuiet(device, at)).find(quiet => quiet !== null) ?? null) : null;
   const ids = devices.map(device => device.id);
-  const receipts = send.data ?? null;
-  const ended = send.variables?.command.kind === 'maintenance' && send.variables.command.forSeconds === 0;
+  const asked = send.variables?.command.kind === 'maintenance' ? send.variables.command.forSeconds : null;
+  const unheard = asked !== null && asked > 0 && (send.data ?? []).some(receipt => !receipt.deviceOnline);
 
-  const start = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: minutes * 60 } });
-  const end = () => send.mutate({ deviceIds: ids, command: { kind: 'maintenance', forSeconds: 0 } });
+  const hold = (forSeconds: number) => send.mutateAsync({ deviceIds: ids, command: { kind: 'maintenance', forSeconds } });
+  const secondsTo = (until: string | null) =>
+    until ? Math.max(0, Math.round(DateTime.fromISO(until).diff(DateTime.max(now, serverNow())).as('seconds'))) : 0;
+  // A device nobody hears takes no window: the buttons stay in reach of the focus and send nothing, and whoever draws them says why.
+  const ask = async (forSeconds: number) => {
+    if (disabled || send.isPending) return;
+    const before = running?.until ?? null;
+    try {
+      const receipts = await hold(forSeconds);
+      if (!receipts.some(receipt => receipt.deviceOnline)) return;
+      const until = clock(serverNow().plus({ seconds: forSeconds }).toISO()!, zone);
+      tell({
+        label: forSeconds === 0 ? t('maintenance.told.ended') : t(before ? 'maintenance.told.extended' : 'maintenance.told.started', { until }),
+        undo: () => hold(secondsTo(before)),
+        undone: before ? t('maintenance.running', { until: clock(before, zone) }) : t('maintenance.told.ended'),
+        from: `maintenance-${ids.join(' ')}`,
+      });
+    } catch {
+      // Drawn under the control, from the command that was refused.
+    }
+  };
+  const left = secondsTo(running?.until ?? null);
+  const quiet = running ?? settling;
+  if (standing && !quiet) return null;
 
-  const actions = (
-    <SheetAnswer done={receipts !== null} error={send.error} onClose={onClose}>
-      {running ? (
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending} onClick={end}>
-          {t(send.isPending ? 'maintenance.ending' : 'maintenance.end')}
-        </button>
+  return (
+    <div className={ui.stack2} id={id} tabIndex={id ? -1 : undefined}>
+      {quiet ? (
+        <div className={styles.controlRunning} role="group" aria-label={t('maintenance.title')}>
+          <span className={styles.controlSays}>
+            <span className={styles.until}>
+              {t(running ? 'maintenance.running' : 'maintenance.settled', { until: clock(quiet.until, zone) })}
+              <Help topic="maintenance" />
+            </span>
+            <span className={styles.subline}>
+              {send.isPending
+                ? t(asked === 0 ? 'maintenance.ending' : 'maintenance.extending')
+                : standing
+                  ? t(running ? 'maintenance.parked' : 'maintenance.settling', { alarms: clock(quiet.alarmsUntil, zone) })
+                  : t('maintenance.runningNote')}
+            </span>
+          </span>
+          {running && mayEnd ? (
+            <>
+              <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(0)}>
+                {t('maintenance.endShort')}
+              </button>
+              <button type="button" className={ui.button} aria-disabled={disabled || undefined} onClick={() => void ask(left + VISIT_MINUTES * 60)}>
+                {t('maintenance.extend')}
+              </button>
+            </>
+          ) : null}
+        </div>
       ) : (
-        <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending || devices.length === 0} onClick={start}>
-          {t('maintenance.start')}
+        <button
+          type="button"
+          className={styles.controlStart}
+          disabled={ids.length === 0}
+          aria-disabled={disabled || undefined}
+          onClick={() => void ask(VISIT_MINUTES * 60)}
+        >
+          {send.isPending && asked !== 0 ? t('maintenance.starting') : t('maintenance.actionShort', { minutes: VISIT_MINUTES })}
         </button>
       )}
-    </SheetAnswer>
-  );
-
-  return (
-    <Sheet title={t('maintenance.title')} onClose={onClose} actions={actions}>
-      <div className={styles.body}>
-        {receipts ? (
-          <Receipt receipts={receipts} ended={ended} spans={spans} />
-        ) : running ? (
-          <p>{t('maintenance.runningText', { until: clock(running.until, zone), alarms: clock(running.alarmsUntil, zone) })}</p>
-        ) : (
-          <>
-            <Choices label={t('maintenance.howLong')}>
-              {MAINTENANCE_MINUTES.map(length => (
-                <Choice key={length} chosen={minutes === length} disabled={send.isPending} onChoose={() => setMinutes(length)}>
-                  {t('maintenance.minutes', { minutes: length })}
-                </Choice>
-              ))}
-            </Choices>
-            <WhatPauses devices={devices} spans={spans} />
-          </>
-        )}
-      </div>
-    </Sheet>
-  );
-}
-
-/** What a window stops, device by device where there are several, and how long nothing is raised. */
-function WhatPauses({ devices, spans }: { devices: Device[]; spans: ReturnType<typeof maintenanceSpans> }) {
-  const { t } = useTranslation();
-  const only = devices.length === 1 ? devices[0] : null;
-
-  return (
-    <>
-      {only ? (
-        <p>
-          {parksAnything(only) ? t('maintenance.pauses', { ...spans, outputs: parkedLabel(t, only) }) : t('maintenance.pausesNothing', spans)}
-          {/* The lamp is dimmed to a working brightness rather than stopped, which is what Erweitert's "light on in maintenance" builds on. */}
-          {parksAnything(only) ? ` ${t('maintenance.dims')}` : null}
-        </p>
-      ) : (
-        <>
-          <p>{t('maintenance.pausesEach', { ...spans, count: devices.length })}</p>
-          <ul className={styles.list}>
-            {devices.map(device => (
-              <li key={device.id}>
-                <strong>{deviceTitle(device, t, devices)}</strong>
-                {' — '}
-                {parksLine(t, device)}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <p>{t('maintenance.alarms', spans)}</p>
-      <p className={ui.note}>{t('maintenance.after', { count: devices.length })}</p>
-    </>
-  );
-}
-
-/** What came back: a window asked for, or ended - and, where a device was not there to hear it, that too. */
-function Receipt({ receipts, ended, spans }: { receipts: DeviceCommandResult[]; ended: boolean; spans: ReturnType<typeof maintenanceSpans> }) {
-  const { t } = useTranslation();
-  const unheard = receipts.some(receipt => !receipt.deviceOnline);
-
-  return (
-    <>
-      <Answered>{ended ? t('maintenance.ended') : t('maintenance.started', spans)}</Answered>
-      {unheard && !ended ? <p className={ui.note}>{t('maintenance.unheard', spans)}</p> : null}
-    </>
+      {unheard && !send.isPending ? <p className={ui.note}>{t('maintenance.unheardShort')}</p> : null}
+      <Refused error={send.error} />
+    </div>
   );
 }
 
 /**
- * A restart, asked first. What it costs is short and real: the device is gone
- * for a moment, regulates nothing while it is, and anything switched by hand is
- * let go, because an override lives in the device's memory and dies with it.
+ * A restart, asked first: the device is gone for a moment, regulates nothing
+ * while it is, and anything switched by hand is let go, because an override
+ * lives in the device's memory. A device that was not there to hear it is
+ * said in the sheet, which stays.
  */
-function RebootSheet({ device, name, onClose }: { device: Device; name: string; onClose: () => void }) {
+export function RebootSheet({ device, name, onClose }: { device: Device; name: string; onClose: () => void }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
   const send = useDevicesCommand();
-  const receipt = send.data?.[0] ?? null;
+  const unheard = send.data?.[0]?.deviceOnline === false;
+
+  const restart = async () => {
+    try {
+      const [receipt] = await send.mutateAsync({ deviceIds: [device.id], command: { kind: 'reboot' } });
+      if (!receipt.deviceOnline) return;
+      tell({ label: t('devices.reboot.sent', { name }), undo: null });
+      onClose();
+    } catch {
+      // Said over the button, from the command that was refused.
+    }
+  };
 
   return (
     <Sheet
       title={t('devices.reboot.title', { name })}
       onClose={onClose}
       actions={
-        <SheetAnswer done={receipt !== null} error={send.error} onClose={onClose}>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary}`}
-            disabled={send.isPending}
-            onClick={() => send.mutate({ deviceIds: [device.id], command: { kind: 'reboot' } })}
-          >
+        <SheetAnswer done={unheard} error={send.error} onClose={onClose}>
+          <button type="button" className={`${ui.button} ${ui.primary}`} disabled={send.isPending} onClick={() => void restart()}>
             <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
             {t('devices.reboot.yes')}
           </button>
@@ -234,8 +166,8 @@ function RebootSheet({ device, name, onClose }: { device: Device; name: string; 
       }
     >
       <div className={styles.body}>
-        {receipt ? (
-          <Answered>{t(receipt.deviceOnline ? 'devices.reboot.sent' : 'devices.reboot.unheard')}</Answered>
+        {unheard ? (
+          <Answered>{t('devices.reboot.unheard')}</Answered>
         ) : (
           <>
             <p>{t('devices.reboot.text')}</p>

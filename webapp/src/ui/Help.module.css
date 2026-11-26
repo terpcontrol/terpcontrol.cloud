@@ -27,7 +27,12 @@
 .info::after {
   content: '';
   position: absolute;
-  inset: -10px;
+  inset: -12px;
+}
+
+/* A label's last word and its mark, which break as one. */
+.last {
+  white-space: nowrap;
 }
 
 .info:hover,
@@ -37,10 +42,13 @@
 
 /* A term stays the word it is in its sentence - the same face, size, weight
    and ink - and says it can be asked about by its dotted underline alone. */
+/* A finger high where it is tapped, without its line growing: the room above and below the words is the term's own
+   box, held out of the line by a margin as deep - a term in a line of small type ("98 % im Zielband" in a chapter of
+   the Bericht) was 19 px. */
 .term {
-  display: inline;
-  margin: 0;
-  padding: 0;
+  display: inline-block;
+  margin: -9px 0;
+  padding: 9px 0;
   background: none;
   border: 0;
   border-radius: 0;
@@ -55,6 +63,7 @@
   text-decoration-thickness: 1.5px;
   text-underline-offset: 0.22em;
   cursor: help;
+  position: relative;
 }
 
 .term:hover,
@@ -117,7 +126,7 @@
 
 .title {
   color: var(--heading);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 /* The arrow points at whatever opened the bubble, from the edge that faces it. */

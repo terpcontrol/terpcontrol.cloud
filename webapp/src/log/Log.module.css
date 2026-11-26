@@ -1,82 +1,97 @@
-/* The sheet's own parts: the target row, the eight tiles, and the fields the
-   details ask for. Dense, because a phone in a tent has one thumb. */
+/* The sheet's own parts: what the line is about, the seven tiles, and the
+   fields the details ask for. Dense, because a phone in a tent has one thumb. */
 
-/* The places to log to, as the shared row that scrolls, veiled into the
-   sheet's own surface. */
+/* What a line can be about: pills a thumb finds, wrapping rather than running off the sheet. */
+/* What the line is about: the places in one row and the chosen place's plants in a row of their own, each
+   scrolling sideways where it is longer than the sheet is wide. */
 .targets {
-  --veil-colour: var(--card);
-
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
-  padding-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
+.targets:last-of-type {
+  margin-bottom: var(--space-4);
+}
+
+/* The plants' row says it is one, set off from the places above it. */
+.plantsLabel {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+/* A finger high, and a name longer than the sheet wrapped as a sheet's choices are: a plant's number stands at the
+   end of its name, and cut away it left every chip of a long strain reading alike. */
+.targets > button {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--control-height);
+  padding: var(--space-1) 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* Four to a row, and the tiles of a last row that is short share its width: a row has no hole. */
+/* One grid of equal cells, four to a row: a row that is not full keeps the cells' width rather than stretching its
+   last one across - five kinds once drew "Training" as wide as the four above it. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .tile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-height: 92px;
-  padding: var(--space-3) var(--space-1);
+  justify-content: center;
+  gap: 6px;
+  min-height: 78px;
+  padding: var(--space-1);
+  background: var(--bg);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   text-align: center;
+  min-width: 0;
 }
 
-/* Maintenance says what it is and what it stops, which two narrow lines of a
-   tile cannot hold; it takes two columns rather than a cut-off sentence. */
-.tile[data-wide] {
-  grid-column: span 2;
-}
-
-/* The instant before the tiles know what they would write. */
+/* The instant before the tiles know what their view opens on. */
 .tile:disabled {
   opacity: 0.5;
 }
 
-.tile:hover:not(:disabled) {
-  border-color: var(--rule-strong);
-  background: var(--card-2);
+/* Only for a pointer that hovers: a finger leaves a hover behind on whatever takes the tile's place. */
+@media (hover: hover) {
+  .tile:hover:not(:disabled) {
+    border-color: var(--rule-strong);
+    background: var(--card-2);
+  }
 }
 
 .tileIcon {
-  margin-bottom: 2px;
-  color: var(--ink);
-}
-
-.tileName {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  line-height: var(--line-tight);
-}
-
-.tileCaption {
-  font-size: var(--text-xs);
-  line-height: var(--line-tight);
-  color: var(--muted);
-  /* Two lines at most, broken between words and cut with an ellipsis after
-     that: hyphenated, a tile's list of measurement names ran to five broken
-     lines and made every tile in its row as tall. A word too long for the
-     tile on its own still breaks rather than running out of it. */
-  display: -webkit-box;
-  overflow: hidden;
-  overflow-wrap: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  text-wrap: balance;
+  flex: none;
+  color: var(--brand);
 }
 
 /* What the details are about: the same line the toast will say. */
 .subject {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+/* The facts take the line; a help button beside them keeps its own width at the line's end. */
+.subject > :first-child {
+  flex: 1;
 }
 
 .waterRow {
@@ -92,20 +107,41 @@
   font-size: var(--text-md);
 }
 
+/* The figure is a field: tapped, it is typed over; the steps beside it move it by half a litre. */
 .waterFigure {
-  min-width: 64px;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
   font-size: var(--text-lg);
+  white-space: nowrap;
+}
+
+.waterFigure input {
+  width: 3.2em;
+  min-height: var(--control-height);
+  padding: 0;
+  background: none;
+  border: 0;
+  border-bottom: var(--rule-solid);
+  color: inherit;
+  font: inherit;
   text-align: right;
+}
+
+.lastTime {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .step {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: var(--control-height);
+  height: var(--control-height);
   background: var(--card-2);
   border: var(--rule-solid);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--ink);
 }
 
@@ -141,32 +177,32 @@
   text-align: right;
 }
 
-.mixNote {
-  margin-top: var(--space-2);
-  font-size: var(--text-xs);
-}
-
+/* One reading a row, its name beside a field as wide as a figure: three in a row left a reading named with its plant
+   - "pH · Gorilla Glue 1" - a field 4 px wide, and what it held could not be seen. */
 .fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
 
 .field {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
 }
 
 .fieldName {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--muted);
+  overflow-wrap: break-word;
 }
 
 .fieldInput {
-  width: 100%;
-  min-width: 0;
+  flex: none;
+  width: 7ch;
   background: none;
   border: 0;
   font-size: var(--text-lg);
@@ -175,6 +211,12 @@
 
 .fieldInput:focus {
   outline: none;
+}
+
+.fieldUnit {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .more {
@@ -202,9 +244,9 @@
   margin-top: var(--space-4);
 }
 
-.save {
-  width: 100%;
-  margin-top: var(--space-4);
+/* Whose phase it is, apart from the chips it is about. */
+.scope {
+  margin-top: var(--space-3);
 }
 
 /* Taking a line back, under everything the line still is. It is the alarm
@@ -216,11 +258,6 @@
   margin-top: var(--space-4);
   padding-top: var(--space-3);
   border-top: var(--rule-solid);
-}
-
-.takeBackRow {
-  display: flex;
-  gap: var(--space-3);
 }
 
 .picture {
@@ -235,13 +272,6 @@
 
 .picture:has(img) {
   border-color: transparent;
-}
-
-.picture img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 .pictureEmpty {
@@ -277,10 +307,6 @@
 }
 
 .picked img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
   transition: transform 0.2s;
 }
 
@@ -326,6 +352,11 @@
   margin: var(--space-2) 0 var(--space-3);
 }
 
+/* A tag is pressed with a finger. */
+.tags > * {
+  min-height: var(--control-height);
+}
+
 .ownTag {
   width: 96px;
   color: var(--muted);
@@ -344,31 +375,4 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-3);
-}
-
-/* What stepping in is about to quieten: the sentence, the devices it names, and
-   what Undo will and will not take back. The list is indented under the
-   sentence so that it reads as that sentence's own enumeration. */
-.quietens {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.quietensList {
-  margin: 0;
-  padding-left: var(--space-5);
-  font-size: var(--text-xs);
-  line-height: 1.7;
-  list-style: disc;
-}
-
-/* What that one device will stop, beside the name of that one device. The list
-   is set in the face the app keeps for figures, because a device is known by an
-   id; this half is a sentence about it and reads in the text face, dimmed, so
-   that the eye still finds the name first. */
-.quietensParks {
-  font-family: var(--font-text);
-  color: var(--muted);
 }

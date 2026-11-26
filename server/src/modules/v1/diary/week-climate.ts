@@ -29,7 +29,7 @@ import type { CycleStretch } from '../phase/target-record';
  * is what they mean together.
  */
 
-/** What a week card and a report chapter state. Anything else a device writes is a diagnostic no screen asks for. */
+/** What a day of the diary and a report chapter state. Anything else a device writes is a diagnostic no screen asks for. */
 export const CLIMATE_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2'];
 
 const HOURS_A_DAY = 24;

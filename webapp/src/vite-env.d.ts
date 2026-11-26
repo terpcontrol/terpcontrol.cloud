@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_CUSTOM_LINKS_HTML?: string;
   /** The install's privacy statement, which signing up asks agreement to. */
   readonly VITE_PRIVACY_URL?: string;
+  readonly VITE_CUSTOM_SCRIPT_TAG?: string;
 }
 
 interface ImportMeta {
