@@ -1,7 +1,7 @@
 ---
 summary: Backing up and restoring a stack beyond the README's commands - what a backup holds and misses, one-database backups, deploy hosts, restoring into a migrated database or from another install
-updated: 2026-10-08
-source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host)
+updated: 2026-11-26
+source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26
 paths:
   - backup.sh
   - restore.sh
@@ -36,8 +36,10 @@ needs beyond them.
 | `./restore.sh <name>` | both files |
 | `./restore.sh <name>.mongodump` (or `.influxdump`) | that one only |
 
-The dump is written inside the container first and then copied out, so a backup briefly needs two to three times
-its size on the Docker host.
+The dumps are written inside the containers first and then copied out, so a backup briefly needs about twice the
+Mongo dump (archive in the container, `docker cp`) plus three times the InfluxDB backup (backup directory, its tar,
+`docker cp`) free on the Docker host - about 63 GB for a 17.9 GB Mongo and a 15 GB Influx backup (2026-11-26). A
+scheduled backup that keeps yesterday's files until today's are written needs that on top of them.
 
 ## On a deploy host
 
@@ -47,6 +49,11 @@ its size on the Docker host.
 - Write outside the deploy directory: `BACKUP_FILENAME=<backup-dir>/backup-$(date +%F_%H-%M-%S)`. The next deploy's
   `rsync --delete` removes every file there that the repository does not have, backups included.
   `upgrade-mongodb.sh` always writes its backup into the repository directory - move it out before the next deploy.
+- A scheduled backup that runs from its own copy of `backup.sh` and `scripts/` outside the deploy directory is not
+  refreshed by a deploy: copy both again from master when they change. Such a copy from before PR #183 stopped at
+  its first line once the env file carried `CUSTOM_SCRIPT_TAG` - `load-env.sh` exports the file through `xargs`, a
+  value with spaces or quotes breaks that, `backup.sh` runs under `set -e`, and cron's output went nowhere, so the
+  backup failed silently (2026-11-26). Check that the newest backup carries today's date.
 - A tree from before 2026-09-18 (a hotfix on an old base) has a `backup.sh` that ignores `COMPOSE_OPTIONS`. Where the
   project name comes from a `-p` flag there, run `mongodump` in the container directly.
 

@@ -1,7 +1,7 @@
 ---
-summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores; read it before an upgrade, a restore or a repair by hand
-updated: 2026-10-14
-source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores, disk space; read it before an upgrade, a restore or a repair by hand
+updated: 2026-11-26
+source: Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; compacting the production and staging databases, 2026-11-26
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -11,7 +11,7 @@ paths:
   - up.sh
   - scripts/mongodb.sh
 ---
-# Data operations: upgrades, migrations, old data, backups
+# Data operations: upgrades, migrations, old data, backups, disk space
 
 Where the data lives and the rules for code are in [data.md](data.md). The migration was decided in
 [ADR 0001](../adr/0001-app-rewrite-data-model.md#migration); its runner, steps, commands and refusals are explained in
@@ -118,3 +118,14 @@ the [backup-and-restore runbook](../runbooks/backup-and-restore.md); what they r
 - A restored copy reaches real people from its first boot: mail, Web Push and Telegram where its `.env` configures
   them, the webhooks stored in the data always - see
   [test against a production backup](../runbooks/test-against-a-production-backup.md).
+
+## Disk space
+
+- **Deleted documents do not give their space back.** WiredTiger keeps it in the collection's file and reuses it only
+  for that collection. Where new documents are smaller than the deleted ones, it is never reused: the pre-rewrite
+  `images` collection kept ~18 GB after its pixels had moved to GridFS and old pictures were deleted (file 33 GB,
+  data 9.8 GB); `legacy_images` kept 4.6 GB after the migration had emptied it.
+- `db.getSiblingDB(<db>).runCommand({compact: "<collection>"})` gives it back; `stats().freeStorageSize` shows what is
+  there. Since MongoDB 4.4 it does not block reads and writes; the 18 GB took 42 s (2026-11-26). It frees less than
+  `freeStorageSize` when the free blocks lie between used ones (`imagedata.chunks`: 1.7 GB free, 0 freed). The
+  dumps are logical, so a compact does not shrink a backup.

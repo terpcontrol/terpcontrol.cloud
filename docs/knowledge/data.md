@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-10-22
-source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-26
+source: Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the bucket retention read on an install, 2026-11-26
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -141,6 +141,10 @@ Pitfalls, each met at least once:
 | TTL indexes | MongoDB | `sessions`, `passwordResets`, `notificationLog` at `expiresAt`. |
 | Account deletion | in the request; resumed 5 s after boot and hourly | What the account owns. Device rows stay claimable and keep their readings; its lines in other people's records stay, authorless. |
 
+- **The bucket's own retention comes first.** The `INFLUXDB_BUCKET` bucket is created with a retention of its own
+  (`influx bucket list` shows it) and drops whole shard groups past it, raw points and
+  `status_daily` alike. A `RETENTION_CLIMATE_DAYS` at or above it summarises nothing that lasts; daily means kept for
+  longer need a longer bucket retention (`influx bucket update --retention`).
 - While `legacy_images` stands, thinning and the cleanup spare every picture it names (`migrations/way-back.ts`); the
   hourly picture sweep does not. Dropping `legacy_images` hands those pictures to both.
 - A summarised day keeps only means: switchings, output levels and CO2 valve counts read raw samples only.
