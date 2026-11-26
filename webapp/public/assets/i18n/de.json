@@ -582,6 +582,9 @@
     "navigation": "Hauptnavigation",
     "alerts": "Meldungen",
     "account": "Ich",
+    "feedback": "Feedback",
+    "feedbackHint": "Feedback senden - es wird ein öffentliches Issue auf GitHub",
+    "feedbackContext": "Debug-Infos für die Entwickler. Sie stehen auch im öffentlichen Issue: lösche, was du nicht teilen willst.",
     "signInFailed": "Anmeldung nicht möglich. Bitte E-Mail und Passwort prüfen.",
     "signInTooMany": "Zu viele Anmeldeversuche. Bitte einen Moment warten und es erneut versuchen.",
     "tabs": {
