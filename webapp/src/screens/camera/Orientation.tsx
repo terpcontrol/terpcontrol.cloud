@@ -26,7 +26,7 @@ const BUTTONS = [
  * it by the difference rather than by the whole setting - and a still taken
  * before a save is not drawn as though the save had been undone. Saving turns
  * the pictures to come; the ones already taken keep the orientation they were
- * stored with, which is why the note says so.
+ * stored with, which the help beside the label says.
  *
  * Somebody who may only look is told what the setting is and given nothing to
  * press.
@@ -69,7 +69,6 @@ export function Orientation({ camera, value, onChange }: { camera: Camera; value
           {t('camera.orientation.reset')} ›
         </button>
       ) : null}
-      {onChange ? <span className={`${ui.note} ${styles.settingNote}`}>{t('camera.orientation.note')}</span> : null}
     </span>
   );
 }

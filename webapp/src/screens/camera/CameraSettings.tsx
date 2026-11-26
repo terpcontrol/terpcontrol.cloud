@@ -268,7 +268,7 @@ export function CameraSettings({
           </Row>
 
           {/* Turned back to what is saved is no change, so Save is not offered for it. */}
-          <Row label={t('camera.orientation.label')}>
+          <Row label={t('camera.orientation.label')} help="cameraOrientation">
             <Orientation
               camera={camera}
               value={(value('orientation') as CameraOrientation | undefined) ?? camera.orientation}
