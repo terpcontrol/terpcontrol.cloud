@@ -1433,6 +1433,14 @@ bool provisionTerpCam(const std::string& home_ssid, const std::string& home_pass
   std::string auth = TERP_CAM_AUTH;
   const bool streams = enableTerpCamStream(password, mac, auth);
 
+  // The camera burns its clock into every picture by default; the cloud stores
+  // stills without overlays and draws the time on display. A streaming camera
+  // takes no command once it is on the home Wi-Fi, so its OSD is switched off
+  // here, on the setup AP, with the login the rest of the pairing uses; a P2P
+  // camera is told again when it is secured. Fire and forget: a camera that
+  // ignores it only keeps its timestamp.
+  httpGet((std::string(TERP_CAM_AP_BASE) + "/camera_control.cgi?" + auth + "&param=10&value=0&").c_str());
+
   emit_status("scan cam wifi...");
   std::string scan_url = std::string(TERP_CAM_AP_BASE) + "/wifi_scan.cgi?" + auth;
   httpGet(scan_url.c_str());

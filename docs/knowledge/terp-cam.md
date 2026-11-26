@@ -69,9 +69,10 @@ way and what the code has to respect. Internal notes on the camera exist.
   (PR #132); a camera that misses it keeps its stamp. A streaming camera never gets there: it pairs with
   `webcam_rtsp=on`, `terpCamSecure` is skipped, and on the home WiFi it takes no CGI at all. Tried on hardware
   2026-11-26: the development fridge's H.265 Terp Cam, paired again with the PR's firmware, keeps its burned-in clock
-  on every still (and that clock runs on UTC, an hour off the app's stamp in winter). Switching it off for these
-  cameras would have to happen on the setup AP, in `provisionTerpCam`, and is untried; Chris left it there for now
-  (2026-11-26): only cameras paired through `terpCamSecure` lose their clock.
+  on every still (and that clock runs on UTC, an hour off the app's stamp in winter). So `provisionTerpCam` now also
+  sends `camera_control.cgi?param=10&value=0` on the setup AP, after the stream is switched on and with the login
+  the rest of the pairing uses, for every camera. Not yet confirmed on hardware: pair the development fridge's Terp
+  Cam again and look at its next still.
 - "disconnect cam" asks, ends a running relay and sends `restore_factory.cgi` over a checked session for 4 s (the
   camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing.
   Where that finds nothing - always for a streaming camera - the reset goes over the camera's setup AP instead
