@@ -61,7 +61,7 @@ the direction proposed, and a **Start between master's calm Home and the fuller 
 small curves**, the readings as figures. It is built and replaces "Nebel" in
 [ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein). Two Opus agents built it on disjoint files (the look, and
 Start); the designer then walked the built app as its one critic, majors and minors as in the run before, and an
-Opus round fixes the majors. The walk found four: the desktop
+Opus round fixed the majors, and a short re-walk found none left and no new one. The walk found four: the desktop
 Start's cards in one narrow column, an offline place red on Start but amber on its own page, the small curve of a
 reading out of its band drawn on the plot's edge, and a focus ring lost on the navy rail; the minors that need
 Chris's word go to "Open for Chris".
@@ -1135,7 +1135,7 @@ button does, a plan started for the place's lead grow, a nudged spell ending on 
     too: about 150 ms over a week at a sample every 5 s, estimated from the day's and three days' cost and not measured
     on a real store.
 
-(92 to 97: the look "Marke fein" after its critic's walk and fix round, 2026-11-26)
+(92 to 99: the look "Marke fein" after its critic's walk and fix round, 2026-11-26)
 92. **A silent place says its open alerts by count**, "2 Meldungen offen, 1 kritisch", not by the alert's own words
     ("Gerät offline · kritisch · seit …", as the critic proposed): the pill already says offline, and the count is
     what Meldungen and the bell say.
@@ -1147,6 +1147,10 @@ button does, a plan started for the place's lead grow, a nudged spell ending on 
 96. **A choice chip stays a pill** while every button is rectangular at 8 px, and its height is open; the critic found
     it the one place that still feels like Nebel.
 97. **Status pills differ between pages** in size and dot; making them one is a design pass across several pages.
+98. **On a phone, a place in alarm or offline puts its pill on a row of its own**, right-aligned under the sentence,
+    because the sentence takes the row; the re-walk found it reads as an afterthought.
+99. **Start's big figures keep Inter's own digits** by the digit rule (app-ux §9: a figure that stands alone), so
+    their width moves as a reading changes; tabular digits would hold it still at the cost of a looser "1".
 
 ### What the walks could not see
 
