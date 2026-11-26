@@ -424,8 +424,10 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   app-ux.md §5.
 - Browser storage holds per-browser conveniences only (`terp.language`, `terp.theme`, `terp.place`,
   `terp.shape.<user>`, `terp.loaded.<user>` - when Start last had an answer, for a Start that cannot load -
-  `terp.lightHold.<device>` - the last light hold sent, `{ state, until }`, since no device reports one back; read
-  and written in `screens/devices/lights.ts` alone -, `terp.curves` - the curves last ticked in Verlauf - ...); whatever has to follow the account (zone, diary layer,
+  `terp.lightHold.<device>` - the last light hold sent, `{ state, until }`: all a build without `light_hold` leaves
+  to show, since only a newer one reports its hold back; read and written in `screens/devices/lights.ts` alone, whose
+  `useLightHold`/`useLightHolds` answer the reported hold first, from the socket tables a screen already holds -,
+  `terp.curves` - the curves last ticked in Verlauf - ...); whatever has to follow the account (zone, diary layer,
   notices seen, the language for text the server writes) lives in `me.preferences`. `localStorage` is read and
   written through `src/ui/stored.ts`, which answers null and keeps nothing where storage is blocked; only
   `src/api/session.ts` has its own, as it uses `sessionStorage` too.

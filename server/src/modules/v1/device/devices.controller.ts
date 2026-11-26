@@ -61,7 +61,7 @@ import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
-import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
+import { decodeCapabilities, decodeLightHold, decodeSockets } from '@modules/device-protocol/sockets';
 import { DataService, LiveReading } from '@modules/data/data.service';
 import { MODEL_V1 } from '@database/models';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
@@ -362,7 +362,12 @@ export class DevicesController {
     });
 
     // One page, always: a device drives at most a table's worth of sockets.
-    return { items: ctx.isDemo ? demoSockets(sockets) : sockets, nextCursor: null, capabilities: decodeCapabilities(device.state.hardware) };
+    return {
+      items: ctx.isDemo ? demoSockets(sockets) : sockets,
+      nextCursor: null,
+      capabilities: decodeCapabilities(device.state.hardware),
+      lightHold: decodeLightHold(device.state.hardware, device.state.lightHoldReportedAt ?? null),
+    };
   }
 
   @Put(':id/sockets/:slot')

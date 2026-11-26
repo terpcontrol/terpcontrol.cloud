@@ -1072,7 +1072,8 @@ describe('what a row says about the page behind it', () => {
     ({
       items,
       nextCursor: null,
-      capabilities: { socketOverride: true, socketTimer: true, lightOverride: false, roles: [], pulseSeconds: {} },
+      capabilities: { socketOverride: true, socketTimer: true, lightOverride: false, lightHold: false, roles: [], pulseSeconds: {} },
+      lightHold: null,
     }) as SocketPage;
 
   /** A place read as "1 rule · all quiet" while six of its seven rules were off, the offline rule among them. */

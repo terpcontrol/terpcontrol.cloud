@@ -28,8 +28,9 @@ const LIGHT = { kind: 'output', output: 'light' } as const;
  * at, and holding it on or off for a while.
  *
  * The level is a reading, the only fact here the device vouches for, so it is
- * dated. A hold is a command the device never reports back, so the row says
- * the one this browser sent until its time is up (`useLightHold`). It dies
+ * dated. A hold is what the device reports where its build does
+ * (`light_hold`), else the one this browser sent until its time is up
+ * (`useLightHold`). It dies
  * with a reboot, and is offered only where one could be asked for - a type
  * that holds, a build that announced it, a device that is listening.
  */

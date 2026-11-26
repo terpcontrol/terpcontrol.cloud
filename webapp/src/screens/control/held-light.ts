@@ -13,8 +13,8 @@ import { figureText } from './climate/figures';
 
 /**
  * A device's lamp held by hand, for every place that says what the light is
- * doing: its own light output as this browser last asked for it (the device
- * reports no hold of it, see `useLightHold`), else a light socket its table
+ * doing: its own light output as the device reports it, or as this browser
+ * last asked for it where its build does not (`useLightHold`), else a light socket its table
  * says is held. Null for a lamp that keeps to its schedule.
  */
 export const useHeldLight = (device: Device | null, now: DateTime): Held | null => {
