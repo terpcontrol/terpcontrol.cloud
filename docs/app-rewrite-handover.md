@@ -1193,7 +1193,9 @@ button does, a plan started for the place's lead grow, a nudged spell ending on 
      controlled on its own (ADR 0001, question 4); the grid takes the extra tile by its rule.
 107. **CO₂, the leaf and the light that reaches it are the place's whichever device measures them**, as the line under
      the figures had them: a socket's CO₂ beside a controller without a sensor is a CO₂ tile, judged by the
-     controller's target, with no curve, since the curves are the lead's.
+     controller's target. Its curve is the socket's: Chris looked at the missing CO₂ curve on a copy of a staging
+     account (2026-11-26), so the timeline now takes a panel of CO₂, leaf or light the lead does not measure from the
+     first other device of the place that does (`placePanelsOf`) - on Start and in Verlauf alike.
 108. **Where one tile of a row has two outputs at its foot** - a fridge's "Kompressor läuft seit 3 Min · Heizung aus"
      on a phone -, its curve stands a line higher than its neighbour's; the feet stay level.
 109. **The digit rule over the drawing**: VPD's value in the humidity tile and the means on the cards take Inter's own

@@ -95,6 +95,30 @@ export const panelsOf = (
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
   });
 
+/** What only some places measure: the place's whichever of its devices measures it, as its figures are. */
+const PLACE_WIDE: readonly Metric[] = ['co2', 'leafTemperature', 'lux', 'ppfd'];
+
+/**
+ * The panels of a place: the leading device's, and where it does not measure
+ * CO2, the leaf or the light, those of the first other device here that does -
+ * a socket's CO2 beside a controller without a sensor is the tent's curve, under
+ * the controller's band.
+ */
+export const placePanelsOf = (
+  own: Pick<DeviceHistory, 'series' | 'samples' | 'edges'> | null,
+  others: readonly Pick<DeviceHistory, 'series' | 'samples' | 'edges'>[],
+  stretches: readonly TargetStretch[],
+  metrics: readonly Metric[] = PANEL_METRICS,
+): TimelinePanel[] =>
+  metrics.flatMap(metric => {
+    const from = PLACE_WIDE.includes(metric) ? [own, ...others] : [own];
+    for (const history of from) {
+      const panels = panelsOf(history, stretches, [metric]);
+      if (panels.length > 0) return panels;
+    }
+    return [];
+  });
+
 /**
  * The band and the dashed line of one metric, one row per stretch that holds a
  * target for it at all - in the mode the device ran then. Drying holds the

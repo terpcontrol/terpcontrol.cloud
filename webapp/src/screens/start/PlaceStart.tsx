@@ -180,7 +180,8 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
     : [...values.filter(value => !SOME.includes(value.metric)), ...overview.values.filter(value => SOME.includes(value.metric))];
   const readings = readingsOf(t, { values: measured, setpoints, device, lit: lamp.lit, hold: humidifierHold, now, zone });
   const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
-  // The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported.
+  // The day's curves are the lead's - CO₂, the leaf and the light whichever device here measures them, as the server
+  // reads them: a place waiting for its figures has none, whatever else of it reported.
   const curves = readings.some(reading => reading.key !== 'light' && reading.key !== 'vpd') || valueOf(measured, 'leafTemperature') !== null;
   const curvesWanted = hasDevice && !byHand && !unread && curves;
   const { day, pending: dayPending } = useLastDay(spaceId, device?.id ?? null, curvesWanted);

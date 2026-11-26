@@ -639,6 +639,16 @@ describe('the stacked panels', () => {
     expect((await readAs(session(OWNER))).panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity']);
   });
 
+  it("draws the tent's CO2 from the socket that measures it where the controller has no sensor", async () => {
+    sensed = ['temperature', 'humidity'];
+    reports = { ...reports, [PLUG]: () => ({ metrics: { co2: 1114 }, outputs: {} }) };
+    const page = await readAs(session(OWNER));
+
+    expect(page.deviceId).toBe(CONTROLLER);
+    expect(page.panels.map(panel => panel.metric)).toEqual(['temperature', 'humidity', 'co2']);
+    expect(new Set(page.panels[2].points.map(point => point.value))).toEqual(new Set([1114]));
+  });
+
   it('rounds a window to what the sensor can say rather than to what the mean came to', async () => {
     const page = await readAs(session(OWNER));
     const values = new Set(page.panels[0].points.flatMap(point => (point.value === null ? [] : [point.value])));

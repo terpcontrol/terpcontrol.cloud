@@ -38,7 +38,7 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingsOf, newestOf } from './last-reading';
-import { PANEL_METRICS, SamplesAround, chartPartsOf, heardNothing, panelsOf, readingOf, silencesOf } from './timeline-series';
+import { PANEL_METRICS, SamplesAround, chartPartsOf, heardNothing, placePanelsOf, readingOf, silencesOf } from './timeline-series';
 import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
@@ -207,7 +207,9 @@ export class TimelineService {
     const series = read.map(one => (one.series.deviceId === steering?.id ? fromHandover(one, before) : one));
     const leading = ownOf(devices, series);
     const own = leading && leading.series.deviceId === steering?.id ? withPredecessors(leading, before, series) : leading;
-    const panels = panelsOf(own, stretchesOf(grow, devices, window, at, aimed), metrics);
+    const here = new Set(devices.filter(device => device.spaceId === spaceId).map(device => device.id));
+    const others = series.filter(one => one !== leading && here.has(one.series.deviceId));
+    const panels = placePanelsOf(own, others, stretchesOf(grow, devices, window, at, aimed), metrics);
     // What switched under the curve: the leading device's outputs, those of what is no climate of its own, and
     // those of the devices whose curve stands in front of it.
     // The device that speaks for the place now: the one the curves are of, while it still stands here.
