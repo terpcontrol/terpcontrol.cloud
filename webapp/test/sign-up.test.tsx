@@ -205,7 +205,8 @@ describe('the stranger an invitation was sent to', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('There is already an account with that address.');
+    // The alert is a live region that stands empty until the refusal arrives, so it is waited for by its words.
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('There is already an account with that address.'));
     expect(screen.getByRole('button', { name: 'Create the account' })).toBeInTheDocument();
   });
 
