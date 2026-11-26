@@ -834,7 +834,7 @@ cam sends none ([5.3](#53-fetch--what-a-device-asks-for-when-it-connects)).
 Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its outputs to whoever publishes on
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
-`fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
+`fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:611-618`); fan `fan`
 (`fan.cpp:422-429`); light `light` (`light.cpp:395-402`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
