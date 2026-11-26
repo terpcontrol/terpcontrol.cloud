@@ -584,6 +584,7 @@
     "account": "Me",
     "feedback": "Feedback",
     "feedbackHint": "Send feedback - it becomes a public issue on GitHub",
+    "feedbackContext": "Debug info for the developers. It goes into the public issue too: delete anything you do not want to share.",
     "signInFailed": "Could not sign in. Please check your e-mail and password.",
     "signInTooMany": "Too many sign-in attempts. Please wait a moment and try again.",
     "tabs": {

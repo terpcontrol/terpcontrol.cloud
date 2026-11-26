@@ -210,6 +210,16 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   out of reach). It calls `BugDrop.open()` (`src/app/feedback.ts`) and is drawn only once `window.BugDrop` exists - it may arrive after React
   drew, announced by `bugdrop:ready` on `window` (not `document`: the event does not bubble). So an install whose tag
   loads no BugDrop has no such row; another widget needs its own hook there.
+- A report starts with debug context: `data-prefill-provider='terpcontrolFeedback'` in the tag names a global that
+  `src/app/feedback-context.ts` defines (registered in `App.tsx` with the router's state). BugDrop calls it when the
+  form opens and puts its `descriptionTemplates` into the description - under room for the reporter's words: user id
+  and handle, the page with its query, the route's place/grow/plant/device/camera ids (Verlauf and Steuerung carry the
+  place as `?space=`), every device of that place from the query cache (id, type, firmware id, channel, last seen),
+  app version, build, API host, language and browser zone. Chris asked for this so a ticket needs no question back.
+  It sits in the visible text rather than hidden metadata because the hosted BugDrop takes no custom metadata for the
+  standard form, and because the issue is public the reporter should see and be able to delete it. Tokens and codes
+  from an address are masked. The provider must answer synchronously (BugDrop ignores a promise), so it reads only
+  what is cached.
 - The tag pins a widget version (`widget.v<x.y.z>.js`); raise it deliberately. The hosted service limits a visitor to
   10 reports per 15 minutes and the repository to 50 per hour.
 
