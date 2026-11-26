@@ -13,6 +13,7 @@ import type {
   OpenAlert,
   OverviewCamera,
   OverviewTargets,
+  SpaceTimeline,
   TimelinePanel,
   TimelineTarget,
 } from '@fg2/shared-types/v1';
@@ -32,10 +33,11 @@ import { offsetOf, wallClock } from '@/ui/wall-clock';
 import { clock } from '@/ui/zone';
 import { measures } from '@/screens/control/alarms/rules';
 import { plugModeOf, plugReadingOf } from '@/screens/control/devices/own-summary';
-import { nowHoldingOf, setpointsOf, storedShapeOf, type Half } from '@/screens/control/targets/day-night';
-import { windowWords } from '@/screens/control/targets/schedule-words';
+import { nowHoldingOf, setpointsOf, storedShapeOf, type Half, type NowHolding } from '@/screens/control/targets/day-night';
+import { hoursWritten, windowWords } from '@/screens/control/targets/schedule-words';
 import { draftOf } from '@/screens/control/targets/targets-draft';
 import { worstFirst } from '@/screens/alerts/inbox';
+import { at } from '@/screens/timeline/window';
 import { inSentence } from '@/screens/space/members/people';
 import { livenessOf, measuredAtOf, type Liveness } from './attention';
 
@@ -179,8 +181,32 @@ export const judgedPanel = (panel: TimelinePanel | null, targets: OverviewTarget
   return { ...panel, targets: [{ startsAt, endsAt, phaseId: null, stage: null, day, night }] };
 };
 
+/** The metrics a tile draws the last day of, each in its own colour. */
+export type CurveMetric = 'temperature' | 'humidity' | 'co2' | 'leafTemperature';
+
+/** A day of one reading, judged by the band Start judges it by, with the points of the window that are drawn. */
+export const dayOf = (timeline: SpaceTimeline, targets: OverviewTargets | null, metric: CurveMetric) => {
+  const from = Date.parse(timeline.startsAt);
+  const to = Date.parse(timeline.endsAt);
+  const panel = judgedPanel(timeline.panels.find(one => one.metric === metric) ?? null, targets, timeline.startsAt, timeline.endsAt);
+  const points = (panel?.points ?? []).filter(point => point.value !== null && at(point.measuredAt) >= from);
+  return { from, to, panel, points };
+};
+
+/**
+ * Where a curve begins: a place that started reporting today would draw its
+ * few hours as a speck at the right of an empty day, so its curve begins where
+ * the record does - and its tile says since when, in place of "24 Std". Null
+ * for a day of record, and where there is nothing to draw.
+ */
+export const youngFrom = (timeline: SpaceTimeline, metric: CurveMetric): string | null => {
+  const { from, to, panel, points } = dayOf(timeline, null, metric);
+  if (!panel || points.length < 2 || to <= from) return null;
+  return at(points[0].measuredAt) - from > (to - from) * 0.1 ? points[0].measuredAt : null;
+};
+
 /** Between the two points a socket switches at, which is the range it holds its reading in. */
-interface SwitchRange {
+export interface SwitchRange {
   low: number;
   high: number;
 }
@@ -227,7 +253,7 @@ export const rangeVerdictOf = (value: CardValue | null, range: SwitchRange, now:
 };
 
 /** When the lamp comes on and goes off, on the account's wall clock, as hours past midnight for a bar and as "08:00" for a sentence. */
-interface LightWindow {
+export interface LightWindow {
   /** Hours past local midnight, fractional. */
   start: number;
   hours: number;
@@ -286,12 +312,36 @@ const lampWindowOf = (device: Device, now: DateTime, zone: string | null): Light
  * running. Never the lamp: a lamp held off at noon, dimmed to 0 % or cut by
  * the heat leaves the device in its day, holding its day's figures.
  */
-export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): Half | null => {
-  const shape = storedShapeOf(device);
-  if (!device?.configuration || !shape) return offline ? null : (setpointsOf(live)?.active ?? null);
+export const halfNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): Half | null =>
+  holdingNowOf(device, live, now, offline)?.half ?? null;
 
-  return nowHoldingOf({ device, shape, stored: draftOf(device.configuration), live, offline, now, clock: () => '' }).half;
+/**
+ * The same, with how it is known - the device's word, or its schedule for one
+ * not heard from - and whether a fridge is gliding its targets between the
+ * halves right now.
+ */
+export const holdingNowOf = (device: Device | null, live: DeviceLive | undefined, now: DateTime, offline: boolean): NowHolding | null => {
+  const shape = storedShapeOf(device);
+  if (!device?.configuration || !shape) {
+    const said = offline ? null : (setpointsOf(live)?.active ?? null);
+    return said ? { half: said, by: 'device', glide: null } : null;
+  }
+  return nowHoldingOf({ device, shape, stored: draftOf(device.configuration), live, offline, now, clock: () => '' });
 };
+
+/** The light's window in words, "07:00–19:00 · 12 Std". A day-long light goes off a second before it comes on, which is no time to name. */
+export const lightWindowText = (t: Translate, window: LightWindow): string =>
+  window.always
+    ? t('start.light.always')
+    : window.never
+      ? t('start.light.never')
+      : t('start.light.window', { on: window.on, off: window.off, hours: hoursWritten(window.hours) });
+
+/** `lightWindowText` read aloud: "07:00 bis 19:00 Uhr, 12 Stunden", where a screen reader drops the dash. */
+export const lightWindowSaid = (t: Translate, window: LightWindow): string =>
+  window.always || window.never
+    ? lightWindowText(t, window)
+    : t('spoken.lightWindow', { on: window.on, off: window.off, hours: hoursWritten(window.hours), count: window.hours });
 
 /** Whether a device here has had its whole control switched off. */
 export const controlOffOf = (devices: Device[]): boolean => devices.some(device => device.control?.running === false);

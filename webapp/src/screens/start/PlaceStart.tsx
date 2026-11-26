@@ -2,7 +2,7 @@ import { ChevronRight } from 'lucide-react';
 import { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Device, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
+import type { Device, Metric, OverviewCamera, SpaceOverview } from '@fg2/shared-types/v1';
 import { workModeOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
 import { useAccountMe } from '@/api/account';
 import { serverNow } from '@/api/clock';
@@ -29,7 +29,7 @@ import { useMayManage, useVisiting } from '@/ui/session-access';
 import { targetWithUnit } from '@/ui/units';
 import { useNow } from '@/ui/useNow';
 import { offsetOf } from '@/ui/wall-clock';
-import { clock, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { pendingByPath, savedWords } from '@/screens/control/climate/figures';
 import { leadOf, leadValuesOf } from '@/screens/control/lead';
 import { ownStatusOf } from '@/screens/control/devices/own-summary';
@@ -40,19 +40,20 @@ import { MaintenanceControl } from '@/screens/devices/Maintenance';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
 import { EmptyPlace } from '@/screens/space/EmptyPlace';
 import { AddPlace } from './AddPlace';
+import { Alarms } from './Alarms';
 import { comingOf, judgedAt, judgedBy, livenessThrough, measuredAtOf } from './attention';
-import { DayCurve, type CurveMetric } from './DayCurve';
-import { Figures } from './Figures';
 import { Latest } from './Latest';
 import { DeviceOffer, GrowOffer } from './Offers';
 import { growPutOff } from './loaded';
-import { CameraRow, GrowRow } from './Rows';
-import { contradictedModeOf, controlOffOf, openWords, statusOf, statusText, toneOf, type HumidifierHold, type Status } from './place';
+import { Picture } from './Picture';
+import { GrowRow } from './Rows';
+import { contradictedModeOf, controlOffOf, openWords, statusOf, statusText, toneOf, valueOf, type HumidifierHold, type Status } from './place';
 import { Menu, MenuLink } from '@/ui/Menu';
-import { curvePath, darkOf, extrasOf, readingsOf, type Extra } from './readings';
+import { readingsOf } from './readings';
 import { useLastDay, usePlace, useHumidifierHold, useLamp, usePlaceAlerts } from './reads';
 import { DemoBanner, GuestLine, StartFailed, StartWaiting } from './states';
 import { Targets } from './Targets';
+import { Tiles } from './Tiles';
 import { Today } from './Today';
 import styles from './Start.module.css';
 import ui from '@/ui/ui.module.css';
@@ -83,6 +84,9 @@ const quietOf = (devices: Device[], now: DateTime): Quiet | null => {
   const quiets = devices.map(device => maintenanceQuiet(device, DateTime.max(now, serverNow()))).filter((quiet): quiet is Quiet => quiet !== null);
   return quiets.find(quiet => quiet.parked) ?? quiets[0] ?? null;
 };
+
+/** What only some places measure: CO₂, the leaf and the light that reaches it. */
+const SOME: Metric[] = ['co2', 'leafTemperature', 'lux', 'ppfd'];
 
 /** The camera here that delivered last, which is the one the place is shown by. */
 const newestCamera = (overview: SpaceOverview): OverviewCamera | null =>
@@ -163,25 +167,18 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
   // A diary kept by hand, with nothing here that measures or watches: the grow is the page.
   const kept = !hasDevice && camera === null ? grow : null;
   const byHand = kept !== null;
-  const lit = offline ? [] : lamp.lit;
   // "Alles im Ziel" over a lamp somebody holds off would read as a tent keeping its day.
-  const heldLamp = lit.find(one => one.held) ?? null;
-  const readings = readingsOf(t, { values, setpoints, device, lit, hold: humidifierHold, now, zone });
-  const figures = readings.filter(reading => reading.key !== 'light');
-  // A lead with no figures yet leaves the place without any: a socket's CO₂ is no reading of the place's.
-  const extras = offline || unread ? [] : extrasOf(t, overview.values, darkOf(readings, overview.values));
-  // Under the figures, one line: each lamp, then what only some places measure - each the way to its curve.
-  const line = [
-    ...readings.flatMap(reading =>
-      reading.key === 'light' ? [{ key: `light-${reading.deviceId}`, text: reading.said ?? reading.figure, focus: 'light' }] : [],
-    ),
-    ...extras,
-  ];
+  const heldLamp = offline ? null : (lamp.lit.find(one => one.held) ?? null);
+  // What only some places measure is the place's, whichever of its devices measures it; a lead with no figures yet
+  // leaves the place without any: a socket's CO₂ is no reading of the place's.
+  const measured = unread
+    ? values
+    : [...values.filter(value => !SOME.includes(value.metric)), ...overview.values.filter(value => SOME.includes(value.metric))];
+  const readings = readingsOf(t, { values: measured, setpoints, device, lit: lamp.lit, hold: humidifierHold, now, zone });
   const measuredAt = measuredAtOf(judging.values) ?? silentSince ?? coming;
-  // A late device is said by the pill alone; a silent one's figures say as of when they are.
-  const stand = offline && measuredAt ? t('start.picture.stand', { time: clock(measuredAt, zone), age: ageLabel(measuredAt, now) }) : null;
   // The day's curves are the lead's: a place waiting for its figures has none, whatever else of it reported.
-  const day = useLastDay(spaceId, device?.id ?? null, hasDevice && !byHand && !unread && figures.length > 0);
+  const curves = readings.some(reading => reading.key !== 'light' && reading.key !== 'vpd') || valueOf(measured, 'leafTemperature') !== null;
+  const day = useLastDay(spaceId, device?.id ?? null, hasDevice && !byHand && !unread && curves);
   const parks = mayManage && !offline && !waiting && here.some(parksAnything);
   const growing = overview.grows.length > 0;
   // Offered once the account and the place have been read, to whoever may start a grow here and has not said no - in a
@@ -287,32 +284,54 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
               ) : null}
             </p>
           ) : null}
-          {figures.length > 0 || line.length > 0 ? (
-            <div className={`${ui.panel} ${styles.readings}`}>
-              {figures.length > 0 ? (
-                <Figures
-                  figures={figures}
-                  curveOf={reading => curvePath(spaceId, reading)}
-                  under={reading => (day ? <DayCurve timeline={day} targets={targets} metric={reading.key as CurveMetric} /> : null)}
-                />
-              ) : null}
-              {stand ? <p className={styles.stand}>{stand}</p> : null}
-              {line.length > 0 ? <Extras spaceId={spaceId} extras={line} /> : null}
+          <Tiles
+            spaceId={spaceId}
+            readings={readings}
+            values={measured}
+            setpoints={setpoints}
+            targets={targets}
+            device={device}
+            live={lamp.live}
+            lamps={lamp.lit}
+            day={day}
+            hold={humidifierHold}
+            now={now}
+            offline={offline}
+          />
+          {/* The place as it looks: the camera's picture with the grow under it, or the grow as a row of its own. */}
+          {camera ? (
+            <Picture camera={camera} grow={grow} entries={overview.entries} name={overview.name} offline={offline} />
+          ) : grow ? (
+            <div className={ui.group}>
+              <GrowRow grow={grow} to={GROW} entries={kept ? overview.entries : null} />
             </div>
           ) : null}
-          {/* The grow and the camera: rows that lead on, each with a small picture where there is one. */}
-          {grow || also.length > 0 || camera ? (
+          {also.length > 0 ? (
             <div className={ui.group}>
-              {grow ? <GrowRow grow={grow} to={GROW} entries={kept ? overview.entries : null} /> : null}
               {also.map(one => (
                 <GrowRow key={one.growId} grow={one} to={`/grows/${one.growId}`} />
               ))}
-              {camera ? <CameraRow camera={camera} name={overview.name} offline={offline} /> : null}
             </div>
           ) : null}
         </div>
 
         <div className={`${ui.stack3} ${styles.column}`}>
+          {hasDevice ? (
+            <Targets
+              spaceId={spaceId}
+              name={overview.name}
+              targets={targets}
+              device={device}
+              live={lamp.live}
+              humidifierHold={humidifierHold}
+              offline={offline}
+              offStored={offStored !== null}
+              mayManage={mayManage}
+              guest={guest}
+              now={now}
+            />
+          ) : null}
+          {hasDevice ? <Alarms spaceId={spaceId} devices={here} mayManage={mayManage} /> : null}
           {/* It says itself whether anything here can call on the account - a device, a camera, a reminder. */}
           {/* While maintenance pauses the alarms, the control that runs it is the one warning here: that none would reach
               anybody waits until they can fire again. */}
@@ -333,20 +352,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
             now={now}
             offStored={offStored?.savedAt ?? null}
           />
-          {hasDevice ? (
-            <Targets
-              spaceId={spaceId}
-              name={overview.name}
-              targets={targets}
-              device={device}
-              humidifierHold={humidifierHold}
-              offline={offline}
-              offStored={offStored !== null}
-              mayManage={mayManage}
-              guest={guest}
-              now={now}
-            />
-          ) : null}
           {/* Offered only where it can do what it says: a device that is silent or has yet to speak would not hear it, and a plug parks nothing. */}
           {parks ? <MaintenanceControl devices={here} now={now} /> : null}
           {offerGrow ? <GrowOffer spaceId={spaceId} name={overview.name} diary={diary} byHand={!hasDevice} /> : null}
@@ -355,23 +360,6 @@ function Place({ overview, back, failedAt }: { overview: SpaceOverview; back: bo
         </div>
       </div>
     </section>
-  );
-}
-
-/**
- * The line under the figures: each lamp, and what only some places measure -
- * each the way to its own curve, a finger high.
- */
-function Extras({ spaceId, extras }: { spaceId: string; extras: (Omit<Extra, 'key'> & { key: string })[] }) {
-  return (
-    <Facts
-      className={styles.extras}
-      facts={extras.map(extra => (
-        <Link key={extra.key} to={timelinePath(spaceId, extra.focus)} className={styles.extra}>
-          {unbroken(extra.text)}
-        </Link>
-      ))}
-    />
   );
 }
 

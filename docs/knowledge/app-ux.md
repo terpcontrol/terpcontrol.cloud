@@ -1,7 +1,7 @@
 ---
 summary: How the web app has to behave and look - Chris's UX rules, one design without modes, honest states, value ages, help texts, Steuerung and work modes, screen readers, what was left out on purpose; read before changing a screen
 updated: 2026-11-26
-source: the look "Marke fein" - Inter again, only a title and a name heavy, every button at a control's radius, the navy rail (Chris, 2026-11-26; its build session); Start between calm and full - big figures over small 24 h curves, the grow and the camera as rows with a small picture, master's Home card for several places (Chris, 2026-11-26); what the fix round after the critic's walk of "Marke fein" built - the cards of several places in a grid, the offline pill grey and a silent place as loud as its worst alert, the critical alerts said, the small curve's air and width, a line's mark under its words, no picture on a card (2026-11-26, not Chris); the focused critic's list after the eleventh walk's fix round built - a start naming the lead grow it moves, "Hier weitermachen" naming a germination's end, the card's and the chips' lead order, a name-only preset taken back (the redesign session's fix round of 2026-11-16); the eleventh whole-app walk's lists built - one lead grow in a place, the phase sheets over the standing phase, the end sheet's climate, a plan's own grow, the preset sheet's grows (the redesign session's fix round of 2026-11-16); the tenth whole-app walk's lists built - Eintrag aimed at the grow a page is about, a climate set where no phase began, Alarme saying where its bands come from, a window inside a silence, a line's device and grow among its stretch's, a name nobody grows with, the bar items a place chip holds (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - the move sheet after a take-back, the phase sheet naming the grow beside, the Bericht at 320, the rest's way out, a reader's card, Ausgänge on one line, admin's folded lines, a day window's next day, a silence's start and end, a grow unread (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's lists built - each lamp keyed by its lane, a lamp swapped one strip, a silence's day and end, a move taken back, a second grow recording its stage, a darkened lamp said where it is shown (the redesign session's fix round of 2026-11-15); a lamp module dark while its place dries too (Chris, 2026-11-15); the seventh whole-app walk's lists built - a device's past found where it is looked for, every lamp dark in germination, a split's chapter, a camera after its controller's return, the standing plants' stage, one silence one line, each lamp its own strip, a run's day, offline Steuerung for a reader, sign-up's taken address (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's lists built - a grow with nothing standing ended by hand, a phase for chosen plants, a fan's targets, each lamp named, a waiting climate, a refused plant's line opened again (the redesign session's fix round of 2026-11-15); a place that held two climates split (Chris, 2026-11-14, after the fifth walk's fix round); the fifth whole-app walk's lists built - one climate a place, a grow reopened (Chris, 2026-11-14), harvest weights later, Verlauf's alarm lines and cut stretches, a heard lead, the entry sheet's draft and deleted plants, the trifles (the redesign session's fix round of 2026-11-14); the fourth whole-app walk's lists built - an ended grow's diary with its harvest, one yield, alarm lines by rule and device, a lead never heard waits, a climate awaited, a pending switch-on said (the redesign session's fix round of 2026-11-14, not Chris but where it says so); the third whole-app walk's lists built - an entry to its grow, a correction from what was recorded, a place with its lead device, one line per alarm, a toast on its page, Steuerung's sub pages centred, one danger style and switch target, Verlauf's card clear of the zoom (the redesign session's fix round of 2026-11-14, not Chris but where it says so); a target changed by hand clears the preset's name (Chris, 2026-11-14); the second whole-app walk's lists built (the redesign session's fix round of 2026-11-14); Chris's answer of 2026-11-14 (the switch-off question and the banner say that any change on Steuerung switches regulation back on); Chris's answers of 2026-11-13 (an ended place's curves for its owner, the first climate chip, unsaved cells ask, every page centred, plants named on a share link, no unit choice, "Was wächst hier?" alone); the whole-app walk's third report built by the final fix round's second part - refusals instead of clamps, the plan's pause said first, regulation off keeping the targets, one danger style, a window link's curves, no paragraph in a setting-up flow, Verlauf's last trifles (the redesign session of 2026-11-13, not Chris); what the whole-app walk on the look's image found and the final fix round built - a phase without its climate a record, Start never contradicting the device, the digit rule, paper light, focus clear of the bars, one failed state, a line's pictures and plants, a grow's bar, every write answered (the redesign session of 2026-11-13, not Chris); nothing bold, nothing in capitals, the lamp's own colour (Chris's choice of the look "Nebel" on 2026-11-13 and the redesign session's values for it); Verlauf after its eighth walk - one verdict on a silence carried by the answer, the card's silence from the samples, one answer to "no curve" (the redesign session of 2026-11-13, not Chris); one line, one switch-on block, one maintenance control and the pill's words on a card (the redesign session's consolidation pass of 2026-11-13); Verlauf after its seventh walk - what a gap is, the card in a silence, a point of one sample, the lamp's line, a share of time (the redesign session of 2026-11-13, not Chris); a toast clear of its control by any input, a question in view, Start naming what Meldungen leads with, one form of undo answer, the fold by rule, the grow pages' answers (the redesign session after its critic's walk of the clearing-up round, 2026-11-13, not Chris); Verlauf after its sixth walk - rest in a zoom, the card's values, a lane's label, a help text cut between lines (the redesign session of 2026-11-13, not Chris); what the clearing-up round settled - an ended place at Verlauf's and Steuerung's address, a sheet that leaves its page, the one list that ranks Start, a room renamed, a toast and its row (the redesign session's clearing-up round of 2026-11-13, not Chris); where the rounds of place and room and of Ich and Meldungen meet - an alert's place, one list of what is due, the answer to "Widerrufen" (the redesign session of 2026-11-13, not Chris); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
+source: a place's Start as master's cockpit - tiles with VPD in the humidity's, the big picture with the grow under it, two tile columns on a phone, the cards' hour means and hardware line (Chris, 2026-11-26), the grid as a rule from the tiles present for a place without a leaf sensor (Chris, the same day; its rule the redesign session's designer's), what the build decided where the drawing was silent (the redesign session's cockpit build, 2026-11-26); the look "Marke fein" - Inter again, only a title and a name heavy, every button at a control's radius, the navy rail (Chris, 2026-11-26; its build session); Start between calm and full - big figures over small 24 h curves, the grow and the camera as rows with a small picture, master's Home card for several places (Chris, 2026-11-26); what the fix round after the critic's walk of "Marke fein" built - the cards of several places in a grid, the offline pill grey and a silent place as loud as its worst alert, the critical alerts said, the small curve's air and width, a line's mark under its words, no picture on a card (2026-11-26, not Chris); the focused critic's list after the eleventh walk's fix round built - a start naming the lead grow it moves, "Hier weitermachen" naming a germination's end, the card's and the chips' lead order, a name-only preset taken back (the redesign session's fix round of 2026-11-16); the eleventh whole-app walk's lists built - one lead grow in a place, the phase sheets over the standing phase, the end sheet's climate, a plan's own grow, the preset sheet's grows (the redesign session's fix round of 2026-11-16); the tenth whole-app walk's lists built - Eintrag aimed at the grow a page is about, a climate set where no phase began, Alarme saying where its bands come from, a window inside a silence, a line's device and grow among its stretch's, a name nobody grows with, the bar items a place chip holds (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - the move sheet after a take-back, the phase sheet naming the grow beside, the Bericht at 320, the rest's way out, a reader's card, Ausgänge on one line, admin's folded lines, a day window's next day, a silence's start and end, a grow unread (the redesign session's fix round of 2026-11-15); the eighth whole-app walk's lists built - each lamp keyed by its lane, a lamp swapped one strip, a silence's day and end, a move taken back, a second grow recording its stage, a darkened lamp said where it is shown (the redesign session's fix round of 2026-11-15); a lamp module dark while its place dries too (Chris, 2026-11-15); the seventh whole-app walk's lists built - a device's past found where it is looked for, every lamp dark in germination, a split's chapter, a camera after its controller's return, the standing plants' stage, one silence one line, each lamp its own strip, a run's day, offline Steuerung for a reader, sign-up's taken address (the redesign session's fix round of 2026-11-15); the sixth whole-app walk's lists built - a grow with nothing standing ended by hand, a phase for chosen plants, a fan's targets, each lamp named, a waiting climate, a refused plant's line opened again (the redesign session's fix round of 2026-11-15); a place that held two climates split (Chris, 2026-11-14, after the fifth walk's fix round); the fifth whole-app walk's lists built - one climate a place, a grow reopened (Chris, 2026-11-14), harvest weights later, Verlauf's alarm lines and cut stretches, a heard lead, the entry sheet's draft and deleted plants, the trifles (the redesign session's fix round of 2026-11-14); the fourth whole-app walk's lists built - an ended grow's diary with its harvest, one yield, alarm lines by rule and device, a lead never heard waits, a climate awaited, a pending switch-on said (the redesign session's fix round of 2026-11-14, not Chris but where it says so); the third whole-app walk's lists built - an entry to its grow, a correction from what was recorded, a place with its lead device, one line per alarm, a toast on its page, Steuerung's sub pages centred, one danger style and switch target, Verlauf's card clear of the zoom (the redesign session's fix round of 2026-11-14, not Chris but where it says so); a target changed by hand clears the preset's name (Chris, 2026-11-14); the second whole-app walk's lists built (the redesign session's fix round of 2026-11-14); Chris's answer of 2026-11-14 (the switch-off question and the banner say that any change on Steuerung switches regulation back on); Chris's answers of 2026-11-13 (an ended place's curves for its owner, the first climate chip, unsaved cells ask, every page centred, plants named on a share link, no unit choice, "Was wächst hier?" alone); the whole-app walk's third report built by the final fix round's second part - refusals instead of clamps, the plan's pause said first, regulation off keeping the targets, one danger style, a window link's curves, no paragraph in a setting-up flow, Verlauf's last trifles (the redesign session of 2026-11-13, not Chris); what the whole-app walk on the look's image found and the final fix round built - a phase without its climate a record, Start never contradicting the device, the digit rule, paper light, focus clear of the bars, one failed state, a line's pictures and plants, a grow's bar, every write answered (the redesign session of 2026-11-13, not Chris); nothing bold, nothing in capitals, the lamp's own colour (Chris's choice of the look "Nebel" on 2026-11-13 and the redesign session's values for it); Verlauf after its eighth walk - one verdict on a silence carried by the answer, the card's silence from the samples, one answer to "no curve" (the redesign session of 2026-11-13, not Chris); one line, one switch-on block, one maintenance control and the pill's words on a card (the redesign session's consolidation pass of 2026-11-13); Verlauf after its seventh walk - what a gap is, the card in a silence, a point of one sample, the lamp's line, a share of time (the redesign session of 2026-11-13, not Chris); a toast clear of its control by any input, a question in view, Start naming what Meldungen leads with, one form of undo answer, the fold by rule, the grow pages' answers (the redesign session after its critic's walk of the clearing-up round, 2026-11-13, not Chris); Verlauf after its sixth walk - rest in a zoom, the card's values, a lane's label, a help text cut between lines (the redesign session of 2026-11-13, not Chris); what the clearing-up round settled - an ended place at Verlauf's and Steuerung's address, a sheet that leaves its page, the one list that ranks Start, a room renamed, a toast and its row (the redesign session's clearing-up round of 2026-11-13, not Chris); where the rounds of place and room and of Ich and Meldungen meet - an alert's place, one list of what is due, the answer to "Widerrufen" (the redesign session of 2026-11-13, not Chris); round 7 of the navigation redesign - Ich and Meldungen (the redesign session of 2026-11-13, after the prototype Chris accepted on 2026-11-12) and what that session decided after its critic's walk (2026-11-13, not Chris); round 6 of the navigation redesign - the pages of a place, where a device hangs (the redesign session of 2026-11-12, after Chris's decision 5 of 2026-11-11); Chris (instructions, decisions and PR reviews 2025-11 to 2026-10-07); app sessions 2026-08 to 2026-10-07; the old app's simple/expert-mode document (folded in here); codebase cleanup (2026-10-08); checked against webapp/src on 2026-10-08; diary dating and no long press, Chris 2026-10-21/22; screen-reader check, Chris 2026-10-15; navigation redesign, bar and choice of place, Chris 2026-11-11; Start, the grow page with its diary and pictures, all grows and the entry sheet rebuilt after the prototype Chris accepted on 2026-11-12; the rules of the place choice and the sheet after the first walk of the new frame (2026-11-12); what the walk of the new Start decided (2026-11-12): rooms, maintenance in one tap, waiting devices, stale figures, readings as links, facts side by side; Steuerung, a device's own page and the camera page rebuilt after the prototype, and what an offline device has not been handed (the redesign session of 2026-11-12); what that session decided after its critic's walk of Steuerung, the device pages and the camera page (2026-11-12): one save path, the hand hold, pages by device, the arrow that steps back, toasts; Verlauf as the one page of curves, rebuilt after the prototype (the redesign session of 2026-11-12); what that session decided after its critic's second walk of Steuerung (2026-11-12): one rule for a row's line, what a fan place offers, a spell ended in the preset sheet, the alarm row's count; toasts beside an open sheet, the grow form's foot and its germination choices, 44 px by reach, a stream's address help, an undo that writes back only what its save moved, the grid of rows without a hole (the same session after its critic's second walk, 2026-11-12); what the walk of Verlauf decided (the redesign session of 2026-11-12, not Chris)
 paths:
   - webapp/src/**
   - shared-types/src/v1/climate-presets.ts
@@ -80,7 +80,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   of 2026-10-06 that Steuerung and the device list draw the same Erweitert): what a place is held at is
   Steuerung's - the light, the targets, the work mode, the outputs -, what is the hardware's is on the device's
   own page - firmware, name and place, sockets, Erweitert -, and neither offers what the other holds (§2). Start's
-  row "Zielwerte" leads to Steuerung.
+  cards "Zielwerte" and "Alarme" lead to Steuerung with "Ändern ›".
 - **A fridge's fan speeds are changed as often as the climate** (Chris, 2026-10-11): Klemmlüfter (`fans.external`)
   and Innenlüfter (`fans.internal`) stand under Steuerung › Ausgänge as two figures, each with its sheet
   (`screens/control/devices/FridgeFansPanel.tsx`), not in Erweitert. An AIR fan's mode and speed are the fan's own
@@ -325,27 +325,60 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   replaces the page's entry, since a `navigate(…, { replace: true })` from inside an open sheet replaces the
   sheet's entry and leaves the dead page one step of Back away. "L" opens the entry sheet on a desktop, with or
   without Shift, and never over a sheet that is already open.
-- **Start is read before it is looked at: big figures, a small picture, small curves** (`screens/start/PlaceStart.tsx`;
-  Chris, 2026-11-26, "kleines Bild, kleine Kurven" - between the calm and the fuller Start the designer drew, after he
-  found the overview of the redesign drew too much; it replaces the picture-led Start of the prototype he accepted
-  on 2026-11-12). In this order: the place's name with its menu, and under it the one sentence that says how the
+- **A place's Start is master's cockpit on the new structure: tiles, the big picture, the cards** (`screens/start/PlaceStart.tsx`;
+  Chris, 2026-11-26: his colleague found the redesign's onboarding and places better but its page of one place, and
+  how it shows the values, not as powerful as master's cockpit; from the designer's drawings he chose master's tiles
+  with VPD inside the humidity's, the big camera picture with the grow under it, two tile columns on a phone. It
+  replaces "kleines Bild, kleine Kurven" of the same morning, big figures over small curves with the grow and the
+  camera as rows). In this order: the place's name with its menu, and under it the one sentence that says how the
   place is beside the pill "online · vor 20 s" (on a desktop all of it on one row; on a phone a sentence that does
   not fit beside the pill on one line takes the row and the pill goes under it - squeezed beside it, an alarm's
-  sentence stood three lines deep with its chevron floating between); a card with temperature,
-  humidity and VPD as big figures with their names, under each its last 24 hours as a small curve - the line, the
-  band it was held to and the night, no axis, no figure (`DayCurve`, `useLastDay` in `screens/start/reads.ts`) - and
-  under them one line with each lamp and when it switches next, then CO₂ and the leaf sensors where they exist
-  ("Licht aus bis 07:00 · CO₂ 393 ppm · Blatt 20,0 °C"; `Figures.tsx`, `said` of a lamp's reading); then the grow and
-  the camera as rows that lead on (`screens/start/Rows.tsx`): the grow's name over "Tag 48 · Blüte · Woche 4",
-  with what is left where a feeding scheme states how long it runs, leading to Grow, and the camera's newest picture
-  taken in the light as a thumbnail beside its name and caption ("Bild von 18:59", "Licht aus · Bild von …"),
-  leading to the camera's page; then the cards "Heute", "Zuletzt" - not drawn while nothing has happened - the row
-  "Zielwerte", "Wartung · 15 Min" and "+ Ort hinzufügen". Nothing is laid over a picture and there is no hero
-  picture; the phase bar is gone from Start (its row says phase and week in words, the grow's page keeps the bar),
-  and so is the desktop's "Letzte 24 Std" card, whose curves now stand under the figures. Without a grow there are
-  the figures alone and the card that offers the diary; a diary kept without hardware is the grow's row with its
-  newest photo as the thumbnail, and a card that offers a device. **Start changes no setting**: the targets are a
-  summary that leads to Steuerung.
+  sentence stood three lines deep with its chevron floating between); the offline box, the work mode's line, a lamp
+  held by hand; then **the tiles** (`Tiles.tsx`), one per thing the place measures, in one order at every width -
+  Temperatur, Luftfeuchte, CO₂, each lamp, Blatt & Licht -, and only what it measures. A tile is master's: its name
+  with an icon and a chevron, the figure, "Ø 1 Std 25,5 °C" (the last hour's mean, `useHourMeans` in `api/devices.ts`,
+  the same read the cards use), the target of the half the device holds with the verdict ("Tagesziel 25 °C · im
+  Ziel", "Ziel 25 °C" where the tile is narrow, broken between target and verdict rather than cut, since an
+  ellipsis cut "6,5 °C zu ho…"; master's words for drying, germination, a fridge gliding, a socket's
+  switch points, no target by mode, CO₂ at night and without light), the last day as a curve across the tile - the
+  night, the band each stretch was held to, the line, the newest value as a dot (`DayCurve`, `useLastDay` in
+  `screens/start/reads.ts`) - and under a hairline what the hardware does about it, a dot each, filled in the output
+  blue while it runs ("Kompressor läuft seit 12 Min · Heizung aus", `outputs.ts`; a fridge's dehumidifier is its
+  compressor under both readings it moves). **VPD stands in the humidity's tile**, at the figure's right as a dotted
+  term with its value, and has no tile and no curve of its own on this page (Verlauf has it); a VPD that is not live
+  is not there. **Each lamp is a tile** named as everywhere ("Licht", "Licht · Lampenmodul"): "An 100 %" or "Aus",
+  its window "07:00–19:00 · 12 Std" and the day as master's bar with now on it, "aus um 19:00" - or why it keeps to
+  no window: held by hand, burning despite germination, dark for the work mode - and "Lampe an" at its foot. The
+  leaf's tile (rare - most places have no leaf sensor) is the leaf against the air, "2,0 °C kühler als die Luft", and
+  the light that reaches it, which is left out while the lamp is dark. The first curve says "24 Std" at the right of
+  its foot ("seit 09:12" for a record younger than a day) as the dotted term that explains the curve. Then **the
+  picture card** (`Picture.tsx`) where a camera watches the place: the newest still taken in the light at 16:9
+  across the column, its camera and time on it ("Canopy cam · 09:43", "Licht aus · Bild von …", "letztes Bild von
+  …" while nothing is heard, the picture stepped back), leading to the camera; under it, in the same card, the grow:
+  its name, its strains and what was last done for it ("Gedüngt vor 3 Tagen") and what is left where a scheme says,
+  and its day, phase and week as the stage's green pill, leading to Grow. Without a camera the grow is its row
+  (`Rows.tsx`), a second grow a row under either. The right column - on a phone the rest of the page - is
+  "Zielwerte", "Alarme", the notice that alarms reach nobody, "Heute", "Zuletzt" - not drawn while nothing has
+  happened -, "Wartung · 15 Min", the offers and "+ Ort hinzufügen". Left out against master: the day chip on the
+  picture, "Meine Grows" and "Alle Aufgaben" under the grow, "Regelung ausschalten" and "Erweitert" (Steuerung has
+  them), banners over the tiles (the sentence, the pill, the box and the maintenance control say a state once). Without
+  a grow there are the tiles alone and the card that offers the diary; a diary kept without hardware is the grow's
+  row with its newest photo as the thumbnail, and a card that offers a device. **Start changes no setting**: the
+  targets and the alarms are summaries that lead to Steuerung.
+  - *The grid is a rule from the tiles present, never fixed positions* (Chris, 2026-11-26: leaf temperature is
+    rarely measured, so the page is designed for the usual place without a leaf sensor - four tiles, Temperatur,
+    Luftfeuchte, CO₂, Licht, or three without CO₂ - and five is the exception; the rule is the redesign session's
+    designer's, built on his word). How many tiles stand in a row goes by the width of the column they stand in, a
+    container query and not the window: three from 630 px (a window of 1360 and wider), two from 330 px (a narrower
+    desktop, a tablet, a phone), one below (a phone of 360 px and narrower). Rows are filled evenly, the fuller row
+    first, and a row always fills the width: four are two rows of two, as master's cockpit stood, never three and
+    one; five are three and two; three stand in one row on a wide desktop and as two and one across below that; a
+    lone tile spans its row (`Tiles.module.css`: six tracks from 630 px, a tile spans two, or three where the set is
+    two or four tiles and for the last two of five; two tracks below, where the last tile of an odd set spans both).
+    Several lamps make more tiles by the same rule. **A tile lays itself out by its own width**: under 300 px the
+    curve stands under the text; from 300 px it is master's tile - the figure and its lines at the left (three
+    parts), the curve or the lamp's bar at the right (two parts, 48 px high), the foot across. An empty foot keeps
+    its height in the narrow layout, so the curves of a row stand on one line, and is not drawn in the wide one.
   - *"Zuletzt" is the tail of the diary* (the redesign session of 2026-11-12): the three newest lines as a day's
     card says them, drawn by the same row (`DiaryLine`, `screens/grow/diary/`) from what the server reads by the
     same rules ([server-engines.md](server-engines.md#read-models)) - maintenance as one line, an alarm by its
@@ -395,22 +428,19 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     gespeichert um …, noch nicht am Gerät"), not as regulation off. Where two grows run in the place, a line of
     one names it ("Du hast gedüngt · Haze"; `grows` of `Latest`, `EntryWords`' `grow`) - "Veg begonnen" of one
     stood beside "Du hast gedüngt" of the other (the sixth whole-app walk).
-  - *The figures share one row*: three equal shares a hairline apart; one wider than its share - a VPD below zero
-    at 320 px - takes what it needs from the others, and the curve under each takes the width left, at most the
-    140 px it is drawn at (a desktop's share stretched its line and its noise sideways). The line keeps 4 px of air
-    above and below it and its range is the band's and the day's together, so a reading held outside its band all
-    day is a line above or below the band, never a rule along the plot's edge (`DayCurve`; the critic's walk of
-    2026-11-26). A figure off its target takes the warning's ink, and says its verdict to a screen reader with its
-    name. A big figure is set in the face's own digits and closed up half as far as a title (ADR 0002,
-    "Hierarchy").
+  - *A curve keeps air round its line*: 4 px above and below, and its range is the band's and the day's together, so
+    a reading held outside its band all day is a line above or below the band, never a rule along the plot's edge
+    (`DayCurve`; the critic's walk of 2026-11-26). A figure off its target takes the warning's ink, and its line
+    says how far off in words. A big figure is set in the face's own digits and closed up half as far as a title
+    (ADR 0002, "Hierarchy"); the targets' table, whose figures stand under one another, takes the figure face.
   - *One name per place.* The head is the place's name, also where the place holds nothing but a grow, and
     "Ort bearbeiten" renames what the head shows. A grow that stands in no place has no place to name and is titled by itself
     (`GrowStart.tsx`).
-  - *Every reading leads to its curve.* A tap on a figure, its name or its curve, or on one of the line's readings,
-    opens that reading's panel of Verlauf, marked and scrolled to, VPD's included and PPFD's on PPFD, not on lux
-    (`focus=ppfd`; `curvePath`, `screens/start/readings.ts`); the camera's row opens the camera. The line leaves the
-    two light figures out while the lamp is dark.
-  - *Two columns once two fit.* From 1100 px the figures, the grow and the camera stand
+  - *Every reading leads to its curve.* A tile is one link named after its reading, its name stretched over the
+    whole tile (master's `Frame`), and opens that reading's panel of Verlauf, marked and scrolled to - the leaf's on
+    the leaf, or on lux where nothing measures the leaf (`curvePath`, `screens/start/readings.ts`); the dotted words
+    in it keep their own press. The picture opens the camera, the grow under it Grow.
+  - *Two columns once two fit.* From 1100 px the tiles and the picture stand
     left and the cards right. A list of places is a grid there instead, as master's Home was: each room's cards
     pair up (`minmax(420px, 1fr)`; a room's lone card keeps its half, so every room's cards stand in one grid),
     "Heute" follows them as on a phone, and "+ Ort hinzufügen" is a quiet button in the title's row (the critic's
@@ -430,10 +460,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   (`screens/start/due.ts`). The plan line counts what a step has left in days, hours, and in its last hour in
   minutes. A session that may write nothing is not shown the card.
 - **A state is said over the figures**: a place gone quiet says since when in a box over them ("Das Gerät
-  meldet sich seit 13:49 nicht."), keeps the last readings with their hour and the camera's last picture, dimmed,
-  offers what to try behind "Was du tun kannst", and its targets row says that changing them works all the same.
-  **Figures that have stopped coming look it**: from stale on, the figures step back, and once the place is silent
-  a line under them says as of when they are ("Stand 13:49 · vor 8 Min"). **A device that has sent no value yet is not
+  meldet sich seit 13:49 nicht."), keeps the last readings and the camera's last picture, dimmed, offers what to
+  try behind "Was du tun kannst", and its targets card says that changing them works all the same and marks the
+  half "laut Zeitplan". **Figures that have stopped coming look it**: from stale on, a tile's figure steps back, and
+  once the place is silent each tile's line says as of when its value is ("Tagesziel laut Zeitplan 25 °C · letzter
+  Wert 13:49"), with no outputs nobody reports and no hour's mean. **A device that has sent no value yet is not
   offline**: the pill says "wartet auf erste Werte", no box calls it silent, no sentence repeats it and no
   maintenance is offered that it could not hear; only a device heard long ago, whose values have left the live
   read, is offline since it was last heard (`silenceOf`, `screens/start/attention.ts`). Start that cannot be read
@@ -582,8 +613,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   for the place before then reaches the device as its first settings arrive (`awaitedClimate`,
   [server-engines.md](server-engines.md#device-settings-and-plans)), so Start never says "Alles im Ziel" over
   figures the device brought along, and while it waits Steuerung's note and Start's Zielwerte say it ("Veg wird
-  gesetzt, sobald das Gerät seine Einstellungen schickt"; `DeviceState.awaitedClimate`, after the sixth walk). Under a waiting lead Start draws no socket's figure at all - no extras line,
-  no 24-hour curves, which are the lead's (`useLastDay`). A lead heard whose first values have yet to reach the read
+  gesetzt, sobald das Gerät seine Einstellungen schickt"; `DeviceState.awaitedClimate`, after the sixth walk). Under a waiting lead Start draws no socket's figure at all - no tile but a
+  lamp's, no 24-hour curves, which are the lead's (`useLastDay`). A lead heard whose first values have yet to reach the read
   - a device just claimed - is as alive as it was heard: "online · vor 13 s · erste Werte kommen" on Start and
   Steuerung's head (`comingOf`, `screens/start/attention.ts`); only one never heard waits. Every reading on target
   but one between day and night is "Temperatur im Übergang bis 18:16", never "Alles im Ziel"; a card beside its
@@ -612,7 +643,11 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   of it is critical, as on the place's Start; for a late device the values' age beside the pill's "veraltet", "vor 8
   Min", as the place's page says it -, the readings as big figures with their names - temperature, humidity, and
   VPD and CO₂ where the place measures them; no curves, and no share of the day in band, which no read model gives
-  a card -, the lamps in one line ("Licht aus bis 07:00"), and under a hairline what grows there - none straight
+  a card -, under each name the last hour's mean without its unit, which the figure above has ("Ø 1 Std 25,5"; Chris,
+  2026-11-26, as on master; VPD's too, from the same read), the lamps and what the hardware does in one line
+  ("Licht 100 % · an bis 19:00 · Heizung aus · Entfeuchter aus · CO₂-Ventil zu", the tiles' words; Chris, the same
+  day) - neither for a place that is silent or still waiting, since a mean of old values and a state nobody
+  reports would mislead -, and under a hairline what grows there - none straight
   under the name of a place that measures nothing. Four figures that do not fit one row stand two by two rather than
   leaving CO₂ alone on a second. A card that asks for somebody has an edge inside its left side, amber or the alarm's
   red by the tone of its status, and its sentence in that colour; a silent place is as loud as the worst alert open
@@ -620,12 +655,12 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the state in its own colour**: "offline" is the quiet grey the place's own pill has, the edge and the sentence the
   alerts' (the critic's walk of 2026-11-26 found the same silent fridge red on Start and amber on its page). A card
   carries no picture: the camera's thumbnail pushed one card's name out of line with the others' and wrapped it at
-  320 px, and the calm Start drew none (the fix round of 2026-11-26); the place's own Start has the camera's row. The lamp is the climate device's own light output and every lamp module in the same
+  320 px, and the calm Start drew none (the fix round of 2026-11-26); the place's own Start has the camera's picture. The lamp is the climate device's own light output and every lamp module in the same
   place that reports a level (Chris, 2026-10-13); where there are several each is named, because each is controlled
   on its own (ADR 0001, question 4; after the sixth walk): "Licht · Controller 100 %", "Licht · Lampenmodul aus", on the
-  card and in Start's line each, with when it switches next (`useLamp`, `lampName`). A lamp is never one of the big
-  figures - five figures in a row ran together at 390 (the seventh walk) -: every lamp stands in the line under them,
-  beside what only some places measure, each the way to its curve. Under the cards stand
+  card's line and as a tile of its own on the place's Start, each with when it switches next (`useLamp`, `lampName`).
+  On a card a lamp is never one of the big figures - five figures in a row ran together at 390 (the seventh walk) -:
+  every lamp stands in the line under them. Under the cards stand
   "Heute" across the places, each row saying where and since when it is due, and "+ Ort hinzufügen". **What is due is seen without
   scrolling**: a card says itself that something is due there ("1 Aufgabe fällig" - the diary's reminders and a
   plan step waiting, the same as "Heute" lists), because on a phone "Heute" stands under the cards. A place in no
@@ -870,7 +905,7 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   figures and CO₂ it has not got.
 - **An output held by hand is said wherever its state is said** (the redesign session of 2026-11-12, after its
   critic's walk): the Licht card ("von Hand aus bis 13:05", with "Zurück auf Auto ›" leading to Ausgänge, where
-  the hold's one control is - no second one), Ausgänge's row, and on Start the lamp in the line under the figures - which then promises
+  the hold's one control is - no second one), Ausgänge's row, and on Start the lamp's tile - which then promises
   no switch by the schedule -, a line under the status sentence ("Licht von Hand aus bis 13:05 · Ändern ›"), so
   "Alles im Ziel" never stands alone over a lamp somebody holds off, and a place's card among several. One reader
   for all of them, `useHeldLight` (`screens/control/held-light.ts`): the light output's hold as this browser
@@ -1848,7 +1883,7 @@ page the same day ("after the walk" below) - none of those is Chris's.
   the head and the card read "letzter Wert · 16:17", and the band and the night end there, on 30 Tage as on
   24 Std. The mean of the window that reading fell into gives way to it, whichever half of the window it fell
   in, and on the reading the card says each output as the reading has it, not a window's mean. Start's
-  two small curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
+  curves name the lowest and highest sample of the day, as Verlauf's head does. **A figure of VPD is
   a VPD that occurred**, at every range ([data.md](data.md#influxdb)): its "Tief" and "Hoch" - which take the
   reading that closes the curve in, as humidity's do - are of the deficit
   of single samples up to three days and of means over five minutes beyond, which the help on VPD and on the
@@ -2039,8 +2074,8 @@ page the same day ("after the walk" below) - none of those is Chris's.
   band, the grey and the pale area mean is behind the (i) of the first panel.
 - **A picture meant to show the plants is a lit still**, picked by the server: the newest lit one ("Licht aus · Bild
   von 14:20" while the lamp is off), for a day of the diary the one nearest midday, for a grow's card its cover first.
-- **Start's two small curves say what they are**: each under its name in its colour, with the lowest and highest
-  sample it ran between ("Temperatur 19,9–27,5 °C").
+- **Start's curves say what they are**: each in its tile and its colour, and to a screen reader with the lowest and
+  highest sample it ran between ("Temperatur der letzten 24 Stunden, zwischen 19,9 °C und 27,5 °C").
 
 ## 8. Steuerung and work modes
 - **Day and night side by side, no switching** ("direction B", Chris, 2026-10-03), and only where the mode has them:
@@ -2305,10 +2340,10 @@ The app has to be usable by somebody who cannot see it, above all the place's cu
 - **A page is named and arrived at**: the shell titles the window after the page's `<h1>` ("Blue Dream tent – Terp
   Control"; `data-title` where the heading also holds a picker) and moves focus to that heading after a navigation,
   unless the pressed control is still on the page (`app/shell/page-title.ts`).
-- **A reading is said as one sentence that names it**: "Luftfeuchte 65 %, 5 % zu hoch". On Start the drawn figure
-  and its name are `aria-hidden` beside a visually hidden sentence in the figure's link, which carries the verdict
-  the figure does not draw (`Figures.tsx`); its small curve says between what the day ran. The verdict is in words, never
-  in the colour alone (`verdictSaid`, `screens/start/place.ts`).
+- **A reading is said as it is drawn, in words**: on a place's Start a tile is one link named after its reading
+  ("Luftfeuchte"), the figure is read with its unit and its last hour ("65 %, Mittel der letzten Stunde 64 %"), the
+  target line says the verdict ("Tagesziel 60 % · 5 % zu hoch"), and the curve between what the day ran
+  (`Tiles.tsx`). The verdict is in words, never in the colour alone (`verdictSaid`, `screens/start/place.ts`).
 - **Short forms are drawn, long forms are read** (`ui/Spoken.tsx`): screen readers spell "Ø" as "Durchmesser", drop
   the dash of "08:00–20:00" and read "3 d" letter by letter. `Spoken` pairs the two, `Dot` reads " · " as a comma's
   pause, `spokenAgo` writes an age out ("vor 3 Tagen"), `spoken.*` in the catalogues holds the sentences.

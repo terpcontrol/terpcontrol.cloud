@@ -1,9 +1,9 @@
-import { ChevronRight } from 'lucide-react';
 import type { DateTime } from 'luxon';
+import type { CSSProperties, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { CardSetpoint, Device, Metric, OverviewTargets } from '@fg2/shared-types/v1';
-import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import type { CardSetpoint, Device, DeviceLive, OverviewTargets } from '@fg2/shared-types/v1';
+import type { Steered } from '@fg2/shared-types/v1-schemas/steering.js';
 import { useDevicePlans } from '@/api/plans';
 import { controlPath } from '@/app/places';
 import type { Translate } from '@/i18n/i18n';
@@ -12,63 +12,64 @@ import { awaitingClimate, darkReasonOf } from '@/ui/climate-hardware';
 import { factsOf } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { climateChoiceName } from '@/ui/presets';
-import { targetWithUnit } from '@/ui/units';
+import { Spoken } from '@/ui/Spoken';
+import { targetFigure, UNIT } from '@/ui/units';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
+import ui from '@/ui/ui.module.css';
 import { plugSummaryOf } from '@/screens/control/devices/own-summary';
 import { usePlanWords } from '@/screens/control/plan-labels';
-import { holdsHumidity, storedShapeOf } from '@/screens/control/targets/day-night';
-import { lightWindowOf, setpointOf, type HumidifierHold } from './place';
+import { holdsHumidity, storedShapeOf, type Half } from '@/screens/control/targets/day-night';
+import { halfNowOf, lightWindowOf, lightWindowSaid, lightWindowText, setpointOf, type HumidifierHold } from './place';
 import { planLineOf } from './plan-line';
 import styles from './Start.module.css';
-import ui from '@/ui/ui.module.css';
 
-const halfOf = (row: CardSetpoint[], withCo2: boolean, withHumidity: boolean): string[] =>
-  (['temperature', ...(withHumidity ? ['humidity'] : []), ...(withCo2 ? ['co2'] : [])] as Metric[]).flatMap(metric => {
-    const value = setpointOf(row, metric)?.value;
-    if (value == null) return [];
-    return [metric === 'co2' ? `CO₂ ${targetWithUnit(value, metric)}` : targetWithUnit(value, metric)];
-  });
+/** A row of the targets' table: a half of the day, or what the device holds round the clock, with a figure per column. */
+interface Row {
+  label: string;
+  /** The half the row's figures hold in, which is marked while it holds. */
+  half?: Half;
+  figures: Partial<Record<Steered, number>>;
+}
+
+const figuresOf = (row: CardSetpoint[], withCo2: boolean): Row['figures'] =>
+  Object.fromEntries(
+    (['temperature', 'humidity', ...(withCo2 ? ['co2'] : [])] as Steered[]).flatMap(metric => {
+      const value = setpointOf(row, metric)?.value;
+      return value == null ? [] : [[metric, value]];
+    }),
+  );
 
 /**
- * What a place is set to: "Tag 25 °C · 60 % · Nacht 21 °C · 55 %", as the
- * groups it is made of - a half of the day with its figures, the name bound to
- * the first. CO₂ stands with the day because it is only dosed by day. Where
- * the device has no day and night the group is named by what it holds - a
- * drying room's, a germination's, the one climate held round the clock - and a
- * smart socket or a lamp says its own settings, a fan at a fixed speed its
- * speeds by day and by night. Empty where nothing is set.
+ * What a place's climate is set to, as a table: the halves of the day down,
+ * the readings across. CO₂ is in the day's row because it is only dosed by
+ * day. Where the device has no day and night there is one row, named by what
+ * it holds - a drying room's, a germination's, with the humidity a humidifier
+ * holds there, the one climate held round the clock. Null where nothing is set.
  */
-const targetsLine = (
-  t: Translate,
-  {
-    targets,
-    device,
-    humidifierHold,
-    offset,
-  }: { targets: OverviewTargets | null; device: Device | null; humidifierHold: HumidifierHold | null; offset: number },
-): string[][] => {
-  const speeds = fixedSpeedsOf(device);
-  if (speeds) return [[`${t('start.targets.day')} ${speeds.day} %`], [`${t('start.targets.night')} ${speeds.night} %`]];
-  const own = device ? plugSummaryOf(t, device, offset) : null;
-  if (own) return own.map(row => [[row.label, ...row.parts].join(' ')]);
-  if (!targets) return [];
-
+const tableOf = (t: Translate, targets: OverviewTargets | null, device: Device | null, hold: HumidifierHold | null): Row[] | null => {
+  if (!targets) return null;
+  const regime = storedShapeOf(device)?.regime ?? 'cycle';
+  const rows: Row[] =
+    regime === 'drying' || regime === 'germination'
+      ? [
+          {
+            label: t(`start.targets.${regime}`),
+            figures: { ...figuresOf(targets.night, false), ...(regime === 'germination' && hold ? { humidity: hold.target } : {}) },
+          },
+        ]
+      : regime === 'always'
+        ? [{ label: t('start.targets.roundTheClock'), figures: figuresOf(targets.day, true) }]
+        : regime === 'never'
+          ? [{ label: t('start.targets.roundTheClock'), figures: figuresOf(targets.night, false) }]
+          : [
+              { label: t('start.targets.day'), half: 'day', figures: figuresOf(targets.day, true) },
+              { label: t('start.targets.night'), half: 'night', figures: figuresOf(targets.night, false) },
+            ];
   const shape = storedShapeOf(device);
-  const regime = shape?.regime ?? 'cycle';
-  const humidity = shape ? holdsHumidity(shape) : true;
-  const named = (label: string, parts: string[]): string[][] => (parts.length > 0 ? [[`${label} ${parts[0]}`, ...parts.slice(1)]] : []);
-  if (regime === 'drying' || regime === 'germination') {
-    const held = regime === 'germination' && humidifierHold ? [targetWithUnit(humidifierHold.target, 'humidity')] : [];
-    return named(t(`start.targets.${regime}`), [...halfOf(targets.night, false, humidity), ...held]);
-  }
-  if (regime === 'always') return named(t('start.targets.roundTheClock'), halfOf(targets.day, true, humidity));
-  if (regime === 'never') return named(t('start.targets.roundTheClock'), halfOf(targets.night, false, humidity));
-
-  return [
-    ...named(t('start.targets.day'), halfOf(targets.day, true, humidity)),
-    ...named(t('start.targets.night'), halfOf(targets.night, false, humidity)),
-  ];
+  // A shape that holds no humidity leaves its column out, whatever an old document still carries.
+  if (shape && !holdsHumidity(shape) && !(regime === 'germination' && hold)) rows.forEach(row => delete row.figures.humidity);
+  return rows.some(row => Object.keys(row.figures).length > 0) ? rows : null;
 };
 
 /** An AIR fan at a fixed speed, which follows no target: how fast it runs by day and by night. */
@@ -80,35 +81,46 @@ const fixedSpeedsOf = (device: Device | null): { day: number; night: number } | 
 };
 
 /**
- * "Licht 06:00 bis 24:00 · Grenze 65 %": when the lamp is on and how bright it may get, for a reader who cannot open
- * Steuerung to see. Under a card titled "Licht" - a lamp alone - the word is not said again (`named` false).
+ * What a device that holds no climate is set to, in lines: a fan at a fixed speed its speeds, a smart socket its
+ * switch points. Null for one that holds a climate.
  */
-const lightLine = (t: Translate, device: Device | null, now: DateTime, zone: string | null, named = true): string | null => {
-  const light = lightWindowOf(device, now, zone);
-  const dark = darkReasonOf(device);
-  const word = (said: string) => (named ? `${t('start.targets.light')} ${said}` : said);
-  if (!light) return dark && dark !== 'off' ? word(t(`start.light.dark.${dark}`)) : null;
-  const window = light.always
-    ? t('start.light.always')
-    : light.never
-      ? t('start.light.never')
-      : t('start.targets.window', { on: light.on, off: light.off });
-  return [word(window), light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null].filter(Boolean).join(' · ');
+const ownLines = (t: Translate, device: Device | null, offset: number): string[] | null => {
+  const speeds = fixedSpeedsOf(device);
+  if (speeds) return [`${t('start.targets.day')} ${speeds.day} %`, `${t('start.targets.night')} ${speeds.night} %`];
+  const own = device ? plugSummaryOf(t, device, offset) : null;
+  return own ? own.map(row => [row.label, ...row.parts].join(' ')) : null;
 };
 
 /**
- * The targets on Start: a summary and the way to Steuerung, where they are
- * changed - Start changes no setting. A running plan says where it stands on
- * the same row, and a paused one that it is paused. With the device silent
- * the row says that changing them works all the same. A reader who may not
- * steer the place is shown the summary and the light as a card, and - where
- * somebody else could - who can change them.
+ * "07:00–19:00 · 12 Std · Grenze 65 %": when the lamp is on and how bright it may get. A place dark for its work
+ * mode says so instead.
+ */
+const lightOf = (t: Translate, device: Device | null, now: DateTime, zone: string | null): { text: string; said: string } | null => {
+  const light = lightWindowOf(device, now, zone);
+  const dark = darkReasonOf(device);
+  if (!light) return dark && dark !== 'off' ? { text: t(`start.light.dark.${dark}`), said: t(`start.light.dark.${dark}`) } : null;
+  const limit = light.limit < 100 && !light.never ? t('start.targets.limit', { percent: light.limit }) : null;
+  return {
+    text: [lightWindowText(t, light), limit].filter(Boolean).join(' · '),
+    said: [lightWindowSaid(t, light), limit].filter(Boolean).join(', '),
+  };
+};
+
+/**
+ * The targets on Start, master's summary as a table: the halves of the day
+ * with a column per reading the device holds a target for, the half in force
+ * marked "jetzt" - "laut Zeitplan" for a device not heard from -, and the
+ * light. "Ändern ›" leads to Steuerung, where they are changed: Start changes
+ * no setting. A running plan says where it stands, a silent device that a
+ * change reaches it all the same, and a reader who may not steer the place who
+ * can change them. A socket, a fan and a lamp alone say their own settings.
  */
 export function Targets({
   spaceId,
   name,
   targets,
   device,
+  live,
   humidifierHold,
   offline,
   offStored = false,
@@ -120,6 +132,8 @@ export function Targets({
   name: string;
   targets: OverviewTargets | null;
   device: Device | null;
+  /** The device's live read, which says the half it holds now. */
+  live: DeviceLive | undefined;
   humidifierHold: HumidifierHold | null;
   offline: boolean;
   /** Regulation off is stored but not yet taken by the device, which still regulates: the card does not call it off. */
@@ -134,11 +148,13 @@ export function Targets({
   const plan = useDevicePlans(mayManage && device?.control ? [device.id] : []).plans[0];
   usePlanWords([plan]);
   const planLine = plan ? planLineOf(t, plan, now) : null;
-  const groups = targetsLine(t, { targets, device, humidifierHold, offset: offsetOf(now, zone) });
+  const own = ownLines(t, device, offsetOf(now, zone));
+  const rows = own ? null : tableOf(t, targets, device, humidifierHold);
+  const light = lightOf(t, device, now, zone);
   // A lamp alone aims at no climate: what it is set to is its light, never "no targets yet", under a card called so.
-  const alone = groups.length === 0 && device?.type === 'light';
-  const light = lightLine(t, device, now, zone, !alone);
-  const lamp = alone ? light : null;
+  const alone = !own && !rows && device?.type === 'light';
+  const holding = halfNowOf(device, live, now, offline);
+  const columns = (['temperature', 'humidity', 'co2'] as const).filter(metric => rows?.some(row => row.figures[metric] !== undefined));
   // A climate the place was put on before its device sent its settings is said as what will be set.
   const awaited = device && awaitingClimate(device) ? (device.state.awaitedClimate ?? null) : null;
   // Named by what it holds: a socket its settings, a lamp its light, a fan at a fixed speed its speed, the rest targets.
@@ -147,14 +163,71 @@ export function Targets({
     : fixedSpeedsOf(device)
       ? t('fanSettings.speeds')
       : t(device?.type === 'plug' || device?.type === 'light' ? 'ownPanel.title' : 'start.targets.title');
-  // A half of the day stays together for as long as it fits a line, and no line ends on the dot between two figures.
-  const line =
-    groups.length > 0 ? (
-      <Facts facts={groups.map(group => (group.length > 1 ? <Facts key={group[0]} facts={group} /> : group[0]))} />
-    ) : lamp ? (
-      <Facts facts={factsOf(lamp)} />
-    ) : (
-      <span>
+
+  let body: ReactNode;
+  if (own) {
+    body = <Facts className={styles.cardText} facts={own} />;
+  } else if (rows) {
+    body = (
+      <div className={styles.targets} role="table" aria-label={title} style={{ '--columns': columns.length } as CSSProperties}>
+        <div role="row" className={styles.targetsRow}>
+          <span role="columnheader" />
+          {columns.map(metric => (
+            <span key={metric} role="columnheader" className={styles.targetsHead}>
+              {t(`home.metric.${metric}`)}
+            </span>
+          ))}
+        </div>
+        {rows.map(row => (
+          <div key={row.label} role="row" className={styles.targetsRow}>
+            <span role="rowheader" className={styles.targetsLabel}>
+              {row.label}
+              {row.half && row.half === holding ? (
+                <span className={styles.now} data-by={offline ? 'schedule' : undefined}>
+                  {t(offline ? 'start.targets.bySchedule' : 'start.targets.now')}
+                </span>
+              ) : null}
+            </span>
+            {columns.map(metric => {
+              const value = row.figures[metric];
+              return (
+                <span key={metric} role="cell" className={styles.targetsValue}>
+                  {value === undefined ? (
+                    t('home.card.noReading')
+                  ) : (
+                    <>
+                      {targetFigure(value, metric)} <small>{UNIT[metric]}</small>
+                    </>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        ))}
+        {light ? (
+          <div role="row" className={styles.targetsRow}>
+            <span role="rowheader" className={styles.targetsLabel}>
+              {t('start.targets.light')}
+            </span>
+            <span role="cell" className={styles.targetsLight}>
+              <Spoken said={light.said}>
+                {/* The hours on, then what goes with them quieter: "07:00–19:00 · 12 Std". */}
+                <span className={styles.targetsWindow}>{factsOf(light.text)[0]}</span>
+                {factsOf(light.text)
+                  .slice(1)
+                  .map(part => ` · ${part}`)
+                  .join('')}
+              </Spoken>
+            </span>
+          </div>
+        ) : null}
+      </div>
+    );
+  } else if (alone && light) {
+    body = <Facts className={styles.cardText} facts={factsOf(light.text)} />;
+  } else {
+    body = (
+      <p className={styles.cardText}>
         {offStored
           ? t('start.latest.stored', { what: t('control.state.off') })
           : awaited
@@ -166,40 +239,28 @@ export function Targets({
                     ? 'start.targets.awaiting'
                     : 'start.targets.none',
               )}
-      </span>
-    );
-
-  if (!mayManage) {
-    return (
-      <section className={`${ui.panel} ${styles.card}`} aria-labelledby="start-targets">
-        <h2 className={`${ui.cardHeading} ${styles.cardTitle}`} id="start-targets">
-          {title}
-        </h2>
-        <span>{line}</span>
-        {light && !lamp ? <Facts className={styles.cardText} facts={factsOf(light)} /> : null}
-        {guest ? <span className={styles.cardText}>{t('start.targets.whoChanges', { name })}</span> : null}
-      </section>
+      </p>
     );
   }
 
   return (
-    <Link to={controlPath(spaceId)} className={ui.rowCard}>
-      {offline ? (
-        // What the device was left on is still said - "Regelung aus" above all, which the offline note does not undo.
-        <span className={styles.rowText} data-tone="brand">
-          {/* A fan or a lamp holds no climate: its card keeps its own title offline too. */}
-          {!device || OWN_CLIMATE_TYPES.includes(device.type) ? t('start.targets.changeOffline') : title}
-          <span className={styles.rowNote}>{line}</span>
-          <span className={styles.rowNote}>{t('start.targets.offlineNote')}</span>
-        </span>
-      ) : (
-        <span className={styles.rowText}>
+    <section className={ui.panel} aria-labelledby="start-targets">
+      <header className={styles.summaryHead}>
+        <h2 className={ui.cardHeading} id="start-targets">
           {title}
-          <span className={styles.rowNote}>{line}</span>
-          {planLine ? <span className={styles.rowNote}>{`${t('planLine.plan')} ${planLine}`}</span> : null}
-        </span>
-      )}
-      <ChevronRight size={20} strokeWidth={2} className={styles.chevron} aria-hidden />
-    </Link>
+        </h2>
+        {mayManage ? (
+          <Link to={controlPath(spaceId)} className={styles.change}>
+            {t('start.change')} ›<span className={ui.visuallyHidden}>{`: ${title}`}</span>
+          </Link>
+        ) : null}
+      </header>
+      {body}
+      {/* Where nothing but a light is set, the light was said in the table or alone above. */}
+      {!rows && !alone && light ? <p className={styles.cardText}>{`${t('start.targets.light')} ${light.text}`}</p> : null}
+      {planLine ? <p className={styles.cardText}>{`${t('planLine.plan')} ${planLine}`}</p> : null}
+      {offline && mayManage ? <p className={styles.cardText}>{t('start.targets.offlineNote')}</p> : null}
+      {guest ? <p className={styles.cardText}>{t('start.targets.whoChanges', { name })}</p> : null}
+    </section>
   );
 }

@@ -1,5 +1,6 @@
 import { growWeekOfDay } from '@fg2/shared-types/v1-schemas/feeding.js';
-import type { GrowthStage } from '@fg2/shared-types/v1';
+import { useTranslation } from 'react-i18next';
+import type { GrowCard, GrowthStage } from '@fg2/shared-types/v1';
 import { useGrow } from '@/api/grows';
 import type { Translate } from '@/i18n/i18n';
 import { STAGES } from '@/ui/stages';
@@ -50,4 +51,29 @@ export const splitWords = (
   const part = counted.filter(group => group.stage === headline).reduce((sum, group) => sum + group.count!, 0);
 
   return part > 0 && part < total ? t('grow.splitOf', { stage: said, part, count: total }) : null;
+};
+
+/**
+ * What a grow's row and the picture card say of where it stands: its phase and
+ * week - a split's stage by its plants, "Blüte · 1 von 2 Pflanzen" - and what is
+ * left where a feeding scheme says how long it runs. A grow reopened after its
+ * last plant came down has no stage to be in: that it is cut is what is true of it.
+ */
+export const useGrowWords = (grow: GrowCard): { phase: string; left: string | null } => {
+  const { t } = useTranslation();
+  const { weeksLeft } = useProgress(grow);
+  const cut = !!grow.plantCount && grow.standingCount === 0;
+  const said = grow.stage ? t(`home.stage.${grow.stage}`) : t('home.card.noPhase');
+  const split = splitWords(
+    t,
+    said,
+    grow.stage,
+    grow.stageGroups.map(group => ({ stage: group.stage, count: group.plantCount })),
+  );
+  return {
+    phase: cut
+      ? t('start.allCut')
+      : (split ?? (grow.stage && grow.stageWeek !== null ? [said, t('start.week', { week: grow.stageWeek })].join(' · ') : said)),
+    left: weeksLeft && !cut ? t('start.harvestIn', { count: weeksLeft }) : null,
+  };
 };

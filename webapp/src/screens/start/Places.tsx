@@ -1,19 +1,19 @@
 import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import type { Device, HomeAnswer, HomeSpaceCard, Space } from '@fg2/shared-types/v1';
-import { useDevices } from '@/api/devices';
+import type { Device, HomeAnswer, HomeSpaceCard, Metric, Space } from '@fg2/shared-types/v1';
+import { useDevices, useHourMeans } from '@/api/devices';
 import { useGrows } from '@/api/grows';
 import { useDiaryLayer } from '@/api/layers';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import { placePath, type PlaceCard as Place } from '@/app/places';
-import { ageAttribute, livenessWords, sinceLabel, valueAge } from '@/ui/age';
+import { ageAttribute, livenessWords, sinceLabel } from '@/ui/age';
 import { factsOf, unbroken } from '@/ui/fact-text';
 import { Facts } from '@/ui/Facts';
 import { RefreshFailed } from '@/ui/PageState';
 import { useNow } from '@/ui/useNow';
-import { figure, figureWithUnit, UNIT } from '@/ui/units';
+import { figure, figureWithUnit } from '@/ui/units';
 import { clock, useZone } from '@/ui/zone';
 import type { Translate } from '@/i18n/i18n';
 import { NotifyNotice } from '@/screens/notifications/NotifyNotice';
@@ -21,10 +21,12 @@ import { AddPlace } from './AddPlace';
 import { judgedAt, livenessOf } from './attention';
 import { useCardStatus } from './card-status';
 import { Figures, type Figure } from './Figures';
-import { toneOf, valueOf, type Status } from './place';
-import { readingsOf } from './readings';
+import { placeOutputs, outputWords } from './outputs';
+import { toneOf, type Status } from './place';
+import { readingsOf, type Reading } from './readings';
 import { useLamp } from './reads';
 import { startOrder } from './rooms';
+import { useHumidifiers } from '@/screens/control/germination/germination-choices';
 import { growDay } from '@/screens/grow/progress';
 import { alsoIn } from '@/screens/space/movable-grows';
 import { namesInLeadOrder, targetsOf } from '@/log/targets';
@@ -210,29 +212,27 @@ function PlaceCard({
   const { t } = useTranslation();
   const zone = useZone();
   const { here, device, values, setpoints, status, words, behind } = useCardStatus(card, devices, judged);
-  const { lit } = useLamp(device, here, now);
+  const { lit, live } = useLamp(device, here, now);
   const tone = toneOf(status);
   const asks = tone === 'warn' || tone === 'alarm';
   const offline = status.kind === 'offline';
+  // A mean of old values and a state nobody reports would mislead: a silent place, and one still waiting, show neither.
+  const heard = !offline && status.kind !== 'waiting';
   const readings = readingsOf(t, { values, setpoints, device, lit: offline ? [] : lit, hold: null, now, zone });
-  const co2 = valueOf(values, 'co2');
-  const figures: Figure[] = [
-    ...readings.filter(reading => reading.key !== 'light'),
-    ...(co2
-      ? [
-          {
-            key: 'co2' as const,
-            label: t('home.metric.co2'),
-            figure: figureWithUnit(co2.value!, 'co2'),
-            number: figure(co2.value!, 'co2'),
-            unit: UNIT.co2 ?? null,
-            tone: 'quiet' as const,
-            age: valueAge(co2, now),
-          },
-        ]
-      : []),
+  const means = useHourMeans(device?.id ?? null, heard && readings.length > 0).data;
+  const figures: Figure[] = readings
+    .filter((reading): reading is Reading & { key: Metric } => reading.key !== 'light')
+    .map(reading => {
+      const mean = heard ? means?.[reading.key] : undefined;
+      return { ...reading, mean: mean == null ? null : { number: figure(mean, reading.key), said: figureWithUnit(mean, reading.key) } };
+    });
+  // The lamps, then what the hardware does about the climate: "Licht 100 % · an bis 19:00 · Heizung aus · CO₂-Ventil zu".
+  const humidifiers = useHumidifiers(device);
+  const outputs = heard ? placeOutputs(device, live, humidifiers) : [];
+  const lamps = [
+    ...readings.flatMap(reading => (reading.key === 'light' ? factsOf(reading.said ?? reading.figure) : [])),
+    ...outputs.map(state => outputWords(t, state)),
   ];
-  const lamps = readings.flatMap(reading => (reading.key === 'light' ? [reading.said ?? reading.figure] : []));
   const pill = pillOf(t, status);
   // The pill says "offline", "veraltet" or "Wartung"; the line beside it says since or until when, or how old the
   // values are, and not the word a second time.

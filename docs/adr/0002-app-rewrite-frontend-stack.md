@@ -1,7 +1,7 @@
 ---
 summary: Which libraries the React web app is built from and why, its session and API client, its service worker, and the look its design tokens carry - read before adding a dependency, changing the build, the service worker, the fonts or a token
 updated: 2026-11-26
-source: Chris (2026-11-25 master's look preferred to "Nebel"; 2026-11-26 "Marke fein" chosen from three drafted directions, with the navy rail and a Start between calm and full); the look's build session of 2026-11-26 (its values, Inter's digit rule, the control radius, the overlays' weights); its fix round after the critic's walk, 2026-11-26 (a figure's tracking, the rail's focus ring and count, the small curve's band); giving a device up and removing a socket confirmed in the danger style, a switch's own target (the third whole-app walk's fix round, 2026-11-14); one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
+source: Chris (2026-11-25 master's look preferred to "Nebel"; 2026-11-26 "Marke fein" chosen from three drafted directions, with the navy rail and a Start between calm and full, and the same day master's cockpit back on a place's Start); the look's build session of 2026-11-26 (its values, Inter's digit rule, the control radius, the overlays' weights); its fix round after the critic's walk, 2026-11-26 (a figure's tracking, the rail's focus ring and count, the small curve's band); giving a device up and removing a socket confirmed in the danger style, a switch's own target (the third whole-app walk's fix round, 2026-11-14); one answer to every question, a dotted term's own box and a tab row without a veil (the redesign session's fix round of 2026-11-14); Chris (platform 2026-09-16, the brand look 2026-09-24, releases take over at once 2026-10-09, the rail's look with the navigation redesign 2026-11-12, the look "Nebel" chosen and the green kept for the one action 2026-11-13; the cut "1" narrower, every page centred, the lamp's light value kept, a logo on the share card, 2026-11-13); the redesign session of 2026-11-13 after the whole-app walk's third report (one danger style, one logo in the phone's bar); the redesign session of 2026-11-13 (Nebel's values; after the whole-app walk the digit rule, the weights, the lamp's two values, paper light, the overlays' figures); rewrite sessions and the commits of PR #104 (2026-09-18..10-04); checked against webapp/ on 2026-10-08
 paths:
   - webapp/package.json
   - webapp/vite.config.ts
@@ -176,7 +176,8 @@ less. A designer drew three directions on the branch's structure: "Marke" (the b
 fein" (its colours and shapes with lighter type) and "Marke weich" (its type with softened colours and shapes).
 He chose "Marke fein" with two changes: the desktop rail stays the brand look's navy rather than the light rail
 the direction proposed, and Start sits between the calm overview and the fuller one, a small picture and small
-curves (app-ux.md §1-2). The direction's case, as the designer put it: the lighter type answers his complaint of
+curves - which the same day gave way, for a place's own Start, to master's cockpit tiles and its big picture,
+drawn in these tokens (app-ux.md §2). The direction's case, as the designer put it: the lighter type answers his complaint of
 2026-11-13 about the brand look - bold everywhere, nothing fine - without leaving its face or its palette; the
 weight stays where it orients, a page's title and a name, and comes off figures, buttons, chips, tags and section
 labels. What stands from every look before: no serif anywhere (Chris, 2026-09-24), no monospaced face on figures, the brand's own logo and green.
@@ -310,7 +311,7 @@ in `--brand`, hand-written readings in ink, outputs in `--output`, the lamp in `
 (the brand green at 14 %; on navy a yellower green at 22 %, which the brand green turned slate teal beside the
 humidity line), the nights `--night` as a faint wash of the dark blue (black-navy in dark mode), halved over a
 long range so a month of nights does not read as a barcode, and three faint rules across each plot in `--grid`.
-Start's small 24-hour curves take `--band-small`, which in dark mode is half the band's strength: at that size the
+The 24-hour curves of Start's tiles take `--band-small`, which in dark mode is half the band's strength: at that size the
 full band drew two green blocks the line hid in.
 A series chip and the pinned reading's stroke are the legend. The server's timelapse overlays and share-link
 cards use the dark palette's ink, muted ink, navy plate and signal colours, in Inter - a reading at 500, the day

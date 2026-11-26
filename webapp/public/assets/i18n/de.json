@@ -4316,6 +4316,10 @@
     "lightHardStart": {
       "title": "Ohne Hochdimmen",
       "text": "Das Gerät zählt seinen Tag nicht ab deiner Mitternacht, sondern ab einer festen Stunde, die je nach Zeitzone und Sommerzeit davor oder danach liegt. Läuft ein Lichtfenster über diese Stunde, schaltet es das Licht morgens ohne Hochdimmen ein; abends dimmt es wie gewohnt herunter. Ein Fenster, das ganz an einem Tag des Geräts liegt, dimmt auch morgens hoch."
+    },
+    "dayCurve": {
+      "title": "Die letzten 24 Stunden",
+      "text": "Die kleine Kurve zeigt, wie der Wert in den letzten 24 Stunden lief. Grau hinterlegt ist die Nacht, grün der Zielbereich – nachts gilt das Nachtziel. In der Trocknung, der Keimung und bei 24 oder 0 Std Licht gibt es keine Nacht, sondern ein Ziel rund um die Uhr. In der Stunde nach jedem Wechsel und nach jeder Änderung reicht das Band über die Ziele davor und danach, so lange hat das Klima Zeit zu folgen. Ein Tipp auf die Kachel öffnet den Verlauf."
     }
   },
   "place": {
@@ -5005,7 +5009,10 @@
   },
   "spoken": {
     "newest": "neuester Wert {{ago}}",
-    "minutes": "Minuten"
+    "minutes": "Minuten",
+    "hourMean": "Mittel der letzten Stunde {{value}}",
+    "lightWindow_one": "{{on}} bis {{off}} Uhr, {{hours}} Stunde",
+    "lightWindow_other": "{{on}} bis {{off}} Uhr, {{hours}} Stunden"
   },
   "start": {
     "allGood": "Alles im Ziel.",
@@ -5035,7 +5042,15 @@
         "off": "Regelung aus",
         "drying": "Trocknung",
         "germination": "Keimung"
-      }
+      },
+      "on": "An",
+      "wasOn": "War an",
+      "wasOff": "War aus",
+      "window": "{{on}}–{{off}} · {{hours}} Std",
+      "noWindow": "kein Zeitplan",
+      "offAt": "aus um {{time}}",
+      "onAt": "an um {{time}}",
+      "barAlt": "Licht an von {{on}} bis {{off}} Uhr"
     },
     "card": {
       "light": "{{lamp}} {{level}}",
@@ -5050,13 +5065,8 @@
       "off": "nicht im Ziel",
       "alarm": "Alarm"
     },
-    "extra": {
-      "co2": "CO₂ {{value}}",
-      "leaf": "Blatt {{value}}"
-    },
     "picture": {
       "takenAt": "Bild von {{time}}",
-      "stand": "Stand {{time}} · vor {{age}}",
       "photoAlt": "Das neueste Foto von {{name}}",
       "yours": "dein Foto von {{day}}",
       "photo": "Foto von {{day}}"
@@ -5077,7 +5087,6 @@
       "window": "{{on}} bis {{off}}",
       "limit": "Grenze {{percent}} %",
       "whoChanges": "Ändern kann, wer {{name}} steuern darf.",
-      "changeOffline": "Zielwerte und Licht ändern",
       "offlineNote": "Geht auch jetzt. Das Gerät übernimmt es, sobald es wieder online ist.",
       "title": "Zielwerte",
       "day": "Tag",
@@ -5088,7 +5097,9 @@
       "none": "Noch keine Zielwerte.",
       "awaiting": "Wartet auf die Einstellungen des Geräts.",
       "awaitingClimate": "{{climate}} wird gesetzt, sobald das Gerät seine Einstellungen schickt.",
-      "roundTheClock": "Rund um die Uhr"
+      "roundTheClock": "Rund um die Uhr",
+      "now": "jetzt",
+      "bySchedule": "laut Zeitplan"
     },
     "grow": {
       "title": "{{name}}: Was wächst hier?",
@@ -5103,7 +5114,8 @@
       "declined": "Das Tagebuch bleibt aus. Einschalten kannst du es unter Ich › Grow-Tagebuch.",
       "declinedHere": "Hier fragt die App nicht mehr. Einen Grow startest du unter Grow › Alle Grows.",
       "here": "Was wächst hier?",
-      "asksAgain": "Die Frage steht wieder auf Start"
+      "asksAgain": "Die Frage steht wieder auf Start",
+      "last": "{{what}} {{ago}}"
     },
     "device": {
       "title": "Mit einem Gerät wird hier von selbst gemessen"
@@ -5178,11 +5190,45 @@
     "tile": {
       "high": "{{delta}} zu hoch",
       "low": "{{delta}} zu niedrig",
-      "settling": "im Übergang bis {{time}}"
+      "settling": "im Übergang bis {{time}}",
+      "leaf": "Blatt & Licht",
+      "hourMean": "Ø 1 Std",
+      "day": "24 Std",
+      "since": "seit {{time}}",
+      "target": {
+        "day": "Tagesziel {{target}}",
+        "night": "Nachtziel {{target}}",
+        "any": "Ziel {{target}}",
+        "drying": "Trocknungsziel {{target}}",
+        "germination": "Keimungsziel {{target}}",
+        "gliding": {
+          "day": "Ziel gerade {{target}} · gleitet zum Tag",
+          "night": "Ziel gerade {{target}} · gleitet zur Nacht"
+        },
+        "bySchedule": {
+          "day": "Tagesziel laut Zeitplan {{target}}",
+          "night": "Nachtziel laut Zeitplan {{target}}"
+        }
+      },
+      "noTarget": "kein Ziel",
+      "co2Night": "nachts kein Ziel",
+      "co2Dark": "ohne Licht kein Ziel",
+      "noTargetBy": "kein Ziel · {{mode}}",
+      "humidifierHolds": "Befeuchterziel {{target}}",
+      "mode": {
+        "off": "Regelung aus",
+        "drying": "Trocknung",
+        "germination": "Keimung",
+        "greenhouse": "Gewächshaus"
+      },
+      "switches": "schaltet bei {{low}}–{{high}}"
     },
     "leaf": {
       "lux": "{{value}} lx",
-      "ppfd": "PPFD {{value}}"
+      "ppfd": "PPFD {{value}}",
+      "cooler": "{{value}} °C kühler als die Luft",
+      "warmer": "{{value}} °C wärmer als die Luft",
+      "same": "so warm wie die Luft"
     },
     "camera": {
       "none": "Noch kein Bild",
@@ -5191,10 +5237,29 @@
       "nothingYet": "{{name}} hat noch kein Bild geliefert"
     },
     "visiting": "Support-Ansicht eines Kundenorts: nur lesen. Zeiten stehen in deiner Zeitzone.",
-    "reading": {
-      "open": "Verlauf öffnen"
+    "noRoom": "Ohne Raum",
+    "output": {
+      "compressor": "Kompressor",
+      "heater": "Heizung",
+      "dehumidifier": "Entfeuchter",
+      "co2": "CO₂-Ventil",
+      "socket": "Plantalytix Socket",
+      "humidifier": "Befeuchter",
+      "lamp": "Lampe"
     },
-    "noRoom": "Ohne Raum"
+    "outputs": {
+      "running": "läuft",
+      "runningSince": "läuft seit {{age}}",
+      "on": "an",
+      "off": "aus",
+      "open": "offen",
+      "closed": "zu"
+    },
+    "alarms": {
+      "title": "Alarme",
+      "none": "Noch kein Alarm eingeschaltet.",
+      "more": "+{{count}} weitere"
+    }
   },
   "liveness": {
     "ago": "vor {{age}}",

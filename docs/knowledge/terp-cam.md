@@ -219,7 +219,7 @@ way and what the code has to respect. Internal notes on the camera exist.
   luma under 24), else null, which counts as lit. Pictures meant to show plants (the diary's days, Start
   and grow cards) query `lit != false`; a day takes the lit still nearest midday (`diary/diary-pictures.ts`). A
   place that is silent shows the last picture there is instead, dated by its capture as Steuerung dates it, so one
-  picture carries one time (`CameraRow`, `screens/start/Rows.tsx`).
+  picture carries one time (`Picture`, `screens/start/Picture.tsx`).
 - `monochrome` (since 2026-10-08, server-side only): whether the still came out grey - the camera's night (IR) mode,
   or a black tent - measured once when stored (`monochromeOf`, `still-light.ts`: channels under 4 of 255 apart on a
   192-pixel copy; night stills measure 0, day stills 20-53 on the development cameras); null for an unreadable

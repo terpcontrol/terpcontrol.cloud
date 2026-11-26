@@ -264,6 +264,10 @@ export const server = {
   grows: [] as Record<string, unknown>[],
   /** One grow as its own route answers it, by id: where its feeding scheme is. */
   grow: new Map<string, Record<string, unknown>>(),
+  /** The last hour's mean of each reading, as the device's series answers it. */
+  means: {} as Record<string, number>,
+  /** The alarm rules of the place's devices, each answered to its own device's route. */
+  rules: [] as Record<string, unknown>[],
   /** Every request the page sent, as "METHOD /path". */
   calls: [] as string[],
   /** The bodies of what it wrote, by "METHOD /path". */
@@ -286,6 +290,8 @@ export const resetServer = () => {
   server.alerts = [];
   server.grows = [];
   server.grow = new Map();
+  server.means = {};
+  server.rules = [];
   server.calls = [];
   server.bodies = new Map();
 };
@@ -325,6 +331,16 @@ export const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestIn
   if (/^\/devices\/[^/]+\/plan$/.test(path))
     return server.plan ? json(server.plan) : json({ status: 404, code: 'plan_not_found', title: 'No plan', detail: '', errors: [] }, 404);
   if (/^\/spaces\/[^/]+\/timeline$/.test(path)) return json(timeline());
+  const rules = /^\/devices\/([^/]+)\/alarm-rules$/.exec(path);
+  if (rules) return json({ items: server.rules.filter(rule => rule.deviceId === rules[1]), nextCursor: null });
+  const series = /^\/devices\/([^/]+)\/series$/.exec(path);
+  if (series) {
+    const metrics = Object.entries(server.means).map(([metric, value]) => ({
+      metric,
+      points: [{ measuredAt: ago(30), value, min: value, max: value }],
+    }));
+    return json({ deviceId: series[1], startsAt: ago(60), endsAt: ago(0), stepSeconds: 300, metrics, outputs: [] });
+  }
   if (path === '/tasks') return json({ items: server.tasks, nextCursor: null });
   if (path === '/alerts' && searchParams.get('open') === 'true') return json({ items: server.alerts, nextCursor: null });
   if (path === '/grows') return json({ items: server.grows, nextCursor: null });

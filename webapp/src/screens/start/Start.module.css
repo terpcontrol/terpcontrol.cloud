@@ -279,11 +279,7 @@ a.status {
   color: var(--muted);
 }
 
-/* --- the readings: big figures, each over its last day, and one line under them --- */
-
-.readings {
-  gap: var(--space-3);
-}
+/* --- the readings of a place among several: big figures, each with its name and its last hour's mean --- */
 
 /* Equal shares of one row, a hairline between two; a figure wider than its share - a VPD below zero on a narrow
    phone - takes what it needs from the others rather than running into its neighbour. */
@@ -293,9 +289,8 @@ a.status {
   gap: var(--space-2) var(--space-3);
 }
 
-/* Its own figure never breaks; the curve under it takes whatever width the share has. */
+/* Its own figure never breaks. */
 .figure {
-  position: relative;
   display: flex;
   flex: 1 0 0;
   flex-direction: column;
@@ -345,101 +340,18 @@ a.status {
 }
 
 .figureName {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--muted);
 }
 
-/* The figure is the way to its curve, stretched over its share; a word that explains itself stands above the stretch. */
-.figureLink::after {
-  position: absolute;
-  inset: 0;
-  content: '';
-}
-
-.figure :is(button, [role='button']) {
-  position: relative;
-  z-index: 1;
-}
-
-/* The last day, small: no axis and no figures, so the figure over it is read first. No wider than it is drawn - a
-   desktop's share stretched its line and its noise sideways - and narrower where the share is. */
-.curve {
-  display: block;
-  width: 100%;
-  max-width: 140px;
-  height: 26px;
-  margin-top: var(--space-1);
-  overflow: visible;
-}
-
-.curveNight {
-  fill: var(--night);
-}
-
-.curveBand {
-  fill: var(--band-small);
-}
-
-.curveLine {
-  fill: none;
-  stroke: var(--temperature);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.curveLine[data-tone='humidity'] {
-  stroke: var(--humidity);
-}
-
-.curveLine[data-tone='vpd'] {
-  stroke: var(--brand);
-}
-
-/* Figures that have stopped coming say as of when they are. */
-.stand {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+/* "Ø 1 Std 25,5": the last hour under the name, without the unit the figure above already has. */
+.figureMean {
+  font-size: var(--text-2xs);
   color: var(--muted);
+  white-space: nowrap;
 }
 
-/*
- * Each further reading is the way to its own curve, a finger high; the dot between two stands at their middle. The
- * line is a line of text, so a reading that wraps at 320 px stands a line under the others and not a finger's height
- * lower: each reading reaches up and down into the line's padding, under the words of the one beside it, so a tap on
- * a reading's words is that reading's and two reaches share no strip (app-ux §5).
- */
-.extras {
-  font-size: var(--text-sm);
-  color: var(--muted);
-  padding-block: calc((var(--control-height) - 1lh) / 2);
-}
-
-.extra {
-  position: relative;
-}
-
-.extra::after {
-  position: absolute;
-  z-index: -1;
-  inset: calc((var(--control-height) - 1lh) / -2) -4px;
-  content: '';
-}
-
-/* The line under the figures: a hairline above it where figures stand over it, and its reach running into the card's
-   own padding below rather than adding to it. */
-.figures ~ .extras {
-  border-top: var(--rule-solid);
-}
-
-.readings > .extras:last-child {
-  margin-bottom: calc((var(--control-height) - 1lh) / -2);
-}
-
-/* --- rows that lead on: the grow, the camera - a small picture, a name, a line --- */
+/* --- the grow as a row that leads to it - a small picture, a name, a line --- */
 
 .lead {
   display: flex;
@@ -465,11 +377,6 @@ a.status {
   object-fit: cover;
 }
 
-/* The last picture of a place nobody has heard from, stepped back behind what says so. */
-.lead[data-age='offline'] img {
-  opacity: 0.55;
-}
-
 .leadText {
   display: flex;
   flex: 1;
@@ -490,13 +397,237 @@ a.status {
   color: var(--muted);
 }
 
-.leadLine[data-tone='warn'] {
-  color: var(--warning);
-}
-
 .chevron {
   flex: none;
   color: var(--muted);
+}
+
+/* --- the place as it looks: the camera's picture across the column, the grow under it in the same card --- */
+
+.view {
+  overflow: hidden;
+  background: var(--card);
+  border: var(--rule-solid);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.picture {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: var(--overlay-solid);
+}
+
+.picture img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The last picture of a place nobody has heard from, stepped back behind what says so. */
+.picture[data-age='offline'] img {
+  opacity: 0.55;
+}
+
+.pictureEmpty {
+  color: rgb(255 255 255 / 60%);
+}
+
+/* Its name and time on the picture, white on the smoked navy every caption over a photograph sits on. */
+.pictureCaption {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 28px var(--space-4) var(--space-3);
+  background: linear-gradient(to top, var(--overlay), transparent);
+  color: #fff;
+  font-size: var(--text-sm);
+}
+
+.pictureCaption svg {
+  flex: none;
+}
+
+.pictureWords {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pictureGrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 64px;
+  padding: 14px var(--space-4);
+  border-top: var(--rule-solid);
+  color: var(--ink);
+}
+
+.pictureGrowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The grow's day, phase and week as its stage's pill; on a phone under the line. */
+.stage {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+@media (max-width: 899px) {
+  .pictureGrow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pictureGrow .stage {
+    grid-row: 2;
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .pictureGrow > .chevron {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+}
+
+/* --- the place's summaries: Zielwerte and Alarme, a heading and a quiet way to change them --- */
+
+.summaryHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* "Ändern ›" in the heading's row, a finger high without growing it. */
+.change {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-block: calc((var(--control-height) - 1lh) / -2);
+  color: var(--brand);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* The targets as a table: a row per half of the day, a column per reading, the light across the columns. */
+.targets {
+  display: grid;
+  grid-template-columns: auto repeat(var(--columns), auto);
+  justify-content: start;
+  gap: 6px 18px;
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+/* At 320 px the table gives way: its gaps close up, and "jetzt" goes under the half it marks where the row is short. */
+@media (max-width: 359px) {
+  .targets {
+    column-gap: var(--space-2);
+  }
+}
+
+.targetsRow {
+  display: contents;
+}
+
+.targetsHead {
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  text-align: right;
+}
+
+.targetsLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-2);
+  color: var(--muted);
+}
+
+.targetsValue {
+  font-family: var(--font-figure);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.targetsValue small {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+.targetsLight {
+  grid-column: 2 / -1;
+  color: var(--muted);
+}
+
+.targetsWindow {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/* The half in force: "jetzt" in green, "laut Zeitplan" quiet for a device not heard from. */
+.now {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--green-wash);
+  color: var(--green-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.now[data-by='schedule'] {
+  background: var(--card-2);
+  color: var(--muted);
+}
+
+/* An alarm a line: its name at the left, where it trips in ink at the right. */
+.alarms {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.alarms > li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.alarmName {
+  color: var(--muted);
+}
+
+.alarmBound {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+  text-align: right;
 }
 
 /* --- a card with a small heading: Heute, Zuletzt, Zielwerte --- */

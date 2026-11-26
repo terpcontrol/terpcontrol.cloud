@@ -4306,6 +4306,10 @@
     "lightHardStart": {
       "title": "Without ramping up",
       "text": "The device counts its day not from your midnight but from a fixed hour, earlier or later than yours depending on the time zone and summer time. A light window that runs past that hour switches the light on in the morning without ramping up; in the evening it dims down as usual. A window that lies within one of the device’s days ramps up in the morning too."
+    },
+    "dayCurve": {
+      "title": "The last 24 hours",
+      "text": "The small curve shows how the reading went over the last 24 hours. The grey stretch is the night, the green band the target range – at night the night target applies. Drying, germination and 24 or 0 h of light have no night, just one target round the clock. For the hour after each switch and after every change the band spans the targets from before and after, which is how long the climate is given to follow. Tapping the tile opens the Timeline."
     }
   },
   "place": {
@@ -4995,7 +4999,10 @@
   },
   "spoken": {
     "newest": "newest reading {{ago}}",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "hourMean": "average of the last hour {{value}}",
+    "lightWindow_one": "{{on}} to {{off}}, {{hours}} hour",
+    "lightWindow_other": "{{on}} to {{off}}, {{hours}} hours"
   },
   "start": {
     "allGood": "All on target.",
@@ -5025,7 +5032,15 @@
         "off": "control off",
         "drying": "drying",
         "germination": "germination"
-      }
+      },
+      "on": "On",
+      "wasOn": "Was on",
+      "wasOff": "Was off",
+      "window": "{{on}}–{{off}} · {{hours}} h",
+      "noWindow": "no schedule",
+      "offAt": "off at {{time}}",
+      "onAt": "on at {{time}}",
+      "barAlt": "Light on from {{on}} to {{off}}"
     },
     "card": {
       "light": "{{lamp}} {{level}}",
@@ -5040,13 +5055,8 @@
       "off": "off target",
       "alarm": "alarm"
     },
-    "extra": {
-      "co2": "CO₂ {{value}}",
-      "leaf": "Leaf {{value}}"
-    },
     "picture": {
       "takenAt": "Picture from {{time}}",
-      "stand": "As of {{time}} · {{age}} ago",
       "photoAlt": "The newest photo of {{name}}",
       "yours": "your photo from {{day}}",
       "photo": "photo from {{day}}"
@@ -5067,7 +5077,6 @@
       "window": "{{on}} to {{off}}",
       "limit": "limit {{percent}} %",
       "whoChanges": "Whoever manages {{name}} can change them.",
-      "changeOffline": "Change targets and light",
       "offlineNote": "Works now too. It reaches the device as soon as it is back online.",
       "title": "Targets",
       "day": "Day",
@@ -5078,7 +5087,9 @@
       "none": "No targets yet.",
       "awaiting": "Waiting for the device’s settings.",
       "awaitingClimate": "{{climate}} is set as soon as the device sends its settings.",
-      "roundTheClock": "Round the clock"
+      "roundTheClock": "Round the clock",
+      "now": "now",
+      "bySchedule": "by the schedule"
     },
     "grow": {
       "title": "{{name}}: What grows here?",
@@ -5093,7 +5104,8 @@
       "declined": "The diary stays off. You can switch it on under Me › Grow diary.",
       "declinedHere": "The app no longer asks here. You start a grow under Grow › All grows.",
       "here": "What grows here?",
-      "asksAgain": "The question is back on Home"
+      "asksAgain": "The question is back on Home",
+      "last": "{{what}} {{ago}}"
     },
     "device": {
       "title": "With a device it measures by itself here"
@@ -5168,11 +5180,45 @@
     "tile": {
       "high": "{{delta}} too high",
       "low": "{{delta}} too low",
-      "settling": "changing over until {{time}}"
+      "settling": "changing over until {{time}}",
+      "leaf": "Leaf & light",
+      "hourMean": "1 h avg",
+      "day": "24 h",
+      "since": "since {{time}}",
+      "target": {
+        "day": "Day target {{target}}",
+        "night": "Night target {{target}}",
+        "any": "Target {{target}}",
+        "drying": "Drying target {{target}}",
+        "germination": "Germination target {{target}}",
+        "gliding": {
+          "day": "Target now {{target}} · gliding to the day",
+          "night": "Target now {{target}} · gliding to the night"
+        },
+        "bySchedule": {
+          "day": "Day target by the schedule {{target}}",
+          "night": "Night target by the schedule {{target}}"
+        }
+      },
+      "noTarget": "no target",
+      "co2Night": "no target at night",
+      "co2Dark": "no target without light",
+      "noTargetBy": "no target · {{mode}}",
+      "humidifierHolds": "Humidifier target {{target}}",
+      "mode": {
+        "off": "control off",
+        "drying": "drying",
+        "germination": "germination",
+        "greenhouse": "greenhouse"
+      },
+      "switches": "switches at {{low}}–{{high}}"
     },
     "leaf": {
       "lux": "{{value}} lx",
-      "ppfd": "PPFD {{value}}"
+      "ppfd": "PPFD {{value}}",
+      "cooler": "{{value}} °C cooler than the air",
+      "warmer": "{{value}} °C warmer than the air",
+      "same": "as warm as the air"
     },
     "camera": {
       "none": "No picture yet",
@@ -5181,10 +5227,29 @@
       "nothingYet": "{{name}} has not delivered a picture yet"
     },
     "visiting": "Support view of a customer’s place: read only. Times are in your time zone.",
-    "reading": {
-      "open": "open the Timeline"
+    "noRoom": "In no room",
+    "output": {
+      "compressor": "Compressor",
+      "heater": "Heater",
+      "dehumidifier": "Dehumidifier",
+      "co2": "CO₂ valve",
+      "socket": "Plantalytix Socket",
+      "humidifier": "Humidifier",
+      "lamp": "Lamp"
     },
-    "noRoom": "In no room"
+    "outputs": {
+      "running": "running",
+      "runningSince": "running for {{age}}",
+      "on": "on",
+      "off": "off",
+      "open": "open",
+      "closed": "closed"
+    },
+    "alarms": {
+      "title": "Alarms",
+      "none": "No alarm switched on yet.",
+      "more": "+{{count}} more"
+    }
   },
   "liveness": {
     "ago": "{{age}} ago",

@@ -11,16 +11,21 @@ import type {
   DeviceConfigurationPatch,
   DeviceLive,
   DevicePage,
+  DeviceSeries,
   DeviceUpdate,
   DeviceFirmwarePage,
   GerminationChoices,
+  Metric,
+  SeriesQuery,
   SocketOverrideUpdate,
   SocketPage,
   SocketUpdate,
   ValueState,
 } from '@fg2/shared-types/v1';
+import { STEERED } from '@fg2/shared-types/v1-schemas/steering.js';
 import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
 import { api } from './client';
+import { serverNow } from './clock';
 import { invalidate, useWrite, useWriteSettled } from './write';
 
 /**
@@ -128,6 +133,42 @@ export const useHeardAt = (device: { id: string; state: { lastSeenAt: string | n
 /** One device's newest values, outputs and the half of the cycle it says it is in, under the key `useLiveReads` shares. */
 export const useDeviceLive = (deviceId: string | null) =>
   useRead({ ...deviceLiveQuery(deviceId!), enabled: deviceId !== null, refetchInterval: LIVE_BEAT_MS });
+
+/** Five minutes a point: windows the server aligns to the clock, small enough that the hour is not cut short by one. */
+const HOUR_STEP_SECONDS = 300;
+
+/** The readings an hour's mean is said of: the steered ones, and VPD, which the same series works out. */
+const MEANT: Metric[] = [...STEERED, 'vpd'];
+
+/**
+ * The mean of each reading over the last hour, beside the live value: a
+ * dehumidifier cycling puts the humidity in and out of its band minute by
+ * minute, and an alarm that waits out a duration speaks of that stretch rather
+ * than of the newest sample. Empty windows are left out of the mean, and a
+ * reading with none in the hour has no mean at all.
+ */
+export const useHourMeans = (deviceId: string | null, enabled = true) =>
+  useRead({
+    queryKey: ['devices', deviceId, 'hour-means'],
+    queryFn: async ({ signal }) => {
+      const endsAt = serverNow().toUTC().startOf('minute');
+      const query = {
+        metrics: MEANT,
+        startsAt: endsAt.minus({ hours: 1 }).toISO()!,
+        endsAt: endsAt.toISO()!,
+        stepSeconds: HOUR_STEP_SECONDS,
+      } satisfies SeriesQuery;
+      const series = await api.get<DeviceSeries>(`/devices/${deviceId}/series`, query, signal);
+      return Object.fromEntries(
+        series.metrics.flatMap(({ metric, points }) => {
+          const values = points.flatMap(point => (point.value === null ? [] : [point.value]));
+          return values.length > 0 ? [[metric, values.reduce((sum, value) => sum + value, 0) / values.length]] : [];
+        }),
+      ) as Partial<Record<Metric, number>>;
+    },
+    enabled: enabled && deviceId !== null,
+    refetchInterval: 60_000,
+  });
 
 /** A device that has never driven a light output answers none, which is not the same as one at nothing. */
 const lightLevel = (live: DeviceLive | undefined): OutputLevel | null => {
