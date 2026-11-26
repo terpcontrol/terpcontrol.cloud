@@ -61,7 +61,10 @@ the direction proposed, and a **Start between master's calm Home and the fuller 
 small curves**, the readings as figures. It is built and replaces "Nebel" in
 [ADR 0002](adr/0002-app-rewrite-frontend-stack.md#the-look-marke-fein). Two Opus agents built it on disjoint files (the look, and
 Start); the designer then walked the built app as its one critic, majors and minors as in the run before, and an
-Opus round fixes the majors.
+Opus round fixes the majors. The walk found four: the desktop
+Start's cards in one narrow column, an offline place red on Start but amber on its own page, the small curve of a
+reading out of its band drawn on the plot's edge, and a focus ring lost on the navy rail; the minors that need
+Chris's word go to "Open for Chris".
 
 ### What was built
 
