@@ -1,7 +1,7 @@
 ---
 summary: When a test needs real hardware or real data - /firmware-check beyond its skill and getting builds onto devices, connection-loss tests, taking over and driving the development devices, the real Terp Cam, restoring and testing on a copy of production data without anything leaving it, verification passes
-updated: 2026-10-12
-source: Chris (instructions 2026-08-25..2026-10-05, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
+updated: 2026-11-26
+source: Chris (instructions 2026-08-25..2026-11-26, dated inline); agents' findings in sessions and PRs 2026-08..2026-10 (#79-#141); connection-loss tests (2026-10-12); codebase cleanup and its run on the development devices (2026-10-08); checked against the code 2026-10-08
 paths:
   - .claude/skills/firmware-check/**
   - build-fw.sh
@@ -100,6 +100,9 @@ reboot, firmware update, renaming and moving. The first pass that did found a bl
   hardware at once (Chris, 2026-10-05).
 
 ## The real Terp Cam
+- A change to what a camera stores or how the app shows its pictures is checked before and after on the development
+  fridge's Terp Cam, not on the simulator alone (Chris, 2026-11-26): the emulated camera sends a 640x360 test
+  picture and none of the real camera's own overlays or quirks.
 - Leave it exactly as found (Chris, 2026-09-08): read a setting before changing it, restore it and read it back -
   blind probing has cost a camera reboot. Never factory-reset it: that unpairs it and drops it to its setup access
   point. LAN access from the test machine is for diagnostics, never for what ships ([rules](terp-cam.md#rules-chris)).
