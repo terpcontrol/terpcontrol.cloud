@@ -71,7 +71,7 @@ way and what the code has to respect. Internal notes on the camera exist.
   2026-11-26: the development fridge's H.265 Terp Cam, paired again with the PR's firmware, keeps its burned-in clock
   on every still (and that clock runs on UTC, an hour off the app's stamp in winter). So `provisionTerpCam` now also
   sends `camera_control.cgi?param=10&value=0` on the setup AP, after the stream is switched on and with the login
-  the rest of the pairing uses, for every camera. Not yet confirmed on hardware: pair the development fridge's Terp
+  the rest of the pairing uses, for every camera (Chris wanted the camera's own clock gone, 2026-11-26). Not yet confirmed on hardware: pair the development fridge's Terp
   Cam again and look at its next still.
 - "disconnect cam" asks, ends a running relay and sends `restore_factory.cgi` over a checked session for 4 s (the
   camera reboots before it answers), which puts it back on its setup AP and default login for the next pairing.
