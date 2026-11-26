@@ -22,7 +22,7 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
-import { DataService } from '@modules/data/data.service';
+import { DataService, type LiveReading } from '@modules/data/data.service';
 import {
   DIARY_KINDS,
   MACHINE_KINDS,
@@ -38,7 +38,17 @@ import { SpaceLiveService } from '../space/space-live.service';
 import { SpacesService } from '../space/spaces.service';
 import { framesOf, shownCameras } from './frames';
 import { lastReadingsOf, newestOf } from './last-reading';
-import { PANEL_METRICS, SamplesAround, chartPartsOf, heardNothing, placePanelsOf, readingOf, silencesOf } from './timeline-series';
+import {
+  PANEL_METRICS,
+  SamplesAround,
+  chartPartsOf,
+  heardNothing,
+  placePanelsOf,
+  placeWideSourcesOf,
+  readingOf,
+  silencesOf,
+  withPlaceWide,
+} from './timeline-series';
 import { changesOf, fromHandover, narrowedToDevice, predecessorsOf, recordAcross, withPredecessors } from './place-history';
 import { TimelineWindow, actingOn, camerasOfDevice, ownOf, steeringOf, stretchesOf, windowOf } from './timeline-window';
 
@@ -259,7 +269,10 @@ export class TimelineService {
       panels,
       silences: silencesOf(quiet, window, around),
       // One `last()` more per read: "now" is then the same figures for the owner, a member and a link's reader.
-      reading: drawn ? readingOf(await this.data.live(drawn.id), metrics) : null,
+      // CO2, the leaf and the light read from the device whose curve of them is drawn, as their panels are.
+      reading: drawn
+        ? withPlaceWide(readingOf(await this.data.live(drawn.id), metrics), await this.livesOf(placeWideSourcesOf(own, others, metrics)))
+        : null,
       lastReadingAt: newestOf([...heard.values()]),
       // An alarm is the keeper's: when a tent stood outside its rules is not a reader's from outside, nor are the ids.
       alarms: isOutsider(grant) ? [] : alerts.map(alert => alarmOf(alert, watched.get(alert.ruleId ?? '') ?? null, ends)),
@@ -425,6 +438,13 @@ export class TimelineService {
     if (!named) throw notFound('grow_not_found', 'There is no grow with that id standing in this space.');
 
     return named;
+  }
+
+  /** The last reading of each device a place-wide panel is drawn from, by the metric it stands in for. */
+  private async livesOf(sources: ReadonlyMap<Metric, string>): Promise<Map<Metric, LiveReading>> {
+    const ids = [...new Set(sources.values())];
+    const lives = new Map(await Promise.all(ids.map(async id => [id, await this.data.live(id)] as const)));
+    return new Map([...sources].map(([metric, id]) => [metric, lives.get(id)!]));
   }
 
   /**

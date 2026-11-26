@@ -109,15 +109,51 @@ export const placePanelsOf = (
   others: readonly Pick<DeviceHistory, 'series' | 'samples' | 'edges'>[],
   stretches: readonly TargetStretch[],
   metrics: readonly Metric[] = PANEL_METRICS,
-): TimelinePanel[] =>
-  metrics.flatMap(metric => {
-    const from = PLACE_WIDE.includes(metric) ? [own, ...others] : [own];
-    for (const history of from) {
-      const panels = panelsOf(history, stretches, [metric]);
-      if (panels.length > 0) return panels;
-    }
-    return [];
+): TimelinePanel[] => metrics.flatMap(metric => panelsOf(panelSourceOf(own, others, metric), stretches, [metric]));
+
+/**
+ * The history a place's panel of one metric is drawn from: the leading device's, and for what only some places
+ * measure the first device here that has a curve of it in the window - null where none has.
+ */
+const panelSourceOf = <H extends Pick<DeviceHistory, 'series' | 'samples' | 'edges'>>(
+  own: H | null,
+  others: readonly H[],
+  metric: Metric,
+): H | null => (PLACE_WIDE.includes(metric) ? [own, ...others] : [own]).find(history => panelsOf(history, [], [metric]).length > 0) ?? null;
+
+/**
+ * The devices whose curve a place's panels of CO2, the leaf and the light are, where that is not the leading
+ * device: their last value stands in the reading at the head of that panel and on the cursor's card, so a socket's
+ * CO2 drawn under a fan's climate is not "—" there while its curve runs on beside it.
+ */
+export const placeWideSourcesOf = (
+  own: Pick<DeviceHistory, 'series' | 'samples' | 'edges'> | null,
+  others: readonly Pick<DeviceHistory, 'series' | 'samples' | 'edges'>[],
+  metrics: readonly Metric[],
+): Map<Metric, string> =>
+  new Map(
+    metrics.flatMap(metric => {
+      const source = PLACE_WIDE.includes(metric) ? panelSourceOf(own, others, metric) : null;
+      return source && source !== own ? [[metric, source.series.deviceId] as [Metric, string]] : [];
+    }),
+  );
+
+/**
+ * The reading of the device the curves are of, with what only some places measure taken from the device whose
+ * curve of it is drawn (`placeWideSourcesOf`). The reading's instant stays its own device's: a socket's newer CO2
+ * does not make a silent climate read as heard just now.
+ */
+export const withPlaceWide = (
+  reading: TimelineReading | null,
+  lives: ReadonlyMap<Metric, Pick<DeviceLive, 'metrics' | 'outputs'>>,
+): TimelineReading | null => {
+  if (!reading) return null;
+  const added = [...lives].flatMap(([metric, live]) => {
+    if (reading.values.some(value => value.metric === metric)) return [];
+    return readingOf({ metrics: { [metric]: live.metrics[metric] }, outputs: {} }, [metric])?.values ?? [];
   });
+  return added.length > 0 ? { ...reading, values: [...reading.values, ...added] } : reading;
+};
 
 /**
  * The band and the dashed line of one metric, one row per stretch that holds a
