@@ -130,9 +130,13 @@ export const schemesLine = (t: Translate, grows: GrowListItem[], shipped: Scheme
   return joined([inUse, own.length === 0 ? t('me.door.schemes.noOwn') : t('me.door.schemes.own', { count: own.length })]);
 };
 
-/** "v0.0.1 · production build": what the bundle knows about itself, which is also the About page's first line. */
-export const versionLine = (t: Translate, version: string, mode: string): string => {
+/**
+ * "v0.0.1 · a1b2c3d · production build": what the bundle knows about itself, which is also the About page's first
+ * line. A build that knew no commit states the rest as before, without a gap where the commit would be.
+ */
+export const versionLine = (t: Translate, version: string, commit: string, mode: string): string => {
   const key = `me.about.build.${mode}`;
+  const build = t(key) === key ? mode : t(key);
 
-  return t('me.door.about', { version, build: t(key) === key ? mode : t(key) });
+  return commit ? t('me.door.aboutCommit', { version, commit, build }) : t('me.door.about', { version, build });
 };

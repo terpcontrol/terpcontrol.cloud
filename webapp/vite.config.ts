@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,9 +15,27 @@ import { VitePWA } from 'vite-plugin-pwa';
 /** The version the app states about itself, read from its own package rather than typed a second time. */
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
-/** What the app is compiled with, which the vitest configs take too: the version and the `@` alias. */
+/**
+ * The commit the bundle is built from, short: `APP_COMMIT` where the build is handed it (the image has no `.git`, so
+ * `up.sh` passes it in), else the checkout's own `HEAD`. Anything that is not a commit hash - no git, no checkout, a
+ * stray value - is empty, and the app then states its version without one.
+ */
+const commitOf = (): string => {
+  let commit = process.env.APP_COMMIT ?? '';
+  if (!commit) {
+    try {
+      commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      commit = '';
+    }
+  }
+  commit = commit.trim().toLowerCase();
+  return /^[0-9a-f]{7,40}$/.test(commit) ? commit.slice(0, 7) : '';
+};
+
+/** What the app is compiled with, which the vitest configs take too: the version, the commit and the `@` alias. */
 export const shared = {
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: { __APP_VERSION__: JSON.stringify(version), __APP_COMMIT__: JSON.stringify(commitOf()) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
 };
 

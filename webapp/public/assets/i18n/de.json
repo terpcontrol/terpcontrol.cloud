@@ -705,6 +705,7 @@
       },
       "account": "E-Mail, Passwort, Zeitzone",
       "about": "v{{version}} · {{build}}",
+      "aboutCommit": "v{{version}} · {{commit}} · {{build}}",
       "grows": {
         "running_one": "{{count}} laufend",
         "running_other": "{{count}} laufend",

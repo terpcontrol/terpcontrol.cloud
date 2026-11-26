@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import type { Device, DevicePage } from '@fg2/shared-types/v1';
-import { API_URL, APP_VERSION, BUILD_MODE } from '@/api/config';
+import { API_URL, APP_COMMIT, APP_VERSION, BUILD_MODE } from '@/api/config';
 import { queryClient } from '@/api/query-client';
 import { session } from '@/api/session';
 
@@ -91,7 +91,7 @@ export const debugLines = (scene: FeedbackScene, cached: Device[] = []): string[
     `- page: ${addressOf(scene)}`,
     ...ids,
     ...devicesOf(scene, cached).map(device => `- device: ${deviceLine(device)}`),
-    `- app: v${APP_VERSION} · ${BUILD_MODE} · api ${new URL(API_URL).host}`,
+    `- app: ${[`v${APP_VERSION}`, APP_COMMIT, BUILD_MODE, `api ${new URL(API_URL).host}`].filter(Boolean).join(' · ')}`,
     `- language: ${i18n.resolvedLanguage ?? i18n.language} · browser zone ${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
   ];
 };
