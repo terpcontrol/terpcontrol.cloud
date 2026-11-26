@@ -3958,7 +3958,7 @@
     },
     "lightHold": {
       "title": "Auto, on, off",
-      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time you choose or until the device restarts. Auto ends it early. Day and night stay where the light plan puts them: the same targets apply, and CO₂ is still dosed by day only. A socket with a light role follows the light output unless it is held itself. The device does not report a hold back: what is shown here is what this browser last sent, until its time is up."
+      "text": "On keeps the lamp lit at its light limit, at night too; Off keeps it dark – for the time you choose or until the device restarts. Auto ends it early. Day and night stay where the light plan puts them: the same targets apply, and CO₂ is still dosed by day only. A socket with a light role follows the light output unless it is held itself. A newer build reports the hold back, and every browser shows it; with an older one, what is shown here is what this browser last sent, until its time is up."
     },
     "firmwareChannel": {
       "title": "Updates",

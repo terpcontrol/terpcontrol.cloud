@@ -140,7 +140,9 @@ A socket outside the module's /24 is never found.
   `capability_not_announced`. No build from before the socket firmware announces them: on the restored production
   account (2026-09-23) the socket test was the only socket command any device took.
 - An override's countdown is read against `devices.state.socketsReportedAt`, when the table arrived, because the
-  row carries the seconds left rather than a deadline. `devices.state.socketStateChangedAt.<slot>` is forgotten
+  row carries the seconds left rather than a deadline. The hold on the module's own light output is the same, against
+  `devices.state.lightHoldReportedAt`, and is served as the page's `lightHold` only for a build that announces
+  `light_hold` (`decodeLightHold()`). `devices.state.socketStateChangedAt.<slot>` is forgotten
   when the slot's hardware id changes or the slot goes - a slot outlives the plug in it.
 - Demo viewers get sockets without address and hardware id (`demoSockets()`).
 

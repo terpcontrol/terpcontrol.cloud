@@ -104,6 +104,7 @@ const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
   lightOverride: true,
+  lightHold: false,
   roles: ['heater', 'light', 'pump'],
   pulseSeconds: { heater: 300, light: 1800 },
 };

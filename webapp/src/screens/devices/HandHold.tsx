@@ -80,7 +80,9 @@ export function HandHold({ name, deviceId, target, held, standing = null, help, 
           const heardAt = serverNow();
           setAsked(open => open && { ...open, heardAt: heardAt.toMillis() });
           onHeard?.(state === 'auto' ? null : { state, until: instantOf(heardAt.plus({ seconds: forSeconds })) });
-          answerSoon(client, deviceId, target.kind === 'socket' ? 'sockets' : 'live');
+          // A light output answers in its next sample, and a build that reports its hold in its socket table too.
+          answerSoon(client, deviceId, 'sockets');
+          if (target.kind === 'output') answerSoon(client, deviceId, 'live');
           tell({ label: t(`devices.hold.told.${state}`, { name, duration: durationLabel(forSeconds) }), undo: null });
         },
         onError: () => setAsked(null),

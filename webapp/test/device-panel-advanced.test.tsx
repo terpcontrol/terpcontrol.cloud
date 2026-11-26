@@ -38,6 +38,7 @@ const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
   lightOverride: false,
+  lightHold: false,
   roles: ['heater', 'dehumidifier', 'co2', 'light', 'secondary_light', 'pump', 'custom_timer', 'humidifier'],
   pulseSeconds: {},
 };
@@ -97,7 +98,8 @@ const answer = (device: Device, sockets: Socket[] = [], capabilities = CAPABILIT
   vi.mocked(api.get).mockImplementation((path: string) => {
     if (path === '/devices') return Promise.resolve({ items: [device], nextCursor: null }) as never;
     if (path === '/spaces') return Promise.resolve({ items: [spaceWhere(youMay)], nextCursor: null }) as never;
-    if (path.endsWith('/sockets')) return Promise.resolve({ items: sockets, nextCursor: null, capabilities } satisfies SocketPage) as never;
+    if (path.endsWith('/sockets'))
+      return Promise.resolve({ items: sockets, nextCursor: null, capabilities, lightHold: null } satisfies SocketPage) as never;
     if (path.endsWith('/firmwares')) return Promise.resolve({ items: BUILDS, nextCursor: null }) as never;
     if (path.endsWith('/live')) return Promise.resolve({ deviceId: device.id, metrics: {}, outputs: {}, setpoints: null, pending: null }) as never;
     return Promise.resolve({ items: [], nextCursor: null }) as never;

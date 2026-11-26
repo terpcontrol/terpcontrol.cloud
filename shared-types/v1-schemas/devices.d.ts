@@ -1082,6 +1082,7 @@ export declare const deviceCapabilities: z.ZodObject<{
     socketOverride: z.ZodBoolean;
     socketTimer: z.ZodBoolean;
     lightOverride: z.ZodBoolean;
+    lightHold: z.ZodBoolean;
     roles: z.ZodArray<z.ZodEnum<{
         "": "";
         manual: "manual";
@@ -1112,6 +1113,23 @@ export declare const deviceCapabilities: z.ZodObject<{
         pump: "pump";
         custom_timer: "custom_timer";
     }> & z.core.$partial, z.ZodNumber>;
+}, z.core.$strip>;
+/**
+ * The override holding the device's own light output, as its last report said.
+ * `override` is null when nothing holds it; `reportedAt` is when the device
+ * said so, which is what tells a screen whether a hold it sent since is already
+ * in this answer.
+ */
+export declare const lightHold: z.ZodObject<{
+    override: z.ZodNullable<z.ZodObject<{
+        state: z.ZodEnum<{
+            auto: "auto";
+            off: "off";
+            on: "on";
+        }>;
+        validUntil: z.ZodISODateTime;
+    }, z.core.$strip>>;
+    reportedAt: z.ZodISODateTime;
 }, z.core.$strip>;
 /** The list carries the capabilities, because a socket row is drawn from both. */
 export declare const socketPage: z.ZodObject<{
@@ -1158,6 +1176,7 @@ export declare const socketPage: z.ZodObject<{
         socketOverride: z.ZodBoolean;
         socketTimer: z.ZodBoolean;
         lightOverride: z.ZodBoolean;
+        lightHold: z.ZodBoolean;
         roles: z.ZodArray<z.ZodEnum<{
             "": "";
             manual: "manual";
@@ -1189,6 +1208,17 @@ export declare const socketPage: z.ZodObject<{
             custom_timer: "custom_timer";
         }> & z.core.$partial, z.ZodNumber>;
     }, z.core.$strip>;
+    lightHold: z.ZodNullable<z.ZodObject<{
+        override: z.ZodNullable<z.ZodObject<{
+            state: z.ZodEnum<{
+                auto: "auto";
+                off: "off";
+                on: "on";
+            }>;
+            validUntil: z.ZodISODateTime;
+        }, z.core.$strip>>;
+        reportedAt: z.ZodISODateTime;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 /**
  * What a client asks a device to do right now. A discriminated union rather than

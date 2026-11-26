@@ -3968,7 +3968,7 @@
     },
     "lightHold": {
       "title": "Auto, an, aus",
-      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die gewählte Zeit oder bis das Gerät neu startet. Auto beendet es vorher. Tag und Nacht bleiben dabei, wie der Lichtplan sie legt: Es gelten dieselben Zielwerte, und CO₂ gibt es weiter nur am Tag. Eine Steckdose mit Licht-Rolle folgt dem Lichtausgang, solange sie nicht selbst gehalten wird. Das Gerät meldet das Halten nicht zurück: Hier steht, was dieser Browser zuletzt gesendet hat, bis seine Zeit um ist."
+      "text": "An lässt die Lampe mit ihrer Lichtgrenze leuchten, auch nachts; Aus hält sie dunkel – für die gewählte Zeit oder bis das Gerät neu startet. Auto beendet es vorher. Tag und Nacht bleiben dabei, wie der Lichtplan sie legt: Es gelten dieselben Zielwerte, und CO₂ gibt es weiter nur am Tag. Eine Steckdose mit Licht-Rolle folgt dem Lichtausgang, solange sie nicht selbst gehalten wird. Ein neuerer Build meldet das Halten zurück, und jeder Browser zeigt es; bei einem älteren steht hier, was dieser Browser zuletzt gesendet hat, bis seine Zeit um ist."
     },
     "firmwareChannel": {
       "title": "Updates",

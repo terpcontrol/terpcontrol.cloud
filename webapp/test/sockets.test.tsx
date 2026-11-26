@@ -1,5 +1,7 @@
 import { act, fireEvent, renderHook, screen, waitFor, within } from '@testing-library/react';
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DateTime } from 'luxon';
+import type { ReactNode } from 'react';
 import { type InitialEntry, Route, Routes, useLocation } from 'react-router';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessNeed, Device, DeviceCapabilities, DeviceConfiguration, Socket, SocketPage as SocketTable } from '@fg2/shared-types/v1';
@@ -14,7 +16,7 @@ import { HOLD_SECONDS, rowsOf, runsOf } from '@/screens/devices/sockets';
 import { durationLabel } from '@/ui/age';
 import { Rows } from '@/ui/Rows';
 import { deviceWith } from './fixtures';
-import { announced, drawAt } from './harness';
+import { announced, drawAt, testClient } from './harness';
 import { spaceWhere, THE_HOST } from './session';
 import { translate } from './translations';
 
@@ -85,6 +87,7 @@ const CAPABILITIES: DeviceCapabilities = {
   socketOverride: true,
   socketTimer: true,
   lightOverride: true,
+  lightHold: false,
   roles: ['heater', 'light', 'pump'],
   pulseSeconds: { heater: 300, light: 1800 },
 };
@@ -110,7 +113,7 @@ const account = {
   verdict: undefined as unknown,
 };
 
-const table = (): SocketTable => ({ items: account.sockets, nextCursor: null, capabilities: account.capabilities });
+const table = (): SocketTable => ({ items: account.sockets, nextCursor: null, capabilities: account.capabilities, lightHold: null });
 
 const answer = () =>
   vi.mocked(api.get).mockImplementation((path: string) => {
@@ -509,7 +512,7 @@ describe('pairing a socket from the device´s page', () => {
       <PairSocketRow
         deviceId="device-1"
         deviceName="Controller"
-        table={sockets ? { items: sockets, nextCursor: null, capabilities: CAPABILITIES } : undefined}
+        table={sockets ? { items: sockets, nextCursor: null, capabilities: CAPABILITIES, lightHold: null } : undefined}
         failed={false}
         unheard={unheard}
         now={now}
@@ -608,6 +611,23 @@ describe("the controller's own light output", () => {
   const LIGHTS = { sunrise: 15, sunset: 15, limit: 80 };
   const LIVE: OutputLevel = { percent: 80, measuredAt: NOW.minus({ seconds: 20 }).toISO()!, state: 'live' };
 
+  /** The hold as any screen reads it, beside a socket table the device-1 screen holds, if one is given. */
+  const holdOf = (deviceId: string, now: DateTime, table?: SocketTable) => {
+    const client: QueryClient = testClient();
+    if (table) client.setQueryData(['devices', 'device-1', 'sockets'], table);
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    return renderHook(() => useLightHold(deviceId, now), { wrapper });
+  };
+  const reportedTable = (capabilities: DeviceCapabilities, minutes: number | null): SocketTable => ({
+    items: [],
+    nextCursor: null,
+    capabilities,
+    lightHold: {
+      override: minutes === null ? null : { state: 'off', validUntil: NOW.plus({ minutes }).toISO()! },
+      reportedAt: NOW.minus({ seconds: 5 }).toISO()!,
+    },
+  });
+
   const drawOutput = ({
     capabilities = CAPABILITIES,
     level = LIVE as OutputLevel | null,
@@ -650,8 +670,8 @@ describe("the controller's own light output", () => {
     expect(told.map(one => one.label)).toEqual(['Light output on · for 4 h', 'Light output back on auto']);
   });
 
-  it('marks the hold it sent, and until when, since the device reports none back - here and wherever else it is read', () => {
-    const elsewhere = renderHook(() => useLightHold('device-1', DateTime.fromMillis(Date.now())));
+  it('marks the hold it sent, and until when, where the device reports none back - here and wherever else it is read', () => {
+    const elsewhere = holdOf('device-1', DateTime.fromMillis(Date.now()));
     drawOutput();
 
     expect(pressed()).toEqual(['Auto']);
@@ -668,11 +688,30 @@ describe("the controller's own light output", () => {
     expect(elsewhere.result.current).toBeNull();
   });
 
+  it('reads the hold the device reports, in a browser that sent none, and the end of it over what was sent from here', () => {
+    const reporting = { ...CAPABILITIES, lightHold: true };
+
+    expect(holdOf('device-1', NOW, reportedTable(reporting, 30)).result.current).toEqual({
+      state: 'off',
+      until: NOW.plus({ minutes: 30 }).toISO(),
+    });
+    act(() => rememberLightHold('device-1', { state: 'on', until: NOW.plus({ minutes: 15 }).toISO()! }));
+    expect(holdOf('device-1', NOW, reportedTable(reporting, null)).result.current).toBeNull();
+    act(() => rememberLightHold('device-1', null));
+  });
+
+  it('reads no reported hold from a build that does not announce one, and keeps what this browser sent', () => {
+    act(() => rememberLightHold('device-1', { state: 'on', until: NOW.plus({ minutes: 15 }).toISO()! }));
+
+    expect(holdOf('device-1', NOW, reportedTable(CAPABILITIES, 30)).result.current?.state).toBe('on');
+    act(() => rememberLightHold('device-1', null));
+  });
+
   it('forgets a hold whose time is up, and remembers nothing nobody heard', () => {
     act(() => rememberLightHold('device-1', { state: 'on', until: NOW.plus({ minutes: 15 }).toISO()! }));
-    expect(renderHook(() => useLightHold('device-1', NOW.plus({ minutes: 14 }))).result.current?.state).toBe('on');
-    expect(renderHook(() => useLightHold('device-1', NOW.plus({ minutes: 16 }))).result.current).toBeNull();
-    expect(renderHook(() => useLightHold('device-2', NOW)).result.current).toBeNull();
+    expect(holdOf('device-1', NOW.plus({ minutes: 14 })).result.current?.state).toBe('on');
+    expect(holdOf('device-1', NOW.plus({ minutes: 16 })).result.current).toBeNull();
+    expect(holdOf('device-2', NOW).result.current).toBeNull();
     act(() => rememberLightHold('device-1', null));
 
     wire.answer = { deviceOnline: false };

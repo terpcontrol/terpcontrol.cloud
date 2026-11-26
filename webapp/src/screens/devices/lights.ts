@@ -1,8 +1,9 @@
+import { skipToken, useQueries } from '@tanstack/react-query';
 import type { DateTime } from 'luxon';
 import { useMemo, useSyncExternalStore } from 'react';
-import type { Device, DeviceCapabilities, DeviceConfiguration, SocketRole } from '@fg2/shared-types/v1';
+import type { Device, DeviceCapabilities, DeviceConfiguration, SocketPage, SocketRole } from '@fg2/shared-types/v1';
 import { figureAt, finiteOrNull, sectionOf } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
-import type { OutputLevel } from '@/api/devices';
+import { socketsKey, type OutputLevel } from '@/api/devices';
 import { isAhead } from '@/ui/age';
 import { outputsOf } from '@/ui/climate-hardware';
 import { readStored, writeStored } from '@/ui/stored';
@@ -46,8 +47,8 @@ const lightLimitOf = (configuration: DeviceConfiguration | null, type: Device['t
 /**
  * The controller's own light output, as its row is drawn from it. `level` is
  * a reading: a lamp set to 60 % is dark at night all the same. The device
- * acknowledges neither a setting nor an override, so what it reports is the
- * only fact here about the hardware.
+ * acknowledges no setting; a build that announces `light_hold` reports the
+ * override holding the output (`useLightHold`).
  */
 export interface LightOutput {
   deviceId: string;
@@ -79,10 +80,12 @@ export const lightOutputOf = (device: Device, capabilities: DeviceCapabilities, 
 export const percentLabel = (percent: number): string => `${Math.round(percent)} %`;
 
 /**
- * The hold of a light output last asked for from this browser, until its time
- * is up. The device reports no hold of its own lamp back, so this is what was
- * sent and never what the lamp does - and another browser knows nothing of it.
- * Whoever says that a light is held by hand reads it here and nowhere else.
+ * The hold of a light output, until its time is up. A build that announces
+ * `light_hold` reports it with its socket table, and then that is the answer,
+ * in every browser. An older build reports none, so there it is the hold last
+ * asked for from this browser - what was sent and never what the lamp does,
+ * and another browser knows nothing of it. Whoever says that a light is held by
+ * hand reads it here and nowhere else.
  */
 const HOLD_KEY = (deviceId: string) => `terp.lightHold.${deviceId}`;
 
@@ -113,7 +116,9 @@ export const useLightHold = (deviceId: string, now: DateTime): Held | null => {
     () => null,
   );
   const held = useMemo(() => heldIn(raw), [raw]);
+  const reported = useReportedHolds(deviceId ? [deviceId] : [], now).get(deviceId);
 
+  if (reported !== undefined) return reported;
   return held && isAhead(held.until, now) ? held : null;
 };
 
@@ -126,12 +131,37 @@ export const useLightHolds = (deviceIds: readonly string[], now: DateTime): Read
     () => '[]',
   );
 
+  const reported = useReportedHolds(deviceIds, now);
+
   return useMemo(() => {
     const said = JSON.parse(raw) as (string | null)[];
-    const holds = ids.split(' ').map((id, index) => [id, heldIn(said[index] ?? null)] as const);
+    const holds = ids.split(' ').map((id, index) => [id, reported.has(id) ? (reported.get(id) ?? null) : heldIn(said[index] ?? null)] as const);
     return new Map(holds.filter((hold): hold is readonly [string, Held] => hold[1] !== null && isAhead(hold[1].until, now)));
-  }, [ids, raw, now]);
+  }, [ids, raw, now, reported]);
 };
+
+/**
+ * The holds the devices report, by device: null where nothing holds the
+ * output, and no entry where the build reports none, which leaves the
+ * browser's memory standing. Read from the socket tables a screen already
+ * holds - never fetched for this alone, so a lamp module nobody reads a table
+ * of costs nothing.
+ */
+const useReportedHolds = (deviceIds: readonly string[], now: DateTime): ReadonlyMap<string, Held | null> =>
+  useQueries({
+    queries: deviceIds.map(deviceId => ({ queryKey: socketsKey(deviceId), queryFn: skipToken as unknown as () => Promise<SocketPage> })),
+    combine: results =>
+      new Map(
+        deviceIds.flatMap((deviceId, index) => {
+          const table = results[index]?.data;
+          if (!table?.capabilities?.lightHold || !table.lightHold) return [];
+          const override = table.lightHold.override;
+          const held: Held | null =
+            override && override.state !== 'auto' && isAhead(override.validUntil, now) ? { state: override.state, until: override.validUntil } : null;
+          return [[deviceId, held] as const];
+        }),
+      ),
+  });
 
 const heldIn = (raw: string | null): Held | null => {
   try {
