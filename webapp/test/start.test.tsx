@@ -265,8 +265,9 @@ describe('Start of one place with a camera and a grow', () => {
     );
     const toCamera = screen.getByRole('img', { name: 'Fridge 1: the newest picture' }).closest('a')!;
     expect(toCamera).toHaveAttribute('href', '/cameras/cam-1');
-    // The hours wait for the account's answer: they are the account's.
-    await waitFor(() => expect(toCamera).toHaveTextContent(`Terp Cam · ${hhmm(ago(5))}`));
+    // The hours wait for the account's answer: they are the account's. The time is the stamp on the picture, and the
+    // caption beside the camera's name does not say it a second time.
+    await waitFor(() => expect(toCamera).toHaveTextContent(new RegExp(`^\\d+ \\w+ \\d{4} ${hhmm(ago(5))}:\\d\\dTerp Cam$`)));
     // The grow waits for the account's answer too, and stands under the picture in its card, its stage as a pill.
     const toGrow = (await screen.findByText('Spring run')).closest('a')!;
     expect(toGrow).toHaveAttribute('href', '/grow');

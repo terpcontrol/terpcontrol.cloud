@@ -428,6 +428,11 @@ a.status {
   object-fit: cover;
 }
 
+/* A turned camera's portrait picture is shown whole rather than cut to the card's middle. */
+.picture img[data-portrait] {
+  object-fit: contain;
+}
+
 /* The last picture of a place nobody has heard from, stepped back behind what says so. */
 .picture[data-age='offline'] img {
   opacity: 0.55;

@@ -354,8 +354,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   the light that reaches it, which is left out while the lamp is dark. The first curve says "24 Std" at the right of
   its foot ("seit 09:12" for a record younger than a day) as the dotted term that explains the curve. Then **the
   picture card** (`Picture.tsx`) where a camera watches the place: the newest still taken in the light at 16:9
-  across the column, its camera and time on it ("Canopy cam · 09:43", "Licht aus · Bild von …", "letztes Bild von
-  …" while nothing is heard, the picture stepped back), leading to the camera; under it, in the same card, the grow:
+  across the column, its camera on it with the picture's time stamped in the corner ("Canopy cam", "Licht aus · Bild
+  von …", "letztes Bild von …" while nothing is heard, the picture stepped back; a portrait picture whole between bands), leading to the camera; under it, in the same card, the grow:
   its name, its strains and what was last done for it ("Gedüngt vor 3 Tagen") and what is left where a scheme says,
   and its day, phase and week as the stage's green pill, leading to Grow. Without a camera the grow is its row
   (`Rows.tsx`), a second grow a row under either; where nothing grows, the card that offers a grow stands there,
@@ -1038,8 +1038,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
     rather than left "Bild wird aufgenommen …" (the whole-app walk). **A device that is late is said once, in the
     pill** (the redesign session of 2026-11-14): "wartet auf <Gerät>" in the device's state colour, no sentence
     about the relay, and the held button points at the pill (`aria-describedby`); an offline device keeps its
-    offline box. A picture's caption has one form, "Bild von 18:17", with what makes it not the newest in front
-    ("Licht aus · Bild von …", "letztes Bild von …"), and the caption over the picture wraps at 320 px so the
+    offline box. The picture's time is the stamp in its corner (`StillStamp`); its caption says only what makes it not
+    the newest ("Licht aus · Bild von …", "letztes Bild von …") and no plain "Bild von 18:17" (Chris, 2026-11-26), and the caption over the picture wraps at 320 px so the
     grow's name stands whole ("Amnesia & Gelato · Tag 31"). While a film plays its button is a quiet "Film
     schließen", not the primary.
 - **Rows that open something are one component** (`ui/Rows.tsx`): the title, a line that says what is behind it,

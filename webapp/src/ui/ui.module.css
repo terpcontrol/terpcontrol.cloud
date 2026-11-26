@@ -208,6 +208,25 @@
 /* The instant a camera's picture was taken, where the camera's own stamp used
    to be: plain figures on the picture, held off it by a shadow rather than a
    plate, so it reads on a lit tent and a dark one alike. */
+/* The picture's own box inside the frame its stamp is put in: the whole frame,
+   or, where the picture is fitted whole into a frame of another shape, the
+   picture's size centred in it (the frame is then a size container). */
+.stillFrame {
+  container-type: size;
+}
+
+.stillBox {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  pointer-events: none;
+}
+
+.stillBox[data-fitted] {
+  width: min(100cqw, calc(100cqh * var(--still-ratio)));
+  height: min(100cqh, calc(100cqw / var(--still-ratio)));
+}
+
 .stillStamp {
   position: absolute;
   right: 10px;
@@ -220,8 +239,14 @@
   text-shadow:
     0 0 2px rgb(0 0 0 / 0.9),
     0 1px 3px rgb(0 0 0 / 0.6);
-  white-space: nowrap;
+  max-width: calc(100% - 20px);
+  text-align: right;
   pointer-events: none;
+}
+
+/* Date and time each stay whole; where the picture is too narrow for both on one line the time goes under. */
+.stillStamp > span {
+  white-space: nowrap;
 }
 
 .photoCaption {

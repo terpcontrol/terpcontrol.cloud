@@ -769,7 +769,9 @@ describe('the picture', () => {
     drawPage(delivering());
 
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-newest');
-    expect(screen.getByText(/^Picture from \d\d:\d\d$/)).toBeInTheDocument();
+    // Its hour is the stamp on it; the caption does not say it a second time.
+    expect(document.querySelector('[class*="stillStamp"]')).toHaveTextContent(/^\d+ \w+ \d{4} \d\d:\d\d:\d\d$/);
+    expect(screen.queryByText(/^Picture from/)).toBeNull();
     expect(pill()).toHaveAttribute('data-liveness', 'live');
     expect(pill()).toHaveTextContent(/^online · \d+ s ago$/);
   });
@@ -836,6 +838,22 @@ describe('the picture', () => {
     expect(pill()).toHaveTextContent('last picture 3 min ago');
   });
 
+  it('keeps the stamp on a turned camera´s portrait picture rather than on the band beside it', () => {
+    state.lastStill = 'still-newest';
+    drawPage(delivering());
+    const box = () => document.querySelector<HTMLElement>('[class*="stillBox"]')!;
+    // Until the picture has loaded its shape is not known, and the stamp takes the frame's corner.
+    expect(box()).not.toHaveAttribute('data-fitted');
+
+    const picture = screen.getByRole('img');
+    Object.defineProperty(picture, 'naturalWidth', { value: 360 });
+    Object.defineProperty(picture, 'naturalHeight', { value: 640 });
+    fireEvent.load(picture);
+
+    expect(box()).toHaveAttribute('data-fitted');
+    expect(box().style.getPropertyValue('--still-ratio')).toBe(String(360 / 640));
+  });
+
   it('stamps the picture in the account´s zone rather than the browser´s', () => {
     state.zone = 'Asia/Tokyo';
     state.lastStill = 'still-old';
@@ -898,7 +916,8 @@ describe('the days under the picture', () => {
     expect(slider()).toHaveAttribute('aria-valuetext', 'Day 34, 18 Sep 12:00');
     expect(screen.getByText('Day 34 of 35')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-34');
-    expect(screen.getByText('Picture from 18 Sep 12:00')).toBeInTheDocument();
+    expect(document.querySelector('[class*="stillStamp"]')).toHaveTextContent(/^18 Sep 2026 12:00:\d\d$/);
+    expect(screen.queryByText(/^Picture from/)).toBeNull();
     expect(screen.getByText('· Day 34', { exact: false })).toBeInTheDocument();
   });
 

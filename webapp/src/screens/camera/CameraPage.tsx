@@ -33,6 +33,7 @@ import { Row, Rows } from '@/ui/Rows';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { StillStamp } from '@/ui/StillStamp';
+import { useStillRatio } from '@/ui/useStillRatio';
 import { useNow } from '@/ui/useNow';
 import { clock, DATED_CLOCK, zoned, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
@@ -207,12 +208,14 @@ function Watch({
   const picture = day ?? live;
   const shownDay = day?.dayNumber ?? lastDay;
   const old = day === null && freshness === 'offline';
-  // One form for a picture's caption, as Start's picture has it: "Bild von 18:17", with what makes it not the newest in front.
-  const moment = !picture
-    ? null
-    : t(old ? 'camera.picture.last' : live?.dark && !day ? 'camera.picture.lightOff' : 'start.picture.takenAt', {
-        time: day ? zoned(picture.capturedAt, zone).toFormat(DATED_CLOCK) : sinceLabel(picture.capturedAt, now, zone),
-      });
+  // The picture carries the instant it was taken in its corner, so the caption says only what makes it not the newest:
+  // "Licht aus · Bild von 18:17", "letztes Bild von …" - a plain "Bild von 18:17" would say the stamp's time twice.
+  const moment =
+    !picture || !(old || (live?.dark && !day))
+      ? null
+      : t(old ? 'camera.picture.last' : 'camera.picture.lightOff', { time: sinceLabel(picture.capturedAt, now, zone) });
+  const src = picture ? (mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.frame) ?? undefined) : undefined;
+  const [ratio, onStill] = useStillRatio(src);
 
   const films = filmsOfEachSpan(itemsOf(useTimelapses(camera.id).data));
   const ask = useRequestTimelapse(camera.id);
@@ -269,16 +272,17 @@ function Watch({
       ) : null}
 
       <div className={`${ui.stack3} ${styles.look}`}>
-        <div className={`${ui.mat} ${styles.frame}`} data-age={old ? 'offline' : undefined}>
+        <div className={`${ui.mat} ${ui.stillFrame} ${styles.frame}`} data-age={old ? 'offline' : undefined}>
           {picture ? (
             <img
-              src={mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.frame) ?? undefined}
+              src={src}
+              onLoad={onStill}
               alt={t('camera.frameAlt', { name: camera.name, time: zoned(picture.capturedAt, zone).toFormat(DATED_CLOCK) })}
             />
           ) : (
             <p className={ui.matNote}>{t(camera.state.lastStillAt ? 'home.waiting' : 'camera.noPicture')}</p>
           )}
-          {picture ? <StillStamp at={picture.capturedAt} /> : null}
+          {picture ? <StillStamp at={picture.capturedAt} ratio={ratio} /> : null}
           {picture ? (
             <span className={styles.labels}>
               {grow && shownDay !== null ? (
@@ -287,9 +291,11 @@ function Watch({
                   <span className={styles.labelKept}>{` · ${t('home.card.dayN', { day: shownDay })}`}</span>
                 </span>
               ) : null}
-              <span className={ui.photoCaption} data-tone={old ? 'warn' : undefined}>
-                {moment}
-              </span>
+              {moment ? (
+                <span className={ui.photoCaption} data-tone={old ? 'warn' : undefined}>
+                  {moment}
+                </span>
+              ) : null}
             </span>
           ) : null}
         </div>
