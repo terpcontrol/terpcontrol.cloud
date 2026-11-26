@@ -8,6 +8,7 @@ import { GROW } from '@/app/places';
 import { ageAttribute, sinceLabel, spokenAgo } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
 import { Facts } from '@/ui/Facts';
+import { StillStamp } from '@/ui/StillStamp';
 import { useNow } from '@/ui/useNow';
 import { clock, useZone } from '@/ui/zone';
 import { growDay, useGrowWords } from '@/screens/grow/progress';
@@ -67,6 +68,7 @@ export function Picture({
         ) : (
           <Camera size={28} strokeWidth={1.5} className={styles.pictureEmpty} aria-hidden />
         )}
+        {src && takenAt ? <StillStamp at={takenAt} className={styles.pictureStamp} /> : null}
         <span className={styles.pictureCaption}>
           <Camera size={16} strokeWidth={1.75} aria-hidden />
           <span className={styles.pictureWords}>{`${called(camera.name)} · ${when}`}</span>

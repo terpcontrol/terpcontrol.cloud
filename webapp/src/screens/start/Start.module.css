@@ -438,6 +438,12 @@ a.status {
 }
 
 /* Its name and time on the picture, white on the smoked navy every caption over a photograph sits on. */
+/* The caption runs along the bottom, so the picture's time takes the top corner. */
+.picture .pictureStamp {
+  top: 10px;
+  bottom: auto;
+}
+
 .pictureCaption {
   position: absolute;
   right: 0;

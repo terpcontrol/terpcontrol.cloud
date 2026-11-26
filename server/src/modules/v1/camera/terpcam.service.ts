@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { CameraOrientation } from '@fg2/shared-types/v1';
 import { decodeSlot, runFfmpeg } from './ffmpeg';
+import { orientationArgs, UPRIGHT } from './orientation';
 
 /**
  * What a Terp Cam still ends in: a raw H.264 keyframe turned into a JPEG.
@@ -22,12 +24,13 @@ const FFMPEG_TIMEOUT_MS = 15_000;
 @Injectable()
 export class TerpCamService {
   /** Decode a single H.264 keyframe (Annex-B elementary stream) to a JPEG buffer, in the decodes' own lane rather than behind the streams. */
-  public decodeKeyframeToJpeg(h264: Buffer): Promise<Buffer> {
-    return decodeSlot(() => this.decode(h264));
+  public decodeKeyframeToJpeg(h264: Buffer, orientation: CameraOrientation = UPRIGHT): Promise<Buffer> {
+    return decodeSlot(() => this.decode(h264, orientation));
   }
 
-  private async decode(h264: Buffer): Promise<Buffer> {
-    const { error, stdout, stderr } = await runFfmpeg(['-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', '-q:v', '2', '-f', 'mjpeg', 'pipe:1'], {
+  private async decode(h264: Buffer, orientation: CameraOrientation): Promise<Buffer> {
+    const args = ['-f', 'h264', '-i', 'pipe:0', '-frames:v', '1', ...orientationArgs(orientation), '-q:v', '2', '-f', 'mjpeg', 'pipe:1'];
+    const { error, stdout, stderr } = await runFfmpeg(args, {
       loglevel: 'warning',
       timeoutMs: FFMPEG_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,

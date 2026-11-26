@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAccountMe } from '@/api/account';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import type { Camera, CameraTransport, CameraUpdate } from '@fg2/shared-types/v1';
+import type { Camera, CameraOrientation, CameraTransport, CameraUpdate } from '@fg2/shared-types/v1';
 import { useRemoveCamera, useUpdateCamera } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useDiaryLayer } from '@/api/layers';
@@ -24,7 +24,9 @@ import { SwitchRow } from '@/ui/Switch';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, zoneOf } from '@/ui/zone';
+import { Orientation } from './Orientation';
 import { carrierOf } from './stream';
+import { sameOrientation } from './turning';
 import { CarrierRow, TransportRow, TunnelRow } from './StreamOptions';
 import styles from './CameraPage.module.css';
 
@@ -33,6 +35,7 @@ const SAID: Partial<Record<keyof CameraUpdate, string>> = {
   name: 'camera.name',
   looksAt: 'camera.looksAt',
   stillIntervalSeconds: 'camera.stillEvery',
+  orientation: 'camera.orientation.label',
   nightOff: 'camera.nightOff',
   maintenanceOff: 'camera.maintenanceOff',
   staleWarning: 'camera.staleWarning',
@@ -262,6 +265,15 @@ export function CameraSettings({
             ) : (
               <Said facts={[camera.looksAt ?? '—']} />
             )}
+          </Row>
+
+          {/* Turned back to what is saved is no change, so Save is not offered for it. */}
+          <Row label={t('camera.orientation.label')}>
+            <Orientation
+              camera={camera}
+              value={(value('orientation') as CameraOrientation | undefined) ?? camera.orientation}
+              onChange={mayManage ? next => set('orientation', sameOrientation(next, camera.orientation) ? undefined : next) : undefined}
+            />
           </Row>
 
           <Row label={t('camera.stillEvery')} help="stillCadence">

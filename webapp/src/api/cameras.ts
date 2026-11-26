@@ -275,6 +275,13 @@ export const useLatestStills = (cameraIds: string[]) =>
   });
 
 /**
+ * One camera's newest picture whole, under the same read: what the orientation
+ * preview turns, which needs to know how that picture was stored.
+ */
+export const useLatestStill = (cameraId: string, enabled = true) =>
+  useQuery({ ...latestStillQuery(cameraId), enabled, select: page => page.items[0] ?? null });
+
+/**
  * When each camera's newest picture was taken, under the same reads: a picture is dated by its own capture, as the
  * place's picture is, never by when the server stored it - one picture read "13:28" on Start and "13:29" on Steuerung.
  */

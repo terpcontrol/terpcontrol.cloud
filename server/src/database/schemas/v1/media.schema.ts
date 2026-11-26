@@ -1,8 +1,9 @@
 import { Query, Schema } from 'mongoose';
-import { Media, MediaExportJob, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
+import { CameraOrientation, Media, MediaExportJob, MediaOverlays, MediaRender } from '@fg2/shared-types/v1';
 import { logger } from '@utils/logger';
 import { exportScope, mediaAspect, mediaKind, mediaQuality, mediaRenderStatus, mediaWindow } from '@fg2/shared-types/v1-schemas';
 import { deleteStoredImages } from '../../image-store';
+import { orientationSchema } from './cameras.schema';
 
 /**
  * A picture or a film. The bytes stay in the GridFS bucket, whose file id is this
@@ -23,7 +24,7 @@ type MediaExportDocument = Omit<MediaExportJob, 'startedAt' | 'endedAt'> & {
   endedAt: Date | null;
 };
 
-export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render' | 'exportJob'> & {
+export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 'render' | 'exportJob' | 'orientation'> & {
   createdAt: Date;
   capturedAt: Date;
   endsAt: Date | null;
@@ -44,6 +45,8 @@ export type MediaDocument = Omit<Media, 'createdAt' | 'capturedAt' | 'endsAt' | 
    * kept before it was, and either is unknown.
    */
   monochrome?: boolean | null;
+  /** Absent on a row stored before cameras could be turned, which is read as null. */
+  orientation?: CameraOrientation | null;
 };
 
 const overlaysSchema = new Schema<MediaOverlays>(
@@ -117,6 +120,7 @@ export const mediaSchema = new Schema<MediaDocument>(
     exportJob: { type: exportSchema, default: null },
     lit: { type: Boolean, default: null },
     monochrome: { type: Boolean, default: null },
+    orientation: { type: orientationSchema, default: null },
   },
   { collection: 'media', versionKey: false },
 );

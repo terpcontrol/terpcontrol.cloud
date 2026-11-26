@@ -32,6 +32,7 @@ import { refusalText } from '@/ui/refusal';
 import { Row, Rows } from '@/ui/Rows';
 import { enough, useMayWith } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
+import { StillStamp } from '@/ui/StillStamp';
 import { useNow } from '@/ui/useNow';
 import { clock, DATED_CLOCK, zoned, zoneOf } from '@/ui/zone';
 import { cameraFreshness } from '../devices/cameras';
@@ -277,6 +278,7 @@ function Watch({
           ) : (
             <p className={ui.matNote}>{t(camera.state.lastStillAt ? 'home.waiting' : 'camera.noPicture')}</p>
           )}
+          {picture ? <StillStamp at={picture.capturedAt} /> : null}
           {picture ? (
             <span className={styles.labels}>
               {grow && shownDay !== null ? (

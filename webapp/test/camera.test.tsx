@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AccessNeed,
   Camera,
+  CameraOrientation,
   CameraUpdate,
   Device,
   GrowDiaryPage,
@@ -60,6 +61,7 @@ const state = vi.hoisted(() => ({
   askedForMore: 0,
   zone: 'UTC' as string | null,
   lastStill: null as string | null,
+  lastStillOrientation: null as CameraOrientation | null,
   /** What the test button's press answered, which is a picture or a reason and never an error. */
   capture: null as TestCapture | null,
   /** A press that got no answer at all. */
@@ -163,6 +165,7 @@ vi.mock('@/api/cameras', async importOriginal => ({
   useCamera: () => ({ isPending: false, data: undefined, error: new ApiError(NOT_FOUND), isError: true }),
   useCameras: () => ({ data: { items: state.beside, nextCursor: null } }),
   useLatestStills: () => new Map<string, string | null>(state.lastStill ? [['camera-1', state.lastStill]] : []),
+  useLatestStill: () => ({ data: state.lastStill ? { id: state.lastStill, orientation: state.lastStillOrientation } : null }),
   useTestCapture: () => ({
     mutate: (_: undefined, options?: { onSuccess?: (answer: TestCapture) => void }) => state.capture && options?.onSuccess?.(state.capture),
     data: state.capture ?? undefined,
@@ -247,6 +250,7 @@ const camera: Camera = {
   tunnel: false,
   model: 'terp_cam',
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: true,
@@ -300,6 +304,7 @@ beforeEach(() => {
   state.askedForMore = 0;
   state.zone = 'UTC';
   state.lastStill = null;
+  state.lastStillOrientation = null;
   state.capture = null;
   state.capturing = false;
   state.captureError = null;
@@ -782,6 +787,15 @@ describe('the picture', () => {
 
     expect(screen.getByRole('img')).toHaveAttribute('src', '/media/still-lit');
     expect(screen.getByText(/^Light off · picture from /)).toBeInTheDocument();
+  });
+
+  it('lays the instant the picture was taken on it, to the second, in the account´s zone', () => {
+    // The stored picture carries no stamp of its own, so the screen draws the one the camera used to burn in.
+    state.zone = 'Europe/Berlin';
+    state.lastStill = 'still-newest';
+    drawPage({ state: { ...camera.state, lastStillAt: '2026-09-19T08:03:07.000Z' } });
+
+    expect(document.body.textContent).toContain('19 Sep 2026 10:03:07');
   });
 
   it('names the grow and its day on the picture', () => {
@@ -1275,6 +1289,45 @@ describe('what the camera is set to', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(closed).toHaveBeenCalledTimes(1);
     expect(state.saved).toHaveLength(0);
+  });
+
+  it('turns the picture with the buttons, shows it turned, and saves only a change', () => {
+    state.lastStill = 'still-9';
+    const preview = () => document.querySelector<HTMLImageElement>('img[src="/media/still-9"]')!;
+    drawSettings();
+
+    expect(screen.getByText('as the camera sees it')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn right' }));
+    expect(screen.getByText(/^turned 90°/)).toBeInTheDocument();
+    expect(preview().style.transform).toBe('rotate(90deg) scaleX(1)');
+
+    // Turned back is no change at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Turn left' }));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mirror left to right' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(state.saved).toEqual([{ cameraId: 'camera-1', body: { orientation: { rotation: 0, flipHorizontal: true, flipVertical: false } } }]);
+    expect(state.told[0].label).toBe('Camera saved · Orientation');
+  });
+
+  it('turns a picture by what it was stored with, so one taken before a save is not drawn as undone', () => {
+    // Saved a moment ago: the newest still is the one the camera delivered as it was.
+    state.lastStill = 'still-9';
+    drawSettings({ orientation: { rotation: 90, flipHorizontal: true, flipVertical: false } });
+    expect(document.querySelector<HTMLImageElement>('img[src="/media/still-9"]')!.style.transform).toBe('rotate(90deg) scaleX(-1)');
+
+    // And one stored turned already is shown as it is.
+    state.lastStillOrientation = { rotation: 90, flipHorizontal: true, flipVertical: false };
+    drawSettings({ orientation: { rotation: 90, flipHorizontal: true, flipVertical: false } });
+    expect(document.querySelectorAll<HTMLImageElement>('img[src="/media/still-9"]')[1].style.transform).toBe('rotate(0deg) scaleX(1)');
+  });
+
+  it('tells a reader who may not manage how the pictures are turned, with nothing to press', () => {
+    drawSettings({ orientation: { rotation: 270, flipHorizontal: true, flipVertical: false } }, false);
+
+    expect(screen.getByText(/turned 270°/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Turn right' })).not.toBeInTheDocument();
   });
 
   /** Taking a camera off the account cannot be taken back: asked where it stands, then said, and the page it leaves is the place's Steuerung. */
