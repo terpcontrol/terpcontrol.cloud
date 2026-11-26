@@ -66,6 +66,16 @@ Start's cards in one narrow column, an offline place red on Start but amber on i
 reading out of its band drawn on the plot's edge, and a focus ring lost on the navy rail; the minors that need
 Chris's word go to "Open for Chris".
 
+The same day Chris passed on a colleague's view: the redesign's onboarding and places are better, but the page of
+one place - and how it shows the values - does not feel as powerful as master's cockpit. The designer agent (Fable,
+his instruction for graphical work) drew it again from master's cockpit, and Chris chose (2026-11-26): **master's
+tiles back on the place page** - one per reading with the big figure, Ø 1 Std, the target and whether it is met, a
+24 h curve with the band, and what the hardware does -, **VPD inside the humidity tile** as on master (five tiles),
+**two tile columns on the phone**, the **big camera picture with the grow under it**, and on the Start cards for
+several places **master's Ø 1 Std and hardware line**. The rest of the drawing (the right column's order, an alarms
+card on the place page, sentence-case headings, what of master's cockpit stays out) is the designer's and goes to
+"Open for Chris".
+
 ### What was built
 
 - **The frame and Start**: the bar Start · Grow · Eintrag · Verlauf · Steuerung drawn from what the account has,
