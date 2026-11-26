@@ -1135,6 +1135,19 @@ button does, a plan started for the place's lead grow, a nudged spell ending on 
     too: about 150 ms over a week at a sample every 5 s, estimated from the day's and three days' cost and not measured
     on a real store.
 
+(92 to 97: the look "Marke fein" after its critic's walk and fix round, 2026-11-26)
+92. **A silent place says its open alerts by count**, "2 Meldungen offen, 1 kritisch", not by the alert's own words
+    ("Gerät offline · kritisch · seit …", as the critic proposed): the pill already says offline, and the count is
+    what Meldungen and the bell say.
+93. **The phone's header shows the logo's mark only**, not the full logo master and the mockups have (ADR 0002, "The
+    logo", 2026-11-13).
+94. **A card's and a row's heading come in several styles** (a place card's name, a group's label, a row's title); one
+    style per kind would need a pass across the pages.
+95. **A sheet's title is in ink**, not in the heading blue a page's title takes (set on purpose, commit 537a4fd2).
+96. **A choice chip stays a pill** while every button is rectangular at 8 px, and its height is open; the critic found
+    it the one place that still feels like Nebel.
+97. **Status pills differ between pages** in size and dot; making them one is a design pass across several pages.
+
 ### What the walks could not see
 
 - **The fix round after the focused critic, seen in tests only** (the stack ran the image of the eleventh walk's
