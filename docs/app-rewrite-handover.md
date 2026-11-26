@@ -72,7 +72,9 @@ his instruction for graphical work) drew it again from master's cockpit, and Chr
 tiles back on the place page** - one per reading with the big figure, Ø 1 Std, the target and whether it is met, a
 24 h curve with the band, and what the hardware does -, **VPD inside the humidity tile** as on master (five tiles),
 **two tile columns on the phone**, the **big camera picture with the grow under it**, and on the Start cards for
-several places **master's Ø 1 Std and hardware line**. The rest of the drawing (the right column's order, an alarms
+several places **master's Ø 1 Std and hardware line**. He added: leaf temperature is only very rarely measured, so
+the page is designed for the usual case without the leaf tile - four tiles (temperature, humidity, CO₂, light) or
+three without CO₂ - and must look full there, not like a page with a gap. The rest of the drawing (the right column's order, an alarms
 card on the place page, sentence-case headings, what of master's cockpit stays out) is the designer's and goes to
 "Open for Chris".
 
