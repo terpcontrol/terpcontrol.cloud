@@ -1,7 +1,7 @@
 ---
 summary: Where the server's data lives and the rules for code that touches it - MongoDB and its pitfalls, the GridFS picture bucket, InfluxDB, retention and cleanup, exports
-updated: 2026-11-15
-source: a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
+updated: 2026-11-26
+source: the bucket retention read on an install, 2026-11-26; a lamp read at its rhythm over a week (the redesign session's fix round of 2026-11-16); an excursion started at the first sample back and parted by minutes in band (the redesign session's fix round of 2026-11-15); an excursion dated by its samples (the redesign session's fix round of 2026-11-14); Verlauf's eighth list - a gap that may be a silence is judged by its samples (the redesign session of 2026-11-13, not Chris); Verlauf's seventh list - a silence's edges asked by the device's own interval (the redesign session of 2026-11-13, not Chris); the edges of a silence read only beside one (the redesign session of 2026-11-13, measured against a session stack's store); Chris (decisions in sessions and PR reviews, 2026-08-25..10-08); placements and unique names: the redesign session of 2026-11-12, awaiting Chris's confirmation of the ADR 0001 amendment; agent sessions on the app rewrite, 2026-09-10..10-04; PRs #80, #87, #90, #91; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; the extremes and the switching grain, with what the Timeline's read costs, and the deficit of samples after the critic's walk (the redesign session of 2026-11-12); the alerts index: the redesign session's clearing-up round of 2026-11-13
 paths:
   - server/src/database/**
   - server/src/modules/data/**
@@ -237,6 +237,10 @@ Pitfalls, each met at least once:
 | TTL indexes | MongoDB | `sessions`, `passwordResets`, `notificationLog` at `expiresAt`. |
 | Account deletion | in the request; resumed 5 s after boot and hourly | What the account owns. Device rows stay claimable and keep their readings; its lines in other people's records stay, authorless. |
 
+- **The bucket's own retention comes first.** The `INFLUXDB_BUCKET` bucket is created with a retention of its own
+  (`influx bucket list` shows it) and drops whole shard groups past it, raw points and
+  `status_daily` alike. A `RETENTION_CLIMATE_DAYS` at or above it summarises nothing that lasts; daily means kept for
+  longer need a longer bucket retention (`influx bucket update --retention`).
 - While `legacy_images` stands, thinning and the cleanup spare every picture it names (`migrations/way-back.ts`); the
   hourly picture sweep does not. Dropping `legacy_images` hands those pictures to both.
 - A summarised day keeps only means: switchings and the counts of an output's samples read raw samples only.

@@ -24,7 +24,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Server](knowledge/server.md) - process and boot, configuration, the /v1 contract, sessions, demo mode, share links, media, broker, security decisions
 - [Server engines](knowledge/server-engines.md) - alarms and notifications, device settings and plans, the read models screens judge by
 - [Data](knowledge/data.md) - MongoDB pitfalls, GridFS pictures, InfluxDB, retention and cleanup, exports
-- [Data operations](knowledge/data-operations.md) - MongoDB upgrades, migration runs, legacy shapes in real databases, backups
+- [Data operations](knowledge/data-operations.md) - MongoDB upgrades, migration runs, legacy shapes in real databases, backups, getting disk space back
 - [Web app](knowledge/webapp.md) - layout and routes, build and dev server, API client and session, charts, media URLs, PWA, lint and tests
 - [Time and language in the web app](knowledge/webapp-time-and-language.md) - server clock, zones, date and figure formats, i18next mechanics
 - [How the app behaves and looks](knowledge/app-ux.md) - before changing a screen: one design, honest states, value ages, controls, help texts, charts, screen readers
