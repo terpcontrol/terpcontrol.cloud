@@ -1,5 +1,5 @@
 import { Globe } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import type { GrowListItem, Plant, Space } from '@fg2/shared-types/v1';
@@ -9,7 +9,7 @@ import { useSpaces } from '@/api/spaces';
 import { ALL_GROWS, GROW, placePath, usePageOfGrow } from '@/app/places';
 import { Term } from '@/ui/Help';
 import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
-import { enough, growStanding, standsIn, useMayWith } from '@/ui/session-access';
+import { enough, growStanding, standsIn, useMayManage, useMayWith } from '@/ui/session-access';
 import { AlsoHere } from '@/screens/space/AlsoHere';
 import { stageLabel } from '@/ui/presets';
 import { Tabs } from '@/ui/Tabs';
@@ -24,6 +24,7 @@ import { GROW_TABS, growTabOf, growTabPath, type GrowTab } from './grow-tabs';
 import { splitWords } from './progress';
 import { Pictures } from './pictures/Pictures';
 import { lastPlaceOf, placeName } from './placement';
+import { StartGrowSheet } from './new/WhatGrows';
 import { Plants } from './Plants';
 import { Report } from './Report';
 import styles from './GrowPage.module.css';
@@ -89,6 +90,7 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   return (
     <section className={`${ui.stack3} ${styles.page}`} data-tab={tab}>
       <GrowHead grow={grow.data} plants={plants.data?.items ?? []} spaces={spaces.data?.items ?? []}>
+        <NewGrow />
         <GrowMenu
           grow={grow.data}
           plants={plants.data?.items ?? []}
@@ -112,6 +114,23 @@ export function GrowScreen({ growId, tab, current = false }: { growId: string; t
   );
 }
 
+/** A grow is started from beside the way to every grow, as on the list of them - for whoever may start one. */
+function NewGrow() {
+  const { t } = useTranslation();
+  const mayManage = useMayManage();
+  const [starting, setStarting] = useState(false);
+
+  if (!mayManage) return null;
+  return (
+    <>
+      <button type="button" className={`${ui.pill} ${styles.pill} ${styles.newGrow}`} onClick={() => setStarting(true)}>
+        + {t('grow.all.new')}
+      </button>
+      {starting ? <StartGrowSheet onClose={() => setStarting(false)} /> : null}
+    </>
+  );
+}
+
 /** Grow where no grow is drawn: the page's own heading with the way to every grow, over what it says instead. */
 export function NoGrow({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
@@ -125,6 +144,7 @@ export function NoGrow({ children }: { children: ReactNode }) {
             <Link to={ALL_GROWS} className={`${ui.pill} ${styles.pill}`}>
               {t('grow.all.pill')}
             </Link>
+            <NewGrow />
           </div>
         </div>
       </header>

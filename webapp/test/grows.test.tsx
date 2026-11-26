@@ -237,9 +237,21 @@ describe('the page', () => {
 
 describe('the address of a grow opened by its id', () => {
   const drawRoute = (pathname: string) => {
-    const router = createMemoryRouter([{ path: '/grows/:growId/:tab?', element: <GrowPage /> }], {
-      initialEntries: [pathname],
-    });
+    const router = createMemoryRouter(
+      [
+        {
+          path: '/grows/:growId/:tab?',
+          element: (
+            <LogProvider>
+              <GrowPage />
+            </LogProvider>
+          ),
+        },
+      ],
+      {
+        initialEntries: [pathname],
+      },
+    );
     render(
       <QueryClientProvider client={testClient()}>
         <RouterProvider router={router} />
@@ -260,6 +272,15 @@ describe('the address of a grow opened by its id', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Grow' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All grows' })).toHaveAttribute('href', '/grows');
+  });
+
+  it('starts a new grow from beside the way to every grow', async () => {
+    drawRoute('/grows/slow');
+
+    const button = await screen.findByRole('button', { name: '+ New grow' });
+    expect(screen.getByRole('link', { name: 'All grows' }).nextElementSibling).toBe(button);
+    fireEvent.click(button);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
   it('leads a tab the grow has not got to its diary', async () => {

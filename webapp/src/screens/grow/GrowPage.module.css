@@ -52,6 +52,15 @@
   margin-right: auto;
 }
 
+/* "Neuer Grow" stands beside "Alle Grows", and the row's gap opens after it instead. */
+.actions > a.pill:has(+ .newGrow) {
+  margin-right: 0;
+}
+
+.actions > .newGrow {
+  margin-right: auto;
+}
+
 .pill {
   display: inline-flex;
   flex: none;
@@ -205,7 +214,8 @@
     order: 2;
   }
 
-  .actions > a.pill {
+  .actions > a.pill,
+  .actions > .newGrow {
     margin-right: 0;
   }
 

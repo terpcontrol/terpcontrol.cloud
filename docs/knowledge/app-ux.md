@@ -272,7 +272,8 @@ sessions, charts library, PWA) in [webapp.md](webapp.md), the server clock and i
   choice on "Ort bearbeiten" - and its address answers "lässt sich nicht öffnen", for the edit and the members page
   too (`screens/place/EditPlace.tsx`, `PlaceMembers.tsx`). **Grow** (`/grow/:tab?`) is the grow running in the chosen place, drawn
   as that grow's page with its tabs under the same address; where nothing grows there it offers to start a grow.
-  It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name. A
+  It is a root of the bar: nothing leads back from it, and the pill "Alle Grows" stands beside the grow's name,
+  with "+ Neuer Grow" right after it for whoever may start one (Chris, 2026-11-26). A
   grow opened by its id (`/grows/:growId/...`) is that grow's page whatever is chosen, with the same head - the
   pill, no arrow - and Grow lit in the bar. Choosing another place there leads to Grow of that place. What stands
   under a grow - its measurements, one of its plants - has the head's arrow, which steps back to the address it
