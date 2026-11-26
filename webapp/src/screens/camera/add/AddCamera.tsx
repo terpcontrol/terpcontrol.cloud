@@ -1,41 +1,40 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
+import type { Device, Space } from '@fg2/shared-types/v1';
 import { useCamerasAsOpened } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
+import { useSession } from '@/api/session';
+import { useSpaces } from '@/api/spaces';
+import { placesFor } from '@/app/places';
 import { LoadFailed, Waiting } from '@/ui/PageState';
 import { useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { BackLink } from '@/ui/BackLink';
 import { pairersOf } from './pairers';
 import { PairTerpCam } from './PairTerpCam';
-import { RtspCamera } from './RtspCamera';
+import { NewPlace, RtspCamera } from './RtspCamera';
 import styles from './AddCamera.module.css';
 
 /**
- * The two ways a camera arrives, which are two different things to explain
- * rather than two shapes of the same form.
+ * The two ways a camera arrives. A Terp Cam is paired at a fridge module or a
+ * controller and the cloud hears about it over MQTT, so this screen has
+ * nothing to send for one: it says what to do at the hardware and watches for
+ * what turns up. Only a stream camera has a form. A Terp Cam without a device
+ * to pair it at is not offered: the cloud reaches one only through that device.
  *
- * A Terp Cam is paired at a fridge module or a controller and the cloud hears
- * about it over MQTT, so this screen has nothing to send for one: it says what
- * to do at the hardware and then watches for what turns up. Only a stream
- * camera has a form, because a stream is an address and nobody but the person
- * knows it. A Terp Cam without a device to pair it at is not offered: the cloud
- * reaches a Terp Cam only through the device it is paired at.
- *
- * Which of the two is meant is held here rather than in the address: they are
- * one question with two answers, and a tab is not a place to come back to.
- * They are drawn as chips saying which one is pressed rather than as an ARIA
- * tab strip: a tab strip tells a screen reader to press an arrow key, and the
- * app has no arrow-key handler anywhere to answer that promise.
+ * The two are drawn as chips saying which one is pressed rather than as an
+ * ARIA tab strip: a tab strip promises arrow keys, which nothing in the app
+ * answers.
  */
 export function AddCamera() {
   const { t } = useTranslation();
   const mayManage = useMayManage();
 
   return (
-    <section className={styles.page}>
-      <header className={styles.header}>
-        <BackLink to="/devices" label={t('shell.tabs.devices')} />
+    <section className={`${ui.stack4} ${ui.page} ${styles.page}`}>
+      <header className={ui.row2}>
+        <BackLink to="/control" label={t('shell.tabs.control')} />
         <h1>{t('cameras.add.title')}</h1>
       </header>
 
@@ -46,38 +45,42 @@ export function AddCamera() {
 
 /**
  * The tabs and whichever of the two is open, which is everything that reads
- * an account. It is its own component so that a session which may only look
- * asks for none of it.
+ * an account - its own component so that a session which may only look asks
+ * for none of it.
  *
- * Two things are owned here rather than by the tab that uses them. The first is
- * which tab opens: pairing at a device is the way in only for somebody who has
- * one to pair at, so an account with none opens on the address form instead,
- * and the choice waits for the device list so that the tab never moves under a
- * finger.
- * The second is the line a newly paired camera is measured against, which has
- * to outlive a tab change: it is the cameras this account had when the *screen*
- * was opened, and looking at the RTSP tab and back is not opening it again.
+ * Which tab opens is decided here: pairing at a device only for somebody who
+ * has one, else the address form, and the choice waits for the device list so
+ * that the tab never moves under a finger; `?kind=rtsp` opens on the form. So
+ * is the line a newly paired camera is measured against: the cameras this
+ * account had when the screen was opened, which outlives a tab change.
+ *
+ * A camera goes into a place of the reader's own making, and is paired at a
+ * device of theirs: a guest who sees only the places he was let into is told
+ * that he needs one of his own first, and offered it, rather than the steps
+ * of pairing at a device he may not touch.
  */
 function Ways() {
   const { t } = useTranslation();
+  const { user } = useSession();
   const devices = useDevices();
+  const spaces = useSpaces();
   const [chosen, setChosen] = useState<Kind | null>(null);
+  const asked = useSearchParams()[0].get('kind');
 
-  const pairers = pairersOf(devices.data?.items ?? []);
+  const mine = placesFor(spaces.data?.items ?? []);
+  const pairers = pairersOf((devices.data?.items ?? []).filter(device => isMine(device, user?.id, mine)));
   const opened = useCamerasAsOpened(pairers.length > 0);
 
-  if (devices.isPending) return <Waiting lines={4} />;
+  if (devices.isPending || spaces.isPending) return <Waiting lines={4} />;
   if (!devices.data) return <LoadFailed retry={() => void devices.refetch()} />;
+  if (mine.length === 0 && (spaces.data?.items ?? []).some(space => space.kind !== 'room' && space.archivedAt === null)) {
+    return <NewPlace note={t('cameras.add.noOwnPlace')} onMade={() => undefined} />;
+  }
 
-  const kind = chosen ?? (pairers.length > 0 ? 'terpcam' : 'rtsp');
+  const kind = chosen ?? (pairers.length > 0 && asked !== 'rtsp' ? 'terpcam' : 'rtsp');
 
   return (
     <>
-      {/* The two ways in, as one control: which of them is meant is a choice
-          between two, not two buttons that each do something. They say which
-          one is pressed rather than being an ARIA tab strip, because the arrow
-          keys a tab strip promises are a behaviour nothing else in the app
-          has. */}
       <div className={`${ui.segments} ${ui.segmentsFill}`} role="group" aria-label={t('cameras.add.which')}>
         {KINDS.map(one => (
           <button key={one} type="button" className={ui.segment} aria-pressed={one === kind} onClick={() => setChosen(one)}>
@@ -86,7 +89,7 @@ function Ways() {
         ))}
       </div>
 
-      <section className={styles.panel} aria-label={t(`cameras.add.tab.${kind}`)}>
+      <section className={ui.stack4} aria-label={t(`cameras.add.tab.${kind}`)}>
         {kind === 'terpcam' ? <PairTerpCam pairers={pairers} opened={opened} /> : <RtspCamera devices={devices.data.items} />}
       </section>
     </>
@@ -94,5 +97,9 @@ function Ways() {
 }
 
 type Kind = 'terpcam' | 'rtsp';
+
+/** A device the reader may pair a camera at: one of theirs standing nowhere, or one in a place they may manage. */
+const isMine = (device: Device, userId: string | undefined, places: Space[]): boolean =>
+  device.spaceId === null ? device.ownerId === userId : places.some(space => space.id === device.spaceId);
 
 const KINDS: Kind[] = ['terpcam', 'rtsp'];

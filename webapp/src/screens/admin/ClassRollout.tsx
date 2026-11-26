@@ -5,7 +5,9 @@ import type { Device, DeviceClass, DeviceClassUpdate, Firmware, FleetClass } fro
 import { RELEASE_CHANNELS } from '@fg2/shared-types/v1-schemas/firmware-channels.js';
 import { useUpdateDeviceClass } from '@/api/admin';
 import { Sheet } from '@/ui/Sheet';
-import { Help } from '@/ui/Help';
+import type { Translate } from '@/i18n/i18n';
+import { typeName } from '@/ui/naming';
+import { Label } from './parts';
 import { Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { channelStands, classSize, staged } from './rollout';
@@ -132,13 +134,16 @@ export function ClassRollout({
     );
   }
 
+  const described = descriptionOf(t, deviceClass.description);
+
   return (
     <div className={styles.block}>
       <div className={styles.blockHead}>
-        <span className={styles.blockName}>{deviceClass.name}</span>
-        <span className={`mono ${styles.consequence}`}>
+        <span className={styles.blockName}>{typeName(deviceClass.name, t)}</span>
+        <span className={styles.consequence}>
           {`${t('admin.count.devices', { count: size.total })} · ${t('admin.count.online', { count: size.online })}`}
-          {deviceClass.description ? ` · ${deviceClass.description}` : ''}
+          {/* The description where it says more than the heading: "Plantalytix Socket" under "Plantalytix Socket" did not. */}
+          {described && described !== typeName(deviceClass.name, t) ? ` · ${described}` : ''}
         </span>
       </div>
 
@@ -151,7 +156,7 @@ export function ClassRollout({
               {`${t(`devices.channel.${channel}`)} · ${t('admin.count.devices', { count: stand.devices })} · ${t('admin.count.online', { count: stand.online })}`}
             </span>
             <select
-              className={`mono ${ui.input} ${styles.menu}`}
+              className={`${ui.input} ${ui.menu}`}
               value={draft[channel] ?? ''}
               onChange={event => setDraft({ ...draft, [channel]: event.target.value || null })}
             >
@@ -170,7 +175,7 @@ export function ClassRollout({
 
       <label className={styles.field}>
         <span className="label">{t('admin.firmware.stage')}</span>
-        <span className={styles.row}>
+        <span className={ui.wrapRow}>
           <input
             className={styles.slider}
             type="range"
@@ -181,7 +186,7 @@ export function ClassRollout({
             aria-label={t('admin.firmware.stage')}
             onChange={event => setDraft({ ...draft, percent: Number(event.target.value) })}
           />
-          <span className={`mono ${styles.consequence}`}>
+          <span className={styles.consequence}>
             {t('admin.firmware.stageReach', {
               percent: draft.percent,
               reach: staged(draft.percent, size.total),
@@ -195,7 +200,7 @@ export function ClassRollout({
         <label className={styles.field}>
           <span className="label">{t('admin.firmware.concurrent')}</span>
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             type="number"
             min={1}
             value={draft.concurrentUpdates}
@@ -203,12 +208,9 @@ export function ClassRollout({
           />
         </label>
         <label className={styles.field} htmlFor={failuresId}>
-          <span className="label">
-            {t('admin.firmware.maxFailures')}
-            <Help topic="rolloutFailures" />
-          </span>
+          <Label text={t('admin.firmware.maxFailures')} help="rolloutFailures" />
           <input
-            className={`mono ${ui.input}`}
+            className={ui.input}
             type="number"
             min={1}
             id={failuresId}
@@ -219,10 +221,10 @@ export function ClassRollout({
         </label>
       </div>
 
-      <div className={styles.row}>
+      <div className={ui.wrapRow}>
         <button
           type="button"
-          className={`${ui.chip} ${draft.paused ? styles.paused : ''}`}
+          className={`${ui.chip} ${styles.runs} ${draft.paused ? styles.paused : ''}`}
           role="switch"
           aria-checked={draft.paused}
           onClick={() => setDraft({ ...draft, paused: !draft.paused })}
@@ -251,7 +253,7 @@ export function ClassRollout({
 
       {asking ? (
         <Sheet
-          title={t('admin.firmware.confirmTitle', { name: deviceClass.name })}
+          title={t('admin.firmware.confirmTitle', { name: typeName(deviceClass.name, t) })}
           onClose={() => setAsking(false)}
           actions={
             <button
@@ -285,3 +287,12 @@ export function ClassRollout({
     </div>
   );
 }
+
+/**
+ * The words the server seeds three classes with, which name a kind of device in English rather than a model: said in
+ * the reader's language, as the heading above them is. A model's own name - "FG Controller 2.0" - is a name and stays.
+ */
+const SEEDED: Record<string, string> = { 'Fridge Controller': 'fridge', 'Fan Controller': 'fan', 'Light Controller': 'light' };
+
+const descriptionOf = (t: Translate, description: string | null): string | null =>
+  description && SEEDED[description] ? t(`admin.firmware.seeded.${SEEDED[description]}`) : description;

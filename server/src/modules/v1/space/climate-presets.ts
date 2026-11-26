@@ -34,6 +34,11 @@ import { lightWindowOf, lightWindowTimes } from '@fg2/shared-types/v1-schemas/da
  * manual targets page draws that row dead and says it needs a sensor. What is
  * already in the section is kept either way; nothing is written over, the
  * figure is simply not put there.
+ *
+ * A section goes only into a document that already carries it. An AIR fan
+ * states day and night targets, which drive its speed, and nothing else: given
+ * a light window and a lamp's limit it stored sections its firmware never
+ * reads, and every screen that reads a document for a lamp then found one.
  */
 export const presetConfiguration = (
   stage: GrowthStage,
@@ -48,7 +53,7 @@ export const presetConfiguration = (
   const { lightsOn } = lightWindowOf(finiteOrNull(daynight.day), finiteOrNull(daynight.night));
   const figures = (key: string, named: Record<string, number | null>): DeviceConfiguration => {
     const set = Object.entries(named).filter(([, value]) => value !== null);
-    return set.length === 0 ? {} : { [key]: { ...sectionOf(current, key), ...Object.fromEntries(set) } };
+    return set.length === 0 || !carries(current, key) ? {} : { [key]: { ...sectionOf(current, key), ...Object.fromEntries(set) } };
   };
 
   return {
@@ -56,6 +61,12 @@ export const presetConfiguration = (
     ...figures('night', { temperature: wanted.nightTemperature, humidity: wanted.nightHumidity }),
     ...(hasCo2Sensor ? figures('co2', { target: wanted.co2 }) : {}),
     ...figures('lights', { limit: wanted.lightLimit }),
-    ...(wanted.lightHours === null ? {} : { daynight: { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) } }),
+    ...(wanted.lightHours === null || !carries(current, 'daynight')
+      ? {}
+      : { daynight: { ...daynight, ...lightWindowTimes({ lightsOn, lightHours: wanted.lightHours }) } }),
   };
 };
+
+/** Whether a document has a section, nested as the firmware writes it or flat as an older client did (`day.temperature`). */
+export const carries = (document: DeviceConfiguration | null, key: string): boolean =>
+  sectionOf(document, key) !== null || Object.keys(document ?? {}).some(field => field.startsWith(`${key}.`));

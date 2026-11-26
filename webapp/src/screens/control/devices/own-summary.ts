@@ -13,10 +13,8 @@ import { targetWithUnit } from '@/ui/units';
 import { wallClock } from '@/ui/wall-clock';
 
 /**
- * What a smart socket is set to, in the few lines the cockpit's summary has:
- * what it switches by, and the points or the windows it switches at. The
- * cockpit says what is true and Steuerung is where it is changed, so this is
- * read from the device's own document and never drawn as a control.
+ * What a smart socket is set to, in the few words the targets' row on Start
+ * has: what it switches by, and the points or the windows it switches at.
  */
 
 interface SummaryRow {
@@ -73,8 +71,8 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
     const switching = mode as PlugSwitching;
     const day = pair(switching, 'day');
     const night = dayNight ? pair(switching, 'night') : null;
-    if (day) rows.push({ label: t(dayNight ? 'cockpit.targets.day' : 'plugSettings.points'), parts: [day] });
-    if (night) rows.push({ label: t('cockpit.targets.night'), parts: [night] });
+    if (day) rows.push({ label: t(dayNight ? 'start.targets.day' : 'plugSettings.points'), parts: [day] });
+    if (night) rows.push({ label: t('start.targets.night'), parts: [night] });
   }
 
   if (mode === 'co2') {
@@ -98,9 +96,7 @@ export const plugSummaryOf = (t: Translate, device: Device, offset: number): Sum
 
 /**
  * What an AIR fan running at a fixed speed is set to, which is all it has: it
- * follows no target then, and the summary said "no targets yet" over a fan
- * somebody had set up. Following a reading it has targets, and is summed up by
- * them.
+ * follows no target then. Following a reading it is summed up by its targets.
  */
 export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null => {
   if (device.type !== 'fan' || fieldValue(device, 'fanMode') !== 'fixed') return null;
@@ -115,8 +111,14 @@ export const fanSummaryOf = (t: Translate, device: Device): SummaryRow[] | null 
   ];
 };
 
+/** "Fest", "Tagsüber 70 %", "Nachts 40 %": what an AIR fan's speed follows and, fixed, how fast it runs - for the row that leads to where it is set. */
+export const fanFactsOf = (t: Translate, device: Device): string[] => {
+  const mode = fieldValue(device, 'fanMode');
+  return typeof mode === 'string' ? [t(`fanSettings.mode.${mode}`), ...(fanSummaryOf(t, device)?.[1]?.parts ?? [])] : [];
+};
+
 /**
- * What the cockpit's first line says where nothing here holds targets but a
+ * What a place's status sentence says where nothing here holds targets but a
  * stand-alone module is set to something of its own: "no targets yet" would
  * send a socket's owner looking for a setting they have already made.
  */
@@ -136,9 +138,9 @@ export const ownStatusOf = (t: Translate, device: Device | null, offset: number)
 };
 
 /**
- * The one line a stand-alone module's panel on the Devices tab says about what
- * it is set to, linked to Steuerung where it is changed: what a socket switches
- * by, what a fan's speed follows, when a lamp is on.
+ * The one line a stand-alone module's card under Steuerung says about what it
+ * is set to, where it is not the place's climate: what a socket switches by,
+ * what a fan's speed follows, when a lamp is on. Its own page changes it.
  */
 export const ownFactOf = (t: Translate, device: Device, offset: number): { label: string; value: string } | null => {
   if (!device.configuration) return null;

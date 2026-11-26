@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import { DateTime } from 'luxon';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
@@ -6,8 +6,9 @@ import { CameraSettings } from '@/screens/camera/CameraSettings';
 import { countdownDays } from '@/screens/me/premium/entitlement';
 import { Premium } from '@/screens/me/premium/Premium';
 import { Privacy } from '@/screens/me/privacy/Privacy';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith, spacePage, spaceWhere } from './session';
+import { Toast } from './toast';
 import { translate } from './translations';
 
 /**
@@ -32,12 +33,7 @@ const session = vi.hoisted(() => ({ demo: false }));
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
 
-  return {
-    ...(await importOriginal<object>()),
-    // A test session carries no media token; the privacy screen's export row only wants an address.
-    mediaUrl: (id: string) => `/media/${id}/content`,
-    useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN),
-  };
+  return { ...(await importOriginal<object>()), useSession: () => (session.demo ? ON_THE_DEMO : SIGNED_IN) };
 });
 
 vi.mock('@/ui/useNow', () => ({ useNow: () => NOW }));
@@ -129,7 +125,6 @@ const draw = () => drawAt(<Premium />, { at: '/me/premium' });
 const drawLoaded = async () => {
   draw();
   await screen.findByText('What Premium covers');
-  await screen.findByText(/Per camera, not per account/);
 };
 
 const card = (name: string) => within(screen.getByText(name).closest('li')!);
@@ -167,10 +162,10 @@ describe('an install that enforces Premium', () => {
 
     expect(card('Terp Cam 1').getByText('until 19 Jul 2027')).toBeInTheDocument();
     expect(card('Terp Cam 1').getByText('Premium')).toBeInTheDocument();
-    expect(card('Terp Cam 1').getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
+    expect(card('Terp Cam 1').getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
     expect(card('Terp Cam 1').getByRole('link', { name: 'Terp Cam 1' })).toHaveAttribute('href', '/cameras/camera-Terp Cam 1');
 
-    expect(card('Tapo C200').getByText('· RTSP · Tent 1')).toBeInTheDocument();
+    expect(card('Tapo C200').getByText(reading('RTSP · Tent 1'))).toBeInTheDocument();
     expect(card('Tapo C200').getByText('until 27 Oct 2027')).toBeInTheDocument();
 
     expect(card('Side cam').getByText('needs Premium')).toBeInTheDocument();
@@ -186,16 +181,29 @@ describe('an install that enforces Premium', () => {
 
     const cards = screen.getAllByText('Canopy cam').map(name => within(name.closest('li')!));
     expect(cards).toHaveLength(2);
-    expect(cards[0].getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
-    expect(cards[1].getByText('· RTSP · Tent 2')).toBeInTheDocument();
+    expect(cards[0].getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
+    expect(cards[1].getByText(reading('RTSP · Tent 2'))).toBeInTheDocument();
     expect(cards[0].getByRole('link', { name: 'Canopy cam' })).toHaveAttribute('href', '/cameras/camera-a');
     expect(cards[1].getByRole('link', { name: 'Canopy cam' })).toHaveAttribute('href', '/cameras/camera-b');
+  });
+
+  it('calls the only Terp Cam nobody named by its kind once, and two of them by what is printed on each', async () => {
+    const unnamed = (tag: string) => camera({ name: `Terp Cam · ${tag}`, id: `camera-${tag}`, entitlement: included.entitlement });
+    server.cameras = [unnamed('D878'), bought];
+    const one = draw();
+
+    expect(within((await screen.findByRole('link', { name: 'Terp Cam' })).closest('li')!).getByText(reading('Tent 1'))).toBeInTheDocument();
+    one.unmount();
+
+    server.cameras = [unnamed('D878'), unnamed('B071')];
+    await drawLoaded();
+    expect(screen.getAllByRole('link', { name: /^Terp Cam/ }).map(link => link.textContent)).toEqual(['Terp Cam · D878', 'Terp Cam · B071']);
   });
 
   it('reads the sentence under a camera from its grant rather than from its dates', async () => {
     await drawLoaded();
 
-    expect(card('Terp Cam 1').getByText('included with the cam · 12 months · renews only if you say so')).toBeInTheDocument();
+    expect(card('Terp Cam 1').getByText('included with the Terp Cam · 12 months · renews only if you say so')).toBeInTheDocument();
     expect(card('Old cam').getByText('carried over at the migration · 12 months from that day · renews only if you say so')).toBeInTheDocument();
     expect(card('Tapo C200').getByText('bought for this camera · renews only if you say so')).toBeInTheDocument();
   });
@@ -295,13 +303,27 @@ describe('an install that enforces Premium', () => {
     expect(screen.getAllByRole('link', { name: /Extend Premium|Get Premium/ })).toHaveLength(2);
   });
 
-  it('offers nothing while no camera is due, and the closing line says from when it will', async () => {
+  it('offers nothing while no camera is due', async () => {
     server.cameras = [included, bought];
     await drawLoaded();
 
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
     expect(screen.queryByText(/€ 29/)).toBeNull();
-    expect(screen.getByText(/from 60 days before its year ends/)).toBeInTheDocument();
+  });
+
+  it("lists the account's own cameras alone: a host's camera is not a guest's to extend", async () => {
+    server.cameras = [included, { ...migrated, name: 'Host cam', ownerId: 'user-9' }];
+    await drawLoaded();
+
+    expect(screen.getByText('Terp Cam 1')).toBeInTheDocument();
+    expect(screen.queryByText('Host cam')).toBeNull();
+
+    cleanup();
+    server.cameras = [{ ...migrated, name: 'Host cam', ownerId: 'user-9' }];
+    await drawLoaded();
+
+    expect(screen.getByText('No camera of your own yet.')).toBeInTheDocument();
+    expect(screen.queryByText('Host cam')).toBeNull();
   });
 
   it('draws no price the install has not given, even once a camera is due', async () => {
@@ -329,12 +351,12 @@ describe('an install that gates nothing', () => {
   it('says so once, and draws no chip, no date, no countdown and no offer however the records read', async () => {
     await drawLoaded();
 
-    expect(screen.getByText(/This installation gates nothing/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is locked on this installation/)).toBeInTheDocument();
     expect(screen.queryByText(/until /)).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.queryByRole('link', { name: /Extend Premium|Get Premium/ })).toBeNull();
     expect(screen.queryByText(/needs Premium/)).toBeNull();
-    expect(screen.getAllByText('everything included on this install')).toHaveLength(3);
+    expect(screen.getAllByText('everything included on this installation')).toHaveLength(3);
 
     // The word is the page's title and the table's column, and is on no card:
     // a tier is not a fact about a camera where nothing is gated.
@@ -345,7 +367,7 @@ describe('an install that gates nothing', () => {
   it('still names the tent beside each camera', async () => {
     await drawLoaded();
 
-    expect(card('Old cam').getByText('· Terp Cam · Tent 1')).toBeInTheDocument();
+    expect(card('Old cam').getByText(reading('Terp Cam · Tent 1'))).toBeInTheDocument();
   });
 });
 
@@ -371,12 +393,12 @@ describe('what Premium covers', () => {
         .slice(1)
         .map(row => within(row).getByRole('rowheader').textContent),
     ).toEqual([
-      "Live still and today's timelapse",
-      'Full resolution stills',
+      'Current picture and today’s timelapse',
+      'Full-resolution stills',
       'Stills kept',
       'Timelapse over the whole grow, HD',
       'Reel export with overlays',
-      'Control, charts, diary, alarms, sharing',
+      'Control, Timeline, diary, alarms, sharing',
     ]);
   });
 
@@ -400,14 +422,13 @@ describe('what Premium covers', () => {
     expect(tableSays()).toEqual([FIXED[0], ['whole', 'whole'], ['whole grow', 'whole grow'], ...FIXED.slice(1)]);
   });
 
-  it('closes with the rule: per camera, the offer on the card ahead of the end, nothing automatic, nothing self-hosted', async () => {
+  it('keeps the rule behind the help button at the table: per camera, the offer on the card, nothing automatic', async () => {
     await drawLoaded();
 
-    expect(
-      screen.getByText(
-        "Per camera, not per account. A Terp Cam comes with 12 months of it; an RTSP camera works without it like any free camera, and has Premium only where it is bought for it. The offer to extend stands on a camera's own card from 60 days before its year ends; nothing renews on its own. Self-hosted installations have no Premium at all.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Premium' })).toHaveAccessibleDescription(
+      /belongs to one camera, not to the account, and never renews by itself: the offer is under Me › Premium on the camera’s card/,
+    );
+    expect(screen.queryByText(/Per camera, not per account/)).toBeNull();
   });
 
   it("is told, as the demo, that there is no account to look at, asks for nothing, and says the figures are the install's", async () => {
@@ -415,13 +436,20 @@ describe('what Premium covers', () => {
     draw();
 
     expect(await screen.findByText('The demo has no account of its own, so there is no Premium to look at.')).toBeInTheDocument();
-    expect(tableSays()).toEqual([FIXED[0], ['per install', 'whole'], ['per install', 'whole grow'], ...FIXED.slice(1)]);
+    expect(tableSays()).toEqual([FIXED[0], ['per installation', 'whole'], ['per installation', 'whole grow'], ...FIXED.slice(1)]);
     expect(vi.mocked(fetchStub).mock.calls).toHaveLength(0);
   });
 });
 
 describe('the two screens that describe the free tier', () => {
-  const drawPrivacy = () => drawAt(<Privacy />, { at: '/me/privacy' });
+  // The privacy page answers its writes through the toast, so it is drawn with one.
+  const drawPrivacy = () =>
+    drawAt(
+      <Toast>
+        <Privacy />
+      </Toast>,
+      { at: '/me/privacy' },
+    );
 
   it('agree that nothing of a free camera is deleted where the install names no window', async () => {
     server.me = me({ enforced: false, extendUrl: null, priceLabel: null });
@@ -429,7 +457,7 @@ describe('the two screens that describe the free tier', () => {
     expect(tableSays()[2]).toEqual(['whole grow', 'whole grow']);
 
     drawPrivacy();
-    expect(await screen.findByText('Premium: the whole grow · free: kept just as long on this install')).toBeInTheDocument();
+    expect(await screen.findByText('Premium: the whole grow · free: kept just as long on this installation')).toBeInTheDocument();
   });
 
   it('agree on the days where the install names them', async () => {
@@ -456,7 +484,7 @@ describe('the camera page', () => {
   // The camera page works out what this reader may do with this camera and
   // hands it down as two answers: its settings are `manage` where it stands,
   // and taking it off the account is `own`.
-  const drawSettings = (one: Camera) => drawAt(<CameraSettings camera={one} mayManage={false} mayOwn={false} />);
+  const drawSettings = (one: Camera) => drawAt(<CameraSettings camera={one} mayManage={false} mayOwn={false} tell={() => {}} onClose={() => {}} />);
 
   it('lets a camera without Premium say what it misses on this install, with the door to what Premium covers', async () => {
     drawSettings(rtsp);
@@ -464,7 +492,7 @@ describe('the camera page', () => {
     expect(
       await screen.findByText('Without Premium, its stills are served whole and kept just as long, but its films stay SD with a watermark.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('not entitled')).toBeInTheDocument();
+    expect(screen.getByText('no Premium')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /What Premium covers/ })).toHaveAttribute('href', '/me/premium');
   });
 

@@ -1,0 +1,42 @@
+/* The way back, the name, and what dates the page beside it. */
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--control-height);
+}
+
+/* The name keeps its words whole: the pill goes under it before a word is cut in two, and only a word longer than
+   the line beside the way back - a finger wide, less what it hangs out by - breaks, between two syllables where
+   the browser knows them (`h1` in global.css) and between two letters only where it does not. */
+.head h1 {
+  flex: 1 1 8rem;
+  min-width: auto;
+  max-width: calc(100% - var(--control-height) + var(--space-3) - var(--space-2));
+  overflow-wrap: break-word;
+}
+
+/* Whose page this is, under the title. */
+.of {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+/* The word in a pill that explains itself, lent a finger's room around it; the pill's row is a finger high for it. */
+.head > span {
+  margin-block: 10px;
+}
+
+.head span > button {
+  position: relative;
+}
+
+.head span > button::after {
+  content: '';
+  position: absolute;
+  inset: -13px -12px;
+}

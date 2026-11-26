@@ -1,40 +1,79 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useCurrentPlace } from '@/app/places';
+import { useDevices } from '@/api/devices';
+import { useNamedGrow } from '@/api/grows';
 import { useSession } from '@/api/session';
-import { LoadFailed, Waiting } from '@/ui/PageState';
+import { LoadFailed, NoLongerHere, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
-import { PlaceHeading, VisitingTitle } from './place/PlaceHeading';
+import { Visited, VisitingTitle } from './place/PlaceTitle';
 import { Timeline as TimelineScreen } from './timeline/Timeline';
-import heading from './place/PlaceHeading.module.css';
+import { withParams } from './timeline/view';
 import styles from './timeline/Timeline.module.css';
 
 /**
- * Verlauf, the tab: the Timeline of one place. It opens on the place a link
- * names (`?space=`, which is how a tile of the cockpit and an alert open it),
- * else on the place last looked at, else on the first the home lists; with
- * more than one place its title is the switcher.
+ * Verlauf, the bar's item: the curves of the chosen place. A link that names
+ * a place (`?space=`, which is how a reading on Start, a diary line and an
+ * alert open it) chooses it; which one that is stands in the header from the
+ * second place on. A link that names a device (`?device=`) is about that
+ * device: its curves, in the place it stands in - whichever place the address
+ * or the header named before. A link that names a place of the account's own
+ * that has ended draws that place's curves, read only, rather than another
+ * place's, and so does one that names an ended grow alone whose last place has
+ * ended.
  */
 export function Timeline() {
   const { t } = useTranslation();
   const { user } = useSession();
-  const { home, places, here, visiting, choose } = useCurrentPlace();
+  const { home, here, places, visiting, ended, stray } = useCurrentPlace(true);
+  const [params, setParams] = useSearchParams();
+  const devices = useDevices();
+  const deviceId = params.get('device');
+  const stands = deviceId ? devices.data?.items.find(one => one.id === deviceId)?.spaceId : null;
+  // An ended grow named without a place is drawn where it stood last - a place that has ended with it, read only -
+  // and not over the chosen place's curves, where it never stood.
+  const named = useNamedGrow(params.get('space') === null ? params.get('grow') : null);
+  const grow = named.grow;
+  const stoodLast = grow?.endedAt ? [...grow.placements].sort((one, other) => one.startedAt.localeCompare(other.startedAt)).at(-1)?.spaceId : null;
+  // The device's own place is written into the address, which is what chooses a place: the header follows.
+  const elsewhere =
+    stands && stands !== params.get('space') && places.some(place => place.spaceId === stands)
+      ? stands
+      : stoodLast && !places.some(place => place.spaceId === stoodLast)
+        ? stoodLast
+        : null;
+  useEffect(() => {
+    if (elsewhere) setParams(withParams(params, { space: elsewhere }), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per place the device turns out to stand in
+  }, [elsewhere]);
 
-  if (home.isPending) return <Waiting lines={3} />;
-  if (!home.data) return <LoadFailed retry={() => void home.refetch()} />;
+  // Not the place chosen before, for the moment it takes to learn where the device stands.
+  if (home.isPending || elsewhere || ended === undefined || (deviceId && devices.isPending) || named.pending)
+    return <Waiting lines={3} title={t('shell.tabs.timeline')} />;
+  if (!home.data) return <LoadFailed title={t('shell.tabs.timeline')} read={home} values />;
+  if (stray) return <NoLongerHere what="space" />;
 
-  if (visiting) return <TimelineScreen spaceId={visiting} heading={<VisitingTitle title={t('shell.tabs.timeline')} spaceId={visiting} />} />;
+  if (visiting) {
+    return (
+      <Visited spaceId={visiting}>
+        <TimelineScreen spaceId={visiting} title={<VisitingTitle title={t('shell.tabs.timeline')} spaceId={visiting} />} />
+      </Visited>
+    );
+  }
 
-  // A timeline is a place's measurements over a window, so the cards that stand
+  // The owner's own place that has ended keeps its curves, read only.
+  if (ended) return <TimelineScreen spaceId={ended.id} ended title={<h1>{t('shell.tabs.timeline')}</h1>} place={ended.name} />;
+
+  // Verlauf is a place's measurements over a window, so the cards that stand
   // for a grow and no place have nothing to draw here and are not offered.
   if (!here) {
     return (
       <section className={styles.screen}>
-        <h1 className={heading.title}>{t('shell.tabs.timeline')}</h1>
+        <h1>{t('shell.tabs.timeline')}</h1>
         {/* The demo is a session that owns nothing and is refused every write,
-            so sending it to the Home to add a device or start a grow names two
-            things it may not do. It is told what it is looking at instead, the
-            way the demo's own inbox and task list already are. */}
+            so sending it to Start to add a device or start a grow names two
+            things it may not do. It is told what it is looking at instead. */}
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {user?.isDemo === true ? (
             t('timeline.demoNoSpaces')
@@ -48,10 +87,5 @@ export function Timeline() {
     );
   }
 
-  return (
-    <TimelineScreen
-      spaceId={here.spaceId}
-      heading={<PlaceHeading title={t('shell.tabs.timeline')} places={places} here={here} onChoose={choose} />}
-    />
-  );
+  return <TimelineScreen spaceId={here.spaceId} title={<h1>{t('shell.tabs.timeline')}</h1>} place={places.length > 1 ? here.name : null} />;
 }

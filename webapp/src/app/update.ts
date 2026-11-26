@@ -1,3 +1,5 @@
+import { keepDraft } from '@/log/draft';
+
 /**
  * A new release, taken up by the open page.
  *
@@ -27,6 +29,8 @@ export const followReleases = (): void => {
     }
     if (reloading) return;
     reloading = true;
+    // A line half written in the open sheet is kept for this tab, and the sheet opens on it again after the reload.
+    keepDraft();
     window.location.reload();
   });
 

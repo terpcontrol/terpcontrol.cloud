@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import type { DeviceConfiguration } from '@fg2/shared-types/v1';
 import { AccessGuard } from '@common/v1/access.guard';
 import { AccessService } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
@@ -18,9 +18,13 @@ import { PresetApplicationsService } from '@modules/v1/space/preset-applications
 import { SpaceLiveService } from '@modules/v1/space/space-live.service';
 import { SpacesController } from '@modules/v1/space/spaces.controller';
 import { SpacesService } from '@modules/v1/space/spaces.service';
+import { DevicesService } from '@modules/v1/device/devices.service';
+import { InvitesService } from '@modules/v1/members/invites.service';
+import { MembersService } from '@modules/v1/members/members.service';
 import { admin, demo, session } from './support/callers';
-import { accessOn, growsOn, spacesOn } from './support/services';
+import { accessOn, devicesOn, growsOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
+import { standingIn } from './support/placed';
 
 /**
  * Spaces: the places everything else on the home screen hangs off, and the one
@@ -52,6 +56,9 @@ const GROW = 'grow-1';
 const db = useV1TestDatabase();
 let access: AccessService;
 let spaces: SpacesService;
+let devices: DevicesService;
+let members: MembersService;
+let invites: InvitesService;
 let presets: PresetApplicationsService;
 let controller: SpacesController;
 let guard: AccessGuard;
@@ -75,8 +82,11 @@ const seed = async (): Promise<void> => {
 
   // Standing in the other tent, so that the space under test is empty and can
   // be ended, and the device can be moved into it.
-  await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, spaceId: OTHER_SPACE });
+  await db.devices.create({ id: DEVICE, type: 'controller', ownerId: OWNER, ...standingIn(OTHER_SPACE, new Date('2026-01-03T00:00:00.000Z')) });
 };
+
+/** A rhythm, without what it is about. */
+const RHYTHM = { kind: 'chore', label: 'Clean the filter', everyDays: 7, onceAt: null, createdBy: OWNER } as const;
 
 const refusal = async (action: () => unknown): Promise<ProblemException> => {
   try {
@@ -102,6 +112,8 @@ const presetsOf = (): PresetApplicationsService => {
       configured.push({ deviceId, settings, stage });
       return true;
     },
+    lampsFollow: async () => undefined,
+    awaitClimate: async () => undefined,
   };
   const grows = growsOn(db, access, { phases, writer: written });
   const plans = new PlanService(
@@ -116,7 +128,10 @@ const presetsOf = (): PresetApplicationsService => {
 beforeEach(async () => {
   await db.reset();
   access = accessOn(db);
-  spaces = spacesOn(db, access);
+  devices = devicesOn(db, access);
+  spaces = spacesOn(db, access, devices);
+  members = new MembersService(db.memberships, db.spaces, db.users, db.invites, db.grows, db.entries, access, spaces);
+  invites = new InvitesService(db.invites, db.spaces, db.users, db.cameras, members, spaces, access);
   configured = [];
   presets = presetsOf();
   controller = new SpacesController(
@@ -153,10 +168,42 @@ describe('making one', () => {
     expect(space.roomId).toBe(ROOM);
   });
 
-  it('refuses to put a room in a room', async () => {
-    const problem = await refusal(() => spaces.create(session(OWNER), { kind: 'room', name: 'Inner', roomId: ROOM }));
+  it('refuses a room made by itself: a room is a field of the place', async () => {
+    const problem = await refusal(() => spaces.create(session(OWNER), { kind: 'room', name: 'Cellar' }));
 
-    expect(problem.problem).toMatchObject({ status: 422, code: 'room_in_room' });
+    expect(problem.problem).toMatchObject({ status: 409, code: 'room_by_itself' });
+  });
+
+  it('makes the room a place names, and puts the next place that names it into the same one', async () => {
+    const first = await spaces.create(session(STRANGER), { kind: 'tent', name: 'Tent', roomName: 'Cellar' });
+    const second = await spaces.create(session(STRANGER), { kind: 'fridge', name: 'Fridge', roomName: '  cellar ' });
+
+    expect(first.roomId).not.toBeNull();
+    expect(second.roomId).toBe(first.roomId);
+    expect(await db.spaces.findOne({ id: first.roomId }).lean()).toMatchObject({ ownerId: STRANGER, kind: 'room', name: 'Cellar', archivedAt: null });
+  });
+
+  it('refuses a room named twice over, by id and by name', async () => {
+    const problem = await refusal(() => spaces.create(session(OWNER), { kind: 'tent', name: 'Nested', roomId: ROOM, roomName: 'Cellar' }));
+
+    expect(problem.problem).toMatchObject({ status: 422, code: 'two_rooms' });
+  });
+
+  it('refuses a second place of one name with a sentence, however it is typed', async () => {
+    const problem = await refusal(() => spaces.create(session(OWNER), { kind: 'fridge', name: '  the TENT ' }));
+
+    expect(problem.problem).toMatchObject({ status: 409, code: 'name_taken', detail: 'Another place is already called "The tent".' });
+  });
+
+  it('lets a place be called what a room is called, and what somebody else´s place is', async () => {
+    expect((await spaces.create(session(OWNER), { kind: 'tent', name: 'The room' })).name).toBe('The room');
+    expect((await spaces.create(session(STRANGER), { kind: 'tent', name: 'The tent' })).name).toBe('The tent');
+  });
+
+  it('refuses a name of nothing but blanks', async () => {
+    const problem = await refusal(() => spaces.create(session(OWNER), { kind: 'tent', name: '   ' }));
+
+    expect(problem.problem).toMatchObject({ status: 422, code: 'name_required' });
   });
 
   it('refuses to group a space under something that is not a room', async () => {
@@ -179,16 +226,38 @@ describe('changing one', () => {
     expect(changed).toMatchObject({ name: 'The big tent', kind: 'tent', roomId: ROOM });
   });
 
-  it('moves it into a room the caller manages', async () => {
+  it('moves it into a room of its owner', async () => {
     const loose = await spaces.create(session(OWNER), { kind: 'balcony', name: 'The balcony' });
-    const moved = await spaces.update(session(MANAGER), loose.id, { roomId: ROOM });
+    const moved = await spaces.update(session(OWNER), loose.id, { roomId: ROOM });
 
     expect(moved.roomId).toBe(ROOM);
   });
 
+  /**
+   * Which room a place stands in is who is let into it, and taking the last
+   * place out of a room ends the room with its members. A guest who manages the
+   * place renames it and changes its kind; the grouping is its owner's.
+   */
+  it('leaves the room of a place to its owner: a guest who manages it sets none, by id, by name or by taking it out', async () => {
+    for (const body of [{ roomId: null }, { roomName: 'Attic' }, { roomName: 'The room' }]) {
+      const problem = await refusal(() => spaces.update(session(MANAGER), SPACE, body));
+      expect(problem.problem).toMatchObject({ status: 403, code: 'insufficient_access' });
+    }
+    expect((await spaces.require(SPACE)).roomId).toBe(ROOM);
+    expect(await db.spaces.countDocuments({ kind: 'room' })).toBe(1);
+
+    // Naming the room it stands in already sets nothing, and the rest of the form is the manager's.
+    expect(await spaces.update(session(MANAGER), SPACE, { name: 'Renamed', kind: 'fridge', roomId: ROOM })).toMatchObject({
+      name: 'Renamed',
+      kind: 'fridge',
+      roomId: ROOM,
+    });
+    expect((await spaces.update(session(OWNER), SPACE, { roomId: null })).roomId).toBeNull();
+  });
+
   it('refuses a room of another account, because a room and its spaces are shared as one', async () => {
-    const theirs = await spaces.create(session(STRANGER), { kind: 'room', name: 'Their room' });
-    const problem = await refusal(() => spaces.update(admin(), SPACE, { roomId: theirs.id }));
+    const theirs = await spaces.create(session(STRANGER), { kind: 'tent', name: 'Their tent', roomName: 'Their room' });
+    const problem = await refusal(() => spaces.update(admin(), SPACE, { roomId: theirs.roomId }));
 
     expect(problem.problem).toMatchObject({ status: 409, code: 'room_of_another_account' });
   });
@@ -199,22 +268,156 @@ describe('changing one', () => {
     expect(problem.problem.code).toBe('room_in_room');
   });
 
-  it('refuses to turn a space that hangs in a room into a room', async () => {
-    const problem = await refusal(() => spaces.update(session(OWNER), SPACE, { kind: 'room' }));
-
-    expect(problem.problem.code).toBe('room_in_room');
+  it('refuses to turn a place into a room, or a room into a place', async () => {
+    expect((await refusal(() => spaces.update(session(OWNER), SPACE, { kind: 'room' }))).problem.code).toBe('room_by_itself');
+    expect((await refusal(() => spaces.update(session(OWNER), ROOM, { kind: 'tent' }))).problem.code).toBe('room_by_itself');
   });
 
-  it('refuses to stop being a room while spaces are grouped under it', async () => {
-    const problem = await refusal(() => spaces.update(session(OWNER), ROOM, { kind: 'tent' }));
+  it('refuses a name another of the owner´s places carries, and takes its own name again', async () => {
+    const problem = await refusal(() => spaces.update(session(OWNER), SPACE, { name: 'the other tent' }));
 
-    expect(problem.problem).toMatchObject({ status: 409, code: 'room_not_empty' });
+    expect(problem.problem).toMatchObject({ status: 409, code: 'name_taken', detail: 'Another place is already called "The other tent".' });
+    expect((await spaces.update(session(OWNER), SPACE, { name: 'THE TENT' })).name).toBe('THE TENT');
+  });
+
+  it('renames a room, and refuses it the name of another room', async () => {
+    await spaces.update(session(OWNER), SPACE, { roomName: 'Attic' });
+
+    expect((await spaces.update(session(OWNER), ROOM, { name: 'Cellar' })).name).toBe('Cellar');
+    expect((await refusal(() => spaces.update(session(OWNER), ROOM, { name: 'attic' }))).problem).toMatchObject({
+      code: 'name_taken',
+      detail: 'Another room is already called "Attic".',
+    });
+  });
+
+  it('puts a place into a room by name, making the room where there is none', async () => {
+    const moved = await spaces.update(session(OWNER), SPACE, { roomName: 'Attic' });
+
+    expect(moved.roomId).not.toBe(ROOM);
+    expect(await db.spaces.findOne({ id: moved.roomId }).lean()).toMatchObject({ ownerId: OWNER, kind: 'room', name: 'Attic' });
+    // Its old room still holds the other tent and a member, and stays.
+    expect((await spaces.require(ROOM)).archivedAt).toBeNull();
+  });
+});
+
+describe('a room that empties', () => {
+  /** A room of the owner's with one tent in it and nobody a member. */
+  const attic = async (): Promise<{ roomId: string; tentId: string }> => {
+    const tent = await spaces.create(session(OWNER), { kind: 'tent', name: 'Attic tent', roomName: 'Attic' });
+    return { roomId: tent.roomId!, tentId: tent.id };
+  };
+
+  it('ends when its last place is taken out, with its invites and share links', async () => {
+    const { roomId, tentId } = await attic();
+    await db.invites.create({ id: 'invite-attic', code: 'ATTIC234', spaceId: roomId, role: 'can_log', createdBy: OWNER });
+    await db.shareLinks.create({ id: 'link-attic', token: 'token-attic', kind: 'view', subject: { type: 'space', id: roomId }, createdBy: OWNER });
+    await db.reminders.create({ ...RHYTHM, id: 'reminder-attic', subject: { type: 'space', id: roomId } });
+
+    await spaces.update(session(OWNER), tentId, { roomId: null });
+
+    expect((await spaces.require(roomId)).archivedAt).not.toBeNull();
+    expect(await db.invites.countDocuments({ spaceId: roomId })).toBe(0);
+    expect(await db.shareLinks.countDocuments({ 'subject.id': roomId })).toBe(0);
+    expect(await db.reminders.countDocuments({})).toBe(0);
+  });
+
+  it('ends when its last place ends', async () => {
+    const other = await spaces.create(session(OWNER), { kind: 'tent', name: 'Loft tent', roomName: 'Loft' });
+    await spaces.remove(other.id);
+    expect((await spaces.require(other.roomId!)).archivedAt).not.toBeNull();
+  });
+
+  it('never outlives its places: it ends with the last of them, and its members´ way in with it', async () => {
+    const { roomId, tentId } = await attic();
+    await db.memberships.create({ id: 'membership-attic', spaceId: roomId, userId: MEMBER, role: 'can_log' });
+
+    await spaces.update(session(OWNER), tentId, { roomId: null });
+
+    expect((await spaces.require(roomId)).archivedAt).not.toBeNull();
+    expect(await db.memberships.countDocuments({ spaceId: roomId })).toBe(0);
+    // The member's own row on a tent is another way in and is untouched.
+    expect(await db.memberships.countDocuments({ id: 'membership-member' })).toBe(1);
+  });
+
+  it('stays while a room holds something itself, though no place stands in it', async () => {
+    const { roomId, tentId } = await attic();
+    await db.cameras.create({ id: 'camera-attic', ownerId: OWNER, kind: 'rtsp', name: 'Attic cam', spaceId: roomId });
+
+    await spaces.update(session(OWNER), tentId, { roomId: null });
+
+    expect((await spaces.require(roomId)).archivedAt).toBeNull();
+  });
+
+  it('stays while a place stands in it', async () => {
+    await spaces.update(session(OWNER), SPACE, { roomId: null });
+
+    expect((await spaces.require(ROOM)).archivedAt).toBeNull();
+  });
+
+  it('makes a new room of a name whose room has ended', async () => {
+    const { roomId, tentId } = await attic();
+    await spaces.update(session(OWNER), tentId, { roomId: null });
+
+    const moved = await spaces.update(session(OWNER), tentId, { roomName: 'Attic' });
+    expect(moved.roomId).not.toBe(roomId);
+    expect((await spaces.require(moved.roomId!)).archivedAt).toBeNull();
+  });
+
+  /**
+   * An ended room is a tombstone history names and nothing else. Whatever it
+   * took - a new name, a place, a person - would be written to something on no
+   * screen, so its owner is refused each of them with the rule in a sentence.
+   */
+  describe('once it has ended', () => {
+    const ENDED = {
+      status: 409,
+      code: 'room_ended',
+      detail: 'A room exists only while a place stands in it, and this one ended with its last place.',
+    };
+    let roomId: string;
+    let tentId: string;
+
+    beforeEach(async () => {
+      ({ roomId, tentId } = await attic());
+      await spaces.update(session(OWNER), tentId, { roomId: null });
+    });
+
+    it('takes no new name', async () => {
+      expect((await refusal(() => spaces.update(session(OWNER), roomId, { name: 'Loft' }))).problem).toMatchObject(ENDED);
+      expect((await spaces.require(roomId)).name).toBe('Attic');
+    });
+
+    it('takes no place, neither one that moves nor one that is made', async () => {
+      expect((await refusal(() => spaces.update(session(OWNER), tentId, { roomId }))).problem).toMatchObject(ENDED);
+      expect((await refusal(() => spaces.create(session(OWNER), { kind: 'tent', name: 'Late tent', roomId }))).problem).toMatchObject(ENDED);
+      expect(await db.spaces.countDocuments({ roomId })).toBe(0);
+    });
+
+    it('takes nobody: no invite is cut for it and nobody is added to it', async () => {
+      await db.users.create({ id: MEMBER, email: 'member@test.invalid', handle: 'member', passwordHash: 'x', isActive: true });
+
+      expect((await refusal(() => invites.create(session(OWNER), roomId, { role: 'can_log' }))).problem).toMatchObject(ENDED);
+      expect((await refusal(() => members.add(session(OWNER), roomId, { handle: 'member', role: 'can_log' }))).problem).toMatchObject(ENDED);
+      expect(await db.invites.countDocuments({ spaceId: roomId })).toBe(0);
+      expect(await db.memberships.countDocuments({ spaceId: roomId })).toBe(0);
+      // The same two on a room that stands are taken, so the refusal is the ended room's.
+      await invites.create(session(OWNER), ROOM, { role: 'can_log' });
+      await members.add(session(OWNER), ROOM, { handle: 'member', role: 'can_log' });
+    });
+
+    it('lets nobody in through a code that was cut for it, which answers as any dead code does', async () => {
+      await db.invites.create({ id: 'invite-late', code: 'LATE2345', spaceId: roomId, role: 'can_log', createdBy: OWNER });
+
+      expect((await refusal(() => invites.accept(session(STRANGER), 'LATE2345'))).problem).toMatchObject({ status: 404, code: 'invite_not_found' });
+      expect((await invites.preview('LATE2345')).isValid).toBe(false);
+      expect(await db.memberships.countDocuments({ spaceId: roomId })).toBe(0);
+    });
   });
 });
 
 describe('listing them', () => {
-  it('leaves archived spaces out, and lists them when they are asked for', async () => {
-    await spaces.archive(session(OWNER), SPACE, true);
+  it('leaves ended spaces out, and lists them when they are asked for', async () => {
+    await spaces.remove(SPACE);
 
     const inUse = await spaces.list(session(OWNER), {}, {});
     const archived = await spaces.list(session(OWNER), {}, { archived: true });
@@ -322,108 +525,95 @@ describe('what the reader may do here', () => {
   });
 });
 
-describe('archiving one', () => {
-  it('says the same thing twice without moving the instant it carries', async () => {
-    const archived = await spaces.archive(session(OWNER), SPACE, true);
-    const again = await spaces.archive(session(OWNER), SPACE, true);
+describe('once it has ended', () => {
+  /** A place that has ended is on no screen: a name, a kind or a climate written to it would be read by nobody. */
+  it('takes no name, no kind and no climate preset', async () => {
+    const before = await spaces.require(SPACE);
+    await spaces.remove(SPACE);
+    const ended = { status: 409, code: 'space_archived', detail: 'That place has ended, and nothing is put into an ended place.' };
 
-    expect(archived.archivedAt).not.toBeNull();
-    expect(again.archivedAt).toBe(archived.archivedAt);
-  });
-
-  it('brings it back', async () => {
-    await spaces.archive(session(OWNER), SPACE, true);
-
-    expect((await spaces.archive(session(OWNER), SPACE, false)).archivedAt).toBeNull();
-  });
-
-  it('refuses a room whose spaces are still in use', async () => {
-    const problem = await refusal(() => spaces.archive(session(OWNER), ROOM, true));
-
-    expect(problem.problem).toMatchObject({ status: 409, code: 'room_not_empty' });
-  });
-
-  it('takes a room once the spaces in it are archived too', async () => {
-    await spaces.archive(session(OWNER), SPACE, true);
-    await spaces.archive(session(OWNER), OTHER_SPACE, true);
-
-    expect((await spaces.archive(session(OWNER), ROOM, true)).archivedAt).not.toBeNull();
+    expect((await refusal(() => spaces.update(session(OWNER), SPACE, { name: 'Renamed too late' }))).problem).toMatchObject(ended);
+    expect((await refusal(() => spaces.update(session(OWNER), SPACE, { kind: 'fridge' }))).problem).toMatchObject(ended);
+    expect((await refusal(() => presets.apply(session(OWNER), SPACE, { stage: 'vegetative' }))).problem).toMatchObject(ended);
+    expect(await spaces.require(SPACE)).toMatchObject({ name: before.name, kind: before.kind });
   });
 });
 
 describe('ending one', () => {
   const codesOf = (problem: ProblemException): string[] => problem.problem.errors.map(error => error.code);
 
-  /** The tent under test carries a member, and ending a space is refused while it does. */
-  const emptyOfPeople = () => db.memberships.deleteMany({ spaceId: SPACE });
-
   it('keeps the space as a tombstone, because history still names it', async () => {
-    await emptyOfPeople();
     await spaces.remove(SPACE);
 
     expect((await spaces.list(session(OWNER), {}, {})).items.map(space => space.id)).toEqual([ROOM, OTHER_SPACE]);
     expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
   });
 
-  it('takes the rest of the way in with it', async () => {
-    await db.invites.create({ id: 'invite-1', code: 'ABCD2345', spaceId: SPACE, role: 'can_log', createdBy: OWNER });
-    await emptyOfPeople();
-    await spaces.remove(SPACE);
-
-    expect(await db.invites.countDocuments({ spaceId: SPACE })).toBe(0);
-  });
-
   /**
-   * Letting somebody go is a thing their host does deliberately, one person at a
-   * time, so the delete button is not allowed to do it in passing. The refusal
-   * has to be actionable on its own: it says how many people are in the way and
-   * what to do about them, because a client that only gets `member_here` has to
-   * invent the sentence itself.
+   * Guests do not block the removal: the app names them before it asks, and
+   * the write that ends the place ends every way into it - as a room's end
+   * does. A way in that outlived the place would open a tombstone.
    */
-  it('refuses while somebody else is a member, and says so in words', async () => {
-    const problem = await refusal(() => spaces.remove(SPACE));
+  it('ends its guests´ memberships, its invites and its share links with it', async () => {
+    await db.memberships.create({ id: 'membership-second', spaceId: SPACE, userId: STRANGER, role: 'can_manage' });
+    await db.invites.create({ id: 'invite-1', code: 'ABCD2345', spaceId: SPACE, role: 'can_log', createdBy: OWNER });
+    await db.shareLinks.create({ id: 'link-1', token: 'token-1', kind: 'view', subject: { type: 'space', id: SPACE }, createdBy: OWNER });
 
-    expect(problem.problem).toMatchObject({ status: 409, code: 'space_in_use' });
-    expect(problem.problem.errors).toEqual([
-      { field: 'id', code: 'member_here', detail: 'Somebody else is a member of this space. Remove them from it first.' },
-    ]);
-    // And the space is still there, unarchived: a refusal changes nothing.
-    expect((await spaces.require(SPACE)).archivedAt).toBeNull();
-  });
-
-  it('counts the people it is waiting for', async () => {
-    await db.memberships.create({ id: 'membership-second', spaceId: SPACE, userId: STRANGER, role: 'can_log' });
-    const problem = await refusal(() => spaces.remove(SPACE));
-
-    expect(problem.problem.errors[0].detail).toBe('2 other people are members of this space. Remove them from it first.');
-  });
-
-  it('takes it once the last member has been let go', async () => {
-    await emptyOfPeople();
     await spaces.remove(SPACE);
 
     expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
+    expect(await db.memberships.countDocuments({ spaceId: SPACE })).toBe(0);
+    expect(await db.invites.countDocuments({ spaceId: SPACE })).toBe(0);
+    expect(await db.shareLinks.countDocuments({ 'subject.id': SPACE })).toBe(0);
+    // Neither guest reaches it any more, and the one who could log has no place left.
+    expect(await access.access(session(STRANGER), { type: 'space', id: SPACE }, 'view')).toBeNull();
+    expect((await spaces.list(session(MEMBER), {}, { archived: true })).items).toEqual([]);
+  });
+
+  /**
+   * A rhythm kept for the place ends with it: work cannot fall due in a place
+   * that is gone, and a reminder naming one could not be changed by anybody.
+   * A grow's reminders are the grow's, and another place's are that place's.
+   */
+  it('ends the reminders kept for it, and no grow´s and no other place´s', async () => {
+    await db.reminders.create([
+      { ...RHYTHM, id: 'reminder-here', subject: { type: 'space', id: SPACE } },
+      { ...RHYTHM, id: 'reminder-next-door', subject: { type: 'space', id: OTHER_SPACE } },
+      // A grow's, though its id is the place's: the kind of subject decides.
+      { ...RHYTHM, id: 'reminder-of-a-grow', subject: { type: 'grow', id: SPACE } },
+    ]);
+
+    await spaces.remove(SPACE);
+
+    expect((await db.reminders.find({}).lean()).map(reminder => reminder.id).sort()).toEqual(['reminder-next-door', 'reminder-of-a-grow']);
   });
 
   /**
    * A membership on the room reaches into the tents under it, but it is the
-   * room's and is ended there. Counting it here would make every tent in a
-   * shared room undeletable, and the room is already refused while anything is
-   * grouped under it - so the room is emptied first and then meets its own
-   * members.
+   * room's: it stays while another place stands in the room, and goes with the
+   * room when the last one ends.
    */
-  it('does not count a membership held on the room above it', async () => {
-    await emptyOfPeople();
+  it('leaves a membership held on the room above it while another place stands there', async () => {
     await spaces.remove(SPACE);
 
-    expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
     expect(await db.memberships.countDocuments({ spaceId: ROOM })).toBe(1);
+    expect((await spaces.require(ROOM)).archivedAt).toBeNull();
   });
 
-  it('refuses the room itself while its own members are on it', async () => {
+  it('ends the room with its last place, and the room´s members´ rows with it', async () => {
+    await db.devices.deleteMany({ spaceId: OTHER_SPACE });
+    await spaces.remove(SPACE);
+    await spaces.remove(OTHER_SPACE);
+
+    expect((await spaces.require(ROOM)).archivedAt).not.toBeNull();
+    expect(await db.memberships.countDocuments({})).toBe(0);
+    expect(await access.access(session(MANAGER), { type: 'space', id: OTHER_SPACE }, 'view')).toBeNull();
+  });
+
+  it('refuses the room itself: a room ends by itself', async () => {
     await db.spaces.updateMany({ roomId: ROOM }, { $set: { roomId: null } });
 
-    expect(codesOf(await refusal(() => spaces.remove(ROOM)))).toEqual(['member_here']);
+    expect((await refusal(() => spaces.remove(ROOM))).problem).toMatchObject({ status: 409, code: 'room_by_itself' });
   });
 
   it('refuses while a device stands there', async () => {
@@ -434,7 +624,6 @@ describe('ending one', () => {
   });
 
   it('refuses while a camera looks into it', async () => {
-    await emptyOfPeople();
     await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_standalone', name: 'The cam', spaceId: SPACE });
     expect(codesOf(await refusal(() => spaces.remove(SPACE)))).toEqual(['camera_here']);
   });
@@ -442,11 +631,16 @@ describe('ending one', () => {
   it('names everything that is in the way at once, rather than the first thing', async () => {
     await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_standalone', name: 'The cam', spaceId: SPACE });
 
-    expect(codesOf(await refusal(() => spaces.remove(SPACE)))).toEqual(['camera_here', 'member_here']);
+    await db.devices.updateOne({ id: DEVICE }, { $set: standingIn(SPACE) });
+
+    const problem = await refusal(() => spaces.remove(SPACE));
+    expect(codesOf(problem)).toEqual(['device_here', 'camera_here']);
+    // Refused and unchanged: the people in it are still in it.
+    expect(await db.memberships.countDocuments({ spaceId: SPACE })).toBe(1);
+    expect((await spaces.require(SPACE)).archivedAt).toBeNull();
   });
 
   it('refuses while a grow is standing in it', async () => {
-    await emptyOfPeople();
     await db.grows.create({
       id: GROW,
       ownerId: OWNER,
@@ -461,7 +655,6 @@ describe('ending one', () => {
   });
 
   it('allows it once the grow standing in it has ended', async () => {
-    await emptyOfPeople();
     await db.grows.create({
       id: GROW,
       ownerId: OWNER,
@@ -478,7 +671,6 @@ describe('ending one', () => {
   });
 
   it('allows it once the grow has moved on', async () => {
-    await emptyOfPeople();
     await db.grows.create({
       id: GROW,
       ownerId: OWNER,
@@ -500,16 +692,12 @@ describe('ending one', () => {
     await spaces.remove(SPACE);
     expect((await spaces.require(SPACE)).archivedAt).not.toBeNull();
   });
-
-  it('refuses a room that still groups spaces, and names its own members beside them', async () => {
-    expect(codesOf(await refusal(() => spaces.remove(ROOM)))).toEqual(['space_here', 'member_here']);
-  });
 });
 
 describe('what stands in it', () => {
   it('moves a device in, and the camera its controller answers for with it', async () => {
     await db.cameras.create({ id: CAMERA, ownerId: OWNER, kind: 'terpcam_controller', name: 'The cam', deviceId: DEVICE, spaceId: OTHER_SPACE });
-    const device = await spaces.placeDevice(SPACE, DEVICE, false);
+    const device = await devices.update(DEVICE, { spaceId: SPACE });
 
     expect(device.spaceId).toBe(SPACE);
     expect((await db.cameras.findOne({ id: CAMERA }).lean())?.spaceId).toBe(SPACE);
@@ -521,6 +709,39 @@ describe('what stands in it', () => {
     expect((await db.devices.findOne({ id: DEVICE }).lean())?.spaceId).toBeNull();
   });
 
+  it('keeps where the device stood: the stay it leaves is closed and the one it comes to is open', async () => {
+    await devices.update(DEVICE, { spaceId: SPACE });
+
+    const { placements } = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(placements.map(placement => placement.spaceId)).toEqual([OTHER_SPACE, SPACE]);
+    expect(placements[0].endedAt).toEqual(placements[1].startedAt);
+    expect(placements[1].endedAt).toBeNull();
+  });
+
+  it('takes a move back as if it had not happened: a stay of minutes is no stay', async () => {
+    await devices.update(DEVICE, { spaceId: SPACE });
+    await devices.update(DEVICE, { spaceId: OTHER_SPACE });
+
+    const { placements } = (await db.devices.findOne({ id: DEVICE }).lean())!;
+    expect(placements).toHaveLength(1);
+    expect(placements[0]).toMatchObject({ spaceId: OTHER_SPACE, startedAt: new Date('2026-01-03T00:00:00.000Z'), endedAt: null });
+  });
+
+  it('refuses a device of another account, however much its owner may manage the place', async () => {
+    // The manager of the room may steer every tent in it; hardware of their own does not stand in the host's tent.
+    await db.devices.create({ id: 'device-of-the-manager', type: 'fan', ownerId: MANAGER, spaceId: null, placements: [] });
+
+    const problem = await refusal(() => devices.update('device-of-the-manager', { spaceId: SPACE }));
+
+    expect(problem.problem).toMatchObject({ status: 409, code: 'place_of_another_account' });
+    expect(problem.problem.detail).toBe('A device stands only in a place of the account it belongs to.');
+    expect(await db.devices.findOne({ id: 'device-of-the-manager' }).lean()).toMatchObject({ spaceId: null, placements: [] });
+  });
+
+  it('refuses to put a device into a room', async () => {
+    expect((await refusal(() => devices.update(DEVICE, { spaceId: ROOM }))).problem.code).toBe('room_by_itself');
+  });
+
   it('refuses to take a device out of a space it is not in', async () => {
     const problem = await refusal(() => spaces.removeDevice(SPACE, DEVICE));
 
@@ -528,8 +749,8 @@ describe('what stands in it', () => {
   });
 
   it('refuses to put anything into a space that has ended', async () => {
-    await spaces.archive(session(OWNER), SPACE, true);
-    const problem = await refusal(() => spaces.placeDevice(SPACE, DEVICE, false));
+    await db.spaces.updateOne({ id: SPACE }, { $set: { archivedAt: new Date() } });
+    const problem = await refusal(() => devices.update(DEVICE, { spaceId: SPACE }));
 
     expect(problem.problem).toMatchObject({ status: 409, code: 'space_archived' });
   });
@@ -593,38 +814,6 @@ const aRunningPlan = (stageOfTheNextStep: string | null) =>
     notify: { mode: 'off', email: null, writeEntries: true },
     state: { status: 'running', activeStepIndex: 0, stepStartedAt: A_WHILE_AGO, pausedElapsedMs: 0 },
   });
-
-describe('the work mode of a stage entered without its climate', () => {
-  const modeFor = (stage: GrowthStage) =>
-    new ClimatePresetsService(db.devices, {
-      applyConfiguration: async (deviceId, settings, given) => {
-        configured.push({ deviceId, settings, stage: given });
-        return true;
-      },
-    }).modeToSpace(SPACE, stage);
-
-  it('puts a device into drying with nothing but the stage, and leaves one that dries already alone', async () => {
-    await aController(SPACE, { ...TUNED, workmode: 'small' });
-    await modeFor('drying');
-    expect(configured).toEqual([{ deviceId: CONTROLLER, settings: {}, stage: 'drying' }]);
-
-    configured = [];
-    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'dry' } });
-    await modeFor('drying');
-    expect(configured).toEqual([]);
-  });
-
-  it('ends a drying spell or an off for another stage, and writes nothing to a device that already runs', async () => {
-    await aController(SPACE, { ...TUNED, workmode: 'dry' });
-    await modeFor('curing');
-    expect(configured).toEqual([{ deviceId: CONTROLLER, settings: {}, stage: 'curing' }]);
-
-    configured = [];
-    await db.devices.updateOne({ id: CONTROLLER }, { $set: { 'configuration.workmode': 'small' } });
-    await modeFor('flowering');
-    expect(configured).toEqual([]);
-  });
-});
 
 describe('applying a climate preset', () => {
   it('puts the controllers standing here on the stage´s climate', async () => {
@@ -712,7 +901,7 @@ describe('applying a climate preset', () => {
     expect(configured).toEqual([]);
   });
 
-  it('sets the phase of the grow standing here, and marks it as the preset´s', async () => {
+  it('sets the phase of the grow standing here, as the phase of whoever applied the preset', async () => {
     await aController();
     await aGrowIn(GROW_HERE, SPACE);
 
@@ -722,7 +911,7 @@ describe('applying a climate preset', () => {
     expect(applied.phaseId).toEqual(expect.any(String));
 
     const grow = await db.grows.findOne({ id: GROW_HERE }).lean();
-    expect(grow?.phases[0]).toMatchObject({ stage: 'vegetative', source: 'preset', setBy: null, deviceId: CONTROLLER });
+    expect(grow?.phases[0]).toMatchObject({ stage: 'vegetative', source: 'human', setBy: OWNER, deviceId: CONTROLLER });
     expect(grow?.phases[0].targets).toMatchObject({ day: { temperature: 26 } });
   });
 
@@ -778,7 +967,7 @@ describe('applying a climate preset', () => {
     expect(applied.growId).toBe(GROW_ELSEWHERE);
     const grow = await db.grows.findOne({ id: GROW_ELSEWHERE }).lean();
     expect(grow?.placements.filter(row => row.endedAt === null).map(row => row.spaceId)).toEqual([SPACE]);
-    expect(grow?.phases[0]).toMatchObject({ stage: 'flowering', source: 'preset' });
+    expect(grow?.phases[0]).toMatchObject({ stage: 'flowering', source: 'human', setBy: OWNER });
   });
 
   it('refuses to move a grow the caller may not manage', async () => {
@@ -862,23 +1051,10 @@ const ROUTES: RouteCase[] = [
   },
   { name: 'read', handler: 'read', params: { id: SPACE }, run: ctx => controller.read(ctx, SPACE) },
   { name: 'update', handler: 'update', params: { id: SPACE }, run: ctx => controller.update(ctx, SPACE, { name: 'Renamed' }) },
-  { name: 'archive', handler: 'archive', params: { id: SPACE }, run: ctx => controller.archive(ctx, SPACE) },
-  { name: 'unarchive', handler: 'unarchive', params: { id: SPACE }, run: ctx => controller.unarchive(ctx, SPACE) },
-  {
-    name: 'delete',
-    handler: 'remove',
-    params: { id: SPACE },
-    // A space with members in it is refused whoever is asking, which would hide
-    // the decision this table is about behind a reason of the route's own.
-    setUp: () => db.memberships.deleteMany({ spaceId: SPACE }),
-    run: () => controller.remove(SPACE),
-  },
-  {
-    name: 'place a device',
-    handler: 'placeDevice',
-    params: { id: SPACE, deviceId: DEVICE },
-    run: ctx => controller.placeDevice(ctx, SPACE, DEVICE),
-  },
+  // The room a place stands in is who is let into it, which is its owner's to say.
+  { name: 'regroup', handler: 'update', params: { id: SPACE }, run: ctx => controller.update(ctx, SPACE, { roomId: null }) },
+  { name: 'name its room', handler: 'update', params: { id: SPACE }, run: ctx => controller.update(ctx, SPACE, { roomName: 'Attic' }) },
+  { name: 'delete', handler: 'remove', params: { id: SPACE }, run: () => controller.remove(SPACE) },
   {
     name: 'take a device out',
     handler: 'removeDevice',
@@ -942,8 +1118,21 @@ describe('who may do what', () => {
     expect(await allowedRoutes(admin())).toEqual(EVERY_ROUTE);
   });
 
-  it('lets a manager do everything but end a space', async () => {
-    expect(await allowedRoutes(session(MANAGER))).toEqual(EVERY_ROUTE.filter(name => name !== 'delete'));
+  /** What is the owner's stays the owner's: ending the place, saying which room it stands in, and taking a device out of every place. */
+  const THE_OWNERS = ['regroup', 'name its room', 'delete', 'take a device out'];
+
+  it('lets a manager do everything but what is the owner´s', async () => {
+    expect(await allowedRoutes(session(MANAGER))).toEqual(EVERY_ROUTE.filter(name => !THE_OWNERS.includes(name)));
+  });
+
+  it('refuses a manager taking a device out with a 403, and leaves the device where it stands', async () => {
+    await db.devices.updateOne({ id: DEVICE }, { $set: standingIn(SPACE) });
+    const route = ROUTES.find(one => one.name === 'take a device out')!;
+
+    expect(await guard.canActivate(executionContext(route, session(MANAGER)))).toBe(true);
+    expect((await refusal(() => route.run(session(MANAGER)))).problem).toMatchObject({ status: 403, code: 'insufficient_access' });
+    expect((await db.devices.findOne({ id: DEVICE }).lean())?.spaceId).toBe(SPACE);
+    expect((await refusal(() => guard.canActivate(executionContext(route, session(STRANGER))))).problem).toMatchObject({ status: 404 });
   });
 
   it('lets a member read the space and change nothing', async () => {
@@ -967,10 +1156,9 @@ describe('who may do what', () => {
     expect(needs).toEqual([
       { name: 'read', need: 'view', subject: 'space', param: 'id' },
       { name: 'update', need: 'manage', subject: 'space', param: 'id' },
-      { name: 'archive', need: 'manage', subject: 'space', param: 'id' },
-      { name: 'unarchive', need: 'manage', subject: 'space', param: 'id' },
+      { name: 'regroup', need: 'manage', subject: 'space', param: 'id' },
+      { name: 'name its room', need: 'manage', subject: 'space', param: 'id' },
       { name: 'delete', need: 'own', subject: 'space', param: 'id' },
-      { name: 'place a device', need: 'manage', subject: 'space', param: 'id' },
       { name: 'take a device out', need: 'manage', subject: 'space', param: 'id' },
       { name: 'apply a preset', need: 'manage', subject: 'space', param: 'id' },
     ]);

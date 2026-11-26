@@ -1,4 +1,4 @@
-import type { Device } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmRulePage, Device } from '@fg2/shared-types/v1';
 
 const BASE: Device = {
   id: 'device-1',
@@ -33,4 +33,15 @@ export const deviceWith = ({ state, ...over }: Partial<Omit<Device, 'state'>> & 
   ...BASE,
   ...over,
   state: { ...BASE.state, ...state },
+});
+
+/** A device's rules as the server lists them: one page, with the counts over all of them. */
+export const rulePage = (items: AlarmRule[]): AlarmRulePage => ({
+  items,
+  nextCursor: null,
+  counts: {
+    total: items.length,
+    enabled: items.filter(rule => rule.enabled).length,
+    triggered: items.filter(rule => rule.enabled && rule.state.triggered).length,
+  },
 });

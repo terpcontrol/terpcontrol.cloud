@@ -1,4 +1,5 @@
 import type { NotificationCategory, NotificationChannel, NotificationRouting, QuietHours, WebhookMethod } from '@fg2/shared-types/v1';
+import type { Translate } from '@/i18n/i18n';
 
 /**
  * The arithmetic of the notification settings, kept apart from the screen so
@@ -38,13 +39,10 @@ export const routingWith = (
 export const categoriesOn = (routing: NotificationRouting, channel: NotificationChannel): NotificationCategory[] =>
   CATEGORIES.filter(category => routes(routing, category, channel));
 
-/** "critical and warnings", "Kritisches, Warnungen und fällige Aufgaben": the language's own way of listing. */
-export const listed = (items: string[], language: string): string => {
-  try {
-    return new Intl.ListFormat(language, { type: 'conjunction' }).format(items);
-  } catch {
-    return items.join(', ');
-  }
+/** "Kritische Alarme, Warnungen und fällige Aufgaben": rows of the grid in the one wording a card, the notice, its receipt and its toast use. */
+export const inWords = (t: Translate, language: string, rows: NotificationCategory[], start = true): string => {
+  const said = new Intl.ListFormat(language, { type: 'conjunction' }).format(rows.map(row => t(`notifications.short.${row}`)));
+  return start ? said.charAt(0).toLocaleUpperCase() + said.slice(1) : said;
 };
 
 /**

@@ -46,7 +46,10 @@ export const refusalCode = (error: unknown): string | null => (error instanceof 
 export const readProblem = async (response: Response): Promise<Problem> => {
   try {
     const body = (await response.json()) as Partial<Problem>;
-    if (typeof body?.status === 'number' && typeof body?.code === 'string') return body as Problem;
+    // A refusal that names no field carries no `errors` on some paths; every reader counts on the list.
+    if (typeof body?.status === 'number' && typeof body?.code === 'string') {
+      return { ...body, errors: Array.isArray(body.errors) ? body.errors : [] } as Problem;
+    }
   } catch {
     // A proxy or a crash answers HTML; the status line is still the truth.
   }

@@ -1,6 +1,7 @@
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import type { AppliedClimate, GrowthStage, PlanStep } from '@fg2/shared-types/v1';
 import { activeStep, isOver } from '@fg2/shared-types/v1-schemas/plan-clock.js';
 import { BackgroundWork } from '@common/background-work';
 import { MODEL_V1 } from '@database/models';
@@ -129,7 +130,8 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
       // A germination step's choices go with it, every hour: the plan holds what
       // germination does about the humidity as it holds the figures it writes.
       const choices = step.stage === 'germination' ? (step.germinationChoices ?? undefined) : undefined;
-      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, sent, step.stage, choices))) {
+      const applied = climateOf(step);
+      if (writes && (await this.configuration.applyConfiguration(plan.deviceId, sent, step.stage, choices, applied))) {
         logger.info(`Applied recipe step ${plan.state.activeStepIndex} to device ${plan.deviceId}`);
       }
 
@@ -152,3 +154,20 @@ export class PlanEngineService implements OnModuleInit, OnApplicationShutdown {
     return !!lastSeenAt && lastSeenAt.getTime() >= now.getTime() - APPLY_LAST_SEEN_MS;
   }
 }
+
+/** The stages a device is held in round the clock, in the dark: their stage is the climate, figures or none. */
+const DARK_STAGES: readonly (GrowthStage | null)[] = ['germination', 'drying'];
+
+/**
+ * The climate a step puts the device on, which names it on Steuerung and which the place's thresholds follow. Only a
+ * step that writes figures of its own - targets or light hours - or a dark stage writes a climate: its preset where it
+ * names one and the figures are there, else its stage alone (null, which clears a name). A step that writes nothing
+ * but a stage that is not dark leaves the device's name and the place's thresholds as they are (undefined): naming its
+ * stage would claim a climate the device does not hold, and its hourly re-send would undo one written since. Where it
+ * ends a germination, the germination ends as its own button ends it, on the climate it came from (`endsBare`).
+ */
+const climateOf = (step: PlanStep): AppliedClimate | null | undefined => {
+  const figures = Object.keys(step.settings ?? {}).length > 0 || (step.lightHours ?? null) !== null;
+  if (!figures && !DARK_STAGES.includes(step.stage)) return undefined;
+  return figures && step.stage !== null && step.preset !== null ? { stage: step.stage, preset: step.preset } : null;
+};

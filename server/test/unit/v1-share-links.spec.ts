@@ -3,7 +3,7 @@ import { ProblemException } from '@common/v1/problem';
 import { ShareLinkDocument } from '@database/schemas/v1/share-links.schema';
 import { ShareLinksService } from '@modules/v1/sharing/share-links.service';
 import { admin, demo, session } from './support/callers';
-import { accessOn } from './support/services';
+import { accessOn, spacesOn } from './support/services';
 import { useV1TestDatabase } from './support/v1-database';
 
 /**
@@ -28,7 +28,8 @@ const db = useV1TestDatabase();
 let links: ShareLinksService;
 
 const build = (): ShareLinksService => {
-  return new ShareLinksService(db.shareLinks, db.grows, db.spaces, accessOn(db));
+  const access = accessOn(db);
+  return new ShareLinksService(db.shareLinks, db.grows, db.spaces, access, spacesOn(db, access));
 };
 
 /** One tent and one grow each for two accounts, so the wrong rows exist to be answered. */

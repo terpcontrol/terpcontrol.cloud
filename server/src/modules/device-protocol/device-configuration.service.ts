@@ -2,7 +2,7 @@ import { HttpException, Inject, Injectable, Optional } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
+import { AppliedClimate, DeviceConfiguration, GrowthStage } from '@fg2/shared-types/v1';
 import { GERMINATION_HUMIDITY, germinationChoicesOf, type GerminationChoiceValues } from '@fg2/shared-types/v1-schemas/climate-presets.js';
 import {
   co2FanKey,
@@ -10,6 +10,8 @@ import {
   co2InjectFor,
   isSection,
   nestedAt,
+  TARGET_RANGES,
+  valueAt,
   type Co2Fan,
   type FieldSetting,
 } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
@@ -17,16 +19,19 @@ import { SCHEDULED_MODES } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { badRequest, unprocessable } from '@common/v1/problem';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { MODEL_V1 } from '@database/models';
-import { ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
+import { AwaitedClimate, ScheduleClock, StoredDevice } from '@database/schemas/v1/devices.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { StoredUser } from '@database/schemas/v1/users.schema';
 import { logger } from '@utils/logger';
 // The plan hands over what its step stored; the port it asks through is the plan's.
 import { DeviceConfigurationWriter } from '../v1/plan/device-configuration.port';
+import { STAGE_ALARMS, type StageAlarms } from '../v1/phase/stage-alarms.port';
 import { recordTargets } from '../v1/phase/target-record';
+import { CONFIGURATION_UPDATED, GERMINATION_CHOICES, changeLine, changeOf, linesJoined } from './change-lines';
 import { HIDDEN_FIGURES, HUMIDIFIER_REST_BAND, heldTo } from './class-rules';
 import { fieldChangesOf, withFigures } from './configuration-fields';
 import { DevicePublisherService } from './device-publisher.service';
+import { presetConfiguration } from '../v1/space/climate-presets';
 import { DEVICE_GERMINATION_SINK, type DeviceGerminationSink } from './device-sinks';
 import { figureRefusals, withFiguresHeld } from './document-figures';
 import { GERMINATION_FORGOTTEN, leavesGermination } from './germination-memory';
@@ -34,7 +39,7 @@ import { driftBetween, keepsTime, SCHEDULE_FOLLOWER, ScheduleFollower, sameClock
 import { targetsOf } from '../v1/phase/phase-targets';
 import { GERMINATION_FIGURES, keptForDrying, keptForGermination, recordedReturn } from './drying-return';
 import { withIdleFiguresKept } from './idle-figures';
-import { ChoicesSaid, decideWorkmode, standardOf, WriteIntent } from './work-modes';
+import { ChoicesSaid, climateBefore, darkIn, decideWorkmode, SEEDLING, standardOf, WriteIntent } from './work-modes';
 
 /** What a write stored: the document before it and after it, and what germination is to do about the humidity before and after. */
 interface Written {
@@ -43,6 +48,8 @@ interface Written {
   changed: boolean;
   /** Set where the write changed a choice of germination's (`GerminationChoices`): what held before it, and what holds now. */
   choices?: { before: GerminationChoiceValues; after: GerminationChoiceValues };
+  /** Set where the write moved the place's thresholds: the climate they followed before, null for none. */
+  bandsBefore?: AppliedClimate | null;
 }
 
 /**
@@ -93,10 +100,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * nothing writes nothing. A device whose control was switched off is switched
    * on again by it: somebody who sets targets wants them held. `drying` is
    * whether they are a drying room's, `germination` whether they are for
-   * germinating in the dark, and `choices` what germination does about the
-   * humidity (see `WriteIntent`).
+   * germinating in the dark, `choices` what germination does about the
+   * humidity, and `applied` the climate preset they are, where one was applied
+   * with them (see `WriteIntent`). `bands` puts the place's thresholds back on
+   * a climate, or on none, where a save that moved them is taken back.
    *
-   * What is stored is answered, because it is not always what was sent: the
+   * What is stored is answered, with the climate the place's thresholds
+   * followed before where the save moved them (`bandsBefore`), because it is not always what was sent: the
    * work mode is the server's, the figures a mode leaves alone are kept
    * (`idle-figures.ts`), and the type's rules hold the rest (`class-rules.ts`).
    *
@@ -111,15 +121,17 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     drying?: boolean,
     germination?: boolean,
     choices?: ChoicesSaid,
-  ): Promise<DeviceConfiguration | null> {
+    applied?: AppliedClimate | null,
+    bands?: AppliedClimate | null,
+  ): Promise<{ configuration: DeviceConfiguration | null; bandsBefore?: AppliedClimate | null }> {
     const device = await this.typeAndDocument(deviceId);
     const refused = figureRefusals(device.type, configuration, { stored: device.configuration ?? null });
     if (refused.length > 0) throw badRequest('validation_failed', 'The settings do not fit what the device reads.', refused);
 
-    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices }, () => configuration);
+    const written = await this.store(deviceId, { kind: 'targets', drying, germination, choices, applied, bands }, () => configuration);
     if (written) await this.writeDown(deviceId, written, by);
 
-    return written?.after ?? null;
+    return { configuration: written?.after ?? null, ...(written && 'bandsBefore' in written ? { bandsBefore: written.bandsBefore } : {}) };
   }
 
   /**
@@ -138,13 +150,22 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
    * drying stage dries, germination germinates in the dark, and anything else
    * puts a device that was off, drying or germinating back on its own mode.
    * `choices` is what germination does about the humidity, where the climate
-   * says so.
+   * says so. `applied` is the climate preset the write puts the device on,
+   * which names it on Steuerung from then on and which the place's thresholds
+   * follow; null says the write names none and clears the name, and the
+   * thresholds follow `stage`, as a plan step with figures but no preset does;
+   * left out, the thresholds stay and the name goes only where a figure a preset
+   * sets moves, as for a plan step that writes nothing but its stage. `by`,
+   * where given, writes the diary line of the figures that moved, as `replace`
+   * does: a climate written where no phase line says so.
    */
   public async applyConfiguration(
     deviceId: string,
     settings: DeviceConfiguration,
     stage: GrowthStage | null = null,
     choices?: ChoicesSaid,
+    applied?: AppliedClimate | null,
+    by?: string | null,
   ): Promise<boolean> {
     // Nothing to merge, or nothing to merge into, is no write: the firmware reads
     // every key a document leaves out as its compile-time default, so sending
@@ -153,12 +174,13 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // and so does a climate of nothing for a device that germinates: only
     // germination is dark, so any other climate brings it back into the light
     // (a plan step that names nothing after a germination step).
-    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices };
+    const intent: WriteIntent = { kind: 'climate', stage, requested: settings.workmode, stated: nightStated(settings), choices, applied };
     const written = await this.store(deviceId, intent, current =>
       !current || Object.keys(current).length === 0 || (Object.keys(settings).length === 0 && stage === null && current.workmode !== 'breed')
         ? null
         : mergeSections(current, settings),
     );
+    if (written && by !== undefined) await this.writeDown(deviceId, written, by);
 
     return written?.changed ?? false;
   }
@@ -264,8 +286,8 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       deviceId,
       severity: 'info',
       message: {
-        key: 'message-device-configuration-updated',
-        params: [moved.join('\n'), decisive ? mode : '', device?.type ?? ''],
+        key: CONFIGURATION_UPDATED,
+        params: [linesJoined(moved), decisive ? mode : '', device?.type ?? ''],
       },
     });
   }
@@ -297,6 +319,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
           beforeGermination: 1,
           germinationChoices: 1,
           restedHumidityBand: 1,
+          appliedClimate: 1,
+          climateBeforeSpell: 1,
+          'state.hardware': 1,
         },
       )
       .lean<Pick<
@@ -311,6 +336,9 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
         | 'beforeGermination'
         | 'germinationChoices'
         | 'restedHumidityBand'
+        | 'appliedClimate'
+        | 'climateBeforeSpell'
+        | 'state'
       > | null>();
     if (!device) {
       throw new HttpException('Device not found', 404);
@@ -359,7 +387,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // a preset, a phase and the targets page bring it themselves. The figure
     // before it was a dehumidifier's - where to start drying a leafy plant's
     // air - and a humidifier holding it in the dark would leave the seeds dry.
-    const wanted = backFromGermination
+    const unseeded = backFromGermination
       ? withFigures(
           returned,
           Object.entries(germinated).filter(([path]) => !bringsOwn(path)),
@@ -367,6 +395,14 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       : germinates && !bringsOwn(GERMINATION_HUMIDITY_PATH)
         ? withFigures(returned, [[GERMINATION_HUMIDITY_PATH, GERMINATION_HUMIDITY]])
         : returned;
+    // Germination ended without a climate of its own (`endsBare`) where no climate had a name before it ends on the
+    // first climate with light, "Sämling · mit Licht" (Chris, 2026-11-16): figures, name and thresholds - the night
+    // from before alone held the dark's thresholds over a day with light again.
+    const seedling =
+      endsBare(intent, before) && before?.workmode === 'breed' && SCHEDULED_MODES.includes(mode?.workmode ?? '') && device.climateBeforeSpell === null
+        ? presetConfiguration(SEEDLING.stage, SEEDLING.preset, unseeded, device.type === 'fridge' || device.state?.hardware?.co2 === 'on')
+        : null;
+    const wanted = seedling ? mergeSections(unseeded, seedling) : unseeded;
     // What germination does about the humidity: what this write says, over what
     // the device keeps, over what holds where nobody said. The device keeps it
     // for the one germination: a write that ends germination lets it go, so the
@@ -394,6 +430,7 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     // checked, or a document stored before any of this, is put right here.
     const { configuration, dropped } = withFiguresHeld(device.type, timed, before);
     if (dropped.length > 0) logger.warn(`Device ${deviceId}: not sent as stored, as its firmware would misread them: ${dropped.join(', ')}`);
+    const named = namedAfter(intent, before, configuration, appliedOf(intent, before, held), device, seedling ? SEEDLING : null, mode?.base);
 
     await this.devices.updateOne(
       { id: deviceId },
@@ -410,12 +447,14 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
               ? { beforeGermination: null }
               : {}),
           ...(band.rested !== undefined ? { restedHumidityBand: band.rested } : {}),
+          ...named.set,
           ...(ended
             ? { germinationChoices: GERMINATION_FORGOTTEN.germinationChoices }
             : said && Object.keys(said).length > 0
               ? { germinationChoices: choices }
               : {}),
         },
+        ...(named.forget ? { $unset: { climateBeforeSpell: '' } } : {}),
       },
     );
     await recordTargets(this.targetRecord, { id: deviceId, type: device.type }, before, configuration, at);
@@ -427,10 +466,20 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
 
     if (drift !== 0) await this.followers?.onScheduleMoved(deviceId, drift);
     if (device.type === 'plug') await this.followCo2Fan(deviceId, before, configuration);
+    const taken = intent.kind === 'targets' && intent.bands !== undefined;
+    const bands = await this.bandsFollow(deviceId, taken ? intent.bands : (climateWritten(intent) ?? named.endsOn));
     // A device that germinates now - begun, chosen about, or sent its step again -
     // has its "too humid" told what it is to do there, rather than at the next
     // reading, and one asked to warn gets the stage's to warn with.
     if (configuration.workmode === 'breed') await this.tellGermination(deviceId);
+    // Its place's lamp modules go dark with it, and come back when it leaves germination or drying - and a dark climate
+    // applied again brings a lamp that burns there back in line.
+    const darkAfter = darkIn(device.type, configuration, mode?.base ?? device.baseWorkmode);
+    const appliedAgain = darkAfter && (intent.kind === 'targets' || intent.kind === 'climate') && !!intent.applied;
+    if (appliedAgain || darkIn(device.type, before, device.baseWorkmode) !== darkAfter) {
+      const placed = await this.devices.findOne({ id: deviceId }, { spaceId: 1 }).lean<Pick<StoredDevice, 'spaceId'> | null>();
+      await this.lampsFollow(placed?.spaceId ?? null);
+    }
 
     const choicesChanged = !ended && (kept.warnTooHumid !== choices.warnTooHumid || kept.humidifierHolds !== choices.humidifierHolds);
     return {
@@ -438,21 +487,43 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
       after: configuration,
       changed: JSON.stringify(before) !== JSON.stringify(configuration) || choicesChanged,
       ...(choicesChanged ? { choices: { before: kept, after: choices } } : {}),
+      ...bands,
     };
   }
 
   /** The alarms are the alarm engine's, and one it could not be told about must not fail the write the device already has. */
   private async tellGermination(deviceId: string): Promise<void> {
     try {
-      await this.germinationSink()?.germinationChanged(deviceId);
+      await this.sink<DeviceGerminationSink>(DEVICE_GERMINATION_SINK)?.germinationChanged(deviceId);
     } catch (error) {
       logger.error(`Could not tell the alarms that device ${deviceId} germinates: ${error}`);
     }
   }
 
-  private germinationSink(): DeviceGerminationSink | null {
+  /**
+   * The place's thresholds follow the climate written there (`climateWritten`), or the one a save taken back puts
+   * them back on - none for null; undefined moves nothing. Every write of a device's settings comes through `store`, so
+   * this is the one place they are moved: a preset taken under Steuerung and its undo, a phase's climate, a plan step,
+   * the claim's, a spell ended - none of them has to remember it. What they followed before is answered, so that
+   * taking the write back can put them there again.
+   */
+  private async bandsFollow(deviceId: string, climate: AppliedClimate | null | undefined): Promise<{ bandsBefore?: AppliedClimate | null }> {
+    const alarms = climate === undefined ? null : this.sink<StageAlarms>(STAGE_ALARMS);
+    if (!alarms) return {};
     try {
-      return this.modules?.get<DeviceGerminationSink>(DEVICE_GERMINATION_SINK, { strict: false }) ?? null;
+      const bandsBefore = await alarms.climateHere(deviceId);
+      if (climate) await alarms.followClimate(deviceId, climate.stage, climate.preset);
+      else await alarms.leaveClimate(deviceId);
+      return { bandsBefore };
+    } catch (error) {
+      logger.error(`Could not move the thresholds of device ${deviceId}'s place to the ${climate?.stage ?? 'no'} climate: ${error}`);
+      return {};
+    }
+  }
+
+  private sink<T>(token: string | symbol): T | null {
+    try {
+      return this.modules?.get<T>(token, { strict: false }) ?? null;
     } catch {
       // A server put together without the alarms - a test of this module alone - has nobody to tell.
       return null;
@@ -470,6 +541,59 @@ export class DeviceConfigurationService implements DeviceConfigurationWriter {
     const now = JSON.stringify(targetsOf(current as Record<string, unknown> | null));
     const rows = await this.targetRecord.find({ deviceId }).sort({ at: -1, _id: -1 }).limit(50).lean<StoredTargetChange[]>();
     return recordedReturn(rows.find(row => row.targets !== null && JSON.stringify(row.targets) !== now)?.targets ?? null, current);
+  }
+
+  /**
+   * A climate preset put on devices that have not sent their settings: each is put on it as they arrive
+   * (`ClimatePresetsService.settingsArrived`), and the place's thresholds follow it now, as for any climate written.
+   */
+  public async awaitClimate(deviceIds: readonly string[], awaited: AwaitedClimate): Promise<void> {
+    await this.devices.updateMany({ id: { $in: [...deviceIds] }, configuration: null }, { $set: { awaitedClimate: awaited } });
+    if (deviceIds.length > 0) await this.bandsFollow(deviceIds[0], { stage: awaited.stage, preset: awaited.preset });
+  }
+
+  /**
+   * The lamp modules of a place kept dark while its climate germinates or dries (ADR 0007; Chris, 2026-11-15): both
+   * are dark, and a lamp module beside the controller has a brightness of its own that no work mode reaches - it burnt
+   * on under "Keimung · dunkel". Each is put to nothing whenever the place goes dark or a lamp comes into a dark place,
+   * its brightness from before kept (`limitBeforeDark`), and given back once the place is dark no longer or the lamp has
+   * left it - unless somebody has set it since, which then stands. `deviceIds` names a lamp that has just left the
+   * place for none. No lamp's write may fail what asked for it.
+   */
+  public async lampsFollow(spaceId: string | null, deviceIds: readonly string[] = []): Promise<void> {
+    const here = spaceId
+      ? await this.devices
+          .find({ spaceId }, { id: 1, type: 1, configuration: 1, baseWorkmode: 1 })
+          .lean<Pick<StoredDevice, 'id' | 'type' | 'configuration' | 'baseWorkmode'>[]>()
+      : [];
+    const dark = here.some(device => darkIn(device.type, device.configuration ?? null, device.baseWorkmode));
+    const lamps = await this.devices
+      .find(
+        { type: 'light', $or: [...(spaceId ? [{ spaceId }] : []), { id: { $in: [...deviceIds] } }] },
+        { id: 1, spaceId: 1, configuration: 1, limitBeforeDark: 1 },
+      )
+      .lean<Pick<StoredDevice, 'id' | 'spaceId' | 'configuration' | 'limitBeforeDark'>[]>();
+
+    for (const lamp of lamps) {
+      const limit = lamp.configuration?.limit;
+      const kept = lamp.limitBeforeDark ?? undefined;
+      if (typeof limit !== 'number') continue;
+      try {
+        if (dark && lamp.spaceId === spaceId) {
+          if (limit === 0) continue;
+          if (kept === undefined) await this.devices.updateOne({ id: lamp.id }, { $set: { limitBeforeDark: limit } });
+          const written = await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: 0 } : null));
+          if (written) await this.writeDown(lamp.id, written, null);
+        } else if (kept !== undefined) {
+          const written =
+            limit === 0 ? await this.store(lamp.id, { kind: 'fields' }, current => (current ? { ...current, limit: kept } : null)) : null;
+          await this.devices.updateOne({ id: lamp.id }, { $set: { limitBeforeDark: null } });
+          if (written) await this.writeDown(lamp.id, written, null);
+        }
+      } catch (error) {
+        logger.error(`Could not keep lamp ${lamp.id} to the dark of its place: ${error}`);
+      }
+    }
   }
 
   /**
@@ -561,7 +685,7 @@ const choicesMoved = (choices: Written['choices']): string[] =>
   choices
     ? (['warnTooHumid', 'humidifierHolds'] as const)
         .filter(choice => choices.before[choice] !== choices.after[choice])
-        .map(choice => `germination.${choice}: ${choices.before[choice]} → ${choices.after[choice]}`)
+        .map(choice => changeLine(`${GERMINATION_CHOICES}.${choice}`, choices.before[choice], choices.after[choice]))
     : [];
 
 /** A diary line is read, not scrolled: past this many figures the rest are counted rather than listed. */
@@ -583,7 +707,7 @@ const figuresMoved = (before: unknown, after: unknown, path: string): string[] =
   }
   if (HIDDEN_FIGURES.has(path) || JSON.stringify(before) === JSON.stringify(after)) return [];
 
-  return [`${path || 'configuration'}: ${figureOf(before)} → ${figureOf(after)}`];
+  return [changeLine(path || 'configuration', before, after)];
 };
 
 /**
@@ -601,19 +725,16 @@ const LIGHT_WINDOWS = [
 /** Both times of the light schedule where one of them moved, the one that stayed written as itself on both sides. */
 const withScheduleWhole = (lines: string[], after: DeviceConfiguration): string[] =>
   LIGHT_WINDOWS.reduce<string[]>((all, [on, off]) => {
-    const named = (path: string) => all.some(line => line.startsWith(`${path}: `));
+    const named = (path: string) => all.some(line => changeOf(line)?.path === path);
     if (named(on) === named(off)) return all;
 
     const missing = named(on) ? off : on;
     const value = nestedAt(after, missing);
-    return typeof value === 'number' ? [...all, `${missing}: ${value} → ${value}`].sort() : all;
+    return typeof value === 'number' ? [...all, changeLine(missing, value, value)].sort() : all;
   }, lines);
 
 /** A device that has never sent its document: a write would reach it as the change alone. */
 const sentNoSettings = (configuration: DeviceConfiguration | null | undefined): boolean => !configuration || Object.keys(configuration).length === 0;
-
-const figureOf = (value: unknown): string =>
-  value === undefined || value === null ? '–' : typeof value === 'string' ? value : JSON.stringify(value);
 
 const mergeSections = (current: DeviceConfiguration, settings: DeviceConfiguration): DeviceConfiguration =>
   Object.fromEntries(
@@ -622,3 +743,91 @@ const mergeSections = (current: DeviceConfiguration, settings: DeviceConfigurati
       return [key, isSection(before) && isSection(value) ? { ...before, ...value } : value];
     }),
   );
+
+/** What a write may move that a climate preset sets: the targets, the light's limit, its hours and its ramps. */
+const CLIMATE_PATHS = [...Object.keys(TARGET_RANGES), 'daynight.day', 'daynight.night', 'lights.sunrise', 'lights.sunset'];
+
+/**
+ * The climate preset a device is named by afterwards. A preset applied - from
+ * Steuerung, by a phase, by a plan step that names one - is kept. A plan step
+ * with figures that names none clears it, whatever it moves: naming its stage
+ * would claim a preset nobody applied; one that writes no figures is a write
+ * like any other here. Anything
+ * else that moves a figure a preset sets - the targets or the light saved by
+ * hand - clears it too: the figures are then the grower's own. A write that
+ * moves none of them (regulation switched, the clock moved) leaves it as it
+ * was. A spell ended by its own button comes back to the name from before it
+ * (`namedAfter`).
+ */
+const appliedOf = (
+  intent: WriteIntent,
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown>,
+): { appliedClimate?: AppliedClimate | null } => {
+  if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied !== undefined) return { appliedClimate: intent.applied };
+  if (intent.kind === 'clock') return {};
+  return CLIMATE_PATHS.some(path => valueAt(before, path) !== valueAt(after, path)) ? { appliedClimate: null } : {};
+};
+
+/** The work modes a spell runs in: germination in the dark and drying, each ended by a climate or by its own button. */
+const SPELLS: readonly unknown[] = ['breed', 'dry'];
+/** In a spell: germinating or drying, or switched off from germination, which the device goes back to when switched on. */
+const inSpell = (configuration: DeviceConfiguration | null, base: string | null | undefined): boolean =>
+  SPELLS.includes(configuration?.workmode) || (configuration?.workmode === 'off' && base === 'breed');
+
+/**
+ * A write that ends a spell without a climate of its own, which then ends on the climate the spell came from: the
+ * spell's own button, and a plan step that writes nothing but a stage, or nothing, ending a germination as "Keimung
+ * beenden" does - "Keimung, then Sämling" with no figures kept germination's thresholds, and a critical "too cold"
+ * fired at the night's target. A drying spell ended by such a step - a curing step - keeps its thresholds, as a stage
+ * only recorded does.
+ */
+const endsBare = (intent: WriteIntent, before: DeviceConfiguration | null): boolean =>
+  intent.kind === 'fields' || (intent.kind === 'climate' && intent.applied === undefined && before?.workmode !== 'dry');
+
+/**
+ * The name a write leaves the device with (`appliedOf`), the one a spell puts aside, and the climate the place's
+ * thresholds follow for it (`endsOn`: undefined moves none, null drops them). A spell begun keeps the name the device
+ * had, as it keeps the figures it writes over; ended without a climate of its own (`endsBare`) it gives both back, so the device ends on the
+ * climate it came from - "Veg" before a germination is "Veg" after it. Where none had a name, a germination ends on
+ * `seedling`, whose figures the write carries, and a drying spell gives the figures back and drops the stage
+ * thresholds until a climate is written. A figure changed by hand while it runs, or a step re-sent, keeps what was put
+ * aside: the end throws the spell's figures away, so a nudged spell ends on the climate it came from as an untouched
+ * one does.
+ */
+const namedAfter = (
+  intent: WriteIntent,
+  before: DeviceConfiguration | null,
+  after: DeviceConfiguration,
+  named: { appliedClimate?: AppliedClimate | null },
+  device: Pick<StoredDevice, 'appliedClimate' | 'climateBeforeSpell' | 'baseWorkmode'>,
+  seedling: AppliedClimate | null,
+  base: string | null | undefined,
+): {
+  set: { appliedClimate?: AppliedClimate | null; climateBeforeSpell?: AppliedClimate | null };
+  forget: boolean;
+  endsOn: AppliedClimate | null | undefined;
+} => {
+  const was = inSpell(before, device.baseWorkmode);
+  const is = inSpell(after, base ?? device.baseWorkmode);
+  if (!was && is) return { set: { ...named, climateBeforeSpell: device.appliedClimate ?? null }, forget: false, endsOn: undefined };
+  if (was && !is && endsBare(intent, before)) {
+    const endsOn = seedling ?? climateBefore(device);
+    // Ended on figures nobody named, the place holds no stage's thresholds until a climate is written; switched off
+    // rather than ended, a germination keeps its own, as it always did.
+    const back = before?.workmode === 'dry' || SCHEDULED_MODES.includes(after.workmode as string);
+    return { set: { appliedClimate: endsOn }, forget: true, endsOn: endsOn ?? (back ? null : undefined) };
+  }
+  return { set: named, forget: was && !is, endsOn: undefined };
+};
+
+/**
+ * The climate a write puts the device on, which the place's thresholds follow: a preset taken - under Steuerung, by a
+ * phase, the claim or a plan step - and the stage of a plan step that writes a climate without naming a preset
+ * (`applied: null`). A plan step that writes nothing but a stage leaves `applied` out and writes none, and neither do
+ * figures saved by hand, a regulation switched and the clock.
+ */
+const climateWritten = (intent: WriteIntent): AppliedClimate | null => {
+  if ((intent.kind === 'targets' || intent.kind === 'climate') && intent.applied) return intent.applied;
+  return intent.kind === 'climate' && intent.applied === null && intent.stage !== null ? { stage: intent.stage, preset: null } : null;
+};

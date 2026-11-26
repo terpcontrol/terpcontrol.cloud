@@ -1,5 +1,5 @@
 /* The line that was just written, sitting over the tab bar where the thumb
-   that wrote it already is. */
+   that wrote it already is: the newest is the last, older ones stand above it. */
 
 .toasts {
   position: fixed;
@@ -21,6 +21,8 @@
   gap: var(--space-3);
   width: 100%;
   max-width: var(--column-width);
+  /* As high with its button as without: an answer to "Undo" stands where the offer stood. */
+  min-height: var(--control-height);
   padding: var(--space-3) var(--space-4);
   background: var(--toast);
   border-radius: var(--radius);
@@ -33,20 +35,36 @@
   border: var(--rule-width) solid var(--alarm);
 }
 
+/* What went wrong is a sentence: on a phone it stands over the two things to do about it. */
+@media (max-width: 599px) {
+  .toast[data-failed] {
+    flex-wrap: wrap;
+  }
+
+  .toast[data-failed] .label {
+    flex-basis: 100%;
+  }
+}
+
 .label {
   flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
   line-height: var(--line-tight);
 }
 
+/* A finger high and wide, its words where they were: the room it takes above and below is the toast's own padding. */
 .action {
   flex: none;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  margin-block: calc(var(--space-3) * -1);
   background: none;
   border: 0;
   padding: 0;
   color: var(--toast-ink);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
 }
 
 .between {
@@ -67,4 +85,26 @@
     padding-left: calc(var(--rail-width) + var(--space-5));
     padding-right: var(--space-5);
   }
+}
+
+/* A page outside the bar and the rail (`BARE`) has neither to stand clear of: there the toasts sit at the window's
+   foot, over the middle of the page's one column. */
+:root:has(main[data-bare]) .toasts:not([data-in-sheet]) {
+  bottom: calc(env(safe-area-inset-bottom) + var(--space-3));
+  padding-inline: var(--space-4);
+}
+
+/* A toast never stays over the row it is about: while toasts stand at the window's foot the page under them is
+   longer by their box, so the control each answers moves clear of it and every other row can be scrolled clear
+   (`clearOf`, `Toasts.tsx`, which sets the room and takes it back without a jump). */
+:root[data-toast-room] main::after {
+  display: block;
+  height: var(--toast-room);
+  content: '';
+}
+
+/* In a sheet's foot (`ui/Sheet.tsx`) the toasts are part of the sheet: as wide as it, above its button row. */
+.toasts[data-in-sheet] {
+  position: static;
+  padding: var(--space-3) 0 0;
 }

@@ -3,18 +3,18 @@ import { useState } from 'react';
 import type { Me } from '@fg2/shared-types/v1';
 import { useTranslation } from 'react-i18next';
 import { Sheet } from '@/ui/Sheet';
-import ui from '@/ui/ui.module.css';
 import { DAY } from '@/ui/zone';
 import { Menu, Row } from '../parts';
 import { cutoffDay, KEEP, narrows, retentionLabel } from './climate';
 import styles from './Privacy.module.css';
+import { Answer } from '@/ui/Asking';
 
 /**
  * How long raw climate points are kept, and the question that stands between
  * a shorter answer and the readings it throws away.
  *
  * Widening the window costs nothing and is sent as soon as it is chosen.
- * Narrowing it is the other irreversible control on this screen: the sweep
+ * Narrowing it cannot be taken back: the sweep
  * summarises every day outside the window to one figure and deletes the raw
  * points for good, and a one-tap menu whose line reads "raw samples · then
  * daily summaries" does not say that to a beginner. So a narrower choice opens
@@ -102,11 +102,7 @@ function ClimateSheet({ days, now, onClose, onKeep }: { days: number; now: DateT
       title={t('me.privacy.climate.title')}
       aside={keep}
       onClose={onClose}
-      actions={
-        <button type="button" className={`${ui.button} ${styles.dangerButton}`} onClick={onKeep}>
-          {t('me.privacy.climate.ask.yes', { keep })}
-        </button>
-      }
+      actions={<Answer yes={t('me.privacy.climate.ask.yes', { keep })} danger onYes={onKeep} onCancel={onClose} />}
     >
       <p className={styles.sheetBody}>{t('me.privacy.climate.ask.what', { keep, date })}</p>
     </Sheet>

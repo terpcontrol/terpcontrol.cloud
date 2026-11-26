@@ -1,39 +1,193 @@
-/* The pages that are about one place without being its cockpit: Steuerung and
-   who else is let in. One reading column, set against the left edge under the
-   title the way the rest of the app's settings are. */
+/* The pages that are about one place without being its Start: Steuerung and
+   the pages below it, "Ort bearbeiten" with the page that ends the place, and
+   who else is let in. One reading column, in the middle of the room as every
+   page is. */
 
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  max-width: var(--column-width);
-  padding-top: var(--space-2);
+/* Steuerung: a phone's column, then the reading width, and from where its two columns fit the page's. The pages
+   below it - Grow-Plan, Alarme, Ausgänge, Betriebsart - are one column and take `.reading`. */
+.steering {
+  width: 100%;
 }
 
 @media (min-width: 900px) {
-  .reading {
+  .reading,
+  .steering {
     max-width: var(--reading-width);
     padding-top: 0;
   }
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+@media (min-width: 1200px) {
+  .steering {
+    max-width: var(--page-width);
+  }
 }
 
-.title {
+/* "Ort bearbeiten" and "Ort entfernen": a head with the page's one action, the
+   fields, then what stands here and who is let in, each under its small title.
+   A name reads as it was typed: Inter's contextual alternates make "120x120"
+   a "120×120" in running text. */
+.editing {
+  gap: var(--space-4);
+  font-variant-ligatures: no-contextual;
+}
+
+/* A word of a name longer than its line breaks with a hyphen, as on Start. */
+.editing h1,
+.remove,
+.end {
+  hyphens: auto;
+  hyphenate-limit-chars: 16;
+}
+
+.field {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 var(--space-2);
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
-}
-
-.titleNote {
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--muted);
 }
 
+.field :is(input, select) {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-regular);
+}
+
+/* Kind and room side by side; a place without a room to choose has the kind alone, as wide as the name. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* A room that says whom it lets in needs the line to itself. */
+.pair[data-stacked] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The page's one action stands in its head and never wraps its word. */
+.save {
+  flex: none;
+  height: var(--control-height);
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+}
+
+/* Below 360 px "Ort bearbeiten" keeps one line beside Speichern: the button closes up and the title, the one a
+   button stands beside, steps down a size more. */
+@media (max-width: 359px) {
+  .save {
+    padding-inline: var(--space-3);
+  }
+
+  header:has(> .save) h1 {
+    font-size: var(--text-xl);
+  }
+}
+
+.block {
+  min-width: 0;
+}
+
+.blockTitle {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Ending the place stands apart at the foot and leads to a page that asks first: outlined in the alarm's red, as
+   every way to a step that cannot be taken back is; only the question's yes is filled. Amber is for what is wrong. */
+.remove {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--card);
+  border: var(--rule-width) solid var(--alarm);
+  border-radius: var(--radius-sm);
+  color: var(--alarm);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* One thing standing here and where it goes. */
+.sent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* The longest answer fits a narrow phone's select whole. */
+.sent select {
+  padding-inline: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-regular);
+}
+
+.foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* The way to the question, at a control's height and radius as its yes is; a long name wraps. */
+.end {
+  width: 100%;
+  height: auto;
+  min-height: var(--control-height);
+  padding-block: var(--space-2);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Out of reach it gives the alarm colour up rather than fading into pink: drawn as every button that cannot be pressed. */
+button.end:disabled {
+  background: var(--card-2);
+  border-color: var(--rule);
+  color: color-mix(in srgb, var(--muted) 55%, var(--card-2));
+  opacity: 1;
+}
+
+/* What the answer will do, a line each. */
+.will {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.cancel {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  color: var(--brand);
+  font-weight: var(--weight-medium);
+}
+
+/* What the page says in sentences: why the last place stays, with the way back, and what an attempt that stopped half-way left. */
+.said {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.said p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

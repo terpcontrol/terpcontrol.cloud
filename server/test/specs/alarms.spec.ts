@@ -110,11 +110,19 @@ describe('the rules watching a device', () => {
     expect(rule.watch).toEqual({ kind: 'output_running', output: 'dehumidifier' });
   });
 
-  it('lists them, and pages through them', async () => {
+  it('lists them, pages through them, and counts every rule on every page', async () => {
     const listed = await owner.client.get(`/v1/devices/${device}/alarm-rules?limit=1`).expect(200);
+    const all = await owner.client.get(`/v1/devices/${device}/alarm-rules?limit=100`).expect(200);
 
     expect(listed.body.items).toHaveLength(1);
     expect(listed.body.nextCursor).toEqual(expect.any(String));
+    // Steuerung said "100 Regeln" of a device with 110: the count is the server's, not the length of a page.
+    expect(listed.body.counts).toEqual({
+      total: all.body.items.length,
+      enabled: all.body.items.filter((rule: { enabled: boolean }) => rule.enabled).length,
+      triggered: all.body.items.filter((rule: { enabled: boolean; state: { triggered: boolean } }) => rule.enabled && rule.state.triggered).length,
+    });
+    expect(listed.body.counts.total).toBeGreaterThan(1);
   });
 
   it('changes what a rule watches for, and puts it away again', async () => {
@@ -125,6 +133,35 @@ describe('the rules watching a device', () => {
 
     await owner.client.delete(`/v1/alarm-rules/${rule.id}`).expect(204);
     await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ enabled: true }).expect(404);
+  });
+
+  it('refuses limits that leave no reading quiet, on writing a rule and on changing one', async () => {
+    const contradiction = { kind: 'reading', metric: 'humidity', upper: 70, lower: 80 };
+    const refused = await owner.client
+      .post(`/v1/devices/${device}/alarm-rules`)
+      .send(aRule({ watch: contradiction }))
+      .expect(422);
+    expect(refused.body).toMatchObject({ code: 'limits_contradict' });
+    expect(refused.body.errors).toEqual([
+      {
+        field: 'watch.lower',
+        code: 'not_below_upper',
+        detail: 'It would ring below 80 and above 70, which is every value: the lower limit lies below the upper one.',
+      },
+    ]);
+
+    const rule = await createRule(owner, device, aRule({ watch: { kind: 'reading', metric: 'humidity', upper: 80, lower: 70 } }));
+    expect((await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ watch: contradiction }).expect(422)).body.code).toBe('limits_contradict');
+    const equal = { kind: 'output_level', output: 'heater', upper: 0.5, lower: 0.5 };
+    expect((await owner.client.patch(`/v1/alarm-rules/${rule.id}`).send({ watch: equal }).expect(422)).body.code).toBe('limits_contradict');
+    expect(
+      (await owner.client.get(`/v1/devices/${device}/alarm-rules`).expect(200)).body.items.find((one: { id: string }) => one.id === rule.id).watch,
+    ).toEqual({
+      kind: 'reading',
+      metric: 'humidity',
+      upper: 80,
+      lower: 70,
+    });
   });
 
   it('keeps watching while it is silenced, and says so again when the silence is lifted', async () => {
@@ -375,6 +412,139 @@ describe('a device given up', () => {
     } finally {
       await soldSimulator.close();
     }
+  });
+});
+
+/**
+ * An open alert stands where its device stands: the move takes it along, and
+ * the inbox, Start, a place's page and its Verlauf all name the place the
+ * device stands in now - to whoever sees that place, and to nobody who only
+ * saw the one it left. An alert that is over keeps the place it happened in,
+ * under its name, also after that place has ended.
+ */
+describe('an open alert after its device moved', () => {
+  let host: Session;
+  let ofTheOld: Session;
+  let ofTheNew: Session;
+  let moved: string;
+  let from: string;
+  let to: string;
+  let movedSimulator: DeviceSimulator;
+  let over: string;
+  let open: string;
+
+  const inbox = async (session: Session, state: 'true' | 'false') =>
+    (await session.client.get(`/v1/alerts?open=${state}`).expect(200)).body.items.map((alert: { id: string; spaceId: string; spaceName: string }) => [
+      alert.id,
+      alert.spaceId,
+      alert.spaceName,
+    ]);
+
+  /** The first alert of the rule in that state, once the engine has written it. */
+  const episode = async (ruleId: string, state: 'true' | 'false'): Promise<string> => {
+    const deadline = Date.now() + 10_000;
+    while (Date.now() < deadline) {
+      const page = await host.client.get(`/v1/alerts?deviceId=${moved}&open=${state}`).expect(200);
+      const found = page.body.items.find((alert: { ruleId: string }) => alert.ruleId === ruleId);
+      if (found) return found.id;
+      await settle(250);
+    }
+    throw new Error(`Timed out waiting for an alert of rule ${ruleId}`);
+  };
+
+  const openOn = async (session: Session, path: string): Promise<string[]> =>
+    (await session.client.get(path).expect(200)).body.openAlerts.map((alert: { alertId: string }) => alert.alertId);
+
+  const cardOf = async (session: Session, spaceId: string): Promise<string[]> => {
+    const home = await session.client.get('/v1/home').expect(200);
+    const card = home.body.spaces.find((one: { spaceId: string }) => one.spaceId === spaceId);
+    return card.openAlerts.map((alert: { alertId: string }) => alert.alertId);
+  };
+
+  const verlaufOf = async (spaceId: string): Promise<string[]> =>
+    (await host.client.get(`/v1/spaces/${spaceId}/timeline?range=24h`).expect(200)).body.alarms.map((alarm: { alertId: string }) => alarm.alertId);
+
+  beforeAll(async () => {
+    host = await createAccount('alarms-host');
+    ofTheOld = await createAccount('alarms-of-the-old');
+    ofTheNew = await createAccount('alarms-of-the-new');
+
+    const claimed = await provisionDevice(host, 'controller');
+    moved = claimed.deviceId;
+    from = (await host.client.get(`/v1/devices/${moved}`).expect(200)).body.spaceId;
+    await host.client.patch(`/v1/spaces/${from}`).send({ name: 'Where it stood' }).expect(200);
+    to = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Where it went' }).expect(201)).body.id;
+    await joinSpace(host, from, ofTheOld, 'can_manage');
+    await joinSpace(host, to, ofTheNew, 'can_manage');
+
+    movedSimulator = await startSimulator(claimed);
+    await settle();
+
+    // One episode that is over, then one that is still open, both raised where it stood.
+    const rule = await createRule(host, moved, aRule({ name: unique('Moved') }));
+    await movedSimulator.reportStatus({ temperature: 34 });
+    await episode(rule.id, 'true');
+    await movedSimulator.reportStatus({ temperature: 21 });
+    over = await episode(rule.id, 'false');
+    await movedSimulator.reportStatus({ temperature: 35 });
+    open = await episode(rule.id, 'true');
+  });
+
+  afterAll(async () => {
+    await movedSimulator?.close();
+  });
+
+  it('stands in the new place on every read, for the owner and for a manager of the new place', async () => {
+    expect(await inbox(ofTheOld, 'true')).toEqual([[open, from, 'Where it stood']]);
+
+    await host.client.patch(`/v1/devices/${moved}`).send({ spaceId: to }).expect(200);
+
+    for (const reader of [host, ofTheNew]) {
+      expect(await inbox(reader, 'true')).toEqual([[open, to, 'Where it went']]);
+      expect(await openOn(reader, `/v1/spaces/${to}/overview`)).toEqual([open]);
+      expect(await cardOf(reader, to)).toEqual([open]);
+    }
+    expect(await openOn(host, `/v1/spaces/${from}/overview`)).toEqual([]);
+    expect(await cardOf(host, from)).toEqual([]);
+    expect(await verlaufOf(to)).toEqual([open]);
+    expect(await verlaufOf(from)).toEqual([over]);
+
+    // The past stays where it happened: the owner's, and not the new place's manager's.
+    expect(await inbox(host, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect(await inbox(ofTheNew, 'false')).toEqual([]);
+    await ofTheNew.client.get(`/v1/alerts/${over}`).expect(404);
+    // A manager of the place it stands in has what a manager has: refused as an open alert is, not as a stranger.
+    expect((await ofTheNew.client.delete(`/v1/alerts/${open}`).expect(409)).body.code).toBe('alert_open');
+  });
+
+  it('is gone for a guest of the old place, who keeps that place`s past', async () => {
+    expect(await inbox(ofTheOld, 'true')).toEqual([]);
+    await ofTheOld.client.get(`/v1/alerts/${open}`).expect(404);
+    expect(await openOn(ofTheOld, `/v1/spaces/${from}/overview`)).toEqual([]);
+    expect(await cardOf(ofTheOld, from)).toEqual([]);
+    expect(await inbox(ofTheOld, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect((await ofTheOld.client.get(`/v1/alerts/${over}`).expect(200)).body.spaceName).toBe('Where it stood');
+  });
+
+  it('keeps the past alert under the name of the place once that place has ended', async () => {
+    await host.client.delete(`/v1/spaces/${from}`).expect(204);
+
+    expect(await inbox(host, 'true')).toEqual([[open, to, 'Where it went']]);
+    expect(await inbox(host, 'false')).toEqual([[over, from, 'Where it stood']]);
+    expect(await inbox(ofTheNew, 'true')).toEqual([[open, to, 'Where it went']]);
+    expect(await inbox(ofTheOld, 'true')).toEqual([]);
+    expect(await inbox(ofTheOld, 'false')).toEqual([]);
+    await ofTheOld.client.get(`/v1/alerts/${over}`).expect(404);
+  });
+
+  it('ends with the device when it is given up, for everybody', async () => {
+    await host.client.delete(`/v1/devices/${moved}/claim`).expect(204);
+
+    for (const reader of [host, ofTheNew, ofTheOld]) {
+      expect(await inbox(reader, 'true')).toEqual([]);
+      await reader.client.get(`/v1/alerts/${open}`).expect(404);
+    }
+    expect(await openOn(host, `/v1/spaces/${to}/overview`)).toEqual([]);
   });
 });
 

@@ -36,11 +36,13 @@ exports.space = (0, common_js_1.named)('Space', zod_1.z.object({
     youMay: exports.accessNeed.describe('The most this account may do here. It is about the reader, so two people reading the same space are answered differently.'),
     kind: common_js_1.spaceKind,
     name: zod_1.z.string(),
-    roomId: (0, common_js_1.id)().nullable().describe('A space of kind `room`, one level deep. Null is a space that stands on its own.'),
+    roomId: (0, common_js_1.id)()
+        .nullable()
+        .describe('A space of kind `room`, one level deep. Null is a space that stands on its own. The server makes a room when a place names a new one and ends it with its last place, the memberships on it included.'),
     presetPrompt: exports.presetPrompt,
     retention: exports.spaceRetention,
     isDemo: zod_1.z.boolean(),
-    archivedAt: (0, common_js_1.instant)().nullable().describe('A tombstone: history still names the space, so it is kept and no longer listed.'),
+    archivedAt: (0, common_js_1.instant)().nullable().describe('When the place ended: a tombstone, since history still names it, so it is kept and no longer listed.'),
     createdAt: (0, common_js_1.instant)(),
 }));
 /**
@@ -79,7 +81,12 @@ exports.invite = (0, common_js_1.named)('Invite', zod_1.z.object({
     state: exports.inviteState,
     createdAt: (0, common_js_1.instant)(),
 }));
-/** Who put the grow into this phase. `preset` and `plan` are what the "auto" tag is drawn from. */
+/**
+ * Who put the grow into this phase: a person (`human`, with a climate or
+ * without), or the plan by itself, which is what "von allein" is drawn from.
+ * `preset` is no longer written - a phase somebody set with a climate preset is
+ * theirs - and a phase stored with it before is a person's (migration 031).
+ */
 exports.phaseSource = (0, common_js_1.named)('PhaseSource', zod_1.z.enum(['preset', 'plan', 'human']));
 /** Day and night, as the controller's configuration states them. */
 exports.climateTargets = (0, common_js_1.named)('ClimateTargets', zod_1.z.object({
@@ -221,7 +228,7 @@ exports.plant = (0, common_js_1.named)('Plant', zod_1.z.object({
 /**
  * One person following one grow. `PUT /follows/{growId}` and its `DELETE` carry
  * no body - the grow is in the path and a follow has nothing else to say - and
- * the `PUT` answers this. What the home screen draws for a followed grow is a
+ * the `PUT` answers this. What the list of followed grows draws for one is a
  * read model of the diary half rather than a fatter follow, because a follower
  * sees a public grow and only what its public page shows.
  */
@@ -299,17 +306,20 @@ exports.growSummary = (0, common_js_1.named)('GrowSummary', zod_1.z.object({
         .number()
         .int()
         .nullable()
-        .describe('1 on the day the grow began - its `startedAt` or its earliest phase, whichever came first, the origin its weeks, diary days and report count from too - and counted to `endedAt` once the grow has ended; null before the first phase.'),
-    stage: common_js_1.growthStage.nullable().describe('The stage of the largest group of plants.'),
+        .describe('1 on the date the grow began - its `startedAt` or its earliest phase, whichever came first - and one more with every midnight on its owner’s calendar (`zone`), as its weeks, diary days and report count too; counted to `endedAt` once the grow has ended; null before the first phase.'),
+    stage: common_js_1.growthStage.nullable().describe('The stage of the largest group of the plants still standing; of all of them where none stands.'),
     preset: zod_1.z.string().nullable(),
     phaseDay: zod_1.z.number().int().nullable(),
     weekNumber: zod_1.z.number().int().nullable().describe("Counted like `dayNumber`, so it lines up with the feeding scheme's grid."),
+    zone: zod_1.z
+        .string()
+        .describe('The zone whose calendar the days above are dates of: the owner’s. What a client counts for itself - the day a line is dated to - it counts in this zone (`growDayAt`).'),
     stageWeek: zod_1.z
         .number()
         .int()
         .nullable()
-        .describe('Which week of its stage the grow is in: 1 in the week the stage began, counted exactly as a week card’s own `stageWeek` is, so the header and the card beneath it state one figure. Null before the first phase.'),
-    isAuto: zod_1.z.boolean().describe('The phase was set by a preset or by the plan rather than by hand.'),
+        .describe('Which week of its stage the grow is in, counted from the stage’s own start: days 1 to 7 of the stage are week 1 (`stageWeekOf`). Null before the first phase.'),
+    isAuto: zod_1.z.boolean().describe('The phase was set by the plan rather than by a person: what the app marks "von allein".'),
     groups: zod_1.z.array(exports.phaseGroup).describe('Empty while every plant shares the headline phase; otherwise every group, that one included.'),
     locations: zod_1.z.array(exports.growLocation),
 }));
@@ -324,21 +334,26 @@ exports.growListItem = (0, common_js_1.named)('GrowListItem', exports.grow.exten
  * `POST /spaces`. A space is little more than a name and a kind; the room it
  * hangs in and the two settings have defaults, so the sheet that creates one
  * asks for two fields.
+ *
+ * A room is a field of the place and never made by itself: `roomId` names one
+ * that exists, `roomName` the owner's room of that name, which the server makes
+ * where there is none. `kind: room` is refused.
  */
 exports.spaceCreate = (0, common_js_1.named)('SpaceCreate', exports.space
     .pick({ kind: true, name: true, roomId: true, presetPrompt: true, retention: true })
-    .partial({ roomId: true, presetPrompt: true, retention: true }));
+    .partial({ roomId: true, presetPrompt: true, retention: true })
+    .extend({
+    roomName: zod_1.z
+        .string()
+        .optional()
+        .describe('The room this place stands in, by name: the owner’s room called so, made if there is none. Instead of `roomId`, never beside it.'),
+}));
 /**
  * `PATCH /spaces/{id}`: the same fields, each only if it changes. `archivedAt`
- * is not among them - archiving is a route of its own, so that ending a space's
- * life is never something a settings form does in passing.
+ * is not among them - a place ends by `DELETE /spaces/{id}`, so that ending a
+ * space's life is never something a settings form does in passing.
  */
 exports.spaceUpdate = (0, common_js_1.named)('SpaceUpdate', exports.spaceCreate.partial());
-/*
- * `PUT /spaces/{id}/archive` and the `DELETE` that undoes it carry no body: the
- * method is the whole statement and there is nothing to archive a space *with*.
- * Both answer the space, whose `archivedAt` is what changed.
- */
 /**
  * What a client may do about the grow when a preset is applied to a space that
  * has no open grow: start one here, move an existing one here, or leave grows
@@ -430,6 +445,9 @@ exports.invitePreview = (0, common_js_1.named)('InvitePreview', zod_1.z.object({
     role: common_js_1.memberRole.nullable(),
     invitedByHandle: zod_1.z.string().nullable(),
     expiresAt: (0, common_js_1.instant)().nullable(),
+    hasCamera: zod_1.z
+        .boolean()
+        .describe('Whether a camera hangs in the space, so an invitation names the pictures only where there are any. False for a dead code.'),
 }));
 /**
  * `POST /invites/{code}/acceptances`. The membership on its own would leave a
@@ -445,7 +463,7 @@ exports.inviteAcceptance = (0, common_js_1.named)('InviteAcceptance', zod_1.z.ob
  * "Amnesia 1" to "Amnesia 8".
  */
 exports.plantBatch = (0, common_js_1.named)('PlantBatch', zod_1.z.object({
-    strain: zod_1.z.string(),
+    strain: zod_1.z.string().describe("Empty where nobody named one: the plants then keep no strain and are numbered under the grow's name."),
     count: zod_1.z.number().int().min(1),
 }));
 exports.growCreate = (0, common_js_1.named)('GrowCreate', zod_1.z.object({
@@ -469,7 +487,7 @@ exports.phaseCreate = (0, common_js_1.named)('PhaseCreate', zod_1.z.object({
     climate: zod_1.z
         .boolean()
         .optional()
-        .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false."),
+        .describe("Whether the stage's climate is written to the controllers where the plants stand. A preset always writes it; true writes the stage's own climate without one. Absent is false: the phase is then a record and no device is written, whatever the stage."),
     startedAt: (0, common_js_1.instant)().optional().describe('Defaults to now.'),
     plantIds: zod_1.z.array((0, common_js_1.id)()).nullable().optional().describe('Absent or null is every plant.'),
     germinationChoices: common_js_1.germinationChoices

@@ -51,7 +51,7 @@ export const provisionDevice = async (session: Session, deviceType: DeviceType =
   return credentials;
 };
 
-export interface ObservedMessage {
+interface ObservedMessage {
   topic: string;
   payload: string;
   receivedAt: number;

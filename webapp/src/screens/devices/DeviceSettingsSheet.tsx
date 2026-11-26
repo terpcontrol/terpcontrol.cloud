@@ -1,156 +1,219 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Device, Space, SpaceKind } from '@fg2/shared-types/v1';
-import { useDevices, useUpdateDevice } from '@/api/devices';
+import type { Device, DeviceUpdate, Space } from '@fg2/shared-types/v1';
+import { nameKey } from '@fg2/shared-types/v1-schemas/place-names.js';
+import { SOCKET_HOST_TYPES } from '@fg2/shared-types/v1-schemas/socket-report.js';
+import { useCameras } from '@/api/cameras';
+import { useDevices, useSocketTables, useUpdateDevice } from '@/api/devices';
+import { refusalCode } from '@/api/problem';
 import { useCreateSpace, useSpaces } from '@/api/spaces';
-import { placesFor } from './moving';
-import { Sheet } from '@/ui/Sheet';
+import { climateHeldBy } from '@/screens/control/lead';
+import { darkSpellAmong } from '@/ui/climate-hardware';
+import { useSession } from '@/api/session';
+import { placesOf } from '@/app/places';
+import { useLog } from '@/log/log-context';
+import { cameraCalled } from '@/ui/camera-name';
+import { Facts } from '@/ui/Facts';
+import { cameraTitle, deviceName, deviceTitle, givenName, placeKindOf, standingWith } from '@/ui/naming';
 import { Refused } from '@/ui/PageState';
-import { Block, Choice, Choices } from '@/ui/SheetParts';
+import { Sheet } from '@/ui/Sheet';
+import { PlaceChoices } from '@/ui/PlaceChoices';
+import { Block, Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
-import { deviceTitle, givenName } from '@/ui/naming';
+import styles from './Devices.module.css';
+
+/** The chip that stands for a place still to be made. */
+const NEW = 'new';
 
 /**
- * What a device is called, and which place it stands in.
+ * What a device is called, and which place it stands in: one sheet with one
+ * button, before which nothing is written. A place chip only chooses; the
+ * sheet then says what goes with the device - the camera it answers for, its
+ * smart sockets - and the button says "Umziehen". The toast says what was
+ * done, with the way to take it back, and taking it back says what holds again.
  *
- * Both are things the route has always taken and nothing in the app ever asked
- * for. The name is the worse of the two absences, because every list is built
- * around one: `naming.ts` falls back to the type and the tail of the id
- * precisely so that six unnamed controllers are not one word repeated, and a
- * fallback was all a grower could ever have. Accounts carried over from the old
- * cloud make it plainer still - a fridge that arrived called "FG2" was named
- * there, and here that name could be neither corrected nor given to the
- * hardware beside it.
+ * A claim leaves the type's key as the name, which no screen shows, so an
+ * unnamed device starts empty with the name every screen does show as the
+ * placeholder; emptied, a device goes back to that.
  *
- * The place is the same gap from the other side. A claim has to end in some
- * space and the one it invents is a guess, so the claim flow's second step can
- * move a device; once that flow is over, nothing could, and hardware that
- * landed in the wrong tent stayed there for good. The picker here is that step's
- * picker, offered where the device is rather than where the claim was.
+ * A place that does not exist yet is named here as well: taking one device
+ * out of a place it shares means standing it somewhere of its own. It is made
+ * in the room the device leaves, and a move into it is not offered to be
+ * taken back - the place would stay behind empty.
  *
- * The two writes behave differently on purpose. A name is typed and saved, so
- * that a half-typed word is never stored, while a place is chosen from what the
- * account already has and is written on the tap - there is nothing further to
- * say once the place has been pointed at, and a Save under a row of chips would
- * only be a second chance to forget.
- *
- * A place that does not exist yet is named here as well, because taking one
- * device out of a place it shares - a fridge module carried in beside a tent
- * controller - means standing it somewhere of its own. The new place stands in
- * the room the device leaves, since being carried out of a tent is not being
- * carried out of the room.
+ * Two devices of one place are never called alike: a name another device of
+ * the place it will stand in already has is refused under the field, from what
+ * the page holds and from the server's own refusal (`name_taken`). And a place
+ * has one climate: a controller or fridge module is not moved into a place
+ * that holds one, which is said under the places (`place_holds_a_climate`).
  */
-/** The kind a new place is made with, as a claim would make it for this device. */
-const KIND: Readonly<Record<string, SpaceKind>> = { fridge: 'fridge', controller: 'tent' };
-
-export function DeviceSettingsSheet({ device, onClose }: { device: Device; onClose: () => void }) {
+export function DeviceSettingsSheet({ device, to = null, onClose }: { device: Device; to?: string | null; onClose: () => void }) {
   const { t } = useTranslation();
+  const { tell } = useLog();
+  const { user } = useSession();
   const write = useUpdateDevice(device.id);
+  const create = useCreateSpace();
   const spaces = useSpaces();
   const devices = useDevices();
-  const title = deviceTitle(device, t, devices.data?.items);
+  const cameras = useCameras(device.spaceId ?? undefined);
+  const tables = useSocketTables(SOCKET_HOST_TYPES.includes(device.type) ? [device.id] : []);
   const [typed, setTyped] = useState<string | null>(null);
-  const create = useCreateSpace();
-  const [naming, setNaming] = useState(false);
+  // Opened from a place that wants the device: that place is chosen, and nothing is written before the button.
+  const [chosen, setChosen] = useState<string | null>(to);
   const [placeName, setPlaceName] = useState('');
+  /** The place a first try made before the move was refused, so a second try makes no second one. */
+  const [made, setMade] = useState<Space | null>(null);
 
-  // The stored name until somebody types, and the stored name again once a save
-  // has gone through: what is being corrected is the server's answer, and it
-  // arrives a moment after the sheet opens.
-  // A claim leaves the type's key as the name - "fridge" - which no screen
-  // shows: the field starts empty with the name every screen does show as its
-  // placeholder, rather than offering the key to be edited.
+  // Told from another of its kind where one stands beside it, as its card is: in the place it leaves, and in the one it comes to.
+  const title = deviceTitle(device, t, standingWith(device, devices.data?.items));
   const stored = givenName(device);
-  const name = typed ?? stored ?? '';
-  const trimmed = name.trim();
-  // An empty field is a device with no name of its own, which is what every
-  // unclaimed one starts as: the row then carries its type and the characters
-  // printed on the hardware again, rather than an empty title.
-  const wanted = trimmed === '' ? null : trimmed;
-  const changed = wanted !== stored;
+  const wanted = (typed ?? stored ?? '').trim() || null;
+  const renamed = wanted !== stored;
   const listed = spaces.data?.items ?? [];
-  const elsewhere = placesFor(listed);
   const here = listed.find(space => space.id === device.spaceId) ?? null;
   // Only a room this account can see is one a new place can be made in.
   const roomId = here?.roomId && listed.some(space => space.id === here.roomId) ? here.roomId : null;
+  // A device stands only in a place of its owner, so only its owner is asked where: somebody who manages the
+  // place it stands in renames it and no more.
+  const mine = user !== null && device.ownerId === user.id;
+  const moving = mine && chosen !== null && chosen !== device.spaceId;
   const busy = write.isPending || create.isPending;
+  // The devices of the place it will stand in, called as every screen calls them.
+  const target = moving ? (chosen === NEW ? null : chosen) : device.spaceId;
+  const neighbour =
+    wanted === null || target === null
+      ? null
+      : ((devices.data?.items ?? []).find(
+          other => other.id !== device.id && other.spaceId === target && nameKey(deviceName(other, t)) === nameKey(wanted),
+        ) ?? null);
+  const taken = neighbour ? deviceName(neighbour, t) : refusalCode(write.error) === 'name_taken' && wanted !== null ? wanted : null;
+  const held = moving ? climateHeldBy(devices.data?.items ?? [], target, device) : null;
+  // A lamp module put where the place germinates or dries goes dark with it (ADR 0007), as the claim says.
+  const darkThere =
+    device.type === 'light' && moving && target ? darkSpellAmong((devices.data?.items ?? []).filter(one => one.spaceId === target)) : null;
 
-  const move = (space: Space) => write.mutate({ spaceId: space.id });
-  const moveToNew = () =>
-    create.mutate(
-      { kind: KIND[device.type] ?? 'other', name: placeName.trim(), ...(roomId ? { roomId } : {}) },
-      {
-        onSuccess: space =>
-          write.mutate(
-            { spaceId: space.id },
-            {
-              onSuccess: () => {
-                setNaming(false);
-                setPlaceName('');
-              },
-            },
-          ),
-      },
-    );
+  // A Terp Cam nobody named needs what is printed on it only to be told from a second one going along.
+  const cams = (cameras.data?.items ?? []).filter(camera => camera.deviceId === device.id && camera.removedAt === null);
+  const along = [
+    ...cams.map(camera => t('devices.settings.withCamera', { name: cameraCalled(cameraTitle(camera, device, t), cams.length < 2) })),
+    ...[tables.tables.get(device.id)?.items.length ?? 0].filter(count => count > 0).map(count => t('devices.settings.withSockets', { count })),
+  ];
+
+  const save = async () => {
+    try {
+      const fresh = chosen === NEW;
+      const to = !moving
+        ? null
+        : fresh
+          ? (made ?? (await create.mutateAsync({ kind: placeKindOf(device.type), name: placeName.trim(), ...(roomId ? { roomId } : {}) })))
+          : (listed.find(space => space.id === chosen) ?? null);
+      if (fresh && to) setMade(to);
+      const body: DeviceUpdate = { ...(renamed ? { name: wanted } : {}), ...(to ? { spaceId: to.id } : {}) };
+      const after = await write.mutateAsync(body);
+      const name = deviceTitle(after, t, standingWith(after, devices.data?.items));
+      const back: DeviceUpdate = { ...(renamed ? { name: device.name } : {}), ...(to ? { spaceId: device.spaceId } : {}) };
+
+      // The place it stands in now is named by itself, with the device after it; none is said in a sentence of its own.
+      const said = (was: string, now: string, place: string | null, dark: string | null = null) =>
+        [
+          renamed ? t('devices.settings.told.named', { was, name: now }) : null,
+          !to ? null : place ? t('devices.settings.told.moved', { name: now, place }) : t('devices.settings.told.nowhere', { name: now }),
+          to && along.length > 0 ? t('devices.settings.told.with', { what: along.join(', ') }) : null,
+          dark,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+      tell({
+        label: said(title, name, to?.name ?? null, darkThere ? t(`control.light.darkened.${darkThere}`) : null),
+        undo: fresh ? null : () => write.mutateAsync(back),
+        undone: said(name, title, here?.name ?? null),
+        from: `device-${device.id}`,
+      });
+      onClose();
+    } catch {
+      // Said in the sheet, from the write that refused.
+    }
+  };
 
   return (
-    <Sheet title={t('devices.settings.title', { name: title })} onClose={onClose}>
+    <Sheet
+      title={t(mine ? 'devices.settings.open' : 'devices.settings.rename')}
+      onClose={onClose}
+      actions={
+        <button
+          type="button"
+          className={`${ui.button} ${ui.primary}`}
+          disabled={busy || !(renamed || moving) || (chosen === NEW && placeName.trim() === '') || neighbour !== null || held !== null}
+          aria-describedby={neighbour ? 'device-name-taken' : held ? 'device-climate-held' : undefined}
+          onClick={() => void save()}
+        >
+          {t(moving ? (busy ? 'devices.settings.moving' : 'devices.settings.move') : busy ? 'devices.settings.saving' : 'devices.settings.save')}
+        </button>
+      }
+    >
       <div className={ui.sheetBody}>
-        <Block label={t('devices.settings.name')}>
-          <div className={ui.fieldRow}>
-            <input
-              className={ui.input}
-              value={name}
-              aria-label={t('devices.settings.name')}
-              placeholder={title}
-              autoComplete="off"
-              disabled={write.isPending}
-              onChange={event => setTyped(event.target.value)}
-            />
-            <button
-              type="button"
-              className={ui.fieldAction}
-              disabled={!changed || write.isPending}
-              onClick={() => write.mutate({ name: wanted }, { onSuccess: () => setTyped(null) })}
-            >
-              {write.isPending ? t('devices.settings.saving') : t('devices.settings.save')}
-            </button>
-          </div>
-          <p className={ui.note}>{t('devices.settings.nameNote')}</p>
+        <Block label={t('devices.settings.name')} help="deviceName">
+          <input
+            className={ui.input}
+            value={typed ?? stored ?? ''}
+            aria-label={t('devices.settings.name')}
+            placeholder={title}
+            autoComplete="off"
+            aria-invalid={taken !== null || undefined}
+            aria-describedby={taken ? 'device-name-taken' : undefined}
+            onChange={event => {
+              setTyped(event.target.value);
+              write.reset();
+            }}
+          />
+          {taken ? (
+            <p id="device-name-taken" className={ui.problem} role="alert">
+              {t('devices.settings.taken', { name: taken })}
+            </p>
+          ) : null}
         </Block>
 
-        <Block label={t('devices.settings.place')}>
-          <Choices label={t('devices.settings.place')}>
-            {elsewhere.map(space => (
-              <Choice key={space.id} chosen={space.id === device.spaceId} disabled={busy} onChoose={() => move(space)}>
-                {space.name}
+        {mine ? (
+          <Block label={t('devices.settings.place')} help="deviceMove">
+            <PlaceChoices
+              label={t('devices.settings.place')}
+              places={placesOf(listed, device.ownerId)}
+              chosen={chosen ?? device.spaceId}
+              disabled={busy}
+              onChoose={setChosen}
+            >
+              <Choice chosen={chosen === NEW} disabled={busy} onChoose={() => setChosen(NEW)}>
+                + {t('devices.settings.newPlace')}
               </Choice>
-            ))}
-            <Choice chosen={naming} disabled={busy} onChoose={() => setNaming(true)}>
-              + {t('devices.settings.newPlace')}
-            </Choice>
-          </Choices>
-          {naming ? (
-            <div className={ui.fieldRow}>
+            </PlaceChoices>
+            {chosen === NEW ? (
               <input
                 className={ui.input}
                 value={placeName}
                 aria-label={t('devices.settings.newPlaceName')}
                 placeholder={t('devices.settings.newPlaceName')}
                 autoComplete="off"
-                disabled={busy}
-                onChange={event => setPlaceName(event.target.value)}
+                onChange={event => {
+                  setPlaceName(event.target.value);
+                  setMade(null);
+                }}
               />
-              <button type="button" className={ui.fieldAction} disabled={busy || placeName.trim() === ''} onClick={moveToNew}>
-                {busy ? t('devices.settings.moving') : t('devices.settings.moveToNew')}
-              </button>
-            </div>
-          ) : null}
-          <p className={ui.note}>{t('devices.settings.placeNote')}</p>
-          <Refused error={create.error} />
-        </Block>
+            ) : null}
+            {held ? (
+              <p id="device-climate-held" className={ui.problem} role="alert">
+                {t('devices.settings.climateHeld', { place: listed.find(space => space.id === target)?.name ?? '', device: deviceName(held, t) })}
+              </p>
+            ) : null}
+            {darkThere ? <p className={ui.note}>{t(`claim.air.darkHere.${darkThere}`)}</p> : null}
+            {moving && along.length > 0 && !held ? (
+              <p className={styles.along}>
+                <Facts facts={[`${t('devices.settings.with')} ${along[0]}`, ...along.slice(1)]} />
+              </p>
+            ) : null}
+          </Block>
+        ) : null}
 
-        <Refused error={write.error} />
+        <Refused error={create.error ?? (refusalCode(write.error) === 'name_taken' ? null : write.error)} />
       </div>
     </Sheet>
   );

@@ -199,7 +199,7 @@ export const nowHoldingOf = ({
   /**
    * The device's word is on its way for a device that is heard: the schedule
    * stands in for it meanwhile, without calling itself the schedule for the
-   * moment it takes - the same read is the one the cockpit already made.
+   * moment it takes - the same read is the one Start already made.
    */
   awaiting?: boolean;
   now: DateTime;

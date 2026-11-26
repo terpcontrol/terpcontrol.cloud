@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { GrowMeasurementSeries, GrowSeriesPoint, MeasurementDefinition, Plant, TimelineSpan } from '@fg2/shared-types/v1';
+import type { GrowMeasurementSeries, GrowSeriesPoint, MeasurementDefinition, Plant } from '@fg2/shared-types/v1';
 import { Chart, type ChartOption } from '@/charts/Chart';
 import type { ChartPalette } from '@/charts/tokens';
 import ui from '@/ui/ui.module.css';
@@ -11,7 +11,7 @@ import styles from './Plant.module.css';
 /** How much room the figures need above and below the line before the card looks cramped. */
 const PADDING = 0.08;
 
-/** Tall enough for the shape of a curve and no taller: this is a page about a plant, not a charts view. */
+/** Tall enough for the shape of a curve and no taller: this is a page about a plant, not Verlauf. */
 const HEIGHT = 120;
 
 interface PlantChartProps {
@@ -21,7 +21,6 @@ interface PlantChartProps {
   label: string;
   /** The rest of the grow's plants, so that each faint line is a plant with a name. */
   others: Plant[];
-  nights: TimelineSpan[];
   from: number;
   to: number;
 }
@@ -37,14 +36,14 @@ interface PlantChartProps {
  * carries its name in the legend: a measurement taken per plant read as one
  * curve across all of them would be a zig-zag nobody measured.
  */
-export function PlantChart({ definition, series, plantId, label, others, nights, from, to }: PlantChartProps) {
+export function PlantChart({ definition, series, plantId, label, others, from, to }: PlantChartProps) {
   const { t } = useTranslation();
   const mine = useMemo(() => series.points.filter(point => point.plantId === plantId), [series.points, plantId]);
   const beside = useMemo(() => byPlant(series.points, others), [series.points, others]);
   const scale = useMemo(() => scaleOf(series.points, definition), [series.points, definition]);
   const option = useMemo(
-    () => (palette: ChartPalette) => optionOf(palette, mine, beside, definition, nights, scale, from, to),
-    [mine, beside, definition, nights, scale, from, to],
+    () => (palette: ChartPalette) => optionOf(palette, mine, beside, definition, scale, from, to),
+    [mine, beside, definition, scale, from, to],
   );
 
   const band = bandOf(t, definition);
@@ -54,9 +53,9 @@ export function PlantChart({ definition, series, plantId, label, others, nights,
       <header className={styles.chartHead}>
         <span className={styles.chartName}>
           {definition.name}
-          {definition.unit ? <span className={`mono ${styles.chartUnit}`}> · {definition.unit}</span> : null}
+          {definition.unit ? <span className={styles.chartUnit}> · {definition.unit}</span> : null}
         </span>
-        <span className={`mono ${styles.legend}`}>
+        <span className={styles.legend}>
           <span className={styles.legendMine}>
             <span className={styles.mineMark} aria-hidden />
             {label}
@@ -115,7 +114,6 @@ const optionOf = (
   mine: GrowSeriesPoint[],
   beside: Sibling[],
   definition: MeasurementDefinition,
-  nights: TimelineSpan[],
   scale: { low: number; high: number },
   from: number,
   to: number,
@@ -142,10 +140,7 @@ const optionOf = (
       lineStyle: { width: 1.4, color: palette.ink },
       markArea: {
         silent: true,
-        data: [
-          ...nights.map(night => [{ xAxis: at(night.startsAt), itemStyle: { color: palette.night } }, { xAxis: at(night.endsAt) }]),
-          ...bandArea(definition, scale, palette),
-        ],
+        data: bandArea(definition, scale, palette),
       },
     },
   ],

@@ -18,6 +18,7 @@ import {
   DeviceSeries,
   DeviceUpdate,
   DeviceFirmwarePage,
+  PendingSettings,
   SocketPage,
   SocketRole,
   SocketOverrideUpdate,
@@ -39,6 +40,7 @@ import {
   deviceSeries,
   deviceUpdate,
   deviceFirmwarePage,
+  heardAt,
   metric,
   outputMetric,
   seriesQuery,
@@ -54,16 +56,19 @@ import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { badRequest, forbidden } from '@common/v1/problem';
 import { PageQuery, V1Query, inOrder, pageQuery, repeated } from '@common/v1/validation';
+import { isOffline } from '@common/v1/value-age';
 import { V1Body } from '@common/zod-validation.pipe';
 import { demoSockets } from '@utils/demo';
 import { DeviceConfigurationService } from '@modules/device-protocol/device-configuration.service';
 import { DevicePublisherService } from '@modules/device-protocol/device-publisher.service';
 import { decodeCapabilities, decodeSockets } from '@modules/device-protocol/sockets';
-import { DataService } from '@modules/data/data.service';
+import { DataService, LiveReading } from '@modules/data/data.service';
 import { MODEL_V1 } from '@database/models';
+import { StoredDevice } from '@database/schemas/v1/devices.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { StoredTargetChange } from '@database/schemas/v1/target-changes.schema';
 import { V1Answer } from '../answer-shape';
-import { settlingsOf } from '../phase/target-record';
+import { pendingOf, settlingsOf } from '../phase/target-record';
 import { FleetService } from '../fleet/fleet.service';
 import { DevicesService } from './devices.service';
 import { setpointsOf } from './setpoints';
@@ -107,6 +112,7 @@ export class DevicesController {
     private readonly publisher: DevicePublisherService,
     private readonly configuration: DeviceConfigurationService,
     private readonly access: AccessService,
+    @InjectModel(MODEL_V1.entry) private readonly entries: Model<EntryDocument>,
     @Optional() @InjectModel(MODEL_V1.targetChange) private readonly targetRecord: Model<StoredTargetChange> | null = null,
   ) {}
 
@@ -152,6 +158,8 @@ export class DevicesController {
     // Moving a device is managing two places, and the guard above has only
     // decided about the one it is standing in.
     if (body.spaceId) await this.access.require(ctx, subjectRef('space', body.spaceId), 'manage');
+    // Out of every place it is on nobody's screen but its owner's, so that is the owner's alone.
+    if (body.spaceId === null) await this.access.require(ctx, subjectRef('device', id), 'own');
     // A grower picks whether the device updates itself and from which channel,
     // and on the manual channel which version it installs - from what the
     // device's list of builds offers anybody but an administrator. Any other
@@ -206,8 +214,17 @@ export class DevicesController {
     @Param('id') id: string,
     @V1Body(deviceConfigurationEnvelope) body: DeviceConfigurationEnvelope,
   ): Promise<DeviceConfigurationEnvelope> {
-    const stored = await this.configuration.replace(id, body.configuration, ctx.userId, body.drying, body.germination, body.germinationChoices);
-    return { configuration: stored ?? body.configuration };
+    const stored = await this.configuration.replace(
+      id,
+      body.configuration,
+      ctx.userId,
+      body.drying,
+      body.germination,
+      body.germinationChoices,
+      body.preset,
+      body.bands,
+    );
+    return { ...stored, configuration: stored.configuration ?? body.configuration };
   }
 
   /**
@@ -291,7 +308,19 @@ export class DevicesController {
       metrics: reading.metrics,
       outputs: reading.outputs,
       setpoints: setpointsOf(device.configuration, reading.isDay, device.state?.hardware, device.type, now, settling.get(id) ?? null),
+      pending: await this.pendingOf(device, reading, now),
     };
+  }
+
+  /**
+   * Asked only of a device that is silent, by the one rule a device is dated
+   * by everywhere (`heardAt`): one that is heard holds what is stored, and
+   * that is nearly every read.
+   */
+  private async pendingOf(device: StoredDevice, reading: LiveReading, now: Date): Promise<PendingSettings | null> {
+    const heard = heardAt(device.state?.lastSeenAt ?? null, sampleAtOf(reading));
+
+    return heard && isOffline(heard, now) && this.targetRecord ? pendingOf(this.targetRecord, this.entries, device, heard, now) : null;
   }
 
   /** A window of history. The range and the step are answered back, because the server may have narrowed either. */
@@ -416,6 +445,12 @@ const published = (result: { publishedAt: Date; deviceOnline: boolean }): Device
   publishedAt: result.publishedAt.toISOString(),
   deviceOnline: result.deviceOnline,
 });
+
+/** The newest stored sample a reading knows of: the newest thing it says, over every metric and output. */
+const sampleAtOf = (reading: LiveReading): Date | null =>
+  [...Object.values(reading.metrics), ...Object.values(reading.outputs)]
+    .flatMap(value => (value.measuredAt ? [new Date(value.measuredAt)] : []))
+    .reduce<Date | null>((newest, at) => (newest && newest > at ? newest : at), null);
 
 /** A slot is a number in the path; `new` adds a socket to the role rather than configuring one it has. */
 const slotOf = (slot: string): number | null => {

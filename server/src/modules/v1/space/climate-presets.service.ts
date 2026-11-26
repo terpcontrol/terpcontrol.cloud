@@ -2,11 +2,12 @@ import { Inject, Injectable, Module } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import type { GerminationChoices, GrowthStage } from '@fg2/shared-types/v1';
-import { WORK_MODES_BY_TYPE } from '@fg2/shared-types/v1-schemas/configuration-fields.js';
+import { OWN_CLIMATE_TYPES } from '@fg2/shared-types/v1-schemas';
 import { MODEL_V1 } from '@database/models';
 import { ModelsModule } from '@database/models.module';
 import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { logger } from '@utils/logger';
+import { DeviceSettingsSink } from '../../device-protocol/device-sinks';
 import { AppliedPreset, ClimatePresets } from '../grow/climate-presets.port';
 import { targetsOf } from '../phase/phase-targets';
 import { DEVICE_CONFIGURATION_WRITER, DeviceConfigurationWriter } from '../plan/device-configuration.port';
@@ -23,35 +24,11 @@ import { presetConfiguration } from './climate-presets';
  * other to be built.
  */
 @Injectable()
-export class ClimatePresetsService implements ClimatePresets {
+export class ClimatePresetsService implements ClimatePresets, DeviceSettingsSink {
   constructor(
     @InjectModel(MODEL_V1.device) private readonly devices: Model<StoredDevice>,
     @Inject(DEVICE_CONFIGURATION_WRITER) private readonly configuration: DeviceConfigurationWriter,
   ) {}
-
-  public async modeToSpace(spaceId: string, stage: GrowthStage): Promise<void> {
-    // Germination is dark, and a device goes dark for it only where its climate
-    // was asked for: a grow written into germination without one is a record of
-    // the seeds, wherever they sprout, and the device stays as it is.
-    if (stage === 'germination') return;
-
-    const here = await this.devices
-      .find({ spaceId, type: { $in: Object.keys(WORK_MODES_BY_TYPE) } }, { id: 1, configuration: 1 })
-      .lean<Pick<StoredDevice, 'id' | 'configuration'>[]>();
-
-    for (const device of here) {
-      const workmode = device.configuration?.workmode;
-      // Only where the stage changes something: a write is a document sent to the device.
-      const changes = stage === 'drying' ? workmode !== 'dry' : workmode === 'dry' || workmode === 'off' || workmode === 'breed';
-      if (typeof workmode !== 'string' || !changes) continue;
-
-      try {
-        await this.configuration.applyConfiguration(device.id, {}, stage);
-      } catch (error) {
-        logger.error(`Could not put device ${device.id} into the work mode of the ${stage} stage: ${error}`);
-      }
-    }
-  }
 
   /**
    * Only the devices that state day and night targets at all: a plug, a light
@@ -73,10 +50,17 @@ export class ClimatePresetsService implements ClimatePresets {
     stage: GrowthStage,
     preset: string | null,
     choices?: Partial<GerminationChoices>,
+    by?: string | null,
   ): Promise<AppliedPreset[]> {
     const here = await this.devices.find({ spaceId }, { id: 1, type: 1, configuration: 1, 'state.hardware': 1 }).lean<StoredDevice[]>();
     const applied: AppliedPreset[] = [];
     const germination = stage === 'germination' ? choices : undefined;
+
+    // A controller or a fridge module that has not sent its settings has nothing to write the climate into yet: it
+    // waits for them, and is put on the climate as they arrive (`settingsArrived`) - a phase chosen at the claim
+    // before the device first reported was never written, and Start called its own figures "Alles im Ziel".
+    const awaiting = here.filter(device => device.configuration === null && OWN_CLIMATE_TYPES.includes(device.type)).map(device => device.id);
+    if (awaiting.length > 0) await this.configuration.awaitClimate(awaiting, { spaceId, stage, preset, choices: germination ?? null });
 
     for (const device of here) {
       const settings =
@@ -86,7 +70,7 @@ export class ClimatePresetsService implements ClimatePresets {
       if (!settings) continue;
 
       try {
-        await this.configuration.applyConfiguration(device.id, settings, stage, germination);
+        await this.configuration.applyConfiguration(device.id, settings, stage, germination, { stage, preset }, by);
       } catch (error) {
         logger.error(`Could not put device ${device.id} on the ${stage} preset: ${error}`);
         continue;
@@ -94,8 +78,39 @@ export class ClimatePresetsService implements ClimatePresets {
 
       applied.push({ deviceId: device.id, targets: targetsOf({ ...device.configuration, ...settings }) });
     }
+    // Germination and drying are dark for every lamp of the place, a lamp module's too, each time either is applied.
+    await this.configuration.lampsFollow(spaceId);
 
     return applied;
+  }
+
+  /**
+   * A device's first settings have arrived: it is put on the climate its place was put on while it had none, if it
+   * still stands there - the climate is the place's, not the device's to take along. A lamp module's are what keeps it
+   * dark where its place germinates or dries.
+   */
+  public async settingsArrived(deviceId: string): Promise<void> {
+    const device = await this.devices
+      .findOneAndUpdate({ id: deviceId }, { $set: { awaitedClimate: null } })
+      .lean<Pick<StoredDevice, 'id' | 'type' | 'spaceId' | 'configuration' | 'state' | 'awaitedClimate'>>();
+    if (device?.type === 'light') return this.configuration.lampsFollow(device.spaceId);
+    const awaited = device?.awaitedClimate ?? null;
+    if (!device || !awaited || awaited.spaceId !== device.spaceId) return;
+
+    const settings =
+      targetsOf(device.configuration) === null
+        ? null
+        : presetConfiguration(awaited.stage, awaited.preset, device.configuration, device.type === 'fridge' || device.state?.hardware?.co2 === 'on');
+    if (!settings) return;
+
+    try {
+      await this.configuration.applyConfiguration(device.id, settings, awaited.stage, awaited.choices ?? undefined, {
+        stage: awaited.stage,
+        preset: awaited.preset,
+      });
+    } catch (error) {
+      logger.error(`Could not put device ${device.id} on the ${awaited.stage} preset its place waited with: ${error}`);
+    }
   }
 }
 

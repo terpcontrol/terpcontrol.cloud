@@ -12,6 +12,9 @@ export const lineLabel = (t: Translate, kind: TileKind, target: LogTarget): stri
     .filter(Boolean)
     .join(' · ');
 
+/** An undo's answer, in its one form: "Undone · <what holds again>". */
+export const undoneLabel = (t: Translate, holds: string): string => `${t('log.undone')} · ${holds}`;
+
 /**
  * Where a line goes. A grow keeps its diary when it moves between tents, so a
  * line about a grow names the grow and never the tent it happens to stand in.

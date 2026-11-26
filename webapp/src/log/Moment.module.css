@@ -13,7 +13,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  height: 28px;
+  min-height: var(--control-height);
   padding: 0 var(--space-2) 0 var(--space-3);
   background: var(--card-2);
   border: var(--rule-solid);
@@ -29,16 +29,42 @@
   color: var(--muted);
 }
 
+/* On the narrowest phones the moment leaves the sheet's title its room: closer set - and with its pencil, the one
+   sign that the time can be changed. */
+@media (max-width: 359px) {
+  .button {
+    gap: 2px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+}
+
 .button:hover,
 .button[aria-expanded='true'] {
   border-color: var(--brand);
 }
 
-.fixed {
-  flex: none;
-  align-self: center;
+/* The same moment asked across a sheet: the question and its answer, and the button that changes it. */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.asked {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
+}
+
+.answer {
+  display: block;
   color: var(--muted);
+}
+
+.change {
+  flex: none;
 }
 
 /* Fixed, and placed by the component: inside the sheet it would be cut off at
@@ -50,6 +76,8 @@
   flex-direction: column;
   gap: var(--space-3);
   width: 240px;
+  max-height: calc(100dvh - var(--space-2));
+  overflow-y: auto;
   padding: var(--space-3);
   background: var(--card);
   border: var(--rule-solid);
@@ -57,14 +85,16 @@
   box-shadow: var(--shadow-raised);
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+/* A sentence of a button, in a pop-up as narrow as a date field: it takes the lines it needs. */
+.move {
+  height: auto;
+  min-height: var(--control-height);
+  padding-block: var(--space-2);
+  white-space: normal;
 }

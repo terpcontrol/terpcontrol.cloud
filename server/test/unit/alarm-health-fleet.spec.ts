@@ -101,7 +101,7 @@ beforeEach(async () => {
     },
   } as unknown as DataService;
 
-  const episodes = new AlertService(db.alerts, entries, delivery, null);
+  const episodes = new AlertService(db.alerts, entries, delivery);
   const engine = new AlarmEngineService(db.alarmRules, db.devices, data, episodes);
   health = new AlarmHealthService(db.devices, db.alarmRules, db.cameras, engine, episodes, data);
 });

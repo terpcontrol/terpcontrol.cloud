@@ -1,15 +1,20 @@
 import { ChevronRight } from 'lucide-react';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router';
 import type { GrowListItem, GrowScheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { useUpdateGrow } from '@/api/grows';
 import { growSchemeLabel, schemeVersionLabel, useOwnSchemes, useScheme, useSchemes } from '@/api/schemes';
-import { Help } from '@/ui/Help';
-import { Refused } from '@/ui/PageState';
+import { looseFigure, typedFigure } from '@/ui/figures';
+import { Help, Term } from '@/ui/Help';
+import { Asking } from '@/ui/Asking';
+import { NothingHere, Refused } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { sameScheme, useSchemeEdit } from './scheme/edit-store';
-import { hasEcTargets, withFlipWeek } from './scheme/grid';
+import { withFlipWeek } from './scheme/grid';
 import { GridEditor } from './scheme/GridEditor';
+import { LeaveGuard } from './scheme/LeaveGuard';
+import { useAnswered } from './told';
 import { SchemeSheet } from './scheme/SchemeSheet';
 import styles from './scheme/Scheme.module.css';
 
@@ -27,9 +32,12 @@ const STRENGTHS = [0.5, 0.75, 1, 1.25];
  * nothing already growing. A grower who believes otherwise finds out in a
  * season they cannot have back.
  *
- * Nothing is written until Save. A grid is a table somebody works across, and
- * a PATCH per cell would put a dozen writes and a dozen chances of a refusal
- * between a thought and its result.
+ * A figure typed into the grid or a setting changed is not written until Save.
+ * A grid is a table somebody works across, and a PATCH per cell would put a
+ * dozen writes and a dozen chances of a refusal between a thought and its
+ * result. Choosing another scheme is one decision with a button of its own, so
+ * it is written at once and answered with the way back - a bar under the grid
+ * saying "not saved" was read as the new scheme standing.
  *
  * That is also why the draft is held against the grid it was changed against
  * rather than seeded once. With nothing typed the screen follows the stored
@@ -45,8 +53,12 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   const shipped = useSchemes();
   const own = useOwnSchemes();
   const update = useUpdateGrow(grow.id);
+  const answer = useAnswered(update, `scheme-${grow.id}`);
 
   const [edit, setEdit] = useSchemeEdit(grow.id);
+  const here = useLocation();
+  // The grow's own pages, between which what is typed is kept (`useSchemeEdit`): its address without the tab.
+  const grows = here.pathname.replace(/\/feeding$/, '');
   const [choosing, setChoosing] = useState(false);
 
   // With nothing typed the screen is the stored grow, so a correction saved
@@ -72,16 +84,52 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
     if (draft) setDraft({ ...draft, grid: next(draft.grid), edited: true });
   };
 
-  const save = () => update.mutate({ scheme: draft }, { onSuccess: () => setEdit(null) });
+  // The grid that fed the plants until now is one write away, so the answer offers it back.
+  const save = () =>
+    answer(
+      { scheme: draft },
+      t(draft ? 'grow.scheme.told.saved' : 'grow.scheme.told.none'),
+      { to: { scheme: stored }, undone: t(stored ? 'grow.scheme.told.back' : 'grow.scheme.told.none') },
+      () => setEdit(null),
+    );
 
-  // Taking a grow off its scheme leaves a draft of nothing, which is still a
-  // change and still has to be saved: the empty state therefore carries the
-  // same bar as the grid does rather than swallowing the decision.
+  // Another scheme, or none, replaces the grid with whatever was typed into it, as the sheet says before the tap.
+  const switchTo = (scheme: GrowScheme | null) => {
+    setChoosing(false);
+    const name = (of: GrowScheme) => growSchemeLabel(of.origin, shipped.data ?? [], own.data?.items ?? [], t('grow.ownScheme'));
+    answer(
+      { scheme },
+      scheme ? t('grow.scheme.told.switched', { name: name(scheme) }) : t('grow.scheme.told.none'),
+      { to: { scheme: stored }, undone: stored ? t('grow.scheme.told.switched', { name: name(stored) }) : t('grow.scheme.told.none') },
+      () => setEdit(null),
+    );
+  };
+
+  // Leaving the grow with cells typed asks first, in the bar that says they are not saved; a switch between the
+  // grow's own tabs keeps them and asks nothing.
   const unsaved =
     mayManage && dirty ? (
-      <>
-        <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
-          <span className={`mono ${styles.unsavedNote}`}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
+      <div className={styles.unsaved} role={moved ? 'alert' : undefined}>
+        <LeaveGuard
+          dirty
+          stays={next => next.search === here.search && (next.pathname === grows || next.pathname.startsWith(`${grows}/`))}
+          asking={held => (
+            <div className={styles.leaving}>
+              <Asking
+                note={t('grow.scheme.leaveUnsaved')}
+                yes={t('grow.scheme.discard')}
+                danger
+                busy={false}
+                onYes={() => {
+                  setEdit(null);
+                  held.proceed();
+                }}
+                onCancel={held.stay}
+              />
+            </div>
+          )}
+        >
+          <span className={styles.unsavedNote}>{moved ? t('grow.scheme.movedUnder') : t('grow.scheme.unsaved')}</span>
           <button type="button" className={ui.button} disabled={update.isPending} onClick={() => setEdit(null)}>
             {moved ? t('grow.scheme.takeTheirs') : t('grow.scheme.discard')}
           </button>
@@ -94,9 +142,8 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
               {update.isPending ? t('grow.scheme.saving') : t('grow.scheme.save')}
             </button>
           )}
-        </div>
-        <Refused error={update.error} />
-      </>
+        </LeaveGuard>
+      </div>
     ) : null;
 
   const sheet = choosing ? (
@@ -105,10 +152,7 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
       shipped={shipped.data ?? []}
       own={own.data?.items ?? []}
       grid={draft?.grid ?? []}
-      onSwitch={scheme => {
-        setDraft(scheme);
-        setChoosing(false);
-      }}
+      onSwitch={switchTo}
       onClose={() => setChoosing(false)}
     />
   ) : null;
@@ -116,27 +160,15 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
   if (!draft) {
     return (
       <div className={styles.page}>
-        <section className={`${ui.cardDashed} ${styles.none}`}>
-          <span className="label">{t('grow.noScheme')}</span>
-          {/* A finished grow is not being fed anything, so it is told what it
-              was fed and why the grid is still worth filling in, rather than
-              being advised how to start. The action itself stays: the grid is
-              what every week card of this grow states it was fed, here and on
-              a shared link, and filling in what a grow really got is a
-              legitimate repair of that long afterwards. It reaches no further
-              than those cards - the report carries nothing week-level and the
-              export writes only the scheme it was fed by - so the note must
-              not promise those two. */}
-          <p className={ui.note}>{t(grow.endedAt ? 'grow.noSchemeNoteEnded' : 'grow.noSchemeNote')}</p>
-        </section>
+        <NothingHere>{t('grow.noScheme')}</NothingHere>
         {mayManage ? (
-          <div className={styles.chips}>
+          <div className={ui.wrap}>
             <button type="button" className={ui.button} onClick={() => setChoosing(true)}>
               {t('grow.scheme.choose')}
             </button>
           </div>
         ) : null}
-        {unsaved}
+        <Refused error={update.error} />
         {sheet}
       </div>
     );
@@ -194,19 +226,12 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
             <Help topic="waterEc" />
           </span>
           <span className={styles.waterRow}>
-            <span className={styles.waterKind}>{t(waterKey(draft.waterEc))}</span>
-            <input
-              id={`${fieldId}-water`}
-              className={styles.settingValue}
-              type="number"
-              min={0}
-              step={0.1}
-              disabled={!mayManage}
-              aria-label={t('grow.scheme.waterEc')}
-              placeholder={t('grow.scheme.ecPlaceholder')}
-              value={draft.waterEc ?? ''}
-              onChange={event => setDraft({ ...draft, waterEc: event.target.value === '' ? null : Number(event.target.value) })}
-            />
+            {/* "Leitungswasser · EC 0,4": the figure in the field is the water's EC, and says so before it. */}
+            <span className={styles.waterKind}>
+              {t(waterKey(draft.waterEc))}
+              {draft.waterEc === null ? '' : ` · ${t('grow.scheme.ecPlaceholder')}`}
+            </span>
+            <WaterEc id={`${fieldId}-water`} value={draft.waterEc} disabled={!mayManage} onChange={waterEc => setDraft({ ...draft, waterEc })} />
           </span>
         </label>
 
@@ -286,19 +311,14 @@ export function Feeding({ grow, mayManage }: { grow: GrowListItem; mayManage: bo
         }
         onEdit={editGrid}
       >
+        {/* Which week it is, and behind it how the grid is read and changed: nothing is explained above the buttons. */}
         <p className={styles.note}>
-          {currentWeek !== null ? `${t('grow.scheme.thisWeekLine', { week: currentWeek })} ` : ''}
-          {draft.flipWeek !== null ? `${t('grow.scheme.flipLine', { week: draft.flipWeek })} ` : ''}
-          {mayManage ? t('grow.scheme.howLine') : null}
+          {currentWeek !== null ? <Term topic="feedGrid">{t('grow.scheme.thisWeekLine', { week: currentWeek })}</Term> : <Help topic="feedGrid" />}
         </p>
       </GridEditor>
 
       {unsaved}
-
-      <p className={styles.caption}>
-        {hasEcTargets(draft.grid) ? `${t('grow.scheme.ecCaption')} ` : ''}
-        {t('grow.scheme.chartCaption')} {t('grow.scheme.honesty')}
-      </p>
+      <Refused error={update.error} />
 
       {sheet}
     </div>
@@ -326,7 +346,7 @@ function BasedOn({
       <span>
         {t('grow.scheme.basedOn')} <span className={styles.basedOnName}>{name}</span>
       </span>
-      <span className={`mono ${styles.basedOnAside}`}>
+      <span className={styles.basedOnAside}>
         {edited ? `${t('grow.edited')} · ` : ''}
         {version ?? ''}
         {onOpen ? <ChevronRight size={14} strokeWidth={1.75} aria-hidden /> : null}
@@ -340,6 +360,43 @@ function BasedOn({
     </button>
   ) : (
     <section className={`${ui.card} ${styles.basedOn}`}>{inside}</section>
+  );
+}
+
+/**
+ * What the water measures, written and typed as the reader's language writes a decimal. What is being typed stands
+ * as typed until the field is left; an empty field is "nobody has looked", and anything that is no figure changes nothing.
+ */
+function WaterEc({
+  id,
+  value,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  value: number | null;
+  disabled: boolean;
+  onChange: (value: number | null) => void;
+}) {
+  const { t } = useTranslation();
+  const [typing, setTyping] = useState<string | null>(null);
+
+  return (
+    <input
+      id={id}
+      className={styles.settingValue}
+      inputMode="decimal"
+      disabled={disabled}
+      aria-label={t('grow.scheme.waterEc')}
+      placeholder={t('grow.scheme.ecPlaceholder')}
+      value={typing ?? (value === null ? '' : looseFigure(value))}
+      onChange={event => {
+        const typed = typedFigure(event.target.value);
+        setTyping(event.target.value);
+        if (event.target.value.trim() === '' || (typed !== null && typed >= 0)) onChange(typed);
+      }}
+      onBlur={() => setTyping(null)}
+    />
   );
 }
 

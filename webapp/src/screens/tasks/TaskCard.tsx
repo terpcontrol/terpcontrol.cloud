@@ -1,4 +1,4 @@
-import { UserRound } from 'lucide-react';
+import { Check, UserRound } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,11 +6,12 @@ import type { Reminder, SessionUser, Task } from '@fg2/shared-types/v1';
 import { useDevicePlan } from '@/api/plans';
 import type { Translate } from '@/i18n/i18n';
 import { Asking } from '@/ui/Asking';
+import { Facts } from '@/ui/Facts';
 import { initials } from '@/ui/handle';
 import { nextStepIndex } from '@/screens/control/plan-clock';
 import ui from '@/ui/ui.module.css';
 import { clock, useZone } from '@/ui/zone';
-import { dayLabel, daysUntil, litresOf, onceLabel } from './tasks';
+import { dayLabel, dueLabel, litresOf, onceLabel } from './tasks';
 import { looseFigure } from '@/ui/figures';
 import styles from './Tasks.module.css';
 
@@ -61,7 +62,7 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
-      <div className={styles.row}>
+      <div className={ui.row3}>
         {onDone ? (
           <button
             type="button"
@@ -73,9 +74,9 @@ export function TaskCard({ task, name, reminder, deviceId, me, now, onDone, onEd
         ) : (
           <span className={styles.circle} aria-hidden />
         )}
-        <span className={styles.text}>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{title}</span>
-          <span className={`mono ${styles.meta}`}>{metaLine(t, task, name, reminder, now, zone)}</span>
+          <Facts className={styles.meta} facts={metaLine(t, task, name, reminder, now, zone)} />
         </span>
         {onEdit ? (
           <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
@@ -126,26 +127,27 @@ function NextStep({ deviceId }: { deviceId: string }) {
  * dated, so the morning's work is struck through rather than simply gone; it
  * is not a control any more and does nothing when tapped.
  */
-export function DoneCard({ task, name, me, now }: { task: Task; name: string | null; me: SessionUser | null; now: DateTime }) {
+export function DoneCard({ task, name, by, me, now }: { task: Task; name: string | null; by: string | null; me: SessionUser | null; now: DateTime }) {
   const { t, i18n } = useTranslation();
   // The hour a task was ticked off at, in the account's zone: the alerts inbox
   // beside this list has always drawn its instants there, and the same tick
   // read 10:39 on one screen and 12:39 here.
   const zone = useZone();
   const completion = task.completion;
-  const who = t(completion?.authorId && completion.authorId === me?.id ? 'tasks.ticked.you' : 'tasks.ticked.somebody');
+  // `by` is the handle of somebody else who ticked it, where the people of its place have answered.
+  const who = completion?.authorId && completion.authorId === me?.id ? t('tasks.ticked.you') : by ? `@${by}` : t('tasks.ticked.somebody');
+  const at = completion ? `${dayLabel(t, completion.occurredAt, now, i18n.language, zone)} ${clock(completion.occurredAt, zone)}` : null;
 
   return (
     <li className={`${ui.card} ${styles.card}`} data-done="true">
-      <div className={styles.row}>
-        <span className={styles.circle} data-filled="true" aria-hidden />
-        <span className={styles.text}>
+      <div className={ui.row3}>
+        <span className={styles.circle} data-filled="true" aria-hidden>
+          <Check size={14} strokeWidth={2} />
+        </span>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{titleOf(t, task)}</span>
-          <span className={`mono ${styles.meta}`}>
-            {[who, name, completion ? `${dayLabel(t, completion.occurredAt, now, i18n.language, zone)} ${clock(completion.occurredAt, zone)}` : null]
-              .filter(part => part !== null)
-              .join(' · ')}
-          </span>
+          {/* Who and when stay on one line with their dot; a long name of where it was breaks on the next. */}
+          <Facts className={styles.meta} facts={[who, at, name]} />
         </span>
         <Assignee task={task} me={me} />
       </div>
@@ -183,15 +185,15 @@ export function RhythmCard({
   const parts = [
     reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.onceOn', { date: onceLabel(reminder.onceAt!, language, zone) }),
     name,
-    reminder.kind === 'custom' ? null : t(`tasks.kindMeta.${reminder.kind}`),
+    kindAside(t, reminder.kind, reminder.label),
   ];
 
   return (
     <li className={`${ui.card} ${styles.card}`}>
-      <div className={styles.row}>
-        <span className={styles.text}>
+      <div className={ui.row3}>
+        <span className={ui.textColumn}>
           <span className={styles.cardTitle}>{reminder.label}</span>
-          <span className={`mono ${styles.meta}`}>{parts.filter(part => part !== null).join(' · ')}</span>
+          <Facts className={styles.meta} facts={parts} />
         </span>
         {onEdit ? (
           <button type="button" className={`${ui.chip} ${styles.edit}`} onClick={onEdit}>
@@ -215,7 +217,7 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
 
   if (me && task.assigneeId === me.id) {
     return (
-      <span className={`mono ${styles.avatar}`} role="img" aria-label={t('tasks.assignedToYou')}>
+      <span className={styles.avatar} role="img" aria-label={t('tasks.assignedToYou')}>
         {initials(me.handle)}
       </span>
     );
@@ -236,8 +238,19 @@ function Assignee({ task, me }: { task: Task; me: SessionUser | null }) {
  */
 const titleOf = (t: Translate, task: Task): string => (task.source === 'plan_step' ? t('tasks.planStepTitle', { label: task.label }) : task.label);
 
-/** "every 3 d · Spring run · water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
-const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime, zone: string | null): string => {
+/**
+ * The kind beside a reminder's or a task's name, by the name the sheet gives it ("Gießen"): only where there is one
+ * to name - "custom" is what a reminder is called when its label says everything - and not where the label says it
+ * already, which "Gießen · … · gießen" did twice.
+ */
+const kindAside = (t: Translate, kind: Task['kind'], label: string): string | null => {
+  if (kind === 'custom') return null;
+  const word = t(`tasks.kind.${kind}`);
+  return label.toLowerCase().includes(word.toLowerCase()) ? null : word;
+};
+
+/** "every 3 d · Spring run · Water · 2 L · today", or "grow plan · Tent 1 · in 2 d": where the task came from, which place it is about, then when it is due. */
+const metaLine = (t: Translate, task: Task, name: string | null, reminder: Reminder | null, now: DateTime, zone: string | null): string[] => {
   const parts: string[] = [];
 
   if (task.source === 'plan_step') {
@@ -246,23 +259,13 @@ const metaLine = (t: Translate, task: Task, name: string | null, reminder: Remin
   } else {
     if (reminder) parts.push(reminder.everyDays ? t('tasks.every', { count: reminder.everyDays }) : t('tasks.once'));
     if (name) parts.push(name);
-    // A category of its own only where there is one to name: "custom" is what a
-    // reminder is called when its label already says everything about it.
-    // Nor where the label says it already: "Gießen · … · gießen" said it twice.
-    const kind = task.kind === 'custom' ? null : t(`tasks.kindMeta.${task.kind}`);
-    if (kind && !task.label.toLowerCase().includes(kind.toLowerCase())) parts.push(kind);
+    const kind = kindAside(t, task.kind, task.label);
+    if (kind) parts.push(kind);
     const litres = litresOf(task.defaults);
     if (litres !== null) parts.push(t('log.litres', { litres: looseFigure(litres) }));
   }
 
-  parts.push(taskDueLabel(t, task, now, zone));
-  return parts.join(' · ');
-};
-
-const taskDueLabel = (t: Translate, task: Task, now: DateTime, zone: string | null): string => {
-  const days = daysUntil(task.dueAt, now, zone);
-  if (days < 0) return t('tasks.due.overdue', { count: -days });
-  if (days === 0) return t('tasks.due.today');
-  if (days === 1) return t('tasks.due.tomorrow');
-  return t('tasks.due.inDays', { count: days });
+  // When it is due in Start's words, so one task reads the same on every list.
+  parts.push(dueLabel(t, task.dueAt, now, zone, { since: true }));
+  return parts;
 };

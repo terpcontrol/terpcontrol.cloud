@@ -33,6 +33,10 @@ export const writesClimate = (stage: GrowthStage): boolean => STAGES_WITH_CLIMAT
 /** The presets that refine this stage, if any. The stage on its own is always an option and is not one of them. */
 export const presetsOf = (stage: GrowthStage): string[] => [...(PRESETS_OF_STAGE[stage] ?? [])];
 
+/** The refinement a record keeps when its stage is changed: the same one where the new stage has it, else none. */
+export const keptPreset = (stage: GrowthStage, preset: string | null): string | null =>
+  preset !== null && presetsOf(stage).includes(preset) ? preset : null;
+
 /** A climate a screen offers in one tap: a stage on its own, or a preset refining one. */
 export interface ClimateChoice {
   stage: GrowthStage;

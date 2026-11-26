@@ -1,7 +1,7 @@
 ---
 summary: The mechanics behind every time, date, figure and translated word in the web app - the server's clock, the account's time zone, the shared date formats, the age helpers, i18next setup, device-message keys, the figure writers, help topics - and the source-reading tests that enforce them
-updated: 2026-10-08
-source: React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08
+updated: 2026-11-26
+source: which language a browser shows, after the walk of Ich (the redesign session of 2026-11-13, not Chris); React rewrite sessions 2026-09..10 (clock, zone and figure passes 2026-09-23..10-04); Chris (help texts, 2026-09-24); codebase cleanup (2026-10-08); checked against webapp/ on 2026-10-08; the light limit's own pause reason gone with its slider (the redesign session of 2026-11-12); one loader for a catalogue (the same session, 2026-11-12)
 paths:
   - webapp/src/**
   - webapp/public/assets/i18n/**
@@ -63,12 +63,11 @@ date or a figure reads in each language, which words to use - are in [app-ux.md]
   (`unitSymbol`).
 - `valueAge()` re-judges a value's `MetricValue.state` at the server's now and keeps the worse verdict. A device's
   liveness is in no answer: `deviceLiveness(lastSeenAt)`, with `heardAt()` taking the later of `lastSeenAt` and the
-  newest reading; silence is worded by `offlineLabel()`. The boundaries (`valueStateOfAge`) and `heardAt` are
+  newest reading; silence is worded by `offlineLabel()`. `dayStamp()` is when a line of a summary happened, in one
+  short word: the hour today, "gestern", the weekday within the week, the date beyond. The boundaries (`valueStateOfAge`) and `heardAt` are
   `shared-types/src/v1/value-age.ts`, as on the server and in the simulator.
 - An offline alert's `value` is the seconds of silence, not a reading; the silence began at `silentSince(alert)`
   (`startedAt` minus `value`).
-- `useReportFreshness(at)` (`src/ui/freshness.ts`) feeds the shell's "updated N ago" line: a server-stamped instant
-  (a camera's `lastStillAt`) or a fetch instant restated with `fetchedAt()`, never a raw `dataUpdatedAt`.
 
 ## The sweep: `test/zone.test.ts`
 
@@ -91,10 +90,14 @@ its line.
 
 - i18next (`src/i18n/i18n.ts`). `public/assets/i18n/{en,de}.json` (about 300 KB each) are fetched before the first
   render, not bundled; English is always loaded beside the active language as the fallback; `nsSeparator: false`
-  because keys contain colons. The language is `terp.language` in `localStorage`, else the browser's;
-  `setLanguage()` (Me › Appearance) loads the catalogue before switching. The shell also stores it in
-  `me.preferences.locale` (`src/app/shell/ZoneAdoption.tsx`), because the server writes some text itself - the day
-  counter burnt into a film, exports - in the language the account was last used in.
+  because keys contain colons. The language is `terp.language` in `localStorage` - the choice made in this
+  browser on Ich › Darstellung -, else the account's as this browser last read it (`terp.language.account`), else
+  the browser's; `setLanguage()` loads the catalogue before switching. The shell keeps the two in step
+  (`src/app/shell/ZoneAdoption.tsx`): a choice made here is told to the account (`me.preferences.locale`),
+  because the server writes some text itself - the day counter burnt into a film, exports -, and a browser in
+  which nobody chose follows the account's language whenever `/me` is read, without making it its own choice. An
+  account no browser has been signed in to yet (`timezoneChosen` not true) is told this browser's language
+  instead, as it takes its zone: a new account's `locale` is the server's default, not anybody's choice.
 - Counts use i18next plurals, `key_one` / `key_other`, called with `count`. German du-forms are the context `you`
   (`t(key, { context: 'you' })` finds `key_you`; English has none and falls back to the plain key). Apart from those
   `_you` keys both catalogues hold the same keys, and no test checks that beyond help topics and device messages: a
@@ -106,9 +109,12 @@ its line.
 - Never rename a `message-*` key: devices, the plan and the server store keys, not words. Change the words in both
   catalogues and every stored line reads the new way (as when "Recipe" became "Plan").
 - A plan's pause reason is the exception: it is stored as words, in the language of whoever paused the plan
-  (`plan.state.pauseReason`). The app recognises its own pauses by comparing them with `climateControl.pauseReason`
-  (`screens/devices/switch-on.ts`) and `devices.lightOutput.pauseReason` (`LightOutputRow.tsx`) in the loaded
-  catalogues - English and the active language - so rewording either string orphans the plans paused before it.
+  (`plan.state.pauseReason`). The app recognises its own pause for control switched off by comparing the reason
+  with `climateControl.pauseReason` (`screens/devices/switch-on.ts`) in the loaded catalogues - English and the
+  active language - so rewording that string orphans the plans paused before it. Steuerung says the three
+  reasons the app writes in the reader's language the same way (`pauseReasonOf`,
+  `screens/control/plan-labels.ts`) and, for a reason no loaded catalogue knows, fetches the catalogues the
+  session lacks through the loader the language switch uses (`loadCatalogues`, `src/i18n/i18n.ts`).
 - `src/i18n/device-message.ts` resolves a stored `{ key, params }`: `<key>:<params>-title|text` first, then
   `<key>-title|text` with `{{value}}`, else the key as it came, so a key a newer firmware invents is readable.
   Alarm lines (`alarm-line.ts`) and settings changes (`configuration-change.ts`, which names a place by the device
@@ -129,7 +135,7 @@ its line.
 - Machine output stays on `toFixed` and plain strings: CSV cells, SVG path coordinates, the `yyyy-MM-dd` a date
   field speaks, ids, firmware versions.
 - `test/figures.test.ts` allows `.toFixed(` only in `ui/units.ts`, `ui/figures.ts` and the machine files
-  (`charts/series.ts`, `screens/cockpit/MiniCurve.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
+  (`charts/series.ts`, `screens/start/DayCurve.tsx`, `ui/days.ts`), and keeps the localisers out of the machine
   files.
 
 ## Help topics

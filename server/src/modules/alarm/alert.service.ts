@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
@@ -8,7 +8,7 @@ import { StoredAlarmRule } from '@database/schemas/v1/alarm-rules.schema';
 import { StoredAlert } from '@database/schemas/v1/alerts.schema';
 import { EntryWriterService } from '@common/v1/entry-writer.service';
 import { AlarmDeliveryService } from './alarm-delivery.service';
-import { AlarmEvent, GROW_IN_SPACE, GrowInSpace } from './alarm.types';
+import { AlarmEvent } from './alarm.types';
 import { statedBand, watchedOf } from './alarm.watch';
 
 /**
@@ -40,7 +40,6 @@ export class AlertService {
     @InjectModel(MODEL_V1.alert) private readonly alerts: Model<StoredAlert>,
     private readonly entries: EntryWriterService,
     private readonly delivery: AlarmDeliveryService,
-    @Optional() @Inject(GROW_IN_SPACE) private readonly grows: GrowInSpace | null = null,
   ) {}
 
   public openOfRule(ruleId: string): Promise<StoredAlert | null> {
@@ -49,6 +48,15 @@ export class AlertService {
 
   public openOfCamera(cameraId: string): Promise<StoredAlert | null> {
     return this.alerts.findOne({ cameraId, resolvedAt: null }).sort({ startedAt: -1 }).lean();
+  }
+
+  /** When the device's latest offline episode ended: null where it never had one, or that one is still open. */
+  public async backOnlineAt(deviceId: string): Promise<Date | null> {
+    const last = await this.alerts
+      .findOne({ deviceId, kind: 'offline' }, { resolvedAt: 1 })
+      .sort({ startedAt: -1 })
+      .lean<Pick<StoredAlert, 'resolvedAt'>>();
+    return last?.resolvedAt ?? null;
   }
 
   /**
@@ -83,11 +91,16 @@ export class AlertService {
     return alert;
   }
 
-  /** It is over. The worst of it stays on the alert, which is the record of the episode. */
-  public async settle(subject: AlertSubject, alert: StoredAlert, value: number | null, at: Date): Promise<void> {
+  /**
+   * It is over. The worst of it stays on the alert, which is the record of the episode. `told` false ends it while
+   * somebody works on the device: the diary says it is over, and nobody is sent the all-clear.
+   */
+  public async settle(subject: AlertSubject, alert: StoredAlert, value: number | null, at: Date, told = true): Promise<void> {
     const extremeValue = subject.rule?.state.extremeValue ?? alert.extremeValue;
+    const settled = { ...alert, resolvedAt: at, extremeValue };
     await this.alerts.updateOne({ id: alert.id }, { $set: { resolvedAt: at, extremeValue } });
-    await this.announce('resolved', subject, { ...alert, resolvedAt: at, extremeValue }, value);
+    if (told) await this.announce('resolved', subject, settled, value);
+    else await this.writeEntry('resolved', subject, settled, value);
   }
 
   /**
@@ -127,7 +140,8 @@ export class AlertService {
       authorId: null,
       values: { kind: 'alarm' },
       occurredAt: event === 'triggered' ? alert.startedAt : (alert.resolvedAt ?? undefined),
-      growId: await this.growOf(subject.spaceId),
+      // The place's, as a device's own lines are: every grow standing there reads it in its diary (`linesOfGrow`).
+      growId: null,
       spaceId: subject.spaceId,
       deviceId: subject.deviceId,
       cameraId: subject.cameraId,
@@ -136,10 +150,6 @@ export class AlertService {
       severity: event === 'triggered' ? subject.severity : 'info',
       message: { key, params: [summary(subject, alert, value, event)] },
     });
-  }
-
-  private growOf(spaceId: string | null): Promise<string | null> {
-    return spaceId && this.grows ? this.grows.growIdIn(spaceId) : Promise.resolve(null);
   }
 }
 
@@ -188,18 +198,26 @@ const summary = (subject: AlertSubject, alert: StoredAlert, value: number | null
  * a stored reading as readily as a message - and the liveness vocabulary the
  * rest of the app uses was given that wording for exactly this distinction.
  *
- * The end of it is dated from the alert rather than from the value it is handed:
- * the loop resolves an episode from a fresh measurement of the silence, which is
- * a few seconds by the time anything has been heard again, and "last heard 12 s
- * ago" is not what a four-day absence should be remembered as.
+ * The end of it counts from when the silence began - the alert's start less the
+ * seconds it was raised with - rather than from the value it is handed: the loop
+ * resolves an episode from a fresh measurement of the silence, which is a few
+ * seconds by the time anything has been heard again, and "last heard 12 s ago"
+ * is not what a four-day absence should be remembered as. Nor is the alert's own
+ * length: it was raised ten minutes in, and "back after 2 min" of a twelve-minute
+ * silence understated every outage by the patience before it.
+ *
+ * The raise carries the silence in seconds as well (`silent=`), which the span
+ * rounds: the diary dates when the device fell silent from it, as Meldungen
+ * dates it from the alert's own `value`, and read back from "11 min" the two
+ * said 01:21 and 01:22 of one silence - an hour apart for one of days.
  */
 const silence = (subject: AlertSubject, alert: StoredAlert, value: number | null, event: AlarmEvent): string => {
   if (event === 'resolved') {
-    const episode = alert.resolvedAt ? (alert.resolvedAt.getTime() - alert.startedAt.getTime()) / 1000 : null;
+    const episode = alert.resolvedAt ? (alert.resolvedAt.getTime() - alert.startedAt.getTime()) / 1000 + (alert.value ?? 0) : null;
     return episode === null ? `${subject.name}, back` : `${subject.name}, back after ${spanWords(episode)}`;
   }
 
-  return value === null ? subject.name : `${subject.name}, last heard ${spanWords(value)} ago`;
+  return value === null ? subject.name : `${subject.name}, last heard ${spanWords(value)} ago, silent=${value}`;
 };
 
 const MINUTE = 60;

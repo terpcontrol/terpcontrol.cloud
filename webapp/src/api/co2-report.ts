@@ -13,12 +13,11 @@ import { useWrite } from './write';
 
 const co2ReportKey = (spaceId: string) => ['space', spaceId, 'co2-report'];
 
-/** Read only when asked for: it sums the valve's openings over every cylinder, which is not a read to make on every visit. */
-export const useCo2Report = (spaceId: string, enabled: boolean) =>
+/** It sums the valve's openings over every cylinder: a read for the page that shows it, not for every visit to the device. */
+export const useCo2Report = (spaceId: string) =>
   useRead({
     queryKey: co2ReportKey(spaceId),
     queryFn: ({ signal }) => api.get<Co2Report>(`/spaces/${spaceId}/co2-report`, undefined, signal),
-    enabled,
   });
 
 interface Refill {

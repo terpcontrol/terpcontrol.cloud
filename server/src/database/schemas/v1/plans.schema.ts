@@ -99,6 +99,8 @@ export const plansSchema = new Schema<StoredPlan>(
     createdAt: { type: Date, required: true, default: () => new Date() },
     deviceId: { type: String, required: true, unique: true },
     templateId: { type: String, default: null },
+    // The grow its steps put into their stages: the one standing where the device stood when it was started.
+    growId: { type: String, default: null },
     name: { type: String, required: true },
     steps: { type: [planStepSchema], required: true, default: () => [] },
     loop: { type: Boolean, required: true, default: false },

@@ -11,7 +11,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [0004 Server on NestJS and Fastify](adr/0004-server-on-nestjs-and-fastify.md) - before touching the server's wiring, configuration or HTTP layer
 - [0005 Device times on the wall clock](adr/0005-device-times-on-the-wall-clock.md) - before touching a time of day in a device document or the summer-time shift
 - [0006 Day and night by the device clock](adr/0006-day-and-night-by-the-device-clock.md) - before deciding day/night anywhere outside the firmware, a plug's and a fan's VPD included
-- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed` or the humidifier rules
+- [0007 Germination in the dark](adr/0007-germination-in-the-dark.md) - before touching germination, `breed`, the humidifier rules or what a lamp does in the dark
 
 ## Contracts
 - [Device protocol](device-protocol.md) - before changing anything a device and the cloud say to each other; what is frozen and how to extend it
@@ -34,7 +34,7 @@ matters are not kept here - is [ADR 0003](adr/0003-knowledge-base.md).
 - [Testing](knowledge/testing.md) - the suites and their pitfalls, the simulator beyond `CLAUDE.md`, test stacks, browser checks
 - [Testing with real devices and data](knowledge/testing-real-devices-and-data.md) - /firmware-check, connection-loss tests, the development devices, copies of production data
 - [Development workflow](knowledge/development-workflow.md) - branches, pushing, review comments, rounds, commit and PR texts, what needs Chris's word, /pr-merge
-- [The app rewrite](app-rewrite-handover.md) - the rewrite is complete: where its knowledge lives and what it left open
+- [The app rewrite and the navigation redesign](app-rewrite-handover.md) - both are built: where their knowledge lives, what the redesign session decided that Chris has not confirmed, what is open for him, what no walk saw
 
 ## Runbooks (`runbooks/`)
 - [Backup and restore](runbooks/backup-and-restore.md) - a backup or restore beyond the README's commands

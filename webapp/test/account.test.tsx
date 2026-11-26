@@ -2,27 +2,38 @@ import { type QueryClient } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
 import { DateTime } from 'luxon';
+import { Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import type { Me, MeUpdate, Media, PasswordChange, Session } from '@fg2/shared-types/v1';
+import { session as store } from '@/api/session';
+import type { Told } from '@/log/log-context';
 import { fileSize } from '@/ui/figures';
 import { Account } from '@/screens/me/account/Account';
 import { deviceLabel, sortedSessions } from '@/screens/me/account/sessions';
-import { drawAt, json, NOT_FOUND } from './harness';
+import { drawAt, json, NOT_FOUND, reading } from './harness';
 import { meWith } from './session';
-import { translate } from './translations';
+import { Toast } from './toast';
+import { catalogue, translate } from './translations';
 
 /**
- * Me › Account: the address, the password, the sessions, the export and the
- * way out.
+ * Me › Account: the address, the password, the time zone, the sessions, the
+ * export and the way out.
  *
  * The password is checked on the wire - that both the current and the new one
- * travel, and that a wrong current one is said under the form and ends
- * nothing. The sessions are checked for the one row that must not carry a
- * Sign out, and the export for being the same job as a grow's: asked once,
- * polled by its media row, offered as a file once it is ready.
+ * travel, and that a wrong current one is said at its field and ends
+ * nothing. The zone is checked for travelling alone, and for the toast that
+ * takes it back. The sessions are checked for the one row that must not carry
+ * a Sign out, and the export for being the same job as a grow's: asked once,
+ * polled by its media row, offered as a file once it is ready. What landed is
+ * said in a toast, so the page is drawn with one.
  */
 
 const session = vi.hoisted(() => ({ demo: false }));
+
+/** The zone this browser is in, which is not the test machine's to decide. */
+const device = vi.hoisted(() => ({ zone: 'Europe/Berlin' }));
+
+vi.mock('@/ui/zone', async importOriginal => ({ ...(await importOriginal<object>()), browserZone: () => device.zone }));
 
 vi.mock('@/api/session', async importOriginal => {
   const { SIGNED_IN, ON_THE_DEMO } = await import('./session');
@@ -61,6 +72,7 @@ const exportRow = (status: 'queued' | 'ready'): Media =>
     kind: 'export',
     mime: 'application/zip',
     bytes: server.exportBytes,
+    createdAt: server.builtAt ?? DateTime.now().toISO(),
     exportJob: { status, scope: 'account', growId: null, startedAt: null, endedAt: status === 'ready' ? server.builtAt : null, error: null },
   }) as unknown as Media;
 
@@ -69,6 +81,8 @@ const server = {
   sessions: SESSIONS,
   wrongPassword: false,
   passwords: [] as PasswordChange[],
+  patched: [] as MeUpdate[],
+  deleted: 0,
   revoked: [] as string[],
   sweptOthers: 0,
   exportsAsked: 0,
@@ -84,6 +98,16 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   const method = init?.method ?? 'GET';
 
   if (pathname === '/v1/me' && method === 'GET') return json(server.me);
+  if (pathname === '/v1/me' && method === 'PATCH') {
+    const body = JSON.parse(String(init?.body)) as MeUpdate;
+    server.patched.push(body);
+    server.me = { ...server.me, ...body, preferences: { ...server.me.preferences, ...body.preferences } } as Me;
+    return json(server.me);
+  }
+  if (pathname === '/v1/me' && method === 'DELETE') {
+    server.deleted += 1;
+    return new Response(null, { status: 204 });
+  }
   if (pathname === '/v1/me/password' && method === 'PUT') {
     server.passwords.push(JSON.parse(String(init?.body)) as PasswordChange);
     if (server.wrongPassword) {
@@ -117,7 +141,15 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   return json(NOT_FOUND, 404);
 });
 
-const draw = (client?: QueryClient) => drawAt(<Account />, { at: '/me/account', client });
+const told: Told[] = [];
+
+const draw = (client?: QueryClient) =>
+  drawAt(
+    <Toast told={told}>
+      <Account />
+    </Toast>,
+    { at: '/me/account', client },
+  );
 
 const drawLoaded = async () => {
   draw();
@@ -129,10 +161,14 @@ beforeAll(() => translate());
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchStub);
   session.demo = false;
+  device.zone = 'Europe/Berlin';
+  told.length = 0;
   server.me = meWith();
   server.sessions = SESSIONS;
   server.wrongPassword = false;
   server.passwords = [];
+  server.patched = [];
+  server.deleted = 0;
   server.revoked = [];
   server.sweptOthers = 0;
   server.exportsAsked = 0;
@@ -141,7 +177,11 @@ beforeEach(() => {
   server.builtAt = null;
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  // The export a browser keeps by account would be the next test's standing file.
+  localStorage.clear();
+});
 
 describe('how this person signs in', () => {
   it('shows the address and says it cannot be changed here, rather than offering a field the server has no route for', async () => {
@@ -161,7 +201,8 @@ describe('how this person signs in', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(server.passwords).toEqual([{ currentPassword: 'old-one', newPassword: 'new-one' }]));
-    expect(await screen.findByText('Password changed.')).toBeInTheDocument();
+    // Said in the toast, with no way back: the old password is not the app's to put back.
+    await waitFor(() => expect(told).toEqual([{ label: 'Password changed.', undo: null }]));
     expect(screen.queryByLabelText('Current password')).not.toBeInTheDocument();
   });
 
@@ -178,7 +219,7 @@ describe('how this person signs in', () => {
     expect(server.passwords).toEqual([]);
   });
 
-  it('says under the form when the current password was wrong, and keeps the form open', async () => {
+  it('says at its field that the current password was wrong, in the reader’s language, and keeps the form open', async () => {
     server.wrongPassword = true;
     await drawLoaded();
 
@@ -188,8 +229,65 @@ describe('how this person signs in', () => {
     fireEvent.change(screen.getByLabelText('New password again'), { target: { value: 'new-one' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("That is not this account's current password.");
-    expect(screen.getByLabelText('Current password')).toBeInTheDocument();
+    const said = await screen.findByRole('alert');
+    expect(said).toHaveTextContent("That is not this account's current password.");
+    // Between the field it is about and the next one, not under the buttons.
+    expect(said.previousElementSibling).toContainElement(screen.getByLabelText('Current password'));
+    expect(screen.getByLabelText('Current password')).toBeInvalid();
+    expect(told).toEqual([]);
+
+    // Not the sentence of a refusal nobody named: "you may not do that here".
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await i18next.changeLanguage('de');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Das aktuelle Passwort stimmt nicht.');
+    await i18next.changeLanguage('en');
+  });
+});
+
+/**
+ * The zone is the one setting the server acts on - quiet hours are read in it -
+ * so this device's zone is offered as a hint and written only when chosen.
+ */
+describe('the time zone', () => {
+  const menu = () => screen.findByRole('combobox', { name: 'Time zone' });
+
+  it('draws the zone the account keeps, and says where this device is when that is somewhere else', async () => {
+    server.me = meWith({ preferences: { ...meWith().preferences, timezone: 'UTC' } });
+    const elsewhere = draw();
+
+    expect(await menu()).toHaveValue('UTC');
+    expect(screen.getByText('This device is in Europe/Berlin.')).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Europe/Berlin' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Time zone' })).toHaveAccessibleDescription(/the same on every device/);
+    expect(server.patched).toEqual([]);
+    elsewhere.unmount();
+
+    device.zone = 'UTC';
+    draw();
+    expect(await menu()).toHaveValue('UTC');
+    expect(screen.getByText('clock times and quiet hours follow it')).toBeInTheDocument();
+  });
+
+  it('keeps UTC on offer, which the browser does not list and the migration left every account on', async () => {
+    await drawLoaded();
+
+    fireEvent.change(await menu(), { target: { value: 'Asia/Tokyo' } });
+    await waitFor(() => expect(server.patched).toHaveLength(1));
+
+    expect(await screen.findByRole('option', { name: 'UTC' })).toBeInTheDocument();
+  });
+
+  it('sends the zone alone, says so, and puts the zone it replaced back when that is taken back', async () => {
+    await drawLoaded();
+
+    fireEvent.change(await menu(), { target: { value: 'America/New_York' } });
+
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Time zone: America/New_York']));
+    expect(server.patched).toEqual([{ preferences: { timezone: 'America/New_York' } }]);
+
+    await told[0].undo!();
+    expect(server.patched[1]).toEqual({ preferences: { timezone: 'Europe/Berlin' } });
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Time zone' })).toHaveValue('Europe/Berlin'));
   });
 });
 
@@ -216,6 +314,7 @@ describe('where this person is signed in', () => {
 
     await waitFor(() => expect(server.revoked).toEqual(['session-2']));
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(2));
+    expect(told).toEqual([{ label: 'Chrome · macOS signed out', undo: null }]);
   });
 
   it('signs every other browser out in one act, and keeps this one', async () => {
@@ -228,8 +327,9 @@ describe('where this person is signed in', () => {
     // The list is read again, and what is left is the browser doing the asking.
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
     expect(screen.getByText('this device')).toBeInTheDocument();
-    // The question goes with the act it asked about.
+    // The question goes with the act it asked about, which the toast then names.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(told).toEqual([{ label: 'Every other browser signed out', undo: null }]);
   });
 
   /**
@@ -260,6 +360,7 @@ describe('where this person is signed in', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(server.sweptOthers).toBe(0);
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(told).toEqual([]);
   });
 
   it('offers no sweep to somebody signed in nowhere else', async () => {
@@ -313,6 +414,10 @@ describe('taking everything away', () => {
   it('asks for the export once, follows the job by its media row, and offers the file when it is ready', async () => {
     await drawLoaded();
 
+    // One row: what the file holds in a line, and the long of it behind the (i).
+    expect(screen.getByText('JSON, CSV, diary photos and films in one zip')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'About Export everything' })).toHaveAccessibleDescription(/the zip counts them per camera/);
+
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
     // A button, not a link: the zip is served to a session, and nothing sets an
@@ -347,13 +452,46 @@ describe('taking everything away', () => {
     expect(server.exportsAsked).toBe(1);
   });
 
+  it('finds it after a reload too, from what this browser kept, without asking for a new one', async () => {
+    const first = draw();
+    await screen.findByText('login@example.org');
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+    await screen.findByRole('button', { name: /Download · 12\.4 MB/ });
+    first.unmount();
+
+    // A reload: nothing of the cache is left.
+    await drawLoaded();
+
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Build the zip' })).not.toBeInTheDocument();
+    expect(server.exportsAsked).toBe(1);
+  });
+
+  it('offers a new one beside a file older than the hour the route answers it for', async () => {
+    server.builtAt = DateTime.now().minus({ hours: 3 }).toISO();
+    await drawLoaded();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
+
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 3\sh ago/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Build the zip' })).toBeEnabled();
+  });
+
+  it('takes a kept file that is no longer there as no file, not as a refusal', async () => {
+    localStorage.setItem('terp.export.undefined', 'media-gone');
+    await drawLoaded();
+
+    expect(await screen.findByRole('button', { name: 'Build the zip' })).toBeEnabled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('dates the file it hands over, because the route answers a standing one for an hour', async () => {
     server.builtAt = DateTime.now().minus({ minutes: 40 }).toISO();
     await drawLoaded();
 
     fireEvent.click(screen.getByRole('button', { name: 'Build the zip' }));
 
-    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40 min ago/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /Download · 12\.4 MB · built 40\smin ago/ })).toBeInTheDocument();
   });
 
   /**
@@ -389,11 +527,49 @@ describe('taking everything away', () => {
     await i18next.changeLanguage('en');
   });
 
-  it('carries the same door to deleting the account that the privacy page has', async () => {
+  it('will not delete anything until the handle has been typed', async () => {
     await drawLoaded();
 
-    expect(screen.getByText('Delete my account')).toBeInTheDocument();
-    expect(screen.getByText('really deleted, not hidden · devices stay claimable')).toBeInTheDocument();
+    expect(screen.getByText(reading('really deleted, not hidden · devices can be added again'))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account …' }));
+
+    const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });
+    expect(confirm).toBeDisabled();
+    expect(screen.getByText(/deleted rather than hidden, and there is no way back/)).toBeInTheDocument();
+    // Whom else it reaches is said where the deed is confirmed.
+    expect(screen.getByText(/Whoever sees your places loses them, and whoever follows your grows loses those too/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'yo' } });
+    expect(confirm).toBeDisabled();
+    expect(server.deleted).toBe(0);
+
+    fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'you' } });
+    // Armed by the handle, in the one danger style: filled in the alarm's red, never an outline.
+    expect(confirm).toBeEnabled();
+    expect(confirm.className).toMatch(/dangerFilled/);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(server.deleted).toBe(1));
+  });
+
+  it('ends on the sign-in page, told that the account is gone, and asks the server to end no session it has forgotten', async () => {
+    const forgets = vi.spyOn(store, 'logOut');
+    const SignInPage = () => <p>sign-in {JSON.stringify(useLocation().state)}</p>;
+    drawAt(
+      <Toast told={told}>
+        <Routes>
+          <Route path="/me/account" element={<Account />} />
+          <Route path="/sign-in" element={<SignInPage />} />
+        </Routes>
+      </Toast>,
+      { at: '/me/account' },
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete my account …' }));
+    fireEvent.change(screen.getByLabelText('Type you to confirm'), { target: { value: 'you' } });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' }));
+
+    expect(await screen.findByText('sign-in {"deleted":true}')).toBeInTheDocument();
+    expect(forgets).toHaveBeenCalledWith(true);
+    expect(server.revoked).toEqual([]);
   });
 
   /**
@@ -405,7 +581,7 @@ describe('taking everything away', () => {
    */
   it('takes the handle as the sheet prints it, whatever the keyboard did to the case', async () => {
     await drawLoaded();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account …' }));
 
     const confirm = within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete my account' });
     const field = screen.getByLabelText('Type you to confirm');
@@ -430,7 +606,9 @@ describe('the demo', () => {
     session.demo = true;
     draw();
 
-    expect(screen.getByText('The demo has no account of its own, so there is nothing here to settle.')).toBeInTheDocument();
+    expect(
+      screen.getByText('The demo has no account of its own: there are no notifications, no account and no privacy settings here.'),
+    ).toBeInTheDocument();
     expect(fetchStub.mock.calls.filter(([input]) => String(input).includes('/v1/'))).toHaveLength(0);
   });
 });

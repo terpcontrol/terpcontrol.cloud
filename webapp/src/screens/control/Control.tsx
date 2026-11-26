@@ -1,179 +1,240 @@
-import { Bell, CalendarRange, ChevronRight, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { DateTime } from 'luxon';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate } from 'react-router';
-import { CONTROL_PAGES, controlPath, type ControlPage } from '@/app/places';
-import type { Device, Plan } from '@fg2/shared-types/v1';
-import { useAlarmRulesOf } from '@/api/alarm-rules';
+import { Navigate } from 'react-router';
+import type { Device } from '@fg2/shared-types/v1';
+import { heardAt } from '@fg2/shared-types/v1-schemas/value-age.js';
+import { serverNow } from '@/api/clock';
+import { useDeviceLive, useLiveReads, useSocketTables } from '@/api/devices';
 import { useDevicePlans } from '@/api/plans';
+import { useSession } from '@/api/session';
+import { CONTROL_PAGES, controlPath, devicePath, type ControlPage, type PlaceCard } from '@/app/places';
+import type { Translate } from '@/i18n/i18n';
+import { PlaceTitle, VisitingTitle } from '@/screens/place/PlaceTitle';
+import { deviceLiveness, sinceLabel } from '@/ui/age';
 import { climateLanding } from '@/ui/climate-hardware';
-import { LoadFailed, Waiting } from '@/ui/PageState';
-import { usePlaceDevices } from '@/ui/place-devices';
+import { Facts } from '@/ui/Facts';
+import { useKeptScroll } from '@/ui/kept';
+import { maintenanceQuiet } from '@/ui/maintenance';
+import { deviceName } from '@/ui/naming';
+import { OfflineBox } from '@/ui/OfflineHelp';
+import { PageHead } from '@/ui/PageHead';
+import { LoadFailed, NothingHere, Waiting } from '@/ui/PageState';
 import { useMayLogIn, useMayManage } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
-import { AddDeviceNote } from './AddDeviceNote';
+import { useNow } from '@/ui/useNow';
+import { clock, useZone } from '@/ui/zone';
 import { Alarms } from './alarms/Alarms';
+import { ByDevice } from './ByDevice';
+import { DevicesHere } from './DevicesHere';
+import { inOrder, leadOf, useLead } from './lead';
+import { ModePage } from './Mode';
+import { OutputsPage } from './Outputs';
+import { OwnSettings } from './OwnSettings';
+import { PageRows } from './PageRows';
 import { PlanPanel } from './PlanPanel';
-import { Targets } from './targets/Targets';
+import { usePlanWords } from './plan-labels';
+import { followsPlan, modeWord, offNotTaken, onNotTaken, planLine, standOf } from './rows';
+import { pendingByPath } from './climate/figures';
 import styles from './Control.module.css';
 
 const isSub = (value: string | null): value is ControlPage => (CONTROL_PAGES as readonly string[]).includes(value ?? '');
 
 /**
- * Steuerung for one place: what the place is held at, what watches over it,
- * and what - if anything - is setting those targets by itself.
+ * Steuerung of one place: the light and the targets of the device the server
+ * names as the place's climate, then a row each for the alarms, the plan, the
+ * outputs and the work mode, and under them the devices standing there.
  *
- * It opens on the targets, because that is what somebody with one tent comes
- * here to change, and a sentence about a plan nobody wrote read as "this tent
- * is not being steered". A plan that is running is the exception: it moves the
- * targets on its own clock and may be waiting for an answer, so then the tab
- * opens on the plan and the targets are one row below it. Under the targets
- * stand two rows, the alarms and the way to a plan, each a page of its own in
- * the address, so an alert can link to the rule it came from and a reload
- * lands where it was.
- *
- * A plan belongs to a device and not to the place, because what a step writes
- * is that device's own configuration document - so a tent with two controllers
- * in it has two plans, and each is drawn with the name of the device it runs.
- * A tent with nothing in it says so and points at the one thing that would
- * change that: claiming a device into the tent.
+ * Each row is a page of its own in the address, so an alert can link to the
+ * rule it came from and Back returns to Steuerung where it was left. A device
+ * that is not heard locks nothing: settings are stored and handed over when it
+ * connects, and the page says what it has not taken yet.
  */
-export function Control({ spaceId, sub }: { spaceId: string; sub: string | null }) {
+export function Control({
+  spaceId,
+  sub,
+  here = null,
+  several = false,
+}: {
+  spaceId: string;
+  sub: string | null;
+  /** The home's card of the place, which dates it; null where support reads a customer's place. */
+  here?: PlaceCard | null;
+  /** Whether the account has several places, so the page names the one it is about. */
+  several?: boolean;
+}) {
   const { t } = useTranslation();
-  // Everything on this tab and on the pages below it writes to a device
-  // standing here, which the ADR's table puts at `manage` - so the question is
-  // about this place and not about the session.
+  const now = useNow();
+  const zone = useZone();
+  const { user } = useSession();
+  // Everything here writes to a device standing in this place, so the question is about the place and not the session.
   const mayManage = useMayManage(spaceId);
-  const devices = usePlaceDevices(spaceId);
-  const here = devices.items;
-  const plans = useDevicePlans(here.map(device => device.id));
-  const planFirst = plans.plans.some(plan => plan.state.status === 'running');
+  const mayLog = useMayLogIn(spaceId);
+  // Adding hardware is the session's own to do, and offered where the place is the reader's to steer: under somebody else's tent it would read as adding to theirs.
+  const maySetUp = useMayManage() && mayManage && user?.isDemo !== true;
+  const { devices, overview, lead: named } = useLead(spaceId);
+  const items = devices.items;
+  // A place that could not be read whole still has a climate: the first device that states one.
+  const lead = named ?? (overview.isPending ? null : leadOf(items, undefined));
+  const ordered = inOrder(items, lead);
+  const place = overview.data?.name ?? here?.name ?? '';
+  const waiting = devices.isPending || (overview.isPending && items.length > 0);
+  const spoke = heardAt(lead?.state.lastSeenAt ?? null, useLiveReads(lead ? [lead.id] : []).measuredAt.get(lead?.id ?? '') ?? null);
+  // The socket rows stand at the page's foot: where it was scrolled to is found again once they are there.
+  const tables = useSocketTables(sub === null ? ordered.map(device => device.id) : []);
+  useKeptScroll(!waiting && !tables.isPending);
+  // Whether the lead held no regulation when it last reported - off, or a switch-on it has not been handed -, which
+  // its offline box does not call regulating "mit dem Stand von".
+  const pending = pendingByPath(useDeviceLive(lead?.id ?? null).data?.pending);
+  const heldOff = lead !== null && (onNotTaken(lead, pending) !== null || (lead.control?.running === false && offNotTaken(lead, pending) === null));
 
   if (sub !== null && !isSub(sub)) return <Navigate to={controlPath(spaceId)} replace />;
 
-  if (devices.isPending) return <Waiting lines={4} />;
-  if (devices.failed) return <LoadFailed retry={devices.refetch} />;
+  const title = t('shell.tabs.control');
+  // A device that has never been heard is waiting for its first values, not offline.
+  const silentSince = lead && spoke !== null && deviceLiveness(spoke, now) === 'offline' ? sinceLabel(spoke, now, zone) : null;
+  const head = sub ? (
+    <PageHead title={t(`control.page.${sub}`)} back={{ to: controlPath(spaceId), label: t('control.back') }} />
+  ) : here ? (
+    <PlaceTitle
+      title={title}
+      here={here}
+      place={several ? place : null}
+      lead={lead}
+      devices={items}
+      state={lead ? stateOf(t, lead, items, spoke, now, zone) : null}
+      // The box under the title says since when the climate's device has been quiet; the pill and its card do not again.
+      silenceSaid={silentSince !== null}
+    />
+  ) : (
+    <VisitingTitle title={title} spaceId={spaceId} />
+  );
+  const framed = (body: ReactNode) => (
+    <div className={sub ? styles.behind : styles.front}>
+      {head}
+      {body}
+    </div>
+  );
+  // The sheets and the steppers are absent for whoever may only look, which leaves figures that read as a page half drawn.
+  const reader = mayManage ? null : <p className={ui.note}>{t(mayLog ? 'space.control.youMayLog' : 'targets.readOnly')}</p>;
 
-  if (here.length === 0) {
-    return (
-      <div className={styles.page}>
-        <AddDeviceNote>{t('space.control.noController')}</AddDeviceNote>
-      </div>
+  if (waiting) return framed(<Waiting lines={4} />);
+  if (devices.failed) return framed(<LoadFailed read={devices} values />);
+
+  if (sub === 'alarms') return framed(<Alarms spaceId={spaceId} devices={ordered} mayManage={mayManage} />);
+  if (sub === 'plan') {
+    return framed(
+      <>
+        <PlanPage spaceId={spaceId} devices={ordered} mayManage={mayManage} now={now} />
+        {reader}
+      </>,
+    );
+  }
+  if (sub === 'outputs') return framed(<OutputsPage spaceId={spaceId} devices={ordered} mayManage={mayManage} />);
+  if (sub === 'mode') return framed(<ModePage spaceId={spaceId} devices={ordered} mayManage={mayManage} />);
+
+  // A place with nothing to steer says so, with the way to add a device; a camera standing there is still listed.
+  if (!lead) {
+    return framed(
+      <div className={`${ui.stack3} ${styles.column}`}>
+        {/* The one way to add a device is the button under it; a session that may add none is told only what is. */}
+        <NothingHere>{t('place.control.nothing')}</NothingHere>
+        <DevicesHere spaceId={spaceId} devices={items} lead={null} mayManage={mayManage} maySetUp={maySetUp} />
+      </div>,
     );
   }
 
-  if (sub === 'alarms') return <Alarms spaceId={spaceId} devices={here} mayManage={mayManage} back={planFirst ? 'plan' : 'targets'} />;
-  if (sub === 'plan') return planFirst ? <Navigate to={controlPath(spaceId)} replace /> : <PlanPage spaceId={spaceId} here={here} />;
-  // Whether the tab opens on the plan is not guessed while the plans are on
-  // their way: drawing the targets first and swapping them for a running plan
-  // a moment later would put the page out from under a finger.
-  if (sub === null && plans.isPending) return <Waiting lines={4} />;
-  if (sub === null && planFirst) return <PlanPage spaceId={spaceId} here={here} first />;
+  // The page names its place once: beside the title where the account has several, else over the two columns.
+  const over = several
+    ? { climate: t('control.climate'), devices: t('control.devices') }
+    : { climate: t('control.climateIn', { place }), devices: t('control.devicesIn', { place }) };
 
-  return (
-    <div className={styles.page}>
-      <Targets spaceId={spaceId} devices={here} mayManage={mayManage} crumb={planFirst} />
-      <Rows spaceId={spaceId} here={here} plans={planFirst ? null : plans.plans} />
-    </div>
+  return framed(
+    <div className={`${ui.stack3} ${styles.columns}`}>
+      <div className={`${ui.stack3} ${styles.column}`}>
+        <h2 className={styles.label} data-wide>
+          {over.climate}
+        </h2>
+        {/* Its climate device gone quiet: since when, that whoever steers can set everything all the same, and a tap away what to try. */}
+        {silentSince ? (
+          <OfflineBox title={t('offline.title', { device: deviceName(lead, t), time: silentSince })} deviceLink={devicePath(lead.id)}>
+            {t(
+              mayManage
+                ? heldOff
+                  ? 'control.offline.textOff'
+                  : 'control.offline.text'
+                : heldOff
+                  ? 'control.offline.readerOff'
+                  : 'control.offline.reader',
+              { time: silentSince },
+            )}
+          </OfflineBox>
+        ) : null}
+        <OwnSettings device={lead} />
+        <PageRows spaceId={spaceId} devices={ordered} now={now} />
+        {reader}
+      </div>
+      <div className={`${ui.stack3} ${styles.column}`}>
+        <h2 className={styles.label}>{over.devices}</h2>
+        <DevicesHere spaceId={spaceId} devices={ordered} lead={lead} silenceSaid={silentSince !== null} mayManage={mayManage} maySetUp={maySetUp} />
+      </div>
+    </div>,
   );
 }
 
 /**
- * The plans of everything standing here. It is what the tab opens on while one
- * of them is running, with the targets and the alarms one row below; otherwise
- * it is the page the last row under the targets leads to, and leads back.
+ * What the place's climate is doing, in the head where a live place's age
+ * would stand: "Regelung an", or what is away from it. A lead with no control
+ * of its own, or without its first values, leaves the place's age there. One
+ * nobody hears is not said to regulate in green, also while another device
+ * keeps the place live: its state stands as of when it was last heard.
  */
-function PlanPage({ spaceId, here, first = false }: { spaceId: string; here: Device[]; first?: boolean }) {
-  const { t } = useTranslation();
-  const mayManage = useMayManage(spaceId);
-  const mayLog = useMayLogIn(spaceId);
+const stateOf = (t: Translate, lead: Device, devices: Device[], spoke: string | null, now: DateTime, zone: string | null): ReactNode => {
+  const control = lead.control;
+  if (!control || spoke === null) return null;
+  const quiet = devices.map(device => maintenanceQuiet(device, DateTime.max(now, serverNow()))).find(one => one?.parked) ?? null;
+  const [text, warn] = quiet
+    ? [t('maintenance.running', { until: clock(quiet.until, zone) }), true]
+    : !control.running
+      ? [t('control.state.off'), true]
+      : control.drying || control.mode === 'germination'
+        ? [modeWord(t, lead), true]
+        : [t('control.state.on'), false];
+  const stand = standOf(t, spoke, now, zone);
 
   return (
-    <div className={styles.page}>
-      <header className={ui.subhead}>
-        <span className="label">{t('space.control.title')}</span>
-        {first ? null : (
-          <Link to={controlPath(spaceId)} className={`mono ${ui.headLink}`}>
-            {t('space.control.backToTargets')}
-          </Link>
-        )}
-      </header>
-
-      {/* Where a plan would write is the device's question and not the tent's,
-          so it is asked here per device and handed down: a tent holding a
-          controller and a lamp draws a plan for the one and says so about the
-          other. It is handed down in all three of its states, because the
-          controller whose document has not arrived is the one a step must not
-          be written for. */}
-      {here.map(device => (
-        <PlanPanel key={device.id} device={device} mayManage={mayManage} landing={climateLanding(device)} />
-      ))}
-
-      {/* The moves, the targets and the alarm rules are all absent for
-          somebody who may only write lines, which leaves a tab that looks half
-          drawn - so it says whose they are and that what is set is still shown. */}
-      {!mayManage && mayLog ? <p className={`mono ${styles.role}`}>{t('space.control.youMayLog')}</p> : null}
-
-      {first ? <Rows spaceId={spaceId} here={here} plans={null} targets /> : null}
-    </div>
+    <span className={styles.pill} data-tone={warn || stand ? 'warn' : undefined}>
+      <Facts facts={[text, stand]} />
+    </span>
   );
-}
+};
 
 /**
- * The rows under the targets - or under a running plan - that lead to the
- * other pages of the tab, each saying what is behind it: how many alarms are
- * watching, and whether a plan exists and what it is doing.
- *
- * The plan row is left out where no plan is or could be: a place holding only
- * a plug or a lamp has no climate for a step to write.
+ * The grow plan, device by device: a plan belongs to a device, since what a
+ * step writes is that device's document. Only a device that could follow a
+ * plan as it runs (`followsPlan`), or one that carries a plan all the same,
+ * is listed.
  */
-function Rows({ spaceId, here, plans, targets = false }: { spaceId: string; here: Device[]; plans: Plan[] | null; targets?: boolean }) {
+function PlanPage({ spaceId, devices, mayManage, now }: { spaceId: string; devices: Device[]; mayManage: boolean; now: DateTime }) {
   const { t } = useTranslation();
-  const rules = useAlarmRulesOf(here.map(device => device.id));
-  const on = [...rules.rules.values()].filter(rule => rule.enabled).length;
-  const plan = plans?.[0] ?? null;
-  const planned = plans !== null && (plan !== null || here.some(device => climateLanding(device) !== 'nowhere'));
+  const plans = useDevicePlans(devices.map(device => device.id));
+  usePlanWords(plans.plans);
+  const of = (device: Device) => plans.plans.filter(plan => plan.deviceId === device.id);
+  const planned = devices.filter(device => followsPlan(device) || of(device).length > 0);
+
+  if (planned.length === 0) {
+    return plans.isPending ? (
+      <Waiting lines={3} />
+    ) : (
+      <NothingHere to={controlPath(spaceId)} where={t('control.back')}>
+        {t('control.plan.none')}
+      </NothingHere>
+    );
+  }
 
   return (
-    <nav aria-label={t('space.control.belowLabel')}>
-      <ul className={ui.group}>
-        {targets ? (
-          <Row
-            to={controlPath(spaceId, 'targets')}
-            icon={SlidersHorizontal}
-            title={t('space.control.targets')}
-            line={t('space.control.targetsLine')}
-          />
-        ) : null}
-        <Row
-          to={controlPath(spaceId, 'alarms')}
-          icon={Bell}
-          title={t('space.control.alarms')}
-          line={rules.isPending ? null : t('space.control.alarmsOn', { count: on })}
-        />
-        {planned ? (
-          <Row
-            to={controlPath(spaceId, 'plan')}
-            icon={CalendarRange}
-            title={plan ? t('space.control.planNamed', { name: plan.name }) : t('space.control.planRow')}
-            line={plan ? t(`space.control.status.${plan.state.status}`) : t('space.control.planRowLine')}
-          />
-        ) : null}
-      </ul>
-    </nav>
-  );
-}
-
-function Row({ to, icon: Icon, title, line }: { to: string; icon: LucideIcon; title: string; line: string | null }) {
-  return (
-    <li>
-      <Link to={to} className={styles.door}>
-        <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.doorIcon} />
-        <span className={styles.doorText}>
-          <span className={styles.doorTitle}>{title}</span>
-          {line ? <span className={`mono ${styles.doorLine}`}>{line}</span> : null}
-        </span>
-        <ChevronRight size={16} strokeWidth={1.75} aria-hidden className={styles.doorChevron} />
-      </Link>
-    </li>
+    <ByDevice devices={planned} line={device => planLine(t, of(device), now, device.control?.running !== false)}>
+      {device => <PlanPanel device={device} mayManage={mayManage} landing={climateLanding(device)} />}
+    </ByDevice>
   );
 }

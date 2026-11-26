@@ -12,8 +12,11 @@ import { about, lineLabel, occurredAt } from '@/log/lines';
 import { useLog, type LogTarget } from '@/log/log-context';
 import { Moment } from '@/log/Moment';
 import { Sheet } from '@/ui/Sheet';
-import { ageLabel } from '@/ui/age';
-import { looseFigure, typedFigure } from '@/ui/figures';
+import { spokenAgo } from '@/ui/age';
+import { Facts } from '@/ui/Facts';
+import { factsOf } from '@/ui/fact-text';
+import { serverNow } from '@/api/clock';
+import { decimalMark, looseFigure, typedFigure } from '@/ui/figures';
 import { Refused } from '@/ui/PageState';
 import { Choice } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
@@ -26,6 +29,10 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'];
 
 interface MeasureSheetProps {
   target: LogTarget;
+  /** When the round was said to have happened before the sheet was opened; null is now. */
+  at?: Date | null;
+  /** Back to the tiles the sheet was chosen on, where it was. */
+  onBack?: (() => void) | null;
   onClose: () => void;
 }
 
@@ -45,8 +52,8 @@ interface MeasureSheetProps {
  * one plant after another and closing between them would be the whole cost of
  * the round. The moment in the corner dates every line of the round alike.
  */
-export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
-  const { t } = useTranslation();
+export function MeasureSheet({ target, at: given = null, onBack, onClose }: MeasureSheetProps) {
+  const { t, i18n } = useTranslation();
   const now = useNow();
   const client = useQueryClient();
   const { log } = useLog();
@@ -70,7 +77,7 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   const [saving, setSaving] = useState(false);
   const [failure, setFailure] = useState<unknown>(null);
   /** When the round was taken, or null for now. */
-  const [at, setAt] = useState<Date | null>(null);
+  const [at, setAt] = useState<Date | null>(given);
 
   const perPlant = definitions.some(one => one.perPlant);
   const plantId = chosenPlant === undefined ? (perPlant ? (standing[0]?.id ?? null) : null) : chosenPlant;
@@ -119,12 +126,21 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
   }, [press, rub]);
 
   const readings = readingsOf(typed, definitions);
-  const body = (): EntryCreate => ({ kind: 'measurement', ...about(target), ...occurredAt(at), values: { kind: 'measurement', readings } });
+  // Dated when it was written, so a line that only gets through later is still of this moment.
+  const body = (): EntryCreate => ({
+    kind: 'measurement',
+    ...about(target),
+    ...occurredAt(at ?? serverNow().toJSDate()),
+    values: { kind: 'measurement', readings },
+  });
   // The grow day the line is filed under is the one it is dated to.
   const filed = at ? { ...target, dayNumber: dayAt(grow, target, at) } : target;
 
   /** The line goes through the queue, so the sheet closes and the toast offers Undo, as every logged line does. */
-  const save = () => log({ label: lineLabel(t, 'measurement', filed), details: { kind: 'measurement', target }, send: () => writeEntry(body()) });
+  const save = () => {
+    const written = body();
+    log({ label: lineLabel(t, 'measurement', filed), details: { kind: 'measurement', target }, send: () => writeEntry(written) });
+  };
 
   /**
    * The same line, written while the sheet stays open. It waits for the server
@@ -146,13 +162,13 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
     }
   };
 
-  if (definitions.length === 0) return <NothingToMeasure target={target} onClose={onClose} />;
+  if (definitions.length === 0) return <NothingToMeasure target={target} onBack={onBack} onClose={onClose} />;
 
   // A round is plant after plant of something measured per plant; a reading of the room has no next plant.
   const roundOfPlants = plantId !== null && standing.length > 1 && definition?.perPlant === true;
 
   return (
-    <Sheet title={t('grow.measurements.measure.title')} corner={<Moment at={at} onChange={setAt} />} onClose={onClose}>
+    <Sheet title={t('grow.measurements.measure.title')} corner={<Moment at={at} onChange={setAt} />} onBack={onBack} onClose={onClose}>
       {standing.length > 0 && perPlant ? (
         <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whichPlant')}>
           {standing.map(plant => (
@@ -168,7 +184,8 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
 
       <div className={styles.chips} role="group" aria-label={t('grow.measurements.measure.whatLabel')}>
         {offered.map(one => {
-          const shown = typed[slotOf(one.key, one.perPlant ? plantId : null)] || figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
+          const typedHere = typed[slotOf(one.key, one.perPlant ? plantId : null)];
+          const shown = typedHere ? writtenDraft(typedHere) : figureOf(last.get(slotOf(one.key, one.perPlant ? plantId : null)));
           return (
             <Choice key={one.key} chosen={one.key === definition?.key} onChoose={() => setKey(one.key)}>
               {one.name}
@@ -190,19 +207,22 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
           <div className={`${ui.card} ${styles.field}`} role="group" aria-label={fieldLabel(t, definition)}>
             <span className={styles.fieldName}>
               {definition.name}
-              {definition.unit ? <span className={`mono ${styles.fieldUnit}`}> · {definition.unit}</span> : null}
+              {definition.unit ? <span className={styles.fieldUnit}> · {definition.unit}</span> : null}
             </span>
             <span className={`figure ${styles.fieldValue}`} role="status">
-              {draft || '—'}
+              {draft ? writtenDraft(draft) : '—'}
             </span>
           </div>
 
-          <p className={`mono ${styles.hint}`}>{hintOf(t, definition, last, plantId, standing, draft, now)}</p>
+          <p className={styles.hint}>
+            <Facts facts={factsOf(hintOf(t, definition, last, plantId, standing, draft, now))} />
+          </p>
 
           <div className={styles.keypad} role="group" aria-label={t('grow.measurements.measure.keypad')}>
             {KEYS.map(digit => (
               <button key={digit} type="button" className={`${ui.button} ${styles.digit}`} onClick={() => press(digit)}>
-                {digit}
+                {/* The mark the reader's language writes: a German keypad carries a comma. */}
+                {digit === '.' ? decimalMark(i18n.language) : digit}
               </button>
             ))}
             <button type="button" className={`${ui.button} ${styles.digit}`} aria-label={t('grow.measurements.measure.backspace')} onClick={rub}>
@@ -236,14 +256,14 @@ export function MeasureSheet({ target, onClose }: MeasureSheetProps) {
  * that rather than a sentence about a grow, and offers the thing that would
  * actually help: starting one.
  */
-function NothingToMeasure({ target, onClose }: MeasureSheetProps) {
+function NothingToMeasure({ target, onBack, onClose }: MeasureSheetProps) {
   const { t } = useTranslation();
   const away = target.growId
     ? { to: `/grows/${target.growId}/measurements`, label: t('grow.measurements.measure.setUp') }
     : { to: `/grows/new?space=${target.spaceId}`, label: t('grow.measurements.measure.startGrow') };
 
   return (
-    <Sheet title={t('grow.measurements.measure.title')} onClose={onClose}>
+    <Sheet title={t('grow.measurements.measure.title')} onBack={onBack} onClose={onClose}>
       <p className={ui.note}>{t(target.growId ? 'grow.measurements.measure.nothingYet' : 'grow.measurements.measure.noGrow')}</p>
       {target.growId || target.spaceId ? (
         <Link className={`${ui.button} ${styles.away}`} to={away.to} onClick={onClose}>
@@ -270,6 +290,9 @@ const readingsOf = (typed: Record<string, string>, definitions: MeasurementDefin
   });
 
 const figureOf = (reading: { value: number } | undefined): string => (reading ? looseFigure(reading.value) : '');
+
+/** What is being typed, with the mark the reader's language writes - the key said ",", so the figure does too. */
+const writtenDraft = (draft: string): string => draft.replace('.', decimalMark());
 
 /** What the field is called, so the figure in it can be read as the figure it is. */
 const fieldLabel = (t: Translate, definition: MeasurementDefinition): string =>
@@ -316,7 +339,8 @@ const hintOf = (
 
   return [
     mine ? t('grow.measurements.measure.last', { value: withUnit(mine.value, definition.unit) }) : t('grow.measurements.measure.never'),
-    mine ? t('grow.measurements.measure.ago', { age: ageLabel(mine.at, now) }) : '',
+    // In words: "vor 1 Tag" says a day where "vor 1 T" asks to be worked out.
+    mine ? spokenAgo(mine.at, now) : '',
     moved === null || moved === 0 ? '' : `${moved > 0 ? '+' : ''}${looseFigure(moved)}`,
     t('grow.measurements.target', { band: band ?? t('grow.measurements.noTarget') }),
     other?.reading ? t('grow.measurements.measure.otherPlant', { plant: other.plant.label, value: looseFigure(other.reading.value) }) : '',

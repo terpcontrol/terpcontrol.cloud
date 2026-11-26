@@ -8,12 +8,13 @@ import { PUBLIC_WIDTH, publicPicture, usePublicUser } from '@/api/public';
 import { session, useSession } from '@/api/session';
 import { initials } from '@/ui/handle';
 import { useNow } from '@/ui/useNow';
+import { NotFound } from '@/screens/NotFound';
 import { FollowButton } from './FollowButton';
-import { Nothing } from './Nothing';
 import { Photo } from '@/ui/Photo';
 import { followedMeta } from './followed';
 import { PublicShell, PublicUnread } from './PublicShell';
 import styles from './Public.module.css';
+import ui from '@/ui/ui.module.css';
 
 /**
  * `/@{handle}`: everything one person has published.
@@ -24,12 +25,13 @@ import styles from './Public.module.css';
  * address this app has nothing at, which is what it then says.
  */
 export function PublicProfileRoute() {
+  const { t } = useTranslation();
   const { handle: segment = '' } = useParams();
 
   if (!segment.startsWith('@')) {
     return (
-      <PublicShell>
-        <Nothing titleKey="publicPage.noPage.title" bodyKey="publicPage.noPage.body" />
+      <PublicShell title={t('notFound.title')}>
+        <NotFound home={false} />
       </PublicShell>
     );
   }
@@ -71,12 +73,12 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
 
   return (
     <section className={styles.profile}>
-      <header className={styles.profileHead}>
+      <header className={ui.rowTop}>
         <Photo src={avatar} alt="" className={styles.profileAvatar} fallback={initials(author.handle)} />
         <div className={styles.profileText}>
           <h1 className={styles.title}>@{author.handle}</h1>
           {author.bio ? <p className={styles.description}>{author.bio}</p> : null}
-          <p className={`mono ${styles.facts}`}>{t('publicPage.diaryCount', { count: grows.length })}</p>
+          <p className={styles.facts}>{t('publicPage.diaryCount', { count: grows.length })}</p>
         </div>
       </header>
 
@@ -93,7 +95,7 @@ function Diaries({ page, now }: { page: PublicUserPage; now: DateTime }) {
   );
 }
 
-/** The same card the home screen draws for a diary somebody follows: a public grow reads one way wherever it is listed. */
+/** The same card the list of followed diaries draws: a public grow reads one way wherever it is listed. */
 function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; own: boolean }) {
   const { t } = useTranslation();
   const cover = grow.coverMediaId ? publicPicture(grow.slug)(grow.coverMediaId, PUBLIC_WIDTH.card) : null;
@@ -102,9 +104,9 @@ function DiaryCard({ grow, now, own }: { grow: FollowedGrowCard; now: DateTime; 
     <li className={styles.card}>
       <Link to={`/g/${grow.slug}`} className={styles.cardLink}>
         <Photo src={cover} alt="" className={styles.cardCover} fallback={<Leaf size={22} strokeWidth={1.5} aria-hidden />} />
-        <span className={styles.cardText}>
-          <span className={`name ${styles.cardTitle}`}>{grow.name}</span>
-          <span className={`mono ${styles.cardMeta}`}>{followedMeta(t, grow, now, null)}</span>
+        <span className={`${ui.textColumn} ${styles.cardText}`}>
+          <span className={`name ${ui.cut}`}>{grow.name}</span>
+          <span className={styles.cardMeta}>{followedMeta(t, grow, now, null)}</span>
         </span>
       </Link>
       {own ? null : <FollowButton growId={grow.growId} />}

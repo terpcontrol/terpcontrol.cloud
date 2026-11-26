@@ -1,5 +1,6 @@
 import type {
   CameraStill,
+  DeviceLive,
   DeviceSeries,
   GrowthStage,
   Metric,
@@ -9,11 +10,13 @@ import type {
   SpaceTimeline,
   TimelineOutputLane,
   TimelinePanel,
+  TimelineReading,
   TimelineSpan,
   TimelineTarget,
   TimelineTargets,
 } from '@fg2/shared-types/v1';
 import { DAY_ONLY, METRIC_DECIMALS, VALUE_AGE } from '@fg2/shared-types/v1-schemas';
+import { leastSilence, quietLimits, SILENT_AFTER } from '@fg2/shared-types/v1-schemas/cadence.js';
 import { cycleKindOf, nightsIn, transitionsIn, type Cycle, type Span } from '@fg2/shared-types/v1-schemas/day-night.js';
 import { OUTPUT_LEVEL } from '@common/v1/metrics';
 import type { CameraDocument } from '@database/schemas/v1/cameras.schema';
@@ -36,12 +39,11 @@ import { cyclesOf, type CycleStretch } from '../phase/target-record';
  */
 
 /**
- * The panels the timeline stacks, in the order it stacks them: the three a
- * controller steers, then the leaf and the light a canopy sensor measures,
- * which the cockpit has a tile for and the tile opens the Timeline on. VPD is
- * deliberately not among them: it is a computed number that wants its own axis
- * and its leaf offset explained, and it belongs to the charting view; nor is
- * PPFD, which is the lux panel over again times a factor.
+ * The panels a caller that names none is answered, in the order they stack:
+ * the three a controller steers, then the leaf and the light a canopy sensor
+ * measures. VPD and PPFD are computed, cost the lamp's switchings to tell a
+ * leaf by day from one at night, and are answered to whoever asks for them -
+ * the Timeline's page does.
  */
 export const PANEL_METRICS: readonly Metric[] = ['temperature', 'humidity', 'co2', 'leafTemperature', 'lux'];
 
@@ -69,22 +71,52 @@ export interface TargetStretch {
  * theirs carry no band.
  *
  * Which metrics are stacked is the timeline's own unless a caller says
- * otherwise. The Charts view says otherwise: it draws whatever was ticked,
- * VPD included, and there is no second way of turning points into a panel.
+ * otherwise, and there is no second way of turning points into a panel.
  *
- * Several controllers in one tent are several thermometers in the same air, so
- * the windows they share are averaged into one line rather than drawn as two -
- * the panel is what the tent read, not what each device did.
+ * A panel is one device's readings: the place's own climate, or the one a
+ * reader asked for (`ownOf`). Two devices in one place are two thermometers
+ * and often two climates - a tent's controller and a fridge module - and a
+ * mean of them is a figure neither read, which no other screen states.
+ *
+ * It is handed the device's whole read and not its series alone: the samples
+ * each window held and the edges of its pauses are what a silence in its
+ * curve is measured by, as in its lanes and its nights. Handed the series, the
+ * curve of a slow device broke at every empty window under lanes that ran
+ * whole - the route did so for a pass, while its tests passed the counts by hand.
  */
 export const panelsOf = (
-  series: readonly DeviceSeries[],
+  history: Pick<DeviceHistory, 'series' | 'samples' | 'edges'> | null,
   stretches: readonly TargetStretch[],
   metrics: readonly Metric[] = PANEL_METRICS,
 ): TimelinePanel[] =>
   metrics.flatMap(metric => {
-    const points = pooled(series, metric);
+    const points = history ? heardOf(history.series, metric, history) : [];
 
     return points.some(point => point.value !== null) ? [{ metric, points, targets: targetsOf(metric, stretches) }] : [];
+  });
+
+/** What only some places measure: the place's whichever of its devices measures it, as its figures are. */
+const PLACE_WIDE: readonly Metric[] = ['co2', 'leafTemperature', 'lux', 'ppfd'];
+
+/**
+ * The panels of a place: the leading device's, and where it does not measure
+ * CO2, the leaf or the light, those of the first other device here that does -
+ * a socket's CO2 beside a controller without a sensor is the tent's curve, under
+ * the controller's band.
+ */
+export const placePanelsOf = (
+  own: Pick<DeviceHistory, 'series' | 'samples' | 'edges'> | null,
+  others: readonly Pick<DeviceHistory, 'series' | 'samples' | 'edges'>[],
+  stretches: readonly TargetStretch[],
+  metrics: readonly Metric[] = PANEL_METRICS,
+): TimelinePanel[] =>
+  metrics.flatMap(metric => {
+    const from = PLACE_WIDE.includes(metric) ? [own, ...others] : [own];
+    for (const history of from) {
+      const panels = panelsOf(history, stretches, [metric]);
+      if (panels.length > 0) return panels;
+    }
+    return [];
   });
 
 /**
@@ -161,24 +193,40 @@ const rowsOf = (metric: Metric, stretches: readonly TargetStretch[]): TimelineTa
  * not a night, and a drying room is one long night.
  *
  * Where the record says nothing - before it began, or before it recorded
- * cycles - the night is read off the lamp, as it always was.
+ * cycles - the night is read off the lamp, as it always was. Either way a
+ * night is shaded only through hours a device reported in.
  */
 export const nightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow, cycles: readonly CycleStretch[] = []): TimelineSpan[] => {
-  if (!cycles.some(stretch => stretch.cycle)) return lampNightsOf(histories, window);
+  if (!cycles.some(stretch => stretch.cycle)) return lasting(lampNightsOf(histories, window));
 
   const lamp = cycles.some(stretch => !stretch.cycle) ? lampNightsOf(histories, window).map(spanOf) : [];
-  return asTimelineSpans(
-    cycles.flatMap(stretch =>
-      stretch.cycle
-        ? nightsIn(stretch.cycle, stretch)
-        : lamp.flatMap(span => {
-            const from = Math.max(span.from, stretch.from);
-            const to = Math.min(span.to, stretch.to);
-            return to > from ? [{ from, to }] : [];
-          }),
+  // A schedule knows nothing of a silence: its nights are shaded only where somebody reported through them, as
+  // the lamp's are - not across a morning the device was gone for, nor on to the window's end after its last word.
+  const heard = histories.flatMap(one => heardStretches(heardIn(one.series), one.series, window, heardAt(one)));
+  return lasting(
+    asTimelineSpans(
+      cycles.flatMap(stretch =>
+        stretch.cycle
+          ? overlapping(nightsIn(stretch.cycle, stretch), heard)
+          : lamp.flatMap(span => {
+              const from = Math.max(span.from, stretch.from);
+              const to = Math.min(span.to, stretch.to);
+              return to > from ? [{ from, to }] : [];
+            }),
+      ),
     ),
   );
 };
+
+/**
+ * No night lasts less than a minute: a schedule is set in minutes, and a lamp
+ * dark for seconds - or a sliver of heard time between two silences, where a
+ * backfill ends and live samples begin - is no night to shade.
+ */
+const SHORTEST_NIGHT_MS = 60_000;
+
+const lasting = (nights: readonly TimelineSpan[]): TimelineSpan[] =>
+  nights.filter(night => millis(night.endsAt) - millis(night.startsAt) >= SHORTEST_NIGHT_MS);
 
 /**
  * When the steering device was changing between its halves and the climate was
@@ -209,8 +257,12 @@ const asTimelineSpans = (spans: readonly Span[]): TimelineSpan[] =>
  * shading it twice.
  */
 const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow): TimelineSpan[] => {
-  const lit = histories.find(one => outputIn(one, 'light').switchings.length > 0);
-  if (lit) return spansOf(outputIn(lit, 'light'), false, lit.series, window, heardAt(lit));
+  // Each device is read over its own stay, so a lamp is too: the nights before a change of the measuring device
+  // are those the device before it reported, and no two of them speak for the same hour.
+  const lit = histories.filter(one => outputIn(one, 'light').switchings.length > 0);
+  if (lit.length > 0) {
+    return asTimelineSpans(lit.flatMap(one => spansOf(outputIn(one, 'light'), false, one.series, stayOf(one, window), heardAt(one)).map(spanOf)));
+  }
 
   // A place with no lamp at all - an AIR fan on its own - is shaded by the night the fan says it runs,
   // as far as its own output was heard. The old charts drew that as a line of its own.
@@ -234,16 +286,21 @@ const lampNightsOf = (histories: readonly DeviceHistory[], window: SeriesWindow)
  * to be able to tell them apart: three days of silence are not three days of
  * "off".
  *
- * Where the read asked how hard the outputs ran, a lane that has a level says
- * so too, in percent of full output or, for the valve, as the ticks it dosed.
+ * Where the read counted the outputs' samples, a lane carries them point by
+ * drawn point (`pointsOfOutput`): what a card, a share of the time and a strip
+ * say about an output is counted from those, and the spans say only when.
  * A lane of a fridge module says so, because its dehumidifier output is the
- * compressor and every screen calls it that - a link included.
+ * compressor and every screen calls it that - a link included. So does a lane
+ * of the device the reading is of (`reading`): a place's second lamp is read
+ * off its own strip, and a link that cannot tell the lamps apart by device
+ * would read the reading's level onto both.
  */
 export const lanesOf = (
   histories: readonly DeviceHistory[],
   window: SeriesWindow,
   redacted = false,
   fridges: ReadonlySet<string> = new Set(),
+  reading: string | null = null,
 ): TimelineOutputLane[] =>
   histories.flatMap(one =>
     one.outputs.flatMap(output =>
@@ -253,9 +310,8 @@ export const lanesOf = (
               output: output.output,
               deviceId: redacted ? null : one.series.deviceId,
               ...(fridges.has(one.series.deviceId) ? { fridge: true as const } : {}),
-              spans: spansOf(output, true, one.series, window, heardAt(one)),
-              heardUntil: heardUntilOf(output, one.series, window, heardAt(one)),
-              ...levelOf(output),
+              ...(one.series.deviceId === reading ? { reading: true as const } : {}),
+              ...laneOf(output, one.series, window, heardAt(one)),
             },
           ]
         : [],
@@ -276,16 +332,48 @@ export const chartPartsOf = (read: {
   aimed: readonly StoredTargetChange[];
   cameras: readonly Pick<CameraDocument, 'id' | 'name'>[];
   frames: ReadonlyMap<string, CameraStill[]>;
+  /** The device the reading is of, whose lanes say so. */
+  reading?: string | null;
 }): Pick<SpaceTimeline, 'stepSeconds' | 'deviceIds' | 'outputs' | 'nights' | 'transitions' | 'cameras'> => {
   const cycles = cyclesOf(read.aimed, read.window);
 
   return {
     stepSeconds: read.histories.length === 0 ? 0 : read.window.stepSeconds,
     deviceIds: read.redacted ? null : read.devices.map(device => device.id),
-    outputs: lanesOf(read.histories, read.window, read.redacted, fridgesOf(read.devices)),
+    outputs: lanesOf(read.histories, read.window, read.redacted, fridgesOf(read.devices), read.reading ?? null),
     nights: nightsOf(read.histories, read.window, cycles),
     transitions: transitionsOf(cycles),
     cameras: read.cameras.map(camera => ({ cameraId: camera.id, name: camera.name, frames: read.frames.get(camera.id) ?? [] })),
+  };
+};
+
+/**
+ * A device's last reading as the Timeline answers it: the metrics asked for, the instant of the newest of
+ * them, and each output it said then as on or off with its level in per cent where it has one (`OUTPUT_LEVEL`).
+ */
+export const readingOf = (live: Pick<DeviceLive, 'metrics' | 'outputs'>, metrics: readonly Metric[]): TimelineReading | null => {
+  const values = metrics.flatMap(metric => {
+    const one = live.metrics[metric];
+    return one && one.value !== null && one.measuredAt !== null ? [{ metric, ...one }] : [];
+  });
+  const outputs = (Object.entries(live.outputs) as [OutputMetric, DeviceLive['outputs'][OutputMetric]][]).flatMap(([output, one]) =>
+    one && one.value !== null && one.measuredAt !== null ? [{ output, value: one.value, measuredAt: one.measuredAt }] : [],
+  );
+  // A place of outputs alone - a socket, a fan - has a reading too: what its outputs last said, and when.
+  const heard = (values.length > 0 ? values : outputs).map(one => one.measuredAt as string);
+  if (heard.length === 0) return null;
+  const measuredAt = heard.reduce((newest, one) => (one > newest ? one : newest));
+
+  return {
+    measuredAt,
+    values,
+    // An output last heard of before this reading - longer before it than a reading stays fresh - is no part of it:
+    // a valve that stopped being reported last week is not "aus" now.
+    outputs: outputs.flatMap(({ output, value, measuredAt: saidAt }) => {
+      if (millis(measuredAt) - millis(saidAt) > VALUE_AGE.liveSeconds * 1000) return [];
+      const kind = OUTPUT_LEVEL[output];
+      return [{ output, on: value > 0, level: kind?.unit === 'percent' ? Math.round(Math.min(100, value * kind.scale)) : null }];
+    }),
   };
 };
 
@@ -293,33 +381,118 @@ export const chartPartsOf = (read: {
 const fridgesOf = (devices: readonly { id: string; type: string }[]): ReadonlySet<string> =>
   new Set(devices.filter(device => device.type === 'fridge').map(device => device.id));
 
-/** The level of one output in the contract's unit, where it has one and the read asked for it. */
-const levelOf = (output: OutputHistory): Pick<TimelineOutputLane, 'level'> => {
+/**
+ * One output's drawn points, where the read counted its samples: how many each window held, in how many the
+ * output ran, and for one driven at a level the mean level over all of them in per cent of full output.
+ */
+const pointsOfOutput = (output: OutputHistory): Pick<TimelineOutputLane, 'points'> => {
+  if (!output.figures) return {};
   const kind = OUTPUT_LEVEL[output.output];
-  if (!kind || !output.levels) return {};
 
   return {
-    level: {
-      unit: kind.unit,
-      points: output.levels.map(point => ({
-        measuredAt: point.measuredAt,
-        // A share of full output is a whole percent; a dose is whole ticks.
-        value: point.value === null ? null : Math.round(Math.min(kind.unit === 'percent' ? 100 : Infinity, point.value * kind.scale)),
-      })),
-    },
+    points: output.figures.map(figure => ({
+      measuredAt: figure.measuredAt,
+      heard: figure.heard,
+      on: figure.on,
+      // To a tenth: a heater that ran at 59 % in one sample of six is 9,8 % of full output over that window.
+      level: kind?.unit === 'percent' ? Math.round(Math.min(100, figure.mean * kind.scale) * 10) / 10 : null,
+    })),
   };
 };
 
-/** The last instant the device was heard about one output, which is the window's own end while it is still reporting. */
-const heardUntilOf = (output: OutputHistory, series: DeviceSeries, window: SeriesWindow, sampled: number | null): string => {
-  const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
-  const heard = heardStretches(points, window, series.stepSeconds, sampled);
+/**
+ * One output's lane: the stretches it ran for, how far anything is known of it - the window's own end while its
+ * device is still reporting -, and its drawn points. A point says where the device had fallen silent before it
+ * (`resumed`), which is the one verdict a screen draws the strip by: it works out no silence of its own.
+ */
+const laneOf = (
+  output: OutputHistory,
+  series: DeviceSeries,
+  window: SeriesWindow,
+  sampled: Sampled,
+): Pick<TimelineOutputLane, 'spans' | 'heardUntil' | 'points'> => {
+  const read = readOf(series, window);
+  const heard = heardStretches(series.outputs.find(one => one.output === output.output)?.points ?? [], series, window, sampled);
+  const drawn = pointsOfOutput(output).points;
 
-  return new Date(heard[heard.length - 1]?.to ?? window.startsAt.getTime()).toISOString();
+  return {
+    spans: overlapping(stateStretches(output.switchings, true), heard).map(asSpan),
+    heardUntil: new Date(heard.at(-1)?.to ?? window.startsAt.getTime()).toISOString(),
+    ...(drawn
+      ? {
+          points: drawn.map((point, index) => {
+            const [before, stamp] = [index === 0 ? Number.NEGATIVE_INFINITY : millis(drawn[index - 1].measuredAt), millis(point.measuredAt)];
+            // The stretch that begins in this window - or in one before it that has no point - began after a silence,
+            // unless it is the read's first and was heard that close to where the read begins.
+            const began = heard.some(one => one.first > before && one.first <= stamp && one.from > read.startsAt.getTime());
+            return began ? { ...point, resumed: true } : point;
+          }),
+        }
+      : {}),
+  };
 };
 
+/**
+ * The stretches of its read a device said nothing in, by the interval it was keeping: what stands between the
+ * stretches it was heard over, of any of its fields, and before the first and after the last of them. A device that
+ * left the place silent is silent here to the window's end: nothing was heard here after its last word, and its
+ * leaving is no word - "keine Messung · 17:10 bis 17:22" said it came back when it went.
+ *
+ * A device heard nowhere in the window is one silence across it, from its last word before the window to its first
+ * after (`around`, `heardNothing`) - or on, where it has said nothing since: a day wholly inside a weekend's silence
+ * read "keine Messung" with neither end. One that has never said anything here has no silence to tell.
+ */
+export const silencesOf = (history: DeviceHistory | null, window: SeriesWindow, around: SamplesAround | null = null): TimelineSpan[] => {
+  if (!history) return [];
+  const read = readOf(history.series, window);
+  const heard = heardStretches(heardIn(history.series), history.series, window, heardAt(history));
+  if (heard.length === 0) {
+    return around?.before ? [asSpan({ from: around.before.getTime(), to: (around.after ?? window.endsAt).getTime() })] : [];
+  }
+  const quietAtEnd = heard[heard.length - 1].to < read.endsAt.getTime();
+  const edges = [read.startsAt.getTime(), ...heard.flatMap(one => [one.from, one.to]), (quietAtEnd ? window : read).endsAt.getTime()];
+
+  return edges.flatMap((from, index) => (index % 2 === 0 && edges[index + 1] > from ? [asSpan({ from, to: edges[index + 1] })] : []));
+};
+
+/** Where a device's last word before a window and its first after it fell, where it was asked (`DataService.samplesAround`). */
+export interface SamplesAround {
+  before: Date | null;
+  after: Date | null;
+}
+
+/** Whether a device said nothing at all in the window, of any of its fields: its silence then reaches past both ends. */
+export const heardNothing = (history: DeviceHistory): boolean => heardIn(history.series).length === 0;
+
+/** The windows a device was heard in, of whichever of its fields: a device is heard when any of them reports. */
+const heardIn = (series: DeviceSeries): SeriesPoint[] => {
+  const stamps = new Set(
+    [...series.metrics, ...series.outputs].flatMap(row => row.points.flatMap(point => (point.value === null ? [] : [point.measuredAt]))),
+  );
+  return [...stamps].sort().map(measuredAt => ({ measuredAt, value: 0 }));
+};
+
+const asSpan = (stretch: Stretch): TimelineSpan => ({ startsAt: new Date(stretch.from).toISOString(), endsAt: new Date(stretch.to).toISOString() });
+
+/** The part of the window a device's read covers: its stay. */
+const stayOf = (history: DeviceHistory, window: SeriesWindow): SeriesWindow => ({
+  startsAt: new Date(Math.max(window.startsAt.getTime(), millis(history.series.startsAt))),
+  endsAt: new Date(Math.min(window.endsAt.getTime(), millis(history.series.endsAt))),
+});
+
+/** What a read says of a device's samples: its newest inside the window, the first and last of a window beside a silence, how many each window held. */
+interface Sampled {
+  newest: number | null;
+  edges?: DeviceHistory['edges'];
+  samples?: DeviceHistory['samples'];
+}
+
 /** When the device last wrote anything inside this window, as an instant the arithmetic can use, or nothing where the read could not say. */
-const heardAt = (history: DeviceHistory): number | null => (history.lastSampleAt === null ? null : millis(history.lastSampleAt));
+const heardAt = (history: DeviceHistory): Sampled => ({
+  newest: history.lastSampleAt === null ? null : millis(history.lastSampleAt),
+  edges: history.edges,
+  samples: history.samples,
+});
 
 /** What one device said about one output, or nothing where it was not asked about it or never reported it. */
 const outputIn = (history: DeviceHistory, output: OutputMetric): OutputHistory =>
@@ -331,31 +504,37 @@ interface SeriesWindow {
   endsAt: Date;
 }
 
-/** How many of a device's usual gaps in a row count as it having stopped, rather than as its having been slow once. */
-const SILENT_AFTER = 4;
+/**
+ * The part of the window one device was read over. A device is read over its
+ * stay in the place, so that is where its edges are: a device that came an
+ * hour ago ran nothing here before it came, however wide the window its first
+ * point stands for, and one that has left is not "still reporting" by the
+ * window's end.
+ */
+const readOf = (series: Pick<DeviceSeries, 'startsAt' | 'endsAt'>, window: SeriesWindow): SeriesWindow => ({
+  startsAt: new Date(Math.max(window.startsAt.getTime(), millis(series.startsAt))),
+  endsAt: new Date(Math.min(window.endsAt.getTime(), millis(series.endsAt))),
+});
 
 /**
- * How long a device may say nothing before a run stops being carried across it.
- *
- * Not one number. Firmware reports every half minute, a backfilled history every
- * hour, and a whole grow is read in windows wider than either, so what counts as
- * a silence is measured against the rhythm this device actually kept over this
- * window - and never falls below the threshold the rest of the app calls a
- * device gone by.
+ * Where a row of heard windows breaks: how long the device may say nothing at each place in it (`quietLimits`,
+ * by the interval it was keeping there, which its samples per window say where the read counted them), and
+ * before which window it had said nothing for longer. A gap is measured by its samples where the read asked the
+ * store for them - the last before it and the first after it - and by the windows' stamps where it did not: a
+ * pause of an hour is then one verdict at every step, and not a line where it fell into three windows and a
+ * silence where it fell into four.
  */
-const silenceOf = (points: readonly SeriesPoint[], stepSeconds: number): number =>
-  Math.max(VALUE_AGE.staleSeconds * 1000, SILENT_AFTER * usualGapOf(points, stepSeconds));
-
-/** The gap between two readings this device usually leaves in this window. */
-const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number => {
-  const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
-  const gaps = heard
-    .slice(1)
-    .map((instant, index) => instant - heard[index])
-    .sort((one, other) => one - other);
-  // Three quarters of the way up rather than the middle: a device that is slow
-  // every fourth sample is keeping that rhythm too.
-  return gaps.length === 0 ? stepSeconds * 1000 : gaps[Math.floor(gaps.length * 0.75)];
+const breaksOf = (heard: readonly number[], stepSeconds: number, { samples, edges }: Pick<Sampled, 'samples' | 'edges'>) => {
+  const limits = quietLimits(
+    heard,
+    stepSeconds * 1000,
+    heard.map(stamp => samples?.get(stamp)),
+  );
+  const silent = heard.map((stamp, index) => {
+    const before = heard[index - 1];
+    return index > 0 && (edges?.get(stamp)?.first ?? stamp) - (edges?.get(before)?.last ?? before) > limits[index];
+  });
+  return { limits, silent };
 };
 
 /**
@@ -374,19 +553,21 @@ const usualGapOf = (points: readonly SeriesPoint[], stepSeconds: number): number
  * not at the edge of the window - a device that has said nothing for three days
  * is not three days of "off".
  */
-const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: number | null): TimelineSpan[] => {
+const spansOf = (output: OutputHistory, on: boolean, series: DeviceSeries, window: SeriesWindow, sampled: Sampled): TimelineSpan[] => {
   const points = series.outputs.find(one => one.output === output.output)?.points ?? [];
 
-  return overlapping(stateStretches(output.switchings, on), heardStretches(points, window, series.stepSeconds, sampled)).map(stretch => ({
-    startsAt: new Date(stretch.from).toISOString(),
-    endsAt: new Date(stretch.to).toISOString(),
-  }));
+  return overlapping(stateStretches(output.switchings, on), heardStretches(points, series, window, sampled)).map(asSpan);
 };
 
 /** A stretch of the window in instants, before it is written as a span. */
 interface Stretch {
   from: number;
   to: number;
+}
+
+/** A stretch a device was heard over, with the stamp of the first window it was heard in. */
+interface Heard extends Stretch {
+  first: number;
 }
 
 /**
@@ -399,7 +580,9 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
     if (switching.on !== on) return [];
     const next = switchings[index + 1];
 
-    return [{ from: millis(switching.at), to: next ? millis(next.at) : Number.POSITIVE_INFINITY }];
+    // The first row is the state the window was found in, stamped with the first grain a sample fell into - up
+    // to a grain after the window began. The state held before it too: a night does not begin two seconds in.
+    return [{ from: index === 0 ? Number.NEGATIVE_INFINITY : millis(switching.at), to: next ? millis(next.at) : Number.POSITIVE_INFINITY }];
   });
 
 /**
@@ -411,14 +594,15 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
  * sample; one that only turned up later is drawn from where it turned up, and
  * the same rule closes the far end.
  *
- * A stretch of one point is a stretch of the window it stands for rather than
- * of no width at all. The store stamps an aggregation window at its stop
- * instant, so a point at t is what was heard over `(t - step, t]`; a burst that
- * lands in a single window after a long silence would otherwise be a stretch
- * from an instant to the same instant, which nothing can overlap, and every
- * output state inside it is lost. It is widened backwards and never forwards,
- * because forwards is past the last thing the device said - and past the end of
- * the window, where the window closes on a grow that has ended.
+ * A stretch begins with the window its first point stands for. The store
+ * stamps an aggregation window at its stop instant, so a point at t is what
+ * was heard over the step before t: a device back at 16:00 after a silence has
+ * its first point of three minutes at 16:03, and a lamp lit since it came back
+ * was lit from 16:00. A burst that lands in a single window would otherwise be
+ * a stretch from an instant to the same instant, which nothing can overlap. It
+ * is widened backwards and never forwards, because forwards is past the last
+ * thing the device said - and past the end of the window, where the window
+ * closes on a grow that has ended.
  *
  * The same stamping is why the far end is cut to the newest sample the device
  * really wrote. The last point of a series stands for a window that ends up to
@@ -428,29 +612,47 @@ const stateStretches = (switchings: readonly OutputSwitching[], on: boolean): St
  * the edge it already had: the closing stretch is snapped to the end of the
  * window, so a live tent has no gap at the right-hand edge of its own chart.
  */
-const heardStretches = (points: readonly SeriesPoint[], window: SeriesWindow, stepSeconds: number, sampled: number | null): Stretch[] => {
+const heardStretches = (
+  points: readonly SeriesPoint[],
+  series: Pick<DeviceSeries, 'startsAt' | 'endsAt' | 'stepSeconds'>,
+  asked: SeriesWindow,
+  { newest: sampled, edges, samples }: Sampled,
+): Heard[] => {
+  const [window, stepSeconds] = [readOf(series, asked), series.stepSeconds];
+  // Its stay ended before the window did: it was moved away, and what it had said by then is all there is.
+  const left = window.endsAt < asked.endsAt;
   const heard = points.flatMap(point => (point.value === null ? [] : [millis(point.measuredAt)]));
   if (heard.length === 0) return [];
 
-  const silence = silenceOf(points, stepSeconds);
-  const stretches: Stretch[] = [{ from: heard[0], to: heard[0] }];
-  for (const at of heard.slice(1)) {
-    const last = stretches[stretches.length - 1];
-    if (at - last.to > silence) stretches.push({ from: at, to: at });
-    else last.to = at;
-  }
+  const { limits, silent } = breaksOf(heard, stepSeconds, { samples, edges });
+  const stretches: Heard[] = [];
+  heard.forEach((at, index) => {
+    if (index === 0 || silent[index]) stretches.push({ from: at, to: at, first: at });
+    else stretches[stretches.length - 1].to = at;
+  });
+  const silence = limits[heard.length];
 
   for (const [index, stretch] of stretches.entries()) {
-    if (stretch.from !== stretch.to) continue;
     const after = index === 0 ? window.startsAt.getTime() : stretches[index - 1].to + 1;
-    stretch.from = Math.max(stretch.to - stepSeconds * 1000, after, window.startsAt.getTime());
+    // Where the read says when the samples of a window were written, a stretch begins with the first of its first
+    // window and ends with the last of its last: at one instant, however wide the windows are.
+    const [first, last] = [edges?.get(stretch.from)?.first, edges?.get(stretch.to)?.last];
+    stretch.from = Math.max(first ?? stretch.from - stepSeconds * 1000, after, window.startsAt.getTime());
+    stretch.to = Math.max(stretch.from, last ?? stretch.to);
   }
 
   const opens = stretches[0];
   const closes = stretches[stretches.length - 1];
   if (sampled !== null) closes.to = Math.max(closes.from, Math.min(closes.to, sampled));
-  if (opens.from - window.startsAt.getTime() <= silence) opens.from = window.startsAt.getTime();
-  if (window.endsAt.getTime() - closes.to <= silence) closes.to = window.endsAt.getTime();
+  if (opens.from - window.startsAt.getTime() <= limits[0]) opens.from = window.startsAt.getTime();
+  // A device whose newest sample is known is still reporting by the rule the rest of the app goes by, not by
+  // the rhythm of a window as wide as a month's: a lamp is not "on" for the hours after its device went quiet.
+  // One that reports slowly - its limit is its own, above the step's - is still reporting within that limit, but
+  // not one moved away offline: by the offline rule it had stopped, and its strip read "bis letzter Wert" the move.
+  const slow = silence > leastSilence(stepSeconds * 1000) && !left;
+  if (window.endsAt.getTime() - closes.to <= (sampled === null || slow ? silence : Math.min(silence, VALUE_AGE.staleSeconds * 1000))) {
+    closes.to = window.endsAt.getTime();
+  }
 
   return stretches;
 };
@@ -471,43 +673,45 @@ const overlapping = (one: readonly Stretch[], other: readonly Stretch[]): Stretc
 const millis = (instant: string): number => new Date(instant).getTime();
 
 /**
- * One metric across every controller of the space, window by window. The reads
- * share a window and a step, so the instant is what joins them.
+ * One metric of one device, window by window.
  *
  * Only the windows something was read in are answered, with a break written
- * between two of them the space fell silent across, and one after the last of
- * them where the space has been silent since. A window with no reading is not a
+ * between two of them the device fell silent across, and one after the last of
+ * them where it has been silent since. A window with no reading is not a
  * hole in the measurement: a device sampling every hour into windows of three
  * minutes leaves nineteen empty ones between every sample, and a series of
  * holes with a lone reading between them is a line that cannot be drawn at all.
  * What the curve has to break at is the silence, which is the same thing the
  * lanes under it break at.
  */
-const pooled = (series: readonly DeviceSeries[], metric: Metric): SeriesPoint[] => {
-  const readings = new Map<string, number[]>();
+const heardOf = (series: DeviceSeries, metric: Metric, sampled: Pick<Sampled, 'samples' | 'edges'>): SeriesPoint[] => {
+  const heard = (series.metrics.find(row => row.metric === metric)?.points ?? []).flatMap(point =>
+    point.value === null
+      ? []
+      : [
+          {
+            measuredAt: point.measuredAt,
+            value: rounded(point.value, metric),
+            ...(point.min !== undefined && point.max !== undefined ? { min: rounded(point.min, metric), max: rounded(point.max, metric) } : {}),
+          },
+        ],
+  );
 
-  for (const one of series) {
-    for (const point of one.metrics.find(row => row.metric === metric)?.points ?? []) {
-      if (point.value === null) continue;
-      readings.set(point.measuredAt, [...(readings.get(point.measuredAt) ?? []), point.value]);
-    }
-  }
-
-  const heard = [...readings.entries()]
-    .sort(([one], [other]) => one.localeCompare(other))
-    .map(([measuredAt, values]) => ({ measuredAt, value: rounded(mean(values), metric) }));
-
-  const step = series[0]?.stepSeconds ?? 0;
-  const silence = silenceOf(heard, step);
-  const quietAtTheEnd = Math.max(VALUE_AGE.staleSeconds * 1000, usualGapOf(heard, step));
-  return closed(broken(heard, silence), series[0] ? millis(series[0].endsAt) : null, quietAtTheEnd);
+  const { limits, silent } = breaksOf(
+    heard.map(point => millis(point.measuredAt)),
+    series.stepSeconds,
+    sampled,
+  );
+  // The end is held to one of the device's intervals there, and to a step: see `closed`.
+  const atEnd = Math.max(VALUE_AGE.staleSeconds * 1000, series.stepSeconds * 1000, limits[heard.length] / SILENT_AFTER);
+  return closed(broken(heard, silent), millis(series.endsAt), atEnd);
 };
 
 /** The readings with a null between the two the space went quiet between, which is where the line stops and starts again. */
-const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] =>
+const broken = (points: readonly SeriesPoint[], silent: readonly boolean[]): SeriesPoint[] =>
   points.flatMap((point, index) => {
     const before = points[index - 1];
-    if (!before || millis(point.measuredAt) - millis(before.measuredAt) <= silence) return [point];
+    if (!before || !silent[index]) return [point];
 
     // The break belongs at the instant after the last thing anybody said, not
     // halfway across the silence, which would claim a reading was due there.
@@ -534,9 +738,9 @@ const broken = (points: readonly SeriesPoint[], silence: number): SeriesPoint[] 
  * already says - nothing was measured here - and says it on the Charts header,
  * the Timeline header and the cursor's dot at once.
  */
-const closed = (points: readonly SeriesPoint[], endsAt: number | null, silence: number): SeriesPoint[] => {
+const closed = (points: readonly SeriesPoint[], endsAt: number, silence: number): SeriesPoint[] => {
   const last = points[points.length - 1];
-  if (!last || last.value === null || endsAt === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
+  if (!last || last.value === null || endsAt - millis(last.measuredAt) <= silence) return [...points];
 
   return [...points, { measuredAt: new Date(millis(last.measuredAt) + 1).toISOString(), value: null }];
 };
@@ -546,10 +750,8 @@ const halfOf = (metric: Metric, setpoint: number | null): TimelineTarget | null 
   return setpoint === null || band === null ? null : { setpoint, band: { low: rounded(band.low, metric), high: rounded(band.high, metric) } };
 };
 
-const mean = (values: readonly number[]): number => values.reduce((sum, value) => sum + value, 0) / values.length;
-
 /** What the sensor can say, and no more: the mean of two readings is otherwise seventeen digits of which one is a measurement. */
-const rounded = (value: number, metric: Metric): number => {
+export const rounded = (value: number, metric: Metric): number => {
   const factor = 10 ** METRIC_DECIMALS[metric];
 
   return Math.round(value * factor) / factor;

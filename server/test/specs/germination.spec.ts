@@ -1,12 +1,13 @@
 import { createAccount, Session } from '../support/api';
-import { DeviceCredentials, DeviceType, provisionDevice, settle, startSimulator } from '../support/device';
+import { claimCodeOf, DeviceCredentials, DeviceType, provisionDevice, registerDevice, settle, startSimulator } from '../support/device';
 
 /**
  * Germination over HTTP: the one meaning the stage has wherever it is chosen -
  * a climate preset, a grow's phase, the targets saved for it - for a fridge and
  * a tent controller alike. Germination is dark: the firmware's `breed` mode,
  * holding one temperature round the clock without light or CO2. Every other
- * stage brings the device back to its standard mode.
+ * stage brings the device back to its standard mode - where its climate is
+ * written: a phase that is only recorded writes no device, whatever its stage.
  */
 
 const HOUR = 3600;
@@ -22,6 +23,9 @@ const document = (over: Record<string, unknown> = {}) => ({
   lights: { limit: 80, sunrise: 15, sunset: 15 },
   ...over,
 });
+
+/** A lamp module's document: flat, its window and its brightness at the top. */
+const LAMP = { day: 7 * HOUR, night: 23 * HOUR, limit: 70, sunrise: 10, sunset: 10, max_temperature: 35 };
 
 const configurationOf = async (device: DeviceCredentials) =>
   (await owner.client.get(`/v1/devices/${device.deviceId}/configuration`).expect(200)).body.configuration;
@@ -89,6 +93,100 @@ describe('the germination preset', () => {
     },
   );
 
+  /**
+   * Germination is dark for every lamp of the place (ADR 0007): a lamp module beside the controller has a brightness of
+   * its own that no work mode reaches, and burnt on under "Keimung · dunkel". It goes to nothing with the place, one
+   * that joins later too, and has its brightness back with the next climate or once it has left.
+   */
+  it('darkens every lamp module of the place with it, one that joins later too, and gives their light back after', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = async () => {
+      const one = await registerDevice('light');
+      await owner.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(one.deviceId), joinSpaceId: spaceId })
+        .expect(201);
+      return one;
+    };
+    const first = await lamp();
+    await owner.client.put(`/v1/devices/${first.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+    expect(await configurationOf(first)).toMatchObject({ limit: 0, day: 7 * HOUR, night: 23 * HOUR });
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'breed' });
+
+    // One claimed now has no settings yet: it is put dark as its first arrive, as the hardware sends them.
+    const later = await lamp();
+    const sim = await startSimulator(later);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'lamp', configuration: LAMP });
+      for (let tries = 0; tries < 50 && (await configurationOf(later))?.limit !== 0; tries++) await settle(100);
+    } finally {
+      await sim.close();
+    }
+    expect(await configurationOf(later)).toMatchObject({ limit: 0 });
+    // Taken out of the place, a lamp has its light back.
+    await owner.client.patch(`/v1/devices/${later.deviceId}`).send({ spaceId: null }).expect(200);
+    expect(await configurationOf(later)).toMatchObject({ limit: 70 });
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(await configurationOf(first)).toMatchObject({ limit: 70 });
+  });
+
+  /**
+   * A lamp lit in a germinating place - by hand since, or never handed the dark - is brought back in line by applying
+   * "Keimung · dunkel" again from Steuerung, which saves the targets with the preset; its kept brightness is served, and
+   * its rules page says the place germinates, which its "too humid" rests by.
+   */
+  it('brings a lamp that burns where the place germinates back in line when germination is applied again', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = await registerDevice('light');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(lamp.deviceId), joinSpaceId: spaceId })
+      .expect(201);
+    await owner.client.put(`/v1/devices/${lamp.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}`).expect(200)).body.state).toMatchObject({ limitBeforeDark: 70 });
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}/alarm-rules`).expect(200)).body.germination).toEqual({
+      warnTooHumid: false,
+      humidifierHolds: true,
+    });
+
+    await owner.client
+      .put(`/v1/devices/${lamp.deviceId}/configuration`)
+      .send({ configuration: { ...LAMP, limit: 90 } })
+      .expect(200);
+    await owner.client
+      .put(`/v1/devices/${device.deviceId}/configuration`)
+      .send({ configuration: await configurationOf(device), germination: true, preset: { stage: 'germination', preset: null } })
+      .expect(200);
+
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 0 });
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 70 });
+    expect((await owner.client.get(`/v1/devices/${lamp.deviceId}/alarm-rules`).expect(200)).body.germination).toBeNull();
+  });
+
+  /** Drying is as dark for a lamp module as germination (Chris, 2026-11-15). */
+  it('darkens every lamp module of the place while it dries too, and gives their light back when the drying ends', async () => {
+    const { device, spaceId } = await placed('controller');
+    const lamp = await registerDevice('light');
+    await owner.client
+      .post('/v1/devices/claims')
+      .send({ code: await claimCodeOf(lamp.deviceId), joinSpaceId: spaceId })
+      .expect(201);
+    await owner.client.put(`/v1/devices/${lamp.deviceId}/configuration`).send({ configuration: LAMP }).expect(200);
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'drying' }).expect(201);
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'dry' });
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 0 });
+
+    await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'flowering' }).expect(201);
+    expect(await configurationOf(lamp)).toMatchObject({ limit: 70 });
+  });
+
   it('brings a fridge back onto its energy saving when germination ends', async () => {
     const { device, spaceId } = await placed('fridge');
     await owner.client
@@ -123,16 +221,22 @@ describe('the germination preset', () => {
 });
 
 describe('a grow entering germination', () => {
-  it('darkens the place where its climate is asked for, and the next stage brings the light back with the night from before', async () => {
+  it('darkens the place where its climate is asked for, and the next stage brings the light back only with its climate', async () => {
     const { device, spaceId } = await placed('fridge');
     const grow = await growIn(spaceId);
 
     await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'germination', climate: true }).expect(201);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
+    const dark = await configurationOf(device);
+    expect(dark).toMatchObject({ workmode: 'breed', night: { temperature: 24 } });
 
-    // The seedling stage without its climate: the light comes back on the targets that held before germination.
+    // The seedling stage as a record: the device goes on germinating, and what it will come back to is still kept.
     await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'seedling' }).expect(201);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', day: { temperature: 25 }, night: { temperature: 20, humidity: 55 } });
+    expect(await configurationOf(device)).toEqual(dark);
+    expect((await controlOf(device)).afterGermination).toBeDefined();
+
+    // The vegetative stage with its climate: the light is back.
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'vegetative', climate: true }).expect(201);
+    expect(await configurationOf(device)).toMatchObject({ workmode: 'small' });
     expect((await controlOf(device)).afterGermination).toBeUndefined();
   });
 
@@ -178,6 +282,63 @@ describe('a grow entering germination', () => {
     await owner.client.post(`/v1/spaces/${lit.spaceId}/preset-applications`).send({ stage: 'germination' }).expect(201);
     expect(await configurationOf(lit.device)).toMatchObject({ workmode: 'breed' });
     expect(await stageRules(lit.device)).toMatchObject({ 'Too cold': { lower: 20 }, 'Too hot': { upper: 29 }, 'Too humid': { upper: 90 } });
+  });
+});
+
+/**
+ * "Lassen, wie sie sind": a phase without a climate is a record. Drying entered so once put the tent into drying and
+ * its light off, and taking the phase back left it there. So the route is asked for every stage, over a device that
+ * runs its light, one that dries and one that germinates: the document is the same before and after.
+ */
+describe('a phase entered without its climate', () => {
+  const STAGES = ['germination', 'seedling', 'vegetative', 'flowering', 'drying', 'curing'];
+  const held = { lit: {}, drying: { drying: true }, germinating: { germination: true } };
+
+  it.each(Object.keys(held) as (keyof typeof held)[])(
+    'writes nothing to a device that is %s, whatever the stage, and is the grower´s own',
+    async how => {
+      const { device, spaceId } = await placed('controller');
+      await owner.client
+        .put(`/v1/devices/${device.deviceId}/configuration`)
+        .send({ configuration: document(), ...held[how] })
+        .expect(200);
+      const before = await configurationOf(device);
+      const grow = await growIn(spaceId);
+
+      for (const stage of STAGES) {
+        const phase = (await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, preset: null }).expect(201)).body;
+        expect(await configurationOf(device)).toEqual(before);
+        expect(phase).toMatchObject({ stage, source: 'human', setBy: owner.userId });
+      }
+
+      // Taking the last one back writes nothing either.
+      const read = (await owner.client.get(`/v1/grows/${grow}`).expect(200)).body;
+      await owner.client.delete(`/v1/grows/${grow}/phases/${read.phases.at(-1).id}`).expect(204);
+      expect(await configurationOf(device)).toEqual(before);
+    },
+  );
+
+  it.each(STAGES)('writes the climate of %s where it is asked for, with the stage´s own mode, and the phase is still the grower´s', async stage => {
+    const { device, spaceId } = await placed('controller');
+    const grow = await growIn(spaceId);
+
+    const phase = (await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage, climate: true }).expect(201)).body;
+
+    const expected = stage === 'curing' ? 'small' : stage === 'drying' ? 'dry' : stage === 'germination' ? 'breed' : 'small';
+    expect((await configurationOf(device)).workmode).toBe(expected);
+    expect(phase).toMatchObject({ stage, source: 'human', setBy: owner.userId });
+    expect((await owner.client.get(`/v1/grows/${grow}`).expect(200)).body.summary.isAuto).toBe(false);
+  });
+
+  it('leaves the alarms of a lit tent as they are where drying is only recorded', async () => {
+    const { device, spaceId } = await placed('controller');
+    const grow = await growIn(spaceId);
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'flowering', climate: true }).expect(201);
+    const flowering = await stageRules(device);
+
+    await owner.client.post(`/v1/grows/${grow}/phases`).send({ stage: 'drying' }).expect(201);
+
+    expect(await stageRules(device)).toEqual(flowering);
   });
 });
 
@@ -228,7 +389,12 @@ describe('the operating mode of a tent controller', () => {
       .patch(`/v1/devices/${device.deviceId}/configuration`)
       .send({ set: { mode: 'standard' } })
       .expect(200);
-    expect(await configurationOf(device)).toMatchObject({ workmode: 'small', night: { temperature: 20, humidity: 55 } });
+    // Begun where no climate had a name, it ends on "Sämling · mit Licht" (Chris, 2026-11-16).
+    expect(await configurationOf(device)).toMatchObject({
+      workmode: 'small',
+      day: { temperature: 24, humidity: 70 },
+      night: { temperature: 21, humidity: 65 },
+    });
   });
 });
 
@@ -432,6 +598,64 @@ describe('the choices germination makes about the humidity', () => {
       expect(rested[0].rested).toBe(true);
     } finally {
       await simulator.close();
+    }
+  });
+});
+
+/**
+ * A phase chosen at the claim, before the device first reported, had nothing to be written into: the device kept its
+ * own figures, nothing said so, and Start called them "Alles im Ziel". The place keeps the climate it was put on, and
+ * the device is put on it as its first settings arrive.
+ */
+describe('a climate chosen before the device first sent its settings', () => {
+  it('reaches the device with its first settings, and names the preset it was put on', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+    const applied = await owner.client.post(`/v1/spaces/${spaceId}/preset-applications`).send({ stage: 'seedling' }).expect(201);
+    expect(applied.body.deviceIds).toEqual([]);
+    // Said while it waits - "Sämling wird gesetzt, sobald …" -, and no longer once it is set.
+    const awaited = async () => (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.state.awaitedClimate;
+    expect(await awaited()).toEqual({ stage: 'seedling', preset: null });
+
+    const sim = await startSimulator(device);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'awaited-climate', configuration: document() });
+      for (let tries = 0; tries < 50 && (await controlOf(device))?.preset?.stage !== 'seedling'; tries++) await settle(100);
+
+      expect(await controlOf(device)).toMatchObject({ preset: { stage: 'seedling' } });
+      expect(await awaited()).toBeNull();
+      expect(await configurationOf(device)).toMatchObject({
+        day: { temperature: 24, humidity: 70 },
+        night: { temperature: 21, humidity: 65 },
+        lights: { limit: 40 },
+      });
+    } finally {
+      await sim.close();
+    }
+  });
+
+  /** "Was wächst hier?" sets the phase and its climate in one answer: the grow's phase waits on the device all the same. */
+  it('reaches it from the phase a new grow is started in, as from a preset applied to the place', async () => {
+    const device = await provisionDevice(owner, 'controller');
+    const spaceId = (await owner.client.get(`/v1/devices/${device.deviceId}`).expect(200)).body.spaceId;
+    const grow = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Awaited run', type: 'photoperiod', plants: [{ strain: 'Amnesia', count: 1 }], spaceId })
+        .expect(201)
+    ).body;
+    await owner.client.post(`/v1/grows/${grow.id}/phases`).send({ stage: 'vegetative', preset: null, climate: true }).expect(201);
+
+    const sim = await startSimulator(device);
+    try {
+      await settle();
+      await sim.publish('fetch', { firmware_id: 'awaited-phase', configuration: document() });
+      for (let tries = 0; tries < 50 && (await controlOf(device))?.preset?.stage !== 'vegetative'; tries++) await settle(100);
+
+      expect(await controlOf(device)).toMatchObject({ preset: { stage: 'vegetative' } });
+    } finally {
+      await sim.close();
     }
   });
 });

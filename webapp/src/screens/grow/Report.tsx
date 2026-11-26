@@ -2,26 +2,28 @@ import { Download, Leaf } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import type { GrowListItem, GrowReportPhase, Space } from '@fg2/shared-types/v1';
 import { exportFilename, useAskExport, useDownloadExport } from '@/api/exports';
-import { useGrowPhotoLines } from '@/api/entries';
-import { useGrowReport } from '@/api/grows';
+import { useGrowPlants, useGrowReport } from '@/api/grows';
 import { isBuilding, useMedia } from '@/api/media';
 import { THUMBNAIL_WIDTH, mediaUrl } from '@/api/session';
-import { EntryRow } from '@/ui/EntryRow';
 import { useCorrecting } from '@/log/corrections';
 import { durationFigure } from '@/ui/age';
-import { dayNightFigure, decimalFigure, fileSize } from '@/ui/figures';
+import { dayNightFigure, decimalFigure, fileSize, looseFigure } from '@/ui/figures';
 import { growDayOf } from '@/ui/entries';
+import { Facts } from '@/ui/Facts';
 import { Term } from '@/ui/Help';
+import { Lines } from '@/ui/Lines';
 import { LoadFailed, RefreshFailed, Refused, Waiting } from '@/ui/PageState';
-import { PictureViewer } from '@/ui/PictureViewer';
-import { useZone } from '@/ui/zone';
-import { pictureCaption, picturesOf } from './photos';
 import { useShape } from '@/app/shell/shape';
 import { growStanding } from '@/ui/session-access';
 import ui from '@/ui/ui.module.css';
 import { stageLabel } from '@/ui/presets';
+import { useNow } from '@/ui/useNow';
+import { DAY_IN_YEAR, useZone, zoned } from '@/ui/zone';
+import { harvestWord, writtenLine } from './diary/days';
+import { DiaryLine } from './diary/DiaryLine';
 import { placeName } from './placement';
 import styles from './Report.module.css';
 
@@ -34,60 +36,67 @@ import styles from './Report.module.css';
  * wants it as the record rather than as a screen, and the record of a grow is
  * what this tab already is, so the zip is offered at the end of it.
  */
-export function Report({ grow, spaces, mayOwn, now }: { grow: GrowListItem; spaces: Space[]; mayOwn: boolean; now: DateTime }) {
+export function Report({
+  grow,
+  spaces,
+  mayOwn,
+  now,
+  picturesTo,
+}: {
+  grow: GrowListItem;
+  spaces: Space[];
+  mayOwn: boolean;
+  now: DateTime;
+  /** The grow's pictures, which the count of them leads to. */
+  picturesTo: string;
+}) {
   const { t } = useTranslation();
-  const zone = useZone();
   const report = useGrowReport(grow.id);
-  const lines = useGrowPhotoLines(grow.id);
-  const [viewing, setViewing] = useState(false);
-  const pictures = picturesOf(grow, lines.data);
+  const plants = useGrowPlants(grow.id);
 
   if (report.isPending) return <Waiting lines={4} />;
   if (!report.data) return <LoadFailed retry={() => void report.refetch()} />;
 
   const { totals, harvest } = report.data;
-  // What "in band" means is said on the first chapter that states a share of it.
-  const bandTeacher =
-    report.data.phases.find(chapter => chapter.inBandPercent !== null && chapter.climate.some(row => row.metric === 'temperature')) ?? null;
 
   return (
     <div className={styles.report}>
       <RefreshFailed failedAt={report.isError ? report.dataUpdatedAt : null} now={now} />
 
       <dl className={`${ui.strip} ${ui.stripEven} ${styles.totals}`}>
-        <Total value={report.data.dayCount} label={t('grow.report.days')} />
-        <Total value={totals.entryCount} label={t('grow.report.entries')} />
-        <Total value={totals.waterCount} label={t('grow.report.waters')} />
-        <Total value={totals.feedCount} label={t('grow.report.feeds')} />
-        <Total value={totals.photoCount} label={t('grow.report.photos')} onOpen={pictures.length > 0 ? () => setViewing(true) : undefined} />
-      </dl>
-      {viewing ? (
-        <PictureViewer
-          pictures={pictures.map(picture => mediaUrl(picture.mediaId, THUMBNAIL_WIDTH.frame) ?? '')}
-          captions={pictures.map(picture => pictureCaption(t, picture, zone))}
-          from={pictures.length - 1}
-          onClose={() => setViewing(false)}
+        {/* Each label counts its own figure: "1 day", not "1 days". */}
+        <Total value={report.data.dayCount} label={t('grow.report.days', { count: report.data.dayCount })} />
+        <Total value={totals.entryCount} label={t('grow.report.entries', { count: totals.entryCount })} />
+        <Total value={totals.waterCount} label={t('grow.report.waters', { count: totals.waterCount })} />
+        <Total value={totals.feedCount} label={t('grow.report.feeds', { count: totals.feedCount })} />
+        <Total
+          value={totals.photoCount}
+          label={t('grow.report.photos', { count: totals.photoCount })}
+          to={totals.photoCount > 0 ? picturesTo : undefined}
         />
-      ) : null}
+      </dl>
 
       {harvest ? (
-        <p className={`mono ${styles.harvest}`}>
-          {t('grow.report.harvest')}
-          {harvest.wetWeightG !== null ? ` · ${t('grow.report.wet', { grams: harvest.wetWeightG })}` : ''}
-          {harvest.dryWeightG !== null ? ` · ${t('grow.report.dry', { grams: harvest.dryWeightG })}` : ''}
+        <p className={styles.harvest}>
+          {harvestWord(t, harvest, plants.data?.items ?? [])}
+          {harvest.wetWeightG !== null ? ` · ${t('grow.report.wet', { grams: looseFigure(harvest.wetWeightG) })}` : ''}
+          {harvest.dryWeightG !== null ? ` · ${t('grow.report.dry', { grams: looseFigure(harvest.dryWeightG) })}` : ''}
         </p>
       ) : null}
 
-      {report.data.phases.length === 0 ? <p className={styles.empty}>{t('grow.noWeeks')}</p> : null}
+      {/* A grow that ended without a phase has none coming: said as how long it ran, which its chapters would have told. */}
+      {report.data.phases.length === 0 ? (
+        <p className={styles.empty}>{grow.endedAt ? t('grow.report.noPhaseEnded', { count: report.data.dayCount }) : t('grow.report.noPhase')}</p>
+      ) : null}
 
       {report.data.phases.map(chapter => (
         <Chapter
           key={chapter.phaseId}
           chapter={chapter}
           grow={grow}
+          plantCount={plants.data?.items.length ?? null}
           people={report.data.people}
           spaces={spaces}
-          explainBand={chapter === bandTeacher}
         />
       ))}
 
@@ -126,7 +135,7 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
         {/* The climate is in it only where a device measured one. */}
         <p className={ui.note}>{t(steering ? 'grow.report.export.note' : 'grow.report.export.noteNoClimate')}</p>
         {status === 'queued' || status === 'rendering' ? (
-          <p className={`mono ${styles.exportStatus}`} role="status">
+          <p className={styles.exportStatus} role="status">
             {t(`grow.report.export.${status}`)}
           </p>
         ) : null}
@@ -169,14 +178,14 @@ function Export({ growId, mayOwn }: { growId: string; mayOwn: boolean }) {
 }
 
 /** One figure of the grow; the photos open the pictures they count. */
-function Total({ value, label, onOpen }: { value: number; label: string; onOpen?: () => void }) {
+function Total({ value, label, to }: { value: number; label: string; to?: string }) {
   return (
     <div>
       <dd className={`figure ${ui.stripValue} ${styles.totalValue}`}>
-        {onOpen ? (
-          <button type="button" className={styles.totalOpen} onClick={onOpen}>
+        {to ? (
+          <Link to={to} replace className={styles.totalOpen}>
             {value}
-          </button>
+          </Link>
         ) : (
           value
         )}
@@ -189,77 +198,93 @@ function Total({ value, label, onOpen }: { value: number; label: string; onOpen?
 function Chapter({
   chapter,
   grow,
+  plantCount,
   people,
   spaces,
-  explainBand,
 }: {
   chapter: GrowReportPhase;
   grow: GrowListItem;
+  /** How many plants the grow has, which a split's chapter says its own of. */
+  plantCount: number | null;
   people: { id: string; handle: string }[];
   spaces: Space[];
-  /** The first chapter that states its share in band, which says once what the band is. */
-  explainBand: boolean;
 }) {
   const { t } = useTranslation();
+  const zone = useZone();
+  const now = useNow();
   const correcting = useCorrecting();
   const cover = chapter.coverMediaId ? mediaUrl(chapter.coverMediaId, THUMBNAIL_WIDTH.cover * 2) : null;
   const temperature = chapter.climate.find(row => row.metric === 'temperature');
   const humidity = chapter.climate.find(row => row.metric === 'humidity');
   const where = (chapter.spaceIds ?? []).map(id => placeName(t, spaces, id)).join(', ');
+  const stage = stageLabel(t, chapter.stage, chapter.preset);
+  // A phase only some of the plants entered is a chapter of its own, named by how many of them: "Blüte · 1 von 2 Pflanzen".
+  const split = grow.phases.find(phase => phase.id === chapter.phaseId)?.plantIds ?? null;
 
   return (
     <article className={styles.chapter}>
-      <span className={styles.cover}>{cover ? <img src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}</span>
+      <span className={styles.cover}>
+        {cover ? <img className={ui.cover} src={cover} alt="" loading="lazy" /> : <Leaf size={22} strokeWidth={1.5} aria-hidden />}
+      </span>
       <div className={styles.chapterText}>
-        <h2 className={styles.chapterTitle}>{stageLabel(t, chapter.stage, chapter.preset)}</h2>
-        <p className={`mono ${styles.chapterMeta}`}>
-          {chapter.dayTo === null
-            ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
-            : t('grow.dayRange', { from: chapter.dayFrom, to: chapter.dayTo })}
-          {` · ${t('grow.days', { count: chapter.dayCount })}`}
-          {where ? ` · ${where}` : ''}
-        </p>
-        {/* The same three figures a week card of this grow carries, in the same
+        <h2 className={styles.chapterTitle}>{split && plantCount ? t('grow.splitOf', { stage, part: split.length, count: plantCount }) : stage}</h2>
+        <Facts
+          className={styles.chapterMeta}
+          facts={[
+            chapter.dayTo === null
+              ? t('grow.report.dayFromToToday', { from: chapter.dayFrom })
+              : t('grow.dayRange', { from: chapter.dayFrom, to: chapter.dayTo }),
+            t('grow.days', { count: chapter.dayCount }),
+            where,
+          ]}
+        />
+        {/* The same three figures a day card of this grow carries, in the same
             order - the temperatures, the humidity and the hours of light - and
             then how much of the chapter sat inside its own band. The light was
             the one the report left out, though the server had measured it for
             the day and night split this line is already drawn from. */}
         {temperature ? (
-          <p className={`mono ${styles.chapterMeta}`}>
-            {`${dayNightFigure(temperature, 1)} °C`}
-            {humidity?.averageValue !== null && humidity !== undefined ? ` · ${decimalFigure(humidity.averageValue, 0)} %` : ''}
-            {chapter.lightHours !== null ? ` · ${durationFigure(decimalFigure(chapter.lightHours, 0), 'h')}` : ''}
-            {chapter.inBandPercent !== null ? (
-              <>
-                {' · '}
-                {explainBand ? (
-                  <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>
-                ) : (
-                  t('space.inBand', { percent: Math.round(chapter.inBandPercent) })
-                )}
-              </>
-            ) : null}
-          </p>
+          <Facts
+            className={styles.chapterMeta}
+            facts={[
+              `${dayNightFigure(temperature, 1)} °C`,
+              humidity?.averageValue !== null && humidity !== undefined ? `${decimalFigure(humidity.averageValue, 0)} %` : null,
+              chapter.lightHours !== null ? durationFigure(decimalFigure(chapter.lightHours, 0), 'h') : null,
+              // Every chapter's share carries its help alike: the first alone underlined read as the one figure that had any.
+              chapter.inBandPercent === null ? null : <Term topic="band">{t('space.inBand', { percent: Math.round(chapter.inBandPercent) })}</Term>,
+            ]}
+          />
         ) : null}
-        <p className={`mono ${styles.chapterMeta}`}>
-          {t('grow.report.waterCount', { count: chapter.waterCount })} · {t('grow.report.feedCount', { count: chapter.feedCount })}
-        </p>
-        {chapter.training.length > 0 ? (
-          <ul className={styles.training}>
-            {chapter.training.map(entry => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                people={people}
-                picture={mediaUrl}
-                measurements={grow.measurements}
-                day={growDayOf(grow, entry.occurredAt)}
-                onOpen={correcting(entry, { label: grow.name, dayNumber: growDayOf(grow, entry.occurredAt), ...growStanding(grow) })}
-              />
-            ))}
-          </ul>
-        ) : null}
+        <Facts
+          className={styles.chapterMeta}
+          facts={[t('grow.report.waterCount', { count: chapter.waterCount }), t('grow.report.feedCount', { count: chapter.feedCount })]}
+        />
       </div>
+      {/* Under the cover and the story, across the card: a line of training has the card's width to be read in. */}
+      {chapter.training.length > 0 ? (
+        <div className={styles.training}>
+          <Lines>
+            {chapter.training.map(entry => {
+              const day = growDayOf(grow, entry.occurredAt);
+              return (
+                <DiaryLine
+                  key={entry.id}
+                  line={writtenLine(entry)}
+                  stamp={[day === null ? null : t('home.card.dayN', { day }), zoned(entry.occurredAt, zone).toFormat(DAY_IN_YEAR)]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  zone={zone}
+                  now={now}
+                  people={people}
+                  measurements={grow.measurements}
+                  byline
+                  onOpen={correcting(entry, { label: grow.name, dayNumber: day, ...growStanding(grow) })}
+                />
+              );
+            })}
+          </Lines>
+        </div>
+      ) : null}
     </article>
   );
 }

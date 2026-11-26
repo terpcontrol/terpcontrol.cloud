@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { useRead } from './read';
-import type { ChartView, ChartViewCreate, ChartViewPage, ChartViewUpdate } from '@fg2/shared-types/v1';
+import type { ChartView, ChartViewCreate, ChartViewPage } from '@fg2/shared-types/v1';
 import { api } from './client';
 import { invalidate, useWrite } from './write';
 
@@ -17,16 +17,15 @@ import { invalidate, useWrite } from './write';
 const chartViewsKey = ['chart-views'];
 
 /** One page is every view this account has, so there is no cursor to follow. */
-export const useChartViews = () =>
+export const useChartViews = (enabled = true) =>
   useRead({
     queryKey: chartViewsKey,
     queryFn: ({ signal }) => api.get<ChartViewPage>('/chart-views', { limit: 100 }, signal),
+    enabled,
   });
 
 const viewsChanged = (client: QueryClient): void => void invalidate(client, chartViewsKey);
 
 export const useSaveChartView = () => useWrite((body: ChartViewCreate) => api.post<ChartView>('/chart-views', body), viewsChanged);
 
-export const useRenameChartView = (id: string) => useWrite((body: ChartViewUpdate) => api.patch<ChartView>(`/chart-views/${id}`, body), viewsChanged);
-
-export const useDeleteChartView = (id: string) => useWrite(() => api.delete(`/chart-views/${id}`), viewsChanged);
+export const useDeleteChartView = () => useWrite((id: string) => api.delete(`/chart-views/${id}`), viewsChanged);

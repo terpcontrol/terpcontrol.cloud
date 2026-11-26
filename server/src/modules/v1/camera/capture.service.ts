@@ -8,6 +8,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
 import { runFfmpeg, streamSlot } from './ffmpeg';
+import { saidOfStream } from './stream-url';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
 /**
@@ -174,11 +175,12 @@ export class CaptureService {
       // What ffmpeg wrote says why, where its exit message only says that it
       // failed - and the caller puts this reason in front of a person. Redacted
       // because ffmpeg quotes the whole command line back, URL credentials and
-      // all, and this text reaches a log and a diary entry. A run that was ended
-      // for taking too long says so: what it wrote until then is not why.
+      // all, and this text reaches a log and a diary entry; and in the address
+      // the person gave, not the tunnel's port here. A run that was ended for
+      // taking too long says so: what it wrote until then is not why.
       const reason =
         attempt.failure instanceof CorruptFrameError || attempt.timedOut ? attempt.failure.message : attempt.stderr.trim() || attempt.failure.message;
-      attempt.failure.message = withoutCredentials(reason);
+      attempt.failure.message = withoutCredentials(saidOfStream(reason, streamUrl, camera.url));
       throw attempt.failure;
     }
 

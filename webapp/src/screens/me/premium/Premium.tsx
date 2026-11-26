@@ -3,15 +3,19 @@ import type { DateTime } from 'luxon';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import type { Camera, Me, PremiumFree } from '@fg2/shared-types/v1';
-import { RENEWAL_WINDOW_DAYS } from '@fg2/shared-types/v1-schemas/entitlement.js';
 import { useMe } from '@/api/account';
 import { useCameras } from '@/api/cameras';
 import { useDevices } from '@/api/devices';
 import { useSession } from '@/api/session';
 import { useSpaces } from '@/api/spaces';
 import type { Translate } from '@/i18n/i18n';
+import { camerasCalled } from '@/ui/camera-name';
+import { factsOf } from '@/ui/fact-text';
+import { Facts } from '@/ui/Facts';
+import { Help } from '@/ui/Help';
 import { cameraTitle } from '@/ui/naming';
-import { LoadFailed, RefreshFailed, Waiting } from '@/ui/PageState';
+import { together } from '@/api/read';
+import { LoadFailed, NothingHere, RefreshFailed, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { useNow } from '@/ui/useNow';
 import { calendarDay, useZone } from '@/ui/zone';
@@ -79,7 +83,6 @@ export function Premium() {
       <MePage title={title}>
         <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.demo')}</p>
         <Covers free={null} />
-        <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
       </MePage>
     );
   }
@@ -99,61 +102,36 @@ function Account({ title }: { title: string }) {
   // which of them is about to run out.
   const spaces = useSpaces();
 
-  if (me.isPending || cameras.isPending) {
-    return (
-      <MePage title={title}>
-        <Waiting lines={4} />
-      </MePage>
-    );
-  }
-
   if (!me.data || !cameras.data) {
-    return (
-      <MePage title={title}>
-        <LoadFailed
-          retry={() => {
-            void me.refetch();
-            void cameras.refetch();
-          }}
-        />
-      </MePage>
-    );
+    return <MePage title={title}>{me.isPending || cameras.isPending ? <Waiting lines={4} /> : <LoadFailed read={together(me, cameras)} />}</MePage>;
   }
 
   const premium = me.data.premium;
-  const list = cameras.data.items;
+  // Premium is the camera owner's to see and to extend: a host's camera is not listed to whoever was let into its place.
+  const list = cameras.data.items.filter(camera => camera.ownerId === me.data.id);
   const failedAt = me.isError ? me.dataUpdatedAt : cameras.isError ? cameras.dataUpdatedAt : null;
   const placeOf = (id: string | null): string | null => spaces.data?.items.find(space => space.id === id)?.name ?? null;
+  // A camera nobody named is drawn by what is printed on the cam, and without that where it is the only such one.
+  const titles = list.map(camera => cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t));
+  const called = camerasCalled(titles);
 
   return (
     <MePage title={title}>
       <RefreshFailed failedAt={failedAt} now={now} />
 
-      {!premium.enforced ? <p className={`${ui.card} ${styles.lead}`}>{t('me.premium.ungated')}</p> : null}
+      {!premium.enforced ? <p className={ui.note}>{t('me.premium.ungated')}</p> : null}
 
       {list.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.premium.noCameras')}</p>
+        <NothingHere>{t('me.premium.noCameras')}</NothingHere>
       ) : (
         <ul className={ui.group}>
-          {list.map(camera => (
-            <CameraCard
-              key={camera.id}
-              camera={camera}
-              // A camera a controller paired carries that controller's type as
-              // its name until somebody renames it, so it is drawn the way
-              // every other screen draws it - by what is printed on the cam -
-              // rather than as a second row called "controller".
-              name={cameraTitle(camera, devices.data?.items.find(device => device.id === camera.deviceId) ?? null, t)}
-              place={placeOf(camera.spaceId)}
-              premium={premium}
-              now={now}
-            />
+          {list.map((camera, index) => (
+            <CameraCard key={camera.id} camera={camera} name={called[index]} place={placeOf(camera.spaceId)} premium={premium} now={now} />
           ))}
         </ul>
       )}
 
       <Covers free={premium.free} />
-      <p className={ui.note}>{t('me.premium.perCamera', { days: RENEWAL_WINDOW_DAYS })}</p>
     </MePage>
   );
 }
@@ -192,25 +170,22 @@ function CameraCard({
   const offered = enforced && premium.extendUrl !== null && camera.entitlement.renewalVisible;
 
   return (
-    <li className={`${ui.card} ${styles.camera}`}>
-      <div className={styles.cameraHead}>
+    <li className={`${ui.card} ${ui.stack1}`}>
+      <div className={ui.headRow}>
         <span className={styles.cameraName}>
           <Link to={`/cameras/${camera.id}`}>{name}</Link>
-          <span className={`mono ${styles.kind}`}>
-            · {t(`me.premium.kind.${camera.kind}`)}
-            {place ? ` · ${place}` : ''}
-          </span>
+          <Facts className={styles.kind} facts={[...factsOf(t(`me.premium.kind.${camera.kind}`)).filter(word => word !== factsOf(name)[0]), place]} />
           {enforced && entitled ? <span className={styles.chip}>{t('me.premium.tier.premium')}</span> : null}
         </span>
         {enforced ? (
-          <span className={`mono ${styles.until}`} data-tier={tier}>
+          <span className={styles.until} data-tier={tier}>
             {entitled ? (validUntil ? t('me.premium.until', { date: calendarDay(validUntil, zone) }) : '') : t('me.premium.tier.free')}
           </span>
         ) : null}
       </div>
       <p className={`${ui.note} ${styles.line}`}>{lineOf(t, camera, premium, zone)}</p>
       {days !== null ? (
-        <p className={`mono ${styles.ending}`} role="status">
+        <p className={styles.ending} role="status">
           {days === 0 ? t('me.premium.endsToday') : t('me.premium.endsIn', { count: days })}
         </p>
       ) : null}
@@ -260,9 +235,12 @@ function Covers({ free }: { free: PremiumFree | null }) {
 
   return (
     <section className={styles.covers}>
-      <header className={styles.coversHead}>
-        <span className="label">{t('me.premium.covers')}</span>
-        <span className={`mono ${styles.only}`}>{t('me.premium.camerasOnly')}</span>
+      <header className={ui.headRow}>
+        <span className="label">
+          {t('me.premium.covers')}
+          <Help topic="premiumCamera" />
+        </span>
+        <span className={styles.only}>{t('me.premium.camerasOnly')}</span>
       </header>
       <div className={ui.tableCard}>
         <table className={styles.table}>
@@ -308,7 +286,7 @@ function Offer({ camera, premium }: { camera: Camera; premium: Me['premium'] }) 
   return (
     <a className={`${ui.button} ${styles.offer}`} href={premium.extendUrl!} target="_blank" rel="noreferrer">
       {camera.entitlement.grant === null ? t('me.premium.get') : t('me.premium.extend')}
-      {premium.priceLabel ? <span className={`mono ${styles.price}`}> · {premium.priceLabel}</span> : null}
+      {premium.priceLabel ? <span className={styles.price}> · {premium.priceLabel}</span> : null}
     </a>
   );
 }

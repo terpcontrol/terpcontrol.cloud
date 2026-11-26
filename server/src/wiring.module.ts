@@ -14,6 +14,7 @@ import {
   DEVICE_METRIC_SINK,
   DEVICE_PRESENCE_SINK,
   DEVICE_SAMPLE_SINK,
+  DEVICE_SETTINGS_SINK,
   DEVICE_TUNNEL_SINK,
 } from '@modules/device-protocol/device-sinks';
 import { TunnelModule } from '@modules/tunnel/tunnel.module';
@@ -27,7 +28,7 @@ import { RELAY_REQUEST } from '@modules/v1/camera/relay-request';
 import { FirmwareRolloutService } from '@modules/v1/fleet/firmware-rollout.service';
 import { FleetModule } from '@modules/v1/fleet/fleet.module';
 import { CLIMATE_PRESETS } from '@modules/v1/grow/climate-presets.port';
-import { ALARM_ROUTING, GROW_IN_SPACE } from '@modules/alarm/alarm.types';
+import { ALARM_ROUTING } from '@modules/alarm/alarm.types';
 import { GerminationAlarmsService } from '@modules/alarm/germination-alarms.service';
 import { StageAlarmsService } from '@modules/alarm/stage-alarms.service';
 import { NotificationModule } from '@modules/v1/notification/notification.module';
@@ -79,6 +80,9 @@ const PORTS: ExistingProvider[] = [
   // A grow entering a phase with a preset puts the tent it stands in on that
   // climate, which is the space slice's table and the space slice's write.
   { provide: CLIMATE_PRESETS, useExisting: ClimatePresetsService },
+  // And a device that had no settings to write that climate into is put on it as they arrive, which the protocol
+  // module only knows to tell.
+  { provide: DEVICE_SETTINGS_SINK, useExisting: ClimatePresetsService },
   // And the same phase moves the thresholds the stage binds, which are rules
   // the alarms own and the phase writer only knows the stage of.
   { provide: STAGE_ALARMS, useExisting: StageAlarmsService },
@@ -93,9 +97,6 @@ const PORTS: ExistingProvider[] = [
   // plan knows it is standing still, and who keeps the tent and what each of
   // them asked to be told on is the notifications part's to answer.
   { provide: PLAN_ANNOUNCER, useExisting: PlanAnnouncerService },
-  // And an alarm belongs in the diary of whatever is growing where it
-  // happened, which the phase writer answers from the grows' placements.
-  { provide: GROW_IN_SPACE, useExisting: PhaseWriterService },
 ];
 
 /**

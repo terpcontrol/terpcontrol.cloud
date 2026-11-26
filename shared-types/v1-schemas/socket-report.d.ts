@@ -51,6 +51,12 @@ export declare const TIMED_SOCKET_ROLES: readonly string[];
  * what they have not announced is not something a newer build would bring.
  */
 export declare const SOCKET_HOST_TYPES: readonly string[];
+/**
+ * The device types that hold a climate by targets of their own. A fan, a smart
+ * socket and a lamp hang in the climate of one of these, which is why a claim
+ * may name the place such a device joins (`DeviceClaimCreate.joinSpaceId`).
+ */
+export declare const OWN_CLIMATE_TYPES: readonly string[];
 /** Sockets per `socket_list<k>` chunk; it has to match what the firmware sends (`wifi.cpp`). */
 export declare const SOCKETS_PER_REPORT_CHUNK = 3;
 export declare const socketListKey: (chunk: number) => string;

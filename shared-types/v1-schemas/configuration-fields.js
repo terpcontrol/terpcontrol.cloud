@@ -24,7 +24,7 @@
  * different places. No schema, so a client imports it without pulling zod in.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.figureAt = exports.valueAt = exports.nestedAt = exports.finiteOrNull = exports.sectionOf = exports.isSection = exports.configurationFieldsOf = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
+exports.DEVICE_SETTING_RANGES = exports.co2PlugOf = exports.co2InjectFor = exports.dosesInWindows = exports.co2FanKey = exports.co2FanOf = exports.figureAt = exports.valueAt = exports.nestedAt = exports.finiteOrNull = exports.sectionOf = exports.isSection = exports.configurationFieldsOf = exports.TARGET_RANGES = exports.CONFIGURATION_FIELDS = exports.FAN_MODES = exports.MOST_TIMER_WINDOWS = exports.CO2_DOSINGS = exports.switchPointName = exports.SWITCH_POINT_RANGE = exports.PLUG_SWITCHING = exports.PLUG_MODES = exports.MIN_COMPRESSOR_REST_SECONDS = exports.workModeOf = exports.workModesOf = exports.WORK_MODES_BY_TYPE = exports.WORK_MODES = exports.OPERATING_MODES = void 0;
 /**
  * What a fridge or a controller is set to do as a whole, in a person's words:
  * the standard climate control, temperature only (the firmware's `temp`), or
@@ -194,6 +194,23 @@ exports.CONFIGURATION_FIELDS = {
     plug: PLUG,
     fan: FAN,
     light: LIGHT,
+};
+/**
+ * The targets a person sets - on Steuerung, in a plan step, in the claim - each
+ * with the range it may be set in, by every device that holds them. A figure
+ * outside it is refused, on the field and by the server, and never moved into
+ * it: what is written to a device is what was typed. The firmware reads wider
+ * ranges (0 to 40 °C); a figure a device already holds outside these - set by
+ * its own menu or an older app - is kept until somebody changes it, and what
+ * the server writes itself (a climate preset, a drying spell) lies inside them.
+ */
+exports.TARGET_RANGES = {
+    'day.temperature': { min: 15, max: 35, step: 0.5 },
+    'night.temperature': { min: 15, max: 35, step: 0.5 },
+    'day.humidity': { min: 30, max: 90, step: 1 },
+    'night.humidity': { min: 30, max: 90, step: 1 },
+    'co2.target': { min: 400, max: 1500, step: 50 },
+    'lights.limit': { min: 0, max: 100, step: 5 },
 };
 /** The fields a type of device offers; none for a type this table does not know. */
 const configurationFieldsOf = (type) => exports.CONFIGURATION_FIELDS[type] ?? {};

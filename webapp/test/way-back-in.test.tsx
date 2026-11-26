@@ -20,7 +20,15 @@ import { translate } from './translations';
 
 const problem = (status: number, code: string): Problem => ({ status, code, title: 'Refused', detail: '', errors: [] });
 
-const server = { wrote: [] as { method: string; path: string; body: unknown }[], redeem: 204, activate: 204, devices: [] as Device[] };
+const server = {
+  wrote: [] as { method: string; path: string; body: unknown }[],
+  redeem: 204,
+  activate: 204,
+  devices: [] as Device[],
+  /** The codes a recovery mail went out with and nobody has used. */
+  codes: ['1b2c-code'],
+  asked: [] as string[],
+};
 
 const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const path = String(input).replace(/^.*\/v1/, '');
@@ -29,6 +37,11 @@ const fetchStub = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Pr
   if (method !== 'GET') server.wrote.push({ method, path, body });
 
   if (method === 'POST' && path === '/password-resets') return new Response(null, { status: 202 });
+  if (method === 'GET' && path.startsWith('/password-resets/')) {
+    const code = decodeURIComponent(path.slice('/password-resets/'.length));
+    server.asked.push(code);
+    return server.codes.includes(code) ? new Response(null, { status: 204 }) : json(problem(404, 'reset_unknown'), 404);
+  }
   if (method === 'POST' && path.endsWith('/redemptions'))
     return server.redeem === 204 ? new Response(null, { status: 204 }) : json(problem(404, 'reset_unknown'), 404);
   if (method === 'POST' && path === '/users/activations')
@@ -78,6 +91,8 @@ beforeEach(() => {
   server.redeem = 204;
   server.activate = 204;
   server.devices = [];
+  server.asked = [];
+  server.codes = ['1b2c-code'];
 });
 
 afterEach(async () => {
@@ -89,10 +104,10 @@ afterEach(async () => {
 describe('a forgotten password', () => {
   it('is a link under the password that carries the address already typed', async () => {
     draw('/sign-in');
-    fillIn('Email', 'you@example.com');
+    fillIn('E-mail', 'you@example.com');
     fireEvent.click(screen.getByRole('link', { name: 'Forgot password?' }));
 
-    expect(await screen.findByLabelText('Email')).toHaveValue('you@example.com');
+    expect(await screen.findByLabelText('E-mail')).toHaveValue('you@example.com');
   });
 
   it('asks for the mail and says it is on its way, whether or not the address has an account', async () => {
@@ -110,9 +125,24 @@ describe('a forgotten password', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     expect(await screen.findByLabelText('New password')).toBeInTheDocument();
+    expect(server.asked).toEqual(['1b2c-code']);
+  });
+
+  /** A mistyped code was refused only after a new password had been chosen, and as a link "used already or run out". */
+  it('refuses a mistyped code where it was typed, in its own words, before any new password is asked', async () => {
+    draw('/recover');
+    fireEvent.click(screen.getByRole('button', { name: 'I already have a code' }));
+    fillIn('Code from the mail', '1b2c-cod');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No recovery is waiting for this code. Compare it with the mail');
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Code from the mail')).toHaveValue('1b2c-cod');
+    expect(server.wrote).toEqual([]);
   });
 
   it('sets the new password with the token and sends the reader to sign in with it', async () => {
+    server.codes = ['tok-1'];
     draw('/recover/tok-1');
     fillIn('New password', 'a new secret');
     fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
@@ -121,14 +151,24 @@ describe('a forgotten password', () => {
     expect(server.wrote).toEqual([{ method: 'POST', path: '/password-resets/tok-1/redemptions', body: { password: 'a new secret' } }]);
   });
 
-  it('says a spent link is spent, with the way to a new one', async () => {
+  /** A spent link asked for a new password first, and only then said it was spent. */
+  it('says a spent link is spent as it opens, before a new password is asked, with the way to a new one', async () => {
+    draw('/recover/tok-old');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('has been used already or has run out');
+    expect(screen.getByRole('link', { name: 'Ask for a new mail' })).toHaveAttribute('href', '/recover');
+    expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+    expect(server.wrote).toEqual([]);
+  });
+
+  it('says a link spent while it stood open is spent when the password is set', async () => {
+    server.codes = ['tok-old'];
     server.redeem = 404;
     draw('/recover/tok-old');
     fillIn('New password', 'a new secret');
     fireEvent.click(screen.getByRole('button', { name: 'Set password' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('has been used already or has run out');
-    expect(screen.getByRole('link', { name: 'Ask for a new mail' })).toHaveAttribute('href', '/recover');
   });
 });
 

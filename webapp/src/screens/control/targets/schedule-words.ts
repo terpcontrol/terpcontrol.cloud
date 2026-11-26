@@ -6,7 +6,7 @@ import type { LightSchedule } from './targets-draft';
 
 /**
  * A light schedule in words, the same wherever one is named: the targets
- * page, the cockpit, a preset applied at setup or with a phase, a plan's step.
+ * page, a preset applied at setup or with a phase, a plan's step.
  *
  * The window is said whole - when it comes on, when it goes off, how long -
  * because light hours set from the hour the device already has can burn until

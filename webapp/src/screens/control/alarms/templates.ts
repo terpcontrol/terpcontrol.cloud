@@ -1,3 +1,4 @@
+import { ruleTitle } from '@/i18n/alarm-line';
 import type { AlarmRule, AlarmRuleCreate, Device, OutputMetric } from '@fg2/shared-types/v1';
 import type { Translate } from '@/i18n/i18n';
 import { CRITICAL_REPEAT_SECONDS } from '@fg2/shared-types/v1-schemas/alert-routing.js';
@@ -141,13 +142,29 @@ export const ruleFor = (rules: AlarmRule[], template: AlarmTemplate): AlarmRule 
   );
 };
 
-/** The rule a template writes, named in the reader's language as anything typed into the sheet would be. */
-export const templateBody = (t: Translate, template: AlarmTemplate): AlarmRuleCreate => {
+/**
+ * The name each template's rule is stored under: one `ruleTitle` knows, as a stage's rules are, so that it reads in
+ * the language of whoever looks - an account that changes its language, a second person in the place.
+ */
+const STORED_NAME: Record<TemplateKey, string> = {
+  warm: 'Too hot',
+  cold: 'Too cold',
+  humid: 'Too humid',
+  dry: 'Too dry',
+  co2Empty: 'CO₂ cylinder empty',
+  running: 'Fridge runs without a break',
+};
+
+/** What a template's rule is called, before and after it is made. */
+export const templateName = (t: Translate, template: AlarmTemplate): string => ruleTitle(t, { name: STORED_NAME[template.key] });
+
+/** The rule a template writes. */
+export const templateBody = (template: AlarmTemplate): AlarmRuleCreate => {
   const { watch } = template;
 
   return createBody({
     ...emptyDraft(watch.kind === 'reading' ? { kind: 'reading', metric: watch.metric } : { kind: 'output_running', output: watch.output }),
-    name: t(`alarms.template.${template.key}.name`),
+    name: STORED_NAME[template.key],
     upper: watch.kind === 'reading' && watch.edge === 'upper' ? String(watch.value) : '',
     lower: watch.kind === 'reading' && watch.edge === 'lower' ? String(watch.value) : '',
     forMinutes: template.forMinutes,

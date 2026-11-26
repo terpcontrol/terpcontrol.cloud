@@ -307,6 +307,45 @@ describe('a link that is already out of the house', () => {
     expect((await owner.client.get(`/v1/spaces/${room}/timeline?range=7d`).expect(200)).body.growId).toBe(now.id);
   });
 
+  it('on a grow for a stretch of days, shows the curves of where the grow stood then, each over its stay, and of nowhere else', async () => {
+    const daysAgo = (days: number): string => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+    const place = async (name: string) => (await owner.client.post('/v1/spaces').send({ kind: 'tent', name }).expect(201)).body.id as string;
+    const [first, second, never] = [await place('Curves first'), await place('Curves second'), await place('Curves never')];
+
+    const run = (
+      await owner.client
+        .post('/v1/grows')
+        .send({ name: 'Curves run', type: 'photoperiod', startedAt: daysAgo(20), plants: [], spaceId: first })
+        .expect(201)
+    ).body;
+    await owner.client
+      .post(`/v1/grows/${run.id}/placements`)
+      .send({ spaceId: second, startedAt: daysAgo(10) })
+      .expect(201);
+
+    const stretch = await aLink({ subject: { type: 'grow', id: run.id }, range: { startsAt: daysAgo(15), endsAt: daysAgo(5) } });
+    const resolved = (await anonymous().get(`/v1/shared/${stretch.token}`).expect(200)).body;
+    expect(resolved.subject.curves.map((one: { spaceId: string; name: string }) => [one.spaceId, one.name])).toEqual([
+      [first, 'Curves first'],
+      [second, 'Curves second'],
+    ]);
+    const [inFirst] = resolved.subject.curves;
+    expect(Date.parse(inFirst.range.startsAt)).toBeCloseTo(Date.parse(daysAgo(15)), -4);
+    expect(Date.parse(inFirst.range.endsAt)).toBeCloseTo(Date.parse(daysAgo(10)), -4);
+
+    // The first place is read over the grow's stay there and no further, whichever chip is asked for.
+    const timeline = (await anonymous().get(`/v1/spaces/${first}/timeline?range=30d&share=${stretch.token}`).expect(200)).body;
+    expect(Date.parse(timeline.startsAt)).toBeGreaterThanOrEqual(Date.parse(daysAgo(15)) - 60_000);
+    expect(Date.parse(timeline.endsAt)).toBeLessThanOrEqual(Date.parse(daysAgo(10)) + 60_000);
+    await anonymous().get(`/v1/spaces/${second}/timeline?range=7d&share=${stretch.token}`).expect(200);
+    await anonymous().get(`/v1/spaces/${never}/timeline?range=7d&share=${stretch.token}`).expect(404);
+
+    // A link onto the running grow is its diary, and reaches no place.
+    const running = await aLink({ subject: { type: 'grow', id: run.id } });
+    expect((await anonymous().get(`/v1/shared/${running.token}`).expect(200)).body.subject.curves).toEqual([]);
+    await anonymous().get(`/v1/spaces/${second}/timeline?range=7d&share=${running.token}`).expect(404);
+  });
+
   /**
    * The two kinds are not the same promise. A read-only view is a window
    * somebody was given and stands until it expires; a public-page link is the
@@ -507,8 +546,9 @@ describe('the people in a space', () => {
     host = await createAccount('members-host');
     guest = await createAccount('members-guest');
 
-    room = (await host.client.post('/v1/spaces').send({ kind: 'room', name: 'Grow room' }).expect(201)).body.id;
-    inTheRoom = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent 1', roomId: room }).expect(201)).body.id;
+    const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent 1', roomName: 'Grow room' }).expect(201)).body;
+    room = tent.roomId;
+    inTheRoom = tent.id;
   });
 
   describe('an invite', () => {
@@ -545,6 +585,7 @@ describe('the people in a space', () => {
         role: 'can_log',
         invitedByHandle: expect.any(String),
         expiresAt: made.expiresAt,
+        hasCamera: false,
       });
 
       // A link lives in a chat group, so whatever this answers everybody there
@@ -556,8 +597,25 @@ describe('the people in a space', () => {
       expect(said).not.toContain(made.id);
     });
 
+    it('says whether a camera hangs in the place, so the invitation names pictures only where there are any', async () => {
+      const tent = (await host.client.post('/v1/spaces').send({ kind: 'tent', name: 'Tent with a camera', roomName: 'Camera room' }).expect(201))
+        .body;
+      const made = await invite(host, tent.id);
+      const hasCamera = async () => (await anonymous().get(`/v1/invites/${made.code}`).expect(200)).body.hasCamera;
+      expect(await hasCamera()).toBe(false);
+
+      const cam = (
+        await host.client.post('/v1/cameras').send({ kind: 'rtsp', spaceId: tent.id, name: 'Invite cam', url: 'rtsp://10.0.0.41:554/s' }).expect(201)
+      ).body;
+      expect(await hasCamera()).toBe(true);
+
+      // One taken down hangs there no longer.
+      await host.client.delete(`/v1/cameras/${cam.id}`).expect(204);
+      expect(await hasCamera()).toBe(false);
+    });
+
     it('answers a code that is revoked, expired or was never issued exactly the same nothing', async () => {
-      const nothing = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null };
+      const nothing = { isValid: false, spaceName: null, spaceKind: null, role: null, invitedByHandle: null, expiresAt: null, hasCamera: false };
 
       const revoked = await invite(host, inTheRoom);
       await host.client.put(`/v1/invites/${revoked.code}/revocation`).expect(200);
@@ -973,14 +1031,13 @@ describe('the people in a space', () => {
       await host.client.delete(`/v1/invites/${key.code}`).expect(204);
     });
 
-    it('is ended by the host, and the space cannot be ended while it stands', async () => {
-      const refused = await host.client.delete(`/v1/spaces/${theirTent}`).expect(409);
-      expect(refused.body.code).toBe('space_in_use');
-      expect(refused.body.errors.map((one: { code: string }) => one.code)).toContain('member_here');
-
+    it('is ended by the host one person at a time, or for everybody at once with the place', async () => {
       await host.client.delete(`/v1/spaces/${theirTent}/members/${logger.userId}`).expect(204);
-      await host.client.delete(`/v1/spaces/${theirTent}/members/${manager.userId}`).expect(204);
+      await manager.client.get(`/v1/spaces/${theirTent}`).expect(200);
+
       await host.client.delete(`/v1/spaces/${theirTent}`).expect(204);
+      await manager.client.get(`/v1/spaces/${theirTent}`).expect(404);
+      expect((await host.client.get(`/v1/spaces/${theirTent}/members`).expect(200)).body.items).toEqual([]);
     });
   });
 

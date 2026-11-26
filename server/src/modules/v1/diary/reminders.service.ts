@@ -3,15 +3,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import type { GrowOrSpaceRef, Reminder, ReminderCreate, ReminderPage, ReminderUpdate } from '@fg2/shared-types/v1';
+import { entryValuesDraft } from '@fg2/shared-types/v1-schemas';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
 import { findPage, mapPage } from '@common/v1/pages';
 import { conflict, notFound, unprocessable } from '@common/v1/problem';
+import { refuseEndedId } from '@common/v1/rooms';
 import { PageQuery } from '@common/v1/validation';
 import { MODEL_V1 } from '@database/models';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
 import { ReminderDocument } from '@database/schemas/v1/reminders.schema';
-import { remindersAbout } from './due-tasks';
+import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
+import { AWAKE, remindersAbout } from './due-tasks';
 import { VisibleSubjectsService } from './visible-subjects.service';
 
 /**
@@ -37,6 +40,7 @@ export class RemindersService {
   constructor(
     @InjectModel(MODEL_V1.reminder) private readonly reminders: Model<ReminderDocument>,
     @InjectModel(MODEL_V1.grow) private readonly grows: Model<GrowDocument>,
+    @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
     private readonly access: AccessService,
     private readonly visible: VisibleSubjectsService,
   ) {}
@@ -66,6 +70,7 @@ export class RemindersService {
   public async create(ctx: AccessContext, body: ReminderCreate): Promise<Reminder> {
     await this.access.require(ctx, subjectRef(body.subject.type, body.subject.id), 'manage');
     requireOneRhythm(body.everyDays, body.onceAt);
+    requireEntryValues(body.defaults);
     await this.requireRunning(body.subject);
     await this.requireAssignee(body.subject, body.assigneeId ?? null);
 
@@ -89,11 +94,14 @@ export class RemindersService {
   /**
    * What a reminder is about is not changed here. A rhythm moved from one tent
    * to another is a different arrangement, decided by whoever manages the place
-   * it would land in - so it is written there and taken back here.
+   * it would land in - so it is written there and taken back here. One of a grow
+   * or a place that has ended is not changed either: it ended with them, and is
+   * refused as making it would be.
    */
   public async update(ctx: AccessContext, id: string, body: ReminderUpdate): Promise<Reminder> {
     const reminder = await this.byId(id);
     await this.access.require(ctx, subjectRef(reminder.subject.type, reminder.subject.id), 'manage');
+    await this.requireRunning(reminder.subject);
 
     if (body.subject && (body.subject.type !== reminder.subject.type || body.subject.id !== reminder.subject.id)) {
       throw unprocessable('reminder_moved', 'A reminder stays with the grow or the space it was made for.', [
@@ -104,6 +112,7 @@ export class RemindersService {
     const everyDays = body.everyDays === undefined ? reminder.everyDays : body.everyDays;
     const onceAt = body.onceAt === undefined ? (reminder.onceAt?.toISOString() ?? null) : body.onceAt;
     requireOneRhythm(everyDays, onceAt);
+    requireEntryValues(body.defaults);
     if (body.assigneeId !== undefined) await this.requireAssignee(reminder.subject, body.assigneeId);
 
     const changes: Partial<ReminderDocument> = {};
@@ -136,8 +145,8 @@ export class RemindersService {
 
   /** The filter a list is held to, or null where the caller keeps nowhere at all. */
   private async about(ctx: AccessContext, query: ReminderQuery): Promise<FilterQuery<ReminderDocument> | null> {
-    if (query.growId) return { 'subject.type': 'grow', 'subject.id': query.growId };
-    if (query.spaceId) return { 'subject.type': 'space', 'subject.id': query.spaceId };
+    if (query.growId) return { ...AWAKE, 'subject.type': 'grow', 'subject.id': query.growId };
+    if (query.spaceId) return { ...AWAKE, 'subject.type': 'space', 'subject.id': query.spaceId };
 
     const { spaceIds, growIds } = await this.visible.subjectsOf(ctx);
     if (spaceIds.length === 0 && growIds.length === 0) return null;
@@ -150,10 +159,12 @@ export class RemindersService {
    * that are no longer there - a daily watering for a grow harvested in August.
    * Nothing takes it off again, either: the tasks of an ended grow are not on
    * the board, so the reminder would sit there producing them unseen until
-   * somebody opened that grow's own list.
+   * somebody opened that grow's own list. A grow's reminders end with it
+   * (`GrowsService`), and a place that has ended keeps none either: its rhythms
+   * ended with it, and a new one would be due on no screen.
    */
   private async requireRunning(subject: GrowOrSpaceRef): Promise<void> {
-    if (subject.type !== 'grow') return;
+    if (subject.type === 'space') return refuseEndedId(this.spaces, subject.id);
 
     const ended = await this.grows.exists({ id: subject.id, endedAt: { $ne: null } });
     if (ended)
@@ -198,6 +209,22 @@ const requireOneRhythm = (everyDays: number | null, onceAt: string | null): void
       { field: 'everyDays', code: 'too_small', detail: String(everyDays) },
     ]);
   }
+};
+
+/**
+ * `defaults` is what ticking the task writes into the diary, so it is entry
+ * values or nothing: a task made with values no entry takes - a `kind` the
+ * diary does not know - is refused by every tick, and stays due for good.
+ */
+const requireEntryValues = (defaults: unknown): void => {
+  if (defaults === null || defaults === undefined) return;
+
+  const parsed = entryValuesDraft.safeParse(defaults);
+  if (parsed.success) return;
+
+  throw unprocessable('defaults_not_entry_values', 'What a reminder prefills is the entry its task is ticked off with.', [
+    { field: 'defaults', code: 'invalid', detail: parsed.error.issues.map(issue => issue.message).join(', ') },
+  ]);
 };
 
 /** The stored document as the contract has it: instants as ISO strings. */

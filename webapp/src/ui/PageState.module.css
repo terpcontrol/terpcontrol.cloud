@@ -6,15 +6,21 @@
   padding-top: var(--space-4);
 }
 
+/* The one way on in the amber box of a page that could not be read (`ui/OfflineHelp.module.css`). */
+.again {
+  align-self: flex-start;
+  min-height: 48px;
+  padding: 0 18px;
+  border: var(--rule-width) solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--brand);
+  font-weight: var(--weight-medium);
+}
+
 .refreshFailed {
   font-size: var(--text-xs);
   color: var(--warning);
-}
-
-.waiting {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
 }
 
 .waitingNote {
@@ -27,4 +33,16 @@
   height: var(--text-sm);
   background: var(--card-2);
   border-radius: var(--radius);
+}
+
+/* The way out of a page with nothing on it, inside the dashed note: underlined, so the green stays the Save's. */
+.wayOn {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-block: -12px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
 }

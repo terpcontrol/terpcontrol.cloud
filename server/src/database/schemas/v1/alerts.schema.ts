@@ -10,8 +10,11 @@ import { alertKind, severity } from '@fg2/shared-types/v1-schemas';
  * sweep that deletes the alerts of gone devices does so by `$in` over a list of
  * ids, and a `$in` carrying a null would otherwise take every alert that names
  * no device with it.
+ *
+ * The place is stored by id alone; what it is called is read when the alert is
+ * answered, so a renamed place is never quoted by its old name.
  */
-export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested'> {
+export interface StoredAlert extends Omit<Alert, 'createdAt' | 'startedAt' | 'resolvedAt' | 'rested' | 'spaceName' | 'startedIn'> {
   createdAt: Date;
   startedAt: Date;
   resolvedAt: Date | null;
@@ -48,6 +51,8 @@ export const alertsSchema = new Schema<StoredAlert>(
 // The open alerts of the spaces a person can see, newest first: the home cards
 // and the inbox both ask for exactly this.
 alertsSchema.index({ spaceId: 1, resolvedAt: 1, startedAt: -1 });
+// What is over in those spaces, by when it ended: the inbox pages through its past in that order.
+alertsSchema.index({ spaceId: 1, resolvedAt: -1, id: -1 });
 // One rule's history, and what the engine reopens or resolves against.
 alertsSchema.index({ ruleId: 1, startedAt: -1 });
 // A device's own alerts, which is also how they are swept when it is given up.

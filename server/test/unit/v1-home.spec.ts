@@ -78,10 +78,10 @@ const build = (): HomeService => {
     db.media,
     db.alerts,
     db.alarmRules,
-    db.reminders,
     db.follows,
     db.users,
     db.memberships,
+    db.devices,
     spaces,
     live,
     fakeData,
@@ -292,18 +292,6 @@ describe('the cards', () => {
       startedAt: STARTED_AT,
       endedAt: null,
     });
-    await db.reminders.create({
-      id: 'reminder-basil',
-      subject: { type: 'grow', id: 'grow-nowhere' },
-      kind: 'water',
-      label: 'Water',
-      everyDays: 2,
-      onceAt: null,
-      assigneeId: null,
-      createdBy: OWNER,
-      createdAt: STARTED_AT,
-    });
-
     const answer = await home.read(session(OWNER), NOW);
     const nowhere = answer.spaces.find(card => card.spaceId === null)!;
 
@@ -317,8 +305,6 @@ describe('the cards', () => {
     expect(nowhere.trend).toBeNull();
     expect(nowhere.latestStill).toBeNull();
     expect(nowhere.openAlerts).toEqual([]);
-    // The widened grow ids are what carry its reminders into the task list.
-    expect(nowhere.dueTasks.map(task => task.label)).toEqual(['Water']);
   });
 
   it('is empty for somebody with nothing, rather than a refusal', async () => {
@@ -338,6 +324,13 @@ describe('the diary layer', () => {
   beforeEach(async () => {
     await db.users.create({ id: LOOKER, email: 'looker@test.invalid', handle: 'looker', passwordHash: 'x' });
     await db.memberships.create({ id: 'membership-looker', spaceId: TENT, userId: LOOKER, role: 'can_log' });
+  });
+
+  it('tells a guest whose the place is, though the owner wrote nothing a card shows', async () => {
+    await db.entries.deleteMany({});
+
+    expect((await home.read(session(LOOKER), NOW)).people).toEqual([{ id: OWNER, handle: 'owner' }]);
+    expect((await home.read(session(OWNER), NOW)).people).toEqual([]);
   });
 
   it('is on for the grower whose grows these are', async () => {
@@ -461,6 +454,7 @@ describe('the grow half', () => {
       preset: 'flower',
       isAuto: true,
       plantCount: 3,
+      standingCount: 3,
       strains: ['Amnesia', 'Gelato'],
       stageGroups: [],
     });
@@ -543,53 +537,6 @@ describe('what needs a human', () => {
 
     expect(tent.openAlerts).toEqual([expect.objectContaining({ alertId: 'alert-open', metric: 'humidity', name: 'Mould watch' })]);
   });
-
-  it('lists what is due from the reminders of the space and of its grow', async () => {
-    await db.reminders.create([
-      {
-        id: 'reminder-water',
-        subject: { type: 'grow', id: GROW },
-        kind: 'water',
-        label: 'Water',
-        everyDays: 2,
-        onceAt: null,
-        assigneeId: MEMBER,
-        createdBy: OWNER,
-        createdAt: STARTED_AT,
-      },
-      {
-        id: 'reminder-clean',
-        subject: { type: 'space', id: FRIDGE },
-        kind: 'chore',
-        label: 'Clean the fridge',
-        everyDays: null,
-        onceAt: new Date('2026-07-01T00:00:00.000Z'),
-        assigneeId: null,
-        createdBy: OWNER,
-        createdAt: STARTED_AT,
-      },
-    ]);
-    // Watered on the 9th, so the next watering falls on the 11th: due, and the assignee is named.
-    await db.entries.create(
-      entry({ id: 'entry-watered', growId: GROW, taskId: 'reminder-water:2026-06-09', occurredAt: new Date('2026-06-09T12:00:00.000Z') }),
-    );
-
-    const answer = await home.read(session(OWNER), NOW);
-    const [tent, fridge] = answer.spaces;
-
-    expect(tent.dueTasks).toEqual([
-      {
-        id: `reminder-water:${Date.parse('2026-06-11T12:00:00.000Z')}`,
-        kind: 'water',
-        label: 'Water',
-        dueAt: '2026-06-11T12:00:00.000Z',
-        subject: { type: 'grow', id: GROW },
-        assigneeId: MEMBER,
-      },
-    ]);
-    expect(fridge.dueTasks).toEqual([]);
-    expect(answer.people).toEqual(expect.arrayContaining([{ id: MEMBER, handle: 'mia' }]));
-  });
 });
 
 describe('following', () => {
@@ -622,12 +569,83 @@ describe('following', () => {
     const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
 
     expect(card.updatedAt).toBe(written.toISOString());
+    expect(card.updatedBy).toBe('entry');
   });
 
   it('dates a diary nobody has written in yet from the day the grow started', async () => {
     const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
 
     expect(card.updatedAt).toBe(STARTED_AT.toISOString());
+    expect(card.updatedBy).toBe('start');
+  });
+
+  /**
+   * A public profile said "vor 20 T" of a grow whose camera had taken a picture that morning and whose device was
+   * reporting: the card is dated by the newest sign of life where the grow stands, and says which it is.
+   */
+  it('dates the card by the newest picture or word from a device where the grow stands, and says which', async () => {
+    const STRANGER_TENT = 'space-stranger';
+    const seen = new Date(NOW.getTime() - 2 * 60_000);
+    const still = new Date(NOW.getTime() - 9 * 60_000);
+    await db.spaces.create({ id: STRANGER_TENT, ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null, createdAt: STARTED_AT });
+    await db.grows.updateOne(
+      { id: PUBLIC_GROW },
+      { $set: { placements: [{ id: 'placement-3', spaceId: STRANGER_TENT, startedAt: STARTED_AT, endedAt: null, plantIds: null }] } },
+    );
+    await db.devices.create({ id: 'device-stranger', type: 'controller', ownerId: STRANGER, spaceId: STRANGER_TENT, state: { lastSeenAt: seen } });
+    await db.cameras.create({
+      id: 'camera-stranger',
+      ownerId: STRANGER,
+      kind: 'terpcam_controller',
+      spaceId: STRANGER_TENT,
+      name: 'Cam',
+      state: { lastStillAt: still },
+    });
+
+    const [card] = (await home.read(session(OWNER), NOW)).followedGrows;
+    expect(card).toMatchObject({ updatedAt: seen.toISOString(), updatedBy: 'reading' });
+
+    // A grow whose page leaves the cameras out is not dated by them; one over stands nowhere and is dated by its diary.
+    await db.devices.deleteOne({ id: 'device-stranger' });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ updatedAt: still.toISOString(), updatedBy: 'picture' });
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { publicCameras: false } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ updatedBy: 'start' });
+  });
+
+  /** A profile's card said "Bild vor 3 Std" beside a leaf: it is drawn over the picture its age is of. */
+  it('draws a card without a cover of its own over the newest picture lit of a camera where the grow stands', async () => {
+    const STRANGER_TENT = 'space-stranger-cam';
+    await db.spaces.create({ id: STRANGER_TENT, ownerId: STRANGER, kind: 'tent', name: 'Their tent', roomId: null, createdAt: STARTED_AT });
+    await db.grows.updateOne(
+      { id: PUBLIC_GROW },
+      { $set: { placements: [{ id: 'placement-4', spaceId: STRANGER_TENT, startedAt: STARTED_AT, endedAt: null, plantIds: null }] } },
+    );
+    await db.cameras.create({
+      id: 'camera-lit',
+      ownerId: STRANGER,
+      kind: 'terpcam_controller',
+      spaceId: STRANGER_TENT,
+      name: 'Cam',
+      state: { lastStillAt: new Date(NOW.getTime() - 60_000) },
+    });
+    const still = (id: string, minutesAgo: number, lit: boolean | null) => ({
+      id,
+      kind: 'still',
+      mime: 'image/jpeg',
+      bytes: 1,
+      cameraId: 'camera-lit',
+      capturedAt: new Date(NOW.getTime() - minutesAgo * 60_000),
+      lit,
+    });
+    await db.media.create([still('still-lit', 180, true), still('still-dark', 1, false), still('still-before', 60 * 24 * 400, true)]);
+
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0]).toMatchObject({ coverMediaId: 'still-lit', updatedBy: 'picture' });
+
+    // A cover of its own stays the card's; a page that leaves the cameras out draws none of theirs.
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { coverMediaId: 'photo-cover' } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0].coverMediaId).toBe('photo-cover');
+    await db.grows.updateOne({ id: PUBLIC_GROW }, { $set: { coverMediaId: null, publicCameras: false } });
+    expect((await home.read(session(OWNER), NOW)).followedGrows[0].coverMediaId).toBeNull();
   });
 
   it('drops a grow that has been made private since', async () => {

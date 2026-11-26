@@ -25,7 +25,20 @@ const daysBetween = (from: number, to: number): number => Math.round((to - from)
 const byDate = (one: Phase, other: Phase): number => one.startedAt.localeCompare(other.startedAt);
 
 /** The phases as the contract states them, oldest first, whatever order they arrived in. */
-export const phasesInOrder = (grow: GrowListItem): Phase[] => [...grow.phases].sort(byDate);
+export const phasesInOrder = (grow: Pick<GrowListItem, 'phases'>): Phase[] => [...grow.phases].sort(byDate);
+
+/**
+ * Whether putting the whole grow into this stage begins no phase: what the writer compares against is the latest phase
+ * written over the whole grow, which is not always the headline - a split can leave a scoped phase covering more plants
+ * than the one the grow as a whole last entered. The date is not part of it, because the writer does not look at the
+ * date: the same stage twice in a row is not a phase change on any day.
+ */
+export const standsInStage = (grow: Pick<GrowListItem, 'phases'>, stage: GrowthStage, preset: string | null): boolean => {
+  const standing = phasesInOrder(grow)
+    .filter(phase => phase.plantIds === null)
+    .at(-1);
+  return standing !== undefined && standing.stage === stage && standing.preset === preset;
+};
 
 /** A counter before and after, so a sentence can name both. */
 interface Shift {

@@ -335,7 +335,7 @@ describe('the verdict over a day', () => {
 
   /**
    * Moving the light from 06:00 to 13:00 at eight in the evening turned the
-   * afternoon that had been a day into a night after the fact: the cockpit
+   * afternoon that had been a day into a night after the fact: Start
    * said "too warm since 12:00" about a fridge that had held its day all
    * afternoon, while the Timeline drew the same afternoon correctly.
    */
@@ -503,14 +503,50 @@ describe('the nights a chart is shaded by', () => {
     lastSampleAt: null,
   };
 
+  /** A device that reported a temperature every five minutes from one instant to another, but for one silence. */
+  const heard = (from: Date, to: Date, silent: [Date, Date] | [] = []) => {
+    const points = [];
+    for (let time = from.getTime() + 300_000; time <= to.getTime(); time += 300_000) {
+      if (silent.length === 0 || time <= silent[0].getTime() || time > silent[1].getTime())
+        points.push({ measuredAt: new Date(time).toISOString(), value: 24 });
+    }
+    return {
+      series: {
+        deviceId: 'fridge-1',
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        stepSeconds: 300,
+        metrics: [{ metric: 'temperature' as const, points }],
+        outputs: [],
+      },
+      outputs: [],
+      lastSampleAt: to.toISOString(),
+    };
+  };
+
   it('are the schedule´s, and move with it the night the clocks go back', () => {
     // Berlin 08:00-20:00: 06:00-18:00 UTC in summer, moved at 01:00 UTC on 25 October.
     const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle()), row('2026-10-25T01:00:30Z', cycle({ day: 7 * HOUR, night: 19 * HOUR }))], window);
 
-    expect(nightsOf([], window, cycles)).toEqual([
+    expect(nightsOf([heard(window.startsAt, window.endsAt)], window, cycles)).toEqual([
       { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-25T07:00:00.000Z' },
       { startsAt: '2026-10-25T19:00:00.000Z', endsAt: '2026-10-26T07:00:00.000Z' },
     ]);
+  });
+
+  it('are shaded only through hours somebody reported in: a schedule knows nothing of a silence', () => {
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], window);
+    // Gone from 22:00 to 03:00 in the first night, and for good at 21:00 in the second.
+    const reported = heard(window.startsAt, at('2026-10-25T21:00:00Z'), [at('2026-10-24T22:00:00Z'), at('2026-10-25T03:00:00Z')]);
+
+    expect(nightsOf([reported], window, cycles)).toEqual([
+      { startsAt: '2026-10-24T18:00:00.000Z', endsAt: '2026-10-24T22:00:00.000Z' },
+      // Back at 03:00: its first point of five minutes closes at 03:05 and stands for the five before it.
+      { startsAt: '2026-10-25T03:00:00.000Z', endsAt: '2026-10-25T06:00:00.000Z' },
+      { startsAt: '2026-10-25T18:00:00.000Z', endsAt: '2026-10-25T21:00:00.000Z' },
+    ]);
+    // Nobody heard at all: nothing to shade.
+    expect(nightsOf([], window, cycles)).toEqual([]);
   });
 
   it('are none while drying or germinating, nor with 24 or 0 hours of light, and the lamp´s where the record does not say', () => {
@@ -529,6 +565,41 @@ describe('the nights a chart is shaded by', () => {
     // One climate round the clock has no night to tell from a day; before the
     // first row the record says nothing, and neither does a lamp nobody heard.
     expect(nightsOf([lamp as never], window, cycles)).toEqual([]);
+  });
+
+  it('are none of no length: a lamp dark for three seconds, or a sliver of the schedule´s night between two silences', () => {
+    const points = [];
+    for (let time = window.startsAt.getTime() + 300_000; time <= window.endsAt.getTime(); time += 300_000) {
+      points.push({ measuredAt: new Date(time).toISOString(), value: 1 });
+    }
+    const blinked = {
+      series: {
+        ...lamp.series,
+        startsAt: window.startsAt.toISOString(),
+        endsAt: window.endsAt.toISOString(),
+        outputs: [{ output: 'light' as const, points }],
+      },
+      outputs: [
+        {
+          output: 'light' as const,
+          switchings: [
+            { at: '2026-10-24T12:00:00.000Z', on: true },
+            { at: '2026-10-24T14:00:00.000Z', on: false },
+            { at: '2026-10-24T14:00:03.000Z', on: true },
+            { at: '2026-10-24T20:00:00.000Z', on: false },
+            { at: '2026-10-25T08:00:00.000Z', on: true },
+          ],
+        },
+      ],
+      lastSampleAt: window.endsAt.toISOString(),
+    };
+
+    expect(nightsOf([blinked], window)).toEqual([{ startsAt: '2026-10-24T20:00:00.000Z', endsAt: '2026-10-25T08:00:00.000Z' }]);
+
+    // Heard for twenty seconds inside the first night and silent around them: the schedule's night has no length there.
+    const cycles = cyclesOf([row('2026-10-01T00:00:00Z', cycle())], window);
+    const sliver = heard(window.startsAt, at('2026-10-24T22:00:20Z'), [at('2026-10-24T19:00:00Z'), at('2026-10-24T22:00:00Z')]);
+    expect(nightsOf([sliver], window, cycles).every(night => Date.parse(night.endsAt) - Date.parse(night.startsAt) >= 60_000)).toBe(true);
   });
 
   it('carry the hour after each switch the climate is given to follow', () => {
@@ -591,6 +662,21 @@ describe('what a preset and a plan step write', () => {
     // A device on 24 hours keeps its hour when a preset brings a photoperiod back.
     const always = fridge({ daynight: { ...lightWindowTimes({ lightsOn: 8 * HOUR, lightHours: 24 }), linearChange: 1 } });
     expect(presetConfiguration('flowering', null, always, true)?.daynight).toEqual({ day: 8 * HOUR, night: 20 * HOUR, linearChange: 1 });
+  });
+
+  it('writes a section only into a document that carries it: an AIR fan gets its targets and no lamp', () => {
+    const fan = {
+      mode: 3,
+      min_speed: 10,
+      day: { temperature: 25, humidity: 60, fixed_speed: 50, max_speed: 100 },
+      night: { temperature: 22, humidity: 55, fixed_speed: 30, max_speed: 60 },
+    };
+    const preset = presetConfiguration('flowering', null, fan, true);
+
+    expect(Object.keys(preset ?? {}).sort()).toEqual(['day', 'night']);
+    expect(preset?.day).toMatchObject({ fixed_speed: 50, max_speed: 100 });
+    // A document written flat by an older client carries its sections all the same.
+    expect(presetConfiguration('flowering', null, { 'day.temperature': 25, 'lights.limit': 80 }, false)).toHaveProperty('lights.limit', 100);
   });
 
   const step = (over: Partial<PlanStep>): PlanStep => ({
@@ -690,12 +776,16 @@ describe('a save of the targets', () => {
       fridge({ workmode: 'breed', day: { temperature: 24, humidity: 55 }, night: { temperature: 24, humidity: 55 } }),
       'user-1',
     );
-    expect(stored).toMatchObject({ workmode: 'breed', day: { temperature: 25, humidity: 60 }, night: { temperature: 24, humidity: 55 } });
+    expect(stored.configuration).toMatchObject({
+      workmode: 'breed',
+      day: { temperature: 25, humidity: 60 },
+      night: { temperature: 24, humidity: 55 },
+    });
 
     await db.devices.updateOne({ id: DEVICE }, { $set: { configuration: fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }) } });
     const drying = await configuration.replace(DEVICE, fridge({ workmode: 'dry', night: { temperature: 18, humidity: 50 } }), 'user-1');
     // 50 % is a dry target, whatever the unused day says.
-    expect(drying?.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
+    expect(drying.configuration?.daynight).toMatchObject({ maxDehumidifySeconds: 900, targetHumidityDiff: 0, useLongHumidityAvg: 1 });
   });
 
   it('records when the cycle moved as well as the targets, and nothing for a write that moved neither', async () => {

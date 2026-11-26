@@ -1,0 +1,134 @@
+/* A diary's lines in summary: when in one column as wide as its longest stamp, what beside it. */
+
+.lines {
+  display: grid;
+  grid-template-columns: minmax(44px, max-content) minmax(0, 1fr);
+  column-gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Every line is a finger high, whether or not it leads somewhere, so a list of them stands in even rows; its first
+   line of words stands where a one-line row's does, so a row of two has its stamp beside the first. */
+.line {
+  --first-line: calc((var(--control-height) - 1lh) / 2);
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: start;
+  min-height: var(--control-height);
+  font-size: var(--text-sm);
+}
+
+/* Where a row is too narrow for its words and the mark beside them, the mark takes the next line - straight under
+   the words, as part of the line, not a row's padding apart from them -, and a long word breaks rather than running
+   under it. The row's air is the body's, so the words carry none of their own. */
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  padding-block: var(--first-line);
+}
+
+.stamp {
+  padding-block: var(--first-line);
+  font-family: var(--font-figure);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* A stamp that leads to its moment is a finger high, like the line beside it. */
+button.stamp {
+  padding-inline: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: var(--brand);
+}
+
+.text {
+  flex: 1 1 16ch;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+/* An alarm's line in its own colour: a warning's ochre, a critical one's red. */
+.line[data-severity] .text {
+  font-weight: var(--weight-medium);
+  color: var(--warning);
+}
+
+.line[data-severity='critical'] .text {
+  color: var(--alarm);
+}
+
+/* A line's words stand plain here: the row is a summary, and what is wrong is said by its colour. */
+.text span {
+  font-weight: inherit;
+}
+
+button.text {
+  padding-inline: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+/* The whole height of the row is the way into a line that leads somewhere: the words reach up and down into the
+   body's air. */
+button.text,
+a.text {
+  position: relative;
+  display: block;
+}
+
+button.text::after,
+a.text::after {
+  position: absolute;
+  inset: calc(-1 * var(--first-line)) 0;
+  content: '';
+}
+
+/* What a line says under its words: the reading an alarm tripped on. */
+.text small {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+
+/* The pictures a line carries, counted: the way to them, a finger high like the words beside it, reaching into the
+   body's air rather than adding to it. */
+.pictures {
+  flex: none;
+  min-height: var(--control-height);
+  margin-block: calc(-1 * var(--first-line));
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* What the devices did in a row is marked once, at the head of the run: a pill on every line said nothing new. */
+.line[data-marked] + .line[data-marked] .mark {
+  display: none;
+}
+
+/* What a device did by itself, said at the end of its line. */
+.mark {
+  flex: none;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--brand-wash);
+  color: var(--brand);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}

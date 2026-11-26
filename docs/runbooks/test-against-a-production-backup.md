@@ -1,7 +1,7 @@
 ---
 summary: Running a separate stack on a copy of production data - to verify a migration or test the app against real data - without touching another stack, its volumes, or the real people in the data
-updated: 2026-10-08
-source: Chris (2026-09-19 own stack for a copy, 2026-09-22 the verification pass he asked for); sessions 2026-09-22..23 (four passes over a restored copy of the hosted database); restore.sh, migrate-check.sh, docker-compose.yaml and the server's notification channels as of 2026-10-08; the automation session's reach checked on a copy 2026-10-08
+updated: 2026-11-26
+source: Chris (2026-09-19 own stack for a copy, 2026-09-22 the verification pass he asked for); sessions 2026-09-22..23 (four passes over a restored copy of the hosted database); restore.sh, migrate-check.sh, docker-compose.yaml and the server's notification channels as of 2026-10-08; the automation session's reach checked on a copy 2026-10-08; one account's last week copied from a running install for Chris, 2026-11-26
 paths:
   - restore.sh
   - migrate-check.sh
@@ -71,6 +71,27 @@ session from `POST /v1/sessions/automation` with `{ "token": "<AUTOMATION_TOKEN>
 `PATCH /v1/admin/users/<id>` with `{ "password": "..." }`. The id: `db.users.findOne({ email: '<address>' }, { id: 1 })`.
 The automation session is accepted by `/v1/admin/*` only; every other route answers it 401, so a copy is driven as an
 account.
+
+## One account from a running install
+
+To look at one account's last days in the current code (Chris, 2026-11-26: only that account, and quickly), copy
+just that account from the running install - minutes, no backup:
+
+1. A stack of its own as above. Start only `mongodb influxdb rabbitmq`; build `server` and `webapp` meanwhile.
+2. On the install, `mongoexport --jsonFormat=canonical -q '<query>'` per collection, streamed back over SSH: `users`
+   (`id`), `spaces` and `devices` (`ownerId`), `cameras`, `plans`, `alarmRules`, `targetChanges`, `claimCodes`
+   (`deviceId` / `spaceId`), the `deviceClasses` the devices name, `firmwares` (the documents, not the binaries),
+   `planTemplates` (public and own), `alerts` and `entries` by device, place or author since the cut (`startedAt`,
+   `occurredAt`), `media` and `imagedata.*` where there are pictures - and **`migrations`**: without its records the
+   server takes the copy for a database from before the rewrite and runs every step from 001.
+3. `mongoimport` each into the empty database, take the webhooks out (above), then start `server` and `webapp`: the
+   server applies only the steps the install had not.
+4. InfluxDB: `influx query --raw` with `range(start: -7d)` and a `device_id` filter gives annotated CSV, which
+   `influx write` does not take back as it is. Convert it to line protocol (`status,device_id=<id> <field>=<value>
+   <seconds>`, every field a double) and `influx write --precision s`: a week of four devices, 1.8 million points,
+   took six seconds.
+5. Sign in as under "Signing in". The devices keep reporting to the install, so on the copy they count as offline
+   ten minutes after the export.
 
 ## Real devices
 

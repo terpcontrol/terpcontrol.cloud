@@ -10,13 +10,17 @@ import type {
   PhaseGroup,
   Placement,
   Plant,
+  PlantLabel,
   UserPrivacy,
 } from '@fg2/shared-types/v1';
-import { growDayAt, growOriginOf, growWeekAt, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
+import type { Model } from 'mongoose';
+import { growDayAt, growDayUpTo, growOriginOf, growWeekOfDay, spineOf, stageWeekOf } from '@fg2/shared-types/v1-schemas';
 import { AccessRange } from '@common/v1/access.types';
 import { outsideRange } from '@common/v1/range';
 import { GrowDocument, PhaseDocument, PlacementDocument } from '@database/schemas/v1/grows.schema';
+import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { PlantDocument } from '@database/schemas/v1/plants.schema';
+import type { Moved } from './grow-moved';
 
 /**
  * What a grow's `phases[]` and `placements[]` mean, worked out here and nowhere
@@ -39,7 +43,7 @@ import { PlantDocument } from '@database/schemas/v1/plants.schema';
  * `authors` is not one of those settings and is not the owner's to turn off: who
  * wrote which line is the account behind it, and a reader outside the tent is
  * told what happened rather than who by. It is why a public page carries no
- * `people` list where the owner's own week cards do.
+ * `people` list where the owner's own diary does.
  */
 export interface Redaction {
   weights: boolean;
@@ -64,19 +68,21 @@ export const redactionOf = (redacted: boolean, privacy: UserPrivacy | null | und
  */
 const scope = (plantIds: string[] | null, hide: Redaction): string[] | null => (hide.counts && plantIds !== null ? [] : plantIds);
 
+/** A plant by its name, for a page that names the plants of a line and is not answered the plants themselves. */
+export const labelOf = (plant: Pick<PlantDocument, 'id' | 'growId' | 'label'>): PlantLabel => ({
+  id: plant.id,
+  growId: plant.growId,
+  label: plant.label,
+});
+
 /**
- * Which day of its phase the grow is on, counted in the grow's own days.
- *
- * The phase bar and the report's chapters state the same stretch as a count of
- * the grow's days - the day the next phase began, less the day this one began -
- * and a phase almost never begins at the hour the grow's day turns over. Counted
- * in 24-hour blocks from the phase's own instant instead, the same cure read 74
- * days long in the bar and 73 in the line directly beneath it, and the two only
- * ever agreed where a phase happened to begin at the grow's own hour. So the
- * header is counted the way the bar above it is: the days of the grow this phase
- * has covered, the first of them included.
+ * Which day of its phase a grow is on: the days of the grow this phase has
+ * covered, the first of them included. Counted on the grow's own days and not
+ * in 24-hour blocks from the phase's own instant, or the header and the report
+ * beneath it state two lengths for one phase.
  */
-const phaseDayOf = (origin: Date, startedAt: Date, asOf: Date): number => Math.max(1, growDayAt(origin, asOf) - growDayAt(origin, startedAt) + 1);
+const phaseDayOf = (origin: Date, startedAt: Date, asOf: Date, zone: string | null): number =>
+  Math.max(1, growDayUpTo(origin, asOf, zone) - growDayAt(origin, startedAt, zone) + 1);
 
 const covers = (plantIds: string[] | null, plantId: string): boolean => plantIds === null || plantIds.includes(plantId);
 
@@ -173,20 +179,24 @@ export const stagesReachedOf = (grow: GrowDocument, stage: GrowthStage | null, n
   return [...new Set(stage ? [...spine, stage] : spine)];
 };
 
-export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowSummary => {
+export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, zone: string | null, now: Date = new Date()): GrowSummary => {
   // A grow that has ended stopped counting on the day it ended.
   const asOf = grow.endedAt ?? now;
   // The one origin every day of the grow is counted from, on this header and on
-  // every screen beneath it.
+  // every screen beneath it, as dates of its owner's calendar.
   const origin = growOriginOf(grow);
   const groups = groupsOf(grow.phases, plants);
-  const headline = groups[0]?.phase ?? latestPhase(grow.phases);
-  const dayNumber = grow.phases.length > 0 ? growDayAt(origin, asOf) : null;
+  // The grow is in the stage of the plants still standing: one cut in its own drying is in no stage of the grow's,
+  // and a grow headed by it read "Trocknung" over a plant in flower, offering Reifung next.
+  const standing = plants.filter(plant => plant.status === 'active');
+  const headline = (standing.length > 0 ? groupsOf(grow.phases, standing) : groups)[0]?.phase ?? latestPhase(grow.phases);
+  // Counted from the grow's start whether a phase was entered or not, as its diary counts: one count everywhere.
+  const dayNumber = growDayUpTo(origin, asOf, zone);
 
   const told: PhaseGroup[] = groups.map(group => ({
     stage: group.phase.stage,
     preset: group.phase.preset,
-    phaseDay: phaseDayOf(origin, group.phase.startedAt, asOf),
+    phaseDay: phaseDayOf(origin, group.phase.startedAt, asOf, zone),
     plantIds: hide.counts ? [] : group.plantIds,
   }));
 
@@ -194,15 +204,11 @@ export const summaryOf = (grow: GrowDocument, plants: PlantDocument[], hide: Red
     dayNumber,
     stage: headline?.stage ?? null,
     preset: headline?.preset ?? null,
-    phaseDay: headline ? phaseDayOf(origin, headline.startedAt, asOf) : null,
-    weekNumber: dayNumber === null ? null : growWeekAt(origin, asOf),
-    // Which week of its stage, counted against the grow's own weeks rather than
-    // by dividing the phase's days by seven. The week cards count it that way,
-    // and the header sits directly above the first of them: a stage begun
-    // mid-week is in its second week on the Monday the grow's next week begins,
-    // and the two figures only ever coincided when a phase happened to start on
-    // a week boundary.
-    stageWeek: headline ? stageWeekOf(origin, headline.startedAt, growWeekAt(origin, asOf)) : null,
+    phaseDay: headline ? phaseDayOf(origin, headline.startedAt, asOf, zone) : null,
+    weekNumber: dayNumber === null ? null : growWeekOfDay(dayNumber),
+    zone: zone || 'UTC',
+    // Which week of its stage, counted from the stage's own start: days 1 to 7 of it are week 1.
+    stageWeek: headline ? stageWeekOf(origin, headline.startedAt, growDayUpTo(origin, asOf, zone), zone) : null,
     // What the "auto" tag is drawn from: a preset or the plan put the grow here.
     isAuto: headline !== null && headline.source !== 'human',
     // One group is every plant in the same phase, which the headline already says.
@@ -220,24 +226,32 @@ export const growCardOf = (
   grow: GrowDocument,
   plants: PlantDocument[],
   hide: Redaction,
+  zone: string | null,
   now: Date,
-  summary: GrowSummary = summaryOf(grow, plants, hide, now),
-): GrowCard => ({
-  growId: grow.id,
-  name: grow.name,
-  type: grow.type,
-  dayNumber: summary.dayNumber,
-  phaseDay: summary.phaseDay,
-  stageWeek: summary.stageWeek,
-  stage: summary.stage,
-  stagesReached: stagesReachedOf(grow, summary.stage, now),
-  preset: summary.preset,
-  isAuto: summary.isAuto,
-  plantCount: hide.counts ? null : plants.length,
-  strains: [...new Set(plants.map(plant => plant.strain))],
-  coverMediaId: grow.coverMediaId,
-  stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : group.plantIds.length })),
-});
+  summary: GrowSummary = summaryOf(grow, plants, hide, zone, now),
+): GrowCard => {
+  // A card counts a split by the plants still standing, as the grow's head does: a group cut down is no stage of it.
+  const standing = new Set(plants.filter(plant => plant.status === 'active').map(plant => plant.id));
+  const counted = (plantIds: string[]): number => (standing.size === 0 ? plantIds.length : plantIds.filter(id => standing.has(id)).length);
+
+  return {
+    growId: grow.id,
+    name: grow.name,
+    type: grow.type,
+    dayNumber: summary.dayNumber,
+    phaseDay: summary.phaseDay,
+    stageWeek: summary.stageWeek,
+    stage: summary.stage,
+    stagesReached: stagesReachedOf(grow, summary.stage, now),
+    preset: summary.preset,
+    isAuto: summary.isAuto,
+    plantCount: hide.counts ? null : plants.length,
+    standingCount: hide.counts ? null : standing.size,
+    strains: [...new Set(plants.map(plant => plant.strain))],
+    coverMediaId: grow.coverMediaId,
+    stageGroups: summary.groups.map(group => ({ stage: group.stage, plantCount: hide.counts ? null : counted(group.plantIds) })),
+  };
+};
 
 /**
  * A public grow as it is named rather than opened: among the grows somebody
@@ -245,22 +259,22 @@ export const growCardOf = (
  * One card either way, because a grow that has been made public reads the same
  * wherever it is listed - and the handle is the only name its author ever has.
  *
- * `movedAt` is when its diary last had something written in it, which is what a
- * card saying "3 d ago" is read as. The grow's own `updatedAt` is not that: it
- * is the row's write time, which a diary entry never touches and a migration
- * touches for every grow at once, so a card drawn from it says that sixteen
- * diaries were all written the same minute. A grow nobody has written in yet is
- * dated from the day it started rather than from whenever its row was saved.
+ * `moved` is when it last showed a sign of life and by what (`growsMoved`):
+ * what a card saying "Bild vor 5 Min" is read as. The grow's own `updatedAt`
+ * is not that: it is the row's write time, which a diary entry never touches
+ * and a migration touches for every grow at once, so a card drawn from it said
+ * that sixteen diaries were all written the same minute.
  */
 export const serialisePublicCard = (
   grow: GrowDocument,
   plants: PlantDocument[],
   handle: string,
   hide: Redaction,
-  movedAt: Date | null,
+  moved: Moved,
+  zone: string | null,
   now: Date = new Date(),
 ): FollowedGrowCard => {
-  const summary = summaryOf(grow, plants, hide, now);
+  const summary = summaryOf(grow, plants, hide, zone, now);
 
   return {
     growId: grow.id,
@@ -275,7 +289,8 @@ export const serialisePublicCard = (
     // that finished in August reads exactly like one of a grow that is running.
     endedAt: grow.endedAt?.toISOString() ?? null,
     coverMediaId: grow.coverMediaId,
-    updatedAt: (movedAt ?? grow.startedAt).toISOString(),
+    updatedAt: moved.at.toISOString(),
+    updatedBy: moved.by,
   };
 };
 
@@ -316,7 +331,13 @@ export const serialisePlant = (plant: PlantDocument, hide: Redaction): Plant => 
 });
 
 /** Field by field, because `_id` rides on a stored document and never leaves the server. */
-export const serialiseGrow = (grow: GrowDocument, plants: PlantDocument[], hide: Redaction, now: Date = new Date()): GrowListItem => ({
+export const serialiseGrow = (
+  grow: GrowDocument,
+  plants: PlantDocument[],
+  hide: Redaction,
+  zone: string | null,
+  now: Date = new Date(),
+): GrowListItem => ({
   id: grow.id,
   ownerId: grow.ownerId,
   name: grow.name,
@@ -336,29 +357,58 @@ export const serialiseGrow = (grow: GrowDocument, plants: PlantDocument[], hide:
   isDemo: grow.isDemo,
   createdAt: grow.createdAt.toISOString(),
   updatedAt: grow.updatedAt.toISOString(),
-  summary: summaryOf(grow, plants, hide, now),
+  summary: summaryOf(grow, plants, hide, zone, now),
 });
+
+/** The harvest lines of some grows, which is what `harvestOf` adds up. */
+export const harvestLinesOf = (
+  entries: Model<EntryDocument>,
+  growIds: string[],
+): Promise<Pick<EntryDocument, 'growId' | 'occurredAt' | 'values' | 'plantIds'>[]> =>
+  entries
+    .find({ growId: { $in: growIds }, kind: 'harvest' }, { growId: 1, occurredAt: 1, values: 1, plantIds: 1 })
+    .lean<Pick<EntryDocument, 'growId' | 'occurredAt' | 'values' | 'plantIds'>[]>();
 
 /**
  * One harvest for the whole grow: when the first plant came down, and what the
- * lot weighed. The report and the public page both state it, and a weight that
- * two places worked out separately is a weight one of them could state wrongly.
+ * lot weighed. The report, the grows list and the public page all state it, and
+ * a weight that two places worked out separately is a weight one of them could
+ * state wrongly.
+ *
+ * What was weighed is the amounts typed into the harvest's lines, as the diary
+ * states them, never the plants' shares added up: a plant deleted from a harvest
+ * of several takes its share with it while the line keeps what the scale said
+ * (Chris, 2026-11-14), and three pages gave three yields.
  *
  * A harvest is dated, so it belongs to the window like any other line: a plant
  * that came down after a link's window closed has not come down as far as that
  * link is concerned, and a grow whose whole harvest falls outside it has none to
  * state.
  */
-export const harvestOf = (plants: readonly PlantDocument[], hide: Redaction, range: AccessRange): GrowHarvest | null => {
-  const harvested = plants.flatMap(plant => (plant.harvest && !outsideRange(plant.harvest.harvestedAt, range) ? [plant.harvest] : []));
-  if (harvested.length === 0) return null;
+export const harvestOf = (
+  plants: readonly PlantDocument[],
+  lines: readonly Pick<EntryDocument, 'occurredAt' | 'values' | 'plantIds'>[],
+  hide: Redaction,
+  range: AccessRange,
+): GrowHarvest | null => {
+  const cut = plants.filter(plant => plant.harvest && !outsideRange(plant.harvest.harvestedAt, range));
+  // A plant weighed on the plant alone, without a harvest line naming it, counts by its own weights.
+  const unlined = cut.filter(plant => !lines.some(line => line.plantIds.includes(plant.id))).map(plant => plant.harvest!);
+  const weighed = lines.flatMap(line =>
+    line.values.kind === 'harvest' && !outsideRange(line.occurredAt, range) ? [{ ...line.values, at: line.occurredAt }] : [],
+  );
+  const dates = [...cut.map(plant => plant.harvest!.harvestedAt), ...weighed.map(line => line.at)];
+  if (dates.length === 0) return null;
+  // The grow is harvested when its last plant is; till then the harvest is the plants'.
+  const growing = plants.some(plant => plant.status !== 'ended' && !cut.includes(plant));
 
   const total = (weights: (number | null)[]): number | null =>
     weights.some(weight => weight !== null) ? weights.reduce<number>((sum, weight) => sum + (weight ?? 0), 0) : null;
 
   return {
-    harvestedAt: new Date(Math.min(...harvested.map(one => one.harvestedAt.getTime()))).toISOString(),
-    wetWeightG: hide.weights ? null : total(harvested.map(one => one.wetWeightG)),
-    dryWeightG: hide.weights ? null : total(harvested.map(one => one.dryWeightG)),
+    harvestedAt: new Date(Math.min(...dates.map(date => date.getTime()))).toISOString(),
+    wetWeightG: hide.weights ? null : total([...weighed, ...unlined].map(one => one.wetWeightG)),
+    dryWeightG: hide.weights ? null : total([...weighed, ...unlined].map(one => one.dryWeightG)),
+    plantIds: growing ? cut.map(plant => plant.id) : [],
   };
 };

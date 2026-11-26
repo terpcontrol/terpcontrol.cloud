@@ -5,14 +5,18 @@ import type { Scheme, SchemeWeek } from '@fg2/shared-types/v1';
 import { schemeVersionLabel, useDeleteScheme, useOwnSchemes, useScheme, useSchemes, useUpdateScheme, type SchemeSummary } from '@/api/schemes';
 import { useSession } from '@/api/session';
 import type { Translate } from '@/i18n/i18n';
+import { Asking } from '@/ui/Asking';
 import { Sheet } from '@/ui/Sheet';
 import { GridEditor } from '@/screens/grow/scheme/GridEditor';
+import { LeaveGuard } from '@/screens/grow/scheme/LeaveGuard';
+import { useAnswered } from '@/screens/grow/told';
 import { SchemeGrid } from '@/screens/grow/scheme/SchemeGrid';
-import { LoadFailed, Refused, Waiting } from '@/ui/PageState';
+import { LoadFailed, NothingHere, Refused, Waiting } from '@/ui/PageState';
 import ui from '@/ui/ui.module.css';
 import { calendarDay, useZone } from '@/ui/zone';
 import { joined } from '../doors';
 import { MePage } from '../parts';
+import parts from '../parts.module.css';
 import styles from './Schemes.module.css';
 
 /** Which scheme is open over the list, and off which shelf. */
@@ -43,14 +47,14 @@ export function Schemes() {
   const opened = open?.kind === 'own' ? (own.data?.items.find(scheme => scheme.id === open.id) ?? null) : null;
 
   return (
-    <MePage title={t('me.schemes.title')}>
+    <MePage title={t('me.schemes.title')} grows>
       <span className="label">{t('me.schemes.shipped')}</span>
       {shipped.isPending ? (
         <Waiting lines={3} />
       ) : !shipped.data ? (
-        <LoadFailed retry={() => void shipped.refetch()} />
+        <LoadFailed read={shipped} />
       ) : shipped.data.length === 0 ? (
-        <p className={`${ui.cardDashed} ${ui.note}`}>{t('me.schemes.noneShipped')}</p>
+        <NothingHere>{t('me.schemes.noneShipped')}</NothingHere>
       ) : (
         shipped.data.map(summary => (
           <SchemeRow
@@ -68,7 +72,7 @@ export function Schemes() {
       ) : own.isPending ? (
         <Waiting lines={2} />
       ) : !own.data ? (
-        <LoadFailed retry={() => void own.refetch()} />
+        <LoadFailed read={own} />
       ) : own.data.items.length === 0 ? (
         <p className={`${ui.cardDashed} ${ui.note}`}>
           {t('grow.scheme.sheet.noneSavedYet')} {t('me.schemes.howToKeep')}
@@ -101,9 +105,9 @@ const originLabel = (t: Translate, scheme: Scheme, shipped: SchemeSummary[]): st
 function SchemeRow({ title, line, onOpen }: { title: string; line: string; onOpen: () => void }) {
   return (
     <button type="button" className={`${ui.card} ${ui.joined} ${styles.schemeRow}`} onClick={onOpen}>
-      <span className={styles.schemeText}>
+      <span className={ui.textColumn}>
         <span className={styles.schemeTitle}>{title}</span>
-        <span className={`mono ${styles.schemeLine}`}>{line}</span>
+        <span className={styles.schemeLine}>{line}</span>
       </span>
       <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
     </button>
@@ -131,8 +135,8 @@ function AssetSheet({ id, onClose }: { id: string; onClose: () => void }) {
       ) : !asset.data ? (
         <p className={ui.problem}>{t('grow.new.schemeUnreadable')}</p>
       ) : (
-        <div className={styles.sheetBody}>
-          <p className={`mono ${styles.meta}`}>
+        <div className={ui.stack3}>
+          <p className={styles.meta}>
             {joined([
               asset.data.manufacturer,
               t('me.schemes.weeks', { count: asset.data.grid.length }),
@@ -174,37 +178,68 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
   const { t } = useTranslation();
   const update = useUpdateScheme();
   const remove = useDeleteScheme();
+  const saved = useAnswered(update, `scheme-${scheme.id}`);
+  const removed = useAnswered(remove, `scheme-${scheme.id}`);
   const [name, setName] = useState(scheme.name);
   const [grid, setGrid] = useState<SchemeWeek[]>(scheme.grid);
   const [asking, setAsking] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const origin = shipped.find(summary => summary.id === scheme.origin.assetId) ?? null;
   const asset = useScheme(origin?.id ?? null);
   const published = asset.data?.grid ?? null;
   const dirty = name.trim() !== scheme.name || !same(grid, scheme.grid);
   const left = published !== null && !same(grid, published);
+  // The copy as it stood is one write away, so the answer offers it back; a deleted one would come back as another scheme.
+  const save = () =>
+    saved(
+      { id: scheme.id, body: { name: name.trim(), grid } },
+      t('me.schemes.told.saved', { name: name.trim() }),
+      { to: { id: scheme.id, body: { name: scheme.name, grid: scheme.grid } }, undone: t('me.schemes.told.back', { name: scheme.name }) },
+      onClose,
+    );
+  const forget = () => removed(scheme.id, t('me.schemes.told.removed', { name: scheme.name }), null, onClose);
 
   return (
     <Sheet
       title={scheme.name}
       aside={origin ? t('me.schemes.fromAsset', { name: origin.name }) : t('me.schemes.byHand')}
-      onClose={onClose}
+      // Hand edits are not let go without a word: closing the sheet asks, and so does leaving the page under it.
+      onClose={() => (dirty ? setLeaving(true) : onClose())}
       actions={
-        <>
-          <button
-            type="button"
-            className={`${ui.button} ${ui.primary}`}
-            disabled={!dirty || name.trim() === '' || update.isPending}
-            onClick={() => update.mutate({ id: scheme.id, body: { name: name.trim(), grid } }, { onSuccess: onClose })}
+        leaving ? (
+          <Asking
+            note={t('grow.scheme.leaveUnsaved')}
+            yes={t('grow.scheme.discard')}
+            danger
+            busy={false}
+            onYes={onClose}
+            onCancel={() => setLeaving(false)}
+          />
+        ) : (
+          <LeaveGuard
+            dirty={dirty}
+            asking={held => (
+              <Asking
+                note={t('grow.scheme.leaveUnsaved')}
+                yes={t('grow.scheme.discard')}
+                danger
+                busy={false}
+                onYes={held.proceed}
+                onCancel={held.stay}
+              />
+            )}
           >
-            {update.isPending ? t('me.schemes.saving') : t('me.schemes.save')}
-          </button>
-          <Refused error={update.error} />
-        </>
+            <button type="button" className={`${ui.button} ${ui.primary}`} disabled={!dirty || name.trim() === '' || update.isPending} onClick={save}>
+              {update.isPending ? t('me.schemes.saving') : t('me.schemes.save')}
+            </button>
+            <Refused error={update.error} />
+          </LeaveGuard>
+        )
       }
     >
-      <div className={styles.sheetBody}>
-        <label className={styles.field}>
+      <div className={ui.stack3}>
+        <label className={parts.field}>
           <span className="label">{t('me.schemes.name')}</span>
           <input className={ui.input} value={name} autoComplete="off" onChange={event => setName(event.target.value)} />
         </label>
@@ -223,23 +258,16 @@ function OwnSheet({ scheme, shipped, onClose }: { scheme: Scheme; shipped: Schem
         <p className={ui.note}>{t('me.schemes.copyNote')}</p>
 
         {asking ? (
-          <div className={ui.asking}>
-            <p className={ui.note}>{t('me.schemes.deleteAsk', { name: scheme.name })}</p>
-            <div className={ui.askingActions}>
-              <button
-                type="button"
-                className={`${ui.button} ${styles.dangerButton}`}
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(scheme.id, { onSuccess: onClose })}
-              >
-                {t('me.schemes.deleteYes')}
-              </button>
-              <button type="button" className={ui.button} onClick={() => setAsking(false)}>
-                {t('me.schemes.cancel')}
-              </button>
-            </div>
+          <Asking
+            note={t('me.schemes.deleteAsk', { name: scheme.name })}
+            yes={t('me.schemes.deleteYes')}
+            danger
+            busy={remove.isPending}
+            onYes={forget}
+            onCancel={() => setAsking(false)}
+          >
             <Refused error={remove.error} />
-          </div>
+          </Asking>
         ) : (
           <div>
             <button type="button" className={`${ui.chip} ${ui.danger}`} onClick={() => setAsking(true)}>

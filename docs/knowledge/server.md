@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
-updated: 2026-10-17
-source: Chris (PR reviews and sessions 2025-10..2026-10); app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-15
+source: the tenth whole-app walk's lists built - a diary day's devices, a place link's grows (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - a claim's place a tent, a released device's name (the redesign session's fix round of 2026-11-15); a reset code checked before a new password, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); the fifth whole-app walk's lists built - done tasks of an ended grow, a grow reopened (the redesign session's fix round of 2026-11-14, the second Chris's answer); a grow's reminders resting while it is ended (Chris, 2026-11-14, built by the redesign session); a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -120,6 +120,92 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   each other ([data.md](data.md#mongodb)). A list built in memory cuts its page with `pageOf`. A list widens as
   `access()` does (a room membership covers the spaces in it: `withSpacesInside`, `common/v1/rooms.ts`). An
   administrator's own lists stay personal; the install is read via `/v1/admin/*`.
+- **A room is a field of the place** (the redesign session of 2026-11-12; ADR 0001, "Places, rooms and where a
+  device stood", awaiting Chris's confirmation). It is still a row of `spaces` with `kind: room`, because memberships
+  and invites on it cover the places in it, but no client makes, ends or archives one: those answer 409
+  `room_by_itself`. A place names its room in `POST`/`PATCH /spaces` - `roomId` for one that exists, `roomName` for
+  the owner's room of that name, made where there is none (both at once: 422 `two_rooms`) - and
+  `SpacesService.endRoomIfEmpty` ends a room once no place that has not ended stands in it, and deletes the
+  memberships, invites and share links on it: a room exists only while a place stands in it. It is called wherever
+  that can become true - a place leaves a room, ends or is archived - and a new path that takes a place out of a
+  room calls it too.
+- **Ending a place ends every way into it** (the redesign session of 2026-11-13, awaiting Chris's confirmation
+  with the ADR's amendment). `SpacesService.remove` refuses for a device, a camera and a running grow (409
+  `space_in_use`: `device_here`, `camera_here`, `grow_here`) and no longer for members - `member_here` is gone. It
+  then deletes the place's memberships, invites, share links and the reminders about it through `closeWaysInto`, the function
+  `endRoomIfEmpty` ends a room with. There is no other way to end a place: the archive routes, which put one away
+  with its people and could be undone, are gone (Chris, 2026-11-13), and `archivedAt` is the tombstone alone.
+- **An ended room takes nothing, and neither does an ended place.** One helper says both refusals
+  (`refuseEnded`, `common/v1/rooms.ts`; `refuseEndedId` where only the id is in hand): 409 `room_ended` for a
+  room, 409 `space_archived` for a place. `SpacesService.requireStanding` refuses any ended space - room or
+  place - in `PATCH /spaces/{id}` (the whole request: name, kind, room, retention and preset prompt),
+  `POST /spaces/{id}/invites`, `POST /spaces/{id}/members` and `POST /share-links` with it as the subject;
+  `requireRoom` refuses an ended room as the `roomId` of `POST`/`PATCH /spaces`. A reminder on an ended place
+  (`POST /reminders`), a grow started in it, moved to it, split off into it or corrected into it (`POST /grows`,
+  `POST /grows/{id}/placements`, `POST /grows/{id}/splits`, `PATCH /grows/{id}/placements/{pid}`), the device
+  move and the claim refuse through the same helper; so do a camera made in an ended place or moved into it
+  (`POST`/`PATCH /cameras`), a diary line or a photo about it (`POST /entries`, a line moved onto it by
+  `PATCH /entries/{id}`, `POST /media`) and a climate preset (`POST /spaces/{id}/preset-applications`). Only
+  what a person asks for is refused: the machines' lines (`EntryWriterService.write`) are still written, and a
+  camera or a line that already stands there stays changeable. The place's part is the redesign session's of 2026-11-13,
+  the wider refusals after its critic's walk of the clearing-up round and in its consolidation pass, all awaiting Chris's confirmation.
+  "Ended" is `archivedAt` set, so it holds for a place that was removed and for one put away - the data cannot
+  tell them apart; bringing a place back and removing one are unaffected. **Left as it is**, with the question
+  what "put away" means ([handover](../app-rewrite-handover.md#open-for-chris)): a put-away place's old share
+  link stays readable, its guests go on reading it and its old invitation is alive again once it is brought
+  back; and the task of a reminder on a put-away place can no longer be ticked, since the tick writes a line
+  about the place. Redeeming a code cut for an ended room stays the 404 `invite_not_found` every dead code gets,
+  because that route is reachable by anybody with an account.
+- **A grow's reminders rest while it is ended** (Chris, 2026-11-14): the harvest of its last plant or an `endedAt`
+  set gives them `restingSince` (`GrowsService.restReminders`), which every list, task read and announcement leaves
+  out (`AWAKE`, `due-tasks.ts`); `PATCH /reminders/{id}` refuses one of an ended grow (409 `grow_ended`), as
+  `POST` does. Reopening the grow wakes them and sets `resumedAt`, from which a rhythm counts on, so it is not
+  overdue for the whole rest. Deleting the grow deletes them. A place's are deleted when it ends, as before. What
+  was ticked off lately is still listed as done (`GET /tasks?done=true` reads resting reminders and ended grows
+  too), so a morning's watering stays under "Erledigt" when the grow ends that day. A grow is reopened by `endedAt:
+  null` (Chris, 2026-11-14, "Grow wieder öffnen" under its ⋯); where it stood in a place that has ended since, it
+  runs on at no fixed place from its old end (`reopenedPlacements`, `grows.service.ts`).
+- **What is the owner's stays the owner's.** Beside ending a place, only its owner (or an administrator) says
+  which room it stands in - `roomName`, or a `roomId` other than the one it has, `null` included, in
+  `PATCH /spaces/{id}` - and takes a device out of every place (`DELETE /spaces/{id}/devices/{deviceId}`,
+  `PATCH /devices/{id}` with `spaceId: null`). A member who may manage gets 403 `insufficient_access`, a stranger
+  404. The checks are `access.require(…, 'own')` in `SpacesService.update`, `SpacesController.removeDevice` and
+  `DevicesController.update`; a manager still renames a place, changes its kind and moves the owner's devices
+  between the owner's places.
+- **A claim may say what the device joins.** `joinSpaceId` in `POST /devices/claims` is read as `spaceId` for a
+  type outside `OWN_CLIMATE_TYPES` (fan, plug, light) and ignored for a controller or a fridge module, which gets
+  its own place; both fields together are 422 `two_places`. `spaceNames` (`tent`, `fridge`) is what a place the
+  claim makes is called, in the claimer's language; the server picks by the device's type, numbers the name where
+  it is taken, and falls back to the device's name, then to "Tent" / "Fridge" - never part of an id. The place is of
+  the kind its name says: a fridge module's a fridge, anything else's a tent (a fan's "Zelt" was of the kind "Sonstiges"
+  on its share page, the ninth whole-app walk).
+- **A device given up keeps its name for the places it stood in**: `releaseClaim` clears `name` and keeps who held it
+  and what they called it in `state.released` (`ownerId`, `name`; not served, and not kept where the account is being
+  deleted), so Verlauf, the overview and the diary
+  page, which answer what the devices of their lines are called (`calledIn`, `common/v1/device-called.ts`), still
+  name it to that place's owner while nobody holds it; one claimed by somebody else since is called by its type. A day
+  of the diary says which devices stood where the grow stood that day (`GrowDiaryDay.deviceIds`, from
+  `GrowClimateService.alongside`), which its lines are named among.
+- **A place's share link is told the grows of its window** (`SpaceTimeline.grows`; `Grant.linkOn`, set by
+  `AccessService.grant` for a link): its lines name their grow as the owner's Verlauf does. A grow's link is told no
+  other grow (the tenth whole-app walk).
+- `POST` and `PATCH /reminders` refuse `defaults` that are not entry values (422 `defaults_not_entry_values`,
+  field `defaults`): a tick writes them into the diary, and values no entry takes made a task nobody could tick.
+- **A device stands only in a place of its owner** (the redesign session of 2026-11-12, awaiting Chris's
+  confirmation with the ADR's amendment): `DevicesService.requireAPlaceOf` refuses a claim or a move into a place of
+  another account (409 `place_of_another_account`), into a room (409 `room_by_itself`) and into a place that has
+  ended (409 `space_archived`), for every caller - a
+  member who may manage the place and an administrator included. Every write of where a device stands goes through
+  it, because they all go through `DevicesService.update` or `claim`.
+- **A second name is refused with a sentence:** 409 `name_taken`, whose `detail` names the place or room that has it
+  ("Another place is already called "Zelt"."), from `POST`/`PATCH /spaces`; a blank name is 422 `name_required`.
+  A claim is never refused for a name: the place it makes counts on ("Zelt 2"). **Two devices standing in one place
+  carry different names too** (the redesign session of 2026-11-13): a rename or a move that would make a second
+  "Abluft" there is 409 `name_taken` (`field` `name` or `spaceId`), compared as place names are; a device whose
+  name is its type takes no part, a claim numbers a second "Abluft" on, and duplicates stored before stay until
+  somebody renames or moves one (`refuseTakenName`, `devices.service.ts`).
+- `GET /home` names in `people` the owner of every place on it that is not the reader's own, beside the authors and
+  assignees its cards name, so a shared place can say whose it is.
 - A write is authorised on every subject it names (an entry's grow, space, device, plants, media), not on a primary
   one. A write that must happen once rests on a unique index, and a duplicate key (E11000, `isDuplicateKey()` in
   `database/duplicate-key.ts`) is answered as already done: a read followed by a write cannot stop a race, and there
@@ -140,9 +226,15 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - `DELETE /v1/sessions` and `PUT /v1/me/password` end every other session of the account.
 - `@RateLimited` (per address and route, in memory) guards only the doors without a session: sign-in, sign-up,
   password reset, recovery and change, the demo and automation logins (each with its own budget, so demo visitors
-  cannot throttle sign-ins), invite lookups, the public and Open Graph routes.
+  cannot throttle sign-ins), invite lookups, the public and Open Graph routes. One door with a session has a budget
+  too: testing a stream's address (`POST /v1/cameras/test-captures`, ten a minute), because each start is an ffmpeg
+  run at an address of the caller's choosing that writes nothing to look back at (Chris, 2026-11-14, gave the
+  route; the budget is the redesign session's).
 - Sign-in, password reset, adding a member by handle and invite previews answer alike whether or not the account or
   code exists. An inactive account gets 403 `account_not_activated` and its code mailed again (at most every 10 min).
+  A recovery token is asked about before a new password is chosen - `GET /v1/password-resets/{token}`, 204 or 404
+  `reset_unknown`, rate-limited as its redemption and spending nothing -, which tells a stranger no more than a
+  redemption would: the token is a random UUID mailed to one address.
 - `DELETE /v1/me` and `DELETE /v1/admin/users/{id}` run one resumable cascade (`account-deletion.service.ts`). It
   refuses the `ADMINUSER_*` account (409 `admin_account_kept`), which the next boot would re-create anyway.
 
@@ -155,21 +247,24 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   forget it.
 - The demo grant is `redacted` (the owner's privacy applies: weights, counts) but not an outsider (`isOutsider` in
   `common/v1/access.types.ts`): only a link or a public page loses device ids, room id, tasks and alerts. Gating
-  those on `redacted` left the demo place's cockpit on Start without its device while Geräte listed it.
+  those on `redacted` left the demo place on Start without its device while the device list of that time listed it.
 - There is deliberately no UI or API to put a device into the demo (Chris, 2026-08-19). `./simulate-device.sh demo on
   -d <device-id>` sets `isDemo` in MongoDB on the device, its space and its cameras - any device of that stack, not
   only simulated ones. A grow standing in a demo place now is read as a demo one (`standsInTheDemo` in
-  `access.service.ts`; Chris, 2026-10-17), so its page and charts open from the cockpit; one that ended or moved out
+  `access.service.ts`; Chris, 2026-10-17), so its page and charts open from the place's Start; one that ended or moved out
   is private again, and `grows.isDemo` still flags one by hand.
 - The tour lists flagged spaces, the device list flagged devices. Moving a demo device (`DevicesService.update`)
   therefore flags the place it moves into and unflags the one it leaves once no demo device stands there; before,
-  a demo device moved into a place of its own showed under Geräte and not on Start. `025-demo-places` repaired the
+  a demo device moved into a place of its own showed in the device list of that time and not on Start. `025-demo-places` repaired the
   moves made before.
 
 ## Share links and public pages
 - The token comes as `X-Share-Token` or `?share=` and is looked up on every request, so revoking is immediate. A
   `public_page` link dies when its grow stops being public; a space link covers a grow only if the grow stood in the
-  space within the link's window. A live link cannot be deleted (409 `share_link_live`); it is revoked first.
+  space within the link's window. **A grow link whose window ends reaches the places the grow stood in during it**,
+  each only over the grow's stay there (`stayInside`, `common/v1/access.service.ts`; the redesign session of
+  2026-11-13): their timeline and overview, clamped to that stay, so a link made from Verlauf for a stretch shows
+  its curves; a link onto a running grow reaches no place. A live link cannot be deleted (409 `share_link_live`); it is revoked first.
 - A link or public reader must gain nothing. The window rule exists once, in `common/v1/range.ts`, as does whether a
   link or an invite still opens anything (`stillValid`); three private copies of the window had grown up and the grow
   report had none, which handed a fortnight's link the whole grow. Every route a link reaches clamps with it, applies
@@ -178,6 +273,14 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - Redacted readers get pictures re-encoded without metadata (migrated photos carried GPS), `null` device ids and
   camera owner, and only the diary kinds on the timeline. The share card is cached `public, max-age=300`, the Open
   Graph shell 120 s; a link's open counter is written at most once a minute.
+- A share card's line over the title leaves out what the line under it says already, and a grow without a
+  description of its own gets none (`metaLineOf`, `growSentence`, `modules/v1/sharing/link-card.ts`; the redesign
+  session of 2026-11-14, after a card said "@handle · Tag 13 · Veg" twice); nor does a profile's card repeat the
+  handle its title is (the third whole-app walk).
+- A grow on a public profile and a followed one is dated by its newest sign of life, labelled by what it was
+  ("Bild / Messwert / Eintrag vor …"; `updatedBy`, `growsMoved` in `modules/v1/grow/grow-moved.ts`), and a grow
+  nothing moved since its start shows no age; the grow row's `updatedAt` had said "vor 20 T" beside today's
+  picture ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
 
 ## Media serving
 - `GET /v1/media/{id}/content` (a session, the media token as `?token=`, or a share link) and
@@ -233,3 +336,8 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   that can `require` ESM.
 - sharp 0.35 refuses corrupt images, so test fixtures must be valid files. Which packages may run install scripts
   (`allowScripts`): [ci-and-release.md](ci-and-release.md).
+- The image compiles `server/` with swc (`npm run build`), not with `tsc`, and the swc in the lockfile does not parse
+  every syntax `tsc` accepts: `as const satisfies Record<…>` in `src/modules/v1/sharing/link-card.ts` passed `tsc`,
+  lint and every suite and still broke the image build ("Expected a semicolon"). Run `npm run build` in `server/`
+  before a commit that adds new TypeScript syntax; `npx swc <file> -o /dev/null` names the line (the redesign
+  session, 2026-11-13).

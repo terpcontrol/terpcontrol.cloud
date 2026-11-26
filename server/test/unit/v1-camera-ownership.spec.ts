@@ -108,7 +108,7 @@ describe('the camera a controller reports', () => {
     expect(camera?.ownerId).toBe(BOB);
     expect(camera?.id).not.toBe(hers?.id);
     expect(camera?.spaceId).toBe(claimed.device.spaceId);
-    expect(camera).toMatchObject({ name: 'Bob´s tent', looksAt: null, plantIds: [], stillIntervalSeconds: 30, did: PAIRED });
+    expect(camera).toMatchObject({ name: 'Terp Cam', looksAt: null, plantIds: [], stillIntervalSeconds: 30, did: PAIRED });
     expect(camera?.entitlement.grant).toBe('included');
     expect(camera?.entitlement.validUntil?.getTime()).toBeGreaterThan(Date.now());
 

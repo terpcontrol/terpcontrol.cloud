@@ -1,31 +1,22 @@
 import type { GrowthStage } from '@fg2/shared-types/v1';
-import { climatePreset, GERMINATION_TOO_HUMID, type ClimatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import { climatePreset } from '@fg2/shared-types/v1-schemas/climate-presets.js';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { serverNow } from '@/api/clock';
-import type { Translate } from '@/i18n/i18n';
-import { germinates } from '@/ui/climate-hardware';
+import { darkStage } from '@/ui/climate-hardware';
+import { Facts } from '@/ui/Facts';
+import { factsOf, unbroken } from '@/ui/fact-text';
 import { climateChoiceName, presetsOf, writesClimate } from '@/ui/presets';
 import { Block, Choice, Choices } from '@/ui/SheetParts';
 import ui from '@/ui/ui.module.css';
 import { offsetOf } from '@/ui/wall-clock';
 import { useZone } from '@/ui/zone';
-import { scheduleTitle } from '../control/targets/schedule-words';
+import { lampsAmong, lampsLeft, lampsSaid } from '../control/held-light';
+import { useLead } from '../control/lead';
 import { draftOf, prefilled } from '../control/targets/targets-draft';
-import { targetFigure } from '@/ui/units';
 import { GerminationChoices } from '../control/germination/GerminationChoices';
 import { choicesOf, useHumidifier } from '../control/germination/germination-choices';
-import { KEEP_CLIMATE, usePlaceController, type PhaseClimate } from './phase-climate';
-
-interface Figures {
-  /** When the light comes on, in seconds past midnight UTC: the device's, which no preset moves. */
-  lightsOn: number;
-  lightHours: number;
-  lightLimit: number;
-  dayTemperature: number;
-  nightTemperature: number;
-  dayHumidity: number;
-  nightHumidity: number;
-}
+import { darkFigures, figuresSaid, heldNow, KEEP_CLIMATE, useGrowsBeside, usePlaceController, type PhaseClimate } from './phase-climate';
 
 /**
  * Whether moving the grow into a stage also moves the tent's climate - asked
@@ -35,34 +26,38 @@ interface Figures {
  * hours, and there were four ways to say "now flower" that did four different
  * things: the diary's phase moved the stage and left the light at eighteen
  * hours without a word. So wherever a phase is entered, the climate is the
- * question beside it: leave the targets as they are (and say what they are), or
- * put the tent on one of the climates of the stage - the very names the chips
- * under Steuerung carry, from the same list - and say what that sets. Nothing
- * is chosen for the grower: leaving them is where it starts, and its line says
- * the light stays where it is.
+ * question beside it: leave the targets as they are, or put the tent on one of
+ * the climates of the stage - the very names the chips under Steuerung carry,
+ * from the same list. Under the choice stands what the devices then hold, in
+ * figures and no sentence: what the choices mean, and what a stage does to the
+ * alarms, is behind the help beside the label. Nothing is chosen for the
+ * grower: leaving them is where it starts.
  *
  * It is not asked where nothing could take a climate: a grow standing nowhere,
  * a place with no controller, or a stage that has none.
  *
- * Germination is dark, so the device goes dark only where "Keimung · dunkel"
- * is chosen here: the phase alone is the record of seeds sprouting, wherever
- * they are. Out of germination it is the other way round - any other stage
- * brings the light back, with the stage's climate or with the targets from
- * before germination - and the sheet offers the stage's climate first there
- * (`defaultPick`).
+ * Leaving them writes no device, whatever the stage: the phase alone is a
+ * record. So the device goes dark only where "Keimung · dunkel" or drying's
+ * climate is chosen here, and out of either the light comes back only with
+ * the next stage's climate - which the sheet offers first where the device
+ * germinates (`defaultPick`). Under "Lassen, wie sie sind" stands what the
+ * device holds and goes on holding, the dark of a drying room included.
  *
  * Where "Keimung · dunkel" is chosen, what germination does about the humidity
- * is asked under the note, as everywhere germination is set: what the device
+ * is asked under the figures, as everywhere germination is set: what the device
  * keeps stands until a switch is moved here, and only what was moved is sent.
  */
 export function ClimatePick({
   stage,
   spaceId,
+  growId,
   value,
   onChange,
 }: {
   stage: GrowthStage;
   spaceId: string | null;
+  /** The grow the phase is entered for: a climate chosen here names every other grow standing in the place. */
+  growId: string | null;
   value: PhaseClimate;
   onChange: (value: PhaseClimate) => void;
 }) {
@@ -70,11 +65,13 @@ export function ClimatePick({
   const zone = useZone();
   const controller = usePlaceController(spaceId);
   const humidifier = useHumidifier(controller);
+  // Each lamp of the place is set on its own: a climate that sets the controller's light says whose, and what the others keep.
+  const lamps = lampsAmong(useLead(spaceId).devices.items);
+  const beside = useGrowsBeside(spaceId, growId);
 
   if (!controller?.configuration) return null;
   if (!writesClimate(stage)) return <p className={ui.note}>{t('climatePick.noClimate', { stage: t(`home.stage.${stage}`) })}</p>;
 
-  const options = [null, ...presetsOf(stage)].map(preset => ({ stage, preset }));
   const now = draftOf(controller.configuration);
   const choices = { ...choicesOf(controller), ...(value.germination ?? {}) };
   const preset = value.climate ? climatePreset(stage, value.preset) : null;
@@ -82,56 +79,47 @@ export function ClimatePick({
   // it makes starts at the device's hour, and a figure it leaves out stays.
   const chosen = preset ? prefilled(now, preset) : null;
   const offset = offsetOf(serverNow(), zone);
-  const startsDrying = stage === 'drying' && !controller.control?.drying;
-  const endsGermination = stage !== 'germination' && germinates(controller);
-  // What comes back where germination ends without a climate: the targets from before it, the night it wrote over included.
-  const back = endsGermination ? { ...now, nightTemperature: controller.control?.afterGermination?.nightTemperature ?? now.nightTemperature } : now;
+  const lampsWords = lampsSaid(t, controller, lamps, darkStage(stage), serverNow(), zone);
+  const held = heldNow(t, controller, offset)?.figures ?? figuresSaid(t, now, null, offset);
 
-  const line = (): string => {
-    if (chosen && stage === 'germination')
-      return t('climatePick.setsGermination', {
-        temperature: targetFigure(chosen.nightTemperature, 'temperature'),
-        humidity: targetFigure(chosen.nightHumidity, 'humidity'),
-      });
-    if (chosen) return t(darkOf(chosen, preset) ? 'climatePick.setsDark' : 'climatePick.sets', { figures: summary(t, chosen, preset, offset) });
-    // Drying keeps no day and no light: what stays is the night it holds round the clock.
-    if (startsDrying) {
-      return t('climatePick.keepsDrying', {
-        temperature: targetFigure(now.nightTemperature, 'temperature'),
-        humidity: targetFigure(now.nightHumidity, 'humidity'),
-      });
-    }
-    if (stage === 'germination' && germinates(controller)) {
-      return t('climatePick.keepsGermination', { temperature: targetFigure(now.nightTemperature, 'temperature') });
-    }
-    const keeps = t('climatePick.keeps', { figures: summary(t, back, null, offset) });
-    return stage === 'germination' ? `${keeps} ${t('climatePick.staysLit')}` : keeps;
+  // What the devices hold once the phase is written, in figures: the chosen climate, germination's being dark, or -
+  // left as they are - what they hold now (`heldNow`).
+  const after = (): string => {
+    if (chosen && stage === 'germination') return darkFigures(t, chosen.nightTemperature, chosen.nightHumidity);
+    if (chosen) return figuresSaid(t, chosen, preset, offset);
+    return held;
   };
+  // A climate is the place's: chosen beside another grow, it is said whom else it reaches and what that grow had.
+  const alsoFor = beside
+    .map(other => (other.summary.stage ? t('climatePick.growIn', { name: other.name, stage: t(`home.stage.${other.summary.stage}`) }) : other.name))
+    .join(', ');
 
   return (
     <Block label={t('climatePick.label')} help="phasePreset">
-      <Choices label={t('climatePick.label')}>
+      <StageClimates
+        label={t('climatePick.label')}
+        stage={stage}
+        chosen={value.climate ? value.preset : undefined}
+        onPick={preset => onChange({ climate: true, preset })}
+      >
         <Choice chosen={!value.climate} onChoose={() => onChange(KEEP_CLIMATE)}>
           {t('climatePick.keep')}
         </Choice>
-        {options.map(option => (
-          <Choice
-            key={option.preset ?? ''}
-            chosen={value.climate && value.preset === option.preset}
-            onChoose={() => onChange({ climate: true, preset: option.preset })}
-          >
-            {climateChoiceName(t, option)}
-          </Choice>
-        ))}
-      </Choices>
+      </StageClimates>
+      {/* The answer in figures, and nothing explained: what the choices mean is behind the help beside the label. */}
       <p className={ui.note} role="status">
-        {line()} {/* The stage decides the drying spell whatever is chosen here: entering drying dries, leaving it ends it. */}
-        {startsDrying && chosen ? `${t('climatePick.dries')} ` : null}
-        {stage !== 'drying' && controller.control?.drying ? `${t('climatePick.endsDrying')} ` : null}
-        {/* Any other stage ends germination, and the light comes back. */}
-        {endsGermination ? `${t('climatePick.endsGermination')} ` : null}
-        {alarmsLine(t, stage, value.climate || germinates(controller), choices.warnTooHumid)}
+        <Facts facts={factsOf(t(chosen ? 'climatePick.sets' : 'climatePick.keeps', { figures: after() }))} />
       </p>
+      {chosen && alsoFor ? <p className={ui.note}>{unbroken(t('climatePick.alsoFor', { grows: alsoFor, figures: held }))}</p> : null}
+      {chosen && lampsWords ? <p className={ui.note}>{lampsWords}</p> : null}
+      {/* Left as they are, every other lamp keeps its own times too. */}
+      {chosen
+        ? null
+        : lampsLeft(t, controller, lamps, serverNow(), zone).map(line => (
+            <p key={line} className={ui.note}>
+              {line}
+            </p>
+          ))}
       {/* The climate that puts the device into germination asks what it does about the humidity. */}
       {stage === 'germination' && value.climate ? (
         <GerminationChoices
@@ -146,35 +134,35 @@ export function ClimatePick({
 }
 
 /**
- * What the phase does to the alarms its stage binds. Germination watches the
- * one temperature it holds in the dark, and its "too humid" line rests unless
- * the grower asked to be warned; entered without its climate beside a device
- * that keeps its light, it leaves the alarms that light is watched by, as the
- * server does.
+ * The climates of one stage as chips: the stage's own and what refines it, under the names Steuerung's chips carry
+ * ("Blüte", "Späte Blüte", "Auto · Blüte"). It is the one row wherever a phase names its climate: asked beside a
+ * phase (above, behind the answer that leaves the targets alone), where a phase is corrected and where plants are
+ * split off into one. `chosen` is null for the stage's own climate. A stage nothing refines has nothing to choose
+ * between, so by itself the row is not drawn for it.
+ *
+ * `keep` is for a sheet where no preset writes no climate - plants split off into a phase of their own: there the
+ * first chip is "Lassen, wie sie sind", as beside a phase, and stands for null, since a chip called "Blüte" that
+ * wrote nothing would say the opposite of what it does.
  */
-const alarmsLine = (t: Translate, stage: GrowthStage, dark: boolean, warns: boolean): string =>
-  stage !== 'germination'
-    ? t('climatePick.alarms')
-    : dark
-      ? t('climatePick.alarmsGermination', {
-          line: GERMINATION_TOO_HUMID,
-          humid: t(warns ? 'climatePick.humidWarns' : 'climatePick.humidRests'),
-        })
-      : t('climatePick.alarmsKept');
+export function StageClimates(props: {
+  label: string;
+  stage: GrowthStage;
+  chosen: string | null | undefined;
+  onPick: (preset: string | null) => void;
+  keep?: boolean;
+  children?: ReactNode;
+}) {
+  const { t } = useTranslation();
+  if (!props.children && presetsOf(props.stage).length === 0) return null;
 
-/** A climate kept dark: a drying room's, which leaves the light alone, or one with the lamp at nothing. */
-const darkOf = (figures: Figures, preset: ClimatePreset | null): boolean => preset?.lightHours === null || figures.lightLimit === 0;
-
-/**
- * "Licht an 08:00–02:00 · 18 Std · Tag 25 °C · Nacht 20 °C · 50 %", or the
- * dark of a drying room. The window is said whole: a preset of eighteen hours
- * from the device's eight in the morning burns until two at night, which "18
- * Std" alone never told anybody.
- */
-const summary = (t: Translate, figures: Figures, preset: ClimatePreset | null, offset: number): string =>
-  t(darkOf(figures, preset) ? 'climatePick.dark' : 'climatePick.figures', {
-    light: scheduleTitle(t, { lightsOn: figures.lightsOn, lightHours: figures.lightHours }, offset),
-    day: targetFigure(figures.dayTemperature, 'temperature'),
-    night: targetFigure(figures.nightTemperature, 'temperature'),
-    humidity: targetFigure(figures.dayHumidity, 'humidity'),
-  });
+  return (
+    <Choices label={props.label}>
+      {props.children}
+      {[null, ...presetsOf(props.stage)].map(preset => (
+        <Choice key={preset ?? ''} chosen={props.chosen === preset} onChoose={() => props.onPick(preset)}>
+          {preset === null && props.keep ? t('climatePick.keep') : climateChoiceName(t, { stage: props.stage, preset })}
+        </Choice>
+      ))}
+    </Choices>
+  );
+}

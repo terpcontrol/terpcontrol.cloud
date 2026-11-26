@@ -1,17 +1,24 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import i18next from 'i18next';
+import { ruleTitle } from '@/i18n/alarm-line';
 import { DateTime } from 'luxon';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AlarmRule, AlarmRuleCreate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
+import type { AlarmRule, AlarmRuleCreate, AppliedClimate, Device, Me, SpaceOverview } from '@fg2/shared-types/v1';
 import { api } from '@/api/client';
 import { ApiError } from '@/api/problem';
 import type { Translate } from '@/i18n/i18n';
 import { Alarms } from '@/screens/control/alarms/Alarms';
-import { boundLabel, repeatsEvery, scaleNote, watchLabel } from '@/screens/control/alarms/rules';
+import { boundLabel, repeatsEvery, scaleNote, watchLabel, willTell } from '@/screens/control/alarms/rules';
 import { channelsLabel, routedChannels } from '@/screens/notifications/reach';
 import { ruleFor, templateBody, templatesFor } from '@/screens/control/alarms/templates';
+import type { Told } from '@/log/log-context';
+import { LogProvider } from '@/log/LogProvider';
 import { headersOf } from '@/ui/headers';
+import { rulePage } from './fixtures';
 import { announced, drawAt } from './harness';
+import { Toast } from './toast';
 import { catalogue, translate } from './translations';
 
 /**
@@ -47,6 +54,13 @@ const device = (over: Partial<Device> = {}, hardware: Record<string, string> = {
     ...over,
   }) as Device;
 
+/** A controller holding the place's targets, named by the climate preset it was last put on. */
+const holding = (preset: AppliedClimate | null): Device =>
+  device({
+    configuration: { workmode: 'small', day: { temperature: 25, humidity: 50 }, night: { temperature: 20, humidity: 50 } },
+    control: { running: true, drying: false, mode: 'standard', energySaving: false, preset } as Device['control'],
+  });
+
 const rule = (over: Partial<AlarmRule>): AlarmRule => ({
   id: 'rule-x',
   createdAt: NOW.minus({ days: 3 }).toISO()!,
@@ -67,7 +81,7 @@ const rule = (over: Partial<AlarmRule>): AlarmRule => ({
 });
 
 const RULES: AlarmRule[] = [
-  rule({ id: 'rule-hot', name: 'Too hot', origin: 'preset', presetId: 'preset-flower' }),
+  rule({ id: 'rule-hot', name: 'Too hot', origin: 'preset', presetId: 'flowering' }),
   rule({
     id: 'rule-co2',
     name: 'CO2',
@@ -128,12 +142,20 @@ const me = {
 const answers = (path: string): unknown => {
   if (path === '/spaces/space-1/overview') return overview;
   if (path === '/me') return me;
-  if (path === '/devices/device-1/alarm-rules') return { items: RULES, nextCursor: null };
+  if (path === '/devices/device-1/alarm-rules') return rulePage(RULES);
   throw new Error(`no answer for ${path}`);
 };
 
+/** What the page answered its writes with: each toast, with the way it is taken back. */
+let told: Told[] = [];
+
 const draw = (devices: Device[] = [device()], mayManage = true, at = '/control/alarms?space=space-1') =>
-  drawAt(<Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />, { at });
+  drawAt(
+    <Toast told={told}>
+      <Alarms spaceId="space-1" devices={devices} mayManage={mayManage} />
+    </Toast>,
+    { at },
+  );
 
 const card = async (name: string) => (await screen.findByText(name)).closest('li')!;
 
@@ -141,9 +163,12 @@ beforeAll(() => translate());
 
 beforeEach(() => {
   session.demo = false;
+  told = [];
   vi.mocked(api.get).mockReset();
   vi.mocked(api.post).mockReset();
   vi.mocked(api.patch).mockReset();
+  vi.mocked(api.put).mockReset();
+  vi.mocked(api.delete).mockReset();
   vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(answers(path)) as never);
   vi.mocked(api.post).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...RULES[0], ...(body as object) }) as never);
   vi.mocked(api.patch).mockImplementation((_path: string, body: unknown) => Promise.resolve({ ...RULES[0], ...(body as object) }) as never);
@@ -152,14 +177,13 @@ beforeEach(() => {
 describe('the alarm rules page', () => {
   it('says so when nothing here has rules, and offers the one thing there is to do', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
-    expect(await screen.findByText(/Nothing stands here that has alarm rules/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing here has alarm rules/)).toBeInTheDocument();
     expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a device' })).toHaveAttribute('href', '/claim');
-    expect(screen.queryByRole('link', { name: '‹ back to the plan' })).not.toBeInTheDocument();
   });
 
   it('lists the rules of a plug, which measures no climate and is given one all the same', async () => {
@@ -172,19 +196,19 @@ describe('the alarm rules page', () => {
       repeatSeconds: 1800,
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [offline], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([offline]) : answers(path)) as never,
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
     expect(await screen.findByText('Device offline')).toBeInTheDocument();
-    expect(screen.queryByText(/Nothing stands here that has alarm rules/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Nothing here has alarm rules/)).not.toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Device offline on or off' })).toBeEnabled();
   });
 
   it('lists a device this build knows nothing about as long as it holds a rule, and offers it no new one', async () => {
     const mystery = rule({ id: 'rule-mystery', deviceId: 'mystery-1', name: 'Tank empty', origin: 'device' });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? { items: [mystery], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/mystery-1/alarm-rules' ? rulePage([mystery]) : answers(path)) as never,
     );
     draw([device({ id: 'mystery-1', type: 'watering-computer' })]);
 
@@ -197,9 +221,7 @@ describe('the alarm rules page', () => {
     const running = RULES.find(rule => rule.watch.kind === 'output_running')!;
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
-        Promise.resolve(
-          path === '/devices/device-1/alarm-rules' ? { items: [{ ...running, forSeconds: 0 }], nextCursor: null } : answers(path),
-        ) as never,
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([{ ...running, forSeconds: 0 }]) : answers(path)) as never,
     );
     draw();
 
@@ -226,18 +248,48 @@ describe('the alarm rules page', () => {
     expect(within(hot).queryByText(/running/)).not.toBeInTheDocument();
   });
 
-  it('groups the rules by where they came from, under the preset the grow stands on', async () => {
-    draw();
+  /** A second grow recorded in Veg beside the flowering one writes no climate, and the bands are still flowering's. */
+  it('groups the rules by where they came from, the stage´s under the climate their bands were written for', async () => {
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/spaces/space-1/overview'
+            ? { ...overview, grows: [{ growId: 'grow-2', stage: 'vegetative', preset: null }, ...overview.grows] }
+            : answers(path),
+        ) as never,
+    );
+    draw([holding({ stage: 'flowering', preset: null })]);
 
-    expect(await screen.findByText('From the Flower preset')).toBeInTheDocument();
-    expect(screen.getByText('thresholds move with the stage')).toBeInTheDocument();
-    // The place is named by the title of Steuerung above the page, not a second time here.
-    expect(screen.getByText('Alarms')).toBeInTheDocument();
-    // The tab opens on the targets unless a plan runs, so that is where the way back leads.
-    expect(screen.getByRole('link', { name: '‹ targets' })).toHaveAttribute('href', '/control?space=space-1');
+    expect(await screen.findByText('From the Flower climate')).toBeInTheDocument();
+    expect(screen.getByText('thresholds follow the climate')).toBeInTheDocument();
 
-    const labels = screen.getAllByText(/^(From the Flower preset|Always on|From the device|Written here)$/).map(label => label.textContent);
-    expect(labels).toEqual(['From the Flower preset', 'Always on', 'From the device', 'Written here']);
+    // The cloud's own rule can be switched off like any other, so its head does not call it always on.
+    const labels = screen.getAllByText(/^(From the Flower climate|Built in|From the device|Written here)$/).map(label => label.textContent);
+    expect(labels).toEqual(['From the Flower climate', 'Built in', 'From the device', 'Written here']);
+    // Each group is a heading a screen reader can step to, under the page's own where one device is listed.
+    expect(screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent)).toEqual(labels);
+    expect(screen.queryByText(/always/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * "Schwellen folgen dem Klima" stood over a Veg band under a tent put on Blüte from Steuerung, and over germination's
+   * after "Keimung beenden": the aside says it only where it holds, and otherwise what holds instead.
+   */
+  it('says the bands follow the climate only where the place still runs it', async () => {
+    const { unmount } = draw([holding({ stage: 'vegetative', preset: null })]);
+    expect(await screen.findByText('From the Flower climate')).toBeInTheDocument();
+    expect(screen.getByText('climate since: Veg')).toBeInTheDocument();
+    expect(screen.queryByText('thresholds follow the climate')).not.toBeInTheDocument();
+    unmount();
+
+    const lamp = device({ id: 'lamp-1', type: 'light', name: null });
+    draw([holding(null), lamp]);
+    expect(await screen.findByText('targets changed since')).toBeInTheDocument();
+    expect(screen.queryByText('thresholds follow the climate')).not.toBeInTheDocument();
+
+    // At 320 the aside takes the next line from the left, under its heading, not pushed to the right edge.
+    const css = readFileSync(resolve(__dirname, '../src/screens/control/alarms/Alarms.module.css'), 'utf8');
+    expect(/\.groupAside \{([^}]*)\}/.exec(css)?.[1]).not.toMatch(/margin-left: auto/);
   });
 
   it('writes the bound and the meta line of a preset rule, an always rule and a rule with its own webhook', async () => {
@@ -245,19 +297,19 @@ describe('the alarm rules page', () => {
 
     const hot = await card('Too hot');
     expect(within(hot).getByText('above 30 °C')).toBeInTheDocument();
-    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
 
     const offline = await card('Device offline');
-    expect(within(offline).getByText('always · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
+    expect(within(offline).getByText('built in · for 10 min · critical · goes to you by push + Telegram · repeats every 30 min')).toBeInTheDocument();
 
     const running = await card('Dehumidifier running non-stop');
     expect(within(running).getByText('longer than 2 h')).toBeInTheDocument();
-    expect(within(running).getByText('device · warning · goes to you by push · announced once')).toBeInTheDocument();
+    expect(within(running).getByText('device · warning · goes to you by push · does not repeat')).toBeInTheDocument();
     expect(within(running).getByRole('img', { name: 'triggered right now' })).toBeInTheDocument();
 
     const hook = await card('Pump watchdog');
     expect(within(hook).getByText('above 0.5')).toBeInTheDocument();
-    expect(within(hook).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
+    expect(within(hook).getByText('custom · for 5 min · warning · webhook · does not repeat')).toBeInTheDocument();
   });
 
   /**
@@ -277,11 +329,11 @@ describe('the alarm rules page', () => {
 
     const until = mutedUntil.setZone('Europe/Berlin').toFormat('HH:mm');
     const offline = await card('Device offline');
-    expect(within(offline).getByText(`always · for 10 min · critical · your channels muted until ${until}`)).toBeInTheDocument();
+    expect(within(offline).getByText(`built in · for 10 min · critical · muted until ${until}`)).toBeInTheDocument();
     expect(offline.textContent).not.toMatch(/goes to you|repeats every/);
 
     // Its own webhook is not the account's channel, and is not held back with them.
-    expect(within(await card('Pump watchdog')).getByText('custom · for 5 min · warning · webhook · announced once')).toBeInTheDocument();
+    expect(within(await card('Pump watchdog')).getByText('custom · for 5 min · warning · webhook · does not repeat')).toBeInTheDocument();
   });
 
   it('holds a warning back inside the account’s quiet hours and lets a critical rule through, as the server does', async () => {
@@ -296,14 +348,16 @@ describe('the alarm rules page', () => {
     const until = `${String(Math.floor(quietHours.toMinute / 60)).padStart(2, '0')}:${String(quietHours.toMinute % 60).padStart(2, '0')}`;
     expect(within(await card('Dehumidifier running non-stop')).getByText(`device · warning · your quiet hours until ${until}`)).toBeInTheDocument();
     expect(
-      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once'),
+      within(await card('Too hot')).getByText(
+        'climate · for 10 min · critical · goes to you by push + Telegram · comes through despite quiet hours · does not repeat',
+      ),
     ).toBeInTheDocument();
   });
 
   it('names the two rules nobody here wrote by what they watch, so they read in the language of the page', async () => {
     draw();
 
-    // The cloud's own rule is "Device offline" here as on the cockpit, whatever the server stored and the device is called.
+    // The cloud's own rule is "Device offline" here, whatever the server stored and the device is called.
     expect(await screen.findByText('Device offline')).toBeInTheDocument();
     expect(screen.queryByText('Controller offline')).not.toBeInTheDocument();
     expect(screen.queryByText('Blue Dream tent offline')).not.toBeInTheDocument();
@@ -319,7 +373,7 @@ describe('the alarm rules page', () => {
     draw();
 
     expect(
-      within(await card('Too hot')).getByText('preset · for 10 min · critical · goes to you by push (off) + Telegram · announced once'),
+      within(await card('Too hot')).getByText('climate · for 10 min · critical · goes to you by push (off) + Telegram · does not repeat'),
     ).toBeInTheDocument();
   });
 
@@ -335,7 +389,7 @@ describe('the alarm rules page', () => {
 
     expect(await screen.findByText('Alarms do not reach you')).toBeInTheDocument();
     const offline = await card('Device offline');
-    expect(within(offline).getByText('always · for 10 min · critical')).toBeInTheDocument();
+    expect(within(offline).getByText('built in · for 10 min · critical')).toBeInTheDocument();
     expect(within(offline).queryByRole('link', { name: 'does not reach you · set up ›' })).not.toBeInTheDocument();
   });
 
@@ -348,9 +402,9 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => Promise.resolve(path === '/me' ? warningsLost : answers(path)) as never);
     draw();
 
-    // Named on the row but set up nowhere is a dead end, and gets the way out on the card.
+    // Named on the row but set up nowhere is a dead end: the line promises no channel, and the card has the way out.
     const running = await card('Dehumidifier running non-stop');
-    expect(within(running).getByText('device · warning · goes to you by push (off) · announced once')).toBeInTheDocument();
+    expect(within(running).getByText('device · warning')).toBeInTheDocument();
     expect(within(running).getByRole('link', { name: 'does not reach you · set up ›' })).toBeInTheDocument();
 
     // A rule with a target of its own goes out whatever the account set.
@@ -361,7 +415,7 @@ describe('the alarm rules page', () => {
     vi.mocked(api.get).mockImplementation((path: string) => (path === '/me' ? new Promise(() => {}) : Promise.resolve(answers(path))) as never);
     draw();
 
-    expect(within(await card('Too hot')).getByText('preset · for 10 min · critical · announced once')).toBeInTheDocument();
+    expect(within(await card('Too hot')).getByText('climate · for 10 min · critical · does not repeat')).toBeInTheDocument();
     expect(screen.queryByText(/does not reach you/)).not.toBeInTheDocument();
   });
 
@@ -371,6 +425,19 @@ describe('the alarm rules page', () => {
     fireEvent.click(await screen.findByRole('switch', { name: 'Too hot on or off' }));
 
     await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/alarm-rules/rule-hot', { enabled: false }));
+  });
+
+  it('answers the switch with a toast that names the rule, and takes it back there', async () => {
+    draw();
+
+    fireEvent.click(await screen.findByRole('switch', { name: 'Too hot on or off' }));
+
+    await waitFor(() => expect(told).toHaveLength(1));
+    expect(told[0].label).toBe('Alarm “Too hot” off');
+    // The switch's next answer takes this one's place rather than standing over it.
+    expect(told[0].from).toBe('rule-rule-hot');
+    await told[0].undo!();
+    expect(api.patch).toHaveBeenLastCalledWith('/alarm-rules/rule-hot', { enabled: true });
   });
 
   it('shows what the server said when it refused', async () => {
@@ -398,16 +465,84 @@ describe('the alarm rules page', () => {
     const until = NOW.plus({ minutes: 45 });
     const silenced = RULES.map(one => (one.id === 'rule-hot' ? { ...one, silencedUntil: until.toISO()! } : one));
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: silenced, nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(silenced) : answers(path)) as never,
     );
     vi.mocked(api.delete).mockResolvedValue(undefined as never);
     draw();
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText(`silenced until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`)).toBeInTheDocument();
-    fireEvent.click(within(hot).getByRole('button', { name: 'unsilence' }));
+    // A silenced rule tells nobody, so the line promises no channel and no repeat.
+    expect(
+      within(hot).getByText(`climate · for 10 min · critical · silenced for everyone until ${until.setZone('Europe/Berlin').toFormat('HH:mm')}`),
+    ).toBeInTheDocument();
+    fireEvent.click(within(hot).getByRole('button', { name: 'Unsilence' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot/silence'));
+  });
+
+  it('offers an hour of silence on a rule that has raised, answers it with a toast and takes it back there', async () => {
+    vi.mocked(api.put).mockResolvedValue(RULES[3] as never);
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    draw();
+
+    // Only a rule that is raising or silenced has anything to silence: a calm one offers neither.
+    expect(within(await card('Too hot')).queryByRole('button', { name: 'Silence 1 h' })).not.toBeInTheDocument();
+    fireEvent.click(within(await card('Dehumidifier running non-stop')).getByRole('button', { name: 'Silence 1 h' }));
+
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith('/alarm-rules/rule-dehum/silence', { forSeconds: 3600 }));
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['“Dehumidifier running non-stop” silenced for 1 h']));
+    await told[0].undo!();
+    expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-dehum/silence');
+  });
+
+  it('leads with the place´s own device and folds every other behind a row that says its rules', async () => {
+    const plugRule = rule({
+      id: 'rule-plug',
+      deviceId: 'plug-1',
+      name: 'Plug offline',
+      origin: 'always',
+      watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([plugRule]) : answers(path)) as never,
+    );
+    draw([device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
+
+    // The first device stands open under its name.
+    expect(await screen.findByRole('heading', { level: 2, name: 'Blue Dream tent' })).toBeInTheDocument();
+    expect(await screen.findByText('Too hot')).toBeInTheDocument();
+    // The second is one row: its name, and what its rules are doing.
+    const fold = await screen.findByRole('button', { name: /Pump socket/ });
+    expect(fold).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(fold).toHaveTextContent('1 rule · all quiet'));
+    const plug = screen.getByRole('region', { name: 'Pump socket' });
+    expect(within(plug).queryByRole('switch')).not.toBeInTheDocument();
+
+    fireEvent.click(fold);
+    expect(fold).toHaveAttribute('aria-expanded', 'true');
+    expect(await within(plug).findByRole('switch', { name: 'Device offline on or off' })).toBeInTheDocument();
+  });
+
+  it('opens with the device a link names unfolded, and with the one whose rule an alert linked to', async () => {
+    const plugRule = rule({
+      id: 'rule-plug',
+      deviceId: 'plug-1',
+      name: 'Plug offline',
+      origin: 'always',
+      watch: { kind: 'reading', metric: 'offline', upper: null, lower: null },
+    });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([plugRule]) : answers(path)) as never,
+    );
+    const both = [device(), device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })];
+
+    const byDevice = draw(both, true, '/control/alarms?space=space-1&device=plug-1');
+    expect(await screen.findByRole('button', { name: /Pump socket/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(await within(screen.getByRole('region', { name: 'Pump socket' })).findByRole('switch')).toBeInTheDocument();
+    byDevice.unmount();
+
+    draw(both, false, '/control/alarms?space=space-1&rule=rule-plug');
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pump socket/ })).toHaveAttribute('aria-expanded', 'true'));
   });
 
   /**
@@ -423,7 +558,7 @@ describe('the alarm rules page', () => {
 
     const info = await screen.findByRole('button', { name: 'About Muting and maintenance' });
     expect(info).toHaveAccessibleDescription(/A muted rule keeps watching: .* it only tells nobody\./);
-    expect(info).toHaveAccessibleDescription(/Maintenance mode holds the alarms themselves back/);
+    expect(info).toHaveAccessibleDescription(/Maintenance holds the alarms themselves back/);
   });
 
   /**
@@ -454,11 +589,11 @@ describe('the alarm rules page', () => {
     vi.mocked(api.post).mockResolvedValue({ publishedAt: NOW.toISO(), deviceOnline: true } as never);
     draw([device({ state: { ...device().state, maintenanceUntil: until.toISO()! } })]);
 
-    const banner = await screen.findByRole('status');
-    expect(banner).toHaveTextContent(`In maintenance until ${there(until)}`);
+    const banner = await screen.findByRole('group', { name: 'Maintenance' });
+    expect(banner).toHaveTextContent(`Maintenance until ${there(until)}`);
     expect(banner).toHaveTextContent(`no alarm on this device until ${there(until.plus({ minutes: 10 }))}`);
 
-    fireEvent.click(within(banner).getByRole('button', { name: 'End now' }));
+    fireEvent.click(within(banner).getByRole('button', { name: 'End' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/commands', { kind: 'maintenance', forSeconds: 0 }));
   });
@@ -472,14 +607,18 @@ describe('the alarm rules page', () => {
   it('stops offering End the moment the window it ended comes back', async () => {
     const parked = device({ state: { ...device().state, maintenanceUntil: NOW.plus({ minutes: 9 }).toISO()! } });
     const drawn = draw([parked]);
-    await screen.findByRole('button', { name: 'End now' });
+    await screen.findByRole('button', { name: 'End' });
     await new Promise(settle => setTimeout(settle, 30));
 
     const ended = device({ state: { ...device().state, maintenanceUntil: DateTime.now().toISO()! } });
-    drawn.rerender(<Alarms spaceId="space-1" devices={[ended]} mayManage />);
+    drawn.rerender(
+      <Toast>
+        <Alarms spaceId="space-1" devices={[ended]} mayManage />
+      </Toast>,
+    );
 
-    expect(await screen.findByText(/Out of maintenance/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+    expect(await screen.findByText(/^Maintenance ended at/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'End' })).not.toBeInTheDocument();
   });
 
   /**
@@ -491,26 +630,32 @@ describe('the alarm rules page', () => {
     const ended = NOW.minus({ minutes: 4 });
     draw([device({ state: { ...device().state, maintenanceUntil: ended.toISO()! } })]);
 
-    const banner = await screen.findByRole('status');
-    expect(banner).toHaveTextContent('Out of maintenance');
+    const banner = await screen.findByRole('group', { name: 'Maintenance' });
+    expect(banner).toHaveTextContent(`Maintenance ended at ${ended.setZone('Europe/Berlin').toFormat('HH:mm')}`);
     expect(banner).toHaveTextContent(`no alarm on this device until ${ended.plus({ minutes: 10 }).setZone('Europe/Berlin').toFormat('HH:mm')}`);
-    expect(within(banner).queryByRole('button', { name: 'End now' })).not.toBeInTheDocument();
+    expect(within(banner).queryByRole('button')).toHaveAccessibleName('About Maintenance');
   });
 
   it('says nothing about maintenance on a device nobody is working on', async () => {
     draw();
 
     await screen.findByText('Too hot');
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Maintenance' })).not.toBeInTheDocument();
   });
 
-  it('calls the stage group by the stage alone where nothing grows here yet', async () => {
+  it('names no climate over stage rules that do not say which stage wrote them, and no climate preset', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/spaces/space-1/overview' ? { ...overview, grows: [] } : answers(path)) as never,
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules'
+            ? rulePage(RULES.map(one => (one.origin === 'preset' ? { ...one, presetId: null } : one)))
+            : answers(path),
+        ) as never,
     );
     draw();
 
-    expect(await screen.findByText('From the stage preset')).toBeInTheDocument();
+    expect(await screen.findByText('Climate alarms')).toBeInTheDocument();
+    expect(screen.queryByText(/climate preset/i)).not.toBeInTheDocument();
   });
 
   it('marks the rule an alert linked to, and opens it for whoever may change it', async () => {
@@ -551,7 +696,7 @@ describe('the alarm rules page', () => {
     expect(within(hot as HTMLElement).getByText('On')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Custom alarm' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Set up/ })).not.toBeInTheDocument();
-    expect(screen.getAllByText('preset · for 10 min · critical · announced once')).toHaveLength(1);
+    expect(screen.getAllByText('climate · for 10 min · critical · does not repeat')).toHaveLength(1);
     expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).not.toContain('/me');
   });
 
@@ -566,12 +711,12 @@ describe('the alarm rules page', () => {
     draw();
 
     const co2 = await card('CO₂ too high');
-    expect(within(co2).getByText('preset · for 10 min · critical · switched off')).toBeInTheDocument();
+    expect(within(co2).getByText('climate · for 10 min · critical · switched off')).toBeInTheDocument();
     expect(within(co2).getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    expect(co2.textContent).not.toMatch(/goes to you|announced once|repeats every/);
+    expect(co2.textContent).not.toMatch(/goes to you|does not repeat|repeats every/);
 
     const hot = await card('Too hot');
-    expect(within(hot).getByText('preset · for 10 min · critical · goes to you by push + Telegram · announced once')).toBeInTheDocument();
+    expect(within(hot).getByText('climate · for 10 min · critical · goes to you by push + Telegram · does not repeat')).toBeInTheDocument();
   });
 
   /**
@@ -585,8 +730,7 @@ describe('the alarm rules page', () => {
     const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
     const mine = rule({ id: 'rule-mine', name: 'Box soaking', watch: { kind: 'reading', metric: 'humidity', upper: 95, lower: null } });
     vi.mocked(api.get).mockImplementation(
-      (path: string) =>
-        Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [humid, mine, RULES[0]], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([humid, mine, RULES[0]]) : answers(path)) as never,
     );
     const germinating = (warnTooHumid: boolean) =>
       device({
@@ -618,6 +762,52 @@ describe('the alarm rules page', () => {
     expect(within(warning).getByText('above 90 %')).toBeInTheDocument();
     expect(within(warning).getByText('during germination · above 72 % again afterwards')).toBeInTheDocument();
     expect(within(await card('Box soaking')).getByText('above 95 %')).toBeInTheDocument();
+  });
+
+  // Germination is the place's: a lamp module has no work mode, and its "too humid" rests by the controller's choice.
+  it('says a lamp module´s "too humid" rests while its place germinates, by what the server says was chosen there', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
+    const page = (germination: { warnTooHumid: boolean; humidifierHolds: boolean } | null) => ({ ...rulePage([humid]), germination });
+    let answered = page({ warnTooHumid: false, humidifierHolds: true });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules' ? answered : path === '/devices/device-2/alarm-rules' ? rulePage([]) : answers(path),
+        ) as never,
+    );
+    // The place's controller germinates: the lamp module's rule rests by it, and the choice is the controller's.
+    const here = () => [device({ type: 'light', configuration: { limit: 0 }, control: null }), device({ id: 'device-2' })];
+    const view = draw(here());
+    expect(within(await card('Too humid')).getByRole('link', { name: 'rests during germination · change under Control ›' })).toBeInTheDocument();
+    view.unmount();
+
+    answered = page({ warnTooHumid: true, humidifierHolds: true });
+    draw(here());
+    expect(within(await card('Too humid')).getByText('above 90 %')).toBeInTheDocument();
+  });
+
+  /**
+   * A fan alone in a germinating place rests by the climate the grow's phase put it on. Its line led to a Steuerung that
+   * shows only the fan's mode and speeds: it leads where the rest ends, the grow's phase.
+   */
+  it('leads a fan alone´s resting "too humid" to the grow´s phase, which ends the rest, and not to Steuerung', async () => {
+    const humid = rule({ id: 'rule-humid', origin: 'preset', watch: { kind: 'reading', metric: 'humidity', upper: 72, lower: null } });
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(
+          path === '/devices/device-1/alarm-rules'
+            ? { ...rulePage([humid]), germination: { warnTooHumid: false, humidifierHolds: true } }
+            : answers(path),
+        ) as never,
+    );
+    draw([device({ type: 'fan', configuration: { mode: 2 }, control: null })]);
+
+    const card_ = await card('Too humid');
+    expect(within(card_).getByRole('link', { name: 'rests during germination · ends with the phase ›' })).toHaveAttribute(
+      'href',
+      '/grows/grow-1?phase=1',
+    );
+    expect(within(card_).queryByText(/change under Control/)).not.toBeInTheDocument();
   });
 });
 
@@ -680,7 +870,7 @@ describe('the rule sheet', () => {
    */
   it('writes a fan level in percent and offers no fraction to type instead', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fan-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fan-1', type: 'fan', name: 'Exhaust fan' })]);
     fireEvent.click(await screen.findByRole('button', { name: '+ Custom alarm' }));
@@ -715,9 +905,9 @@ describe('the rule sheet', () => {
    * contradict. Its CO2 stays an answer about this plug rather than about
    * plugs, because whether that sensor is fitted is the device's to say.
    */
-  it('calls a fridge´s outputs what the cockpit calls them, and offers the CO2 its tile shows', async () => {
+  it('calls a fridge´s outputs what the device´s card calls them, and offers the CO2 the fridge reads', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fridge-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fridge-1', type: 'fridge', name: 'Fridge module' })]);
 
@@ -733,7 +923,7 @@ describe('the rule sheet', () => {
 
   it('offers a plug both the output it drives and the climate it measures', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/plug-1/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'plug-1', type: 'plug', name: 'Pump socket' })]);
 
@@ -755,7 +945,7 @@ describe('the rule sheet', () => {
    */
   it('offers a fan the temperature, humidity and VPD it measures, not its output alone', async () => {
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/fan-2/alarm-rules' ? { items: [], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/fan-2/alarm-rules' ? rulePage([]) : answers(path)) as never,
     );
     draw([device({ id: 'fan-2', type: 'fan', name: 'Exhaust fan' })]);
 
@@ -774,7 +964,7 @@ describe('the rule sheet', () => {
   it('keeps an output the hardware does not report where a rule already watches it', async () => {
     const backwall = rule({ id: 'rule-fan', name: 'Back-wall fan', watch: { kind: 'output_level', output: 'fanBackwall', upper: 0.9, lower: null } });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [backwall], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([backwall]) : answers(path)) as never,
     );
     draw();
 
@@ -792,6 +982,50 @@ describe('the rule sheet', () => {
 
     expect(within(sheet).getByRole('alert')).toHaveTextContent('Give it a line to cross');
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  /** Over 70 and under 80 is every value: such a rule fired at once and went on firing. */
+  it('refuses two edges that contradict each other from the moment both are typed, before the server has to', async () => {
+    const sheet = await openNew();
+    const save = within(sheet).getByRole('button', { name: 'Save the alarm' });
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Humidity' }));
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '70' } });
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '80' } });
+
+    const said = 'That would fire at every value: the figure under “below” has to be smaller than the one under “above”.';
+    expect(within(sheet).getByRole('alert')).toHaveTextContent(said);
+    expect(within(sheet).getByLabelText(/^above/)).toBeInvalid();
+    expect(within(sheet).getByLabelText(/^below/)).toHaveAccessibleDescription(said);
+    expect(save).toBeDisabled();
+    expect(save).toHaveAccessibleDescription(said);
+    fireEvent.click(save);
+    expect(api.post).not.toHaveBeenCalled();
+
+    // Equal edges leave a single value quiet, which is no rule either; a band the other way round is one.
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '70' } });
+    expect(save).toBeDisabled();
+    fireEvent.change(within(sheet).getByLabelText(/^below/), { target: { value: '40' } });
+    expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
+    expect(save).toBeEnabled();
+  });
+
+  it('says the server’s refusal of contradicting edges in the sheet’s own words', async () => {
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError({
+        status: 422,
+        code: 'limits_contradict',
+        title: 'Invalid',
+        detail: 'A rule is quiet only between its two limits, and these leave no room between them.',
+        errors: [{ field: 'watch.lower', code: 'not_below_upper', detail: 'It would ring below 80 and above 70, which is every value.' }],
+      }),
+    );
+    const sheet = await openNew();
+    fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '30' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
+
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('That would fire at every value');
   });
 
   it('creates a rule with exactly the body the contract names', async () => {
@@ -898,7 +1132,7 @@ describe('the rule sheet', () => {
       delivery: { mode: 'custom', custom: { channel: 'email', target: 'you@example.invalid', includeDetails: true, webhook: null } },
     });
     vi.mocked(api.get).mockImplementation(
-      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? { items: [carried], nextCursor: null } : answers(path)) as never,
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([carried]) : answers(path)) as never,
     );
     draw();
 
@@ -933,7 +1167,10 @@ describe('the rule sheet', () => {
     // reader's language, so a name typed here changed nothing any screen drew.
     expect(within(sheet).queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();
     expect(within(sheet).getByText(/watches whether the device reports at all/)).toBeInTheDocument();
-    expect(within(sheet).getByText(/On top of the ten minutes/)).toBeInTheDocument();
+    // What the wait means stands behind the help beside it, not as a sentence under the field.
+    expect(within(sheet).queryByText(/On top of the ten minutes/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About For how long' }));
+    expect(screen.getByText(/comes on top of the ten minutes/)).toBeInTheDocument();
 
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
@@ -1002,7 +1239,7 @@ describe('the rule sheet', () => {
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'URL' }), { target: { value: 'http://10.0.0.5/alarm' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'GET' }));
     fireEvent.change(within(sheet).getByRole('textbox', { name: 'Headers' }), { target: { value: 'X-Token: abc\nnot a header' } });
-    fireEvent.click(within(sheet).getByRole('switch', { name: "Through the device's tunnel" }));
+    fireEvent.click(within(sheet).getByRole('switch', { name: 'Through the device’s tunnel' }));
     fireEvent.click(within(sheet).getByRole('button', { name: 'Save the alarm' }));
 
     await waitFor(() =>
@@ -1049,6 +1286,26 @@ describe('the rule sheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Edit the alarm' })).getByRole('textbox', { name: 'Name' })).toHaveValue('Too humid');
   });
 
+  it('opens a rule set up in one tap under its name in the reader´s language, and an untouched save keeps the name it is stored under', async () => {
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    await i18next.changeLanguage('de');
+    try {
+      const tapped = rule({ id: 'rule-tap', name: 'Too hot', origin: 'human' });
+      vi.mocked(api.get).mockImplementation(
+        (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([tapped]) : answers(path)) as never,
+      );
+      draw();
+      fireEvent.click(await screen.findByRole('button', { name: /Zu warm/ }));
+      const sheet = screen.getByRole('dialog', { name: 'Alarm bearbeiten' });
+
+      expect(within(sheet).getByRole('textbox', { name: 'Name' })).toHaveValue('Zu warm');
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Alarm speichern' }));
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith('/alarm-rules/rule-tap', expect.objectContaining({ name: 'Too hot' })));
+    } finally {
+      await act(() => i18next.changeLanguage('en'));
+    }
+  });
+
   it('opens a rule filled in, says what the stage will do to it, and patches the whole of what it asks', async () => {
     draw();
     fireEvent.click(await screen.findByRole('button', { name: /Too hot/ }));
@@ -1056,7 +1313,10 @@ describe('the rule sheet', () => {
 
     expect(within(sheet).getByRole('textbox', { name: 'Name' })).toHaveValue('Too hot');
     expect(within(sheet).getByLabelText(/^above/)).toHaveValue(30);
-    expect(within(sheet).getByText(/The next stage writes its thresholds again/)).toBeInTheDocument();
+    // That the next stage moves the rule's lines stands behind the help beside its name.
+    expect(within(sheet).queryByText(/The next stage/)).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'About Rules from the climate' }));
+    expect(screen.getAllByText(/The next climate moves their lines and waits/)).not.toHaveLength(0);
     expect(within(sheet).getByRole('button', { name: 'Delete the alarm' })).toBeInTheDocument();
 
     fireEvent.change(within(sheet).getByLabelText(/^above/), { target: { value: '31' } });
@@ -1086,6 +1346,10 @@ describe('the rule sheet', () => {
     const sheet = screen.getByRole('dialog', { name: 'Edit the alarm' });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete the alarm' }));
     expect(api.delete).not.toHaveBeenCalled();
+    // The one danger style: the yes is filled in the alarm's red, never the brand green.
+    expect(within(sheet).getByRole('button', { name: 'Delete it' }).className).toMatch(/dangerFilled/);
+    expect(within(sheet).getByRole('button', { name: 'Delete it' }).className).not.toMatch(/primary/);
+    expect(within(sheet).queryByRole('button', { name: 'Save the alarm' })).not.toBeInTheDocument();
     fireEvent.click(within(sheet).getByRole('button', { name: 'Delete it' }));
 
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hook'));
@@ -1109,7 +1373,7 @@ describe('the alarm templates', () => {
 
     // The stage's "Too hot" already watches the temperature from above, so that one is not offered again.
     expect(await screen.findByRole('button', { name: 'Set up Too cold: below 15 °C · 15 min' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Set up Too warm/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Set up Too hot/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Set up Too dry: below 35 % · 20 min' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Set up Too humid: above 75 % · 20 min' }));
@@ -1127,6 +1391,31 @@ describe('the alarm templates', () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/devices/device-1/alarm-rules', body));
     // Nothing else was asked: no sheet opened on the way.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // The tap is answered by name, and taken back by removing the rule it wrote.
+    await waitFor(() => expect(told.map(one => one.label)).toEqual(['Alarm “Too humid” added']));
+    vi.mocked(api.delete).mockResolvedValue(undefined as never);
+    await told[0].undo!();
+    expect(api.delete).toHaveBeenCalledWith('/alarm-rules/rule-hot');
+  });
+
+  it('stores a rule made by one tap under a name every reader`s language knows, and tells two of one name apart by their threshold', async () => {
+    // Stored as "Too dry" whoever made it, it is titled from the catalogue - "Zu trocken" to a German reader - like a stage's own rules.
+    const dry = rule({ id: 'rule-dry', name: 'Too dry', origin: 'human', watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 35 } });
+    const drier = rule({
+      id: 'rule-drier',
+      name: 'Too dry',
+      origin: 'human',
+      watch: { kind: 'reading', metric: 'humidity', upper: null, lower: 25 },
+    });
+    expect(ruleTitle(i18next.t.bind(i18next), dry)).toBe('Too dry');
+
+    vi.mocked(api.get).mockImplementation(
+      (path: string) => Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage([...RULES, dry, drier]) : answers(path)) as never,
+    );
+    draw();
+
+    expect(await screen.findByRole('switch', { name: /Too dry · .*35/ })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /Too dry · .*25/ })).toBeInTheDocument();
   });
 
   it('marks the rule a template wrote, which opens like any other', async () => {
@@ -1139,9 +1428,7 @@ describe('the alarm templates', () => {
     let written = false;
     vi.mocked(api.get).mockImplementation(
       (path: string) =>
-        Promise.resolve(
-          path === '/devices/device-1/alarm-rules' ? { items: written ? [...RULES, made] : RULES, nextCursor: null } : answers(path),
-        ) as never,
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(written ? [...RULES, made] : RULES) : answers(path)) as never,
     );
     vi.mocked(api.post).mockImplementation(() => {
       written = true;
@@ -1159,6 +1446,45 @@ describe('the alarm templates', () => {
     expect(screen.queryByRole('button', { name: /^Set up Too cold/ })).not.toBeInTheDocument();
     fireEvent.click(within(card).getByRole('button', { name: /^Too cold/ }));
     expect(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Name' })).toHaveValue('Too cold');
+  });
+
+  /**
+   * The template a tap wrote goes with the tap: the focus fell to the page and a Tab landed on the next template,
+   * where Enter wrote a second rule. The new rule's card takes it - Enter there opens, never writes - and the
+   * toast's undo is the next stop.
+   */
+  it('leaves the focus on the rule a template wrote by keyboard, with the toast´s undo the next stop', async () => {
+    const made = rule({
+      id: 'rule-made',
+      name: 'Too cold',
+      watch: { kind: 'reading', metric: 'temperature', upper: null, lower: 15 },
+      forSeconds: 900,
+    });
+    let written = false;
+    vi.mocked(api.get).mockImplementation(
+      (path: string) =>
+        Promise.resolve(path === '/devices/device-1/alarm-rules' ? rulePage(written ? [...RULES, made] : RULES) : answers(path)) as never,
+    );
+    vi.mocked(api.post).mockImplementation(() => {
+      written = true;
+      return Promise.resolve(made) as never;
+    });
+    drawAt(
+      <LogProvider>
+        <Alarms spaceId="space-1" devices={[device()]} mayManage />
+      </LogProvider>,
+      { at: '/control/alarms?space=space-1' },
+    );
+
+    const template = await screen.findByRole('button', { name: /^Set up Too cold/ });
+    template.focus();
+    fireEvent.click(template);
+
+    const opens = await screen.findByRole('button', { name: /^Too cold/ });
+    await waitFor(() => expect(document.activeElement).toBe(opens));
+    await screen.findByRole('button', { name: 'Undo' });
+    fireEvent.keyDown(opens, { key: 'Tab' });
+    expect(document.activeElement).toHaveTextContent('Undo');
   });
 
   it('works each line out from the targets the device holds, and falls back where it states none', () => {
@@ -1211,8 +1537,8 @@ describe('the alarm templates', () => {
   it('writes the compressor rule as a rule on the output running, named for the fridge', () => {
     const running = templatesFor(device({ type: 'fridge' })).find(template => template.key === 'running')!;
 
-    expect(templateBody((key: string) => key, running)).toMatchObject({
-      name: 'alarms.template.running.name',
+    expect(templateBody(running)).toMatchObject({
+      name: 'Fridge runs without a break',
       watch: { kind: 'output_running', output: 'dehumidifier' },
       forSeconds: 1800,
       severity: 'critical',
@@ -1296,6 +1622,30 @@ describe('what a rule is called', () => {
     expect(repeatsEvery(rule({ repeatSeconds: 3600, delivery: { mode: 'custom', custom: mail } }))).toBe(3600);
     // A rule routed through the account's grid is not a mail of its own, whatever delivery it kept from before.
     expect(repeatsEvery(rule({ repeatSeconds: 60, delivery: { mode: 'routing', custom: mail } }))).toBe(60);
+  });
+
+  /**
+   * What was held back is not sent later, so only a rule that repeats is
+   * promised to say itself after the night - and of a rule that says itself
+   * once, the line says no more than until when the night lasts.
+   */
+  it('promises a held-back alarm after quiet hours only where its rule repeats, and nothing of a silenced rule but its silence', () => {
+    const here = NOW.setZone('Europe/Berlin');
+    const minute = here.hour * 60 + here.minute;
+    const quiet = { ...me, notifications: { ...me.notifications, quietHours: { fromMinute: minute, toMinute: (minute + 60) % 1440 } } };
+    const until = here.plus({ hours: 1 }).toFormat('HH:mm');
+    const t = i18next.t.bind(i18next) as Translate;
+
+    expect(willTell(t, 'warning', rule({ repeatSeconds: 1800 }), quiet, NOW).said).toEqual([`repeats after your quiet hours, from ${until}`]);
+    expect(willTell(t, 'warning', rule({ repeatSeconds: 0 }), quiet, NOW).said).toEqual([`your quiet hours until ${until}`]);
+    // What the health loop raises without a rule is routed like any other, and never repeats.
+    expect(willTell(t, 'warning', null, me, NOW)).toEqual({ said: ['goes to you by push', 'does not repeat'], unreached: false });
+    expect(willTell(t, 'info', rule({}), me, NOW).said).toEqual(['is not announced']);
+    expect(willTell(t, 'critical', rule({ silencedUntil: NOW.plus({ minutes: 5 }).toISO() }), quiet, NOW).said).toEqual([
+      `silenced for everyone until ${here.plus({ minutes: 5 }).toFormat('HH:mm')}`,
+    ]);
+    const nowhere = { ...me, notifications: { ...me.notifications, routing: { alerts: [], warnings: [] } } } as unknown as Me;
+    expect(willTell(t, 'critical', rule({}), nowhere, NOW)).toEqual({ said: [], unreached: true });
   });
 
   it('reads headers off their lines and drops what is not one', () => {

@@ -25,7 +25,8 @@ export const refusalText = (error: unknown, fallback?: string): string => {
   if (english && status < 500 && (detail || title)) return [detail || title, ...reasons.map(one => one.detail)].join(' ');
 
   const coded = `problem.code.${code}`;
-  if (i18next.exists(coded)) return [i18next.t(coded), ...reasons.map(one => i18next.t(`problem.code.${one.code}`))].join(' ');
+  // A field refused for the very reason the whole was is said once.
+  if (i18next.exists(coded)) return [...new Set([i18next.t(coded), ...reasons.map(one => i18next.t(`problem.code.${one.code}`))])].join(' ');
 
   return i18next.t(`problem.status.${statusKind(status)}`);
 };

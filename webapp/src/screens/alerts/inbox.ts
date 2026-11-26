@@ -1,87 +1,57 @@
 import { DateTime } from 'luxon';
-import type { AlarmRule, Alert, Me, OutputLevelWatch, ReadingWatch, Severity } from '@fg2/shared-types/v1';
-import { alertCategory } from '@fg2/shared-types/v1-schemas/alert-routing.js';
-import { severityReaches } from '@/screens/notifications/reach';
-import { ageLabel, silentSince } from '@/ui/age';
-import { nowThere, zoned } from '@/ui/zone';
+import type { AlarmRule, Alert, OutputLevelWatch, OutputMetric, ReadingWatch, Severity } from '@fg2/shared-types/v1';
+import { metricName, ruleTitle } from '@/i18n/alarm-line';
+import type { Translate } from '@/i18n/i18n';
+import { silentSince, spanLabel, timeWords } from '@/ui/age';
+import { calledIn } from '@/ui/naming';
+import type { AlertNames } from './names';
 
 /**
- * How the inbox is cut up, which bound a reading crossed, and whether anybody
- * was told. All of it is plain arithmetic on the server's instants and on the
- * account's own grid, kept out of the card so it can be checked without drawing
- * anything.
+ * How the inbox is ordered, which bound a reading crossed, how long an episode
+ * stood and what it is called: worked out from the server's answers, kept out
+ * of the card so it can be checked without drawing anything.
  */
 
-export type GroupHeading = { kind: 'now' } | { kind: 'earlierToday' } | { kind: 'yesterday' } | { kind: 'day'; day: DateTime };
-
-interface AlertGroup {
-  key: string;
-  heading: GroupHeading;
-  alerts: Alert[];
-}
-
-const startedMillis = (alert: Alert) => DateTime.fromISO(alert.startedAt).toMillis();
+const millis = (instant: string) => DateTime.fromISO(instant).toMillis();
 
 /** How bad first, because what is open is read from the top and a phone shows three cards of it. */
-const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+export const WORST_FIRST: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+
+/** What the order is decided by: an alert of the inbox, or one as a card of Start lists it, which names a device only where the inbox's list was at hand. */
+type Ranked = Pick<Alert, 'kind' | 'severity' | 'startedAt' | 'value'> & { deviceId?: string | null };
+
+/** When each device with an open offline alert was last heard. */
+export const silentDevices = (open: Ranked[]): Map<string, string> =>
+  new Map(open.flatMap(alert => (alert.kind === 'offline' && alert.deviceId ? [[alert.deviceId, silentSince(alert)] as const] : [])));
+
+/** When the device a reading's alert is about was last heard, where it has gone silent since: the reading is as old as that. */
+export const heardOf = (alert: Ranked, silent: Map<string, string>): string | null =>
+  (alert.kind === 'threshold' && alert.deviceId && silent.get(alert.deviceId)) || null;
 
 /**
- * Everything still open comes first, whatever day it began on: it is what is
- * wrong now. Inside that group the worst comes first and the clock decides only
- * between equals - a second critical tent below three warnings is off the
- * bottom of a phone, and the order a thing happened in is no help to somebody
- * deciding what to deal with. What has resolved is a record rather than a queue
- * and stays in the order it happened: filed under the day it started on in the
- * account's own zone, today and yesterday by name and every earlier day by its
- * date, newest first inside each. Nothing is left out for being old.
+ * What is open, the worst first, the clock deciding only between equals - a
+ * second critical tent below three warnings is off the bottom of a phone. A
+ * reading of a device gone silent is an old one, and stands under everything
+ * that is about now - the card saying the device is offline among it. It is
+ * the one order: Meldungen lists by it, Start names a place's first by it and
+ * ranks its cards by how bad that one is.
  */
-export const groupsOf = (alerts: Alert[], now: DateTime, zone: string | null): AlertGroup[] => {
-  const newestFirst = [...alerts].sort((a, b) => startedMillis(b) - startedMillis(a));
-  const open = newestFirst
-    .filter(alert => alert.resolvedAt === null)
-    .sort((a, b) => WORST_FIRST[a.severity] - WORST_FIRST[b.severity] || startedMillis(b) - startedMillis(a));
-  const groups: AlertGroup[] = open.length ? [{ key: 'now', heading: { kind: 'now' }, alerts: open }] : [];
-
-  const here = nowThere(now, zone);
-  const today = here.startOf('day').toISODate();
-  const yesterday = here.startOf('day').minus({ days: 1 }).toISODate();
-  const days = new Map<string, AlertGroup>();
-  for (const alert of newestFirst) {
-    if (alert.resolvedAt === null) continue;
-    const day = zoned(alert.startedAt, zone).startOf('day');
-    const key = day.toISODate()!;
-    let group = days.get(key);
-    if (!group) {
-      const heading: GroupHeading = key === today ? { kind: 'earlierToday' } : key === yesterday ? { kind: 'yesterday' } : { kind: 'day', day };
-      group = { key, heading, alerts: [] };
-      days.set(key, group);
-    }
-    group.alerts.push(alert);
-  }
-
-  return [...groups, ...days.values()];
-};
+export const worstFirst = <T extends Ranked>(open: T[], silent = silentDevices(open)): T[] =>
+  [...open].sort(
+    (a, b) =>
+      Number(heardOf(a, silent) !== null) - Number(heardOf(b, silent) !== null) ||
+      WORST_FIRST[a.severity] - WORST_FIRST[b.severity] ||
+      millis(b.startedAt) - millis(a.startedAt),
+  );
 
 /**
- * The bound the reading went past, so the card can say "68 % › 60" rather than
- * both edges. A reading below the lower edge names that edge, one above the
- * upper edge names that one, and a reading that is inside the band names
- * neither - the card then shows the reading alone.
- *
- * That last case is not a curiosity. A band may be moved while the episode it
- * raised is still open, which the card's own "Edit rule" chip is the supported
- * way to do. An episode now keeps the band it was raised against and the card
- * reads that one, but an episode older than that copy has only today's rule to
- * be measured against - and naming the upper edge whenever there was one then
- * printed "humidity 41 % › 60", a crossing that never happened, on a card whose
- * whole job is to say what did. With no band of the episode's own to name, the
- * honest answer is to say nothing about an edge rather than to assert the wrong
- * one.
- *
- * The comparison is the engine's: `isOutOfBounds` counts a reading as out of
- * band only strictly past the edge, so a reading sitting exactly on it has
- * crossed nothing here either. Without a reading at all there is no comparison
- * to make and the rule's first edge stands in, as it always has.
+ * The bound the reading went past: the lower edge for a reading below it, the
+ * upper for one above, and neither for a reading inside the band - a band may
+ * be moved while its episode is open, and an episode older than the copy it
+ * keeps of its rule is measured against today's, so naming an edge there
+ * would assert a crossing that never happened. The comparison is the
+ * engine's: only strictly past the edge is out. Without a reading the rule's
+ * first edge stands in.
  */
 export const crossedBound = (
   { upper, lower }: Pick<ReadingWatch | OutputLevelWatch, 'upper' | 'lower'>,
@@ -105,51 +75,79 @@ export const crossedBound = (
  */
 export const beganAt = (alert: Alert): string => (alert.kind === 'offline' ? silentSince(alert) : alert.startedAt);
 
-/** How long an alert has stood: until now while it is open, until it resolved once it has. */
-export const lastedLabel = (alert: Alert, now: DateTime): string =>
-  ageLabel(beganAt(alert), alert.resolvedAt ? DateTime.fromISO(alert.resolvedAt) : now);
+/** Whether what an episode that is over was about stands open again: the same rule on the same device, the same silence. */
+export const openAgain = (over: Alert, open: Alert[]): boolean =>
+  open.some(one => one.ruleId === over.ruleId && one.kind === over.kind && one.deviceId === over.deviceId && one.cameraId === over.cameraId);
 
-/** What the card says will happen about this alert, as the key it is said in. */
-type Delivery = 'notAnnounced' | 'unheard' | 'once' | 'repeats';
+/** How many seconds an episode that is over stood. */
+export const lastedSeconds = (alert: Alert): number => (millis(alert.resolvedAt ?? alert.startedAt) - millis(beganAt(alert))) / 1000;
+
+/** Two episodes whose silences began this close are one silence: a second can begin only after the first was raised, ten minutes in. */
+const ONE_SILENCE_MS = 60_000;
 
 /**
- * Whether anybody was told, and how often they will be told again.
- *
- * The question is asked of the alert's own severity rather than the rule's,
- * because that is the grade the server announced it at and the grade the card
- * says out loud; a card that took the word from one and the promise from the
- * other told a person their info alarm had been announced. An alarm in neither
- * row of the grid - which is what `info` is - is announced nowhere, and one
- * routed to channels the account has not configured is announced to nobody,
- * which the alarm rules page says of the rule in its own words. A rule that
- * addresses itself carries its target with it and goes out whatever the grid
- * says. Until the account has answered, nothing is known either way and nothing
- * is claimed.
- *
- * A rule is not what decides the question, which is why there does not have to
- * be one. The health loop raises a camera that has stopped delivering without a
- * rule to raise it from, and the server routes such an alert through the
- * account's channels exactly as it routes a rule's - so the inbox drew a
- * critical card saying that nobody was listening beside a warning card in the
- * same undeliverable state saying nothing at all, and the silence read as an
- * assurance. Only what a rule alone can answer is left to one: repeating is the
- * rule's own `repeatSeconds`, and what the health loop raises is said once.
- *
- * Carrying no rule is not the same as having one the page cannot reach. An
- * alert that names a rule the list has not answered for - a read still out, a
- * rule somebody has since deleted - keeps its silence, because the rule is what
- * would say whether it addressed a target of its own and how often it repeats,
- * and guessing the grid for it would be a claim about a delivery nobody here
- * has read.
+ * Which episode stands for each of these, newest first as listed: a device's offline episodes of one silence by
+ * the newest of them - a restart of the server ends an alert and raises it again a minute later, and Vorbei said
+ * "9× seit 13. Nov 18:35" of one quiet evening -, every other episode by itself.
  */
-export const deliveryOf = (alert: Alert, rule: AlarmRule | null, me: Me | undefined): Delivery | null => {
-  if (!me) return null;
-  if (alert.ruleId !== null && rule === null) return null;
+export const silenceLeads = (alerts: readonly Alert[]): Map<string, Alert> => {
+  const offline = alerts.filter(alert => alert.kind === 'offline' && alert.value !== null);
+  return new Map(
+    alerts.map(alert => [
+      alert.id,
+      (alert.kind === 'offline' &&
+        offline.find(one => one.deviceId === alert.deviceId && Math.abs(millis(beganAt(one)) - millis(beganAt(alert))) <= ONE_SILENCE_MS)) ||
+        alert,
+    ]),
+  );
+};
 
-  if (!rule || rule.delivery.mode === 'routing') {
-    if (alertCategory(alert.severity) === null) return 'notAnnounced';
-    if (!severityReaches(me, alert.severity)) return 'unheard';
+/**
+ * What the rule is called, in the words the alarm rules page calls it by. A
+ * rule no longer in hand leaves the name the episode wrote down when it
+ * opened, read as every stored name is.
+ */
+export const ruleName = (t: Translate, alert: Alert, rule: AlarmRule | null): string | null =>
+  rule ? ruleTitle(t, rule) : alert.watched ? ruleTitle(t, { name: alert.watched.name }) : null;
+
+const outputName = (t: Translate, output: OutputMetric): string => t(`alerts.output.${output}`, { defaultValue: output });
+
+/** How long episodes that are over stood, never rounded down by most of an hour: "22 Min", "4 Std 39 Min", "1 Tag 3 Std". */
+export const lastedWords = (t: Translate, seconds: number): string => (seconds < 60 ? spanLabel(seconds) : timeWords(t, seconds, Math.floor, true));
+
+/** How long an episode that is over stood, for its title (`lastedWords`), and "kurz" under a minute - a blip has no length worth a figure. */
+export const spanOf = (t: Translate, alert: Alert): string => (lastedSeconds(alert) < 60 ? t('alerts.brief') : lastedWords(t, lastedSeconds(alert)));
+
+/**
+ * The event in one sentence: "Luftfeuchte zu hoch" while it stands - an open
+ * alert is dated, so its words hold still while they are read - and
+ * "Luftfeuchte 22 Min zu hoch" (`span`) once it is over; a device gone quiet and a
+ * camera without pictures by their names. Which way a reading left its band
+ * is said where the episode's own band - or, without one, the rule as it
+ * stands - names the edge it crossed; otherwise the rule's name stands in.
+ * Several episodes folded into one row are over without one length (an empty
+ * `span`): only the title with a verb in it changes its tense for that.
+ */
+export const titleOf = (t: Translate, alert: Alert, rule: AlarmRule | null, names: AlertNames, span: string | null): string => {
+  // A reading or an output is a lower-case word in a language that has them; the sentence starts with it. A device's
+  // or a camera's own name is written as it was given: "C8 Lampe" of "c8 Lampe" was a name nobody gave.
+  const said = (key: string, what: string, own = false) => {
+    const over = span || (span === '' && key === 'running') ? 'Was' : '';
+    return t(`alerts.title.${key}${over}`, { what: own ? what : what.charAt(0).toLocaleUpperCase() + what.slice(1), span });
+  };
+
+  if (alert.kind === 'offline') {
+    const device = alert.deviceId ? calledIn(alert.deviceId, alert.spaceId, t, [...names.devices.values()]) : null;
+    return said('offline', device?.name ?? alert.spaceName ?? t('shell.gone.title.device'), true);
   }
+  if (alert.kind === 'camera_stale')
+    return said('camera', (alert.cameraId && names.cameras.get(alert.cameraId)) || t('shell.gone.title.camera'), true);
 
-  return rule !== null && rule.repeatSeconds > 0 ? 'repeats' : 'once';
+  const watch = alert.watched?.watch ?? rule?.watch;
+  if (watch?.kind === 'output_running') return said('running', outputName(t, watch.output));
+  const crossed = watch ? crossedBound(watch, alert.value ?? alert.extremeValue) : null;
+  if (watch && crossed)
+    return said(crossed.over ? 'high' : 'low', watch.kind === 'reading' ? metricName(t, watch.metric) : outputName(t, watch.output));
+
+  return ruleName(t, alert, rule) ?? t('alerts.what.threshold');
 };

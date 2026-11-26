@@ -68,7 +68,7 @@ export function QrScanner({ onCode, onClose, onFailed }: QrScannerProps) {
   return (
     <div className={styles.overlay} ref={overlay} role="dialog" aria-modal="true" aria-label={t('home.addDevice.scan')} tabIndex={-1}>
       <video ref={video} className={styles.video} muted playsInline />
-      <p className={`mono ${styles.hint}`}>{t('home.addDevice.scanHint')}</p>
+      <p className={styles.hint}>{t('home.addDevice.scanHint')}</p>
       <button type="button" className={ui.button} onClick={onClose}>
         {t('home.addDevice.cancel')}
       </button>
