@@ -251,6 +251,11 @@ Decisions by Chris, 2026-11-27, for the radio-equipment security requirements:
   stays for local stacks and self-hosted servers without TLS. The Arduino core's mbedtls is built without
   `MBEDTLS_HAVE_TIME_DATE`: chain and host name are checked, certificate dates are not, so the clock does not matter.
   The handshake is limited to 30 s (`beginHttp`): the framework's 120 s default outlasts the 60 s loop watchdog.
+  The Arduino core's bundle check looks only at the issuer of the topmost certificate the server sends: a chain
+  that ends in a cross-sign by a root no longer in Mozilla's list fails even when the root below it is in the
+  bundle (`www.google.com`, GTS Root R4 cross-signed by GlobalSign Root CA, November 2026). Let's Encrypt chains
+  work (checked on the fridge: a valid name answered, a wrong name, a self-signed and an expired certificate were
+  refused).
 - **The OTA takes only a 200.** Before, any status was written into the update partition.
 - **`fwupdate` is gone** from the firmware: it took a download from any URL, and the server never published it.
   The topic stays reserved ([ADR 0001](../adr/0001-app-rewrite-data-model.md)).
