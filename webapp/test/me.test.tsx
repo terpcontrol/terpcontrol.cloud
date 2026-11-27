@@ -8,14 +8,14 @@ import { useDiaryLayer } from '@/api/layers';
 import type { Told } from '@/log/log-context';
 import { About } from '@/screens/me/about/About';
 import { DiarySetting } from '@/screens/me/diary/DiarySetting';
-import { diaryLine, notificationsLine, profileLine, shareLinksLine } from '@/screens/me/doors';
+import { diaryLine, notificationsLine, profileLine, shareLinksLine, versionLine } from '@/screens/me/doors';
 import { Grows } from '@/screens/grow/Grows';
 import { Me as MeScreen } from '@/screens/Me';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { drawAt, json, NOT_FOUND } from './harness';
 import { meWith } from './session';
 import { Toast } from './toast';
-import { translate } from './translations';
+import { catalogue, translate } from './translations';
 
 /**
  * Me: the handle and one row per subject of the account, each with a line
@@ -694,9 +694,23 @@ describe('what this install is', () => {
 
     expect(screen.getByRole('heading', { name: 'About' })).toBeInTheDocument();
     expect(screen.getByText('This app')).toBeInTheDocument();
-    expect(screen.getByText(/^v\d+\.\d+\.\d+ · test$/)).toBeInTheDocument();
+    // The tests run in a checkout, so the build knows its commit there - and states none where it has no git.
+    expect(screen.getByText(/^v\d+\.\d+\.\d+(?: · [0-9a-f]{7})? · test$/)).toBeInTheDocument();
     expect(screen.getByText('Server')).toBeInTheDocument();
     expect(screen.getByText('http://localhost:5081')).toBeInTheDocument();
     expect(screen.queryByText('Links')).not.toBeInTheDocument();
+  });
+
+  it('names the commit between the version and the build, and leaves no gap where the build knew none', async () => {
+    const en = i18next.t.bind(i18next);
+    expect(versionLine(en, '0.0.1', 'a1b2c3d', 'production')).toBe('v0.0.1 · a1b2c3d · production build');
+    expect(versionLine(en, '0.0.1', '', 'production')).toBe('v0.0.1 · production build');
+    expect(versionLine(en, '0.0.1', 'a1b2c3d', 'public')).toBe('v0.0.1 · a1b2c3d · public');
+
+    i18next.addResourceBundle('de', 'translation', await catalogue('de'));
+    const de = i18next.getFixedT('de');
+    expect(versionLine(de, '0.0.1', 'a1b2c3d', 'production')).toBe('v0.0.1 · a1b2c3d · Produktions-Build');
+    expect(versionLine(de, '0.0.1', '', 'development')).toBe('v0.0.1 · Entwicklungs-Build');
+    i18next.removeResourceBundle('de', 'translation');
   });
 });

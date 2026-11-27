@@ -20,6 +20,20 @@ const device = (id: string, spaceId: string | null, over: Partial<Device['state'
     state: { firmwareId: 'fw-1', lastSeenAt: '2026-11-25T22:00:00.000Z', ...over },
   }) as unknown as Device;
 
+/** The commit the bundle states, set per test; `null` keeps the one this build really knows. */
+const built = vi.hoisted(() => ({ commit: null as string | null }));
+
+vi.mock('@/api/config', async importOriginal => {
+  const config = await importOriginal<{ APP_COMMIT: string }>();
+
+  return {
+    ...config,
+    get APP_COMMIT() {
+      return built.commit ?? config.APP_COMMIT;
+    },
+  };
+});
+
 const DEVICES = [device('sim-a', 'space-1'), device('sim-b', 'space-1', { firmwareId: null, lastSeenAt: null }), device('sim-c', 'space-2')];
 
 beforeAll(() => translate());
@@ -41,7 +55,18 @@ describe('what a report says about where it came from', () => {
     expect(lines).toContain('- device: sim-a · controller · fw fw-1 · channel stable · seen 2026-11-25T22:00:00.000Z');
     expect(lines).toContain('- device: sim-b · controller · fw unknown · channel stable · never seen');
     expect(lines.join('\n')).not.toContain('sim-c');
-    expect(lines.at(-2)).toMatch(/^- app: v\d+\.\d+\.\d+ · test · api localhost:5081$/);
+    expect(lines.at(-2)).toMatch(/^- app: v\d+\.\d+\.\d+(?: · [0-9a-f]{7})? · test · api localhost:5081$/);
+  });
+
+  it('names the commit the app is built from, and nothing in its place where the build knew none', () => {
+    built.commit = 'a1b2c3d';
+    expect(debugLines({ pathname: '/me/about', search: '', params: {} }).at(-2)).toMatch(
+      /^- app: v\d+\.\d+\.\d+ · a1b2c3d · test · api localhost:5081$/,
+    );
+
+    built.commit = '';
+    expect(debugLines({ pathname: '/me/about', search: '', params: {} }).at(-2)).toMatch(/^- app: v\d+\.\d+\.\d+ · test · api localhost:5081$/);
+    built.commit = null;
   });
 
   it('reads the place from the query where a tab carries it there, and a device page names only its device', () => {

@@ -24,5 +24,8 @@ if [ $# -eq 0 ] || [[ " $* " == *" mongodb "* ]]; then
     . scripts/mongodb.sh
     mongodb_check
 fi
+# The web app names the commit it is built from, and its image has no .git to
+# read it from. A deploy without a checkout sets APP_COMMIT itself.
+export APP_COMMIT="${APP_COMMIT:-$(git rev-parse HEAD 2>/dev/null || true)}"
 terpcontrol_compose build "$@"
 terpcontrol_compose up -d --force-recreate --remove-orphans "$@"

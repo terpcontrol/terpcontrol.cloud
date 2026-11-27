@@ -693,6 +693,7 @@
       },
       "account": "E-mail, password, time zone",
       "about": "v{{version}} · {{build}}",
+      "aboutCommit": "v{{version}} · {{commit}} · {{build}}",
       "grows": {
         "running_one": "{{count}} running",
         "running_other": "{{count}} running",
