@@ -1340,20 +1340,14 @@ static std::string terpCamApSsid(const std::string& did) {
 // enableTerpCamStream) and restore its factory settings, so it is left as it
 // came. On the home Wi-Fi a streaming camera takes no command at all, and one
 // the P2P reset cannot reach is no better off. A power cycle does not help - it
-// rejoins the home Wi-Fi - but its reset button puts it back on its setup AP, so
-// this looks for that AP for up to `wait_ms`; zero means one scan. Only the
-// camera that names itself `did` there is reset. Leaves the device on its home
-// Wi-Fi either way.
-static bool resetTerpCamOverAp(const std::string& did, uint32_t wait_ms) {
+// rejoins the home Wi-Fi - and only its reset button puts it back on its setup
+// AP, so this scans for that AP once. Only the camera that names itself `did`
+// there is reset. Leaves the device on its home Wi-Fi either way.
+static bool resetTerpCamOverAp(const std::string& did) {
   const std::string ssid = terpCamApSsid(did);
   if(ssid.empty()) return false;
   bool visible = false;
-  const uint32_t until = millis() + wait_ms;
-  for(;;) {
-    for(const auto& network : scanWifiNetworks()) visible = visible || network == ssid;
-    if(visible || (int32_t)(until - millis()) <= 0) break;
-    delayWithWatchdog(3000);
-  }
+  for(const auto& network : scanWifiNetworks()) visible = visible || network == ssid;
   if(!visible || !connectToWifi(ssid, "")) {
     if(!WiFi.isConnected()) connectToWifi(primary_ssid, primary_password);
     return false;
@@ -1648,46 +1642,27 @@ void showTerpCamUi(fg::UserInterface* ui, fg::Fridgecloud* cloud) {
       // can be paired again. Without this it stays joined to a network it is no
       // longer paired with, and the only way back is the physical reset button.
       //
-      // Over the LAN where the camera takes it (P2P), else over its setup AP,
-      // where its reset button puts it - which the user is asked to press when
-      // it is not there yet. Best effort on purpose: a camera that is powered off or
-      // out of range must not make disconnecting impossible, so the module
-      // forgets it either way.
+      // Over the LAN where the camera takes it (P2P), else over its setup AP when
+      // it happens to be there. Best effort on purpose: a camera that is powered
+      // off or out of range must not make disconnecting impossible, so the module
+      // forgets it either way. When neither reached it, the user is told to press
+      // the camera's reset button and confirms with OK - no waiting for the AP
+      // (Chris, 2026-11-27).
       const std::string did = sanitizeSettingString(fg::settings().getStr(TERP_CAM_DID_NVS_KEY));
       ui_handle->push<TextDisplay>("resetting cam...", 0, [](){});
       ui_handle->loop();
-      // The P2P reset logs its own outcome; the one over the AP is logged once, at the end.
+      // The P2P reset logs its own outcome; the one over the AP is logged here.
       const bool reset_over_lan = !fg::terpCamStreams() && fg::terpCamFactoryReset(smart_socket_cloud_handle);
-      const bool reset_ok = reset_over_lan || resetTerpCamOverAp(did, 0);
+      const bool reset_ok = reset_over_lan || resetTerpCamOverAp(did);
       ui_handle->pop();
 
-      auto finish = [reset_over_lan](bool ok) {
-        if(!reset_over_lan && smart_socket_cloud_handle != nullptr) {
-          smart_socket_cloud_handle->log(ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", ok ? 0 : 1);
-        }
-        forgetTerpCam();
-        ui_handle->push<TextDisplay>(ok ? "cam disconnected\nand reset"
-                                        : "cam disconnected\ncam did not\nanswer - reset\nit by hand",
-                                     1, []() { ui_handle->pop(); });
-      };
-      if(reset_ok) {
-        finish(true);
-        return;
+      if(!reset_over_lan && smart_socket_cloud_handle != nullptr) {
+        smart_socket_cloud_handle->log(reset_ok ? "message-cam-reset:ok" : "message-cam-reset:no-response", reset_ok ? 0 : 1);
       }
-
-      // The title is one line. A reset camera takes up to about 3 minutes to open its AP.
-      std::vector<std::string> wait_options = {"skip", "pressed"};
-      ui_handle->push<fg::SelectInput>("press cam reset", 1, wait_options, [did, finish](uint32_t choice) {
-        ui_handle->pop();
-        bool ok = false;
-        if(choice == 1) {
-          ui_handle->push<TextDisplay>("waiting for\ncam...", 0, [](){});
-          ui_handle->loop();
-          ok = resetTerpCamOverAp(did, 240000);
-          ui_handle->pop();
-        }
-        finish(ok);
-      });
+      forgetTerpCam();
+      ui_handle->push<TextDisplay>(reset_ok ? "cam disconnected\nand reset"
+                                            : "cam disconnected\nreset failed -\npress the cam's\nreset button",
+                                   1, []() { ui_handle->pop(); });
     });
   });
 

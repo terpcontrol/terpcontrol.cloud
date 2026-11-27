@@ -1213,8 +1213,8 @@ Budget, ffmpeg lanes, poller and storage are the RTSP camera's; one tunnel conne
    `webcam_ip`; `message-terp-cam-not-found` and `message-terp-cam-found` are logged once per loss and recovery.
 3. **Disconnect** (`resetTerpCamOverAp`, `wifi.cpp`): on its home Wi-Fi the camera takes no command and keeps that
    Wi-Fi across a power cycle; only its reset button puts it back on its setup AP `@IPC-<digits of its id>`. The
-   device scans for that AP once; when it is not there it asks the user to press the camera's reset button and looks
-   for the AP for up to 4 minutes. On it, and only when `get_status.cgi` names the paired camera, it switches the stream off
+   device scans for that AP once; when it is not there it does not wait: the display tells the user to press the
+   camera's reset button, and OK closes it. On it, and only when `get_status.cgi` names the paired camera, it switches the stream off
    (`ExPwd=888888&ExUserSwitch=0`) and sends `restore_factory.cgi`; it then rejoins its own Wi-Fi. A camera paired
    the P2P way gets the P2P reset first and the AP way when that finds nothing. One `message-cam-reset:ok` or
    `:no-response` per disconnect.
