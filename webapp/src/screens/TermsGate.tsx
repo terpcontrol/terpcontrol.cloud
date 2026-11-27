@@ -80,7 +80,7 @@ export function TermsGate({ url }: { url: string }) {
 
   return (
     <Door title={t('login.terms.gate.title')} onSubmit={() => void submit()}>
-      <p className={styles.intro}>{t('login.terms.gate.body')}</p>
+      <p className={styles.lead}>{t('login.terms.gate.body')}</p>
 
       <TermsConsent
         url={url}
