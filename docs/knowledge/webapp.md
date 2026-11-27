@@ -320,8 +320,15 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   React renders: a third-party snippet is a `<script src>` that must be parsed with the page, and a script set via
   `innerHTML` never runs. terpcontrol.cloud's dev and prod use it for the BugDrop feedback widget (see "Feedback
   widget" below).
-- `vitest.config.ts` and `vitest.live.config.ts` spread `shared` from `vite.config.ts` (the `__APP_VERSION__` define
-  and the `@` alias): a new define or alias goes there, or the tests compile differently from the app -
+- The About page (*Me › About*) and a feedback report name the commit the bundle is built from, as
+  `v0.0.1 · a1b2c3d · production build` (issue #191): `package.json`'s version never changes, so only the commit
+  tells two builds apart. `vite.config.ts` takes `APP_COMMIT` from the environment, else `git rev-parse HEAD`, and
+  keeps its first 7 characters; anything that is not a hex hash counts as none, and then both lines read as before,
+  without an empty separator. The image's build context has no `.git` (`.dockerignore`), so `up.sh` passes the
+  checkout's commit as the `APP_COMMIT` build arg; a plain `docker compose up --build` names no commit unless
+  `APP_COMMIT` is set. A deploy copies no `.git/` either ([ci-and-release](ci-and-release.md)).
+- `vitest.config.ts` and `vitest.live.config.ts` spread `shared` from `vite.config.ts` (the `__APP_VERSION__` and
+  `__APP_COMMIT__` defines and the `@` alias): a new define or alias goes there, or the tests compile differently from the app -
   `npm run test:live`, which CI does not run, once broke that way.
 - `webapp/nginx.conf`: `index.html`, `sw.js` and `registerSW.js` are `no-store`; hashed `*-<8 chars>.js|css|woff2`
   are immutable; `/assets/` is `no-cache`, because those names stay the same across releases.
@@ -491,7 +498,7 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   form opens and puts its `descriptionTemplates` into the description - under room for the reporter's words: user id
   and handle, the page with its query, the route's place/grow/plant/device/camera ids (Verlauf and Steuerung carry the
   place as `?space=`), every device of that place from the query cache (id, type, firmware id, channel, last seen),
-  app version, build, API host, language and browser zone. Chris asked for this so a ticket needs no question back.
+  app version, commit, build, API host, language and browser zone. Chris asked for this so a ticket needs no question back.
   It sits in the visible text rather than hidden metadata because the hosted BugDrop takes no custom metadata for the
   standard form, and because the issue is public the reporter should see and be able to delete it. Tokens and codes
   from an address are masked. The provider must answer synchronously (BugDrop ignores a promise), so it reads only

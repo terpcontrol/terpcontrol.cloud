@@ -99,6 +99,7 @@ services:
         PRIVACY_URL: ${PRIVACY_URL:-}
         TERMS_URL: ${TERMS_URL:-}
         CUSTOM_SCRIPT_TAG: ${CUSTOM_SCRIPT_TAG:-}
+        APP_COMMIT: ${APP_COMMIT:-}
     restart: always
     ports:
       - ${WEBAPP_PORT_EXTERNAL}:80

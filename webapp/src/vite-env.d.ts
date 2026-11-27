@@ -18,3 +18,5 @@ interface ImportMeta {
 
 /** The app's own version, as `package.json` states it; `vite.config.ts` defines it, and the vitest configs share that. */
 declare const __APP_VERSION__: string;
+/** The commit the bundle is built from, seven characters, or empty where the build knew none; see `vite.config.ts`. */
+declare const __APP_COMMIT__: string;

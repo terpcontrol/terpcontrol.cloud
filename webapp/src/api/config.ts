@@ -44,6 +44,9 @@ export const TERMS_URL: string = (import.meta.env.VITE_TERMS_URL as string | und
 /** The version the app's own package states, put into the bundle at build time. */
 export const APP_VERSION: string = __APP_VERSION__;
 
+/** The commit the bundle is built from, short - empty where the build knew none (no git, nothing passed in). */
+export const APP_COMMIT: string = __APP_COMMIT__;
+
 /**
  * Which kind of build this is - `production` from the image, `development` under the dev server, `public` under
  * the dev server that `npm run start:public` opens to other machines.

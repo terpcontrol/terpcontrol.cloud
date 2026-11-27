@@ -42,6 +42,10 @@ ENV VITE_TERMS_URL=${TERMS_URL}
 # An install's own markup at the end of every page, such as a feedback widget's
 # <script> tag; vite.config.ts puts it into index.html.
 ENV VITE_CUSTOM_SCRIPT_TAG=${CUSTOM_SCRIPT_TAG}
+# The commit the bundle is built from, which the About page names. The build
+# context has no .git, so up.sh passes it; without it the page names none.
+ARG APP_COMMIT
+ENV APP_COMMIT=${APP_COMMIT}
 RUN npm run build
 
 ### STAGE 2: Run ###

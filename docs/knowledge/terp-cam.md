@@ -42,8 +42,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   stored with, so a wrong setting can be taken back off the pictures later (2026-09-29, PR #132).
 
 ## Kinds of camera (`cameras.kind`)
-- `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan) or Smart Socket
-  (plug) - the LIGHT has no entry (PR #128). One per device; the server treats every type alike.
+- `terpcam_controller`: a Terp Cam paired in the menu of a fridge module, controller, AIR (fan), lamp module
+  (light) or Smart Socket (plug) - every type with a display (fan and plug PR #128, light issue #190). One per
+  device; the server treats every type alike.
 - `rtsp`: an `rtsp://` or `rtsps://` address with a host - anything else is refused on create and on a changed
   address, 422 `not_a_stream_address` (`isStreamAddress`, `stream-url.ts`; the redesign session of 2026-11-13,
   after "quatsch" made a camera that could never show a picture), and the web app checks the field the same way

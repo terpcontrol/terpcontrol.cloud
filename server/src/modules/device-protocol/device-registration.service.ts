@@ -30,6 +30,13 @@ export interface DeviceRegistered {
   fw: string;
 }
 
+/**
+ * What `HEAD /device/register` tells the display before it asks for the join
+ * password: whether there is one to ask for, or whether this cloud takes no new
+ * devices at all.
+ */
+export type RegistrationGate = 'open' | 'password' | 'closed';
+
 /** What `POST /device/claimcode` answers. */
 export interface IssuedClaimCode {
   claim_code: string;
@@ -43,6 +50,20 @@ export class DeviceRegistrationService {
     @InjectModel(MODEL_V1.claimCode) private readonly claimCodes: Model<StoredClaimCode>,
     @Inject(authConfig.KEY) private readonly config: ConfigType<typeof authConfig>,
   ) {}
+
+  /**
+   * An empty `SELF_REGISTRATION_PASSWORD` - or none at all - means a device joins
+   * without one: the display then skips the prompt, and whatever an older build
+   * still makes the user type is not checked.
+   */
+  private get joinPassword(): string {
+    return this.config.selfRegistrationPassword ?? '';
+  }
+
+  public gate(): RegistrationGate {
+    if (!this.config.enableSelfRegistration) return 'closed';
+    return this.joinPassword ? 'password' : 'open';
+  }
 
   /**
    * "Change server" on the display. The device sends the identity it was
@@ -59,7 +80,7 @@ export class DeviceRegistrationService {
       logger.info('REGISTRATION DISABLED');
       return null;
     }
-    if (request.registration_password !== this.config.selfRegistrationPassword) {
+    if (this.joinPassword && request.registration_password !== this.joinPassword) {
       logger.info('WRONG PASSWORD');
       return null;
     }

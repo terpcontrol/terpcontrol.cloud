@@ -704,6 +704,7 @@
       },
       "account": "E-mail, password, time zone",
       "about": "v{{version}} · {{build}}",
+      "aboutCommit": "v{{version}} · {{commit}} · {{build}}",
       "grows": {
         "running_one": "{{count}} running",
         "running_other": "{{count}} running",
@@ -2537,11 +2538,12 @@
           "controller": "At the controller",
           "fan": "At the fan",
           "plug": "At the Plantalytix Socket",
+          "light": "At the lamp module",
           "device": "At the device"
         },
         "noDevice": {
           "label": "No device yet",
-          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, a fan or a Plantalytix Socket – and this account has none yet. Add one first and this tab will walk you through the pairing.",
+          "text": "A Terp Cam is paired at the display of a Terp Control device – a fridge module, a controller, a fan, a lamp module or a Plantalytix Socket – and this account has none yet. Add one first and this tab will walk you through the pairing.",
           "claim": "Add a device"
         }
       },
@@ -4698,6 +4700,7 @@
     "what": "“{{name}}” leaves your account. Whoever holds the device next adds it to their own account with the code on its display.",
     "goes": "Its grow plan, its alarms and the camera connected through it go with the device.",
     "goesAlarms": "Its alarms go with the device.",
+    "goesAlarmsAndCam": "Its alarms and the camera connected through it go with the device.",
     "stays": "The place {{place}} and its diary stay. Nothing changes on the device itself: it keeps running on its last settings until someone else adds it.",
     "staysNowhere": "Nothing changes on the device itself: it keeps running on its last settings until someone else adds it.",
     "next": "Continue",

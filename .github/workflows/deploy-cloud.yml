@@ -44,11 +44,12 @@ jobs:
       # ./up.sh rather than the compose command it wraps, so a deploy and a
       # human on the host bring the stack up the same way - including the
       # force-recreate that keeps a container from outliving the image or the
-      # env file it was started from.
+      # env file it was started from. The sync leaves .git/ behind, so the
+      # commit the web app names on its About page comes in as APP_COMMIT.
       - name: Bring the stack up
         run: |
           ssh "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd '${DEPLOY_PATH}' && COMPOSE_OPTIONS='${COMPOSE_OPTIONS}' TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' ./up.sh"
+            "cd '${DEPLOY_PATH}' && APP_COMMIT='${GITHUB_SHA}' COMPOSE_OPTIONS='${COMPOSE_OPTIONS}' TERPCONTROL_ENV_FILE='${TERPCONTROL_ENV_FILE}' ./up.sh"
 
       # The step above answers as soon as the containers are started, which says
       # nothing about whether the server it just shipped serves anything: a bad
