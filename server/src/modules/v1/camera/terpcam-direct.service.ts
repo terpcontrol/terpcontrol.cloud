@@ -11,6 +11,7 @@ import { terpCamConfig } from '@config/configuration';
 import { CameraDocument } from '@database/schemas/v1/cameras.schema';
 import { RELAY_REQUEST, RelayRequestPort } from './relay-request';
 import { TerpCamService } from './terpcam.service';
+import { orientationOf } from './orientation';
 
 /**
  * Terp Cam stills, fetched by the server itself over the camera's P2P protocol,
@@ -165,7 +166,8 @@ type Inbox = Buffer[];
  * secured with. An empty secret means the camera still has the manufacturer's
  * default.
  */
-type RelayCamera = Pick<CameraDocument, 'id' | 'kind' | 'deviceId' | 'did'> & { secret: string | null };
+type RelayCamera = Pick<CameraDocument, 'id' | 'kind' | 'deviceId' | 'did'> &
+  Partial<Pick<CameraDocument, 'orientation'>> & { secret: string | null };
 /**
  * The dgram-style slice the P2P client uses, satisfied by the RelaySocket the
  * controller bridge provides. Kept as an interface so login and readKeyframe
@@ -557,7 +559,7 @@ export class TerpCamDirectService implements OnApplicationBootstrap, OnApplicati
 
   private async captureJpeg(camera: RelayCamera, deadline: number): Promise<Buffer> {
     const data = await this.capture(camera, deadline);
-    const jpeg = await this.stills.decodeKeyframeToJpeg(data);
+    const jpeg = await this.stills.decodeKeyframeToJpeg(data, orientationOf(camera));
     logger.info(`[terpcam] camera ${camera.id}: ${data.length}B keyframe -> ${jpeg.length}B jpeg`);
     return jpeg;
   }

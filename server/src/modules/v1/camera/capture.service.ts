@@ -8,6 +8,7 @@ import { StoredDevice } from '@database/schemas/v1/devices.schema';
 import { TunnelService } from '@modules/tunnel/tunnel.service';
 import { CameraWithSecret } from './cameras.service';
 import { runFfmpeg, streamSlot } from './ffmpeg';
+import { orientationArgs, orientationOf } from './orientation';
 import { saidOfStream } from './stream-url';
 import { TerpCamDirectService } from './terpcam-direct.service';
 
@@ -82,7 +83,11 @@ const FFMPEG_MISSING_CODEC_PARAMS_PATTERN = /Could not find codec parameters/i;
  * it does - over HTTP that is a snapshot URL's one and only JPEG, and ffmpeg 8
  * then encodes nothing. So an HTTP(S) address is read without it.
  */
-export const stillArgs = (streamUrl: string, camera: Pick<CameraWithSecret, 'url' | 'transport'>, probeArgs: string[]): string[] => [
+export const stillArgs = (
+  streamUrl: string,
+  camera: Pick<CameraWithSecret, 'url' | 'transport'> & Partial<Pick<CameraWithSecret, 'orientation'>>,
+  probeArgs: string[],
+): string[] => [
   ...(camera.url?.startsWith('rtsp://') ? ['-rtsp_transport', camera.transport ?? 'tcp'] : []),
   ...(/^https?:/i.test(camera.url ?? '') ? [] : ['-fflags', 'nobuffer']),
   '-flags',
@@ -92,6 +97,7 @@ export const stillArgs = (streamUrl: string, camera: Pick<CameraWithSecret, 'url
   'nokey',
   '-i',
   streamUrl,
+  ...orientationArgs(orientationOf(camera)),
   '-q:v',
   '20',
   '-vframes',
@@ -127,9 +133,10 @@ export class CaptureService {
   ) {}
 
   /**
-   * One still. A Terp Cam is read in full resolution or not at all: there is no
-   * smaller picture to fall back on, and a poll left without one is better than
-   * a downgraded one in the timelapse.
+   * One still, turned the way the camera is set to be. A Terp Cam is read in
+   * full resolution or not at all: there is no smaller picture to fall back on,
+   * and a poll left without one is better than a downgraded one in the
+   * timelapse.
    */
   public async readStill(camera: CameraWithSecret): Promise<Buffer> {
     const deadline = Date.now() + CAPTURE_BUDGET_SECONDS * 1000;
@@ -189,7 +196,7 @@ export class CaptureService {
 
   private async runFfmpegStill(
     streamUrl: string,
-    camera: Pick<CameraWithSecret, 'url' | 'transport'>,
+    camera: Pick<CameraWithSecret, 'url' | 'transport' | 'orientation'>,
     probeArgs: string[],
     timeoutMs: number,
   ): Promise<{ stdout: Buffer; stderr: string; failure?: Error; timedOut?: boolean }> {

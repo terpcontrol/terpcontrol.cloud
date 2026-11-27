@@ -51,6 +51,7 @@ const stream = (over: Partial<Camera> = {}): Camera => ({
   tunnel: false,
   model: null,
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: false,

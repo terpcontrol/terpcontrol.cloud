@@ -14,6 +14,7 @@ import { CameraNotFoundYetError, CaptureService, CorruptFrameError } from './cap
 import { MediaService } from './media.service';
 import { LIGHT_STATE_READER, LightStateReader } from './light-state';
 import { litFromPicture, monochromeOf } from './still-light';
+import { orientationOf } from './orientation';
 
 /**
  * Reads one still from every camera on a schedule, and stores it.
@@ -205,7 +206,11 @@ export class CameraPollerService implements OnModuleInit, OnApplicationShutdown 
     const still = await this.capture.readStill(camera);
     const capturedAt = new Date();
     const [lit, monochrome] = await Promise.all([this.litOf(camera, still), monochromeOf(still)]);
-    const stored = await this.media.storeBytes({ kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit, monochrome }, still);
+    const orientation = orientationOf(camera);
+    const stored = await this.media.storeBytes(
+      { kind: 'still', mime: 'image/jpeg', cameraId: camera.id, capturedAt, lit, monochrome, orientation },
+      still,
+    );
     await this.cameras.noteCapture(camera.id, capturedAt, null);
     return { mediaId: stored.id, capturedAt };
   }

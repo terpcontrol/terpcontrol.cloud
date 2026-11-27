@@ -65,6 +65,7 @@ export const HELP_TOPICS = [
   'deviceName',
   'deviceMove',
   'stillCadence',
+  'cameraOrientation',
   'cameraPauses',
   'staleWarning',
   'premiumCamera',

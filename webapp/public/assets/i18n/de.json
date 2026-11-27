@@ -2358,6 +2358,21 @@
     "name": "Name",
     "looksAt": "Zeigt auf",
     "looksAtHint": "Kronendach, Seitenansicht …",
+    "orientation": {
+      "label": "Ausrichtung",
+      "left": "Nach links drehen",
+      "right": "Nach rechts drehen",
+      "mirror": "Links und rechts spiegeln",
+      "flip": "Oben und unten spiegeln",
+      "preview": "Das neueste Bild, so gedreht wie eingestellt",
+      "noPicture": "Noch kein Bild",
+      "asDelivered": "wie die Kamera es sieht",
+      "turnedBy": "um {{degrees}}° gedreht",
+      "mirrored": "gespiegelt",
+      "flipped": "vertikal gespiegelt",
+      "portrait": "Hochformat",
+      "reset": "Zurück zur Sicht der Kamera"
+    },
     "premium": "Premium",
     "stillEvery": "Bild alle",
     "nightOff": "im Dunkeln aus",
@@ -3962,6 +3977,10 @@
     "stillCadence": {
       "title": "Bild alle",
       "text": "Wie oft die Cloud diese Kamera um ein Bild bittet, frühestens alle 30 Sekunden; nach einem Fehlversuch wartet sie jedes Mal doppelt so lang, bis zu zwei Stunden. Ältere Bilder werden ausgedünnt: Nach einem Tag bleibt eins pro Minute, nach einer Woche eins alle 5, nach einem Monat eins alle 15, nach drei Monaten eins pro Stunde."
+    },
+    "cameraOrientation": {
+      "title": "Ausrichtung",
+      "text": "Für eine Kamera, die gekippt, kopfüber oder hinter einem Spiegel hängt. Die Bilder werden so gedreht gespeichert, wie du es hier einstellst, ab dem nächsten Bild; schon aufgenommene bleiben, wie sie sind. Jedes Bild merkt sich, wie es gedreht wurde."
     },
     "cameraPauses": {
       "title": "Im Dunkeln aus, bei Wartung aus",

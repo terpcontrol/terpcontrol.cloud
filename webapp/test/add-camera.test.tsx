@@ -50,6 +50,7 @@ const camera = (over: Partial<Camera>): Camera => ({
   tunnel: false,
   model: 'terp_cam',
   stillIntervalSeconds: 30,
+  orientation: { rotation: 0, flipHorizontal: false, flipVertical: false },
   nightOff: false,
   maintenanceOff: false,
   logErrors: false,

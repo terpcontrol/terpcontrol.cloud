@@ -428,6 +428,11 @@ a.status {
   object-fit: cover;
 }
 
+/* A turned camera's portrait picture is shown whole rather than cut to the card's middle. */
+.picture img[data-portrait] {
+  object-fit: contain;
+}
+
 /* The last picture of a place nobody has heard from, stepped back behind what says so. */
 .picture[data-age='offline'] img {
   opacity: 0.55;
@@ -438,6 +443,12 @@ a.status {
 }
 
 /* Its name and time on the picture, white on the smoked navy every caption over a photograph sits on. */
+/* The caption runs along the bottom, so the picture's time takes the top corner. */
+.picture .pictureStamp {
+  top: 10px;
+  bottom: auto;
+}
+
 .pictureCaption {
   position: absolute;
   right: 0;
