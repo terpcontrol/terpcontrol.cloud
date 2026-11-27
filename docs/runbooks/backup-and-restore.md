@@ -63,7 +63,11 @@ only complete files carry the backup's name.
   refreshed by a deploy: copy both again from master when they change. Such a copy from before PR #183 stopped at
   its first line once the env file carried `CUSTOM_SCRIPT_TAG` - `load-env.sh` exports the file through `xargs`, a
   value with spaces or quotes breaks that, `backup.sh` runs under `set -e`, and cron's output went nowhere, so the
-  backup failed silently (2026-11-26). Check that the newest backup carries today's date.
+  backup failed silently (2026-11-26). Check that the newest backup carries today's date: a backup the space check
+  refuses is just as silent there.
+- Production's scheduled copy got the `backup.sh` of PR #198 before it was merged (Chris, 2026-11-27: the old
+  script would have run the disk full again the next night); the replaced one is kept beside it with a `.bak-<date>`
+  suffix. After the merge, compare the copy with master's `backup.sh` and copy again if review changed it.
 - A tree from before 2026-09-18 (a hotfix on an old base) has a `backup.sh` that ignores `COMPOSE_OPTIONS`. Where the
   project name comes from a `-p` flag there, run `mongodump` in the container directly.
 
