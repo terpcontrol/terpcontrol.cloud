@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { AdminUserCreate, AdminUserUpdate, Me, MeUpdate, NotificationCategory, NotificationSettings, User } from '@fg2/shared-types/v1';
 import { CursorPage, findPage, mapPage } from '@common/v1/pages';
 import { PageQuery } from '@common/v1/validation';
-import { conflict, notFound } from '@common/v1/problem';
+import { conflict, notFound, unprocessable } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { EntryDocument } from '@database/schemas/v1/entries.schema';
 import { GrowDocument } from '@database/schemas/v1/grows.schema';
@@ -41,6 +41,22 @@ const PASSWORD_ROUNDS = 10;
 
 /** What is compared to sign somebody in; nothing else ever asks for the hash. */
 const WITH_PASSWORD = '+passwordHash';
+
+/** The shortest new password taken, as EN 303 645 and the BSI ask of a device's cloud. */
+export const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * Refuses a new password that is too short, naming the field it came in. Only a
+ * password being set is held to it: one being signed in with may predate the
+ * rule, and so may the install's own administrator password, which its
+ * operator sets in the environment.
+ */
+export const requireNewPassword = (password: string, field: string): void => {
+  if (password.length >= PASSWORD_MIN_LENGTH) return;
+
+  const detail = `A new password needs at least ${PASSWORD_MIN_LENGTH} characters.`;
+  throw unprocessable('password_too_short', detail, [{ field, code: 'too_small', detail }]);
+};
 
 @Injectable()
 export class AccountsService implements OnModuleInit {
@@ -134,10 +150,44 @@ export class AccountsService implements OnModuleInit {
    * the install asks for one, and is active at once when it does not - so the
    * code exists exactly when there is a mail carrying it.
    */
-  public async signUp(email: string, handle: string, password: string): Promise<StoredUser> {
+  public async signUp(email: string, handle: string, password: string, acceptTerms = false): Promise<StoredUser> {
+    requireNewPassword(password, 'password');
+    const { termsUrl } = this.auth;
+    if (termsUrl && !acceptTerms) {
+      const detail = 'Creating an account here needs the terms of use accepted.';
+      throw unprocessable('terms_not_accepted', detail, [{ field: 'acceptTerms', code: 'required', detail }]);
+    }
     const activationCode = this.auth.requireActivation ? randomUUID() : null;
 
-    return this.create({ email, handle, password, isActive: activationCode === null, activationCode });
+    return this.create({
+      email,
+      handle,
+      password,
+      isActive: activationCode === null,
+      activationCode,
+      termsAcceptance: termsUrl ? { url: termsUrl, at: new Date() } : null,
+    });
+  }
+
+  /**
+   * The current terms of use, accepted by somebody who already has an account.
+   * The address has to be the one in force: a tab opened before the terms
+   * changed would otherwise accept terms its reader never saw.
+   */
+  public async acceptTerms(id: string, url: string): Promise<StoredUser> {
+    const { termsUrl } = this.auth;
+    if (!termsUrl) throw conflict('no_terms', 'This install has no terms of use to accept.');
+    if (url !== termsUrl) throw conflict('terms_changed', 'These are not the terms of use in force any more.');
+
+    return this.apply(id, { termsAcceptance: { url, at: new Date() } });
+  }
+
+  /** The terms the account still has to accept, by their address; an administrator runs the install and is never asked. */
+  public termsToAccept(user: StoredUser): string | null {
+    const { termsUrl } = this.auth;
+    if (!termsUrl || user.isAdmin || user.termsAcceptance?.url === termsUrl) return null;
+
+    return termsUrl;
   }
 
   /**
@@ -145,6 +195,7 @@ export class AccountsService implements OnModuleInit {
    * activation code, because whoever created it can hand the password over.
    */
   public async createAsAdmin(body: AdminUserCreate): Promise<StoredUser> {
+    requireNewPassword(body.password, 'password');
     return this.create({
       email: body.email,
       handle: body.handle,
@@ -212,7 +263,10 @@ export class AccountsService implements OnModuleInit {
     if (rest.handle !== undefined) await this.claimHandle(rest.handle, id);
 
     const changes: Partial<StoredUser> = { ...rest };
-    if (password !== undefined) changes.passwordHash = await hash(password, PASSWORD_ROUNDS);
+    if (password !== undefined) {
+      requireNewPassword(password, 'password');
+      changes.passwordHash = await hash(password, PASSWORD_ROUNDS);
+    }
 
     return this.apply(id, changes);
   }
@@ -376,6 +430,7 @@ export class AccountsService implements OnModuleInit {
       pushPublicKey: pushAvailable(this.notifications) ? this.notifications.pushPublicKey : null,
       telegramAvailable: telegramAvailable(this.notifications),
       pushSubscribed,
+      termsToAccept: this.termsToAccept(user),
       layers: await layersOf(user.id, user.preferences.diary, {
         grows: this.grows,
         entries: this.entries,
@@ -396,6 +451,7 @@ export class AccountsService implements OnModuleInit {
     isAdmin?: boolean;
     isActive: boolean;
     activationCode: string | null;
+    termsAcceptance?: StoredUser['termsAcceptance'];
   }): Promise<StoredUser> {
     await this.claimEmail(account.email, null);
     await this.claimHandle(account.handle, null);
@@ -407,6 +463,7 @@ export class AccountsService implements OnModuleInit {
       isAdmin: account.isAdmin ?? false,
       isActive: account.isActive,
       activationCode: account.activationCode,
+      termsAcceptance: account.termsAcceptance ?? null,
     });
   }
 

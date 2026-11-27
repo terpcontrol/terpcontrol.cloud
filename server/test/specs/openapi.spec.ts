@@ -792,6 +792,15 @@ const bodyCases = (): BodyCase[] => [
     refused: () => ({ email: `${unique('openapi-signup')}@test.invalid`, handle: unique('openapi') }),
   },
   {
+    what: 'POST /v1/me/terms-acceptances',
+    path: '/v1/me/terms-acceptances',
+    url: () => '/v1/me/terms-acceptances',
+    client: () => owner.client,
+    // The suite's install has no terms, so a well-formed body is turned down for that and not for its shape.
+    accepted: () => ({ url: 'https://example.test/terms' }),
+    refused: () => ({ url: 42 }),
+  },
+  {
     what: 'POST /v1/sessions',
     path: '/v1/sessions',
     url: () => '/v1/sessions',

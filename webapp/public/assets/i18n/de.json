@@ -17,18 +17,17 @@
     "createAccount": "Konto erstellen",
     "backToLogin": "Zurück zur Anmeldung",
     "forgotPassword": "Passwort vergessen?",
-    "acceptPrivacyBefore": "Ich akzeptiere die",
-    "acceptPrivacyLink": "Datenschutzbedingungen",
     "signIn": "Anmelden",
     "demo": "Demo ausprobieren",
     "demoFailed": "Die Demo konnte nicht geöffnet werden.",
     "noAccount": "Noch kein Konto?",
     "signUp": {
-      "intro": "Du brauchst nur eine E-Mail-Adresse, einen Benutzernamen und ein Passwort – und stimmst dem Datenschutz zu.",
+      "intro": "Du brauchst nur eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "forInvitation": "Eine Einladung wartet: {{name}}. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "forInvitationUnnamed": "Eine Einladung wartet. Um sie anzunehmen, brauchst du ein eigenes Konto: eine E-Mail-Adresse, einen Benutzernamen und ein Passwort.",
       "handle": "Benutzername",
       "handleNote": "Andere sehen hier nur diesen Namen.",
+      "passwordNote": "Mindestens 8 Zeichen.",
       "create": "Konto anlegen",
       "creating": "Wird angelegt …",
       "haveOne": "Schon ein Konto?",
@@ -43,12 +42,24 @@
         "laterInvited": "Du kannst auch später wiederkommen: Sobald das Konto aktiv ist, melde dich an und öffne die Einladung noch einmal."
       }
     },
-    "acceptPrivacyAfter": ".",
-    "acceptPrivacyNeeded": "Bitte akzeptiere die Datenschutzbedingungen, um ein Konto anzulegen.",
     "recovered": "Dein Passwort ist geändert. Melde dich jetzt damit an.",
     "activated": "Dein Konto ist aktiv. Melde dich jetzt an.",
     "notActivated": "Dieses Konto ist noch nicht aktiviert. Der Code ist eben noch einmal an {{email}} gegangen – öffne den Link in der Mail oder gib den Code ein.",
-    "deleted": "Dein Konto ist gelöscht."
+    "deleted": "Dein Konto ist gelöscht.",
+    "privacyNoteBefore": "Wie wir mit deinen Daten umgehen, steht in der",
+    "privacyNoteLink": "Datenschutzerklärung",
+    "privacyNoteAfter": ".",
+    "terms": {
+      "acceptBefore": "Ich bin mindestens 18 Jahre alt und akzeptiere die",
+      "acceptLink": "Nutzungsbedingungen",
+      "acceptAfter": ".",
+      "needed": "Bestätige bitte, dass du mindestens 18 bist, und akzeptiere die Nutzungsbedingungen.",
+      "gate": {
+        "title": "Neue Nutzungsbedingungen",
+        "body": "Die Nutzungsbedingungen dieser Cloud sind neu oder haben sich geändert. Akzeptiere sie, um weiterzumachen.",
+        "submit": "Akzeptieren und weiter"
+      }
+    }
   },
   "growPresets": {
     "stages": {
@@ -3775,7 +3786,10 @@
       "too_few_pictures": "In diesem Zeitraum gibt es zu wenige Bilder für einen Film.",
       "place_holds_a_climate": "Ein Ort hat nur ein Klima, und dort regelt es schon ein Controller oder ein Kühlschrankmodul. Stell dieses Gerät an einen eigenen Ort.",
       "grow_stands_nowhere": "Hier stand der Grow zuerst – davor gibt es keinen Ort, an dem er wieder stehen könnte.",
-      "grow_already_there": "Dort steht der Grow schon. Wähle einen anderen Ort."
+      "grow_already_there": "Dort steht der Grow schon. Wähle einen anderen Ort.",
+      "password_too_short": "Ein neues Passwort braucht mindestens 8 Zeichen.",
+      "terms_not_accepted": "Bestätige bitte, dass du mindestens 18 bist, und akzeptiere die Nutzungsbedingungen.",
+      "terms_changed": "Die Nutzungsbedingungen haben sich eben noch einmal geändert. Lies sie bitte erneut, bevor du sie akzeptierst."
     }
   },
   "alarmLine": {

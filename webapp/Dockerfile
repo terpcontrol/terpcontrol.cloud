@@ -28,14 +28,17 @@ COPY webapp/ .
 ARG API_URL_EXTERNAL
 ARG CUSTOM_LINKS_HTML
 ARG PRIVACY_URL
+ARG TERMS_URL
 ARG CUSTOM_SCRIPT_TAG
 ENV VITE_API_URL=${API_URL_EXTERNAL}
 # An install's own links below the sign-in form (imprint, terms). Whoever builds
 # the image writes it, which is why it may be markup.
 ENV VITE_CUSTOM_LINKS_HTML=${CUSTOM_LINKS_HTML}
-# The privacy statement a sign-up agrees to; without one the sign-up links the
-# app's own page of what the software keeps.
+# The privacy statement a sign-up links as information; without one the sign-up
+# links the app's own page of what the software keeps.
 ENV VITE_PRIVACY_URL=${PRIVACY_URL}
+# The terms of use a sign-up accepts; empty asks for none.
+ENV VITE_TERMS_URL=${TERMS_URL}
 # An install's own markup at the end of every page, such as a feedback widget's
 # <script> tag; vite.config.ts puts it into index.html.
 ENV VITE_CUSTOM_SCRIPT_TAG=${CUSTOM_SCRIPT_TAG}

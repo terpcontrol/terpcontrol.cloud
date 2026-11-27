@@ -441,6 +441,7 @@ export declare const me: z.ZodObject<{
     layers: z.ZodObject<{
         diary: z.ZodBoolean;
     }, z.core.$strip>;
+    termsToAccept: z.ZodNullable<z.ZodString>;
 }, z.core.$strip>;
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and
@@ -552,11 +553,16 @@ export declare const passwordChange: z.ZodObject<{
 /**
  * `POST /users`. A sign-up names its own handle, because it is the only name
  * this account will ever show and inventing one would only have to be corrected.
+ *
+ * Where the install publishes terms of use, `acceptTerms` is the person saying
+ * they are of age and accept them; a sign-up without it is refused with
+ * `terms_not_accepted`, and the acceptance is recorded with the account.
  */
 export declare const userCreate: z.ZodObject<{
     email: z.ZodString;
     handle: z.ZodString;
     password: z.ZodString;
+    acceptTerms: z.ZodOptional<z.ZodLiteral<true>>;
 }, z.core.$strip>;
 /**
  * What a sign-up is told about the account it just made. Never the activation
@@ -582,6 +588,15 @@ export declare const signupUser: z.ZodObject<{
  */
 export declare const userActivation: z.ZodObject<{
     activationCode: z.ZodString;
+}, z.core.$strip>;
+/**
+ * `POST /me/terms-acceptances`: the terms of use as the person read them, by the
+ * address `Me.termsToAccept` named. An address that is no longer the current one
+ * is refused with `terms_changed`, so a tab left open does not accept terms its
+ * reader never saw.
+ */
+export declare const termsAcceptanceCreate: z.ZodObject<{
+    url: z.ZodString;
 }, z.core.$strip>;
 /**
  * One signed token and the instant it stops working. A duration would be the

@@ -6,7 +6,7 @@ import { notFound } from '@common/v1/problem';
 import { MODEL_V1 } from '@database/models';
 import { StoredPasswordReset } from '@database/schemas/v1/password-resets.schema';
 import { AccountMailService, RECOVERY_VALID_MINUTES } from './account-mail.service';
-import { AccountsService } from './accounts.service';
+import { AccountsService, requireNewPassword } from './accounts.service';
 
 /**
  * The half of a password reset this server is allowed to keep.
@@ -70,6 +70,7 @@ export class PasswordResetService {
    */
   public async redeem(token: string, password: string): Promise<void> {
     const reset = await this.outstanding(token);
+    requireNewPassword(password, 'password');
 
     await this.accounts.setPassword(reset.userId, password);
     await this.retire(reset.userId);

@@ -1087,6 +1087,13 @@
       },
       "layers": {
         "$ref": "#/components/schemas/AccountLayers"
+      },
+      "termsToAccept": {
+        "description": "The terms of use this account still has to accept before it goes on, as the address they are published at: the install's current terms where the account has not accepted that very address. Null where the install has none, where they are accepted, and for an administrator.",
+        "type": [
+          "string",
+          "null"
+        ]
       }
     },
     "required": [
@@ -1109,7 +1116,8 @@
       "pushPublicKey",
       "telegramAvailable",
       "pushSubscribed",
-      "layers"
+      "layers",
+      "termsToAccept"
     ]
   },
   "MeUpdate": {
@@ -1248,6 +1256,11 @@
       "password": {
         "type": "string",
         "minLength": 1
+      },
+      "acceptTerms": {
+        "description": "Confirms being at least 18 and accepting the install's terms of use, which it asks for where it has any.",
+        "type": "boolean",
+        "const": true
       }
     },
     "required": [
@@ -1295,6 +1308,18 @@
     },
     "required": [
       "activationCode"
+    ]
+  },
+  "TermsAcceptanceCreate": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "url"
     ]
   },
   "AuthToken": {

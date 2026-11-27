@@ -1,7 +1,7 @@
 ---
 summary: How the server is put together and what every route obeys - process and boot, configuration and env variables, the /v1 contract and status codes, sessions and accounts, demo mode, share links, the broker side of MQTT, security decisions
-updated: 2026-11-15
-source: the tenth whole-app walk's lists built - a diary day's devices, a place link's grows (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - a claim's place a tent, a released device's name (the redesign session's fix round of 2026-11-15); a reset code checked before a new password, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); the fifth whole-app walk's lists built - done tasks of an ended grow, a grow reopened (the redesign session's fix round of 2026-11-14, the second Chris's answer); a grow's reminders resting while it is ended (Chris, 2026-11-14, built by the redesign session); a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
+updated: 2026-11-27
+source: terms of use, their acceptance and the password rule for the hosted cloud's sign-up (Chris, 2026-11-27); the tenth whole-app walk's lists built - a diary day's devices, a place link's grows (the redesign session's fix round of 2026-11-15); the ninth whole-app walk's lists built - a claim's place a tent, a released device's name (the redesign session's fix round of 2026-11-15); a reset code checked before a new password, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); the fifth whole-app walk's lists built - done tasks of an ended grow, a grow reopened (the redesign session's fix round of 2026-11-14, the second Chris's answer); a grow's reminders resting while it is ended (Chris, 2026-11-14, built by the redesign session); a public grow's age, the profile card (the third whole-app walk's fix round, 2026-11-14); the share card's line over the title (the redesign session's fix round of 2026-11-14); a budget on testing a stream's address (the redesign session, 2026-11-14); the archive routes removed, a window link's reach (Chris's answers and the final fix round's second part, 2026-11-13); the image's swc build broken by `satisfies` (the redesign session, 2026-11-13); Chris (PR reviews and sessions 2025-10..2026-10); rooms, names and `home.people`: the redesign session of 2026-11-12; app-rewrite sessions and their critics 2026-09..10; PRs #27-#141; commit history; codebase cleanup (2026-10-08); checked against the code on 2026-10-08; an ended place's refusals and the archive routes' `own`: the redesign session's clearing-up round of 2026-11-13; an ended place refusing a reminder, a grow and its own change (the redesign session after its critic's walk of the clearing-up round, 2026-11-13); an ended place refusing a camera, a diary line and a preset (the redesign session's consolidation pass of 2026-11-13)
 paths:
   - server/**
   - shared-types/**
@@ -225,7 +225,7 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
 - The media token counts only on `GET /v1/media/...` (it once opened the whole account).
 - `DELETE /v1/sessions` and `PUT /v1/me/password` end every other session of the account.
 - `@RateLimited` (per address and route, in memory) guards only the doors without a session: sign-in, sign-up,
-  password reset, recovery and change, the demo and automation logins (each with its own budget, so demo visitors
+  activation, password reset, recovery and change, the demo and automation logins (each with its own budget, so demo visitors
   cannot throttle sign-ins), invite lookups, the public and Open Graph routes. One door with a session has a budget
   too: testing a stream's address (`POST /v1/cameras/test-captures`, ten a minute), because each start is an ffmpeg
   run at an address of the caller's choosing that writes nothing to look back at (Chris, 2026-11-14, gave the
@@ -235,6 +235,18 @@ plans, read models - is in [server-engines.md](server-engines.md); storage, expo
   A recovery token is asked about before a new password is chosen - `GET /v1/password-resets/{token}`, 204 or 404
   `reset_unknown`, rate-limited as its redemption and spending nothing -, which tells a stranger no more than a
   redemption would: the token is a random UUID mailed to one address.
+- `TERMS_URL` (empty: none) names the install's terms of use. With it, `POST /v1/users` needs `acceptTerms: true` -
+  being 18 or older and accepting the terms, in one box - or answers 422 `terms_not_accepted`, and stores
+  `termsAcceptance {url, at}` on the account. The address is the version: a new one is terms nobody has accepted, and
+  `GET /v1/me` names it in `termsToAccept` to every account whose stored URL differs (null for an administrator, never
+  asked of the demo, which has no `/me`). The app puts a gate before the shell until `POST /v1/me/terms-acceptances
+  {url}` accepts it; a URL that is not the current one is 409 `terms_changed`, without `TERMS_URL` 409 `no_terms`.
+  Admin-created accounts accept at that gate. The privacy statement (`PRIVACY_URL`) is information under Art. 13
+  GDPR: linked at sign-up, never agreed to, nothing recorded.
+- A new password needs 8 characters (EN 303 645, BSI): sign-up, `PUT /v1/me/password`, a recovery redemption and an
+  administrator's create or reset answer 422 `password_too_short` with the field named. The wire contract keeps
+  `min(1)`, because the same schema carries the password signed in with, which may predate the rule; so does
+  `ADMINUSER_PASSWORD`, set at boot and never checked.
 - `DELETE /v1/me` and `DELETE /v1/admin/users/{id}` run one resumable cascade (`account-deletion.service.ts`). It
   refuses the `ADMINUSER_*` account (409 `admin_account_kept`), which the next boot would re-create anyway.
 

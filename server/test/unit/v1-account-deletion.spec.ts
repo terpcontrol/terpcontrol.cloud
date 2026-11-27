@@ -36,6 +36,7 @@ const AUTH = {
   selfRegistrationPassword: undefined,
   adminUsername: 'admin@test.invalid',
   adminPassword: 'Adm1n!pass',
+  termsUrl: null,
 };
 
 const PREMIUM = { enforced: true, freeStillWidth: 0, freeRetention: false, freeStillDays: 0, freeTimelapseDays: 0, extendUrl: '', priceLabel: '' };

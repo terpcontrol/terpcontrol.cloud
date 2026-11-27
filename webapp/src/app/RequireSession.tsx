@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
+import { useAccountMe } from '@/api/account';
 import { session, useSession } from '@/api/session';
+import { TermsGate } from '@/screens/TermsGate';
 import { Logo } from '@/ui/Logo';
 import ui from '@/ui/ui.module.css';
 // The page below stands exactly where the error page does - in place of the
@@ -34,6 +36,12 @@ import styles from './RouteError.module.css';
  * keyed by the account and drawn anew for the next one: nothing that was read
  * or begun for the last - a query, a line still waiting in the Log sheet - is
  * left on screen or sent with the next one's token.
+ *
+ * An account the install's terms of use are new to - they were published or
+ * changed after it accepted any - sees nothing behind the gate until it has
+ * accepted them. The shell is not held back for `/me` to answer: the server
+ * names the terms to accept, and the gate closes the moment it does. A demo
+ * session has no account and is never asked.
  */
 export function RequireSession({ children }: { children: ReactNode }) {
   const { user, restored, unreachable, ended } = useSession();
@@ -57,7 +65,17 @@ export function RequireSession({ children }: { children: ReactNode }) {
   if (asking || (restored && !user && unreachable)) return <CannotReach asking={asking} onAskAgain={askAgain} from={from} />;
   if (!restored) return null;
   if (!user) return <Navigate to="/sign-in" replace state={{ from, ended }} />;
-  return <Fragment key={user.id}>{children}</Fragment>;
+  return (
+    <Fragment key={user.id}>
+      <UnlessTermsAreNew>{children}</UnlessTermsAreNew>
+    </Fragment>
+  );
+}
+
+function UnlessTermsAreNew({ children }: { children: ReactNode }) {
+  const terms = useAccountMe().data?.termsToAccept;
+
+  return terms ? <TermsGate url={terms} /> : children;
 }
 
 /** What is said instead of the screens when the session could not be checked: that it is kept, and what to do. */

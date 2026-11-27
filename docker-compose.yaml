@@ -97,6 +97,7 @@ services:
         DOCKER_NODE_WEBAPP_IMAGE: ${DOCKER_NODE_BUILD_IMAGE:-node:24-alpine}
         CUSTOM_LINKS_HTML: ${CUSTOM_LINKS_HTML:-}
         PRIVACY_URL: ${PRIVACY_URL:-}
+        TERMS_URL: ${TERMS_URL:-}
         CUSTOM_SCRIPT_TAG: ${CUSTOM_SCRIPT_TAG:-}
     restart: always
     ports:
@@ -164,6 +165,8 @@ services:
       ADMINUSER_USERNAME: ${ADMINUSER_USERNAME}
       ADMINUSER_PASSWORD: ${ADMINUSER_PASSWORD}
       REQUIRE_ACTIVATION: ${REQUIRE_ACTIVATION}
+      # Empty: no terms of use, and nobody is asked to accept any.
+      TERMS_URL: ${TERMS_URL:-}
       SMTP_SENDER: ${SMTP_SENDER}
       SMTP_SERVER: ${SMTP_SERVER}
       SMTP_PORT: ${SMTP_PORT}

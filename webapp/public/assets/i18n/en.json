@@ -17,18 +17,17 @@
     "createAccount": "Create account",
     "backToLogin": "Back to sign-in",
     "forgotPassword": "Forgot password?",
-    "acceptPrivacyBefore": "I accept the",
-    "acceptPrivacyLink": "privacy policy",
     "signIn": "Sign in",
     "demo": "Try the demo",
     "demoFailed": "The demo could not be opened.",
     "noAccount": "No account yet?",
     "signUp": {
-      "intro": "An e-mail address, a username, a password and your agreement to the privacy statement.",
+      "intro": "An e-mail address, a username and a password.",
       "forInvitation": "An invitation is waiting: {{name}}. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "forInvitationUnnamed": "An invitation is waiting. To take it up you need an account of your own: an e-mail address, a username and a password.",
       "handle": "Username",
       "handleNote": "The only name anybody here ever sees.",
+      "passwordNote": "At least 8 characters.",
       "create": "Create the account",
       "creating": "Creating …",
       "haveOne": "Already have an account?",
@@ -43,12 +42,24 @@
         "laterInvited": "You can also come back later: once the account is active, sign in and open the invitation again."
       }
     },
-    "acceptPrivacyAfter": ".",
-    "acceptPrivacyNeeded": "Please accept the privacy policy to create an account.",
     "recovered": "Your password has been changed. Sign in with it now.",
     "activated": "Your account is active. Sign in now.",
     "notActivated": "This account is not activated yet. The code has just been sent to {{email}} again – open the link in the mail or enter the code.",
-    "deleted": "Your account is deleted."
+    "deleted": "Your account is deleted.",
+    "privacyNoteBefore": "How we handle your data is described in the",
+    "privacyNoteLink": "privacy policy",
+    "privacyNoteAfter": ".",
+    "terms": {
+      "acceptBefore": "I am at least 18 years old and accept the",
+      "acceptLink": "terms of use",
+      "acceptAfter": ".",
+      "needed": "Please confirm that you are at least 18 and accept the terms of use.",
+      "gate": {
+        "title": "New terms of use",
+        "body": "The terms of use of this cloud are new or have changed. Accept them to carry on.",
+        "submit": "Accept and continue"
+      }
+    }
   },
   "growPresets": {
     "stages": {
@@ -3765,7 +3776,10 @@
       "too_few_pictures": "That span holds too few pictures for a film.",
       "place_holds_a_climate": "A place has one climate, and a controller or fridge module already holds that one. Give this device a place of its own.",
       "grow_stands_nowhere": "This is where the grow first stood – there is no place before it for it to stand in again.",
-      "grow_already_there": "The grow already stands there. Pick another place."
+      "grow_already_there": "The grow already stands there. Pick another place.",
+      "password_too_short": "A new password needs at least 8 characters.",
+      "terms_not_accepted": "Please confirm that you are at least 18 and accept the terms of use.",
+      "terms_changed": "The terms of use have just changed again. Read them once more before you accept them."
     }
   },
   "alarmLine": {

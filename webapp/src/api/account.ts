@@ -13,6 +13,7 @@ import type {
   SessionPage,
   SignupUser,
   TelegramLink,
+  TermsAcceptanceCreate,
   UserActivation,
   UserCreate,
 } from '@fg2/shared-types/v1';
@@ -99,6 +100,21 @@ export const useUpdateMe = () => {
   return useMutation({
     mutationKey: meKey,
     mutationFn: (body: MeUpdate) => api.patch<Me>('/me', body),
+    onSuccess: me => client.setQueryData(meKey, me),
+  });
+};
+
+/**
+ * The install's terms of use accepted, by the address `Me.termsToAccept` named.
+ * The answer is the account with nothing left to accept, which is what lets the
+ * gate in front of the shell open.
+ */
+export const useAcceptTerms = () => {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationKey: meKey,
+    mutationFn: (body: TermsAcceptanceCreate) => api.post<Me>('/me/terms-acceptances', body),
     onSuccess: me => client.setQueryData(meKey, me),
   });
 };

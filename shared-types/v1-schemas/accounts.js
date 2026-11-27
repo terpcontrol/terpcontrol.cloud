@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.emailAlarmsCreate = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
+exports.pushPayload = exports.adminUserUpdate = exports.adminUserCreate = exports.adminUserPage = exports.notificationLogEntry = exports.notificationSubjectType = exports.telegramLink = exports.pushSubscriptionCreate = exports.pushSubscription = exports.pushSubscriptionKeys = exports.passwordResetRedemption = exports.passwordResetCreate = exports.automationSession = exports.automationSessionCreate = exports.sessionRefresh = exports.sessionResult = exports.sessionUser = exports.sessionCreate = exports.sessionPage = exports.session = exports.sessionTokens = exports.authToken = exports.termsAcceptanceCreate = exports.userActivation = exports.signupUser = exports.userCreate = exports.passwordChange = exports.emailAlarmsCreate = exports.meUpdate = exports.me = exports.meClimateRetention = exports.premium = exports.premiumFree = exports.user = exports.notificationSettings = exports.quietHours = exports.notificationRouting = exports.notificationChannels = exports.telegramChannel = exports.webhookChannel = exports.notificationCategory = exports.userRetention = exports.userPreferences = exports.layoutSeen = exports.userPrivacy = void 0;
 const zod_1 = require("zod");
 const common_js_1 = require("./common.js");
 /**
@@ -227,6 +227,10 @@ exports.me = (0, common_js_1.named)('Me', exports.user.omit({ activationCode: tr
     telegramAvailable: zod_1.z.boolean(),
     pushSubscribed: zod_1.z.boolean().describe('Whether any browser of this account is subscribed to push, so a screen can say whether the push row of the grid goes anywhere.'),
     layers: common_js_1.accountLayers,
+    termsToAccept: zod_1.z
+        .string()
+        .nullable()
+        .describe('The terms of use this account still has to accept before it goes on, as the address they are published at: the install\'s current terms where the account has not accepted that very address. Null where the install has none, where they are accepted, and for an administrator.'),
 }));
 /**
  * `PATCH /me`. Only what the person owns: the login address is the identity and
@@ -257,9 +261,10 @@ exports.meUpdate = (0, common_js_1.named)('MeUpdate', exports.user
  * bodies that carry one.
  *
  * Deliberately no more than "not empty". Strength is the server's rule and the
- * server's alone: a minimum written into the wire contract would also be applied
- * to the password somebody is signing *in* with, and lock out every account
- * whose password predates it.
+ * server's alone - a new password is refused under eight characters with
+ * `password_too_short` - because a minimum written into the wire contract would
+ * also be applied to the password somebody is signing *in* with, and lock out
+ * every account whose password predates it.
  */
 const password = () => zod_1.z.string().min(1);
 /**
@@ -275,11 +280,18 @@ exports.passwordChange = (0, common_js_1.named)('PasswordChange', zod_1.z.object
     currentPassword: password(),
     newPassword: password(),
 }));
+const accountCreate = exports.user.pick({ email: true, handle: true }).extend({ password: password() });
 /**
  * `POST /users`. A sign-up names its own handle, because it is the only name
  * this account will ever show and inventing one would only have to be corrected.
+ *
+ * Where the install publishes terms of use, `acceptTerms` is the person saying
+ * they are of age and accept them; a sign-up without it is refused with
+ * `terms_not_accepted`, and the acceptance is recorded with the account.
  */
-exports.userCreate = (0, common_js_1.named)('UserCreate', exports.user.pick({ email: true, handle: true }).extend({ password: password() }));
+exports.userCreate = (0, common_js_1.named)('UserCreate', accountCreate.extend({
+    acceptTerms: zod_1.z.literal(true).optional().describe('Confirms being at least 18 and accepting the install\'s terms of use, which it asks for where it has any.'),
+}));
 /**
  * What a sign-up is told about the account it just made. Never the activation
  * code: the route is open, so anyone could otherwise activate an address they do
@@ -297,6 +309,13 @@ exports.signupUser = (0, common_js_1.named)('SignupUser', exports.user.pick({ id
  * entire request.
  */
 exports.userActivation = (0, common_js_1.named)('UserActivation', zod_1.z.object({ activationCode: exports.user.shape.activationCode.unwrap() }));
+/**
+ * `POST /me/terms-acceptances`: the terms of use as the person read them, by the
+ * address `Me.termsToAccept` named. An address that is no longer the current one
+ * is refused with `terms_changed`, so a tab left open does not accept terms its
+ * reader never saw.
+ */
+exports.termsAcceptanceCreate = (0, common_js_1.named)('TermsAcceptanceCreate', zod_1.z.object({ url: zod_1.z.string().min(1) }));
 /**
  * One signed token and the instant it stops working. A duration would be the
  * other way of saying it; the instant is what a client can compare against its
@@ -440,7 +459,7 @@ exports.adminUserPage = (0, common_js_1.named)('AdminUserPage', (0, common_js_1.
  * set; both are optional, and an account made this way is active at once and has
  * no activation code, because whoever created it can hand the password over.
  */
-exports.adminUserCreate = (0, common_js_1.named)('AdminUserCreate', exports.userCreate.extend(exports.user.pick({ isAdmin: true, isActive: true }).partial().shape));
+exports.adminUserCreate = (0, common_js_1.named)('AdminUserCreate', accountCreate.extend(exports.user.pick({ isAdmin: true, isActive: true }).partial().shape));
 /**
  * `PATCH /admin/users/{id}`: the same fields, each only if it changes. `password`
  * among them, which is how an administrator resets one for somebody who cannot

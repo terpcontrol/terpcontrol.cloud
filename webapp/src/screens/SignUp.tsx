@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { UserCreate } from '@fg2/shared-types/v1';
 import { useActivateAccount, useSignUp } from '@/api/account';
-import { CUSTOM_LINKS_HTML, PRIVACY_URL } from '@/api/config';
+import { CUSTOM_LINKS_HTML, PRIVACY_URL, TERMS_URL } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
 import { typedHandle } from '@/ui/handle';
 import ui from '@/ui/ui.module.css';
 import { CodeField, Door, Problem } from './Door';
+import { TermsConsent } from './TermsGate';
 import styles from './SignIn.module.css';
 import { refusalText } from '@/ui/refusal';
 
@@ -35,6 +37,10 @@ interface SentFrom {
  * code from its mail first, and then this page says so, takes the code, and
  * goes on from there. The credentials are held only until that sign-in and
  * live nowhere but in this page's state.
+ *
+ * An install with terms of use has them accepted here, with being of age, in
+ * one box the server records; its privacy statement is linked as what it is,
+ * information, and never asked to be agreed to.
  */
 export function SignUp() {
   const { t } = useTranslation();
@@ -57,10 +63,8 @@ export function SignUp() {
   // account was made here for it - somebody already signed in who lands on
   // this page is simply sent on.
   const [entering, setEntering] = useState(false);
-  // An install that publishes a privacy statement has it agreed to before an
-  // account is made; one that publishes none asks nothing.
-  const [agreed, setAgreed] = useState(false);
-  const [unagreed, setUnagreed] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+  const [unaccepted, setUnaccepted] = useState(false);
   const form = useForm<UserCreate>({ defaultValues: { email: '', handle: '', password: '' } });
 
   if (user) return <Navigate to={destination} replace state={entering && invitation ? { takeUp: true } : null} />;
@@ -78,19 +82,24 @@ export function SignUp() {
   const submit = form.handleSubmit(async body => {
     setProblem(null);
     setTaken(false);
-    if (!agreed) {
-      setUnagreed(true);
+    if (TERMS_URL && !accepted) {
+      setUnaccepted(true);
       return;
     }
-    const credentials = { ...body, handle: typedHandle(body.handle) };
+    const credentials: UserCreate = { ...body, handle: typedHandle(body.handle), ...(TERMS_URL ? { acceptTerms: true } : {}) };
     try {
       const account = await signUp.mutateAsync(credentials);
       if (account.isActive) await enter(credentials);
       else setAwaiting(credentials);
     } catch (error) {
       if (error instanceof ApiError) {
-        for (const [field, detail] of Object.entries(error.fieldErrors)) form.setError(field as keyof UserCreate, { message: detail });
-        setProblem(refusalText(error));
+        // A refusal about one field is said at that field, in the catalogue's words where it has them.
+        const coded = `problem.code.${error.problem.code}`;
+        const atField = error.problem.errors.length > 0 && i18next.exists(coded);
+        for (const [field, detail] of Object.entries(error.fieldErrors)) {
+          form.setError(field as keyof UserCreate, { message: atField ? t(coded) : detail });
+        }
+        setProblem(atField ? null : refusalText(error));
         setTaken(error.problem.code === 'email_taken');
       } else {
         setProblem(t('shell.unreachable'));
@@ -184,30 +193,36 @@ export function SignUp() {
         type="password"
         autoComplete="new-password"
         disabled={busy}
+        minLength={PASSWORD_MIN_LENGTH}
         {...form.register('password', { required: true })}
       />
+      <p className={`${ui.note} ${styles.fieldNote}`}>{t('login.signUp.passwordNote')}</p>
       <FieldProblem message={errors.password?.message} />
 
-      <label className={styles.agree}>
-        <input
-          type="checkbox"
-          checked={agreed}
-          disabled={busy}
-          aria-invalid={unagreed && !agreed}
-          onChange={event => {
-            setAgreed(event.target.checked);
-            setUnagreed(false);
-          }}
-        />
-        <span>
-          {t('login.acceptPrivacyBefore')}{' '}
-          <a href={PRIVACY_URL || '/privacy'} target="_blank" rel="noopener noreferrer">
-            {t('login.acceptPrivacyLink')}
-          </a>
-          {t('login.acceptPrivacyAfter')}
-        </span>
-      </label>
-      <FieldProblem message={unagreed && !agreed ? t('login.acceptPrivacyNeeded') : undefined} />
+      {TERMS_URL ? (
+        <>
+          <TermsConsent
+            url={TERMS_URL}
+            checked={accepted}
+            disabled={busy}
+            missing={(unaccepted && !accepted) || !!errors.acceptTerms}
+            onChange={checked => {
+              setAccepted(checked);
+              setUnaccepted(false);
+              form.clearErrors('acceptTerms');
+            }}
+          />
+          <FieldProblem message={unaccepted && !accepted ? t('login.terms.needed') : errors.acceptTerms?.message} />
+        </>
+      ) : null}
+
+      <p className={`${ui.note} ${styles.privacyNote}`}>
+        {t('login.privacyNoteBefore')}{' '}
+        <a href={PRIVACY_URL || '/privacy'} target="_blank" rel="noopener noreferrer">
+          {t('login.privacyNoteLink')}
+        </a>
+        {t('login.privacyNoteAfter')}
+      </p>
 
       <Problem>
         {problem}
@@ -236,6 +251,9 @@ export function SignUp() {
     </Door>
   );
 }
+
+/** The shortest new password the server takes; it says so itself, this only says it before the form is sent. */
+const PASSWORD_MIN_LENGTH = 8;
 
 /** What the server said about one field, under that field; a form's own `required` leaves no sentence and draws nothing. */
 function FieldProblem({ message }: { message: string | undefined }) {
