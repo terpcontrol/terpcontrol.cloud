@@ -474,3 +474,61 @@
 .renderRow > button {
   flex: 1 1 auto;
 }
+
+/* The camera's newest still, turned the way it is about to be set, beside the
+   four buttons that turn it. The box is square, so a picture turned a quarter
+   still fits inside it, and the picture is laid over it rather than sized by
+   it, as the frame's is. */
+.orientation {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.orientationPreview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 112px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--overlay-solid);
+  border-radius: var(--radius-sm);
+}
+
+.orientationPreview > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orientationPreview > img {
+    transition: none;
+  }
+}
+
+.orientationNone {
+  padding: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--on-overlay);
+  text-align: center;
+}
+
+.orientationButtons {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: var(--space-2);
+}
+
+.orientationButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}

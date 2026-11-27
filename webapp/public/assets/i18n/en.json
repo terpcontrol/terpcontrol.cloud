@@ -2349,6 +2349,21 @@
     "name": "Name",
     "looksAt": "Looks at",
     "looksAtHint": "canopy, side view …",
+    "orientation": {
+      "label": "Orientation",
+      "left": "Turn left",
+      "right": "Turn right",
+      "mirror": "Mirror left to right",
+      "flip": "Mirror top to bottom",
+      "preview": "The newest picture, turned as set",
+      "noPicture": "No picture yet",
+      "asDelivered": "as the camera sees it",
+      "turnedBy": "turned {{degrees}}°",
+      "mirrored": "mirrored",
+      "flipped": "flipped top to bottom",
+      "portrait": "portrait",
+      "reset": "Back to how the camera sees it"
+    },
     "premium": "Premium",
     "stillEvery": "A still every",
     "nightOff": "off in the dark",
@@ -3953,6 +3968,10 @@
     "stillCadence": {
       "title": "A still every",
       "text": "How often the cloud asks this camera for a picture, 30 seconds at the least; after a failed try it waits twice as long each time, up to two hours. Older pictures are thinned: after a day one a minute is kept, after a week one every 5, after a month one every 15, after three months one an hour."
+    },
+    "cameraOrientation": {
+      "title": "Orientation",
+      "text": "For a camera mounted on its side, upside down or looking through a mirror. Pictures are stored turned the way you set it here, from the next one on; those already taken stay as they are. Every picture remembers how it was turned."
     },
     "cameraPauses": {
       "title": "Off in the dark, off during maintenance",

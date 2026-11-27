@@ -704,6 +704,20 @@ export declare const entryUpdate: z.ZodObject<{
     }, z.core.$strip>]>>;
 }, z.core.$strip>;
 /**
+ * How a camera's pictures are turned before they are stored: mirrored first,
+ * then rotated clockwise. A camera mounted on its side, upside down or looking
+ * through a mirror is set right once, here, rather than on every screen.
+ *
+ * It applies to the pictures taken after it is set. Each still keeps the
+ * orientation it was stored with, so a setting that turned out wrong can be
+ * taken back off the pictures it was applied to.
+ */
+export declare const cameraOrientation: z.ZodObject<{
+    rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+    flipHorizontal: z.ZodBoolean;
+    flipVertical: z.ZodBoolean;
+}, z.core.$strip>;
+/**
  * What a timelapse covers. `day`, `week` and `month` are the rolling films the
  * builder keeps by itself; `phase`, `grow` and `custom` are the composer's
  * ranges, and each of them names both of its ends, because only the client
@@ -848,6 +862,11 @@ export declare const media: z.ZodObject<{
         hd: "hd";
     }>>;
     lengthSeconds: z.ZodNullable<z.ZodNumber>;
+    orientation: z.ZodNullable<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     render: z.ZodNullable<z.ZodObject<{
         status: z.ZodEnum<{
             failed: "failed";
@@ -935,6 +954,11 @@ export declare const exportAccepted: z.ZodObject<{
             hd: "hd";
         }>>;
         lengthSeconds: z.ZodNullable<z.ZodNumber>;
+        orientation: z.ZodNullable<z.ZodObject<{
+            rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+            flipHorizontal: z.ZodBoolean;
+            flipVertical: z.ZodBoolean;
+        }, z.core.$strip>>;
         render: z.ZodNullable<z.ZodObject<{
             status: z.ZodEnum<{
                 failed: "failed";
@@ -1016,6 +1040,11 @@ export declare const mediaPage: z.ZodObject<{
             hd: "hd";
         }>>;
         lengthSeconds: z.ZodNullable<z.ZodNumber>;
+        orientation: z.ZodNullable<z.ZodObject<{
+            rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+            flipHorizontal: z.ZodBoolean;
+            flipVertical: z.ZodBoolean;
+        }, z.core.$strip>>;
         render: z.ZodNullable<z.ZodObject<{
             status: z.ZodEnum<{
                 failed: "failed";
@@ -1199,6 +1228,11 @@ export declare const camera: z.ZodObject<{
         hikvision: "hikvision";
     }>>;
     stillIntervalSeconds: z.ZodNumber;
+    orientation: z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>;
     nightOff: z.ZodBoolean;
     maintenanceOff: z.ZodBoolean;
     logErrors: z.ZodBoolean;
@@ -1258,6 +1292,11 @@ export declare const cameraPage: z.ZodObject<{
             hikvision: "hikvision";
         }>>;
         stillIntervalSeconds: z.ZodNumber;
+        orientation: z.ZodObject<{
+            rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+            flipHorizontal: z.ZodBoolean;
+            flipVertical: z.ZodBoolean;
+        }, z.core.$strip>;
         nightOff: z.ZodBoolean;
         maintenanceOff: z.ZodBoolean;
         logErrors: z.ZodBoolean;
@@ -1292,6 +1331,11 @@ export declare const cameraPage: z.ZodObject<{
  */
 export declare const controllerCameraCreate: z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1311,6 +1355,11 @@ export declare const controllerCameraCreate: z.ZodObject<{
  */
 export declare const standaloneCameraCreate: z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1340,6 +1389,11 @@ export declare const standaloneCameraCreate: z.ZodObject<{
  */
 export declare const rtspCameraCreate: z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1370,6 +1424,11 @@ export declare const rtspCameraCreate: z.ZodObject<{
 }, z.core.$strip>;
 export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1382,6 +1441,11 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     deviceId: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1394,6 +1458,11 @@ export declare const cameraCreate: z.ZodDiscriminatedUnion<[z.ZodObject<{
     did: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     name: z.ZodString;
+    orientation: z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>;
     spaceId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plantIds: z.ZodOptional<z.ZodArray<z.ZodString>>;
     looksAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -1442,6 +1511,11 @@ export declare const cameraUpdate: z.ZodObject<{
         https: "https";
     }>>>>;
     username: z.ZodOptional<z.ZodOptional<z.ZodString>>;
+    orientation: z.ZodOptional<z.ZodOptional<z.ZodObject<{
+        rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+        flipHorizontal: z.ZodBoolean;
+        flipVertical: z.ZodBoolean;
+    }, z.core.$strip>>>;
     password: z.ZodOptional<z.ZodOptional<z.ZodString>>;
     spaceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
     deviceId: z.ZodOptional<z.ZodOptional<z.ZodNullable<z.ZodString>>>;
@@ -1690,6 +1764,11 @@ export declare const timelapseAccepted: z.ZodObject<{
             hd: "hd";
         }>>;
         lengthSeconds: z.ZodNullable<z.ZodNumber>;
+        orientation: z.ZodNullable<z.ZodObject<{
+            rotation: z.ZodUnion<readonly [z.ZodLiteral<0>, z.ZodLiteral<90>, z.ZodLiteral<180>, z.ZodLiteral<270>]>;
+            flipHorizontal: z.ZodBoolean;
+            flipVertical: z.ZodBoolean;
+        }, z.core.$strip>>;
         render: z.ZodNullable<z.ZodObject<{
             status: z.ZodEnum<{
                 failed: "failed";

@@ -1,7 +1,7 @@
 ---
 summary: Operating the data - MongoDB version upgrades, the boot migration in practice (rejects, re-runs, duration), shapes old data has in real databases, backups and restores, disk space; read it before an upgrade, a restore or a repair by hand
-updated: 2026-11-26
-source: compacting the production and staging databases, 2026-11-26; the eighth whole-app walk's lists built - step 035 (the redesign session's fix round of 2026-11-15); step 033 changed to hold a second climate's past and repair its first version, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); step 034 (the redesign session's fix round of 2026-11-15, after the sixth whole-app walk); step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
+updated: 2026-11-27
+source: a full disk caused by the nightly backup, 2026-11-27; compacting the production and staging databases, 2026-11-26; the eighth whole-app walk's lists built - step 035 (the redesign session's fix round of 2026-11-15); step 033 changed to hold a second climate's past and repair its first version, after the seventh whole-app walk (the redesign session's fix round of 2026-11-15); step 034 (the redesign session's fix round of 2026-11-15, after the sixth whole-app walk); step 033 (Chris, 2026-11-14, after the fifth walk's fix round; built by the redesign session); step 032 (the redesign session of 2026-11-14, after the fourth whole-app walk); step 031 (Chris, 2026-11-13; built by the redesign session's final fix round); Chris (decisions in sessions and PR reviews, 2026-09-17..10-06); steps 026-028: the redesign session of 2026-11-12; agent sessions on the migration and on upgrades, 2026-09-17..10-06; PRs #29, #69, #126, #134, #135, #141; codebase cleanup (2026-10-08); checked against the code on 2026-10-08
 paths:
   - server/src/migrations/**
   - backup.sh
@@ -194,3 +194,10 @@ the [backup-and-restore runbook](../runbooks/backup-and-restore.md); what they r
   there. Since MongoDB 4.4 it does not block reads and writes; the 18 GB took 42 s (2026-11-26). It frees less than
   `freeStorageSize` when the free blocks lie between used ones (`imagedata.chunks`: 1.7 GB free, 0 freed). The
   dumps are logical, so a compact does not shrink a backup.
+- **A backup that runs the disk full** left the whole dump in the mongodb container's writable layer
+  (`docker ps -s` shows it) and no backup for that night, until `backup.sh` streamed its dumps and checked the space
+  first (2026-11-27; peak and checks: [backup-and-restore](../runbooks/backup-and-restore.md#options)).
+- **A full disk takes down every stack on it, and InfluxDB stays broken after.** MongoDB crash-loops on `No space left
+  on device` (the lock file cannot be written), the server restarts with it, InfluxDB rejects writes and readings are
+  lost. Once space is back, MongoDB recovers by itself; InfluxDB kept failing writes with `error writing WAL entry`
+  for the WAL of a shard created while the disk was full, so restart it and check the server log for write errors.

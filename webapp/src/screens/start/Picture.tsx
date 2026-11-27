@@ -8,10 +8,13 @@ import { GROW } from '@/app/places';
 import { ageAttribute, sinceLabel, spokenAgo } from '@/ui/age';
 import { useCameraCalled } from '@/ui/camera-name';
 import { Facts } from '@/ui/Facts';
+import { StillStamp } from '@/ui/StillStamp';
+import { useStillRatio } from '@/ui/useStillRatio';
 import { useNow } from '@/ui/useNow';
-import { clock, useZone } from '@/ui/zone';
+import { useZone } from '@/ui/zone';
 import { growDay, useGrowWords } from '@/screens/grow/progress';
 import { shownStill } from './place';
+import ui from '@/ui/ui.module.css';
 import styles from './Start.module.css';
 
 /**
@@ -51,25 +54,31 @@ export function Picture({
   const mediaId = still?.mediaId ?? latest.get(camera.cameraId) ?? null;
   const src = mediaId ? mediaUrl(mediaId, THUMBNAIL_WIDTH.frame) : null;
   const takenAt = still?.capturedAt ?? latestAt.get(camera.cameraId) ?? camera.lastStillAt;
+  // The picture carries the instant it was taken in its corner, so the caption says only what makes it not the newest -
+  // a plain time beside the camera's name would say the stamp's twice.
   const when = takenAt
     ? offline
       ? t('camera.picture.last', { time: sinceLabel(takenAt, now, zone) })
       : still?.dark
         ? t('camera.picture.lightOff', { time: sinceLabel(takenAt, now, zone) })
-        : clock(takenAt, zone)
+        : null
     : t('start.camera.none');
+  // A landscape picture fills the card; a turned camera's portrait one is shown whole between bands, its stamp on it.
+  const [ratio, measured] = useStillRatio(src);
+  const portrait = ratio !== null && ratio < 1;
 
   return (
     <section className={styles.view} aria-label={called(camera.name)}>
-      <Link to={`/cameras/${camera.cameraId}`} className={styles.picture} {...ageAttribute(offline ? 'offline' : 'live')}>
+      <Link to={`/cameras/${camera.cameraId}`} className={`${styles.picture} ${ui.stillFrame}`} {...ageAttribute(offline ? 'offline' : 'live')}>
         {src ? (
-          <img src={src} alt={t('home.card.stillAlt', { name })} />
+          <img src={src} onLoad={measured} data-portrait={portrait ? '' : undefined} alt={t('home.card.stillAlt', { name })} />
         ) : (
           <Camera size={28} strokeWidth={1.5} className={styles.pictureEmpty} aria-hidden />
         )}
+        {src && takenAt ? <StillStamp at={takenAt} ratio={portrait ? ratio : null} className={styles.pictureStamp} /> : null}
         <span className={styles.pictureCaption}>
           <Camera size={16} strokeWidth={1.75} aria-hidden />
-          <span className={styles.pictureWords}>{`${called(camera.name)} · ${when}`}</span>
+          <span className={styles.pictureWords}>{when ? `${called(camera.name)} · ${when}` : called(camera.name)}</span>
           <ChevronRight size={18} strokeWidth={2} aria-hidden />
         </span>
       </Link>
