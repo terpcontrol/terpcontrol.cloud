@@ -165,6 +165,22 @@ export const startFakeInflux = async (options: FakeInfluxOptions): Promise<{ url
         return;
       }
 
+      // The delete API as the store answers it: the range is closed at the start and open at the end, and the
+      // predicate is the conjunction of equalities the server ever sends.
+      if (path === '/api/v2/delete' && req.method === 'POST') {
+        const { start, stop, predicate } = JSON.parse(await readBody(req)) as { start: string; stop: string; predicate?: string };
+        const from = Date.parse(start);
+        const until = Date.parse(stop);
+        const equalities = [...(predicate ?? '').matchAll(/(\w+)="([^"]*)"/g)].map(([, key, value]) => [key, value] as const);
+        const matches = (point: InfluxPoint): boolean =>
+          point.time >= from &&
+          point.time < until &&
+          equalities.every(([key, value]) => (key === '_measurement' ? point.measurement : point.tags[key]) === value);
+        options.influx.points = options.influx.points.filter(point => !matches(point));
+        res.writeHead(204).end();
+        return;
+      }
+
       if (path === '/__control/influx/points' && req.method === 'POST') {
         const seeded = JSON.parse(await readBody(req)) as SeedPoint[];
         options.influx.add(

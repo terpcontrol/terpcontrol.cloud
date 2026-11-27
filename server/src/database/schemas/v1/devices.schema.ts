@@ -47,6 +47,12 @@ export interface StoredDeviceState extends Omit<
   lastSeenAt: Date | null;
   claimedAt: Date | null;
   /**
+   * Where the readings its holder may read of the device itself begin: its claim, when somebody held it before, so
+   * the next owner is shown nothing the last one measured. Null for its first holder, who reads back to before the
+   * claim - the hour between plugging it in and adding it is theirs. Absent on a row from before it was kept.
+   */
+  readsFrom?: Date | null;
+  /**
    * Absent on a row from before it was kept, which reads as never released. `ownerId` and `name` are who held it and
    * what they called it, so the record of a place it stood in still names it while nobody holds it.
    */
@@ -233,6 +239,7 @@ const stateSchema = new Schema<StoredDeviceState>(
   {
     lastSeenAt: { type: Date, default: null },
     claimedAt: { type: Date, default: null },
+    readsFrom: { type: Date, default: null },
     // When its last owner let it go and how, until somebody claims it again: support tells a device given up from
     // one nobody ever added by it, which `ownerId: null` alone cannot say. Who that was and the name they gave it are
     // what the places it stood in go on calling it by.

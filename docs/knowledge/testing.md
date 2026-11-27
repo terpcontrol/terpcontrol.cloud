@@ -69,8 +69,8 @@ hardware, the development devices and copies of production data are in
 ## Webapp suites
 - `npm test` (vitest, jsdom) needs only the checkout. `npm run test:live` runs `test/live/` against a running stack;
   CI does not run it.
-- **`webapp/.env.local` breaks `test/me.test.tsx`**, which expects the fallback API `http://localhost:5081`, and twelve
-  clock tests of `test/control.test.tsx` ("40 min" read as "0 s"; the redesign session, 2026-11-26): vitest
+- **`webapp/.env.local` breaks `test/me.test.tsx` and `test/feedback-context.test.ts`**, which expect the fallback API
+  `http://localhost:5081` (the second since #195, seen 2026-11-27), and twelve clock tests of `test/control.test.tsx` ("40 min" read as "0 s"; the redesign session, 2026-11-26): vitest
   reads the file, and `npm start` writes it from `API_URL_EXTERNAL`. Run `VITE_API_URL=http://localhost:5081 npm test`
   (the environment wins over the file) or delete it. A hand-written `.env.local` survives `npm start` since #133.
 - `shared-types/` needs its own `node_modules` (`npm --prefix shared-types ci --omit=dev`), or the contract's values

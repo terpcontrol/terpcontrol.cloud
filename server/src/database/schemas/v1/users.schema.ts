@@ -31,13 +31,28 @@ interface StoredUserPreferences extends Omit<UserPreferences, 'notifyLaterUntil'
   notifyLaterUntil?: Date | null;
 }
 
+/** Which terms of use the account accepted, by the address they are published at, and when. */
+export interface StoredTermsAcceptance {
+  url: string;
+  at: Date;
+}
+
 export interface StoredUser extends Omit<User, 'createdAt' | 'deletionStartedAt' | 'notifications' | 'preferences'> {
   createdAt: Date;
   deletionStartedAt: Date | null;
   preferences: StoredUserPreferences;
   notifications: StoredNotificationSettings;
   passwordHash: string;
+  termsAcceptance?: StoredTermsAcceptance | null;
 }
+
+const termsAcceptanceSchema = new Schema<StoredTermsAcceptance>(
+  {
+    url: { type: String, required: true },
+    at: { type: Date, required: true },
+  },
+  { _id: false },
+);
 
 const telegramChannelSchema = new Schema<StoredTelegramChannel>(
   {
@@ -148,6 +163,10 @@ export const usersSchema = new Schema<StoredUser>(
       mutedUntil: { type: Date, default: null },
     },
     deletionStartedAt: { type: Date, default: null },
+    // The record that the person accepted the install's terms of use, which is
+    // what makes them a contract. Only the latest acceptance is kept: the
+    // address is the version, and an older one says nothing about the current.
+    termsAcceptance: { type: termsAcceptanceSchema, default: null },
   },
   { collection: 'users', versionKey: false },
 );

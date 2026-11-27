@@ -79,6 +79,11 @@ export const authConfig = registerAs('auth', () => ({
   selfRegistrationPassword: process.env.SELF_REGISTRATION_PASSWORD,
   adminUsername: process.env.ADMINUSER_USERNAME!,
   adminPassword: process.env.ADMINUSER_PASSWORD!,
+  /**
+   * The terms of use a sign-up accepts, null where the install has none. The
+   * address is the version: a new one is terms nobody has accepted yet.
+   */
+  termsUrl: process.env.TERMS_URL?.trim() || null,
 }));
 
 /**

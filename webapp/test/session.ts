@@ -58,6 +58,7 @@ export const meWith = (over: Partial<Me> = {}): Me => ({
   telegramAvailable: false,
   pushSubscribed: false,
   layers: { diary: true },
+  termsToAccept: null,
   ...over,
 });
 

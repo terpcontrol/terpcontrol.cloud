@@ -170,6 +170,18 @@ describe('claiming a device with a place to join', () => {
     expect((await db.devices.findOne({ id: NEW }).lean())?.placements).toMatchObject([{ spaceId: TENT, endedAt: null }]);
   });
 
+  it('reads new hardware back past its claim, and second-hand hardware only from it', async () => {
+    await unclaimed('fan');
+    await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT });
+    expect((await db.devices.findOne({ id: NEW }).lean())?.state.readsFrom ?? null).toBeNull();
+
+    await devices.releaseClaim(NEW);
+    await db.claimCodes.create({ id: 'claim-again', code: CODE, deviceId: NEW });
+    await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT });
+    const again = await db.devices.findOne({ id: NEW }).lean();
+    expect(again?.state.readsFrom).toEqual(again?.state.claimedAt);
+  });
+
   it.each(['controller', 'fridge'])('gives a %s its own place all the same', async type => {
     await unclaimed(type);
     const claimed = await devices.claim(session(OWNER), { code: CODE, joinSpaceId: TENT });

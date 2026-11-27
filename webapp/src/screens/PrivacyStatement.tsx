@@ -8,11 +8,11 @@ import styles from './SignIn.module.css';
 const KEPT = ['account', 'devices', 'diary', 'notifications', 'sharing', 'deleting'] as const;
 
 /**
- * What the app keeps about the people who use it, which is what signing up
- * agrees to. An install that publishes a privacy statement of its own names it
- * at build time (`PRIVACY_URL`), and sign-up links there instead; without one,
- * this page is what the agreement is to - the software's own account of what
- * it stores, which is true of every install, and who answers for it.
+ * What the app keeps about the people who use it, which signing up links as
+ * information. An install that publishes a privacy statement of its own names
+ * it at build time (`PRIVACY_URL`), and sign-up links there instead; without
+ * one, this page is what is linked - the software's own account of what it
+ * stores, which is true of every install, and who answers for it.
  */
 export function PrivacyStatement() {
   const { t } = useTranslation();

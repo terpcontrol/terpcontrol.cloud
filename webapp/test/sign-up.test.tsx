@@ -110,18 +110,21 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe('the privacy agreement on an install that publishes no statement of its own', () => {
-  it('is asked all the same, and links the app´s own page of what it keeps', async () => {
+describe('the privacy statement on an install that publishes none of its own', () => {
+  it('links the app´s own page of what it keeps, and asks for no agreement to it', async () => {
+    server.active = false;
     draw('/sign-up');
 
-    const link = screen.getByRole('link', { name: 'privacy policy' });
-    expect(link).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'privacy policy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
-    expect(await screen.findByText('Please accept the privacy policy to create an account.')).toBeInTheDocument();
-    expect(server.wrote).toEqual([]);
+
+    expect(await screen.findByText('One more step: activation')).toBeInTheDocument();
+    expect(server.wrote.map(write => write.path)).toEqual(['/users']);
+    expect(server.wrote[0].body).not.toHaveProperty('acceptTerms');
   });
 
   it('says on that page what the app keeps and who answers for it', () => {
@@ -151,7 +154,6 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('E-mail', 'mara@example.com');
     fillIn('Username', '@mara');
     fillIn('Password', 'a long enough secret');
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     expect(await screen.findByText('Landed in space-9')).toBeInTheDocument();
@@ -172,7 +174,6 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     expect(await screen.findByText('One more step: activation')).toBeInTheDocument();
@@ -202,7 +203,6 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     // The alert is a live region that stands empty until the refusal arrives, so it is waited for by its words.
@@ -219,7 +219,6 @@ describe('the stranger an invitation was sent to', () => {
       fillIn('E-Mail', 'mara@example.com');
       fillIn('Benutzername', 'mara');
       fillIn('Passwort', 'a long enough secret');
-      fireEvent.click(screen.getByRole('checkbox'));
       fireEvent.click(screen.getByRole('button', { name: 'Konto anlegen' }));
 
       // The alert is a live region that stands empty until the refusal arrives.
@@ -241,7 +240,6 @@ describe('the stranger an invitation was sent to', () => {
     fillIn('E-mail', 'mara@example.com');
     fillIn('Username', 'mara');
     fillIn('Password', 'a long enough secret');
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Create the account' }));
 
     fireEvent.click(await within(await screen.findByRole('alert')).findByRole('link', { name: /^Sign in/ }));

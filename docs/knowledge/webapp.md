@@ -313,8 +313,9 @@ rules learnt during the rewrite in [app-rewrite-handover.md](../app-rewrite-hand
   (pre-hook of every start, dev, build and test:live script) writes `webapp/.env.local` from the root `.env`'s
   `API_URL_EXTERNAL`, and leaves a `.env.local` alone whose generated first line was deleted. The image turns the
   build args `API_URL_EXTERNAL`, `CUSTOM_LINKS_HTML` (an install's own links under the sign-in form, as HTML),
-  `PRIVACY_URL` (empty: sign-up links the app's own `/privacy`) and `CUSTOM_SCRIPT_TAG` into `VITE_API_URL`,
-  `VITE_CUSTOM_LINKS_HTML`, `VITE_PRIVACY_URL` and `VITE_CUSTOM_SCRIPT_TAG`.
+  `PRIVACY_URL` (linked from sign-up as information, not agreed to; empty: the app's own `/privacy`), `TERMS_URL`
+  (empty: no terms checkbox; the server reads the same variable and records the acceptance) and `CUSTOM_SCRIPT_TAG`
+  into `VITE_API_URL`, `VITE_CUSTOM_LINKS_HTML`, `VITE_PRIVACY_URL`, `VITE_TERMS_URL` and `VITE_CUSTOM_SCRIPT_TAG`.
 - `CUSTOM_SCRIPT_TAG` is markup a plugin in `vite.config.ts` writes before `</body>` of `index.html`, not something
   React renders: a third-party snippet is a `<script src>` that must be parsed with the page, and a script set via
   `innerHTML` never runs. terpcontrol.cloud's dev and prod use it for the BugDrop feedback widget (see "Feedback

@@ -56,6 +56,18 @@ export const movedTo = (placements: readonly DevicePlacement[], spaceId: string 
 const beginsAt = (placement: DevicePlacement, index: number): number => (index === 0 ? -Infinity : placement.startedAt.getTime());
 
 /**
+ * Where the readings of a device begin for whoever holds it now, read of the
+ * device itself rather than of a place: its claim, when somebody held it
+ * before; null for its first holder, who reads back past the claim. A row from
+ * before `readsFrom` was kept is told by a placement older than its claim.
+ */
+export const readsFromOf = (device: Pick<StoredDevice, 'state' | 'placements'>): Date | null => {
+  const claimedAt = device.state?.claimedAt ?? null;
+  if (device.state?.readsFrom) return device.state.readsFrom;
+  return claimedAt && (device.placements ?? []).some(placement => placement.startedAt < claimedAt) ? claimedAt : null;
+};
+
+/**
  * When a device standing in a place came there from another, and from which: its stay there now, where that is not
  * its first placement. What it measured before is the other place's, and no read of this one shows it.
  */
