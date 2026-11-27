@@ -213,13 +213,14 @@ describe('pairing a Terp Cam at a device', () => {
   it.each([
     ['plug', plug, 'At the Plantalytix Socket'],
     ['fan', fan, 'At the fan'],
+    ['light', lamp, 'At the lamp module'],
   ])(
     'pairs a cam at a %s as it does at a controller, the only device some accounts have, by the name the device list gives it',
     async (_kind, only, at) => {
       state.devices = [only];
       draw();
 
-      // Both carry the Terp Cam entry in their menu and bridge the cam the same way.
+      // Each carries the Terp Cam entry in its menu and bridges the cam the same way.
       expect(await screen.findByText(`${at}: press the knob, then Terp Cam › connect cam`)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Terp Cam' })).toHaveAttribute('aria-pressed', 'true');
       expect(screen.queryByText('No device yet')).not.toBeInTheDocument();
@@ -326,8 +327,8 @@ describe('pairing a Terp Cam at a device', () => {
 
 describe('an account with no device to pair a cam at', () => {
   beforeEach(() => {
-    // A light module has no Terp Cam entry in its menu.
-    state.devices = [lamp];
+    // Every device with a display pairs one, so only an account without a device has nothing to pair at.
+    state.devices = [];
   });
 
   it('opens on the address form rather than on steps nobody can follow', async () => {
@@ -342,7 +343,7 @@ describe('an account with no device to pair a cam at', () => {
     await openTab('Terp Cam');
 
     expect(panel().getByText('No device yet')).toBeInTheDocument();
-    expect(panel().getByText(/a fridge module, a controller, a fan or a Plantalytix Socket/)).toBeInTheDocument();
+    expect(panel().getByText(/a fridge module, a controller, a fan, a lamp module or a Plantalytix Socket/)).toBeInTheDocument();
     expect(panel().getByRole('link', { name: /Add a device/ })).toHaveAttribute('href', '/claim');
     // A watch that nothing could ever cross is not left running.
     expect(panel().queryByText('Nothing new yet. This list fills itself for as long as it is open.')).not.toBeInTheDocument();

@@ -527,7 +527,7 @@ describe('adding a device', () => {
   });
 
   /**
-   * A Smart Socket and an AIR fan pair a Terp Cam at their own display, as a
+   * A Smart Socket, an AIR fan and a lamp module pair a Terp Cam at their own display, as a
    * controller does, and pair no sockets. The step asked a socket's owner
    * nothing at all, so the one place a new owner is walked through the
    * hardware left out the cam they can have.
@@ -556,17 +556,25 @@ describe('adding a device', () => {
     expect(address()).toBe('/claim?device=sim-plug-1&ask=hardware.notify.grow&at=hardware&made=space-new');
   });
 
-  it('asks a light nothing about sockets and a cam it cannot have, and counts three steps', async () => {
+  it('asks a lamp module about the cam it can pair, and nothing about sockets or a climate, and counts four steps', async () => {
     state.me = keepingADiary(state.me);
     state.claim = { device: light, spaceCreated: true };
     state.devices = [light];
     claim();
 
-    await waitFor(() => expect(openStep()).toHaveTextContent('How will you hear about problems?'));
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add lamp module · step 2 of 3$/);
-    expect(screen.queryByRole('heading', { level: 2, name: /Cam/ })).not.toBeInTheDocument();
-    expect(claimedFacts()).not.toHaveTextContent(/camera|sockets/);
-    expect(screen.getByRole('button', { name: 'Next · grow' })).toBeEnabled();
+    // A lamp module pairs a Terp Cam at its display as a socket does, and sets no climate of its own.
+    await waitFor(() => expect(openStep()).toHaveTextContent('Camera'));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Add lamp module · step 2 of 4$/);
+    expect(screen.getAllByRole('heading', { level: 2 }).map(one => one.textContent)).toEqual([
+      'Added · Lamp module',
+      'Camera',
+      'How will you hear about problems?',
+      'What grows here?',
+    ]);
+    expect(claimedFacts()).toHaveTextContent(/· no camera$/);
+    expect(claimedFacts()).not.toHaveTextContent(/sockets/);
+    expect(screen.getByRole('link', { name: 'Pair a Terp Cam' })).toHaveAttribute('href', '/cameras/add');
+    expect(screen.queryByText('Reported sockets')).not.toBeInTheDocument();
   });
 
   /**

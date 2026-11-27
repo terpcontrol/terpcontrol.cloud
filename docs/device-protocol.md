@@ -558,8 +558,8 @@ over it would serialise into truncated JSON and the server would drop the whole 
 
 The `socket_*` keys come from the controller and the fridge only — no other type calls
 `wifiInitAuxCloudReporting`. The `webcam_*` keys come from every type that pairs a Terp Cam: the controller and
-the fridge, and the fan and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:419`,
-`plug.cpp:605`). `reportCamIp` (`terpcam.cpp:185-196`) sends `webcam_ip` and `webcam_uid` whenever the device
+the fridge, and the fan, the light and the plug, which call `wifiInitTerpCamCloudReporting` alone (`fan.cpp:420`,
+`light.cpp:414`, `plug.cpp:609`). `reportCamIp` (`terpcam.cpp:185-196`) sends `webcam_ip` and `webcam_uid` whenever the device
 has learnt a new value, and only while no relay is running, because the relay task never logs
 (`terpcam.cpp:1073`). Pairing secures the camera before it reports the new id, so `webcam_pwd` arrives before the
 `webcam_did` it belongs to (`wifi.cpp:1371-1376`). Disconnecting the camera in the menu forgets everything stored
@@ -731,7 +731,7 @@ on the wire changes.
 When a device receives one it parses it, adopts it silently, writes it to NVS key `config` and re-runs its
 control loop (`controller.cpp:569-578`). It sends **no acknowledgement and no echo**. The `fridge`, `plug`, `fan`
 and `light` types skip the NVS store while `mqttcontrol` is true, so direct control does not overwrite the saved
-settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:379-385`).
+settings (`fridge.cpp:685-691`, `plug.cpp:589-595`, `fan.cpp:395-401`, `light.cpp:383-389`).
 
 When a setting is changed on the device itself, the device publishes its whole document on the same topic
 (`saveAndUploadSettings` over `serializeSettings`, e.g. `controller.cpp:521-553`). The device subscribes to that
@@ -818,7 +818,7 @@ Consequence of the self-echo above: a change on the fan's own menu uploads a doc
 loads it back and stops slowing for the plug, day and night, and the cloud stores it without the section, so the
 app shows the fan as uncoupled. It stays so until the plug's settings are saved again in the app.
 
-**light** (`light.cpp:441-447`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
+**light** (`light.cpp:448-454`, echo `:154-167`): flat, not nested — `mqttcontrol` (not echoed), `day`, `night`
 (seconds UTC), `max_temperature`, `limit`, `sunrise`, `sunset`. A plan step or a climate preset never writes to
 a light, because its `day` and `night` are a schedule, not climate sections: a preset passes it by, and the server
 refuses a plan for it with 422 `device_states_no_climate`. The one exception is the dark of germination and drying
@@ -835,7 +835,7 @@ Setting `mqttcontrol: true` on a `fridge`, `plug`, `fan` or `light` hands its ou
 `/devices/<id>/control/<output>` — the topic suffix is the output name and the payload is a bare value
 (`fridgecloud.cpp:243-246`). Accepted names: fridge `heater`, `dehumidifier`, `co2`, `light`, `fan-internal`,
 `fan-external`, `fan-backwall` (`fridge.cpp:766-801`); plug `relais` (`plug.cpp:607-614`); fan `fan`
-(`fan.cpp:422-429`); light `light` (`light.cpp:391-398`). The controller has no `onControl` handler at all.
+(`fan.cpp:422-429`); light `light` (`light.cpp:395-402`). The controller has no `onControl` handler at all.
 
 Direct control expires 60 seconds after the last configuration message, after which the NVS configuration is
 reloaded (`DIRECTMODE_TIMEOUT`, `fridge.h:124`, `fridge.cpp:974-978`; `plug.cpp:767-771`; `fan.cpp:174-178`;
@@ -899,18 +899,18 @@ own handler (`:233-239`).
 | `socket_remove` | `role`, optional `slot` | controller, fridge |
 | `socket_test` | `role`, optional `slot` | controller, fridge |
 | `socket_override` | `slot` **or** `output`, `state: on \| off \| auto`, `seconds` | controller, fridge announcing `socket_override` |
-| `cam_relay` | `url`, `token`, `key` | controller, fridge, fan, plug |
+| `cam_relay` | `url`, `token`, `key` | controller, fridge, fan, light, plug |
 
 `socket_set`'s `timer` and `socket_override` are the two additions since the builds in the field. They are sent
 only to a device that announced `socket_timer` and `socket_override` in `caps`, and a role outside `socket_roles`
 is never sent at all, because an old build drops what it does not know without a word
 ([12](#12-extending-it-safely)).
 
-`light` and `cam` have empty command handlers (`light.cpp:400-407`, `cam.cpp:56-58`) and so honour nothing
-beyond `reboot`; the `plug` honours `cam_relay` and nothing else (`plug.cpp:601-603`). None of `plug`, `fan`,
+`cam` has an empty command handler (`cam.cpp:56-58`) and so honours nothing beyond `reboot`; the `light` and the
+`plug` honour `cam_relay` and nothing else (`light.cpp:404-412`, `plug.cpp:605-607`). None of `plug`, `fan`,
 `light` or `cam` calls `wifiInitAuxCloudReporting` or `wifiHandleAuxCommand`, so they never report sockets and
-ignore `socket_*`; the fan and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
-(`fan.cpp:415`, `plug.cpp:602`). The server sends `socket_set` and `socket_override` only to a controller or a
+ignore `socket_*`; the fan, the light and the plug hand `cam_relay` to `wifiHandleTerpCamCommand` directly
+(`fan.cpp:416`, `light.cpp:411`, `plug.cpp:606`). The server sends `socket_set` and `socket_override` only to a controller or a
 fridge (`SOCKET_HOST_TYPES`) and answers 409 `not_for_this_device` for anything else.
 
 **An action a device does not know is dropped silently.** There is no negative acknowledgement, no error log and
