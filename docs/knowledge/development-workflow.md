@@ -1,7 +1,7 @@
 ---
 summary: How agents and people work here - branches and pushing, PR review comments, long runs and rounds, what needs Chris's word, commit and PR texts, worktrees and parallel agents
-updated: 2026-11-26
-source: graphical work on Fable (Chris, 2026-11-26); master merged beside an agent at work, in a worktree of its own (the redesign session, 2026-11-26); a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
+updated: 2026-11-27
+source: no stacked PRs (Chris, 2026-11-27); graphical work on Fable (Chris, 2026-11-26); master merged beside an agent at work, in a worktree of its own (the redesign session, 2026-11-26); a lockfile conflict resolved by regenerating it (the redesign session's merge of master, 2026-11-25); the run's bar - no major in any part (Chris, 2026-11-15); Chris's instructions in sessions and PR reviews 2025-10..2026-11 (dated inline); root causes agents found in those sessions; the commit and PR history (trailers read from master 2026-10-08); codebase cleanup (2026-10-08); what knip, the key script and the class script must know: the redesign session's clearing-up round of 2026-11-13
 paths:
   - .claude/**
   - .worktreeinclude
@@ -24,6 +24,10 @@ Checks and test stacks in detail: [testing](testing.md); releases and deploys: [
   check that the PR branch on origin equals your state, check it out, delete the side branch.
 - **A problem Chris finds while testing an open PR is fixed on that PR's branch** (Chris, 2026-08-25), not in a new
   branch or PR. After the merge, a follow-up is a new PR from master (see [Review comments](#review-comments)).
+- **PRs are not stacked unless Chris asks for it** (Chris, 2026-11-27, on #188). A follow-up to an open PR - a fix a
+  review found, say - is either pushed to that PR's branch or opened from `origin/master` after it merged, never with
+  the open PR's branch as its base. A stacked PR cannot be retargeted to `master` while its base is open, and both
+  then have to be rebased before they can merge.
 - **Push after every round or finished step**, once the checks are green and read in their own command (Chris,
   2026-09-24; [AGENTS.md](../../AGENTS.md), Before committing): fetch first, push a fast-forward. Pushing the session's
   own branches is standing authorisation; never push master or anybody else's branch, and leave Chris's own checkouts
