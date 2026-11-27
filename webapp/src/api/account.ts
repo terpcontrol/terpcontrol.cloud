@@ -21,6 +21,9 @@ import { api } from './client';
 import { session, useSession } from './session';
 import { invalidate, useWrite } from './write';
 
+/** The shortest new password the server takes; it says so itself, the forms only say it before they are sent. */
+export const PASSWORD_MIN_LENGTH = 8;
+
 /**
  * The account as its owner sees it, and the one way it is changed.
  *

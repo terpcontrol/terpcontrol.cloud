@@ -4,7 +4,7 @@ import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation } from 'react-router';
 import type { UserCreate } from '@fg2/shared-types/v1';
-import { useActivateAccount, useSignUp } from '@/api/account';
+import { PASSWORD_MIN_LENGTH, useActivateAccount, useSignUp } from '@/api/account';
 import { CUSTOM_LINKS_HTML, PRIVACY_URL, TERMS_URL } from '@/api/config';
 import { ApiError } from '@/api/problem';
 import { session, useSession } from '@/api/session';
@@ -251,9 +251,6 @@ export function SignUp() {
     </Door>
   );
 }
-
-/** The shortest new password the server takes; it says so itself, this only says it before the form is sent. */
-const PASSWORD_MIN_LENGTH = 8;
 
 /** What the server said about one field, under that field; a form's own `required` leaves no sentence and draws nothing. */
 function FieldProblem({ message }: { message: string | undefined }) {
