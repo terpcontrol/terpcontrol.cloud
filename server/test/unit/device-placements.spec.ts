@@ -1,4 +1,4 @@
-import { BRIEF_STAY_MS, movedTo, stayOf } from '@common/v1/device-placements';
+import { BRIEF_STAY_MS, movedTo, readsFromOf, stayOf } from '@common/v1/device-placements';
 import { numbered, nameKey } from '@fg2/shared-types/v1-schemas';
 
 /**
@@ -107,5 +107,23 @@ describe('a name that is taken', () => {
     expect(numbered('Zelt', taken)).toBe('Zelt 3');
     expect(numbered('Tent 1', taken)).toBe('Tent 2');
     expect(numbered('zelt 2', taken)).toBe('zelt 3');
+  });
+});
+
+describe('where a holder reads a device from', () => {
+  const claimed = (claimedAt: Date | null, placements: ReturnType<typeof stay>[], readsFrom?: Date | null) =>
+    readsFromOf({ state: { claimedAt, readsFrom } as never, placements });
+
+  it('reads its first holder back past the claim', () => {
+    expect(claimed(at('01T10:00'), [stay('tent', '01T10:00')])).toBeNull();
+  });
+
+  it('reads the next holder from the claim on, also on a row from before the field was kept', () => {
+    expect(claimed(at('05T10:00'), [stay('tent', '01T10:00', '03T10:00'), stay('fridge', '05T10:00')])).toEqual(at('05T10:00'));
+    expect(claimed(at('05T10:00'), [stay('fridge', '05T10:00')], at('05T10:00'))).toEqual(at('05T10:00'));
+  });
+
+  it('sets no bound on a device nobody recorded the claim of', () => {
+    expect(claimed(null, [stay('tent', '01T10:00', '03T10:00'), stay('fridge', '05T10:00')])).toBeNull();
   });
 });

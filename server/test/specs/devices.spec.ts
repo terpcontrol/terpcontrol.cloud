@@ -685,6 +685,37 @@ describe('what reaches the hardware', () => {
   });
 });
 
+describe('a device that changes hands', () => {
+  it('shows the next owner nothing the last one measured', async () => {
+    const device = await provisionDevice(owner, 'plug');
+    const simulator = await startSimulator(device);
+    try {
+      await simulator.reportStatus({ temperature: 23.5 });
+      await settle(1000);
+      await owner.client.delete(`/v1/devices/${device.deviceId}/claim`).expect(204);
+
+      const next = await createAccount('devices-next-owner');
+      await next.client
+        .post('/v1/devices/claims')
+        .send({ code: await claimCodeOf(device.deviceId) })
+        .expect(201);
+
+      const asked = new Date(Date.now() - 3_600_000);
+      const series = await next.client
+        .get(`/v1/devices/${device.deviceId}/series`)
+        .query({ startsAt: asked.toISOString(), endsAt: new Date().toISOString(), metrics: 'temperature' })
+        .expect(200);
+
+      const points = series.body.metrics.flatMap((metric: { points: { value: number | null }[] }) => metric.points);
+      expect(points.filter((point: { value: number | null }) => point.value !== null)).toEqual([]);
+      // The window is answered from the claim, which is where this owner's readings begin.
+      expect(new Date(series.body.startsAt).getTime()).toBeGreaterThan(asked.getTime());
+    } finally {
+      await simulator.close();
+    }
+  });
+});
+
 describe('how a device updates', () => {
   it('starts on stable, and lets its owner choose the channel and, on the manual one, a version from the builds offered', async () => {
     const device = await provisionDevice(owner, 'plug');

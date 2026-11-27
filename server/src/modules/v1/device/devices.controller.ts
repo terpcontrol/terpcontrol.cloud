@@ -54,6 +54,7 @@ import { AuthGuard } from '@common/auth/auth.guard';
 import { AccessGuard, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, subjectRef } from '@common/v1/access.service';
 import { AccessContext } from '@common/v1/access.types';
+import { readsFromOf } from '@common/v1/device-placements';
 import { badRequest, forbidden } from '@common/v1/problem';
 import { PageQuery, V1Query, inOrder, pageQuery, repeated } from '@common/v1/validation';
 import { isOffline } from '@common/v1/value-age';
@@ -330,13 +331,18 @@ export class DevicesController {
   @ApiOperation({ summary: "A window of one device's series" })
   @V1Answer(deviceSeries)
   public async series(@Param('id') id: string, @V1Query(seriesFromQuery) query: z.infer<typeof seriesFromQuery>): Promise<DeviceSeries> {
-    await this.devices.require(id);
+    const device = await this.devices.require(id);
+    // Nothing from before the claim of hardware somebody else held: a window reaching back is answered from the claim.
+    const readsFrom = readsFromOf(device);
+    const asked = new Date(query.startsAt);
+    const endsAt = new Date(query.endsAt);
+    const startsAt = readsFrom && readsFrom > asked ? new Date(Math.min(readsFrom.getTime(), endsAt.getTime())) : asked;
 
     return this.data.series(id, {
       metrics: query.metrics ?? [],
       outputs: query.outputs,
-      startsAt: new Date(query.startsAt),
-      endsAt: new Date(query.endsAt),
+      startsAt,
+      endsAt,
       stepSeconds: query.stepSeconds,
     });
   }

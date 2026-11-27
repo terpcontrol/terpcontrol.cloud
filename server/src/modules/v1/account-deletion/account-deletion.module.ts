@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ModelsModule } from '@database/models.module';
+import { DataModule } from '@modules/data/data.module';
 import { AccountModule } from '../account/account.module';
 import { DeviceModule } from '../device/device.module';
 import { SessionsModule } from '../sessions/sessions.module';
@@ -16,15 +17,15 @@ import { MeDeletionController } from './me-deletion.controller';
  * route for the account deleting itself, is what means the account module never
  * has to know this exists.
  *
- * It borrows three services because each of them is the single definition of
+ * It borrows four services because each of them is the single definition of
  * something: what ending every session means, what retiring every recovery link
- * means, and what giving a device up means. Everything else it does is a delete
+ * means, what giving a device up means, and how a device's readings are dropped. Everything else it does is a delete
  * over a collection, so the modules that own those collections' routes are left
  * out - their own delete paths archive, tombstone or defer to a sweep, which is
  * right for one person ending one thing and wrong for an account that is going.
  */
 @Module({
-  imports: [ModelsModule, AccountModule, SessionsModule, DeviceModule],
+  imports: [ModelsModule, AccountModule, SessionsModule, DeviceModule, DataModule],
   controllers: [MeDeletionController],
   providers: [AccountDeletionService],
   exports: [AccountDeletionService],
