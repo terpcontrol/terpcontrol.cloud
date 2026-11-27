@@ -34,9 +34,10 @@ import { restingRemindersOfEndedGrows } from './032-resting-reminders-of-ended-g
 import { oneClimateAPlace } from './033-one-climate-a-place-with-its-past';
 import { fansWithoutALamp } from './034-fans-without-a-lamp';
 import { lampsDarkWhereItIsDark } from './035-lamps-dark-where-it-is-dark';
+import { co2FanWindows } from './036-co2-fan-windows';
 
 /**
- * In order, and the order matters in eight places:
+ * In order, and the order matters in eleven places:
  *
  * - the picture bytes move first, because that job looks for its documents in
  *   `images` and every step after it has moved that collection aside;
@@ -61,7 +62,9 @@ import { lampsDarkWhereItIsDark } from './035-lamps-dark-where-it-is-dark';
  * - the rooms nothing is left in are ended before the names are made unique,
  *   so that an ended room takes no name from one that stays.
  * - the reminders of ended places go after the empty rooms have ended, so that
- *   a room ended by that step loses its own too.
+ *   a room ended by that step loses its own too;
+ * - a fan slowed for a socket's CO2 is written from the socket's document in
+ *   the new shape, so after the devices have been migrated.
  *
  * Everything else is independent, and every step is a no-op on a database that
  * does not have the collection it reads - which is what a fresh install is.
@@ -102,4 +105,5 @@ export const MIGRATION_STEPS: MigrationStep[] = [
   oneClimateAPlace,
   fansWithoutALamp,
   lampsDarkWhereItIsDark,
+  co2FanWindows,
 ];

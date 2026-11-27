@@ -835,7 +835,9 @@ the plug slows while it doses CO2, which the firmware keeps without reading it a
 duration}`. `mqttcontrol` and the `co2inject` block are not echoed. The fan knows nothing of the plug: the server
 writes `co2inject` from the plug's document - its id, its dosing windows and day, and the speed the owner set
 for the coupling in the plug's settings (`fan` key) - whenever the server writes the plug's document, and an empty
-section where the plug no longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`). A plug's or
+section where the plug no longer names the fan or doses in no windows (`followCo2Fan`, `co2InjectFor`). A fan coupled in
+the pre-rewrite app was written its section without `day` and `night` and runs the compile-time 06:00-22:00 UTC;
+migration `036-co2-fan-windows` writes it from the plug's document ([smart-sockets.md](knowledge/smart-sockets.md)). A plug's or
 a fan's own upload is stored as it comes and not passed on: following them (#136) was reverted by #154, by the
 owner's decision of 2026-10-09, because the fan's control had worked before it. Settings made in the app give the
 fan the same `co2inject` with and without #136; it only differed after changes on a device's own menu.

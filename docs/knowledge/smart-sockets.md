@@ -1,7 +1,7 @@
 ---
 summary: How the controller and the fridge pair, identify, drive and report their Tasmota smart sockets, what the cloud and the app do with them, and the stand-alone Plantalytix Socket (plug) - read before changing any of it
-updated: 2026-11-12
-source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12); the one control for a hold, and where sockets are listed, after that session's critic's walk (2026-11-12)
+updated: 2026-11-27
+source: Chris (light set-up rule, 2026-09-19; the name Plantalytix Socket, 2026-10-12); agents' PRs #23, #77, #82, #103, #104, #136 (reverted by #154, owner 2026-10-09), #145 and sessions 2026-05..10; checked against the code 2026-10-08; a socket's own page (the redesign session of 2026-11-12); the one control for a hold, and where sockets are listed, after that session's critic's walk (2026-11-12); the CO2 fan window traced in the hosted data and on a development fan (2026-10-09, PR #156) and checked in the hosted data again 2026-11-27
 paths:
   - firmware/src/wifi.*
   - firmware/src/lanscan.*
@@ -232,6 +232,12 @@ Both found reading the code on 2026-10-08, neither seen on a device:
   only `floating`, `float_start`, `day_duration` and `light_duration`: `day` and `night` were always undefined and
   left out. The fan then takes its compile-time 06:00-22:00 UTC (`fan.h`) whatever the socket's window, so with
   `usedaynight` it is slowed from 08:00 to midnight in German summer time - through the socket's night - and not in
-  the socket's early-morning hours. No migration rewrote `co2inject`; the first save of the socket in the new app
-  (`followCo2Fan`) writes the right window. Found 2026-10-09 from a grower's report (window 20:00-14:00, fan still
-  slowed after 14:00).
+  the socket's early-morning hours. A change of the fan's own speed then seems ignored: inside a slice the coupling
+  caps it. Found 2026-10-09 from a grower's report and the hosted readings (`out_fan` of the fan against
+  `out_relais` of the socket, dosing 18:00-06:00 UTC); a development fan follows the window the moment `day` and
+  `night` are in the section. The same app also cleared the fan's section before writing it without waiting for the
+  one write to land before the other, so the clear could land last and leave the fan uncoupled while the socket
+  still named it (seen in the hosted device log). Migration `036-co2-fan-windows` writes every coupled fan's
+  section from its socket's document, as a save of the socket in the new app does (`followCo2Fan`), on the
+  socket's schedule clock; a fan naming a socket that no longer names it is told it is slowed for nothing. On
+  2026-11-27 the hosted, not yet migrated database still held one such fan.
