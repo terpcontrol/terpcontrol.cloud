@@ -11,7 +11,7 @@ import { AuthenticatedRequest } from '@common/auth/token.service';
 import { AccessGuard, AccessRequest, Caller, Requires } from '@common/v1/access.guard';
 import { AccessService, needToEditEntry, subjectRef } from '@common/v1/access.service';
 import { AccessContext, Grant } from '@common/v1/access.types';
-import { badRequest, notFound, unprocessable } from '@common/v1/problem';
+import { badRequest, conflict, notFound, unprocessable } from '@common/v1/problem';
 import { clampRange, pictureOutsideRange } from '@common/v1/range';
 import { refuseEndedId } from '@common/v1/rooms';
 import { V1Query } from '@common/v1/validation';
@@ -22,6 +22,8 @@ import { SpaceDocument } from '@database/schemas/v1/spaces.schema';
 import { MediaDeliveryService } from './media-delivery.service';
 import { MediaPresentationService, pictureSizeQuery, renderSizeOf } from './media-presentation.service';
 import { MediaService } from './media.service';
+import { CamerasService } from './cameras.service';
+import { StillDeletionService } from './still-deletion.service';
 import { ApiPictureBytes, V1Answer } from '../answer-shape';
 import { PICTURE_READ_OPERATION } from '../../../openapi';
 
@@ -42,6 +44,8 @@ export class MediaController {
     private readonly presentation: MediaPresentationService,
     private readonly delivery: MediaDeliveryService,
     private readonly access: AccessService,
+    private readonly cameras: CamerasService,
+    private readonly deletion: StillDeletionService,
     @InjectModel(MODEL_V1.space) private readonly spaces: Model<SpaceDocument>,
   ) {}
 
@@ -162,7 +166,13 @@ export class MediaController {
     if (!media) throw notFound('media_not_found', 'There is no picture with that id.');
 
     await this.access.require(ctx, subjectRef('media', id), needToEditEntry(ctx, media.uploadedBy));
-    await this.media.delete(id);
+
+    // A camera's still is deleted as the camera page deletes it: the films holding it are made again without it.
+    const camera = media.kind === 'still' && media.cameraId ? await this.cameras.byId(media.cameraId) : null;
+    if (!camera) return this.media.delete(id);
+
+    const { kept } = await this.deletion.delete(camera, { ids: [id] });
+    if (kept.length > 0) throw conflict('held_by_diary', 'A diary line or a grow´s cover holds this picture. Take it out there first.');
   }
 
   /**

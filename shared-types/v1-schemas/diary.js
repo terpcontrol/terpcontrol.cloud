@@ -1,8 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rtspCameraCreate = exports.standaloneCameraCreate = exports.controllerCameraCreate = exports.cameraPage = exports.camera = exports.cameraState = exports.cameraEntitlementUpdate = exports.cameraEntitlement = exports.entitlementTier = exports.cameraModel = exports.cameraTransport = exports.mediaUpload = exports.uploadMediaKind = exports.mediaPage = exports.exportAccepted = exports.media = exports.mediaExportJob = exports.exportScope = exports.mediaRender = exports.mediaRenderStatus = exports.mediaOverlays = exports.mediaAspect = exports.mediaQuality = exports.mediaWindow = exports.cameraOrientation = exports.entryUpdate = exports.entryCreate = exports.entryValuesDraft = exports.humanEntryKind = exports.entryPage = exports.entry = exports.entryMessage = exports.entryValues = exports.planEntryValues = exports.harvestEntryValues = exports.moveEntryValues = exports.phaseEntryValues = exports.alarmEntryValues = exports.systemEntryValues = exports.visitEntryValues = exports.trainingEntryValues = exports.noteEntryValues = exports.photoEntryValues = exports.feedEntryValues = exports.waterEntryValues = exports.measurementEntryValues = exports.entryDose = exports.growReadingNames = exports.readingName = exports.entryReading = void 0;
-exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growDayEvent = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.timelapseAccepted = exports.timelapseCreate = exports.streamTestCapture = exports.streamTestPicture = exports.streamTestCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.plantLabel = exports.cameraStill = exports.cameraUpdate = exports.cameraCreate = void 0;
-exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = exports.sharedCurves = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputPoint = exports.timelinePanel = exports.timelineReading = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewClimate = exports.overviewTargets = exports.overviewGrow = exports.overviewCamera = void 0;
+exports.verdictRating = exports.homeAnswer = exports.followedGrowCard = exports.homeSpaceCard = exports.homeClimate = exports.growDayEvent = exports.growCard = exports.growCardStageGroup = exports.openAlert = exports.cardTrend = exports.latestStill = exports.cardSetpoint = exports.cardTransition = exports.cardValue = exports.migration = exports.shareLinkUpdate = exports.shareLinkCreate = exports.shareLinkPage = exports.shareLink = exports.shareLinkState = exports.chartViewUpdate = exports.chartViewCreate = exports.chartViewPage = exports.chartView = exports.chartViewDefinition = exports.chartViewLayout = exports.chartViewSpan = exports.timeRange = exports.schemeUpdate = exports.schemeCreate = exports.schemePage = exports.scheme = exports.schemeOrigin = exports.stillDeletionImpact = exports.stillDeletionHour = exports.stillDeletionFilm = exports.stillDeletion = exports.MAX_PICKED_STILLS = exports.timelapseAccepted = exports.timelapseCreate = exports.streamTestCapture = exports.streamTestPicture = exports.streamTestCreate = exports.testCapture = exports.captureFailure = exports.testCaptureState = exports.plantLabel = exports.cameraStill = exports.cameraUpdate = exports.cameraCreate = void 0;
+exports.sharedCurves = exports.publicUserPage = exports.publicWeekPage = exports.publicGrowPage = exports.publicAuthor = exports.growSeries = exports.growSeriesRange = exports.growMeasurementSeries = exports.growSeriesPoint = exports.myGrowPage = exports.myGrowCard = exports.strainCount = exports.myGrowPlace = exports.growReport = exports.growTotals = exports.growHarvest = exports.growReportPhase = exports.growDiaryPage = exports.growDiaryWeek = exports.growDiaryDay = exports.growDayClimate = exports.weekClimate = exports.spaceTimeline = exports.timelineCamera = exports.timelineGrow = exports.timelineMachineEvents = exports.timelineAlarm = exports.timelineOutputLane = exports.timelineOutputPoint = exports.timelinePanel = exports.timelineReading = exports.timelineTargets = exports.timelineTarget = exports.timelineSpan = exports.timelineRange = exports.co2Report = exports.co2Cylinder = exports.spaceLive = exports.spaceLiveCamera = exports.spaceLiveDevice = exports.spaceOverview = exports.overviewClimate = exports.overviewTargets = exports.overviewGrow = exports.overviewCamera = exports.climateVerdict = exports.actuatorRuns = exports.climateVerdictMetric = exports.climateExcursion = exports.targetBand = void 0;
+exports.linkCard = exports.sharedResolution = exports.sharedSubject = exports.sharedSpace = exports.sharedGrow = void 0;
 const zod_1 = require("zod");
 const capture_js_1 = require("./capture.js");
 const feeding_js_1 = require("./feeding.js");
@@ -693,6 +694,42 @@ exports.timelapseCreate = (0, common_js_1.named)('TimelapseCreate', zod_1.z.obje
 exports.timelapseAccepted = (0, common_js_1.named)('TimelapseAccepted', zod_1.z.object({
     media: exports.media,
     queued: zod_1.z.boolean(),
+}));
+/** How many stills one deletion may name one by one; a span names any number. */
+exports.MAX_PICKED_STILLS = 2000;
+/**
+ * `POST /cameras/{id}/still-deletions` and its `/preview`: the stills of one
+ * camera that are to go - picked one by one (`ids`), or a span with both ends
+ * inside it and the ones to leave (`except`). A still a diary line names or a
+ * grow shows as its cover is never deleted here: it stays, and is said so.
+ */
+exports.stillDeletion = (0, common_js_1.named)('StillDeletion', zod_1.z.object({
+    ids: zod_1.z.array((0, common_js_1.id)()).max(exports.MAX_PICKED_STILLS).optional().describe('The stills picked one by one. Either these or `startsAt` and `endsAt`.'),
+    startsAt: (0, common_js_1.instant)().optional(),
+    endsAt: (0, common_js_1.instant)().optional().describe('Inclusive, as `startsAt` is.'),
+    except: zod_1.z.array((0, common_js_1.id)()).max(exports.MAX_PICKED_STILLS).optional().describe('Stills of the span that stay.'),
+}));
+/** A film that holds a still of the selection: it is deleted, and made again from the stills left where `remade`. */
+exports.stillDeletionFilm = (0, common_js_1.named)('StillDeletionFilm', zod_1.z.object({
+    id: (0, common_js_1.id)(),
+    cameraId: (0, common_js_1.id)(),
+    window: exports.mediaWindow,
+    startsAt: (0, common_js_1.instant)(),
+    endsAt: (0, common_js_1.instant)().nullable(),
+    remade: zod_1.z.boolean().describe('False where too few stills are left for a film.'),
+}));
+/** One hour of the selection, in the zone of the account that owns the camera. */
+exports.stillDeletionHour = (0, common_js_1.named)('StillDeletionHour', zod_1.z.object({
+    startsAt: (0, common_js_1.instant)(),
+    stills: zod_1.z.number().int().nonnegative(),
+    newestId: (0, common_js_1.id)(),
+}));
+/** What a deletion does - asked through `/preview` - or did. */
+exports.stillDeletionImpact = (0, common_js_1.named)('StillDeletionImpact', zod_1.z.object({
+    stills: zod_1.z.number().int().nonnegative().describe('How many stills go, or went.'),
+    kept: zod_1.z.array((0, common_js_1.id)()).describe('Stills of the selection a diary line or a grow cover holds: they stay.'),
+    hours: zod_1.z.array(exports.stillDeletionHour).describe('The selection hour by hour, newest first, the kept stills counted in.'),
+    films: zod_1.z.array(exports.stillDeletionFilm),
 }));
 // ---------------------------------------------------------------------------
 // Feeding schemes

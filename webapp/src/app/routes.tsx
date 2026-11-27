@@ -10,6 +10,7 @@ import { AdminOnly } from '@/screens/admin/AdminOnly';
 import { Users as AdminUsers } from '@/screens/admin/Users';
 import { Alerts } from '@/screens/Alerts';
 import { CameraPage } from '@/screens/camera/CameraPage';
+import { CameraPictures } from '@/screens/camera/pictures/CameraPictures';
 import { Claim } from '@/screens/claim/Claim';
 import { Demo } from '@/screens/admin/Demo';
 import { DeviceDiagnosis } from '@/screens/admin/DeviceDiagnosis';
@@ -71,6 +72,7 @@ export const screens: RouteObject[] = [
   { path: 'claim', element: <Claim />, handle: BARE },
   { path: 'cameras/add', element: <AddCamera /> },
   { path: 'cameras/:cameraId', element: <CameraPage /> },
+  { path: 'cameras/:cameraId/pictures', element: <CameraPictures /> },
   { path: 'tasks', element: <Tasks /> },
   { path: 'me', element: <Me /> },
   { path: 'me/notifications', element: <Notifications /> },

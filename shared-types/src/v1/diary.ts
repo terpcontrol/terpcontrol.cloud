@@ -915,6 +915,59 @@ export const timelapseAccepted = named(
   }),
 );
 
+/** How many stills one deletion may name one by one; a span names any number. */
+export const MAX_PICKED_STILLS = 2000;
+
+/**
+ * `POST /cameras/{id}/still-deletions` and its `/preview`: the stills of one
+ * camera that are to go - picked one by one (`ids`), or a span with both ends
+ * inside it and the ones to leave (`except`). A still a diary line names or a
+ * grow shows as its cover is never deleted here: it stays, and is said so.
+ */
+export const stillDeletion = named(
+  'StillDeletion',
+  z.object({
+    ids: z.array(id()).max(MAX_PICKED_STILLS).optional().describe('The stills picked one by one. Either these or `startsAt` and `endsAt`.'),
+    startsAt: instant().optional(),
+    endsAt: instant().optional().describe('Inclusive, as `startsAt` is.'),
+    except: z.array(id()).max(MAX_PICKED_STILLS).optional().describe('Stills of the span that stay.'),
+  }),
+);
+
+/** A film that holds a still of the selection: it is deleted, and made again from the stills left where `remade`. */
+export const stillDeletionFilm = named(
+  'StillDeletionFilm',
+  z.object({
+    id: id(),
+    cameraId: id(),
+    window: mediaWindow,
+    startsAt: instant(),
+    endsAt: instant().nullable(),
+    remade: z.boolean().describe('False where too few stills are left for a film.'),
+  }),
+);
+
+/** One hour of the selection, in the zone of the account that owns the camera. */
+export const stillDeletionHour = named(
+  'StillDeletionHour',
+  z.object({
+    startsAt: instant(),
+    stills: z.number().int().nonnegative(),
+    newestId: id(),
+  }),
+);
+
+/** What a deletion does - asked through `/preview` - or did. */
+export const stillDeletionImpact = named(
+  'StillDeletionImpact',
+  z.object({
+    stills: z.number().int().nonnegative().describe('How many stills go, or went.'),
+    kept: z.array(id()).describe('Stills of the selection a diary line or a grow cover holds: they stay.'),
+    hours: z.array(stillDeletionHour).describe('The selection hour by hour, newest first, the kept stills counted in.'),
+    films: z.array(stillDeletionFilm),
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // Feeding schemes
 // ---------------------------------------------------------------------------

@@ -1813,6 +1813,67 @@ export declare const timelapseAccepted: z.ZodObject<{
     }, z.core.$strip>;
     queued: z.ZodBoolean;
 }, z.core.$strip>;
+/** How many stills one deletion may name one by one; a span names any number. */
+export declare const MAX_PICKED_STILLS = 2000;
+/**
+ * `POST /cameras/{id}/still-deletions` and its `/preview`: the stills of one
+ * camera that are to go - picked one by one (`ids`), or a span with both ends
+ * inside it and the ones to leave (`except`). A still a diary line names or a
+ * grow shows as its cover is never deleted here: it stays, and is said so.
+ */
+export declare const stillDeletion: z.ZodObject<{
+    ids: z.ZodOptional<z.ZodArray<z.ZodString>>;
+    startsAt: z.ZodOptional<z.ZodISODateTime>;
+    endsAt: z.ZodOptional<z.ZodISODateTime>;
+    except: z.ZodOptional<z.ZodArray<z.ZodString>>;
+}, z.core.$strip>;
+/** A film that holds a still of the selection: it is deleted, and made again from the stills left where `remade`. */
+export declare const stillDeletionFilm: z.ZodObject<{
+    id: z.ZodString;
+    cameraId: z.ZodString;
+    window: z.ZodEnum<{
+        custom: "custom";
+        day: "day";
+        month: "month";
+        week: "week";
+        phase: "phase";
+        grow: "grow";
+    }>;
+    startsAt: z.ZodISODateTime;
+    endsAt: z.ZodNullable<z.ZodISODateTime>;
+    remade: z.ZodBoolean;
+}, z.core.$strip>;
+/** One hour of the selection, in the zone of the account that owns the camera. */
+export declare const stillDeletionHour: z.ZodObject<{
+    startsAt: z.ZodISODateTime;
+    stills: z.ZodNumber;
+    newestId: z.ZodString;
+}, z.core.$strip>;
+/** What a deletion does - asked through `/preview` - or did. */
+export declare const stillDeletionImpact: z.ZodObject<{
+    stills: z.ZodNumber;
+    kept: z.ZodArray<z.ZodString>;
+    hours: z.ZodArray<z.ZodObject<{
+        startsAt: z.ZodISODateTime;
+        stills: z.ZodNumber;
+        newestId: z.ZodString;
+    }, z.core.$strip>>;
+    films: z.ZodArray<z.ZodObject<{
+        id: z.ZodString;
+        cameraId: z.ZodString;
+        window: z.ZodEnum<{
+            custom: "custom";
+            day: "day";
+            month: "month";
+            week: "week";
+            phase: "phase";
+            grow: "grow";
+        }>;
+        startsAt: z.ZodISODateTime;
+        endsAt: z.ZodNullable<z.ZodISODateTime>;
+        remade: z.ZodBoolean;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
 /** Which shipped asset a scheme was made from, and at which version of it. */
 export declare const schemeOrigin: z.ZodObject<{
     assetId: z.ZodNullable<z.ZodString>;

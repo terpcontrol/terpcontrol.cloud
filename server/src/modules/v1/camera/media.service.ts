@@ -64,6 +64,7 @@ export interface MediaPosition {
 
 interface MediaFilter {
   cameraId?: string;
+  ids?: readonly string[];
   kind?: MediaKind;
   window?: MediaWindow | null;
   /** The window every read clamps to, as `access()` decided it. Both ends count as inside. */
@@ -213,10 +214,18 @@ export class MediaService {
     return row;
   }
 
-  /** The rendered film, onto the row that was queued for it. */
-  public async fill(id: string, path: string, filled: Partial<MediaDocument>): Promise<void> {
+  /**
+   * The rendered film, onto the row that was queued for it. A row deleted while
+   * it rendered - its stills were deleted, and the film was queued anew - takes
+   * nothing, and the bytes are dropped again: they may show those stills.
+   * Answers whether the row was still there.
+   */
+  public async fill(id: string, path: string, filled: Partial<MediaDocument>): Promise<boolean> {
     const bytes = await this.store.uploadFile(id, path);
-    await this.media.updateOne({ id }, { $set: { ...filled, bytes } });
+    const { matchedCount } = await this.media.updateOne({ id }, { $set: { ...filled, bytes } });
+    if (matchedCount === 0) await this.store.delete([id]);
+
+    return matchedCount > 0;
   }
 
   public queued(limit: number): Promise<MediaDocument[]> {
@@ -277,6 +286,32 @@ export class MediaService {
 
   public async delete(id: string): Promise<void> {
     await this.media.deleteOne({ id });
+  }
+
+  /** A film, and the grow it stood for as the film of the whole run. */
+  public async deleteFilm(id: string): Promise<void> {
+    await this.media.deleteOne({ id });
+    await this.grows.updateMany({ filmMediaId: id }, { $set: { filmMediaId: null } });
+  }
+
+  public count(filter: MediaFilter): Promise<number> {
+    return this.media.countDocuments(where(filter));
+  }
+
+  /**
+   * The films a camera's stills from `from` to `until` may be in: its own, and
+   * the ones another camera of its place shows it beside. Queued and failed ones
+   * hold no picture; what a film holds exactly is the caller's to narrow.
+   */
+  public filmsAround(cameraId: string, from: Date, until: Date): Promise<MediaDocument[]> {
+    return this.media
+      .find({
+        kind: 'timelapse',
+        capturedAt: { $lte: until },
+        'render.status': { $nin: ['queued', 'failed'] },
+        $and: [{ $or: [{ cameraId }, { 'render.secondCameraId': cameraId }] }, { $or: [{ endsAt: null }, { endsAt: { $gte: from } }] }],
+      })
+      .lean<MediaDocument[]>();
   }
 
   /** In batches, for the sweeps: one round trip per batch rather than per picture. */
@@ -351,6 +386,7 @@ const where = (filter: MediaFilter): FilterQuery<MediaDocument> => {
 
   return {
     ...(filter.cameraId ? { cameraId: filter.cameraId } : {}),
+    ...(filter.ids ? { id: { $in: [...filter.ids] } } : {}),
     ...(filter.kind ? { kind: filter.kind } : {}),
     ...(filter.window !== undefined ? { window: filter.window } : {}),
     ...(Object.keys(capturedAt).length > 0 ? { capturedAt } : {}),
