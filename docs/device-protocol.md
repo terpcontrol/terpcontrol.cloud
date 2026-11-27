@@ -1,7 +1,7 @@
 ---
 summary: The frozen contract between a device's firmware and the cloud - HTTP, every MQTT topic and payload, hardware-info, the configuration document, commands, camera relay, tunnel; read before changing firmware, the device-protocol module or the simulator
-updated: 2026-11-25
-source: a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
+updated: 2026-11-27
+source: `fwupdate` removed and https verified (Chris, 2026-11-27); a lamp module kept dark while its place germinates or dries (the redesign session's fix round of 2026-11-15); maintenance's end kept as handed out when a device says it back in whole minutes (the redesign session's fix round of 2026-11-15); a climate awaited until the first settings (the redesign session, 2026-11-14); written from the code for ADR 0001 (2026-09/10); Chris on compatibility (2026-07-09, 2026-09-17, 2026-10-06); PRs #54, #70, #77, #111, #114, #124, #136 (reverted by #154, 2026-10-09), #140, #141, #145; codebase cleanup (2026-10-08); connection-loss tests (2026-10-12); verified against firmware/src, firmware/src_hwtype and server/src/modules/device-protocol on 2026-10-08
 paths:
   - firmware/src/**
   - firmware/src_hwtype/**
@@ -94,10 +94,11 @@ Every topic is `/devices/<device_id>/<name>`, with the device's own id. The devi
 | `command` | server → device | server | device |
 | `firmware` | server → device | server | device: OTA |
 | `tunnel_write` | server → device | server | device: tunnel |
-| `fwupdate` | server → device | nobody today | device: OTA from a URL |
+| `fwupdate` | server → device | nobody today | firmware before 2026-11-27: OTA from a URL |
 | `control/#` | server → device | nobody today | device: direct output control |
 
-The device subscribes to `configuration`, `firmware`, `fwupdate`, `command`, `control/#` and `tunnel_write`
+The device subscribes to `configuration`, `firmware`, `command`, `control/#` and `tunnel_write` (builds before
+2026-11-27 also to `fwupdate`)
 (`fridgecloud.cpp:186-362`) and publishes on the rest. The server subscribes to `/devices/#`
 (`device-ingest.service.ts`) and therefore also sees its own outbound messages echoed back; it ignores the echoes of
 `tunnel_write`, `command` and `firmware`, drops `image` (nothing asks for a still that way any more, see
@@ -107,15 +108,15 @@ it is stored again as it is and not sent back. Messages from one device are hand
 arrived, because a report depends on the one before it (`sockets_n` before its chunks, `webcam_pwd` before
 `webcam_did`).
 
-`fwupdate` and `control/#` are subscribed by every device and **never published by the server today**. They stay
-reserved, and the broker's topic rules keep covering them, so a future server can use them without a firmware
-change.
+`control/#` is subscribed by every device and `fwupdate` by builds before 2026-11-27; the server **has never
+published either**. Both stay reserved, and the broker's topic rules keep covering them. `fwupdate` must never be
+used: it makes an older device download from any URL it is given.
 
 ---
 
 ## 3 HTTP
 
-A device makes four kinds of request. All of them are unauthenticated in the HTTP sense — the device proves
+A device makes three kinds of request (builds before 2026-11-27 a fourth, `fwupdate`'s). All of them are unauthenticated in the HTTP sense — the device proves
 itself with its own provisioning password in the body, or not at all.
 
 | Request | When | Firmware |
@@ -123,10 +124,15 @@ itself with its own provisioning password in the body, or not at all.
 | `POST {API_URL}/device/register` | "change server" from the menu or the phone form | `fridgecloud.cpp:710-745` |
 | `POST {API_URL}/device/claimcode` | "connect to portal" from the menu | `fridgecloud.cpp:683-708` |
 | `GET {API_URL}/device/firmware/<id>/firmware.bin` | after a `firmware` message | `fridgecloud.cpp:595-603` |
-| `GET <url>` | after an `fwupdate` message | `fridgecloud.cpp:605-681` |
+| `GET <url>` | after an `fwupdate` message, builds before 2026-11-27 only | - |
 
 `{API_URL}` is the base URL compiled into the build (`pioenv.py:11`). ADR 0001 puts the new `/v1` API under that
-same base, so these four paths keep their place beside it.
+same base, so these paths keep their place beside it.
+
+**Transport.** An `https://` URL is verified: chain and host name against the public root CAs the build bakes in
+(`ca_bundle.gen.h`, from `firmware/dev-build.sh`), not the certificate dates. A server the device is moved to
+therefore needs a publicly trusted certificate, or plain `http://`, which every build still speaks. Builds before
+2026-11-27 do not verify an `https://` server at all.
 
 ### 3.1 `POST /device/register`
 
@@ -184,8 +190,8 @@ The OTA download. The firmware builds the URL as `<API_URL>/device/firmware/<id>
 
 What the firmware requires of the answer (`fridgecloud.cpp:605-681`):
 
-- It accepts **any** `httpResponseCode > 0` (`:605-606`) — it does **not** check for 200. An error page would be
-  written to the OTA partition and rejected later by `Update.end()`, which is a silent failure.
+- It writes only a **200** into the `Update` partition. Builds before 2026-11-27 accept any `httpResponseCode > 0`:
+  an error page is written to the OTA partition and rejected later by `Update.end()`, a silent failure.
 - `Content-Length` matters: `http.getSize()` sizes `Update.begin()` so only the bytes that will be written are
   erased (`:618`). A missing length means `UPDATE_SIZE_UNKNOWN` and a full ~2 MiB erase, during which a flaky
   link can stall the download.
@@ -1253,11 +1259,11 @@ A device in this mode refuses `cam_relay`.
    the builds' version labels where the server has them. The protocol module tells the rollout what was reported
    before it stores it, because that comparison is what the rollout is deciding from.
 
-**`fwupdate` is the second, unused door.** A device also subscribes to `/devices/<id>/fwupdate` and accepts
-`{ "version": "<id>", "url": "<url>" }`, applying the same guard and then downloading from that arbitrary URL
-(`fridgecloud.cpp:205-222`). The server has never published it.
+**`fwupdate` was a second, unused door.** Builds before 2026-11-27 also subscribe to `/devices/<id>/fwupdate` and
+accept `{ "version": "<id>", "url": "<url>" }`, applying the same guard and then downloading from that arbitrary
+URL. The server has never published it, and later builds no longer listen.
 
-A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ignores both topics
+A build compiled without `FIRMWARE_VERSION` defines `NO_FIRMWARE_UPDATE` and ignores the `firmware` topic (older builds: both topics)
 (`fridgecloud.cpp:18-22,195,215`).
 
 ---
@@ -1464,7 +1470,8 @@ reader of either should not conclude from it.
   display is idle; the simulator always.
 - **Settings in `fetch`.** The simulator sends its document with every `fetch`, whatever its type; of the
   firmware, the cam sends none and a build before #141 none at all.
-- **`fwupdate` and `control/#`.** Subscribed by every device; published by neither the server nor the simulator.
+- **`fwupdate` and `control/#`.** Subscribed by the firmware (`fwupdate` only before 2026-11-27); published by
+  neither the server nor the simulator.
 
 The simulator is the cheapest way to exercise the cloud side of all of this — `./simulate-device.sh` registers,
 claims and then speaks these same topics — but where this document and `scripts/simulate-device.mjs` differ, the
