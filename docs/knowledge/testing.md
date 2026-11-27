@@ -58,7 +58,10 @@ hardware, the development devices and copies of production data are in
 - `image-store.spec.ts` runs the S3 store against an in-memory stand-in for the six commands it sends; with
   `TEST_S3_ENDPOINT` (and `TEST_S3_ACCESS_KEY_ID`/`_SECRET_ACCESS_KEY`) against a real service. The MinIO images are
   gone from Docker Hub and quay.io (2026-11-27); `docker run -d -p 127.0.0.1:<port>:8333 chrislusf/seaweedfs server
-  -s3 -dir=/data` serves S3 without credentials checks and passed the spec. The SDK's paginators refuse a client that
+  -s3 -dir=/data -volume.max=100 -master.volumeSizeLimitMB=64` serves S3 without credentials checks and passed the
+  spec. Without the two volume flags it has room for one bucket only: every PutObject to a second fails with an S3
+  `InternalError` ("We encountered an internal error"), its log saying "No writable volumes and no free volumes
+  left". The SDK's paginators refuse a client that
   is not an `S3Client`, which is why `S3Objects.list` pages by hand.
 - The integration suite fakes InfluxDB and SMTP, so a live probe against a stack still finds what it cannot
   ([rebuild its server first](#own-test-stacks)).
