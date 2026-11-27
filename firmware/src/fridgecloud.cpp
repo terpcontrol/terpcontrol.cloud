@@ -25,10 +25,12 @@
 
 // An https:// server has to prove itself against the public root CAs baked in
 // at build time; http:// stays possible for local stacks and self-hosted
-// servers without TLS. `secure` has to outlive `http`.
+// servers without TLS. `secure` has to outlive `http`. The handshake is cut
+// short well inside the 60 s loop watchdog; the framework's default is 120 s.
 static bool beginHttp(HTTPClient& http, WiFiClientSecure& secure, const std::string& url) {
   if(url.rfind("https://", 0) == 0) {
     secure.setCACertBundle(CA_BUNDLE);
+    secure.setHandshakeTimeout(30);
     return http.begin(secure, url.c_str());
   }
   return http.begin(url.c_str());
