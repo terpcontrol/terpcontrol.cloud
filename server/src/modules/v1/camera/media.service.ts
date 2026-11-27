@@ -18,8 +18,8 @@ import { picturesTheWayBackHolds } from '@/migrations/way-back';
 /**
  * The `media` collection: one row per picture and per film, and the bytes of it.
  *
- * The bytes live in the GridFS bucket they have always lived in, under the id of
- * the row that indexes them - so a still, a film, a diary photo and an avatar are
+ * The bytes live in the image store - GridFS, or an S3 bucket where one is
+ * configured - under the id of the row that indexes them - so a still, a film, a diary photo and an avatar are
  * one kind of thing to everything downstream, and the migration moved no file.
  *
  * Deleting a row deletes its bytes: the `media` schema hangs the store off its

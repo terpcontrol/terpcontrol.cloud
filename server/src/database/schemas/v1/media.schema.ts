@@ -6,8 +6,8 @@ import { deleteStoredImages } from '../../image-store';
 import { orientationSchema } from './cameras.schema';
 
 /**
- * A picture or a film. The bytes stay in the GridFS bucket, whose file id is this
- * document's `id`, so the two collections are joined by nothing but that id.
+ * A picture or a film. The bytes are in the image store (GridFS or S3), filed
+ * under this document's `id`, so the two are joined by nothing but that id.
  *
  * A picture belongs to a camera, a grow or a space, never to a device. What is
  * about none of them is `null` there and never missing: the sweeps below and the

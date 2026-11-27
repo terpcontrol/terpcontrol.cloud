@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { mongo } from 'mongoose';
-import { IMAGE_BUCKET_NAME, deleteStoredImages } from '@database/image-store';
+import { IMAGE_BUCKET_NAME, deleteGridFsFiles } from '@database/image-store';
 import { LEGACY, bytesOf } from '../legacy';
 import { MigrationContext, MigrationStep } from '../migration';
 
@@ -88,7 +88,7 @@ const store = async (bucket: mongo.GridFSBucket, db: mongo.Db, id: string, data:
 
   // Whatever is in the store is not this picture: an upload that was interrupted
   // leaves chunks behind that no file document names.
-  await deleteStoredImages(db, [id]);
+  await deleteGridFsFiles(db, [id]);
   await pipeline(Readable.from(data), bucket.openUploadStreamWithId(id as unknown as mongo.ObjectId, id));
 
   if (!(await readsBack(bucket, id, data))) throw new Error(`The store does not read picture ${id} back byte for byte`);

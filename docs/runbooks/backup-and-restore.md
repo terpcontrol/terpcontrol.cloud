@@ -1,7 +1,7 @@
 ---
 summary: Backing up and restoring a stack beyond the README's commands - what a backup holds and misses, one-database backups, deploy hosts, restoring into a migrated database or from another install
 updated: 2026-11-27
-source: backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26; the full disk the nightly backup caused on 2026-11-27
+source: the S3 bucket for pictures (2026-11-27); backup.sh, restore.sh, scripts/compose.sh and server/src/migrations/README.md as of 2026-10-08; commits 2025-10-30..2026-10-06; the production hotfix of 2026-09-23 (backup on a deploy host); a failed scheduled backup and the disk peak measured on 2026-11-26; the full disk the nightly backup caused on 2026-11-27
 paths:
   - backup.sh
   - restore.sh
@@ -23,7 +23,9 @@ needs beyond them.
   of it.
 - The InfluxDB backup: every reading, the daily summaries included (they live in the same bucket,
   `INFLUXDB_BUCKET`).
-- **Not in it:** the env file and `mqtts-ca.key`. Keep both beside the backup. Devices have the API address, the MQTT
+- **Not in it:** an S3 bucket the pictures are stored in (`S3_BUCKET`, [data.md](../knowledge/data.md)) - the dump
+  then holds only what has not been moved yet. Back the bucket up with the provider's tools.
+- **Not in it either:** the env file and `mqtts-ca.key`. Keep both beside the backup. Devices have the API address, the MQTT
   host and the MQTTS CA built into their firmware, so an install restored elsewhere has to answer at the same
   addresses and serve a certificate signed by the same CA ([mqtts-certificates.md](mqtts-certificates.md)).
 

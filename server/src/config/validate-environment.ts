@@ -41,8 +41,19 @@ const environmentSchema = z
 
     ADMINUSER_USERNAME: required('ADMINUSER_USERNAME'),
     ADMINUSER_PASSWORD: required('ADMINUSER_PASSWORD'),
+
+    S3_BUCKET: z.string().optional(),
+    S3_REGION: z.string().optional(),
+    S3_ACCESS_KEY_ID: z.string().optional(),
+    S3_SECRET_ACCESS_KEY: z.string().optional(),
   })
-  .loose();
+  .loose()
+  // A bucket without a region fails on the first picture rather than at boot,
+  // and a key without its secret is a typo nobody would otherwise see until then.
+  .refine(env => !env.S3_BUCKET || !!env.S3_REGION, { error: 'S3_REGION is required with S3_BUCKET' })
+  .refine(env => !env.S3_BUCKET || !env.S3_ACCESS_KEY_ID === !env.S3_SECRET_ACCESS_KEY, {
+    error: 'S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY go together',
+  });
 
 /**
  * Handed to `ConfigModule.forRoot`, which calls it before anything is
