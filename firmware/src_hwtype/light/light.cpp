@@ -1,6 +1,7 @@
 #include "light.h"
 #include "dashboard.h"
 #include "wifi.h"
+#include "language.h"
 #include <MCP7940.h>
 
 #include <sstream>
@@ -241,8 +242,8 @@ void LightController::saveAndUploadSettings() {
 
     menu->addOption("Dashboard", ICON_DASHBOARD, [ui, this](){ ui->pop(); });
 
-    menu->addOption("System Time (UTC)", ICON_DAY, [ui, this](){
-      ui->push<TimeEntry>("System Time (UTC)", state.timeofday, [ui, this](uint32_t value) {
+    menu->addOption(tr(Text::SYSTEM_TIME_UTC), ICON_DAY, [ui, this](){
+      ui->push<TimeEntry>(tr(Text::SYSTEM_TIME_UTC), state.timeofday, [ui, this](uint32_t value) {
         struct timeval time_now;
         time_now.tv_sec = value;
         time_now.tv_usec = 0;
@@ -256,48 +257,48 @@ void LightController::saveAndUploadSettings() {
       });
     });
 
-    menu->addOption("Dayrise", ICON_DAY, [ui, this](){
-      ui->push<TimeEntry>("Dayrise", settings.day, [ui, this](uint32_t value) {
+    menu->addOption(tr(Text::DAYRISE), ICON_DAY, [ui, this](){
+      ui->push<TimeEntry>(tr(Text::DAYRISE), settings.day, [ui, this](uint32_t value) {
         settings.day = value;
         saveAndUploadSettings();
         ui->pop();
       });
     });
 
-    menu->addOption("Nightfall", ICON_NIGHT, [ui, this](){
-      ui->push<TimeEntry>("Nightfall", settings.night, [ui, this](uint32_t value) {
+    menu->addOption(tr(Text::NIGHTFALL), ICON_NIGHT, [ui, this](){
+      ui->push<TimeEntry>(tr(Text::NIGHTFALL), settings.night, [ui, this](uint32_t value) {
         settings.night = value;
         saveAndUploadSettings();
         ui->pop();
       });
     });
 
-    menu->addOption("Power Limit", ICON_DAY, [ui, this](){
-      ui->push<FloatInput>("Power Limit", settings.limit, "%", 0, 100, 5, 0, [ui, this](float value) {
+    menu->addOption(tr(Text::POWER_LIMIT), ICON_DAY, [ui, this](){
+      ui->push<FloatInput>(tr(Text::POWER_LIMIT), settings.limit, "%", 0, 100, 5, 0, [ui, this](float value) {
         settings.limit = value;
         saveAndUploadSettings();
         ui->pop();
       });
     });
 
-    menu->addOption("Overheat Protection", ICON_TEMPERATURE, [ui, this](){
-      ui->push<FloatInput>("Overheat Protection", settings.max_temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+    menu->addOption(tr(Text::OVERHEAT_PROTECTION), ICON_TEMPERATURE, [ui, this](){
+      ui->push<FloatInput>(tr(Text::OVERHEAT_PROTECTION), settings.max_temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
         settings.max_temperature = value;
         saveAndUploadSettings();
         ui->pop();
       });
     });
 
-    menu->addOption("Sunrise", ICON_DAY, [ui, this](){
-      ui->push<FloatInput>("Sunrise", settings.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
+    menu->addOption(tr(Text::SUNRISE), ICON_DAY, [ui, this](){
+      ui->push<FloatInput>(tr(Text::SUNRISE), settings.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
         settings.sunrise = value;
         saveAndUploadSettings();
         ui->pop();
       });
     });
 
-    menu->addOption("Sunset", ICON_NIGHT, [ui, this](){
-      ui->push<FloatInput>("Sunset", settings.sunset, "min", 0, 60, 1, 0, [ui, this](float value) {
+    menu->addOption(tr(Text::SUNSET), ICON_NIGHT, [ui, this](){
+      ui->push<FloatInput>(tr(Text::SUNSET), settings.sunset, "min", 0, 60, 1, 0, [ui, this](float value) {
         settings.sunset = value;
         saveAndUploadSettings();
         ui->pop();
@@ -308,8 +309,12 @@ void LightController::saveAndUploadSettings() {
       showTerpCamUi(ui, &cloud);
     });
 
-    menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
+    menu->addOption(tr(Text::WIFI_CONNECTION), ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
+    });
+
+    menu->addOption(tr(Text::SETTINGS), ICON_SETTINGS, [ui, this](){
+      showSettingsUi(ui, [ui, this](){ initSettingsMenu(ui); });
     });
   }
 

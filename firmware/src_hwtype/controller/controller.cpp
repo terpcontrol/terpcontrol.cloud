@@ -1,6 +1,7 @@
 #include "controller.h"
 #include "dashboard.h"
 #include "wifi.h"
+#include "language.h"
 #include <MCP7940.h>
 #include <Adafruit_MLX90632.h>
 #include <Adafruit_VEML7700.h>
@@ -1117,8 +1118,8 @@ namespace fg {
 
     menu->addOption("Dashboard", ICON_DASHBOARD, [ui, this](){ ui->pop(); });
 
-    menu->addOption("Maintenance mode", ICON_SETTINGS, [ui, this](){
-      ui->push<FloatInput>("Pause fridge for", 30, "min", 0, 120, 5, 0, [ui, this](float value) {
+    menu->addOption(tr(Text::MAINTENANCE_MODE), ICON_SETTINGS, [ui, this](){
+      ui->push<FloatInput>(tr(Text::PAUSE_FRIDGE_FOR), 30, "min", 0, 120, 5, 0, [ui, this](float value) {
         char buf[64];
 
         pause_start_tick = xTaskGetTickCount();
@@ -1129,10 +1130,10 @@ namespace fg {
         ui->pop();
 
         if (value > 0) {
-          snprintf(buf, sizeof(buf), " CO2, Fridge & Heater \n  paused for %d mins  ", (int)roundf(value));
+          snprintf(buf, sizeof(buf), tr(Text::MAINTENANCE_PAUSED), (int)roundf(value));
         }
         else {
-          snprintf(buf, sizeof(buf), "  Maintenance mode  \n     deactivated");;
+          snprintf(buf, sizeof(buf), "%s", tr(Text::MAINTENANCE_ENDED));
         }
         ui->push<TextDisplay>(buf, 1, [ui, this](){
           ui->pop();
@@ -1141,8 +1142,8 @@ namespace fg {
     });
 
 
-      menu->addOption("System Time (UTC)", ICON_DAY, [ui, this](){
-        ui->push<TimeEntry>("System Time (UTC)", state.timeofday, [ui, this](uint32_t value) {
+      menu->addOption(tr(Text::SYSTEM_TIME_UTC), ICON_DAY, [ui, this](){
+        ui->push<TimeEntry>(tr(Text::SYSTEM_TIME_UTC), state.timeofday, [ui, this](uint32_t value) {
           struct timeval time_now;
           time_now.tv_sec = value;
           time_now.tv_usec = 0;
@@ -1156,7 +1157,7 @@ namespace fg {
         });
       });
 
-      menu->addOption("Control Mode", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::CONTROL_MODE), ICON_SETTINGS, [ui, this](){
         int mode = 0;
         for(int i = 0; i < modes.size(); i++) {
           if(settings.workmode == modes[i]) {
@@ -1165,7 +1166,7 @@ namespace fg {
           }
         }
 
-        ui->push<SelectInput>("Control Mode", mode, std::vector<std::string>{"OFF", "Germination", "Greenhouse", "Small Plant", "Drying"}, [ui, this](uint32_t mode) {
+        ui->push<SelectInput>(tr(Text::CONTROL_MODE), mode, std::vector<std::string>{tr(Text::MODE_OFF), tr(Text::GERMINATION), tr(Text::GREENHOUSE), tr(Text::SMALL_PLANT), tr(Text::DRYING)}, [ui, this](uint32_t mode) {
 
           settings.workmode = modes[mode];
           Serial.print("MODE:");
@@ -1181,8 +1182,8 @@ namespace fg {
       });
 
       if(settings.workmode == ControllerControllerSettings::MODE_BREED || settings.workmode == ControllerControllerSettings::MODE_DRY) {
-        menu->addOption("Temperature", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("Temperature", settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::TEMPERATURE), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::TEMPERATURE), settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.night.temperature = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1190,31 +1191,31 @@ namespace fg {
         });
       }
       if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
-        menu->addOption("Dayrise (UTC)", ICON_DAY, [ui, this](){
-          ui->push<TimeEntry>("Dayrise (UTC)", settings.daynight.day, [ui, this](uint32_t value) {
+        menu->addOption(tr(Text::DAYRISE_UTC), ICON_DAY, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::DAYRISE_UTC), settings.daynight.day, [ui, this](uint32_t value) {
             settings.daynight.day = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("Nightfall (UTC)", ICON_NIGHT, [ui, this](){
-          ui->push<TimeEntry>("Nightfall (UTC)", settings.daynight.night, [ui, this](uint32_t value) {
+        menu->addOption(tr(Text::NIGHTFALL_UTC), ICON_NIGHT, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::NIGHTFALL_UTC), settings.daynight.night, [ui, this](uint32_t value) {
             settings.daynight.night = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("Day Temperature", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("Day Temperature", settings.day.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::DAY_TEMPERATURE), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::DAY_TEMPERATURE), settings.day.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.day.temperature = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
-        menu->addOption("Night Temperature", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("Night Temperature", settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::NIGHT_TEMPERATURE), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::NIGHT_TEMPERATURE), settings.night.temperature, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.night.temperature = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1223,15 +1224,15 @@ namespace fg {
       }
 
       if(settings.workmode == ControllerControllerSettings::MODE_SMALL || settings.workmode == ControllerControllerSettings::MODE_DRY) {
-        menu->addOption("Day Humidity", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("Day Humidity", settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::DAY_HUMIDITY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::DAY_HUMIDITY), settings.day.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.day.humidity = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
-        menu->addOption("Night Humidity", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("Night Humidity", settings.night.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::NIGHT_HUMIDITY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::NIGHT_HUMIDITY), settings.night.humidity, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.night.humidity = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1257,22 +1258,22 @@ namespace fg {
       }
 
       if(settings.workmode == ControllerControllerSettings::MODE_TEMP || settings.workmode == ControllerControllerSettings::MODE_SMALL) {
-        menu->addOption("Sunrise", ICON_DAY, [ui, this](){
-          ui->push<FloatInput>("Sunrise", settings.lights.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::SUNRISE), ICON_DAY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::SUNRISE), settings.lights.sunrise, "min", 0, 60, 1, 0, [ui, this](float value) {
             settings.lights.sunrise = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
-        menu->addOption("Sunset", ICON_NIGHT, [ui, this](){
-          ui->push<FloatInput>("Sunset", settings.lights.sunset, "min", 0, 60, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::SUNSET), ICON_NIGHT, [ui, this](){
+          ui->push<FloatInput>(tr(Text::SUNSET), settings.lights.sunset, "min", 0, 60, 1, 0, [ui, this](float value) {
             settings.lights.sunset = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
-        menu->addOption("Max Light", ICON_DAY, [ui, this](){
-          ui->push<FloatInput>("Max Light", settings.lights.limit, "%", 0, 100, 5, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::MAX_LIGHT), ICON_DAY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::MAX_LIGHT), settings.lights.limit, "%", 0, 100, 5, 0, [ui, this](float value) {
             settings.lights.limit = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1280,7 +1281,7 @@ namespace fg {
         });
       }
 
-    menu->addOption("Smart Sockets", ICON_SETTINGS, [ui, this](){
+    menu->addOption(tr(Text::SMART_SOCKETS), ICON_SETTINGS, [ui, this](){
       showSmartSocketsUi(ui, &cloud);
     });
 
@@ -1288,8 +1289,12 @@ namespace fg {
       showTerpCamUi(ui, &cloud);
     });
 
-    menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
+    menu->addOption(tr(Text::WIFI_CONNECTION), ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
+    });
+
+    menu->addOption(tr(Text::SETTINGS), ICON_SETTINGS, [ui, this](){
+      showSettingsUi(ui, [ui, this](){ initSettingsMenu(ui); });
     });
   }
 

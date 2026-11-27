@@ -1,6 +1,7 @@
 #include "plug.h"
 #include "dashboard.h"
 #include "wifi.h"
+#include "language.h"
 #include <MCP7940.h>
 #include <sstream>
 
@@ -877,7 +878,7 @@ namespace fg {
 
     menu->addOption("Dashboard", ICON_DASHBOARD, [ui, this](){ ui->pop(); });
 
-    menu->addOption("Control Mode", ICON_SETTINGS, [ui, this](){
+    menu->addOption(tr(Text::CONTROL_MODE), ICON_SETTINGS, [ui, this](){
       int mode = 0;
       for(int i = 0; i < modes.size(); i++) {
         if(settings.workmode == modes[i]) {
@@ -886,7 +887,7 @@ namespace fg {
         }
       }
 
-      ui->push<SelectInput>("Control Mode", mode, std::vector<std::string>{"Off", "Heater", "Cooler", "Humidifier", "Dehumidifier", "Co2", "Timer"}, [ui, this](uint32_t mode) {
+      ui->push<SelectInput>(tr(Text::CONTROL_MODE), mode, std::vector<std::string>{tr(Text::PLUG_MODE_OFF), tr(Text::HEATER), tr(Text::COOLER), tr(Text::HUMIDIFIER), tr(Text::DEHUMIDIFIER), tr(Text::PLUG_MODE_CO2), tr(Text::PLUG_MODE_TIMER)}, [ui, this](uint32_t mode) {
 
         settings.workmode = modes[mode];
         Serial.print("MODE:");
@@ -899,8 +900,8 @@ namespace fg {
     });
 
     if(settings.workmode != PlugControllerSettings::MODE_OFF && settings.workmode != PlugControllerSettings::MODE_TIMER) {
-      menu->addOption("Use Day/Night", ICON_SETTINGS, [ui, this](){
-        ui->push<SelectInput>("Use Day/Night", settings.usedaynight ? 0 : 1, std::vector<std::string>{"Yes", "No"}, [ui, this](uint32_t daynight) {
+      menu->addOption(tr(Text::USE_DAY_NIGHT), ICON_SETTINGS, [ui, this](){
+        ui->push<SelectInput>(tr(Text::USE_DAY_NIGHT), settings.usedaynight ? 0 : 1, std::vector<std::string>{tr(Text::YES_UPPER), tr(Text::NO_UPPER)}, [ui, this](uint32_t daynight) {
 
           settings.usedaynight = daynight == 0;
           ui->pop();
@@ -911,8 +912,8 @@ namespace fg {
       });
 
       if(settings.usedaynight) {
-        menu->addOption("System Time (UTC)", ICON_DAY, [ui, this](){
-          ui->push<TimeEntry>("System Time (UTC)", state.timeofday, [ui, this](uint32_t value) {
+        menu->addOption(tr(Text::SYSTEM_TIME_UTC), ICON_DAY, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::SYSTEM_TIME_UTC), state.timeofday, [ui, this](uint32_t value) {
             struct timeval time_now;
             time_now.tv_sec = value;
             time_now.tv_usec = 0;
@@ -926,16 +927,16 @@ namespace fg {
           });
         });
 
-        menu->addOption("Dayrise (UTC)", ICON_DAY, [ui, this](){
-          ui->push<TimeEntry>("Dayrise (UTC)", settings.daynight.day, [ui, this](uint32_t value) {
+        menu->addOption(tr(Text::DAYRISE_UTC), ICON_DAY, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::DAYRISE_UTC), settings.daynight.day, [ui, this](uint32_t value) {
             settings.daynight.day = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("Nightfall (UTC)", ICON_NIGHT, [ui, this](){
-          ui->push<TimeEntry>("Nightfall (UTC)", settings.daynight.night, [ui, this](uint32_t value) {
+        menu->addOption(tr(Text::NIGHTFALL_UTC), ICON_NIGHT, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::NIGHTFALL_UTC), settings.daynight.night, [ui, this](uint32_t value) {
             settings.daynight.night = value;
             saveAndUploadSettings();
             ui->pop();
@@ -947,32 +948,32 @@ namespace fg {
     if(settings.workmode == PlugControllerSettings::MODE_HEAT) {
 
       if(settings.usedaynight) {
-        menu->addOption("ON Day", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON Day", settings.heater.day.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_DAY), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_DAY), settings.heater.day.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.day.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Day", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF Day", settings.heater.day.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_DAY), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_DAY), settings.heater.day.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.day.off = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("ON Night", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON Night", settings.heater.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_NIGHT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_NIGHT), settings.heater.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Night", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF Night", settings.heater.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_NIGHT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_NIGHT), settings.heater.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -980,16 +981,16 @@ namespace fg {
         });
       }
       else {
-        menu->addOption("ON", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON", settings.heater.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT), settings.heater.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF", settings.heater.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT), settings.heater.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.heater.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1002,32 +1003,32 @@ namespace fg {
     if(settings.workmode == PlugControllerSettings::MODE_COOL) {
 
       if(settings.usedaynight) {
-        menu->addOption("ON Day", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON Day", settings.cooler.day.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_DAY), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_DAY), settings.cooler.day.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.day.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Day", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF Day", settings.cooler.day.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_DAY), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_DAY), settings.cooler.day.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.day.off = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("ON Night", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON Night", settings.cooler.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_NIGHT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_NIGHT), settings.cooler.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Night", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF Night", settings.cooler.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_NIGHT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_NIGHT), settings.cooler.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1035,16 +1036,16 @@ namespace fg {
         });
       }
       else {
-        menu->addOption("ON", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("ON", settings.cooler.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT), settings.cooler.night.on, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF", ICON_TEMPERATURE, [ui, this](){
-          ui->push<FloatInput>("OFF", settings.cooler.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT), ICON_TEMPERATURE, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT), settings.cooler.night.off, "C", 0, 40, 1, 0, [ui, this](float value) {
             settings.cooler.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1057,32 +1058,32 @@ namespace fg {
     if(settings.workmode == PlugControllerSettings::MODE_HUMIDIFY) {
 
       if(settings.usedaynight) {
-        menu->addOption("ON Day", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON Day", settings.humidify.day.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_DAY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_DAY), settings.humidify.day.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.day.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Day", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF Day", settings.humidify.day.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_DAY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_DAY), settings.humidify.day.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.day.off = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("ON Night", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON Night", settings.humidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_NIGHT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_NIGHT), settings.humidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Night", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF Night", settings.humidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_NIGHT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_NIGHT), settings.humidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1090,16 +1091,16 @@ namespace fg {
         });
       }
       else {
-        menu->addOption("ON", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON", settings.humidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT), settings.humidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF", settings.humidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT), settings.humidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.humidify.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1112,32 +1113,32 @@ namespace fg {
     if(settings.workmode == PlugControllerSettings::MODE_DEHUMIDIFY) {
 
       if(settings.usedaynight) {
-        menu->addOption("ON Day", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON Day", settings.dehumidify.day.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_DAY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_DAY), settings.dehumidify.day.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.day.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Day", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF Day", settings.dehumidify.day.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_DAY), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_DAY), settings.dehumidify.day.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.day.off = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("ON Night", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON Night", settings.dehumidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT_NIGHT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT_NIGHT), settings.dehumidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF Night", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF Night", settings.dehumidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT_NIGHT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT_NIGHT), settings.dehumidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1145,16 +1146,16 @@ namespace fg {
         });
       }
       else {
-        menu->addOption("ON", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("ON", settings.dehumidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::ON_POINT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::ON_POINT), settings.dehumidify.night.on, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.night.on = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("OFF", ICON_HUMIDITY, [ui, this](){
-          ui->push<FloatInput>("OFF", settings.dehumidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::OFF_POINT), ICON_HUMIDITY, [ui, this](){
+          ui->push<FloatInput>(tr(Text::OFF_POINT), settings.dehumidify.night.off, "%", 0, 100, 1, 0, [ui, this](float value) {
             settings.dehumidify.night.off = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1165,7 +1166,7 @@ namespace fg {
 
     if(settings.workmode == PlugControllerSettings::MODE_CO2) {
 
-      menu->addOption("CO2 Mode", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::CO2_MODE), ICON_SETTINGS, [ui, this](){
         int co2mode = 0;
         for(int i = 0; i < co2modes.size(); i++) {
           if(settings.co2.mode == co2modes[i]) {
@@ -1173,7 +1174,7 @@ namespace fg {
             break;
           }
         }
-        ui->push<SelectInput>("CO2 Mode", co2mode, std::vector<std::string>{"Constant", "Periodic"}, [ui, this](uint32_t mode) {
+        ui->push<SelectInput>(tr(Text::CO2_MODE), co2mode, std::vector<std::string>{tr(Text::CONSTANT), tr(Text::PERIODIC)}, [ui, this](uint32_t mode) {
           settings.co2.mode = co2modes[mode];
           ui->pop();
           ui->pop();
@@ -1183,16 +1184,16 @@ namespace fg {
       });
 
       if(settings.co2.mode == PlugControllerSettings::CO2MODE_PERIODIC) {
-        menu->addOption("Period", ICON_SETTINGS, [ui, this](){
-          ui->push<FloatInput>("Period", settings.co2.period, "min", 0, 120, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::PERIOD), ICON_SETTINGS, [ui, this](){
+          ui->push<FloatInput>(tr(Text::PERIOD), settings.co2.period, "min", 0, 120, 1, 0, [ui, this](float value) {
             settings.co2.period = value;
             saveAndUploadSettings();
             ui->pop();
           });
         });
 
-        menu->addOption("Duration", ICON_SETTINGS, [ui, this](){
-          ui->push<FloatInput>("Duration", settings.co2.duration, "min", 0, 60, 1, 0, [ui, this](float value) {
+        menu->addOption(tr(Text::DURATION), ICON_SETTINGS, [ui, this](){
+          ui->push<FloatInput>(tr(Text::DURATION), settings.co2.duration, "min", 0, 60, 1, 0, [ui, this](float value) {
             settings.co2.duration = value;
             saveAndUploadSettings();
             ui->pop();
@@ -1200,16 +1201,16 @@ namespace fg {
         });
       }
 
-      menu->addOption("ON", ICON_SETTINGS, [ui, this](){
-        ui->push<FloatInput>("ON", settings.co2.on, "", 0, 2000, 50, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::ON_POINT), ICON_SETTINGS, [ui, this](){
+        ui->push<FloatInput>(tr(Text::ON_POINT), settings.co2.on, "", 0, 2000, 50, 0, [ui, this](float value) {
           settings.co2.on = value;
           saveAndUploadSettings();
           ui->pop();
         });
       });
 
-      menu->addOption("OFF", ICON_SETTINGS, [ui, this](){
-        ui->push<FloatInput>("OFF", settings.co2.off, "", 0, 2000, 50, 0, [ui, this](float value) {
+      menu->addOption(tr(Text::OFF_POINT), ICON_SETTINGS, [ui, this](){
+        ui->push<FloatInput>(tr(Text::OFF_POINT), settings.co2.off, "", 0, 2000, 50, 0, [ui, this](float value) {
           settings.co2.off = value;
           saveAndUploadSettings();
           ui->pop();
@@ -1218,8 +1219,8 @@ namespace fg {
     }
 
     if(settings.workmode == PlugControllerSettings::MODE_TIMER) {
-      menu->addOption("System Time (UTC)", ICON_DAY, [ui, this](){
-          ui->push<TimeEntry>("System Time (UTC)", state.timeofday, [ui, this](uint32_t value) {
+      menu->addOption(tr(Text::SYSTEM_TIME_UTC), ICON_DAY, [ui, this](){
+          ui->push<TimeEntry>(tr(Text::SYSTEM_TIME_UTC), state.timeofday, [ui, this](uint32_t value) {
             struct timeval time_now;
             time_now.tv_sec = value;
             time_now.tv_usec = 0;
@@ -1233,10 +1234,10 @@ namespace fg {
           });
         });
 
-      menu->addOption("Timeslots", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::TIMESLOTS), ICON_SETTINGS, [ui, this](){
         auto menu = ui->push<SelectMenu>();
 
-        menu->addOption("back...", ICON_SETTINGS, [ui, this](){
+        menu->addOption(tr(Text::BACK_MENU), ICON_SETTINGS, [ui, this](){
           ui->pop();
           ui->pop();
         });
@@ -1246,8 +1247,8 @@ namespace fg {
 
           char time_name[128];
           char duration_name[128];
-          sprintf(time_name, "On-Time %d", id);
-          sprintf(duration_name, "Duration %d", id);
+          sprintf(time_name, tr(Text::ON_TIME_N), id);
+          sprintf(duration_name, tr(Text::DURATION_N), id);
 
           menu->addOption(time_name, ICON_SETTINGS, [ui, this, time_name, &timeframe](){
             ui->push<TimeEntry>(time_name, timeframe.ontime, [ui, this, &timeframe](uint32_t value) {
@@ -1267,7 +1268,7 @@ namespace fg {
           id++;
         }
 
-        menu->addOption("add", ICON_SETTINGS, [ui, this](){
+        menu->addOption(tr(Text::ADD), ICON_SETTINGS, [ui, this](){
           settings.timer.timeframes.push_back({36000, 10});
           saveAndUploadSettings();
           ui->pop();
@@ -1276,7 +1277,7 @@ namespace fg {
         });
 
         if(settings.timer.timeframes.size() > 0) {
-          menu->addOption("remove", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::REMOVE), ICON_SETTINGS, [ui, this](){
             settings.timer.timeframes.pop_back();
             saveAndUploadSettings();
             ui->pop();
@@ -1287,22 +1288,22 @@ namespace fg {
       });
     }
 
-    menu->addOption("Projections", ICON_SETTINGS, [ui, this](){
+    menu->addOption(tr(Text::PROJECTIONS), ICON_SETTINGS, [ui, this](){
       auto menu = ui->push<SelectMenu>();
 
-      menu->addOption("back...", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::BACK_MENU), ICON_SETTINGS, [ui, this](){
         ui->pop();
       });
 
-      menu->addOption("Overtemperature", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::OVERTEMPERATURE), ICON_SETTINGS, [ui, this](){
         auto menu = ui->push<SelectMenu>();
 
-        menu->addOption("back...", ICON_SETTINGS, [ui, this](){
+        menu->addOption(tr(Text::BACK_MENU), ICON_SETTINGS, [ui, this](){
           ui->pop();
         });
 
         if(settings.limits.overtemperature.enabled) {
-          menu->addOption("disable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::DISABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.overtemperature.enabled = false;
             saveAndUploadSettings();
             ui->pop();
@@ -1311,16 +1312,16 @@ namespace fg {
             initSettingsMenu(ui);
           });
 
-          menu->addOption("Limit", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Limit", settings.limits.overtemperature.limit, "C", 0, 40, 1, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::LIMIT_LABEL), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::LIMIT_LABEL), settings.limits.overtemperature.limit, "C", 0, 40, 1, 0, [ui, this](float value) {
               settings.limits.overtemperature.limit = value;
               saveAndUploadSettings();
               ui->pop();
             });
           });
 
-          menu->addOption("Hysteresis", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Hysteresis", settings.limits.overtemperature.hysteresis, "C", 0, 10, 1, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::HYSTERESIS), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::HYSTERESIS), settings.limits.overtemperature.hysteresis, "C", 0, 10, 1, 0, [ui, this](float value) {
               settings.limits.overtemperature.hysteresis = value;
               saveAndUploadSettings();
               ui->pop();
@@ -1328,7 +1329,7 @@ namespace fg {
           });
         }
         else {
-          menu->addOption("enable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::ENABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.overtemperature.enabled = true;
             saveAndUploadSettings();
             ui->pop();
@@ -1339,15 +1340,15 @@ namespace fg {
         }
       });
 
-      menu->addOption("Undertemperature", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::UNDERTEMPERATURE), ICON_SETTINGS, [ui, this](){
         auto menu = ui->push<SelectMenu>();
 
-        menu->addOption("back...", ICON_SETTINGS, [ui, this](){
+        menu->addOption(tr(Text::BACK_MENU), ICON_SETTINGS, [ui, this](){
           ui->pop();
         });
 
         if(settings.limits.undertemperature.enabled) {
-          menu->addOption("disable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::DISABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.undertemperature.enabled = false;
             saveAndUploadSettings();
             ui->pop();
@@ -1356,16 +1357,16 @@ namespace fg {
             initSettingsMenu(ui);
           });
 
-          menu->addOption("Limit", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Limit", settings.limits.undertemperature.limit, "C", 0, 40, 1, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::LIMIT_LABEL), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::LIMIT_LABEL), settings.limits.undertemperature.limit, "C", 0, 40, 1, 0, [ui, this](float value) {
               settings.limits.undertemperature.limit = value;
               saveAndUploadSettings();
               ui->pop();
             });
           });
 
-          menu->addOption("Hysteresis", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Hysteresis", settings.limits.undertemperature.hysteresis, "C", 0, 10, 1, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::HYSTERESIS), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::HYSTERESIS), settings.limits.undertemperature.hysteresis, "C", 0, 10, 1, 0, [ui, this](float value) {
               settings.limits.undertemperature.hysteresis = value;
               saveAndUploadSettings();
               ui->pop();
@@ -1373,7 +1374,7 @@ namespace fg {
           });
         }
         else {
-          menu->addOption("enable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::ENABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.undertemperature.enabled = true;
             saveAndUploadSettings();
             ui->pop();
@@ -1384,15 +1385,15 @@ namespace fg {
         }
       });
 
-      menu->addOption("Timelimits", ICON_SETTINGS, [ui, this](){
+      menu->addOption(tr(Text::TIMELIMITS), ICON_SETTINGS, [ui, this](){
         auto menu = ui->push<SelectMenu>();
 
-        menu->addOption("back...", ICON_SETTINGS, [ui, this](){
+        menu->addOption(tr(Text::BACK_MENU), ICON_SETTINGS, [ui, this](){
           ui->pop();
         });
 
         if(settings.limits.time.enabled) {
-          menu->addOption("disable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::DISABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.time.enabled = false;
             saveAndUploadSettings();
             ui->pop();
@@ -1401,16 +1402,16 @@ namespace fg {
             initSettingsMenu(ui);
           });
 
-          menu->addOption("Min ON Time", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Min ON Time", settings.limits.time.min_on, "s", 0, 1800, 10, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::MIN_ON_TIME), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::MIN_ON_TIME), settings.limits.time.min_on, "s", 0, 1800, 10, 0, [ui, this](float value) {
               settings.limits.time.min_on = value;
               saveAndUploadSettings();
               ui->pop();
             });
           });
 
-          menu->addOption("Min OFF Time", ICON_TEMPERATURE, [ui, this](){
-            ui->push<FloatInput>("Min OFF Time", settings.limits.time.min_off, "s", 0, 1800, 10, 0, [ui, this](float value) {
+          menu->addOption(tr(Text::MIN_OFF_TIME), ICON_TEMPERATURE, [ui, this](){
+            ui->push<FloatInput>(tr(Text::MIN_OFF_TIME), settings.limits.time.min_off, "s", 0, 1800, 10, 0, [ui, this](float value) {
               settings.limits.time.min_off = value;
               saveAndUploadSettings();
               ui->pop();
@@ -1418,7 +1419,7 @@ namespace fg {
           });
         }
         else {
-          menu->addOption("enable", ICON_SETTINGS, [ui, this](){
+          menu->addOption(tr(Text::ENABLE), ICON_SETTINGS, [ui, this](){
             settings.limits.time.enabled = true;
             saveAndUploadSettings();
             ui->pop();
@@ -1436,8 +1437,12 @@ namespace fg {
       showTerpCamUi(ui, &cloud);
     });
 
-    menu->addOption("WiFi Connection", ICON_WIFI_FULL, [ui, this](){
+    menu->addOption(tr(Text::WIFI_CONNECTION), ICON_WIFI_FULL, [ui, this](){
       showWifiUi(ui, &cloud);
+    });
+
+    menu->addOption(tr(Text::SETTINGS), ICON_SETTINGS, [ui, this](){
+      showSettingsUi(ui, [ui, this](){ initSettingsMenu(ui); });
     });
   }
 

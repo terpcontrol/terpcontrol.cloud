@@ -32,7 +32,7 @@ namespace fg {
     //
     if(*sensor_type == SENSOR_TYPE_NONE) {
       UserInterface::display.setCursor(18, 4);
-      UserInterface::display.write("NO SENSOR");
+      UserInterface::display.write(tr(Text::NO_SENSOR));
     }
     else {
     std::stringstream value_print;

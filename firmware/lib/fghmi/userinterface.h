@@ -9,6 +9,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "lang.h"
+
 #include <unordered_map>
 #include <functional>
 #include <memory>

@@ -10,7 +10,7 @@ namespace fg {
     UserInterface::display.setTextColor(SSD1306_WHITE); // Draw white text
 
     UserInterface::display.setTextSize(1);
-    printCentered("updating...", 10);
+    printCentered(tr(Text::UPDATING), 10);
 
     // display.setFont(&FONT_VALUE);
     UserInterface::display.setTextSize(2);
