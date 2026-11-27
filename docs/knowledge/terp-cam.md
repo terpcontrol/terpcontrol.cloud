@@ -88,8 +88,9 @@ way and what the code has to respect. Internal notes on the camera exist.
   ffmpeg keeps (`-skip_frame nokey`), and the P-frames before it are dropped unread by the decoder.
 - Disconnecting resets the camera over its setup AP, because on the home Wi-Fi it takes no command. A power cycle
   does not get it there: a camera paired this way rejoined the home Wi-Fi after one (development fridge and camera,
-  2026-11-25). Its reset button does, so the device asks for it and waits up to 4 minutes for the AP; skipped, the
-  user is told to reset the camera by hand.
+  2026-11-25). Its reset button does. The device does not ask for it and wait: asking whether the button was pressed
+  and then looking for the AP for minutes made no sense to the user (Chris, 2026-11-27). When one scan does not find
+  the AP, the display says the reset failed and to press the camera's reset button, and OK closes it.
 
 ## Finding the camera on the LAN
 - `realdeviceid` (`webcam_did`) is the identity; `webcam_uid` and `webcam_ip` are hints. Discovery asks the cached
