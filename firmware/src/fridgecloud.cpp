@@ -707,6 +707,22 @@ namespace fg {
     return "";
   }
 
+  // Asks the cloud whether "change server" has to prompt for the join password:
+  // 204 means it takes devices without one, 403 that it takes no new devices.
+  // Anything else - 401, a server from before the HEAD route (404), no answer -
+  // asks for the password as every build before this one did.
+  Fridgecloud::RegistrationGate Fridgecloud::registrationGate(std::string api_url) {
+    HTTPClient http;
+    std::string url = api_url + "/device/register";
+    http.begin(url.c_str());
+    auto res = http.sendRequest("HEAD");
+    http.end();
+    Serial.println(res);
+    if(res == 204) return RegistrationGate::OPEN;
+    if(res == 403) return RegistrationGate::CLOSED;
+    return RegistrationGate::PASSWORD;
+  }
+
   bool Fridgecloud::registerWithCloud(std::string api_url, std::string password) {
     HTTPClient http;
     SettingsManager provisioning(NVS_PART, "fg_provisioning");
